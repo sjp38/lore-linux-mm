@@ -1,16 +1,16 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SJHMjK016081
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 15:17:22 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SJHM3l235538
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 15:17:22 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SJHLD6032679
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 15:17:21 -0400
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SJHQ6d025859
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 15:17:26 -0400
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SJHNQ2176426
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 13:17:23 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SJHNNh019838
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 13:17:23 -0600
 From: Eric Munson <ebmunson@us.ibm.com>
-Subject: [PATCH 5/5 V2] [PPC] Setup stack memory segment for hugetlb pages
-Date: Mon, 28 Jul 2008 12:17:15 -0700
-Message-Id: <d73cf131d1a8db8fcce1200634d2975fb552b575.1216928613.git.ebmunson@us.ibm.com>
+Subject: [PATCH 1/5 V2] Align stack boundaries based on personality
+Date: Mon, 28 Jul 2008 12:17:11 -0700
+Message-Id: <6061445882ce9574999bf343eeb333be02a1afa6.1216928613.git.ebmunson@us.ibm.com>
 In-Reply-To: <cover.1216928613.git.ebmunson@us.ibm.com>
 References: <cover.1216928613.git.ebmunson@us.ibm.com>
 In-Reply-To: <cover.1216928613.git.ebmunson@us.ibm.com>
@@ -18,87 +18,96 @@ References: <cover.1216928613.git.ebmunson@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, Eric Munson <ebmunson@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, Eric Munson <ebmunson@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Currently the memory slice that holds the process stack is always initialized
-to hold small pages.  This patch defines the weak function that is declared
-in the previos patch to convert the stack slice to hugetlb pages.
+This patch adds a personality flag that requests hugetlb pages be used for
+a processes stack.  It adds a helper function that chooses the proper ALIGN
+macro based on tthe process personality and calls this function from
+setup_arg_pages when aligning the stack address.
 
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 Signed-off-by: Eric Munson <ebmunson@us.ibm.com>
 
 ---
 Based on 2.6.26-rc8-mm1
 
 Changes from V1:
-Instead of setting the mm-wide page size to huge pages, set only the relavent
- slice psize using an arch defined weak function.
+Rebase to 2.6.26-rc8-mm1
 
- arch/powerpc/mm/hugetlbpage.c |    6 ++++++
- arch/powerpc/mm/slice.c       |   11 +++++++++++
- include/asm-powerpc/hugetlb.h |    3 +++
- 3 files changed, 20 insertions(+), 0 deletions(-)
+ fs/exec.c                   |   15 ++++++++++++++-
+ include/linux/hugetlb.h     |    3 +++
+ include/linux/personality.h |    3 +++
+ 3 files changed, 20 insertions(+), 1 deletions(-)
 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index fb42c4d..bd7f777 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -152,6 +152,12 @@ pmd_t *hpmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long addr,
- }
- #endif
- 
-+void hugetlb_mm_setup(struct mm_struct *mm, unsigned long addr,
-+			unsigned long len)
-+{
-+	slice_convert_address(mm, addr, len, shift_to_mmu_psize(HPAGE_SHIFT));
-+}
-+
- /* Build list of addresses of gigantic pages.  This function is used in early
-  * boot before the buddy or bootmem allocator is setup.
-  */
-diff --git a/arch/powerpc/mm/slice.c b/arch/powerpc/mm/slice.c
-index 583be67..d984733 100644
---- a/arch/powerpc/mm/slice.c
-+++ b/arch/powerpc/mm/slice.c
-@@ -30,6 +30,7 @@
- #include <linux/err.h>
- #include <linux/spinlock.h>
- #include <linux/module.h>
+diff --git a/fs/exec.c b/fs/exec.c
+index af9b29c..c99ba24 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -49,6 +49,7 @@
+ #include <linux/tsacct_kern.h>
+ #include <linux/cn_proc.h>
+ #include <linux/audit.h>
 +#include <linux/hugetlb.h>
- #include <asm/mman.h>
- #include <asm/mmu.h>
- #include <asm/spu.h>
-@@ -397,6 +398,16 @@ static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
- #define MMU_PAGE_BASE	MMU_PAGE_4K
- #endif
  
-+void slice_convert_address(struct mm_struct *mm, unsigned long addr,
-+				unsigned long len, unsigned int psize)
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -155,6 +156,18 @@ exit:
+ 	goto out;
+ }
+ 
++static unsigned long personality_page_align(unsigned long addr)
 +{
-+	struct slice_mask mask;
++	if (current->personality & HUGETLB_STACK)
++#ifdef CONFIG_STACK_GROWSUP
++		return HPAGE_ALIGN(addr);
++#else
++		return addr & HPAGE_MASK;
++#endif
 +
-+	mask = slice_range_to_mask(addr, len);
-+	slice_convert(mm, mask, psize);
-+	slice_flush_segments(mm);
++	return PAGE_ALIGN(addr);
 +}
 +
- unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
- 				      unsigned long flags, unsigned int psize,
- 				      int topdown, int use_cache)
-diff --git a/include/asm-powerpc/hugetlb.h b/include/asm-powerpc/hugetlb.h
-index 26f0d0a..10ef089 100644
---- a/include/asm-powerpc/hugetlb.h
-+++ b/include/asm-powerpc/hugetlb.h
-@@ -17,6 +17,9 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
- 			      pte_t *ptep);
+ #ifdef CONFIG_MMU
  
-+void slice_convert_address(struct mm_struct *mm, unsigned long addr,
-+				unsigned long len, unsigned int psize);
+ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+@@ -596,7 +609,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
+ 	bprm->p = vma->vm_end - stack_shift;
+ #else
+ 	stack_top = arch_align_stack(stack_top);
+-	stack_top = PAGE_ALIGN(stack_top);
++	stack_top = personality_page_align(stack_top);
+ 	stack_shift = vma->vm_end - stack_top;
+ 
+ 	bprm->p -= stack_shift;
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 9a71d4c..eed37d7 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -95,6 +95,9 @@ static inline unsigned long hugetlb_total_pages(void)
+ #ifndef HPAGE_MASK
+ #define HPAGE_MASK	PAGE_MASK		/* Keep the compiler happy */
+ #define HPAGE_SIZE	PAGE_SIZE
 +
- /*
-  * If the arch doesn't supply something else, assume that hugepage
-  * size aligned regions are ok without further preparation.
++/* to align the pointer to the (next) huge page boundary */
++#define HPAGE_ALIGN(addr)	ALIGN(addr, HPAGE_SIZE)
+ #endif
+ 
+ #endif /* !CONFIG_HUGETLB_PAGE */
+diff --git a/include/linux/personality.h b/include/linux/personality.h
+index a84e9ff..2bb0f95 100644
+--- a/include/linux/personality.h
++++ b/include/linux/personality.h
+@@ -22,6 +22,9 @@ extern int		__set_personality(unsigned long);
+  * These occupy the top three bytes.
+  */
+ enum {
++	HUGETLB_STACK =		0x0020000,	/* Attempt to use hugetlb pages
++						 * for the process stack
++						 */
+ 	ADDR_NO_RANDOMIZE = 	0x0040000,	/* disable randomization of VA space */
+ 	FDPIC_FUNCPTRS =	0x0080000,	/* userspace function ptrs point to descriptors
+ 						 * (signal handling)
 -- 
 1.5.6.1
 
