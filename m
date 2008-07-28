@@ -1,35 +1,32 @@
-Message-ID: <488D7F79.40102@goop.org>
-Date: Mon, 28 Jul 2008 01:12:41 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: How to get a sense of VM pressure
-References: <488A1398.7020004@goop.org> <1217230570.6331.6.camel@twins>
-In-Reply-To: <1217230570.6331.6.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <8810892.1217233361632.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 28 Jul 2008 17:22:41 +0900 (JST)
+Subject: Re: Re: [mmtom] please drop memcg-handle-swap-cache set (memcg handle swap cache rework).
+In-Reply-To: <4883CDEB.2030403@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <4883CDEB.2030403@linux.vnet.ibm.com>
+ <20080717124556.3e4b6e20.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Virtualization Mailing List <virtualization@lists.osdl.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, xemul@openvz.org, nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> Have a peek at this:
->
->   http://people.redhat.com/~riel/riel-OLS2006.pdf
->
-> The refault patches have been posted several times, but nobody really
-> tried to use them for your problem.
->   
+----- Original Message -----
 
-Yep, Rik pointed the paper and patches out to me.  Seems like an 
-interesting approach to play with.  The refaulting measure is nice 
-because it should give a fairly good idea of how much memory you need to 
-add to get the fault rate down below some particular level.  It doesn't 
-help with shrinking, other than telling you you've gone too far, and how 
-much too far, which is definitely useful to know.
+>My understanding of this patchset now is that
+>
+>If the page was ever mapped or cached, we don't tweak add_to_swap_cache(),
+>instead, we keep the page around in the memcg, till it is removed from swap
+>cache. Is my understanding of your intent correct?
+>
+Yes, correct.
 
-    J
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
