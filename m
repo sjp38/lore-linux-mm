@@ -1,71 +1,59 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SLO04u016513
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SLO0GI240074
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SLO0OK004447
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 17:24:00 -0400
-Date: Mon, 28 Jul 2008 14:23:54 -0700
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-ID: <20080728212354.GB8450@us.ibm.com>
-References: <cover.1216928613.git.ebmunson@us.ibm.com> <1217277204.23502.36.camel@nimitz>
+Received: by rv-out-0708.google.com with SMTP id f25so5005544rvb.26
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2008 14:24:37 -0700 (PDT)
+Message-ID: <86802c440807281424r73bae246va5e6afc6e2749ea7@mail.gmail.com>
+Date: Mon, 28 Jul 2008 14:24:36 -0700
+From: "Yinghai Lu" <yhlu.kernel@gmail.com>
+Subject: Re: + mm-remove-find_max_pfn_with_active_regions.patch added to -mm tree
+In-Reply-To: <20080728203959.GA29548@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="wq9mPyueHGvFACwf"
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1217277204.23502.36.camel@nimitz>
+References: <200807280313.m6S3DHDk017400@imap1.linux-foundation.org>
+	 <20080728091655.GC7965@csn.ul.ie>
+	 <86802c440807280415j5605822brb8836412a5c95825@mail.gmail.com>
+	 <20080728113836.GE7965@csn.ul.ie>
+	 <86802c440807281125g7d424f17v4b7c512929f45367@mail.gmail.com>
+	 <20080728191518.GA5352@csn.ul.ie>
+	 <86802c440807281238u63770318s8e665754f666c602@mail.gmail.com>
+	 <20080728200054.GB5352@csn.ul.ie>
+	 <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
+	 <20080728203959.GA29548@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---wq9mPyueHGvFACwf
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, Jul 28, 2008 at 1:40 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> On (28/07/08 13:14), Yinghai Lu didst pronounce:
+>> > <SNIP>
+>> >
+>> > I'm not seeing what different a rename of the parameter will do. Even if
+>> > the parameter was renamed, it does not mean current trace information during
+>> > memory initialisation needs to be outputted as KERN_INFO which is what this
+>> > patch is doing. I am still failing to understand why you want this information
+>> > to be generally available.
+>>
+>> how about KERN_DEBUG?
+>>
+>> please check
+>>
+>
+> Still NAK due to the noise. Admittedly, I introduced the noise
+> in the first place but it was complained about then as well. See
+> http://lkml.org/lkml/2006/11/27/124 and later this
+> http://lkml.org/lkml/2006/11/27/134 .
+>
+> At the risk of repeating myself, I am still failing to understand why you want
+> this information to be generally available at any loglevel. My expectation is
+> that the information is only of relevance when debugging memory initialisation
+> problems in which case mminit_loglevel can be used.
 
-On Mon, 28 Jul 2008, Dave Hansen wrote:
+ok.
+how do think about using meminit_debug to replace minit_loglevel?
 
-> On Mon, 2008-07-28 at 12:17 -0700, Eric Munson wrote:
-> >=20
-> > This patch stack introduces a personality flag that indicates the
-> > kernel
-> > should setup the stack as a hugetlbfs-backed region. A userspace
-> > utility
-> > may set this flag then exec a process whose stack is to be backed by
-> > hugetlb pages.
->=20
-> I didn't see it mentioned here, but these stacks are fixed-size, right?
-> They can't actually grow and are fixed in size at exec() time, right?
->=20
-> -- Dave
-
-The stack VMA is a fixed size but the pages will be faulted in as needed.
-
---=20
-Eric B Munson
-IBM Linux Technology Center
-ebmunson@us.ibm.com
-
-
---wq9mPyueHGvFACwf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.6 (GNU/Linux)
-
-iD8DBQFIjjjqsnv9E83jkzoRAugvAKD36x3OyfiN/GtGM+x0LJ6SL7e7TgCdHOOf
-OGGM1jiwgdCWkwRUj/Gd/Fg=
-=5CJt
------END PGP SIGNATURE-----
-
---wq9mPyueHGvFACwf--
+YH
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
