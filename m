@@ -1,59 +1,95 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6SKbllH027864
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:47 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6SKbeDv159944
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:40 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6SKbdqS008889
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2008 16:37:39 -0400
-Subject: Re: [PATCH 4/5 V2] Build hugetlb backed process stacks
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <34bf5c7a2116bc6bd16b4235bc1cf84395ee561e.1216928613.git.ebmunson@us.ibm.com>
-References: <cover.1216928613.git.ebmunson@us.ibm.com>
-	 <34bf5c7a2116bc6bd16b4235bc1cf84395ee561e.1216928613.git.ebmunson@us.ibm.com>
-Content-Type: text/plain
-Date: Mon, 28 Jul 2008 13:37:38 -0700
-Message-Id: <1217277458.23502.39.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 28 Jul 2008 21:40:00 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: + mm-remove-find_max_pfn_with_active_regions.patch added to -mm tree
+Message-ID: <20080728203959.GA29548@csn.ul.ie>
+References: <200807280313.m6S3DHDk017400@imap1.linux-foundation.org> <20080728091655.GC7965@csn.ul.ie> <86802c440807280415j5605822brb8836412a5c95825@mail.gmail.com> <20080728113836.GE7965@csn.ul.ie> <86802c440807281125g7d424f17v4b7c512929f45367@mail.gmail.com> <20080728191518.GA5352@csn.ul.ie> <86802c440807281238u63770318s8e665754f666c602@mail.gmail.com> <20080728200054.GB5352@csn.ul.ie> <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <86802c440807281314k56752cdcqcac542b6f1564036@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Munson <ebmunson@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
+To: Yinghai Lu <yhlu.kernel@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-07-28 at 12:17 -0700, Eric Munson wrote:
+On (28/07/08 13:14), Yinghai Lu didst pronounce:
+> > <SNIP>
+> >
+> > I'm not seeing what different a rename of the parameter will do. Even if
+> > the parameter was renamed, it does not mean current trace information during
+> > memory initialisation needs to be outputted as KERN_INFO which is what this
+> > patch is doing. I am still failing to understand why you want this information
+> > to be generally available.
 > 
-> +static int move_to_huge_pages(struct linux_binprm *bprm,
-> +                               struct vm_area_struct *vma, unsigned
-> long shift)
-> +{
-> +       struct mm_struct *mm = vma->vm_mm;
-> +       struct vm_area_struct *new_vma;
-> +       unsigned long old_end = vma->vm_end;
-> +       unsigned long old_start = vma->vm_start;
-> +       unsigned long new_end = old_end - shift;
-> +       unsigned long new_start, length;
-> +       unsigned long arg_size = new_end - bprm->p;
-> +       unsigned long flags = vma->vm_flags;
-> +       struct file *hugefile = NULL;
-> +       unsigned int stack_hpages = 0;
-> +       struct page **from_pages = NULL;
-> +       struct page **to_pages = NULL;
-> +       unsigned long num_pages = (arg_size / PAGE_SIZE) + 1;
-> +       int ret;
-> +       int i;
-> +
-> +#ifdef CONFIG_STACK_GROWSUP
+> how about KERN_DEBUG?
+> 
+> please check
+> 
 
-Why do you have the #ifdef for the CONFIG_STACK_GROWSUP=y case in that
-first patch if you don't support CONFIG_STACK_GROWSUP=y?
+Still NAK due to the noise. Admittedly, I introduced the noise
+in the first place but it was complained about then as well. See
+http://lkml.org/lkml/2006/11/27/124 and later this
+http://lkml.org/lkml/2006/11/27/134 . 
 
-I think it might be worth some time to break this up a wee little bit.
-16 local variables is a big on the beefy side. :)
+At the risk of repeating myself, I am still failing to understand why you want
+this information to be generally available at any loglevel. My expectation is
+that the information is only of relevance when debugging memory initialisation
+problems in which case mminit_loglevel can be used.
 
--- Dave
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -3418,8 +3418,7 @@ static void __paginginit free_area_init_
+>                         PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
+>                 if (realsize >= memmap_pages) {
+>                         realsize -= memmap_pages;
+> -                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
+> -                               "%s zone: %lu pages used for memmap\n",
+> +                       printk(KERN_DEBUG "%s zone: %lu pages used for
+> memmap\n",
+>                                 zone_names[j], memmap_pages);
+>                 } else
+>                         printk(KERN_WARNING
+> @@ -3429,8 +3428,7 @@ static void __paginginit free_area_init_
+>                 /* Account for reserved pages */
+>                 if (j == 0 && realsize > dma_reserve) {
+>                         realsize -= dma_reserve;
+> -                       mminit_dprintk(MMINIT_TRACE, "memmap_init",
+> -                                       "%s zone: %lu pages reserved\n",
+> +                       printk(KERN_DEBUG "%s zone: %lu pages reserved\n",
+>                                         zone_names[0], dma_reserve);
+>                 }
+> 
+> @@ -3572,8 +3570,7 @@ void __init add_active_range(unsigned in
+>  {
+>         int i;
+> 
+> -       mminit_dprintk(MMINIT_TRACE, "memory_register",
+> -                       "Entering add_active_range(%d, %#lx, %#lx) "
+> +       printk(KERN_DEBUG "Adding active range (%d, %#lx, %#lx) "
+>                         "%d entries of %d used\n",
+>                         nid, start_pfn, end_pfn,
+>                         nr_nodemap_entries, MAX_ACTIVE_REGIONS);
+> @@ -3635,7 +3632,7 @@ void __init remove_active_range(unsigned
+>         int i, j;
+>         int removed = 0;
+> 
+> -       printk(KERN_DEBUG "remove_active_range (%d, %lu, %lu)\n",
+> +       printk(KERN_DEBUG "Removing active range (%d, %#lx, %#lx)\n",
+>                           nid, start_pfn, end_pfn);
+> 
+>         /* Find the old active region end and shrink */
+> 
+> 
+> YH
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
