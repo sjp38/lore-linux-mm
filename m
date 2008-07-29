@@ -1,144 +1,67 @@
-Subject: Re: PERF: performance tests with the split LRU VM in -mm
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080728171728.7d0452bc.akpm@linux-foundation.org>
-References: <20080724222510.3bbbbedc@bree.surriel.com>
-	 <20080728105742.50d6514e@cuia.bos.redhat.com>
-	 <20080728164124.8240eabe.akpm@linux-foundation.org>
-	 <20080728195713.42cbceed@cuia.bos.redhat.com>
-	 <20080728200311.2218af4e@cuia.bos.redhat.com>
-	 <20080728171728.7d0452bc.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 28 Jul 2008 20:46:46 -0400
-Message-Id: <1217292406.21495.4.camel@lts-notebook>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: GRU driver feedback
+Date: Tue, 29 Jul 2008 12:00:09 +1000
+References: <20080723141229.GB13247@wotan.suse.de> <20080728173605.GB28480@sgi.com>
+In-Reply-To: <20080728173605.GB28480@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807291200.09907.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Jack Steiner <steiner@sgi.com>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-07-28 at 17:17 -0700, Andrew Morton wrote:
-> On Mon, 28 Jul 2008 20:03:11 -0400
-> Rik van Riel <riel@redhat.com> wrote:
-> 
-> > On Mon, 28 Jul 2008 19:57:13 -0400
-> > Rik van Riel <riel@redhat.com> wrote:
-> > > On Mon, 28 Jul 2008 16:41:24 -0700
-> > > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > > Andrew, what is your preference between:
-> > > > > 	http://lkml.org/lkml/2008/7/15/465
-> > > > > and
-> > > > > 	http://marc.info/?l=linux-mm&m=121683855132630&w=2
-> > > > > 
-> > > > 
-> > > > Boy.  They both seem rather hacky special-cases.  But that doesn't mean
-> > > > that they're undesirable hacky special-cases.  I guess the second one
-> > > > looks a bit more "algorithmic" and a bit less hacky-special-case.  But
-> > > > it all depends on testing..
-> > > 
-> > > I prefer the second one, since it removes the + 1 magic (at least,
-> > > for the higher priorities), instead of adding new magic like the
-> > > other patch does.
-> > 
-> > Btw, didn't you add that "+ 1" originally early on in the 2.6 VM?
-> 
-> You mean this?
-> 
-> 		/*
-> 		 * Add one to nr_to_scan just to make sure that the kernel
-> 		 * will slowly sift through the active list.
-> 		 */
-> 		zone->nr_scan_active +=
-> 			(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
-> 
-> 
-> > Do you remember its purpose?  
-> 
-> erm, not specifically, but I tended to lavishly describe changes like
-> this in the changelogging.
-> 
-> > Does it still make sense to have that "+ 1" in the split LRU VM?
-> > 
-> > Could we get away with just removing it unconditionally?
-> 
-> We should do the necessary git dumpster-diving before tossing out
-> hard-won changes.  Otherwise we might need to spend a year
-> re-discovering and re-fixing already-discovered-and-fixed things.
-> 
-> That code has been there in one way or another for some time.
-> 
-> In June 2004, 385c0449 did this:
-> 
->         /*
-> -        * Try to keep the active list 2/3 of the size of the cache.  And
-> -        * make sure that refill_inactive is given a decent number of pages.
-> -        *
-> -        * The "scan_active + 1" here is important.  With pagecache-intensive
-> -        * workloads the inactive list is huge, and `ratio' evaluates to zero
-> -        * all the time.  Which pins the active list memory.  So we add one to
-> -        * `scan_active' just to make sure that the kernel will slowly sift
-> -        * through the active list.
-> +        * Add one to `nr_to_scan' just to make sure that the kernel will
-> +        * slowly sift through the active list.
->          */
-> -       if (zone->nr_active >= 4*(zone->nr_inactive*2 + 1)) {
-> -               /* Don't scan more than 4 times the inactive list scan size */
-> -               scan_active = 4*scan_inactive;
-> 
-> (there was some regrettable information loss there).
-> 
-> Is the scenario which that fix addresses no longer possible?
-> 
-> 
-> On a different topic, I am staring in frustration at
-> introduce-__get_user_pages.patch, which says:
-> 
->   New munlock processing need to GUP_FLAGS_IGNORE_VMA_PERMISSIONS. 
->   because current get_user_pages() can't grab PROT_NONE pages theresore
->   it cause PROT_NONE pages can't munlock.
-> 
-> could someone please work out for me which of these patches:
-> 
-> vmscan-move-isolate_lru_page-to-vmscanc.patch
-> vmscan-use-an-indexed-array-for-lru-variables.patch
-> swap-use-an-array-for-the-lru-pagevecs.patch
-> vmscan-free-swap-space-on-swap-in-activation.patch
-> define-page_file_cache-function.patch
-> vmscan-split-lru-lists-into-anon-file-sets.patch
-> vmscan-second-chance-replacement-for-anonymous-pages.patch
-> vmscan-fix-pagecache-reclaim-referenced-bit-check.patch
-> vmscan-add-newly-swapped-in-pages-to-the-inactive-list.patch
-> more-aggressively-use-lumpy-reclaim.patch
-> pageflag-helpers-for-configed-out-flags.patch
-> unevictable-lru-infrastructure.patch
-> unevictable-lru-page-statistics.patch
-> ramfs-and-ram-disk-pages-are-unevictable.patch
-> shm_locked-pages-are-unevictable.patch
-> mlock-mlocked-pages-are-unevictable.patch
+On Tuesday 29 July 2008 03:36, Jack Steiner wrote:
+> I appreciate the thorough review. The GRU is a complicated device. I
+> tried to provide comments in the code but I know it is still difficult
+> to understand.
+>
+> You appear to have a pretty good idea of how it works. I've added a
+> few new comments to the code to make it clearer in a few cases.
 
-Andrew:  
+Hi Jack,
 
-Kosaki-san's patch to introduce __get_user_pages() is a patch to the
-above unevictable, mlocked pages.  He enhanced get_user_pages() so that
-we could fault in PROT_NONE pages for munlocking, to replace the page
-table walker [subsequent patches in that series].  He replaced the page
-table walker to avoid the "sleeping while atomic" for 32-bit/HIGHPTE
-configs.
+Thanks very much for your thorough comments in return. I will take longer
+to digest them, but quick reply now because you're probably rushing to
+get things merged... So I think you've resolved all my concerns except one.
 
-Lee
 
-> mlock-downgrade-mmap-sem-while-populating-mlocked-regions.patch
-> mmap-handle-mlocked-pages-during-map-remap-unmap.patch
-> 
-> that patch fixes?
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > - GRU driver -- gru_intr finds mm to fault pages from, does an "atomic
+> > pte lookup" which looks up the pte atomically using similar lockless
+> > pagetable walk from get_user_pages_fast. This only works because it can
+> > guarantee page table existence by disabling interrupts on the CPU where
+> > mm is currently running.  It looks like atomic pte lookup can be run on
+> > mms which are not presently running on the local CPU. This would have
+> > been noticed if it had been using a specialised function in
+> > arch/*/mm/gup.c, because it would not have provided an mm_struct
+> > parameter ;)
+>
+> Existence of the mm is guaranteed thru an indirect path. The  mm
+> struct cannot go away until the GRU context that caused the interrupt
+> is unloaded.  When the GRU hardware sends an interrupt, it locks the
+> context & prevents it from being unloaded until the interrupt is
+> serviced.  If the atomic pte is successful, the subsequent TLB dropin
+> will unlock the context to allow it to be unloaded. The mm can't go
+> away until the context is unloaded.
+
+It is not existence of the mm that I am worried about, but existence
+of the page tables. get_user_pages_fast works the way it does on x86
+because x86's pagetable shootdown and TLB flushing requires that an
+IPI be sent to all running threads of a process before page tables
+are freed. So if `current` is one such thread, and wants to do a page
+table walk of its own mm, then it can guarantee page table existence
+by turning off interrupts (and so blocking the IPI).
+
+This will not work if you are trying to walk down somebody else's
+page tables because there is nothing to say the processor you are
+running on will get an IPI. This is why get_user_pages_fast can not
+work if task != current or mm != current->mm.
+
+So I think there is still a problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
