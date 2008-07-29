@@ -1,56 +1,90 @@
-Received: from sj-core-2.cisco.com (sj-core-2.cisco.com [171.71.177.254])
-	by sj-dkim-3.cisco.com (8.12.11/8.12.11) with ESMTP id m6TIBlZA000543
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2008 11:11:47 -0700
-Received: from sausatlsmtp2.sciatl.com ([192.133.217.159])
-	by sj-core-2.cisco.com (8.13.8/8.13.8) with ESMTP id m6TIBkRc007317
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2008 18:11:46 GMT
-Message-ID: <488F5D5F.9010006@sciatl.com>
-Date: Tue, 29 Jul 2008 11:11:43 -0700
-From: C Michael Sundius <Michael.sundius@sciatl.com>
+Date: Tue, 29 Jul 2008 13:53:15 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: GRU driver feedback
+Message-ID: <20080729185315.GA14260@sgi.com>
+References: <20080723141229.GB13247@wotan.suse.de> <20080728173605.GB28480@sgi.com> <200807291200.09907.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: sparcemem or discontig?
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200807291200.09907.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: msundius@sundius.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, Jul 29, 2008 at 12:00:09PM +1000, Nick Piggin wrote:
+> On Tuesday 29 July 2008 03:36, Jack Steiner wrote:
+> > I appreciate the thorough review. The GRU is a complicated device. I
+> > tried to provide comments in the code but I know it is still difficult
+> > to understand.
+> >
+> > You appear to have a pretty good idea of how it works. I've added a
+> > few new comments to the code to make it clearer in a few cases.
+> 
+> Hi Jack,
+> 
+> Thanks very much for your thorough comments in return. I will take longer
+> to digest them, but quick reply now because you're probably rushing to
+> get things merged... So I think you've resolved all my concerns except one.
+> 
+> 
+> > > - GRU driver -- gru_intr finds mm to fault pages from, does an "atomic
+> > > pte lookup" which looks up the pte atomically using similar lockless
+> > > pagetable walk from get_user_pages_fast. This only works because it can
+> > > guarantee page table existence by disabling interrupts on the CPU where
+> > > mm is currently running.  It looks like atomic pte lookup can be run on
+> > > mms which are not presently running on the local CPU. This would have
+> > > been noticed if it had been using a specialised function in
+> > > arch/*/mm/gup.c, because it would not have provided an mm_struct
+> > > parameter ;)
+> >
+> > Existence of the mm is guaranteed thru an indirect path. The  mm
+> > struct cannot go away until the GRU context that caused the interrupt
+> > is unloaded.  When the GRU hardware sends an interrupt, it locks the
+> > context & prevents it from being unloaded until the interrupt is
+> > serviced.  If the atomic pte is successful, the subsequent TLB dropin
+> > will unlock the context to allow it to be unloaded. The mm can't go
+> > away until the context is unloaded.
+> 
+> It is not existence of the mm that I am worried about, but existence
+> of the page tables. get_user_pages_fast works the way it does on x86
+> because x86's pagetable shootdown and TLB flushing requires that an
+> IPI be sent to all running threads of a process before page tables
+> are freed. So if `current` is one such thread, and wants to do a page
+> table walk of its own mm, then it can guarantee page table existence
+> by turning off interrupts (and so blocking the IPI).
+> 
+> This will not work if you are trying to walk down somebody else's
+> page tables because there is nothing to say the processor you are
+> running on will get an IPI. This is why get_user_pages_fast can not
+> work if task != current or mm != current->mm.
+> 
+> So I think there is still a problem.
 
-I'm working on a 32bit mips 1 cpu platform that has 2 large banks of
-memory that are discontiguous in the physical address space. That is to
-say there is a large hole in between them. We are using the 2.6.24
-kernel. In order to save memory on page tables, we'd like to employ the
-use of either the CONFIG_SPARCEMEM, or CONFIG_DISCONTIG configuration
-options, but I'm a bit unsure which I should use.
+I reserve the right to be wrong, but I think this is covered.
 
-My understanding is that SPARCEMEM is the way of the future, and since
-I don't really have a NUMA machine, maybe sparcemem is more appropriate,
-yes? On the other hand I can't find much info about how it works or how
-to add support for it on an architecture that has here-to-fore not
-supported that option.
+First, let me be clear about what I gathered your concern is.  I assume
+you are addressing the case of page tables being torn down.
 
-Is there anywhere that there is a paper or rfp that describes how the
-spacemem (or discontig) features work (and/or the differences between
-then)? Has anyone out there done this for MIPS32? has anyone had
-experience with adding support for either sparcemem or discontig on an
-arch before , that could give me a their thoughts the process or "gotchas"?
+In the case where unmap_region is clearing page tables, the caller to
+unmap_region is expected to be holding the mmap_sem writably.  Jacks fault
+handler will immediately return when it fails on the down_read_trylock().
 
-thanks
-Mike
+In the exit_mmap case, the sequence is mmu_notifier_release(), ... some
+other stuff ..., free_pgtables().  Here is where special hardware
+comes into play again.  The mmu_notifier_release() callout to the GRU
+will result in all of the GRU contexts for this MM to be torn down.
+That process will free the actual hardware's context.  The hardware-free
+portion of the hardware will not complete until all NUMA traffic
+associated with this context are finished and all fault interrupts have
+been either ack'd or terminated (last part of the interrupt handler).
 
+I am sorry for the rushed explanation.  I hope my understanding of your
+concern is correct and my explanation is clear.
 
-
-     - - - - -                              Cisco                            - - - - -         
-This e-mail and any attachments may contain information which is confidential, 
-proprietary, privileged or otherwise protected by law. The information is solely 
-intended for the named addressee (or a person responsible for delivering it to 
-the addressee). If you are not the intended recipient of this message, you are 
-not authorized to read, print, retain, copy or disseminate this message or any 
-part of it. If you have received this e-mail in error, please notify the sender 
-immediately by return e-mail and delete it from your computer.
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
