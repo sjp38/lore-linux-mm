@@ -1,74 +1,109 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: PERF: performance tests with the split LRU VM in -mm
-References: <20080724222510.3bbbbedc@bree.surriel.com>
-Date: Tue, 29 Jul 2008 15:51:16 +0200
-In-Reply-To: <20080724222510.3bbbbedc@bree.surriel.com> (Rik van Riel's
-	message of "Thu, 24 Jul 2008 22:25:10 -0400")
-Message-ID: <87tze84x4b.fsf@saeurebad.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.8/8.13.8) with ESMTP id m6TG7Yu7201600
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2008 16:07:34 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6TG7YDH1876070
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2008 18:07:34 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6TG7XjS025879
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2008 18:07:34 +0200
+Subject: Re: memory hotplug: hot-remove fails on lowest chunk in
+	ZONE_MOVABLE
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <20080723105318.81BC.E1E9C6FF@jp.fujitsu.com>
+References: <1216745719.4871.8.camel@localhost.localdomain>
+	 <20080723105318.81BC.E1E9C6FF@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 29 Jul 2008 18:07:33 +0200
+Message-Id: <1217347653.4829.17.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
+
+On Wed, 2008-07-23 at 11:48 +0900, Yasunori Goto wrote:
+> > Memory hot-remove of the lowest memory chunk in ZONE_MOVABLE will fail
+> > because of some reserved pages at the beginning of each zone
+> > (MIGRATE_RESERVED).
+> > 
+> I believe you are right. Current hot-remove code is NOT perfect.
+> You may remove some sections, but may not other sections,
+> because there are some un-removable pages by some reasons
+> (not only MIGRATE_RESERVED).
+> 
+> I think MIGRATE_RESERVED pages should be move to MIGRATE_MOVABLE when 
+> those pages must be removed, and should recalculate MIGRATE_RESERVED pages.
 
 Hi,
 
-Rik van Riel <riel@redhat.com> writes:
+Would it be an option to set pages_min to 0 for ZONE_MOVABLE in
+setup_per_zone_pages_min()? This would avoid the MIGRATE_RESERVED vs.
+MIGRATE_MOVABLE conflict on memory hot-remove. If I understand it
+correctly, the kernel wouldn't be able to use the reserved pages in
+ZONE_MOVABLE for __GFP_HIGH and PF_MEMALLOC allocations anyway, right?
 
-> In order to get the performance of the split LRU VM (in -mm) better,
-> I have performed several performance tests with the following kernels:
-> - 2.6.26                                                    "2.6.26"
-> - 2.6.26-rc8-mm1                                            "-mm"
-> - 2.6.26-rc8-mm1 w/ "evict streaming IO cache first" patch  "stream"
->       Patch at: http://lkml.org/lkml/2008/7/15/465
-> - 2.6.26-rc8-mm1 w/ "fix swapout on sequential IO" patch    "noforce"
->       Patch at: http://marc.info/?l=linux-mm&m=121683855132630&w=2
->
-> I have run the performance tests on a Dell pe1950 system
-> with 2 quad-core CPUs, 16GB of RAM and a hardware RAID 1
-> array of 146GB disks.
->
-> The tests are fairly simple, but took a fair amount of time to
-> run due to the size of the data set involved (full disk for dd,
-> 55GB innodb file for the database tests).
->
->
->   TEST 1: dd if=/dev/sda of=/dev/null bs=1M
->
-> kernel  speed    swap used
->
-> 2.6.26  111MB/s  500kB
-> -mm     110MB/s  59MB     (ouch, system noticably slower)
-> noforce	111MB/s  128kB
-> stream  108MB/s  0        (slight regression, not sure why yet)
->
-> This patch shows that the split LRU VM in -mm has a problem
-> with large streaming IOs: the working set gets pushed out of
-> memory, which makes doing anything else during the big streaming
-> IO kind of painful.
->
-> However, either of the two patches posted fixes that problem,
-> though at a slight performance penalty for the "stream" patch.
+At the moment, ZONE_MOVABLE pages will also account for the lowmem_pages
+calculation in setup_per_zone_pages_min(). The recalculation will then
+redistribute and reduce the amount of reserved pages for the other zones.
+Won't this effectively reduce the amount of reserved min_free_kbytes memory
+that is available to the kernel, even getting worse the more memory is
+added to ZONE_MOVABLE?
 
-Btw, my desktop machine runs -mm (+ the patch I have posted later in
-this thread) for over a week now and I have not yet encountered any
-notable regressions in normal usage patterns.
+With the following patch, ZONE_MOVABLE will be skipped for the
+lowmem_pages calculation, just like it is already done for highmem.
+It will also set pages_min to 0 for ZONE_MOVABLE. But I have an uneasy
+feeling about this, because I may be missing side effects from this.
+Any opinions?
 
-I have not collected hard numbers but just tried to work normally with
-it.
+Thanks,
+Gerald
 
-I also employed a massive memory eater (besides emacs and firefox) that
-spawns children that eat, serialized, ~120% of RAM each.
+---
+ include/linux/mmzone.h |    5 +++++
+ mm/page_alloc.c        |    4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
 
-Continuing normal work on both kernels was a bit harder, sure, but not
-impossible.
-
-The box never died on me nor did it thrash perceivably harder/longer
-near oom than .26.  The oom killer was never invoked.
-
-	Hannes
+Index: linux-2.6/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.orig/include/linux/mmzone.h
++++ linux-2.6/include/linux/mmzone.h
+@@ -660,6 +660,11 @@ static inline int is_dma(struct zone *zo
+ #endif
+ }
+ 
++static inline int is_movable(struct zone *zone)
++{
++	return zone == zone->zone_pgdat->node_zones + ZONE_MOVABLE;
++}
++
+ /* These two functions are used to setup the per zone pages min values */
+ struct ctl_table;
+ struct file;
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -4210,7 +4210,7 @@ void setup_per_zone_pages_min(void)
+ 
+ 	/* Calculate total number of !ZONE_HIGHMEM pages */
+ 	for_each_zone(zone) {
+-		if (!is_highmem(zone))
++		if (!is_highmem(zone) && !is_movable(zone))
+ 			lowmem_pages += zone->present_pages;
+ 	}
+ 
+@@ -4243,7 +4243,7 @@ void setup_per_zone_pages_min(void)
+ 			 * If it's a lowmem zone, reserve a number of pages
+ 			 * proportionate to the zone's size.
+ 			 */
+-			zone->pages_min = tmp;
++			zone->pages_min = is_movable(zone) ? 0 : tmp;
+ 		}
+ 
+ 		zone->pages_low   = zone->pages_min + (tmp >> 2);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
