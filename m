@@ -1,35 +1,112 @@
-Date: Tue, 29 Jul 2008 15:17:35 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] reserved-ram for pci-passthrough without VT-d capable hardware
-Message-ID: <20080729131735.GM30344@one.firstfloor.org>
-References: <1214232737-21267-1-git-send-email-benami@il.ibm.com> <1214232737-21267-2-git-send-email-benami@il.ibm.com> <20080625005739.GM6938@duo.random> <20080625011808.GN6938@duo.random> <20080729121125.GK11494@duo.random> <20080729124317.GK30344@one.firstfloor.org> <20080729125312.GL11494@duo.random>
-Mime-Version: 1.0
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: PERF: performance tests with the split LRU VM in -mm
+References: <20080724222510.3bbbbedc@bree.surriel.com>
+	<20080728105742.50d6514e@cuia.bos.redhat.com>
+	<20080728164124.8240eabe.akpm@linux-foundation.org>
+	<20080728195713.42cbceed@cuia.bos.redhat.com>
+	<20080728200311.2218af4e@cuia.bos.redhat.com>
+Date: Tue, 29 Jul 2008 15:21:47 +0200
+In-Reply-To: <20080728200311.2218af4e@cuia.bos.redhat.com> (Rik van Riel's
+	message of "Mon, 28 Jul 2008 20:03:11 -0400")
+Message-ID: <87y73k4yhg.fsf@saeurebad.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080729125312.GL11494@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Andi Kleen <andi@firstfloor.org>, benami@il.ibm.com, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, amit.shah@qumranet.com, kvm@vger.kernel.org, aliguori@us.ibm.com, allen.m.kay@intel.com, muli@il.ibm.com, linux-mm@kvack.org, tglx@linutronix.de, mingo@elte.hu
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I'm not so interested to go there right now, because while this code
-> is useful right now because the majority of systems out there lacks
-> VT-d/iommu, I suspect this code could be nuked in the long
-> run when all systems will ship with that, which is why I kept it all
+Hi,
 
-Actually at least on Intel platforms and if you exclude the lowest end
-VT-d is shipping universally for quite some time now. If you
-buy a Intel box today or bought it in the last year the chances are pretty 
-high that it has VT-d support.
+Rik van Riel <riel@redhat.com> writes:
 
-> under #ifdef, and the changes to the other files outside ifdef are
-> bugfixes needed if you want to kexec-relocate above 40m or so that
-> should be kept.
+> On Mon, 28 Jul 2008 19:57:13 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+>> On Mon, 28 Jul 2008 16:41:24 -0700
+>> Andrew Morton <akpm@linux-foundation.org> wrote:
+>> 
+>> > > Andrew, what is your preference between:
+>> > > 	http://lkml.org/lkml/2008/7/15/465
+>> > > and
+>> > > 	http://marc.info/?l=linux-mm&m=121683855132630&w=2
+>> > > 
+>> > 
+>> > Boy.  They both seem rather hacky special-cases.  But that doesn't mean
+>> > that they're undesirable hacky special-cases.  I guess the second one
+>> > looks a bit more "algorithmic" and a bit less hacky-special-case.  But
+>> > it all depends on testing..
+>> 
+>> I prefer the second one, since it removes the + 1 magic (at least,
+>> for the higher priorities), instead of adding new magic like the
+>> other patch does.
+>
+> Btw, didn't you add that "+ 1" originally early on in the 2.6 VM?
+>
+> Do you remember its purpose?  
+>
+> Does it still make sense to have that "+ 1" in the split LRU VM?
+>
+> Could we get away with just removing it unconditionally?
 
-You should split that out then into a separate patch.
+Here is my original patch that just gets rid of it.  It did not cause
+any problems to me on high pressure.  Rik, you said on IRC that you now
+also think the patch is safe..?
 
--Andi
+	Hannes
+
+---
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: mm: don't accumulate scan pressure on unrelated lists
+
+During each reclaim scan we accumulate scan pressure on unrelated
+lists which will result in bogus scans and unwanted reclaims
+eventually.
+
+Scanning lists with few reclaim candidates results in a lot of
+rotation and therefor also disturbs the list balancing, putting even
+more pressure on the wrong lists.
+
+In a test-case with much streaming IO, and therefor a crowded inactive
+file page list, swapping started because
+
+  a) anon pages were reclaimed after swap_cluster_max reclaim
+  invocations -- nr_scan of this list has just accumulated
+
+  b) active file pages were scanned because *their* nr_scan has also
+  accumulated through the same logic.  And this in return created a
+  lot of rotation for file pages and resulted in a decrease of file
+  list priority, again increasing the pressure on anon pages.
+
+The result was an evicted working set of anon pages while there were
+tons of inactive file pages that should have been taken instead.
+
+Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+---
+ mm/vmscan.c |    7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1458,16 +1458,13 @@ static unsigned long shrink_zone(int pri
+ 		if (scan_global_lru(sc)) {
+ 			int file = is_file_lru(l);
+ 			int scan;
+-			/*
+-			 * Add one to nr_to_scan just to make sure that the
+-			 * kernel will slowly sift through each list.
+-			 */
++
+ 			scan = zone_page_state(zone, NR_LRU_BASE + l);
+ 			if (priority) {
+ 				scan >>= priority;
+ 				scan = (scan * percent[file]) / 100;
+ 			}
+-			zone->lru[l].nr_scan += scan + 1;
++			zone->lru[l].nr_scan += scan;
+ 			nr[l] = zone->lru[l].nr_scan;
+ 			if (nr[l] >= sc->swap_cluster_max)
+ 				zone->lru[l].nr_scan = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
