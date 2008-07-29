@@ -1,22 +1,22 @@
-Message-ID: <488F9684.8010309@cs.helsinki.fi>
-Date: Wed, 30 Jul 2008 01:15:32 +0300
+Message-ID: <488F9688.5090002@cs.helsinki.fi>
+Date: Wed, 30 Jul 2008 01:15:36 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [2.6 patch] unexport ksize
-References: <20080722172116.GW14846@cs181140183.pp.htv.fi>
-In-Reply-To: <20080722172116.GW14846@cs181140183.pp.htv.fi>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 04/30] mm: slub: trivial cleanups
+References: <20080724140042.408642539@chello.nl> <20080724141529.560025894@chello.nl>
+In-Reply-To: <20080724141529.560025894@chello.nl>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adrian Bunk <bunk@kernel.org>
-Cc: cl@linux-foundation.org, mpm@selenic.com, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Adrian Bunk wrote:
-> This patch removes the obsolete and no longer used exports of ksize.
+Peter Zijlstra wrote:
+> Some cleanups....
 > 
-> Signed-off-by: Adrian Bunk <bunk@kernel.org>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
 Applied, thanks!
 
