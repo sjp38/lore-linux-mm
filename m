@@ -1,26 +1,76 @@
-Date: Mon, 28 Jul 2008 20:31:08 -0400
-From: Rik van Riel <riel@redhat.com>
 Subject: Re: PERF: performance tests with the split LRU VM in -mm
-Message-ID: <20080728203108.256de0c4@cuia.bos.redhat.com>
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 In-Reply-To: <20080728171728.7d0452bc.akpm@linux-foundation.org>
 References: <20080724222510.3bbbbedc@bree.surriel.com>
-	<20080728105742.50d6514e@cuia.bos.redhat.com>
-	<20080728164124.8240eabe.akpm@linux-foundation.org>
-	<20080728195713.42cbceed@cuia.bos.redhat.com>
-	<20080728200311.2218af4e@cuia.bos.redhat.com>
-	<20080728171728.7d0452bc.akpm@linux-foundation.org>
+	 <20080728105742.50d6514e@cuia.bos.redhat.com>
+	 <20080728164124.8240eabe.akpm@linux-foundation.org>
+	 <20080728195713.42cbceed@cuia.bos.redhat.com>
+	 <20080728200311.2218af4e@cuia.bos.redhat.com>
+	 <20080728171728.7d0452bc.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Mon, 28 Jul 2008 20:46:46 -0400
+Message-Id: <1217292406.21495.4.camel@lts-notebook>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jul 2008 17:17:28 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
+On Mon, 2008-07-28 at 17:17 -0700, Andrew Morton wrote:
+> On Mon, 28 Jul 2008 20:03:11 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+> 
+> > On Mon, 28 Jul 2008 19:57:13 -0400
+> > Rik van Riel <riel@redhat.com> wrote:
+> > > On Mon, 28 Jul 2008 16:41:24 -0700
+> > > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > 
+> > > > > Andrew, what is your preference between:
+> > > > > 	http://lkml.org/lkml/2008/7/15/465
+> > > > > and
+> > > > > 	http://marc.info/?l=linux-mm&m=121683855132630&w=2
+> > > > > 
+> > > > 
+> > > > Boy.  They both seem rather hacky special-cases.  But that doesn't mean
+> > > > that they're undesirable hacky special-cases.  I guess the second one
+> > > > looks a bit more "algorithmic" and a bit less hacky-special-case.  But
+> > > > it all depends on testing..
+> > > 
+> > > I prefer the second one, since it removes the + 1 magic (at least,
+> > > for the higher priorities), instead of adding new magic like the
+> > > other patch does.
+> > 
+> > Btw, didn't you add that "+ 1" originally early on in the 2.6 VM?
+> 
+> You mean this?
+> 
+> 		/*
+> 		 * Add one to nr_to_scan just to make sure that the kernel
+> 		 * will slowly sift through the active list.
+> 		 */
+> 		zone->nr_scan_active +=
+> 			(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
+> 
+> 
+> > Do you remember its purpose?  
+> 
+> erm, not specifically, but I tended to lavishly describe changes like
+> this in the changelogging.
+> 
+> > Does it still make sense to have that "+ 1" in the split LRU VM?
+> > 
+> > Could we get away with just removing it unconditionally?
+> 
+> We should do the necessary git dumpster-diving before tossing out
+> hard-won changes.  Otherwise we might need to spend a year
+> re-discovering and re-fixing already-discovered-and-fixed things.
+> 
+> That code has been there in one way or another for some time.
+> 
+> In June 2004, 385c0449 did this:
+> 
 >         /*
 > -        * Try to keep the active list 2/3 of the size of the cache.  And
 > -        * make sure that refill_inactive is given a decent number of pages.
@@ -28,13 +78,6 @@ Andrew Morton <akpm@linux-foundation.org> wrote:
 > -        * The "scan_active + 1" here is important.  With pagecache-intensive
 > -        * workloads the inactive list is huge, and `ratio' evaluates to zero
 > -        * all the time.  Which pins the active list memory.  So we add one to
-
-If the active list is so small that nr_active_file >> priority always
-evaluates to 0, I suspect it won't hurt at all to keep it around.
-
-After all, we now only scan once the (incrementing) scan number reaches
-swap_cluster_max.
-
 > -        * `scan_active' just to make sure that the kernel will slowly sift
 > -        * through the active list.
 > +        * Add one to `nr_to_scan' just to make sure that the kernel will
@@ -47,9 +90,8 @@ swap_cluster_max.
 > (there was some regrettable information loss there).
 > 
 > Is the scenario which that fix addresses no longer possible?
-
-I believe it is possible, but harmless.  Maybe even desired.
-
+> 
+> 
 > On a different topic, I am staring in frustration at
 > introduce-__get_user_pages.patch, which says:
 > 
@@ -75,15 +117,28 @@ I believe it is possible, but harmless.  Maybe even desired.
 > ramfs-and-ram-disk-pages-are-unevictable.patch
 > shm_locked-pages-are-unevictable.patch
 > mlock-mlocked-pages-are-unevictable.patch
+
+Andrew:  
+
+Kosaki-san's patch to introduce __get_user_pages() is a patch to the
+above unevictable, mlocked pages.  He enhanced get_user_pages() so that
+we could fault in PROT_NONE pages for munlocking, to replace the page
+table walker [subsequent patches in that series].  He replaced the page
+table walker to avoid the "sleeping while atomic" for 32-bit/HIGHPTE
+configs.
+
+Lee
+
 > mlock-downgrade-mmap-sem-while-populating-mlocked-regions.patch
 > mmap-handle-mlocked-pages-during-map-remap-unmap.patch
 > 
 > that patch fixes?
-
-I'll take a look later.  Time to drive home and eat dinner :)
-
--- 
-All Rights Reversed
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
