@@ -1,50 +1,35 @@
-Date: Tue, 29 Jul 2008 09:16:50 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: PERF: performance tests with the split LRU VM in -mm
-Message-ID: <20080729091650.0ddca3d8@bree.surriel.com>
-In-Reply-To: <20080729220012.F192.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080724222510.3bbbbedc@bree.surriel.com>
-	<20080729220012.F192.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 29 Jul 2008 15:17:35 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] reserved-ram for pci-passthrough without VT-d capable hardware
+Message-ID: <20080729131735.GM30344@one.firstfloor.org>
+References: <1214232737-21267-1-git-send-email-benami@il.ibm.com> <1214232737-21267-2-git-send-email-benami@il.ibm.com> <20080625005739.GM6938@duo.random> <20080625011808.GN6938@duo.random> <20080729121125.GK11494@duo.random> <20080729124317.GK30344@one.firstfloor.org> <20080729125312.GL11494@duo.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080729125312.GL11494@duo.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrea Arcangeli <andrea@qumranet.com>
+Cc: Andi Kleen <andi@firstfloor.org>, benami@il.ibm.com, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, amit.shah@qumranet.com, kvm@vger.kernel.org, aliguori@us.ibm.com, allen.m.kay@intel.com, muli@il.ibm.com, linux-mm@kvack.org, tglx@linutronix.de, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jul 2008 22:04:16 +0900
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> I'm not so interested to go there right now, because while this code
+> is useful right now because the majority of systems out there lacks
+> VT-d/iommu, I suspect this code could be nuked in the long
+> run when all systems will ship with that, which is why I kept it all
 
-> >   TEST 1: dd if=/dev/sda of=/dev/null bs=1M
-> > 
-> > kernel  speed    swap used
-> > 
-> > 2.6.26  111MB/s  500kB
-> > -mm     110MB/s  59MB     (ouch, system noticably slower)
-> > noforce	111MB/s  128kB
-> > stream  108MB/s  0        (slight regression, not sure why yet)
-> 
-> I tried to reproduce it, my ia64 result was
-> 
-> kernel                   speed        swap used
-> 2.6.26-rc8               49.8MB/s     1M
-> 2.6.26-rc8-mm1           47.6MB/s     168M
-> -mm with above two patch 50.2MB/s     0
-> 
-> 
-> So, I think it isn't regression.
+Actually at least on Intel platforms and if you exclude the lowest end
+VT-d is shipping universally for quite some time now. If you
+buy a Intel box today or bought it in the last year the chances are pretty 
+high that it has VT-d support.
 
-Agreed.  It looked like it, but once I changed the cpuspeed
-governor from ondemand to performance, I saw that it had to
-be an artifact of something else.
+> under #ifdef, and the changes to the other files outside ifdef are
+> bugfixes needed if you want to kexec-relocate above 40m or so that
+> should be kept.
 
-Getting rid of the swap use from a linear IO is the important
-part.
+You should split that out then into a separate patch.
 
--- 
-All rights reversed.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
