@@ -1,80 +1,124 @@
-Date: Tue, 29 Jul 2008 10:06:18 +1000
-From: Alex Samad <alex@samad.com.au>
-Subject: Re: page swap allocation error/failure in 2.6.25
-Message-ID: <20080729000618.GE1747@samad.com.au>
-References: <20080725072015.GA17688@samad.com.au> <1216971601.7257.345.camel@twins> <20080727060701.GA7157@samad.com.au> <1217239487.6331.24.camel@twins>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="JYK4vJDZwFMowpUq"
-Content-Disposition: inline
-In-Reply-To: <1217239487.6331.24.camel@twins>
+Date: Mon, 28 Jul 2008 17:17:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: PERF: performance tests with the split LRU VM in -mm
+Message-Id: <20080728171728.7d0452bc.akpm@linux-foundation.org>
+In-Reply-To: <20080728200311.2218af4e@cuia.bos.redhat.com>
+References: <20080724222510.3bbbbedc@bree.surriel.com>
+	<20080728105742.50d6514e@cuia.bos.redhat.com>
+	<20080728164124.8240eabe.akpm@linux-foundation.org>
+	<20080728195713.42cbceed@cuia.bos.redhat.com>
+	<20080728200311.2218af4e@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Mel Gorman <mel@skynet.ie>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---JYK4vJDZwFMowpUq
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, 28 Jul 2008 20:03:11 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-On Mon, Jul 28, 2008 at 12:04:47PM +0200, Peter Zijlstra wrote:
-> On Sun, 2008-07-27 at 16:07 +1000, Alex Samad wrote:
-> > On Fri, Jul 25, 2008 at 09:40:01AM +0200, Peter Zijlstra wrote:
-> > > On Fri, 2008-07-25 at 17:20 +1000, Alex Samad wrote:
-> > > > Hi
-> >=20
-> > [snip]
-> >=20
-> > >=20
-> > >=20
-> > > Its harmless if it happens sporadically.=20
-> > >=20
-> > > Atomic order 2 allocations are just bound to go wrong under pressure.
-> > can you point me to any doco that explains this ?
->=20
-> An order 2 allocation means allocating 1<<2 or 4 physically contiguous
-> pages. Atomic allocation means not being able to sleep.
->=20
-> Now if the free page lists don't have any order 2 pages available due to
-> fragmentation there is currently nothing we can do about it.
+> On Mon, 28 Jul 2008 19:57:13 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+> > On Mon, 28 Jul 2008 16:41:24 -0700
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > > Andrew, what is your preference between:
+> > > > 	http://lkml.org/lkml/2008/7/15/465
+> > > > and
+> > > > 	http://marc.info/?l=linux-mm&m=121683855132630&w=2
+> > > > 
+> > > 
+> > > Boy.  They both seem rather hacky special-cases.  But that doesn't mean
+> > > that they're undesirable hacky special-cases.  I guess the second one
+> > > looks a bit more "algorithmic" and a bit less hacky-special-case.  But
+> > > it all depends on testing..
+> > 
+> > I prefer the second one, since it removes the + 1 magic (at least,
+> > for the higher priorities), instead of adding new magic like the
+> > other patch does.
+> 
+> Btw, didn't you add that "+ 1" originally early on in the 2.6 VM?
 
-Strange cause I don't normal have a high swap usage, I have 2G ram and
-2G swap space. There is not that much memory being used squid, apache is
-about it.
+You mean this?
 
->=20
-> I've been meaning to try and play with 'atomic' page migration to try
-> and assemble a higher order page on demand with something like memory
-> compaction.
->=20
-> But its never managed to get high enough on the todo list..
->=20
->=20
+		/*
+		 * Add one to nr_to_scan just to make sure that the kernel
+		 * will slowly sift through the active list.
+		 */
+		zone->nr_scan_active +=
+			(zone_page_state(zone, NR_ACTIVE) >> priority) + 1;
 
---=20
-"I looked the man in the eye. I found him to be very straightforward and tr=
-ustworthy... I was able to get a sense of his soul."
 
-	- George W. Bush
-06/16/2001
-after meeting Russian President Vladimir Putin
+> Do you remember its purpose?  
 
---JYK4vJDZwFMowpUq
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
+erm, not specifically, but I tended to lavishly describe changes like
+this in the changelogging.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
+> Does it still make sense to have that "+ 1" in the split LRU VM?
+> 
+> Could we get away with just removing it unconditionally?
 
-iEYEARECAAYFAkiOXvoACgkQkZz88chpJ2MImQCgvjaJnBndpImB/JdJyxT2jyJW
-XoQAn1IyGLnIuZn/uWjJTOaHhTl6cgZv
-=GP6O
------END PGP SIGNATURE-----
+We should do the necessary git dumpster-diving before tossing out
+hard-won changes.  Otherwise we might need to spend a year
+re-discovering and re-fixing already-discovered-and-fixed things.
 
---JYK4vJDZwFMowpUq--
+That code has been there in one way or another for some time.
+
+In June 2004, 385c0449 did this:
+
+        /*
+-        * Try to keep the active list 2/3 of the size of the cache.  And
+-        * make sure that refill_inactive is given a decent number of pages.
+-        *
+-        * The "scan_active + 1" here is important.  With pagecache-intensive
+-        * workloads the inactive list is huge, and `ratio' evaluates to zero
+-        * all the time.  Which pins the active list memory.  So we add one to
+-        * `scan_active' just to make sure that the kernel will slowly sift
+-        * through the active list.
++        * Add one to `nr_to_scan' just to make sure that the kernel will
++        * slowly sift through the active list.
+         */
+-       if (zone->nr_active >= 4*(zone->nr_inactive*2 + 1)) {
+-               /* Don't scan more than 4 times the inactive list scan size */
+-               scan_active = 4*scan_inactive;
+
+(there was some regrettable information loss there).
+
+Is the scenario which that fix addresses no longer possible?
+
+
+On a different topic, I am staring in frustration at
+introduce-__get_user_pages.patch, which says:
+
+  New munlock processing need to GUP_FLAGS_IGNORE_VMA_PERMISSIONS. 
+  because current get_user_pages() can't grab PROT_NONE pages theresore
+  it cause PROT_NONE pages can't munlock.
+
+could someone please work out for me which of these patches:
+
+vmscan-move-isolate_lru_page-to-vmscanc.patch
+vmscan-use-an-indexed-array-for-lru-variables.patch
+swap-use-an-array-for-the-lru-pagevecs.patch
+vmscan-free-swap-space-on-swap-in-activation.patch
+define-page_file_cache-function.patch
+vmscan-split-lru-lists-into-anon-file-sets.patch
+vmscan-second-chance-replacement-for-anonymous-pages.patch
+vmscan-fix-pagecache-reclaim-referenced-bit-check.patch
+vmscan-add-newly-swapped-in-pages-to-the-inactive-list.patch
+more-aggressively-use-lumpy-reclaim.patch
+pageflag-helpers-for-configed-out-flags.patch
+unevictable-lru-infrastructure.patch
+unevictable-lru-page-statistics.patch
+ramfs-and-ram-disk-pages-are-unevictable.patch
+shm_locked-pages-are-unevictable.patch
+mlock-mlocked-pages-are-unevictable.patch
+mlock-downgrade-mmap-sem-while-populating-mlocked-regions.patch
+mmap-handle-mlocked-pages-during-map-remap-unmap.patch
+
+that patch fixes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
