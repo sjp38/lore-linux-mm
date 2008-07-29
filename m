@@ -1,54 +1,74 @@
-Date: Tue, 29 Jul 2008 09:28:53 -0400
-From: Rik van Riel <riel@redhat.com>
+From: Johannes Weiner <hannes@saeurebad.de>
 Subject: Re: PERF: performance tests with the split LRU VM in -mm
-Message-ID: <20080729092853.0ddf7013@bree.surriel.com>
-In-Reply-To: <87y73k4yhg.fsf@saeurebad.de>
 References: <20080724222510.3bbbbedc@bree.surriel.com>
-	<20080728105742.50d6514e@cuia.bos.redhat.com>
-	<20080728164124.8240eabe.akpm@linux-foundation.org>
-	<20080728195713.42cbceed@cuia.bos.redhat.com>
-	<20080728200311.2218af4e@cuia.bos.redhat.com>
-	<87y73k4yhg.fsf@saeurebad.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 29 Jul 2008 15:51:16 +0200
+In-Reply-To: <20080724222510.3bbbbedc@bree.surriel.com> (Rik van Riel's
+	message of "Thu, 24 Jul 2008 22:25:10 -0400")
+Message-ID: <87tze84x4b.fsf@saeurebad.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Jul 2008 15:21:47 +0200
-Johannes Weiner <hannes@saeurebad.de> wrote:
+Hi,
 
-> Here is my original patch that just gets rid of it.  It did not cause
-> any problems to me on high pressure.  Rik, you said on IRC that you now
-> also think the patch is safe..?
+Rik van Riel <riel@redhat.com> writes:
 
-Yes.  Removing the "+ 1" is safe because we do not scan until
-zone->lru[l].nr_scan reaches swap_cluster_max, which means that
-the scan counter for small lists will also slowly increase and
-no list will be left behind.
+> In order to get the performance of the split LRU VM (in -mm) better,
+> I have performed several performance tests with the following kernels:
+> - 2.6.26                                                    "2.6.26"
+> - 2.6.26-rc8-mm1                                            "-mm"
+> - 2.6.26-rc8-mm1 w/ "evict streaming IO cache first" patch  "stream"
+>       Patch at: http://lkml.org/lkml/2008/7/15/465
+> - 2.6.26-rc8-mm1 w/ "fix swapout on sequential IO" patch    "noforce"
+>       Patch at: http://marc.info/?l=linux-mm&m=121683855132630&w=2
+>
+> I have run the performance tests on a Dell pe1950 system
+> with 2 quad-core CPUs, 16GB of RAM and a hardware RAID 1
+> array of 146GB disks.
+>
+> The tests are fairly simple, but took a fair amount of time to
+> run due to the size of the data set involved (full disk for dd,
+> 55GB innodb file for the database tests).
+>
+>
+>   TEST 1: dd if=/dev/sda of=/dev/null bs=1M
+>
+> kernel  speed    swap used
+>
+> 2.6.26  111MB/s  500kB
+> -mm     110MB/s  59MB     (ouch, system noticably slower)
+> noforce	111MB/s  128kB
+> stream  108MB/s  0        (slight regression, not sure why yet)
+>
+> This patch shows that the split LRU VM in -mm has a problem
+> with large streaming IOs: the working set gets pushed out of
+> memory, which makes doing anything else during the big streaming
+> IO kind of painful.
+>
+> However, either of the two patches posted fixes that problem,
+> though at a slight performance penalty for the "stream" patch.
 
-> From: Johannes Weiner <hannes@saeurebad.de>
-> Subject: mm: don't accumulate scan pressure on unrelated lists
-> 
-> During each reclaim scan we accumulate scan pressure on unrelated
-> lists which will result in bogus scans and unwanted reclaims
-> eventually.
+Btw, my desktop machine runs -mm (+ the patch I have posted later in
+this thread) for over a week now and I have not yet encountered any
+notable regressions in normal usage patterns.
 
-This patch fixes the balancing issues that we have been seeing
-with the split LRU VM currently in -mm.
+I have not collected hard numbers but just tried to work normally with
+it.
 
-It is my preferred patch because it removes magic from the VM,
-instead of adding some.
+I also employed a massive memory eater (besides emacs and firefox) that
+spawns children that eat, serialized, ~120% of RAM each.
 
-> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+Continuing normal work on both kernels was a bit harder, sure, but not
+impossible.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+The box never died on me nor did it thrash perceivably harder/longer
+near oom than .26.  The oom killer was never invoked.
 
--- 
-All rights reversed.
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
