@@ -1,27 +1,43 @@
-Message-ID: <48908BD4.10408@linux-foundation.org>
-Date: Wed, 30 Jul 2008 10:42:12 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: MMU notifiers review and some proposals
-References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131450.GC21820@wotan.suse.de> <48907880.3020105@linux-foundation.org> <20080730145436.GJ11494@duo.random>
-In-Reply-To: <20080730145436.GJ11494@duo.random>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] add prototype for down_try() to semaphore.h
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Content-Type: text/plain
+Date: Wed, 30 Jul 2008 12:11:44 -0400
+Message-Id: <1217434305.7676.8.camel@lts-notebook>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@qumranet.com>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, steiner@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, rusty@rustcorp.com.au
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+I have needed this patch against the 29jul and 30jul mmotm to build.
 
-> I think the current implementation is fine for the long run, it can
-> provide the fastest performance when armed, and each invalidate either
-> requires IPIs or it may may need to access the southbridge, so when
-> freeing large areas of memory it's good being able to do a single
-> invalidate.
 
-Right. A couple of months ago we had this discussion and agreed that the begin / end was the way to go. I still support that decision.
+Against:  mmotm 080730-0356
+
+Fix to patch linux-next.patch
+Required to build.
+
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ include/linux/semaphore.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux-2.6.26/include/linux/semaphore.h
+===================================================================
+--- linux-2.6.26.orig/include/linux/semaphore.h	2008-07-29 13:00:43.000000000 -0400
++++ linux-2.6.26/include/linux/semaphore.h	2008-07-29 13:17:26.000000000 -0400
+@@ -42,7 +42,7 @@ static inline void sema_init(struct sema
+ extern void down(struct semaphore *sem);
+ extern int __must_check down_interruptible(struct semaphore *sem);
+ extern int __must_check down_killable(struct semaphore *sem);
+-extern int __must_check down_trylock(struct semaphore *sem);
++extern int __must_check down_try(struct semaphore *sem);
+ extern int __must_check down_timeout(struct semaphore *sem, long jiffies);
+ extern void up(struct semaphore *sem);
+ 
 
 
 --
