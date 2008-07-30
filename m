@@ -1,36 +1,88 @@
-Date: Wed, 30 Jul 2008 14:27:08 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] reserved-ram for pci-passthrough without VT-d capable hardware
-Message-ID: <20080730122708.GI23938@one.firstfloor.org>
-References: <1214232737-21267-1-git-send-email-benami@il.ibm.com> <20080729125312.GL11494@duo.random> <20080729131735.GM30344@one.firstfloor.org> <200807301150.44266.amit.shah@qumranet.com>
+Subject: Re: [PATCH 08/30] mm: serialize access to min_free_kbytes
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20080724141529.855634756@chello.nl>
+References: <20080724140042.408642539@chello.nl>
+	 <20080724141529.855634756@chello.nl>
+Date: Wed, 30 Jul 2008 15:36:00 +0300
+Message-Id: <1217421360.7813.171.camel@penberg-laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200807301150.44266.amit.shah@qumranet.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Amit Shah <amit.shah@qumranet.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <andrea@qumranet.com>, benami@il.ibm.com, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, kvm@vger.kernel.org, aliguori@us.ibm.com, allen.m.kay@intel.com, muli@il.ibm.com, linux-mm@kvack.org, tglx@linutronix.de, mingo@elte.hu
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 30, 2008 at 11:50:43AM +0530, Amit Shah wrote:
-> * On Tuesday 29 July 2008 18:47:35 Andi Kleen wrote:
-> > > I'm not so interested to go there right now, because while this code
-> > > is useful right now because the majority of systems out there lacks
-> > > VT-d/iommu, I suspect this code could be nuked in the long
-> > > run when all systems will ship with that, which is why I kept it all
-> >
-> > Actually at least on Intel platforms and if you exclude the lowest end
-> > VT-d is shipping universally for quite some time now. If you
-> > buy a Intel box today or bought it in the last year the chances are pretty
-> > high that it has VT-d support.
+On Thu, 2008-07-24 at 16:00 +0200, Peter Zijlstra wrote:
+> plain text document attachment (mm-setup_per_zone_pages_min.patch)
+> There is a small race between the procfs caller and the memory hotplug caller
+> of setup_per_zone_pages_min(). Not a big deal, but the next patch will add yet
+> another caller. Time to close the gap.
 > 
-> I think you mean VT-x, which is virtualization extensions for the x86 
-> architecture. VT-d is virtualization extensions for devices (IOMMU).
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-No I really mean VT-d. The modern not very lowend Intel IOHubs all have it.
+Looks good to me.
 
--Andi
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+
+> ---
+>  mm/page_alloc.c |   16 +++++++++++++---
+>  1 file changed, 13 insertions(+), 3 deletions(-)
+> 
+> Index: linux-2.6/mm/page_alloc.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_alloc.c
+> +++ linux-2.6/mm/page_alloc.c
+> @@ -118,6 +118,7 @@ static char * const zone_names[MAX_NR_ZO
+>  	 "Movable",
+>  };
+>  
+> +static DEFINE_SPINLOCK(min_free_lock);
+>  int min_free_kbytes = 1024;
+>  
+>  unsigned long __meminitdata nr_kernel_pages;
+> @@ -4333,12 +4334,12 @@ static void setup_per_zone_lowmem_reserv
+>  }
+>  
+>  /**
+> - * setup_per_zone_pages_min - called when min_free_kbytes changes.
+> + * __setup_per_zone_pages_min - called when min_free_kbytes changes.
+>   *
+>   * Ensures that the pages_{min,low,high} values for each zone are set correctly
+>   * with respect to min_free_kbytes.
+>   */
+> -void setup_per_zone_pages_min(void)
+> +static void __setup_per_zone_pages_min(void)
+>  {
+>  	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+>  	unsigned long lowmem_pages = 0;
+> @@ -4433,6 +4434,15 @@ void setup_per_zone_inactive_ratio(void)
+>  	}
+>  }
+>  
+> +void setup_per_zone_pages_min(void)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&min_free_lock, flags);
+> +	__setup_per_zone_pages_min();
+> +	spin_unlock_irqrestore(&min_free_lock, flags);
+> +}
+> +
+>  /*
+>   * Initialise min_free_kbytes.
+>   *
+> @@ -4468,7 +4478,7 @@ static int __init init_per_zone_pages_mi
+>  		min_free_kbytes = 128;
+>  	if (min_free_kbytes > 65536)
+>  		min_free_kbytes = 65536;
+> -	setup_per_zone_pages_min();
+> +	__setup_per_zone_pages_min();
+>  	setup_per_zone_lowmem_reserve();
+>  	setup_per_zone_inactive_ratio();
+>  	return 0;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
