@@ -1,49 +1,35 @@
-Received: by yw-out-1718.google.com with SMTP id 5so122228ywm.26
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2008 13:48:26 -0700 (PDT)
-Message-ID: <2f11576a0807301348y235dad46s2478d59181d3b9e8@mail.gmail.com>
-Date: Thu, 31 Jul 2008 05:48:25 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH/DESCRIPTION 7/7] unevictable lru: replace patch description
-In-Reply-To: <20080730200702.24272.12495.sendpatchset@lts-notebook>
+Date: Wed, 30 Jul 2008 13:51:36 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+In-Reply-To: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu>
+Message-ID: <alpine.LFD.1.10.0807301349020.3334@nehalem.linux-foundation.org>
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk> <E1KOGT8-0000rd-0Z@pomaz-ex.szeredi.hu> <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
+ <20080730194516.GO20055@kernel.dk> <E1KOHvq-0001oX-OW@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807301310130.3334@nehalem.linux-foundation.org> <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
-	 <20080730200702.24272.12495.sendpatchset@lts-notebook>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Christoph Lameter pointed out that ram disk pages also clutter the LRU
-> lists.  When vmscan finds them dirty and tries to clean them, the ram disk
-> writeback function just redirties the page so that it goes back onto the
-> active list.  Round and round she goes...
->
-> With the ram disk driver [rd.c] replaced by the newer 'brd.c', this is
-> no longer the case, as ram disk pages are no longer maintained on the
-> lru.  [This makes them unmigratable for defrag or memory hot remove,
-> but that can be addressed by a separate patch series.]  However, the
-> ramfs pages behave like ram disk pages used to, so:
->
-> Define new address_space flag [shares address_space flags member with
-> mapping's gfp mask] to indicate that the address space contains all
-> unevictable pages.  This will provide for efficient testing of ramfs
-> pages in page_evictable().
->
-> Also provide wrapper functions to set/test the unevictable state to
-> minimize #ifdefs in ramfs driver and any other users of this facility.
->
-> Set the unevictable state on address_space structures for new ramfs
-> inodes.  Test the unevictable state in page_evictable() to cull
-> unevictable pages.
->
-> These changes depend on [CONFIG_]UNEVICTABLE_LRU.
 
-looks good to me.
-but I can't believe my english skill.....
+On Wed, 30 Jul 2008, Miklos Szeredi wrote:
+> 
+> It _is_ a bug fix.
+
+No it's not.
+
+It's still papering over a totally unrelated bug. It's not a "fix", it's a 
+"paper-over". It doesn't matter if _behaviour_ changes.
+
+Can you really not see the difference?
+
+Afaik, everybody pretty much agreed what the real fix should be (don't 
+mark the page not up-to-date, just remove it from the radix tree), I'm not 
+seeing why you continue to push the patch that ALREADY GOT NAK'ed.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
