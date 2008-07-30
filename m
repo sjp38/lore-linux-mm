@@ -1,48 +1,52 @@
-Date: Wed, 30 Jul 2008 21:45:16 +0200
-From: Jens Axboe <jens.axboe@oracle.com>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Message-ID: <20080730194516.GO20055@kernel.dk>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk> <E1KOGT8-0000rd-0Z@pomaz-ex.szeredi.hu> <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
+Message-ID: <4890C8BF.4050908@linux-foundation.org>
+Date: Wed, 30 Jul 2008 15:02:07 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
+Subject: Re: [PATCH 06/30] mm: kmem_alloc_estimate()
+References: <20080724140042.408642539@chello.nl>	 <20080724141529.716339226@chello.nl>	 <1217420503.7813.170.camel@penberg-laptop> <1217424662.8157.58.camel@twins>
+In-Reply-To: <1217424662.8157.58.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 30 2008, Miklos Szeredi wrote:
-> > On Wed, 30 Jul 2008, Jens Axboe wrote:
-> > > You snipped the part where Linus objected to dismissing the async
-> > > nature, I fully agree with that part.
+Peter Zijlstra wrote:
+
+>>> +/*
+>>> + * Calculate the upper bound of pages requires to sequentially allocate @bytes
+>>> + * from kmalloc in an unspecified number of allocations of nonuniform size.
+>>> + */
+>>> +unsigned kmalloc_estimate_variable(gfp_t flags, size_t bytes)
+>>> +{
+>>> +	int i;
+>>> +	unsigned long pages;
+>>> +
+>>> +	/*
+>>> +	 * multiply by two, in order to account the worst case slack space
+>>> +	 * due to the power-of-two allocation sizes.
+>>> +	 */
+>>> +	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
+>> For bytes > PAGE_SIZE this doesn't look right (for SLUB). We do page
+>> allocator pass-through which means that we'll be grabbing high order
+>> pages which can be bigger than what 'pages' is here.
 > 
-> And also note in what Nick said in the referenced mail: it would be
-> nice if someone actually _cared_ about the async nature.  The fact
-> that it has been broken from the start, and nobody noticed is a strong
-> hint that currently there isn't anybody who does.
+> Satisfying allocations from a bucket distribution with power-of-two
+> (which page alloc order satisfies) has a worst case slack space of:
+> 
+> S(x) = 2^n - (2^(n-1)) - 1, n = ceil(log2(x))
+> 
+> This can be seen for the cases where x = 2^i + 1.
 
-That's largely due to the (still) lack of direct splice users. It's a
-clear part of the design and benefit of using splice. I very much care
-about this, and as soon as there are available cycles for this, I'll get
-it into better shape in this respect. Taking a step backwards is not the
-right way forward, imho.
+The needed bytes for a kmalloc allocation with size > PAGE_SIZE is
 
-> Maybe fuse will be the first one to actually care, and then I'll
-> bother with putting a lot of effort into it.  But until someone cares,
-> nobody will bother, and that's how it should be.  That's very much in
-> line with the evoultionary nature of kernel developments: unused
-> features will just get broken and eventually removed.
+get_order(size) << PAGE_SHIFT bytes.
 
-People always say then, and the end result is it never gets done. Not to
-point the finger at Nick, but removing the steal part of the splice
-design was something I objected to a lot. Yet it was acked on the
-premise that it would eventually get resubmitted in a fixed manner, but
-were are not further along that path.
+See kmalloc_large().
 
--- 
-Jens Axboe
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
