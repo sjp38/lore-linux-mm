@@ -1,47 +1,33 @@
-Date: Wed, 30 Jul 2008 13:13:48 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <E1KOHvq-0001oX-OW@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.10.0807301310130.3334@nehalem.linux-foundation.org>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk> <E1KOGT8-0000rd-0Z@pomaz-ex.szeredi.hu> <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
- <20080730194516.GO20055@kernel.dk> <E1KOHvq-0001oX-OW@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 30 Jul 2008 13:30:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 6/7] mlocked-pages:  patch reject resolution and event
+ renames
+Message-Id: <20080730133004.9c0dacbd.akpm@linux-foundation.org>
+In-Reply-To: <20080730200655.24272.39854.sendpatchset@lts-notebook>
+References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
+	<20080730200655.24272.39854.sendpatchset@lts-notebook>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, riel@surriel.com, Eric.Whitney@hp.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 30 Jul 2008 16:06:55 -0400
+Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
 
-On Wed, 30 Jul 2008, Miklos Szeredi wrote:
-> 
-> Take this patch as a bugfix.  It's not in any way showing the way
-> forward: as soon as you have the time, you can revert it and start
-> from the current state.
-> 
-> Hmm?
+> Reworked to resolve patch conflicts introduced by other patches,
+> including rename of unevictable lru/mlocked pages events.
 
-I dislike that mentality.
+I hope I was supposed to drop
+vmstat-unevictable-and-mlocked-pages-vm-events.patch - it was getting
+100% rejects.  After dropping it, everything applied.  Dunno if it
+compiles yet.
 
-The fact is, it's not a bug-fix, it's just papering over the real problem.
-
-And by papering it over, it then just makes people less likely to bother 
-with the real issue.
-
-For example, and I talked about this earlier - what make syou think that 
-the FUSE/NFSD behaviour you don't like is at all valid in the first place?
-
-If you depend on data not being truncated because you have it "in flight", 
-tjhere's already something wrong there. It's _not_ just that people can 
-see zero bytes in the reply - apparently they can see the file shrink 
-before they see the read return. That kind of thing just worries me. And 
-it might be a general NFS issue, not necessarily a FUSE one.
-
-So I think your whole approach stinks. I don't agree with the "bug-fix". 
-It really smells like a "bug-paper-over".
-
-			Linus
+I have a feeling that I merged all these patches too soon - the amount
+of rework has been tremendous.  Are we done yet?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
