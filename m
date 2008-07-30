@@ -1,32 +1,48 @@
-Date: Wed, 30 Jul 2008 10:00:28 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
+Date: Wed, 30 Jul 2008 18:23:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-ID: <20080730172317.GA14138@csn.ul.ie>
+References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730014308.2a447e71.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080730014308.2a447e71.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 30 Jul 2008, Miklos Szeredi wrote:
+On (30/07/08 01:43), Andrew Morton didst pronounce:
+> On Mon, 28 Jul 2008 12:17:10 -0700 Eric Munson <ebmunson@us.ibm.com> wrote:
 > 
-> There are no real disadvantages: splice() from a file was originally meant to
-> be asynchronous, but in reality it only did that for non-readahead pages,
-> which happen rarely.
+> > Certain workloads benefit if their data or text segments are backed by
+> > huge pages.
+> 
+> oh.  As this is a performance patch, it would be much better if its
+> description contained some performance measurement results!  Please.
+> 
 
-I still don't like this. I still don't see the point, and I still think 
-there is something fundamentally wrong elsewhere.
+I ran these patches through STREAM (http://www.cs.virginia.edu/stream/).
+STREAM itself was patched to allocate data from the stack instead of statically
+for the test. They completed without any problem on x86, x86_64 and PPC64
+and each test showed a performance gain from using hugepages.  I can post
+the raw figures but they are not currently in an eye-friendly format. Here
+are some plots of the data though;
 
-I also object to just dismissing the async nature as unimportant. Fix it 
-instead. Make it use generic_file_readahead() or something. This is fixing 
-things in all the wrong places, imnsho.
+x86: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86-stream-stack.ps
+x86_64: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86_64-stream-stack.ps
+ppc64-small: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-small-stream-stack.ps
+ppc64-large: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-large-stream-stack.ps
 
-			Linus
+The test was to run STREAM with different array sizes (plotted on X-axis)
+and measure the average throughput (y-axis). In each case, backing the stack
+with large pages with a performance gain.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
