@@ -1,33 +1,48 @@
-Date: Wed, 30 Jul 2008 13:30:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 6/7] mlocked-pages:  patch reject resolution and event
- renames
-Message-Id: <20080730133004.9c0dacbd.akpm@linux-foundation.org>
-In-Reply-To: <20080730200655.24272.39854.sendpatchset@lts-notebook>
-References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
-	<20080730200655.24272.39854.sendpatchset@lts-notebook>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by py-out-1112.google.com with SMTP id f31so128572pyh.20
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2008 13:31:54 -0700 (PDT)
+Message-ID: <2f11576a0807301331re913516k2f4782b4f3f4d5a@mail.gmail.com>
+Date: Thu, 31 Jul 2008 05:31:53 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/7] unevictable lru: Remember page's active state
+In-Reply-To: <20080730200624.24272.7234.sendpatchset@lts-notebook>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
+	 <20080730200624.24272.7234.sendpatchset@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, riel@surriel.com, Eric.Whitney@hp.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Jul 2008 16:06:55 -0400
-Lee Schermerhorn <lee.schermerhorn@hp.com> wrote:
+> @@ -483,12 +483,12 @@ int remove_mapping(struct address_space
+>  void putback_lru_page(struct page *page)
+>  {
+>        int lru;
+> +       int active = !!TestClearPageActive(page);
+>        int was_unevictable = PageUnevictable(page);
+>
+>        VM_BUG_ON(PageLRU(page));
+>
+>  redo:
+> -       lru = !!TestClearPageActive(page);
+>        ClearPageUnevictable(page);
+>
+>        if (page_evictable(page, NULL)) {
+> @@ -498,7 +498,7 @@ redo:
+>                 * unevictable page on [in]active list.
+>                 * We know how to handle that.
+>                 */
+> -               lru += page_is_file_cache(page);
+> +               lru = active + page_is_file_cache(page);
+>                lru_cache_add_lru(page, lru);
+>        } else {
 
-> Reworked to resolve patch conflicts introduced by other patches,
-> including rename of unevictable lru/mlocked pages events.
+Indeed.
 
-I hope I was supposed to drop
-vmstat-unevictable-and-mlocked-pages-vm-events.patch - it was getting
-100% rejects.  After dropping it, everything applied.  Dunno if it
-compiles yet.
-
-I have a feeling that I merged all these patches too soon - the amount
-of rework has been tremendous.  Are we done yet?
+          Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
