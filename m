@@ -1,48 +1,34 @@
-Received: by py-out-1112.google.com with SMTP id f31so128572pyh.20
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2008 13:31:54 -0700 (PDT)
-Message-ID: <2f11576a0807301331re913516k2f4782b4f3f4d5a@mail.gmail.com>
-Date: Thu, 31 Jul 2008 05:31:53 +0900
+Received: by wa-out-1112.google.com with SMTP id m28so98920wag.8
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2008 13:33:11 -0700 (PDT)
+Message-ID: <2f11576a0807301333s5e1944c5tc997a20a27907980@mail.gmail.com>
+Date: Thu, 31 Jul 2008 05:33:10 +0900
 From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/7] unevictable lru: Remember page's active state
-In-Reply-To: <20080730200624.24272.7234.sendpatchset@lts-notebook>
+Subject: Re: [PATCH 2/7] unevictable lru: defer vm event counting
+In-Reply-To: <20080730200630.24272.33226.sendpatchset@lts-notebook>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
-	 <20080730200624.24272.7234.sendpatchset@lts-notebook>
+	 <20080730200630.24272.33226.sendpatchset@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-> @@ -483,12 +483,12 @@ int remove_mapping(struct address_space
->  void putback_lru_page(struct page *page)
->  {
->        int lru;
-> +       int active = !!TestClearPageActive(page);
->        int was_unevictable = PageUnevictable(page);
+2008/7/31 Lee Schermerhorn <lee.schermerhorn@hp.com>:
+> Fix to unevictable-lru-infrastructure.patch
 >
->        VM_BUG_ON(PageLRU(page));
+> NORECL_* events are not defined this early in the series.
+> Remove the event counting from this patch and add in with
+> unevictable lru statistics [subsequent patch].
 >
->  redo:
-> -       lru = !!TestClearPageActive(page);
->        ClearPageUnevictable(page);
->
->        if (page_evictable(page, NULL)) {
-> @@ -498,7 +498,7 @@ redo:
->                 * unevictable page on [in]active list.
->                 * We know how to handle that.
->                 */
-> -               lru += page_is_file_cache(page);
-> +               lru = active + page_is_file_cache(page);
->                lru_cache_add_lru(page, lru);
->        } else {
+> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Indeed.
+Oops, sorry my bad.
 
-          Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+   Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
