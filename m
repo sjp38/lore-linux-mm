@@ -1,35 +1,36 @@
-Date: Wed, 30 Jul 2008 13:51:36 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.10.0807301349020.3334@nehalem.linux-foundation.org>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk> <E1KOGT8-0000rd-0Z@pomaz-ex.szeredi.hu> <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
- <20080730194516.GO20055@kernel.dk> <E1KOHvq-0001oX-OW@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807301310130.3334@nehalem.linux-foundation.org> <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 5/7] mlocked-pages: add event counting with statistics
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <2f11576a0807301340s1289f93al80202135261c7f6b@mail.gmail.com>
+References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
+	 <20080730200649.24272.58778.sendpatchset@lts-notebook>
+	 <2f11576a0807301340s1289f93al80202135261c7f6b@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 30 Jul 2008 17:00:45 -0400
+Message-Id: <1217451645.7676.19.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 30 Jul 2008, Miklos Szeredi wrote:
+On Thu, 2008-07-31 at 05:40 +0900, KOSAKI Motohiro wrote:
+> > +               } else {
+> > +                       /*
+> > +                        * We lost the race.  let try_to_unmap() deal
+> > +                        * with it.  At least we get the page state and
+> > +                        * mlock stats right.  However, page is still on
+> > +                        * the noreclaim list.  We'll fix that up when
+> > +                        * the page is eventually freed or we scan the
+> > +                        * noreclaim list.
 > 
-> It _is_ a bug fix.
+>                                unevictable list?
 
-No it's not.
+Yeah.  I missed that one.  Time for a global search, I guess.
 
-It's still papering over a totally unrelated bug. It's not a "fix", it's a 
-"paper-over". It doesn't matter if _behaviour_ changes.
-
-Can you really not see the difference?
-
-Afaik, everybody pretty much agreed what the real fix should be (don't 
-mark the page not up-to-date, just remove it from the radix tree), I'm not 
-seeing why you continue to push the patch that ALREADY GOT NAK'ed.
-
-			Linus
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
