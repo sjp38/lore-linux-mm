@@ -1,60 +1,101 @@
-Date: Wed, 30 Jul 2008 16:54:36 +0200
-From: Andrea Arcangeli <andrea@qumranet.com>
-Subject: Re: MMU notifiers review and some proposals
-Message-ID: <20080730145436.GJ11494@duo.random>
-References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131450.GC21820@wotan.suse.de> <48907880.3020105@linux-foundation.org>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6UF4NJI002971
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 11:04:23 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6UF4M6E210938
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 11:04:22 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6UF4MjR025333
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 11:04:22 -0400
+Date: Wed, 30 Jul 2008 08:04:05 -0700
+From: Eric B Munson <ebmunson@us.ibm.com>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-ID: <20080730150405.GA20465@us.ibm.com>
+References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730014139.39b3edc5.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="1yeeQ81UyVL57Vl7"
 Content-Disposition: inline
-In-Reply-To: <48907880.3020105@linux-foundation.org>
+In-Reply-To: <20080730014139.39b3edc5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, steiner@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 30, 2008 at 09:19:44AM -0500, Christoph Lameter wrote:
-> Yes we have had so much talk about this that I am a bit tired of
-> talking about it. I vaguely remember bringing up the same point a
-> couple of months ago. If you can make it work then great.
+--1yeeQ81UyVL57Vl7
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I think the current implementation is fine for the long run, it can
-provide the fastest performance when armed, and each invalidate either
-requires IPIs or it may may need to access the southbridge, so when
-freeing large areas of memory it's good being able to do a single
-invalidate.
+On Wed, 30 Jul 2008, Andrew Morton wrote:
 
-If I can add another comment, I think if a new user of
-mm_take_all_locks showup, that will further confirm that such method
-is useful and should stay. Of course it needs to be a legitimate usage
-that allows to improve performance to the fast paths like in the
-mmu-notifier usage. And if Nick's right that mm_take_all_locks will
-ever become a limitation, removing it is trivial, much much simpler
-than undoing mmu-notifier changes to tlb-gather. So until Nick will go
-ahead and remove the anon_vma->lock (and I don't think it's feasible
-without screwing other paths much more troublesome than
-mm_take_all_locks) I think this is fine to stay. If you'll have
-troubles removing anon_vma->lock it won't be because of
-mm_take_all_locks be sure ;). If you ever get there we'll add
-invalidate_page before tlb_remove_page and be done with it for the
-benefit of the VM, no problem at all.
+> On Mon, 28 Jul 2008 12:17:10 -0700 Eric Munson <ebmunson@us.ibm.com> wrot=
+e:
+>=20
+> > Certain workloads benefit if their data or text segments are backed by
+> > huge pages. The stack is no exception to this rule but there is no
+> > mechanism currently that allows the backing of a stack reliably with
+> > huge pages.  Doing this from userspace is excessively messy and has some
+> > awkward restrictions.  Particularly on POWER where 256MB of address spa=
+ce
+> > gets wasted if the stack is setup there.
+> >=20
+> > This patch stack introduces a personality flag that indicates the kernel
+> > should setup the stack as a hugetlbfs-backed region. A userspace utility
+> > may set this flag then exec a process whose stack is to be backed by
+> > hugetlb pages.
+> >=20
+> > Eric Munson (5):
+> >   Align stack boundaries based on personality
+> >   Add shared and reservation control to hugetlb_file_setup
+> >   Split boundary checking from body of do_munmap
+> >   Build hugetlb backed process stacks
+> >   [PPC] Setup stack memory segment for hugetlb pages
+> >=20
+> >  arch/powerpc/mm/hugetlbpage.c |    6 +
+> >  arch/powerpc/mm/slice.c       |   11 ++
+> >  fs/exec.c                     |  209 +++++++++++++++++++++++++++++++++=
++++++---
+> >  fs/hugetlbfs/inode.c          |   52 +++++++----
+> >  include/asm-powerpc/hugetlb.h |    3 +
+> >  include/linux/hugetlb.h       |   22 ++++-
+> >  include/linux/mm.h            |    1 +
+> >  include/linux/personality.h   |    3 +
+> >  ipc/shm.c                     |    2 +-
+> >  mm/mmap.c                     |   11 ++-
+> >  10 files changed, 284 insertions(+), 36 deletions(-)
+>=20
+> That all looks surprisingly straightforward.
+>=20
+> Might there exist an x86 port which people can play with?
+>=20
 
-If we'll ever need to add scheduling capability to mmu notifiers (like
-for XPMEM or perhaps in the future infiniband) that's nearly trivially
-feasible too in the future without having to alter the API at all
-(something not feasible with other implementations).
+I have tested these patches on x86, x86_64, and ppc64, but not yet on ia64.
+There is a user space utility that I have been using to test which would be
+included in libhugetlbfs if this is merged into the kernel.  I will send it
+out as a reply to this thread, performance numbers are also on the way.
 
-Nevertheless I'm ok if we want to alter the implementation in the
-future for whatever good/wrong reasaon: the only important thing to me
-is that from now on all kernels will have this functionality one way
-or another because KVM already depends on it and it swaps much better
-now!
+--=20
+Eric B Munson
+IBM Linux Technology Center
+ebmunson@us.ibm.com
 
-The current implementation is bugfree, well tested, looks great to me
-and there's no urgency to alter it. It's surely what all the
-mmu-notifier users prefer, and I want to thank everyone for the help
-in getting here and all the good/bad feedback provided that helped
-improving the code so much.
+
+--1yeeQ81UyVL57Vl7
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.6 (GNU/Linux)
+
+iD8DBQFIkILlsnv9E83jkzoRAnu+AJ43tJhIvKC/V/l/tvEzpOLo1AfDugCgky73
+1/w9s6N+iJutNNsYfJdCkx0=
+=nEy7
+-----END PGP SIGNATURE-----
+
+--1yeeQ81UyVL57Vl7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
