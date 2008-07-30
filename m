@@ -1,53 +1,54 @@
-Date: Wed, 30 Jul 2008 10:34:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-Id: <20080730103407.b110afc2.akpm@linux-foundation.org>
-In-Reply-To: <20080730172317.GA14138@csn.ul.ie>
-References: <cover.1216928613.git.ebmunson@us.ibm.com>
-	<20080730014308.2a447e71.akpm@linux-foundation.org>
-	<20080730172317.GA14138@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 30 Jul 2008 19:54:07 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+Message-ID: <20080730175406.GN20055@kernel.dk>
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 Jul 2008 18:23:18 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
-
-> On (30/07/08 01:43), Andrew Morton didst pronounce:
-> > On Mon, 28 Jul 2008 12:17:10 -0700 Eric Munson <ebmunson@us.ibm.com> wrote:
+On Wed, Jul 30 2008, Miklos Szeredi wrote:
+> On Wed, 30 Jul 2008, Linus Torvalds wrote:
+> > On Wed, 30 Jul 2008, Miklos Szeredi wrote:
+> > > 
+> > > There are no real disadvantages: splice() from a file was
+> > > originally meant to be asynchronous, but in reality it only did
+> > > that for non-readahead pages, which happen rarely.
 > > 
-> > > Certain workloads benefit if their data or text segments are backed by
-> > > huge pages.
-> > 
-> > oh.  As this is a performance patch, it would be much better if its
-> > description contained some performance measurement results!  Please.
-> > 
-> 
-> I ran these patches through STREAM (http://www.cs.virginia.edu/stream/).
-> STREAM itself was patched to allocate data from the stack instead of statically
-> for the test. They completed without any problem on x86, x86_64 and PPC64
-> and each test showed a performance gain from using hugepages.  I can post
-> the raw figures but they are not currently in an eye-friendly format. Here
-> are some plots of the data though;
-> 
-> x86: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86-stream-stack.ps
-> x86_64: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86_64-stream-stack.ps
-> ppc64-small: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-small-stream-stack.ps
-> ppc64-large: http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-large-stream-stack.ps
-> 
-> The test was to run STREAM with different array sizes (plotted on X-axis)
-> and measure the average throughput (y-axis). In each case, backing the stack
-> with large pages with a performance gain.
+> > I still don't like this. I still don't see the point, and I still
+> > think there is something fundamentally wrong elsewhere.
 
-So about a 10% speedup on x86 for most STREAM configurations.  Handy -
-that's somewhat larger than most hugepage-conversions, iirc.
+You snipped the part where Linus objected to dismissing the async
+nature, I fully agree with that part.
 
-Do we expect that this change will be replicated in other
-memory-intensive apps?  (I do).
+> We discussed the possible solutions with Nick, and came to the
+> conclusion, that short term (i.e. 2.6.27) this is probably the best
+> solution.
+
+Ehm where? Nick also said that he didn't like removing the ->confirm()
+bits as they are completely related to the async nature of splice. You
+already submitted this exact patch earlier and it was nak'ed.
+
+> Long term sure, I have no problem with implementing async splice.
+> 
+> In fact, I may even have personal interest in looking at splice,
+> because people are asking for a zero-copy interface for fuse.
+> 
+> But that is definitely not 2.6.27, so I think you should reconsider
+> taking this patch, which is obviously correct due to its simplicity,
+> and won't cause any performance regressions either.
+
+Then please just fix the issue, instead of removing the bits that make
+this possible.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
