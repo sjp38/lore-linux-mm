@@ -1,26 +1,48 @@
-Message-ID: <4890C3A5.8050700@linux-foundation.org>
-Date: Wed, 30 Jul 2008 14:40:21 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Date: Wed, 30 Jul 2008 21:45:16 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+Message-ID: <20080730194516.GO20055@kernel.dk>
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807300958390.3334@nehalem.linux-foundation.org> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk> <E1KOGT8-0000rd-0Z@pomaz-ex.szeredi.hu> <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730014308.2a447e71.akpm@linux-foundation.org> <20080730172317.GA14138@csn.ul.ie> <20080730103407.b110afc2.akpm@linux-foundation.org> <20080730193010.GB14138@csn.ul.ie>
-In-Reply-To: <20080730193010.GB14138@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1KOGeO-0000yi-EM@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, Andrew Hastings <abh@cray.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman wrote:
+On Wed, Jul 30 2008, Miklos Szeredi wrote:
+> > On Wed, 30 Jul 2008, Jens Axboe wrote:
+> > > You snipped the part where Linus objected to dismissing the async
+> > > nature, I fully agree with that part.
+> 
+> And also note in what Nick said in the referenced mail: it would be
+> nice if someone actually _cared_ about the async nature.  The fact
+> that it has been broken from the start, and nobody noticed is a strong
+> hint that currently there isn't anybody who does.
 
-> With Erics patch and libhugetlbfs, we can automatically back text/data[1],
-> malloc[2] and stacks without source modification. Fairly soon, libhugetlbfs
-> will also be able to override shmget() to add SHM_HUGETLB. That should cover
-> a lot of the memory-intensive apps without source modification.
+That's largely due to the (still) lack of direct splice users. It's a
+clear part of the design and benefit of using splice. I very much care
+about this, and as soon as there are available cycles for this, I'll get
+it into better shape in this respect. Taking a step backwards is not the
+right way forward, imho.
 
-So we are quite far down the road to having a VM that supports 2 page sizes 4k and 2M?
+> Maybe fuse will be the first one to actually care, and then I'll
+> bother with putting a lot of effort into it.  But until someone cares,
+> nobody will bother, and that's how it should be.  That's very much in
+> line with the evoultionary nature of kernel developments: unused
+> features will just get broken and eventually removed.
+
+People always say then, and the end result is it never gets done. Not to
+point the finger at Nick, but removing the steal part of the splice
+design was something I objected to a lot. Yet it was acked on the
+premise that it would eventually get resubmitted in a fixed manner, but
+were are not further along that path.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
