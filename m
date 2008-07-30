@@ -1,44 +1,90 @@
-Subject: [PATCH] add prototype for down_try() to semaphore.h
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Content-Type: text/plain
-Date: Wed, 30 Jul 2008 12:11:44 -0400
-Message-Id: <1217434305.7676.8.camel@lts-notebook>
-Mime-Version: 1.0
+Received: from rtp-core-2.cisco.com (rtp-core-2.cisco.com [64.102.124.13])
+	by rtp-dkim-1.cisco.com (8.12.11/8.12.11) with ESMTP id m6UGNWG5011806
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 12:23:32 -0400
+Received: from sausatlsmtp1.sciatl.com ([192.133.217.33])
+	by rtp-core-2.cisco.com (8.13.8/8.13.8) with ESMTP id m6UGNW8d025889
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 16:23:32 GMT
+Message-ID: <4890957F.6080705@sciatl.com>
+Date: Wed, 30 Jul 2008 09:23:27 -0700
+From: C Michael Sundius <Michael.sundius@sciatl.com>
+MIME-Version: 1.0
+Subject: Re: sparcemem or discontig?
+References: <488F5D5F.9010006@sciatl.com> <1217368281.13228.72.camel@nimitz> <20080730093552.GD1369@brain>
+In-Reply-To: <20080730093552.GD1369@brain>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, rusty@rustcorp.com.au
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, msundius@sundius.com
 List-ID: <linux-mm.kvack.org>
 
-I have needed this patch against the 29jul and 30jul mmotm to build.
+Andy Whitcroft wrote:
+> On Tue, Jul 29, 2008 at 02:51:21PM -0700, Dave Hansen wrote:
+>   
+>> On Tue, 2008-07-29 at 11:11 -0700, C Michael Sundius wrote:
+>>     
+>>> My understanding is that SPARCEMEM is the way of the future, and since
+>>> I don't really have a NUMA machine, maybe sparcemem is more appropriate,
+>>> yes? On the other hand I can't find much info about how it works or how
+>>> to add support for it on an architecture that has here-to-fore not
+>>> supported that option.
+>>>
+>>> Is there anywhere that there is a paper or rfp that describes how the
+>>> spacemem (or discontig) features work (and/or the differences between
+>>> then)?
+>>>       
+>> I think you're talking about sparsemem. :)
+>>
+>> My opinion is that NUMA and DISCONTIG are too intertwined to be useful
+>> apart from the other.  I use sparsemem on my non-NUMA 2 CPU laptop since
+>> it has a 1GB hole.  It is *possible* to use DISCONTIG without NUMA, and
+>> I'm sure people use it this way, but I just personally think it is a bit
+>> of a pain.  
+>>
+>> Basically, to add sparsemem support for an architecture, you need a
+>> header like these:
+>>
+>> dave@nimitz:~/lse/linux/2.5/linux-2.6.git$ find | grep sparse | xargs
+>> grep -c '^.*$'
+>> ./include/asm-powerpc/sparsemem.h:32
+>> ./include/asm-x86/sparsemem.h:34
+>> ./include/asm-sh/sparsemem.h:16
+>> ./include/asm-mips/sparsemem.h:14
+>> ./include/asm-ia64/sparsemem.h:20
+>> ./include/asm-s390/sparsemem.h:18
+>> ./include/asm-arm/sparsemem.h:10
+>>
+>> These are generally pretty darn small (the largest is 34 lines).  You
+>> also need to tweak some things in your per-arch Kconfig.  ARM looks like
+>> a pretty simple use of sparsemem.  You might want to start with what
+>> they've done.  We tried really, really hard to make it easy to add to
+>> new architectures.
+>>     
+Pardon my ignorance, but is sparcemem independent of the bootmem allocator?
+
+We also use highmem. I noticed that all of our kmap and kmap_atomic code 
+is located
+in the arch/mips directory. Is the sparcemem also independent of that? 
+should I expect
+that I will have to make some changes in that...
+>> Feel free to cc me and Andy (cc'd) on the patches that you come up with.
+>> I'd be happy to sanity check them for you.  If *you* want to document
+>> the process for the next guy, I'm sure we'd be able to find some spot in
+>> Documentation/ so the next guy has an easier time. :)
+>>     
+I'm happy to write a how to for sparcemem.
 
 
-Against:  mmotm 080730-0356
 
-Fix to patch linux-next.patch
-Required to build.
-
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- include/linux/semaphore.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6.26/include/linux/semaphore.h
-===================================================================
---- linux-2.6.26.orig/include/linux/semaphore.h	2008-07-29 13:00:43.000000000 -0400
-+++ linux-2.6.26/include/linux/semaphore.h	2008-07-29 13:17:26.000000000 -0400
-@@ -42,7 +42,7 @@ static inline void sema_init(struct sema
- extern void down(struct semaphore *sem);
- extern int __must_check down_interruptible(struct semaphore *sem);
- extern int __must_check down_killable(struct semaphore *sem);
--extern int __must_check down_trylock(struct semaphore *sem);
-+extern int __must_check down_try(struct semaphore *sem);
- extern int __must_check down_timeout(struct semaphore *sem, long jiffies);
- extern void up(struct semaphore *sem);
- 
-
+     - - - - -                              Cisco                            - - - - -         
+This e-mail and any attachments may contain information which is confidential, 
+proprietary, privileged or otherwise protected by law. The information is solely 
+intended for the named addressee (or a person responsible for delivering it to 
+the addressee). If you are not the intended recipient of this message, you are 
+not authorized to read, print, retain, copy or disseminate this message or any 
+part of it. If you have received this e-mail in error, please notify the sender 
+immediately by return e-mail and delete it from your computer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
