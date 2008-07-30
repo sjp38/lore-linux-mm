@@ -1,47 +1,37 @@
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Wed, 30 Jul 2008 16:07:02 -0400
-Message-Id: <20080730200702.24272.12495.sendpatchset@lts-notebook>
-In-Reply-To: <20080730200618.24272.31756.sendpatchset@lts-notebook>
-References: <20080730200618.24272.31756.sendpatchset@lts-notebook>
-Subject: [PATCH/DESCRIPTION 7/7] unevictable lru:  replace patch description
+Date: Wed, 30 Jul 2008 13:07:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-Id: <20080730130709.eb541475.akpm@linux-foundation.org>
+In-Reply-To: <20080730193010.GB14138@csn.ul.ie>
+References: <cover.1216928613.git.ebmunson@us.ibm.com>
+	<20080730014308.2a447e71.akpm@linux-foundation.org>
+	<20080730172317.GA14138@csn.ul.ie>
+	<20080730103407.b110afc2.akpm@linux-foundation.org>
+	<20080730193010.GB14138@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@surriel.com>, Eric.Whitney@hp.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
 List-ID: <linux-mm.kvack.org>
 
-Not really a patch, per se:
+On Wed, 30 Jul 2008 20:30:10 +0100
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-Suggested patch description replacement for:
-	ramfs-and-ram-disk-pages-are-unevictable.patch
-in 27-rc1-mmotm-080730...
+> With Erics patch and libhugetlbfs, we can automatically back text/data[1],
+> malloc[2] and stacks without source modification. Fairly soon, libhugetlbfs
+> will also be able to override shmget() to add SHM_HUGETLB. That should cover
+> a lot of the memory-intensive apps without source modification.
 
----
+The weak link in all of this still might be the need to reserve
+hugepages and the unreliability of dynamically allocating them.
 
-Christoph Lameter pointed out that ram disk pages also clutter the LRU
-lists.  When vmscan finds them dirty and tries to clean them, the ram disk
-writeback function just redirties the page so that it goes back onto the
-active list.  Round and round she goes...
+The dynamic allocation should be better nowadays, but I've lost track
+of how reliable it really is.  What's our status there?
 
-With the ram disk driver [rd.c] replaced by the newer 'brd.c', this is
-no longer the case, as ram disk pages are no longer maintained on the
-lru.  [This makes them unmigratable for defrag or memory hot remove,
-but that can be addressed by a separate patch series.]  However, the
-ramfs pages behave like ram disk pages used to, so:
-
-Define new address_space flag [shares address_space flags member with
-mapping's gfp mask] to indicate that the address space contains all
-unevictable pages.  This will provide for efficient testing of ramfs
-pages in page_evictable().
-
-Also provide wrapper functions to set/test the unevictable state to
-minimize #ifdefs in ramfs driver and any other users of this facility.
-
-Set the unevictable state on address_space structures for new ramfs
-inodes.  Test the unevictable state in page_evictable() to cull
-unevictable pages.
-
-These changes depend on [CONFIG_]UNEVICTABLE_LRU.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
