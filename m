@@ -1,40 +1,55 @@
-Date: Thu, 31 Jul 2008 01:11:31 +0100
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Message-ID: <20080731001131.GA30900@shareable.org>
+Date: Wed, 30 Jul 2008 16:59:46 -0700
+From: Greg KH <gregkh@suse.de>
+Subject: [patch 51/62] x86: fix kernel_physical_mapping_init() for large
+	x86 systems
+Message-ID: <20080730235946.GY12896@suse.de>
+References: <20080730233050.332789722@mini.kroah.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu>
+Content-Disposition: inline; filename="x86-fix-kernel_physical_mapping_init-for-large-x86-systems.patch"
+In-Reply-To: <20080730234915.GA12426@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: torvalds@linux-foundation.org, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, stable@kernel.org, Oliver Pinter <oliver.pntr@gmail.com>
+Cc: Justin Forbes <jmforbes@linuxtx.org>, Zwane Mwaikambo <zwane@arm.linux.org.uk>, Theodore Ts'o <tytso@mit.edu>, Randy Dunlap <rdunlap@xenotime.net>, Dave Jones <davej@redhat.com>, Chuck Wolber <chuckw@quantumlinux.com>, Chris Wedgwood <reviews@ml.cw.f00f.org>, Michael Krufky <mkrufky@linuxtv.org>, Chuck Ebbert <cebbert@redhat.com>, Domenico Andreoli <cavokz@gmail.com>, Willy Tarreau <w@1wt.eu>, Rodrigo Rubira Branco <rbranco@la.checkpoint.com>, Jake Edge <jake@lwn.net>, Eugene Teo <eteo@redhat.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, Jack Steiner <steiner@sgi.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> > And by papering it over, it then just makes people less likely to bother 
-> > with the real issue.
-> 
-> I think you are talking about a totally separate issue: that NFSD's
-> use of splice can result in strange things if the file is truncated
-> while being read.  But this is an NFSD issue and I don't see that it
-> has _anything_ to do with the above bug in splice.  I think you are
-> just confusing the two things.
+2.6.26 -stable review patch.  If anyone has any objections, please let
+us know.
 
-I'm more concerned by sendfile() users like Apache, Samba, FTPd.  In
-an earlier thread on this topic, I asked if the splice bug can also
-result in sendfile() sending blocks of zeros, when a file is truncated
-after it has been sent, and the answer was yes probably.
+------------------
+From: Ingo Molnar <mingo@elte.hu>
 
-Not that I checked or anything.  But if it affects sendfile() it's a
-bigger deal - that has many users.
+based on e22146e610bb7aed63282148740ab1d1b91e1d90 upstream
 
-Assuming it does affect sendfile(), it's exasperated by not being able
-to tell when a sendfile() has finished with the pages its sending.
-E.g. you can't lock the file or otherwise synchronise with another
-program which wants to modify the file.
+Fix bug in kernel_physical_mapping_init() that causes kernel
+page table to be built incorrectly for systems with greater
+than 512GB of memory.
 
--- Jamie
+Signed-off-by: Jack Steiner <steiner@sgi.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+Cc: Oliver Pinter <oliver.pntr@gmail.com>
+Signed-off-by: Ingo Molnar <mingo@elte.hu>
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+
+---
+ arch/x86/mm/init_64.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -579,7 +579,7 @@ unsigned long __init_refok init_memory_m
+ 		else
+ 			pud = alloc_low_page(&pud_phys);
+ 
+-		next = start + PGDIR_SIZE;
++		next = (start + PGDIR_SIZE) & PGDIR_MASK;
+ 		if (next > end)
+ 			next = end;
+ 		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next));
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
