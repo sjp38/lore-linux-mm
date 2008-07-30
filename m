@@ -1,90 +1,42 @@
-Received: from rtp-core-2.cisco.com (rtp-core-2.cisco.com [64.102.124.13])
-	by rtp-dkim-1.cisco.com (8.12.11/8.12.11) with ESMTP id m6UGNWG5011806
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 12:23:32 -0400
-Received: from sausatlsmtp1.sciatl.com ([192.133.217.33])
-	by rtp-core-2.cisco.com (8.13.8/8.13.8) with ESMTP id m6UGNW8d025889
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 16:23:32 GMT
-Message-ID: <4890957F.6080705@sciatl.com>
-Date: Wed, 30 Jul 2008 09:23:27 -0700
-From: C Michael Sundius <Michael.sundius@sciatl.com>
-MIME-Version: 1.0
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m6UGTxXU008740
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 12:29:59 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m6UGTxQx177826
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 12:29:59 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m6UGTv78013391
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2008 12:29:58 -0400
 Subject: Re: sparcemem or discontig?
-References: <488F5D5F.9010006@sciatl.com> <1217368281.13228.72.camel@nimitz> <20080730093552.GD1369@brain>
-In-Reply-To: <20080730093552.GD1369@brain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <4890957F.6080705@sciatl.com>
+References: <488F5D5F.9010006@sciatl.com> <1217368281.13228.72.camel@nimitz>
+	 <20080730093552.GD1369@brain>  <4890957F.6080705@sciatl.com>
+Content-Type: text/plain
+Date: Wed, 30 Jul 2008 09:29:53 -0700
+Message-Id: <1217435393.18919.18.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, msundius@sundius.com
+To: C Michael Sundius <Michael.sundius@sciatl.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, msundius@sundius.com
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft wrote:
-> On Tue, Jul 29, 2008 at 02:51:21PM -0700, Dave Hansen wrote:
->   
->> On Tue, 2008-07-29 at 11:11 -0700, C Michael Sundius wrote:
->>     
->>> My understanding is that SPARCEMEM is the way of the future, and since
->>> I don't really have a NUMA machine, maybe sparcemem is more appropriate,
->>> yes? On the other hand I can't find much info about how it works or how
->>> to add support for it on an architecture that has here-to-fore not
->>> supported that option.
->>>
->>> Is there anywhere that there is a paper or rfp that describes how the
->>> spacemem (or discontig) features work (and/or the differences between
->>> then)?
->>>       
->> I think you're talking about sparsemem. :)
->>
->> My opinion is that NUMA and DISCONTIG are too intertwined to be useful
->> apart from the other.  I use sparsemem on my non-NUMA 2 CPU laptop since
->> it has a 1GB hole.  It is *possible* to use DISCONTIG without NUMA, and
->> I'm sure people use it this way, but I just personally think it is a bit
->> of a pain.  
->>
->> Basically, to add sparsemem support for an architecture, you need a
->> header like these:
->>
->> dave@nimitz:~/lse/linux/2.5/linux-2.6.git$ find | grep sparse | xargs
->> grep -c '^.*$'
->> ./include/asm-powerpc/sparsemem.h:32
->> ./include/asm-x86/sparsemem.h:34
->> ./include/asm-sh/sparsemem.h:16
->> ./include/asm-mips/sparsemem.h:14
->> ./include/asm-ia64/sparsemem.h:20
->> ./include/asm-s390/sparsemem.h:18
->> ./include/asm-arm/sparsemem.h:10
->>
->> These are generally pretty darn small (the largest is 34 lines).  You
->> also need to tweak some things in your per-arch Kconfig.  ARM looks like
->> a pretty simple use of sparsemem.  You might want to start with what
->> they've done.  We tried really, really hard to make it easy to add to
->> new architectures.
->>     
-Pardon my ignorance, but is sparcemem independent of the bootmem allocator?
+On Wed, 2008-07-30 at 09:23 -0700, C Michael Sundius wrote:
+> Pardon my ignorance, but is sparcemem independent of the bootmem allocator?
 
-We also use highmem. I noticed that all of our kmap and kmap_atomic code 
-is located
-in the arch/mips directory. Is the sparcemem also independent of that? 
-should I expect
-that I will have to make some changes in that...
->> Feel free to cc me and Andy (cc'd) on the patches that you come up with.
->> I'd be happy to sanity check them for you.  If *you* want to document
->> the process for the next guy, I'm sure we'd be able to find some spot in
->> Documentation/ so the next guy has an easier time. :)
->>     
-I'm happy to write a how to for sparcemem.
+Yes, it really don't have much to do with bootmem.
 
+> We also use highmem. I noticed that all of our kmap and kmap_atomic code 
+> is located
+> in the arch/mips directory. Is the sparcemem also independent of that? 
+> should I expect
+> that I will have to make some changes in that...
 
+No, I don't think you'll need any changes to those.
 
-     - - - - -                              Cisco                            - - - - -         
-This e-mail and any attachments may contain information which is confidential, 
-proprietary, privileged or otherwise protected by law. The information is solely 
-intended for the named addressee (or a person responsible for delivering it to 
-the addressee). If you are not the intended recipient of this message, you are 
-not authorized to read, print, retain, copy or disseminate this message or any 
-part of it. If you have received this e-mail in error, please notify the sender 
-immediately by return e-mail and delete it from your computer.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
