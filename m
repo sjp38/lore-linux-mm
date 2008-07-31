@@ -1,33 +1,45 @@
-In-reply-to: <20080731001131.GA30900@shareable.org> (message from Jamie Lokier
-	on Thu, 31 Jul 2008 01:11:31 +0100)
+Date: Thu, 31 Jul 2008 14:26:12 +0400
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Subject: Re: [patch v3] splice: fix race with page invalidation
-References: <20080731001131.GA30900@shareable.org>
-Message-Id: <E1KOSbz-0007b6-0L@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 31 Jul 2008 09:30:11 +0200
+Message-ID: <20080731102612.GA29766@2ka.mipt.ru>
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org> <20080731061201.GA7156@shareable.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080731061201.GA7156@shareable.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jamie@shareable.org
-Cc: miklos@szeredi.hu, torvalds@linux-foundation.org, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jul 2008, Jamie Lokier wrote:
-> I'm more concerned by sendfile() users like Apache, Samba, FTPd.  In
-> an earlier thread on this topic, I asked if the splice bug can also
-> result in sendfile() sending blocks of zeros, when a file is truncated
-> after it has been sent, and the answer was yes probably.
-> 
-> Not that I checked or anything.  But if it affects sendfile() it's a
-> bigger deal - that has many users.
+On Thu, Jul 31, 2008 at 07:12:01AM +0100, Jamie Lokier (jamie@shareable.org) wrote:
+> The obvious mechanism for completion notifications is the AIO event
+> interface.  I.e. aio_sendfile that reports completion when it's safe
+> to modify data it was using.  aio_splice would be logical for similar
+> reasons.  Note it doesn't mean when the data has reached a particular
+> place, it means when the pages it's holding are released.  Pity AIO
+> still sucks ;-)
 
-Nick also pointed out, that it also affects plain read(2), albeit only
-with a tiny window.
+It is not that simple: page can be held in hardware or tcp queues for
+a long time, and the only possible way to know, that system finished
+with it, is receiving ack from the remote side. There is a project to
+implement such a callback at skb destruction time (it is freed after ack
+from the other peer), but do we really need it? System which does care
+about transmit will implement own ack mechanism, so page can be unlocked
+at higher layer. Actually page can be locked during transfer and
+unlocked after rpc reply received, so underlying page invalidation will
+be postponed and will not affect sendfile/splice.
 
-But partial truncates are _rare_ (we don't even have a UNIX utility
-for that ;), so in practice all this may not actually matter very
-much.
+> Btw, Windows had this since forever, it's called overlapped
+> TransmitFile with an I/O completion event.  Don't know if it's any
+> good though ;-)
 
-Miklos
+There was a linux aio_sendfile() too. Google still knows about its
+numbers, graphs and so on... :)
+
+-- 
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
