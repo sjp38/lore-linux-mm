@@ -1,60 +1,112 @@
-Date: Thu, 31 Jul 2008 11:31:38 +0100
+Date: Thu, 31 Jul 2008 12:27:34 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-ID: <20080731103137.GD1704@csn.ul.ie>
-References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730014308.2a447e71.akpm@linux-foundation.org> <20080730172317.GA14138@csn.ul.ie> <20080730103407.b110afc2.akpm@linux-foundation.org> <20080730193010.GB14138@csn.ul.ie> <20080730130709.eb541475.akpm@linux-foundation.org>
+Message-ID: <20080731112734.GE1704@csn.ul.ie>
+References: <cover.1216928613.git.ebmunson@us.ibm.com> <200807311604.14349.nickpiggin@yahoo.com.au> <20080730231428.a7bdcfa7.akpm@linux-foundation.org> <200807311626.15709.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20080730130709.eb541475.akpm@linux-foundation.org>
+In-Reply-To: <200807311626.15709.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On (30/07/08 13:07), Andrew Morton didst pronounce:
-> On Wed, 30 Jul 2008 20:30:10 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On (31/07/08 16:26), Nick Piggin didst pronounce:
+> On Thursday 31 July 2008 16:14, Andrew Morton wrote:
+> > On Thu, 31 Jul 2008 16:04:14 +1000 Nick Piggin <nickpiggin@yahoo.com.au> 
+> wrote:
+> > > > Do we expect that this change will be replicated in other
+> > > > memory-intensive apps?  (I do).
+> > >
+> > > Such as what? It would be nice to see some numbers with some HPC or java
+> > > or DBMS workload using this. Not that I dispute it will help some cases,
+> > > but 10% (or 20% for ppc) I guess is getting toward the best case, short
+> > > of a specifically written TLB thrasher.
+> >
+> > I didn't realise the STREAM is using vast amounts of automatic memory.
+> > I'd assumed that it was using sane amounts of stack, but the stack TLB
+> > slots were getting zapped by all the heap-memory activity.  Oh well.
 > 
-> > With Erics patch and libhugetlbfs, we can automatically back text/data[1],
-> > malloc[2] and stacks without source modification. Fairly soon, libhugetlbfs
-> > will also be able to override shmget() to add SHM_HUGETLB. That should cover
-> > a lot of the memory-intensive apps without source modification.
-> 
-> The weak link in all of this still might be the need to reserve
-> hugepages and the unreliability of dynamically allocating them.
-> 
-> The dynamic allocation should be better nowadays, but I've lost track
-> of how reliable it really is.  What's our status there?
+> An easy mistake to make because that's probabably how STREAM would normally
+> work. I think what Mel had done is to modify the stream kernel so as to
+> have it operate on arrays of stack memory.
 > 
 
-We are a lot more reliable than we were although exact quantification is
-difficult because it's workload dependent. For a long time, I've been able
-to test bits and pieces with hugepages by allocating the pool at the time
-I needed it even after days of uptime. Previously this required a reboot.
+Yes, I mentioned in the mail that STREAM was patched to use stack for
+its data. It was as much to show the patches were working as advertised
+even though it is an extreme case obviously.
 
-I've also been able to use the dynamic hugepage pool resizing effectively
-and we track how much it is succeeding and failing in /proc/vmstat (see the
-htlb fields) to watch for problems. Between that and /proc/pagetypeinfo, I am
-expecting to be able to identify availablilty problems. As an administrator
-can now set a minimum pool size and the maximum size of the pool (nr_hugepages
-and nr_overcommit_hugepages), the configuration difficulties should be relaxed.
+I had seen stack-hugepage-backing as something that would improve performance
+in addition to something else as opposed to having to stand entirely on its
+own. For example, I would expect many memory-intensive applications to gain
+by just having malloc and stack backed more than backing either in isolation.
 
-If it is found that anti-fragmentation can be broken down and pool
-resizing starts failing after X amount of time on Y workloads, there is
-still the option of using movablecore=BiggestPoolSizeIWillEverNeed
-and writing 1 to /proc/sys/vm/hugepages_treat_as_movable so the hugepage
-pool can grow/shrink reliably there.
+> > I guess that effect is still there, but smaller.
+> 
+> I imagine it should be, unless you're using a CPU with seperate TLBs for
+> small and huge pages, and your large data set is mapped with huge pages,
+> in which case you might now introduce *new* TLB contention between the
+> stack and the dataset :)
 
-Overall, it's in pretty good shape.
+Yes, this can happen particularly on older CPUs. For example, on my
+crash-test laptop the Pentium III there reports
 
-To be fair, one snag is that that swap is almost required for pool
-resizing to work as I never pushed to complete memory compaction
-(http://lwn.net/Articles/238837/).  Hence, we depend on the workload to
-have lots of filesystem-backed data for lumpy-reclaim to do its job, for
-pool resizing to take place between batch jobs or for swap to be configured
-even if it's just for the duration of a pool resize.
+TLB and cache info:
+01: Instruction TLB: 4KB pages, 4-way set assoc, 32 entries
+02: Instruction TLB: 4MB pages, 4-way set assoc, 2 entries
+
+so a workload that sparsely addressed memory (i.e. >= 4MB strides on each
+reference) might suffer more TLB misses with large pages than with small.
+It's hardly new that there are is uncertainity around when and if hugepages
+are of benefit and where.
+
+> Also, interestingly I have actually seen some CPUs whos memory operations
+> get significantly slower when operating on large pages than small (in the
+> case when there is full TLB coverage for both sizes). This would make
+> sense if the CPU only implements a fast L1 TLB for small pages.
+> 
+
+It's also possible there is a micro-TLB involved that only support small
+pages. It's been the case for a while that what wins on one machine type
+may lose on another.
+
+> So for the vast majority of workloads, where stacks are relatively small
+> (or slowly changing), and relatively hot, I suspect this could easily have
+> no benefit at best and slowdowns at worst.
+> 
+
+I wouldn't expect an application with small stacks to request its stack
+to be backed by hugepages either. Ideally, it would be enabled because a
+large enough number of DTLB misses were found to be in the stack
+although catching this sort of data is tricky. 
+
+> But I'm not saying that as a reason not to merge it -- this is no
+> different from any other hugepage allocations and as usual they have to be
+> used selectively where they help.... I just wonder exactly where huge
+> stacks will help.
+> 
+
+Benchmark wise, SPECcpu and SPEComp have stack-dependent benchmarks.
+Computations that partition problems with recursion I would expect to benefit
+as well as some JVMs that heavily use the stack (see how many docs suggest
+setting ulimit -s unlimited). Bit out there, but stack-based languages would
+stand to gain by this. The potential gap is for threaded apps as there will
+be stacks that are not the "main" stack.  Backing those with hugepages depends
+on how they are allocated (malloc, it's easy, MAP_ANONYMOUS not so much).
+
+> > I agree that few real-world apps are likely to see gains of this
+> > order.  More benchmarks, please :)
+> 
+> Would be nice, if just out of morbid curiosity :)
+> 
+
+Benchmarks will happen, they just take time, you know the way. The STREAM one
+in the meantime is a "this works" and has an effect. I'm hoping Andrew Hastings
+will have figures at hand and I cc'd him elsewhere in the thread for comment.
+
+Thanks
 
 -- 
 Mel Gorman
