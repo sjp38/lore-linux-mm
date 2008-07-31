@@ -1,93 +1,48 @@
-Date: Thu, 31 Jul 2008 13:33:50 +0100
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Message-ID: <20080731123350.GB16481@shareable.org>
-References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org> <20080731061201.GA7156@shareable.org> <20080731102612.GA29766@2ka.mipt.ru>
-MIME-Version: 1.0
+Date: Thu, 31 Jul 2008 07:40:39 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: GRU driver feedback
+Message-ID: <20080731124039.GA27329@sgi.com>
+References: <20080723141229.GB13247@wotan.suse.de> <20080729185315.GA14260@sgi.com> <200807301550.34500.nickpiggin@yahoo.com.au> <200807311714.05252.nickpiggin@yahoo.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080731102612.GA29766@2ka.mipt.ru>
+In-Reply-To: <200807311714.05252.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Robin Holt <holt@sgi.com>, "Torvalds, Linus" <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Evgeniy Polyakov wrote:
-> On Thu, Jul 31, 2008 at 07:12:01AM +0100, Jamie Lokier (jamie@shareable.org) wrote:
-> > The obvious mechanism for completion notifications is the AIO event
-> > interface.  I.e. aio_sendfile that reports completion when it's safe
-> > to modify data it was using.  aio_splice would be logical for similar
-> > reasons.  Note it doesn't mean when the data has reached a particular
-> > place, it means when the pages it's holding are released.  Pity AIO
-> > still sucks ;-)
+On Thu, Jul 31, 2008 at 05:14:04PM +1000, Nick Piggin wrote:
+> On Wednesday 30 July 2008 15:50, Nick Piggin wrote:
+> > On Wednesday 30 July 2008 04:53, Robin Holt wrote:
 > 
-> It is not that simple: page can be held in hardware or tcp queues for
-> a long time, and the only possible way to know, that system finished
-> with it, is receiving ack from the remote side. There is a project to
-> implement such a callback at skb destruction time (it is freed after ack
-> from the other peer), but do we really need it? System which does care
-> about transmit will implement own ack mechanism, so page can be unlocked
-> at higher layer. Actually page can be locked during transfer and
-> unlocked after rpc reply received, so underlying page invalidation will
-> be postponed and will not affect sendfile/splice.
-
-This is why marking the pages COW would be better.  Automatic!
-There's no need for a notification, merely letting go of the page
-references - yes, the hardware / TCP acks already do that, no locking
-or anything!  :-)  The last reference is nothing special, it just means
-the next file write/truncate sees the count is 1 and doesn't need to
-COW the page.
-
-
-Two reason for being mildly curious about sendfile page releases in an
-application though:
-
-   - Sendfile on tmpfs files: zero copy sending of calculated data.
-     Only trouble is when can you reuse the pages?  Current solution
-     is use a set of files, consume the pages in sequential order, delete
-     files at some point, let the kernel hold the pages.  Works for
-     sequentially generated and transmitted data, but not good for
-     userspace caches where different parts expire separately.  Also,
-     may pin a lot of page cache; not sure if that's accounted.
-
-   - Sendfile on real large data contained in a userspace
-     database-come-filesystem (the future!).  App wants to send big
-     blobs, and with COW it can forget about them, but for performance
-     it would rathe allocate new writes in the file to areas that are
-     not sendfile-hot.  It can approximate with heuristics though.
-
-> > Btw, Windows had this since forever, it's called overlapped
-> > TransmitFile with an I/O completion event.  Don't know if it's any
-> > good though ;-)
+> > > In the case where unmap_region is clearing page tables, the caller to
+> > > unmap_region is expected to be holding the mmap_sem writably.  Jacks
+> > > fault handler will immediately return when it fails on the
+> > > down_read_trylock().
+> >
+> > No, you are right of course. I had in my mind the problems faced by
+> > lockless get_user_pages, in which case I was worried about the page table
+> > existence, but missed the fact that you're holding mmap_sem to provide
+> > existence (which it would, as you note, although one day we may want to
+> > reclaim page tables or something that doesn't take mmap_sem, so a big
+> > comment would be nice here).
 > 
-> There was a linux aio_sendfile() too. Google still knows about its
-> numbers, graphs and so on... :)
+> The other thing is... then GRU should get rid of the local_irq_disable
+> in the atomic pte lookup. By definition it is worthless if we can be
+> operating on an mm that is not running on current (and if I understand
+> correctly, sn2 can avoid sending tlb flush IPIs completely sometimes?)
 
-I vaguely remember it's performance didn't seem that good.
+Done.
 
-One of the problems is you don't really want AIO all the time, just
-when a process would block because the data isn't in cache.  You
-really don't want to be sending *all* ops to worker threads, even
-kernel threads.  And you preferably don't want the AIO interface
-overhead for ops satisfied from cache.
+I'm collecting the fixes & additional comments to be added & will send
+them upstream later.
 
-Syslets got some of the way there, and maybe that's why they were
-faster than AIO for some things.  There are user-space hacks which are
-a bit like syslets.  (Bind two processes to the same CPU, process 1
-wakes process 2 just before 1 does a syscall, and puts 2 back to sleep
-if 2 didn't wake and do an atomic op to prove it's awake).  I haven't
-tested their performance, it could suck.
+Thanks for the careful review.
 
-Look up LAIO, Lazy Asynchronous I/O.  Apparently FreeBSD, NetBSD,
-Solaris, Tru64, and Windows, have the capability to call a synchronous
-I/O op and if it's satisfied from cache, simply return a result, if
-not, either queue it and return an AIO event later (Windows style (it
-does some cleverer thread balancing too)), or wake another thread to
-handle it (FreeBSD style).  I believe Linus suggested something like
-the latter line approach some time ago.
 
--- Jamie
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
