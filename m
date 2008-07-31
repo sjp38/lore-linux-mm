@@ -1,9 +1,9 @@
-Date: Wed, 30 Jul 2008 17:51:15 -0700 (PDT)
+Date: Wed, 30 Jul 2008 17:54:20 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <20080731004214.GA32207@shareable.org>
-Message-ID: <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org>
-References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org>
+In-Reply-To: <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org>
+Message-ID: <alpine.LFD.1.10.0807301751320.3277@nehalem.linux-foundation.org>
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,34 +13,24 @@ Cc: Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-founda
 List-ID: <linux-mm.kvack.org>
 
 
-On Thu, 31 Jul 2008, Jamie Lokier wrote:
->
-> Jamie Lokier wrote:
-> > not being able to tell when a sendfile() has finished with the pages
-> > its sending.
+On Wed, 30 Jul 2008, Linus Torvalds wrote:
 > 
-> (Except by the socket fully closing or a handshake from the other end,
-> obviously.)
+> Personally, I think the right approach is to just realize that splice() is 
+> _not_ a write() system call, and never will be. If you need synchronous 
+> writing, you simply shouldn't use splice().
 
-Well, people should realize that this is pretty fundamental to zero-copy 
-scemes. It's why zero-copy is often much less useful than doing a copy in 
-the first place. How do you know how far in a splice buffer some random 
-'struct page' has gotten? Especially with splicing to spicing to tee to 
-splice...
+Side note: in-kernel users could probably do somethign about this. IOW, if 
+there's some in-kernel usage (and yes, knfsd would be a prime example), 
+that one may actually be able to do things that a _user_level user of 
+splice() could never do.
 
-You'd have to have some kind of barrier model (which would be really 
-complex), or perhaps a "wait for this page to no longer be shared" (which 
-has issues all its own).
+That includes things like getting the inode semaphore over a write (so 
+that you can guarantee that pages that are in flight are not modified, 
+except again possibly by other mmap users), and/or a per-page callback for 
+when splice() is done with a page (so that you could keep the page locked 
+while it's getting spliced, for example).
 
-IOW, splice() is very closely related to a magic kind of "mmap()+write()" 
-in another thread. That's literally what it does internally (except the 
-"mmap" is just a small magic kernel buffer rather than virtual address 
-space), and exactly as with mmap, if you modify the file, the other thread 
-will see if, even though it did it long ago.
-
-Personally, I think the right approach is to just realize that splice() is 
-_not_ a write() system call, and never will be. If you need synchronous 
-writing, you simply shouldn't use splice().
+And no, we don't actually have that either, of course.
 
 			Linus
 
