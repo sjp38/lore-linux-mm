@@ -1,39 +1,33 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: GRU driver feedback
-Date: Thu, 31 Jul 2008 17:14:04 +1000
-References: <20080723141229.GB13247@wotan.suse.de> <20080729185315.GA14260@sgi.com> <200807301550.34500.nickpiggin@yahoo.com.au>
-In-Reply-To: <200807301550.34500.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807311714.05252.nickpiggin@yahoo.com.au>
+In-reply-to: <20080731001131.GA30900@shareable.org> (message from Jamie Lokier
+	on Thu, 31 Jul 2008 01:11:31 +0100)
+Subject: Re: [patch v3] splice: fix race with page invalidation
+References: <20080731001131.GA30900@shareable.org>
+Message-Id: <E1KOSbz-0007b6-0L@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 31 Jul 2008 09:30:11 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: "Torvalds, Linus" <torvalds@linux-foundation.org>, Jack Steiner <steiner@sgi.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: jamie@shareable.org
+Cc: miklos@szeredi.hu, torvalds@linux-foundation.org, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 30 July 2008 15:50, Nick Piggin wrote:
-> On Wednesday 30 July 2008 04:53, Robin Holt wrote:
+On Thu, 31 Jul 2008, Jamie Lokier wrote:
+> I'm more concerned by sendfile() users like Apache, Samba, FTPd.  In
+> an earlier thread on this topic, I asked if the splice bug can also
+> result in sendfile() sending blocks of zeros, when a file is truncated
+> after it has been sent, and the answer was yes probably.
+> 
+> Not that I checked or anything.  But if it affects sendfile() it's a
+> bigger deal - that has many users.
 
-> > In the case where unmap_region is clearing page tables, the caller to
-> > unmap_region is expected to be holding the mmap_sem writably.  Jacks
-> > fault handler will immediately return when it fails on the
-> > down_read_trylock().
->
-> No, you are right of course. I had in my mind the problems faced by
-> lockless get_user_pages, in which case I was worried about the page table
-> existence, but missed the fact that you're holding mmap_sem to provide
-> existence (which it would, as you note, although one day we may want to
-> reclaim page tables or something that doesn't take mmap_sem, so a big
-> comment would be nice here).
+Nick also pointed out, that it also affects plain read(2), albeit only
+with a tiny window.
 
-The other thing is... then GRU should get rid of the local_irq_disable
-in the atomic pte lookup. By definition it is worthless if we can be
-operating on an mm that is not running on current (and if I understand
-correctly, sn2 can avoid sending tlb flush IPIs completely sometimes?)
+But partial truncates are _rare_ (we don't even have a UNIX utility
+for that ;), so in practice all this may not actually matter very
+much.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
