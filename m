@@ -1,63 +1,68 @@
-Date: Thu, 31 Jul 2008 14:16:10 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
-In-Reply-To: <1217420161.4545.10.camel@localhost.localdomain>
-References: <20080730110444.27DE.E1E9C6FF@jp.fujitsu.com> <1217420161.4545.10.camel@localhost.localdomain>
-Message-Id: <20080731134956.2A3B.E1E9C6FF@jp.fujitsu.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Date: Thu, 31 Jul 2008 16:04:14 +1000
+References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730172317.GA14138@csn.ul.ie> <20080730103407.b110afc2.akpm@linux-foundation.org>
+In-Reply-To: <20080730103407.b110afc2.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807311604.14349.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2008-07-30 at 12:16 +0900, Yasunori Goto wrote:
-> > Well, I didn't mean changing pages_min value. There may be side effect as
-> > you are saying.
-> > I meant if some pages were MIGRATE_RESERVE attribute when hot-remove are
-> > -executing-, their attribute should be changed.
-> > 
-> > For example, how is like following dummy code?  Is it impossible?
-> > (Not only here, some places will have to be modified..)
-> 
-> Right, this should be possible. I was somewhat wandering from the subject,
-> because I noticed that there may be a bigger problem with MIGRATE_RESERVE
-> pages in ZONE_MOVABLE, and that we may not want to have them in the first
-> place.
-> 
-> The more memory we add to ZONE_MOVABLE, the less reserved pages will
-> remain to the other zones. In setup_per_zone_pages_min(), min_free_kbytes
-> will be redistributed to a zone where the kernel cannot make any use of
-> it, effectively reducing the available min_free_kbytes. This just doesn't
-> sound right. I believe that a similar situation is the reason why highmem
-> pages are skipped in the calculation and I think that we need that for
-> ZONE_MOVABLE too. Any thoughts on that problem?
-> 
-> Setting pages_min to 0 for ZONE_MOVABLE, while not capping pages_low
-> and pages_high, could be an option. I don't have a sufficient memory
-> managment overview to tell if that has negative side effects, maybe
-> someone with a deeper insight could comment on that.
+On Thursday 31 July 2008 03:34, Andrew Morton wrote:
+> On Wed, 30 Jul 2008 18:23:18 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
+> > On (30/07/08 01:43), Andrew Morton didst pronounce:
+> > > On Mon, 28 Jul 2008 12:17:10 -0700 Eric Munson <ebmunson@us.ibm.com> 
+wrote:
+> > > > Certain workloads benefit if their data or text segments are backed
+> > > > by huge pages.
+> > >
+> > > oh.  As this is a performance patch, it would be much better if its
+> > > description contained some performance measurement results!  Please.
+> >
+> > I ran these patches through STREAM (http://www.cs.virginia.edu/stream/).
+> > STREAM itself was patched to allocate data from the stack instead of
+> > statically for the test. They completed without any problem on x86,
+> > x86_64 and PPC64 and each test showed a performance gain from using
+> > hugepages.  I can post the raw figures but they are not currently in an
+> > eye-friendly format. Here are some plots of the data though;
+> >
+> > x86:
+> > http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86-stream-stac
+> >k.ps x86_64:
+> > http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/x86_64-stream-s
+> >tack.ps ppc64-small:
+> > http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-small-str
+> >eam-stack.ps ppc64-large:
+> > http://www.csn.ul.ie/~mel/postings/stack-backing-20080730/ppc64-large-str
+> >eam-stack.ps
+> >
+> > The test was to run STREAM with different array sizes (plotted on X-axis)
+> > and measure the average throughput (y-axis). In each case, backing the
+> > stack with large pages with a performance gain.
+>
+> So about a 10% speedup on x86 for most STREAM configurations.  Handy -
+> that's somewhat larger than most hugepage-conversions, iirc.
 
-At least, pages_min should not be 0. It is used as watermark when
-memory shortage situation. If it is 0, kernel will misunderstand
-shortage situation. Certainly, pages_min value may be not appropriate value
-for ZONE_MOVABLE. But it is not memory-hotplug issue.
+Although it might be a bit unusual to have codes doing huge streaming
+memory operations on stack memory...
 
-True your question is why ZONE_MOVABLE has MIGRATE_RESREVE pages, right?
-However, I think it is intended for emergency pool of memory shortage situation
-for ZONE_MOVABLE via fallback[]. If not, these MIGRATE_RESERVE pages are not made
-originally.
-It is why I wrote previous mail.
+We can see why IBM is so keen on their hugepages though :)
 
-Mel Gormal-san knows around here very well. He may explain its detail more.
 
-Bye.
+> Do we expect that this change will be replicated in other
+> memory-intensive apps?  (I do).
 
--- 
-Yasunori Goto 
-
+Such as what? It would be nice to see some numbers with some HPC or java
+or DBMS workload using this. Not that I dispute it will help some cases,
+but 10% (or 20% for ppc) I guess is getting toward the best case, short
+of a specifically written TLB thrasher.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
