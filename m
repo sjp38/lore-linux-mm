@@ -1,80 +1,39 @@
-Received: by fk-out-0910.google.com with SMTP id z22so485704fkz.6
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2008 09:59:57 -0700 (PDT)
-Message-ID: <4891EF8D.6010502@gmail.com>
-Date: Thu, 31 Jul 2008 18:59:57 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mm: unify pmd_free() and __pmd_free_tlb() implementation
-References: <alpine.LFD.1.10.0807280851130.3486@nehalem.linux-foundation.org> <488DF119.2000004@gmail.com> <20080729012656.566F.KOSAKI.MOTOHIRO@jp.fujitsu.com> <488DFFB0.1090107@gmail.com> <20080728133030.8b29fa5a.akpm@linux-foundation.org> <488E3020.1040701@goop.org> <488E4DEB.5010705@gmail.com> <20080731161750.GA26393@elte.hu>
-In-Reply-To: <20080731161750.GA26393@elte.hu>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-reply-to: <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org>
+	(message from Linus Torvalds on Thu, 31 Jul 2008 10:00:17 -0700 (PDT))
+Subject: Re: [patch v3] splice: fix race with page invalidation
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <200807312259.43402.nickpiggin@yahoo.com.au> <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org>
+Message-Id: <E1KOceD-0000nD-JA@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 31 Jul 2008 20:13:09 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: torvalds@linux-foundation.org
+Cc: nickpiggin@yahoo.com.au, miklos@szeredi.hu, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Andrea Righi <righi.andrea@gmail.com> wrote:
+On Thu, 31 Jul 2008, Linus Torvalds wrote:
+> On Thu, 31 Jul 2008, Nick Piggin wrote:
+> > 
+> > It seems like the right way to fix this would be to allow the splicing
+> > process to be notified of a short read, in which case it could try to
+> > refill the pipe with the unread bytes...
 > 
->> Jeremy Fitzhardinge wrote:
->>> Andrew Morton wrote:
->>>> I can second that.  See
->>>> http://userweb.kernel.org/~akpm/mmotm/broken-out/include-asm-generic-pgtable-nopmdh-macros-are-noxious-reason-435.patch
->>>>
->>>> Ingo cruelly ignored it.  Probably he's used to ignoring the comit
->>>> storm which I send in his direction - I'll need to resend it sometime.
->>>>
->>>> I'd consider that patch to be partial - we should demacroize the
->>>> surrounding similar functions too.  But that will require a bit more
->>>> testing.
->>> Its immediate neighbours should be easy enough (pmd_alloc_one, 
->>> __pmd_free_tlb), but any of the ones involving pmd_t risk #include hell 
->>> (though the earlier references to pud_t in inline functions suggest it 
->>> will work).  And pmd_addr_end is just ugly.
->>>
->>>     J
->>>
->> ok, let's start with the easiest: pmd_free() and __pmd_free_tlb().
->>
->> Following another attempt to unify the implementations using inline 
->> functions. It seems to build fine on x86 (pae / non-pae) and on 
->> x86_64. This is an RFC patch right now, not for inclusion (just asking 
->> if it could be a reasonable approach or not). And in any case this 
->> would need more testing.
->>
->> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
->> ---
->>  arch/sparc/include/asm/pgalloc_64.h |    1 +
->>  include/asm-alpha/pgalloc.h         |    1 +
->>  include/asm-arm/pgalloc.h           |    1 -
->>  include/asm-frv/pgalloc.h           |    2 --
->>  include/asm-generic/pgtable-nopmd.h |   19 +++++++++++++++++--
->>  include/asm-ia64/pgalloc.h          |    1 +
->>  include/asm-m32r/pgalloc.h          |    2 --
->>  include/asm-m68k/motorola_pgalloc.h |    3 ++-
->>  include/asm-m68k/sun3_pgalloc.h     |    7 -------
->>  include/asm-mips/pgalloc.h          |   12 +-----------
->>  include/asm-parisc/pgalloc.h        |    2 +-
->>  include/asm-powerpc/pgalloc-32.h    |    2 --
->>  include/asm-powerpc/pgalloc-64.h    |    1 +
->>  include/asm-s390/pgalloc.h          |    1 -
->>  include/asm-sh/pgalloc.h            |    8 --------
->>  include/asm-um/pgalloc.h            |    1 +
->>  include/asm-x86/pgalloc.h           |    2 ++
->>  17 files changed, 28 insertions(+), 38 deletions(-)
+> Hmm. That should certainly work with the splice model. The users of the 
+> data wouldn't eat (or ignore) the invalid data, they'd just say "invalid 
+> data", and stop. And it would be up to the other side to handle it (it 
+> can see the state of the pipe, we can make it both wake up POLL_ERR _and_ 
+> return an error if somebody tries to write to a "blocked" pipe).
 > 
-> the x86 bits look good to me in principle but touches a ton of 
-> architectures and deals with VM issues - the perfect candidate for -mm?
-> 
-> 	Ingo
+> So yes, that's very possible, but it obviously requires splice() users to 
+> be able to handle more cases. I'm not sure it's realistic to expect users 
+> to be that advanced.
 
-Yes, sounds reasonable. I'll rebase to -mm and post a new patch.
+Worse, it's not guaranteed to make any progress.  E.g. on NFS server
+with data being continually updated, cache on the client will
+basically always be invalid, so the above scheme might just repeat the
+splices forever without success.
 
-Thanks,
--Andrea
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
