@@ -1,38 +1,73 @@
-Date: Wed, 30 Jul 2008 17:54:20 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org>
-Message-ID: <alpine.LFD.1.10.0807301751320.3277@nehalem.linux-foundation.org>
-References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 31 Jul 2008 10:15:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: memo: mem+swap controller
+Message-Id: <20080731101533.c82357b7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi, mem+swap controller is suggested by Hugh Dickins and I think it's a great
+idea. Its concept is having 2 limits. (please point out if I misunderstand.)
 
-On Wed, 30 Jul 2008, Linus Torvalds wrote:
-> 
-> Personally, I think the right approach is to just realize that splice() is 
-> _not_ a write() system call, and never will be. If you need synchronous 
-> writing, you simply shouldn't use splice().
+ - memory.limit_in_bytes       .... limit memory usage.
+ - memory.total_limit_in_bytes .... limit memory+swap usage.
 
-Side note: in-kernel users could probably do somethign about this. IOW, if 
-there's some in-kernel usage (and yes, knfsd would be a prime example), 
-that one may actually be able to do things that a _user_level user of 
-splice() could never do.
+By this, we can avoid excessive use of swap under a cgroup without any bad effect
+to global LRU. (in page selection algorithm...overhead will be added, of course)
 
-That includes things like getting the inode semaphore over a write (so 
-that you can guarantee that pages that are in flight are not modified, 
-except again possibly by other mmap users), and/or a per-page callback for 
-when splice() is done with a page (so that you could keep the page locked 
-while it's getting spliced, for example).
+Following is state transition and counter handling design memo.
+This uses "3" counters to handle above conrrectly. If you have other logic,
+please teach me. (and blame me if my diagram is broken.)
 
-And no, we don't actually have that either, of course.
+A point is how to handle swap-cache, I think.
+(Maybe we need a _big_ change in memcg.)
 
-			Linus
+==
+
+state definition
+  new alloc  .... an object is newly allocated
+  no_swap    .... an object with page without swp_entry
+  swap_cache .... an object with page with swp_entry
+  disk_swap  .... an object without page with swp_entry
+  freed      .... an object is freed (by munmap)
+
+(*) an object is an enitity which is accoutned, page or swap.
+
+ new alloc ->  no_swap  <=>  swap_cache  <=>  disk_swap
+                 |             |                 |
+  freed.   <-----------<-------------<-----------
+
+use 3 counters, no_swap, swap_cache, disk_swap.
+
+    on_memory = no_swap + swap_cache.
+    total     = no_swap + swap_cache + disk_swap
+
+on_memory is limited by memory.limit_in_bytes
+total     is limtied by memory.total_limit_in_bytes.
+
+                     no_swap  swap_cache  disk_swap  on_memory  total
+new alloc->no_swap     +1         -           -         +1        +1
+no_swap->swap_cache    -1        +1           -         -         -
+swap_cache->no_swap    +1        -1           -         -         -
+swap_cache->disk_swap  -         -1           +1        -1        -
+disk_swap->swap_cache  -         +1           -1        +1        -
+no_swap->freed         -1        -            -         -1        -1
+swap_cache->freed      -         -1           -         -1        -1
+disk_swap->freed       -         -            -1        -         -1
+
+
+any comments are welcome.
+
+Regards,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
