@@ -1,68 +1,63 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Date: Thu, 31 Jul 2008 12:16:16 +1000
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk>
-In-Reply-To: <20080730175406.GN20055@kernel.dk>
+Date: Thu, 31 Jul 2008 14:16:10 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
+In-Reply-To: <1217420161.4545.10.camel@localhost.localdomain>
+References: <20080730110444.27DE.E1E9C6FF@jp.fujitsu.com> <1217420161.4545.10.camel@localhost.localdomain>
+Message-Id: <20080731134956.2A3B.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807311216.16335.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 31 July 2008 03:54, Jens Axboe wrote:
-> On Wed, Jul 30 2008, Miklos Szeredi wrote:
-> > On Wed, 30 Jul 2008, Linus Torvalds wrote:
-> > > On Wed, 30 Jul 2008, Miklos Szeredi wrote:
-> > > > There are no real disadvantages: splice() from a file was
-> > > > originally meant to be asynchronous, but in reality it only did
-> > > > that for non-readahead pages, which happen rarely.
-> > >
-> > > I still don't like this. I still don't see the point, and I still
-> > > think there is something fundamentally wrong elsewhere.
->
-> You snipped the part where Linus objected to dismissing the async
-> nature, I fully agree with that part.
->
-> > We discussed the possible solutions with Nick, and came to the
-> > conclusion, that short term (i.e. 2.6.27) this is probably the best
-> > solution.
->
-> Ehm where? Nick also said that he didn't like removing the ->confirm()
-> bits as they are completely related to the async nature of splice. You
-> already submitted this exact patch earlier and it was nak'ed.
->
-> > Long term sure, I have no problem with implementing async splice.
-> >
-> > In fact, I may even have personal interest in looking at splice,
-> > because people are asking for a zero-copy interface for fuse.
-> >
-> > But that is definitely not 2.6.27, so I think you should reconsider
-> > taking this patch, which is obviously correct due to its simplicity,
-> > and won't cause any performance regressions either.
->
-> Then please just fix the issue, instead of removing the bits that make
-> this possible.
+> On Wed, 2008-07-30 at 12:16 +0900, Yasunori Goto wrote:
+> > Well, I didn't mean changing pages_min value. There may be side effect as
+> > you are saying.
+> > I meant if some pages were MIGRATE_RESERVE attribute when hot-remove are
+> > -executing-, their attribute should be changed.
+> > 
+> > For example, how is like following dummy code?  Is it impossible?
+> > (Not only here, some places will have to be modified..)
+> 
+> Right, this should be possible. I was somewhat wandering from the subject,
+> because I noticed that there may be a bigger problem with MIGRATE_RESERVE
+> pages in ZONE_MOVABLE, and that we may not want to have them in the first
+> place.
+> 
+> The more memory we add to ZONE_MOVABLE, the less reserved pages will
+> remain to the other zones. In setup_per_zone_pages_min(), min_free_kbytes
+> will be redistributed to a zone where the kernel cannot make any use of
+> it, effectively reducing the available min_free_kbytes. This just doesn't
+> sound right. I believe that a similar situation is the reason why highmem
+> pages are skipped in the calculation and I think that we need that for
+> ZONE_MOVABLE too. Any thoughts on that problem?
+> 
+> Setting pages_min to 0 for ZONE_MOVABLE, while not capping pages_low
+> and pages_high, could be an option. I don't have a sufficient memory
+> managment overview to tell if that has negative side effects, maybe
+> someone with a deeper insight could comment on that.
 
-The only "real" objection I had to avoiding the ClearPageUptodate there
-I guess is that it would weaken some assertions. I was more concerned
-about the unidentified problems... but there probably shouldn't be
-too many places in the VM that really care that much anymore (and those
-that do might already be racy).
+At least, pages_min should not be 0. It is used as watermark when
+memory shortage situation. If it is 0, kernel will misunderstand
+shortage situation. Certainly, pages_min value may be not appropriate value
+for ZONE_MOVABLE. But it is not memory-hotplug issue.
 
-Now it seems to be perfectly fine to use the actual page itself that may
-have been truncated, and we have been doing that for a long time (see
-get_user_pages). So I'm not so worried about a bad data corruption or
-anything but just the VM getting confused, which we could fix anyway.
+True your question is why ZONE_MOVABLE has MIGRATE_RESREVE pages, right?
+However, I think it is intended for emergency pool of memory shortage situation
+for ZONE_MOVABLE via fallback[]. If not, these MIGRATE_RESERVE pages are not made
+originally.
+It is why I wrote previous mail.
 
-I guess that kind of patch could sit in -mm for a while then get merged.
-Linus probably wouldn't think highly of a post-rc1 merge, but if it
-really is a bugfix, maybe?
+Mel Gormal-san knows around here very well. He may explain its detail more.
+
+Bye.
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
