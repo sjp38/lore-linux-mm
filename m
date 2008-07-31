@@ -1,34 +1,39 @@
-Date: Thu, 31 Jul 2008 08:14:19 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: MMU notifiers review and some proposals
-Message-ID: <20080731061419.GB32644@wotan.suse.de>
-References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131450.GC21820@wotan.suse.de> <48907880.3020105@linux-foundation.org> <20080730145436.GJ11494@duo.random> <48908BD4.10408@linux-foundation.org>
+Date: Wed, 30 Jul 2008 23:14:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-Id: <20080730231428.a7bdcfa7.akpm@linux-foundation.org>
+In-Reply-To: <200807311604.14349.nickpiggin@yahoo.com.au>
+References: <cover.1216928613.git.ebmunson@us.ibm.com>
+	<20080730172317.GA14138@csn.ul.ie>
+	<20080730103407.b110afc2.akpm@linux-foundation.org>
+	<200807311604.14349.nickpiggin@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <48908BD4.10408@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, steiner@sgi.com
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Mel Gorman <mel@csn.ul.ie>, Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 30, 2008 at 10:42:12AM -0500, Christoph Lameter wrote:
-> Andrea Arcangeli wrote:
-> 
-> > I think the current implementation is fine for the long run, it can
-> > provide the fastest performance when armed, and each invalidate either
-> > requires IPIs or it may may need to access the southbridge, so when
-> > freeing large areas of memory it's good being able to do a single
-> > invalidate.
-> 
-> Right. A couple of months ago we had this discussion and agreed that the begin / end was the way to go. I still support that decision.
+On Thu, 31 Jul 2008 16:04:14 +1000 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-That's OK. We don't have to make decisions just by people supporting one
-way or the other, because I'll come up with some competing patches and
-if they turn out to be significantly simpler to the core VM without having
-a significant negative impact on performance then naturally everybody should
-be happy to merge them, so nobody has to argue with handwaving.
+> > Do we expect that this change will be replicated in other
+> > memory-intensive apps?  (I do).
+> 
+> Such as what? It would be nice to see some numbers with some HPC or java
+> or DBMS workload using this. Not that I dispute it will help some cases,
+> but 10% (or 20% for ppc) I guess is getting toward the best case, short
+> of a specifically written TLB thrasher.
+
+I didn't realise the STREAM is using vast amounts of automatic memory. 
+I'd assumed that it was using sane amounts of stack, but the stack TLB
+slots were getting zapped by all the heap-memory activity.  Oh well.
+
+I guess that effect is still there, but smaller.
+
+I agree that few real-world apps are likely to see gains of this
+order.  More benchmarks, please :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
