@@ -1,117 +1,91 @@
-Date: Thu, 31 Jul 2008 12:27:34 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-ID: <20080731112734.GE1704@csn.ul.ie>
-References: <cover.1216928613.git.ebmunson@us.ibm.com> <200807311604.14349.nickpiggin@yahoo.com.au> <20080730231428.a7bdcfa7.akpm@linux-foundation.org> <200807311626.15709.nickpiggin@yahoo.com.au>
+Date: Thu, 31 Jul 2008 20:50:55 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
+Message-Id: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200807311626.15709.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Eric Munson <ebmunson@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (31/07/08 16:26), Nick Piggin didst pronounce:
-> On Thursday 31 July 2008 16:14, Andrew Morton wrote:
-> > On Thu, 31 Jul 2008 16:04:14 +1000 Nick Piggin <nickpiggin@yahoo.com.au> 
-> wrote:
-> > > > Do we expect that this change will be replicated in other
-> > > > memory-intensive apps?  (I do).
-> > >
-> > > Such as what? It would be nice to see some numbers with some HPC or java
-> > > or DBMS workload using this. Not that I dispute it will help some cases,
-> > > but 10% (or 20% for ppc) I guess is getting toward the best case, short
-> > > of a specifically written TLB thrasher.
-> >
-> > I didn't realise the STREAM is using vast amounts of automatic memory.
-> > I'd assumed that it was using sane amounts of stack, but the stack TLB
-> > slots were getting zapped by all the heap-memory activity.  Oh well.
-> 
-> An easy mistake to make because that's probabably how STREAM would normally
-> work. I think what Mel had done is to modify the stream kernel so as to
-> have it operate on arrays of stack memory.
-> 
+Hello.
 
-Yes, I mentioned in the mail that STREAM was patched to use stack for
-its data. It was as much to show the patches were working as advertised
-even though it is an extreme case obviously.
+This patch set is first trial and to describe my rough idea of
+"how to remove pgdat".
 
-I had seen stack-hugepage-backing as something that would improve performance
-in addition to something else as opposed to having to stand entirely on its
-own. For example, I would expect many memory-intensive applications to gain
-by just having malloc and stack backed more than backing either in isolation.
+I would like to confirm "current my idea is good way or not" by this post.
+This patch is incomplete and not tested yet, If my idea is good way,
+I'll continue to make them and test.
 
-> > I guess that effect is still there, but smaller.
-> 
-> I imagine it should be, unless you're using a CPU with seperate TLBs for
-> small and huge pages, and your large data set is mapped with huge pages,
-> in which case you might now introduce *new* TLB contention between the
-> stack and the dataset :)
+I think pgdat removing is diffcult issue,
+because any code doesn't know pgdat will be removed, and access
+them without any locking now. But the pgdat remover must wait their access,
+because the node may be removed electrically after it soon.
 
-Yes, this can happen particularly on older CPUs. For example, on my
-crash-test laptop the Pentium III there reports
+Current my idea is using RCU feature for waiting them.
+Because it is the least impact against reader's performance,
+and pgdat remover can wait finish of reader's access to pgdat
+which is removing by synchronize_sched().
 
-TLB and cache info:
-01: Instruction TLB: 4KB pages, 4-way set assoc, 32 entries
-02: Instruction TLB: 4MB pages, 4-way set assoc, 2 entries
+So, I made followings read_lock for accessing pgdat.
+  - pgdat_remove_read_lock()/unlock()
+  - pgdat_remove_read_lock_sleepable()/unlock_sleepable()
+These definishions use rcu_read_lock and srcu_read_lock().
 
-so a workload that sparsely addressed memory (i.e. >= 4MB strides on each
-reference) might suffer more TLB misses with large pages than with small.
-It's hardly new that there are is uncertainity around when and if hugepages
-are of benefit and where.
+Writer uses node_set_offline() which uses clear_bit(),
+and build_all_zonelists() with stop_machine_run().
 
-> Also, interestingly I have actually seen some CPUs whos memory operations
-> get significantly slower when operating on large pages than small (in the
-> case when there is full TLB coverage for both sizes). This would make
-> sense if the CPU only implements a fast L1 TLB for small pages.
-> 
 
-It's also possible there is a micro-TLB involved that only support small
-pages. It's been the case for a while that what wins on one machine type
-may lose on another.
+There are a few types of pgdat access.
 
-> So for the vast majority of workloads, where stacks are relatively small
-> (or slowly changing), and relatively hot, I suspect this could easily have
-> no benefit at best and slowdowns at worst.
-> 
+  1) via node_online_bitmap.
+     Many code use for_each_xxx_node(), for_each_zone(), and so on.
+     These code must be used with pgdat_remove_read_lock/unlock().
 
-I wouldn't expect an application with small stacks to request its stack
-to be backed by hugepages either. Ideally, it would be enabled because a
-large enough number of DTLB misses were found to be in the stack
-although catching this sort of data is tricky. 
+  2) mempolicy
+     There are callback interface when memory offline works. mempolicy
+     must use callbacks for disable removing node.
+     This patch set includes quite simple (sample) patch to point
+     what will be required. However more detail specification will be necessary.
+     (ex, When preffered node of mempolicy is removing, how does kernel should do?)
+  
+  3) zonelist
+     alloc_pages access zones via zonelist. However, zone may be removed
+     by pgdat remover too. It must be check zones might be removed
+     before accessing zonliest which is guarded between pgdat_remove_read_lock()
+     and unlock().
 
-> But I'm not saying that as a reason not to merge it -- this is no
-> different from any other hugepage allocations and as usual they have to be
-> used selectively where they help.... I just wonder exactly where huge
-> stacks will help.
-> 
+  4) via NODE_DATA() with node_id.
+     This type access is called with numa_node_id() in many case.
+     Basically, CPUs on the removing node must be removed before removing node.
+     So, I used BUG_ON() when numa_node_id() is points offlined node.
+     
+     If node id is specified by other way, offline_node must be checked and
+     escape when it is offline...
 
-Benchmark wise, SPECcpu and SPEComp have stack-dependent benchmarks.
-Computations that partition problems with recursion I would expect to benefit
-as well as some JVMs that heavily use the stack (see how many docs suggest
-setting ulimit -s unlimited). Bit out there, but stack-based languages would
-stand to gain by this. The potential gap is for threaded apps as there will
-be stacks that are not the "main" stack.  Backing those with hugepages depends
-on how they are allocated (malloc, it's easy, MAP_ANONYMOUS not so much).
 
-> > I agree that few real-world apps are likely to see gains of this
-> > order.  More benchmarks, please :)
-> 
-> Would be nice, if just out of morbid curiosity :)
-> 
+If my idea is bad way, other way I can tell is...
+  - read_write_lock(). (It should n't be used...)
+  - collect pgdats on one node (depends on performance)
 
-Benchmarks will happen, they just take time, you know the way. The STREAM one
-in the meantime is a "this works" and has an effect. I'm hoping Andrew Hastings
-will have figures at hand and I cc'd him elsewhere in the thread for comment.
+If you have better idea, please let me know.
 
-Thanks
+
+Note: 
+  - I don't add pgdat_remove_read_lock() on boot code.
+    Because pgdat hot-removing will not work at boot time.
+    (But I may overlook some places which must use pgdat_remove_read_lock() yet.)
+
+
+Thanks.
+
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
