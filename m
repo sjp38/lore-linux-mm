@@ -1,87 +1,69 @@
-Date: Thu, 31 Jul 2008 14:22:13 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: memory hotplug: hot-remove fails on lowest chunk in ZONE_MOVABLE
-Message-ID: <20080731132213.GF1704@csn.ul.ie>
-References: <20080723105318.81BC.E1E9C6FF@jp.fujitsu.com> <1217347653.4829.17.camel@localhost.localdomain> <20080730110444.27DE.E1E9C6FF@jp.fujitsu.com> <1217420161.4545.10.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Thu, 31 Jul 2008 17:29:53 +0400
+From: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+Message-ID: <20080731132953.GB1120@2ka.mipt.ru>
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org> <20080731061201.GA7156@shareable.org> <20080731102612.GA29766@2ka.mipt.ru> <20080731123350.GB16481@shareable.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1217420161.4545.10.camel@localhost.localdomain>
+In-Reply-To: <20080731123350.GB16481@shareable.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On (30/07/08 14:16), Gerald Schaefer didst pronounce:
-> On Wed, 2008-07-30 at 12:16 +0900, Yasunori Goto wrote:
-> > Well, I didn't mean changing pages_min value. There may be side effect as
-> > you are saying.
-> > I meant if some pages were MIGRATE_RESERVE attribute when hot-remove are
-> > -executing-, their attribute should be changed.
-> > 
-> > For example, how is like following dummy code?  Is it impossible?
-> > (Not only here, some places will have to be modified..)
+On Thu, Jul 31, 2008 at 01:33:50PM +0100, Jamie Lokier (jamie@shareable.org) wrote:
+> This is why marking the pages COW would be better.  Automatic!
+> There's no need for a notification, merely letting go of the page
+> references - yes, the hardware / TCP acks already do that, no locking
+> or anything!  :-)  The last reference is nothing special, it just means
+> the next file write/truncate sees the count is 1 and doesn't need to
+> COW the page.
+
+It depends... COW can DoS the system: consider attacker who sends a
+page, writes there, sends again and so on in lots of threads. Depending
+on link capacity eventually COW will eat the whole RAM.
+
+> > There was a linux aio_sendfile() too. Google still knows about its
+> > numbers, graphs and so on... :)
 > 
-> Right, this should be possible. I was somewhat wandering from the subject,
-> because I noticed that there may be a bigger problem with MIGRATE_RESERVE
-> pages in ZONE_MOVABLE, and that we may not want to have them in the first
-> place.
-> 
+> I vaguely remember it's performance didn't seem that good.
 
-MIGRATE_RESERVE is of large importance to ZONE_DMA32 and ZONE_NORMAL, to
-a much lesser extent to ZONE_HIGHMEM and almost irrevelant to
-ZONE_MOVABLE. However, nothing about MIGRATE_RESERVE should prevent the
-hot-remove of the section. If the section is totally free, it is
-considered removable according to is_mem_section_removable(). If other
-parts of memory hot-remove are deliberately ignoring the RESERVE
-sections, they should stop that.
+<q>
+Benchmark of the 100 1MB files transfer (files are in VFS already) using
+sync sendfile() against aio_sendfile_path() shows about 10MB/sec
+performance win (78 MB/s vs 66-72 MB/s over 1 Gb network, sendfile
+sending server is one-way AMD Athlong 64 3500+) for aio_sendfile_path().
+</q>
 
-I haven't read the whole thread, but in your original mail, you say that
-ZONE_MOVABLE is populated by memory hot-add. Are there really PageReserved()
-pages there? If so, is there any chance or other management structures
-are being allocated within the section you are hot-adding? If so and they
-are not getting freed, that might be why hot-remove is failing. If they
-are not PageReserved() pages and this is an -mm kernel, I would enable
-CONFIG_PAGE_OWNER and see who really reallocated those problem pages that
-are not freeing.
+So, it was really better that sync sendfile :)
 
-> The more memory we add to ZONE_MOVABLE, the less reserved pages will
-> remain to the other zones. In setup_per_zone_pages_min(), min_free_kbytes
-> will be redistributed to a zone where the kernel cannot make any use of
-> it, effectively reducing the available min_free_kbytes. 
+> One of the problems is you don't really want AIO all the time, just
+> when a process would block because the data isn't in cache.  You
+> really don't want to be sending *all* ops to worker threads, even
+> kernel threads.  And you preferably don't want the AIO interface
+> overhead for ops satisfied from cache.
 
-I'm not sure what you mean by "available min_free_kbytes". The overall value
-for min_free_kbytes should be approximately the same whether the zone exists
-or not. However, you're right in that the distribution of minimum free pages
-changes with ZONE_MOVABLE because the zones are different sizes now. This
-affects reclaim, not memory hot-remove.
+That's how all AIO should work of course. We are getting into a bit of
+offtopic, but aio_sendfile() worked that way as long as syslets,
+although the former did allocate some structures before trying to send
+the data.
 
-> This just doesn't
-> sound right. I believe that a similar situation is the reason why highmem
-> pages are skipped in the calculation and I think that we need that for
-> ZONE_MOVABLE too. Any thoughts on that problem?
-> 
+> Syslets got some of the way there, and maybe that's why they were
+> faster than AIO for some things.  There are user-space hacks which are
+> a bit like syslets.  (Bind two processes to the same CPU, process 1
+> wakes process 2 just before 1 does a syscall, and puts 2 back to sleep
+> if 2 didn't wake and do an atomic op to prove it's awake).  I haven't
+> tested their performance, it could suck.
 
-is_highmem(ZONE_MOVABLE) should be returning true if the zone is really
-part of himem.
-
-> Setting pages_min to 0 for ZONE_MOVABLE, while not capping pages_low
-> and pages_high, could be an option. I don't have a sufficient memory
-> managment overview to tell if that has negative side effects, maybe
-> someone with a deeper insight could comment on that.
-> 
-
-pages_min of 0 means the other values would be 0 as well. This means that
-kswapd may never be woken up to free pages within that zone and lead to
-poor utilisation of the zone as allocators fallback to other zones to
-avoid direct reclaim. I don't think that is your intention nor will it
-help memory hot-remove.
+Looks scary :)
+Thread allocation in userspace is rather costly operations compared to
+syslet threads in kernelspace. But depending on IO pattern this may or
+may not be a noticeble factor... It requires testing and numbers.
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
