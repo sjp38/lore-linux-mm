@@ -1,73 +1,68 @@
-Date: Thu, 31 Jul 2008 10:15:33 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: memo: mem+swap controller
-Message-Id: <20080731101533.c82357b7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+Date: Thu, 31 Jul 2008 12:16:16 +1000
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <E1KOFUi-0000EU-0p@pomaz-ex.szeredi.hu> <20080730175406.GN20055@kernel.dk>
+In-Reply-To: <20080730175406.GN20055@kernel.dk>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200807311216.16335.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
-Cc: "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, mem+swap controller is suggested by Hugh Dickins and I think it's a great
-idea. Its concept is having 2 limits. (please point out if I misunderstand.)
+On Thursday 31 July 2008 03:54, Jens Axboe wrote:
+> On Wed, Jul 30 2008, Miklos Szeredi wrote:
+> > On Wed, 30 Jul 2008, Linus Torvalds wrote:
+> > > On Wed, 30 Jul 2008, Miklos Szeredi wrote:
+> > > > There are no real disadvantages: splice() from a file was
+> > > > originally meant to be asynchronous, but in reality it only did
+> > > > that for non-readahead pages, which happen rarely.
+> > >
+> > > I still don't like this. I still don't see the point, and I still
+> > > think there is something fundamentally wrong elsewhere.
+>
+> You snipped the part where Linus objected to dismissing the async
+> nature, I fully agree with that part.
+>
+> > We discussed the possible solutions with Nick, and came to the
+> > conclusion, that short term (i.e. 2.6.27) this is probably the best
+> > solution.
+>
+> Ehm where? Nick also said that he didn't like removing the ->confirm()
+> bits as they are completely related to the async nature of splice. You
+> already submitted this exact patch earlier and it was nak'ed.
+>
+> > Long term sure, I have no problem with implementing async splice.
+> >
+> > In fact, I may even have personal interest in looking at splice,
+> > because people are asking for a zero-copy interface for fuse.
+> >
+> > But that is definitely not 2.6.27, so I think you should reconsider
+> > taking this patch, which is obviously correct due to its simplicity,
+> > and won't cause any performance regressions either.
+>
+> Then please just fix the issue, instead of removing the bits that make
+> this possible.
 
- - memory.limit_in_bytes       .... limit memory usage.
- - memory.total_limit_in_bytes .... limit memory+swap usage.
+The only "real" objection I had to avoiding the ClearPageUptodate there
+I guess is that it would weaken some assertions. I was more concerned
+about the unidentified problems... but there probably shouldn't be
+too many places in the VM that really care that much anymore (and those
+that do might already be racy).
 
-By this, we can avoid excessive use of swap under a cgroup without any bad effect
-to global LRU. (in page selection algorithm...overhead will be added, of course)
+Now it seems to be perfectly fine to use the actual page itself that may
+have been truncated, and we have been doing that for a long time (see
+get_user_pages). So I'm not so worried about a bad data corruption or
+anything but just the VM getting confused, which we could fix anyway.
 
-Following is state transition and counter handling design memo.
-This uses "3" counters to handle above conrrectly. If you have other logic,
-please teach me. (and blame me if my diagram is broken.)
-
-A point is how to handle swap-cache, I think.
-(Maybe we need a _big_ change in memcg.)
-
-==
-
-state definition
-  new alloc  .... an object is newly allocated
-  no_swap    .... an object with page without swp_entry
-  swap_cache .... an object with page with swp_entry
-  disk_swap  .... an object without page with swp_entry
-  freed      .... an object is freed (by munmap)
-
-(*) an object is an enitity which is accoutned, page or swap.
-
- new alloc ->  no_swap  <=>  swap_cache  <=>  disk_swap
-                 |             |                 |
-  freed.   <-----------<-------------<-----------
-
-use 3 counters, no_swap, swap_cache, disk_swap.
-
-    on_memory = no_swap + swap_cache.
-    total     = no_swap + swap_cache + disk_swap
-
-on_memory is limited by memory.limit_in_bytes
-total     is limtied by memory.total_limit_in_bytes.
-
-                     no_swap  swap_cache  disk_swap  on_memory  total
-new alloc->no_swap     +1         -           -         +1        +1
-no_swap->swap_cache    -1        +1           -         -         -
-swap_cache->no_swap    +1        -1           -         -         -
-swap_cache->disk_swap  -         -1           +1        -1        -
-disk_swap->swap_cache  -         +1           -1        +1        -
-no_swap->freed         -1        -            -         -1        -1
-swap_cache->freed      -         -1           -         -1        -1
-disk_swap->freed       -         -            -1        -         -1
-
-
-any comments are welcome.
-
-Regards,
--Kame
-
-
-
+I guess that kind of patch could sit in -mm for a while then get merged.
+Linus probably wouldn't think highly of a post-rc1 merge, but if it
+really is a bugfix, maybe?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
