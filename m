@@ -1,61 +1,94 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Date: Thu, 31 Jul 2008 22:59:43 +1000
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
-In-Reply-To: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Date: Thu, 31 Jul 2008 22:03:23 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: memo: mem+swap controller
+Message-Id: <20080731220323.61e44dec.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080731155127.064aaf11.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080731101533.c82357b7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080731152533.dea7713a.nishimura@mxp.nes.nec.co.jp>
+	<20080731155127.064aaf11.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200807312259.43402.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 30 July 2008 19:43, Miklos Szeredi wrote:
-> Jens,
->
-> Please apply or ack this for 2.6.27.
->
-> [v3: respun against 2.6.27-rc1]
->
-> Thanks,
-> Miklos
->
-> ----
-> From: Miklos Szeredi <mszeredi@suse.cz>
->
-> Brian Wang reported that a FUSE filesystem exported through NFS could
-> return I/O errors on read.  This was traced to splice_direct_to_actor()
-> returning a short or zero count when racing with page invalidation.
->
-> However this is not FUSE or NFSD specific, other filesystems (notably NFS)
-> also call invalidate_inode_pages2() to purge stale data from the cache.
->
-> If this happens while such pages are sitting in a pipe buffer, then
-> splice(2) from the pipe can return zero, and read(2) from the pipe can
-> return ENODATA.
->
-> The zero return is especially bad, since it implies end-of-file or
-> disconnected pipe/socket, and is documented as such for splice.  But
-> returning an error for read() is also nasty, when in fact there was no
-> error (data becoming stale is not an error).
+> > > By this, we can avoid excessive use of swap under a cgroup without any bad effect
+> > > to global LRU. (in page selection algorithm...overhead will be added, of course)
+> > > 
+> > Sorry, I cannot understand this part.
+> > 
+> From global LRU's view, anonymous page can be swapped out everytime.
+> Because it never hits limit.
+> ==
+>                       no_swap  swap_cache  disk_swap  on_memory  total
+> no_swap->swap_cache    -1        +1           -         -         -
+> ==
+> no changes in total.
+> 
+I see. Thanks.
 
-Hmm, the PageError case is a similar one which cannot be avoided, so
-it kind of indicates to me that the splice async API is slightly
-lacking (and provides me with some confirmation about my dislike of
-removing ClearPageUptodate from invalidate...)
+> > > Following is state transition and counter handling design memo.
+> > > This uses "3" counters to handle above conrrectly. If you have other logic,
+> > > please teach me. (and blame me if my diagram is broken.)
+> > > 
+> > I don't think counting "disk swap" is good idea(global linux
+> > dosen't count it).
+> > Instead, I prefer counting "total swap"(that is swap entry).
+> > 
+> Maybe my illustration is bad. 
+> 
+> total_swap = swap_cache + disk_swap. Yes, I count swp_entry.
+> But just divides it to on-memory or not.
+> 
+> This is just a state transition problem. When we counting only total_swap,
+> we cannot avoid double counting of a swap_cache as memory and as swap.
+> 
+I agree.
+My intention was not counting only total_swap, but counting both
+total_swap and swap_cache.
 
-Returning -EIO at the pipe read I don't think quite make sense because
-it is conceptually an IO error for the splicer, not the reader (who
-is reading from a pipe, not from the file causing the error).
+> > > A point is how to handle swap-cache, I think.
+> > > (Maybe we need a _big_ change in memcg.)
+> > > 
+> > I think swap cache should be counted as both memory and swap,
+> > as global linux does.
+> 
+> No. If we allow double counting, we'll see OOM-Killer very soon. 
+> 
+on_memory = no_swap + swap_cache (your difinition)
+swap = swap_cache + disk_swap
+total = no_swap + swap_cache + disk_swap (your difinition)
 
-It seems like the right way to fix this would be to allow the splicing
-process to be notified of a short read, in which case it could try to
-refill the pipe with the unread bytes...
+total is NOT "on_memory + swap"(swap_cache is not doble counted).
+
+so, in the sense of limitting, this is the same as yours.
+
+> If what you say is
+> ==
+>                       no_swap  swap   on_memory  total
+> no_swap->swap_cache             +1       -         +1
+> ==
+> What happens when global lru's swap_out hits limit ?
+> 
+> If what you say is
+> ==
+>                       no_swap  swap   on_memory  total
+> no_swap->swap_cache      -1      +1       -        -
+> ==
+> What happens when SwapCache is mapped ? 
+> 
+The latter, and I think there would be no defference
+about no_swap/swap_cache/disk_swap counters even when the swap cache is mapped.
+
+(current memory controller charges swap caches only when it is mapped,
+but I'm not talking about it.)
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
