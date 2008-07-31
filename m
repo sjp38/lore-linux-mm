@@ -1,31 +1,26 @@
-Message-ID: <4891C66A.3040302@linux-foundation.org>
-Date: Thu, 31 Jul 2008 09:04:26 -0500
+Message-ID: <4891C8BC.1020509@linux-foundation.org>
+Date: Thu, 31 Jul 2008 09:14:20 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
-References: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com>
-In-Reply-To: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com>
+Subject: Re: [PATCH] Update Unevictable LRU and Mlocked Pages documentation
+References: <1217452439.7676.26.camel@lts-notebook>
+In-Reply-To: <1217452439.7676.26.camel@lts-notebook>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
+> +Why maintain unevictable pages on an additional LRU list?  Primarily because
+> +we want to be able to migrate unevictable pages between nodes--for memory
+> +deframentation, workload management and memory hotplug.  The linux kernel can
+> +only migrate pages that it can successfully isolate from the lru lists.
+> +Therefore, we want to keep the unevictable pages on an lru-like list, where
+> +they can be found by isolate_lru_page().
 
-> Current my idea is using RCU feature for waiting them.
-> Because it is the least impact against reader's performance,
-> and pgdat remover can wait finish of reader's access to pgdat
-> which is removing by synchronize_sched().
-
-The use of RCU disables preemption which has implications as to what can be done in a loop over nodes or zones. This would also potentially add more overhead to the page allocator hotpaths.
-
-
-> If you have better idea, please let me know.
-
-Use stop_machine()? The removal of a zone or node is a pretty rare event after all and it would avoid having to deal with rcu etc etc.
+The primary motivation for me was to get rid of the useless scanning of pages under memory pressure which led to live lock scenarios. mlocked pages are migratable now so the changes do not really change anything there. The unevictable lists are also necessary to spill pages back to the regular LRUs when unevictable pages become evictable again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
