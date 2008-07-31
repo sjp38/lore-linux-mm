@@ -1,35 +1,80 @@
-Date: Thu, 31 Jul 2008 10:00:17 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 31 Jul 2008 18:21:11 +0100
+From: Jamie Lokier <jamie@shareable.org>
 Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <200807312259.43402.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <200807312259.43402.nickpiggin@yahoo.com.au>
+Message-ID: <20080731172111.GA23644@shareable.org>
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org> <20080731061201.GA7156@shareable.org> <alpine.LFD.1.10.0807310925360.3277@nehalem.linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.1.10.0807310925360.3277@nehalem.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 31 Jul 2008, Nick Piggin wrote:
+Linus Torvalds wrote:
+> >			, or (b) while sendfile claims those
+> > pages, they are marked COW.
 > 
-> It seems like the right way to fix this would be to allow the splicing
-> process to be notified of a short read, in which case it could try to
-> refill the pipe with the unread bytes...
+> .. and this one shows that you have no clue about performance of a memcpy.
+> 
+> Once you do that COW, you're actually MUCH BETTER OFF just copying.
+> Copying a page is much cheaper than doing COW on it.
 
-Hmm. That should certainly work with the splice model. The users of the 
-data wouldn't eat (or ignore) the invalid data, they'd just say "invalid 
-data", and stop. And it would be up to the other side to handle it (it 
-can see the state of the pipe, we can make it both wake up POLL_ERR _and_ 
-return an error if somebody tries to write to a "blocked" pipe).
+That sounds familiar :-)
 
-So yes, that's very possible, but it obviously requires splice() users to 
-be able to handle more cases. I'm not sure it's realistic to expect users 
-to be that advanced.
+But did you miss the bit where you DON'T COPY ANYTHING EVER*?  COW is
+able provide _correctness_ for the rare corner cases which you're not
+optimising for.  You don't actually copy more than 0.0% (*approx).
 
-		Linus
+Copying is supposed to be _so_ rare, in this, that it doesn't count.
+
+Correctness is so you can say "I've written that, when the syscall
+returns I know what data the other end will receive, if it succeeds".
+Knowing what can happen in what order is bread and butter around here,
+you know how useful that can.
+
+The cost of COW is TLB flushes*.  But for splice, there ARE NO TLB
+FLUSHES because such files are not mapped writable!  And you don't
+intend to write the file soon either.  A program would be daft to use
+splice _intending_ to do those things, it obviously would be poor use
+of the interface.  The kernel may as well copy the data if they did
+(and it's in a good position to decide).
+
+> Doing a "write()" really isn't that expensive. People think that
+> memory is slow, but memory isn't all that slow, and caches work
+> really well. Yes, memory is slow compared to a few reference count
+> increments, but memory is absolutely *not* slow when compared to the
+> overhead of TLB invalidates across CPUs etc.
+
+You're missing the real point of network splice().
+
+It's not just for speed.
+
+It's for sharing data.  Your TCP buffers can share data, when the same
+big lump is in flight to lots of clients.  Think static file / web /
+FTP server, the kind with 80% of hits to 0.01% of the files roughly
+the same of your RAM.
+
+You want network splice() for the same reason you want shared
+libraries.  So that memory use scales better with some loads**.
+
+You don't know how much good that will do, only, like shared
+libraries, that it's intrinsically good if it doesn't cost anything.
+And I'm suggesting that since no TLB flushes or COW copies are
+expected, and you can just copy at sendfile time if the page is
+already write-mapped anywhere, so the page references aren't
+complicated, it shouldn't cost anything.
+
+** - Admittedly this is rather load dependent.  But it's potentially
+O(c*d) for write vs. O(d) for sendfile, hand-wavingly, where c is the
+number of connections using d data.  (Then again, as I work out the
+figures, RAM is getting cheaper faster than bandwidth-latency products
+are getting bigger...  It's not a motivator except for cheapskates.
+But doesn't detract from intrinsic goodness.)
+
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
