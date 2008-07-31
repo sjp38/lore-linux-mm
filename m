@@ -1,39 +1,67 @@
-In-reply-to: <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org>
-	(message from Linus Torvalds on Thu, 31 Jul 2008 10:00:17 -0700 (PDT))
+Date: Thu, 31 Jul 2008 11:54:56 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [patch v3] splice: fix race with page invalidation
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <200807312259.43402.nickpiggin@yahoo.com.au> <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org>
-Message-Id: <E1KOceD-0000nD-JA@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 31 Jul 2008 20:13:09 +0200
+In-Reply-To: <20080731172111.GA23644@shareable.org>
+Message-ID: <alpine.LFD.1.10.0807311142510.3277@nehalem.linux-foundation.org>
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731001131.GA30900@shareable.org> <20080731004214.GA32207@shareable.org> <alpine.LFD.1.10.0807301746500.3277@nehalem.linux-foundation.org> <20080731061201.GA7156@shareable.org>
+ <alpine.LFD.1.10.0807310925360.3277@nehalem.linux-foundation.org> <20080731172111.GA23644@shareable.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: nickpiggin@yahoo.com.au, miklos@szeredi.hu, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, nickpiggin@yahoo.com.au, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 31 Jul 2008, Linus Torvalds wrote:
-> On Thu, 31 Jul 2008, Nick Piggin wrote:
-> > 
-> > It seems like the right way to fix this would be to allow the splicing
-> > process to be notified of a short read, in which case it could try to
-> > refill the pipe with the unread bytes...
-> 
-> Hmm. That should certainly work with the splice model. The users of the 
-> data wouldn't eat (or ignore) the invalid data, they'd just say "invalid 
-> data", and stop. And it would be up to the other side to handle it (it 
-> can see the state of the pipe, we can make it both wake up POLL_ERR _and_ 
-> return an error if somebody tries to write to a "blocked" pipe).
-> 
-> So yes, that's very possible, but it obviously requires splice() users to 
-> be able to handle more cases. I'm not sure it's realistic to expect users 
-> to be that advanced.
 
-Worse, it's not guaranteed to make any progress.  E.g. on NFS server
-with data being continually updated, cache on the client will
-basically always be invalid, so the above scheme might just repeat the
-splices forever without success.
+On Thu, 31 Jul 2008, Jamie Lokier wrote:
+> 
+> But did you miss the bit where you DON'T COPY ANYTHING EVER*?  COW is
+> able provide _correctness_ for the rare corner cases which you're not
+> optimising for.  You don't actually copy more than 0.0% (*approx).
 
-Miklos
+The thing is, just even _marking_ things COW is the expensive part. If we 
+have to walk page tables - we're screwed.
+
+> The cost of COW is TLB flushes*.  But for splice, there ARE NO TLB
+> FLUSHES because such files are not mapped writable!
+
+For splice, there are also no flags to set, no extra tracking costs, etc 
+etc.
+
+But yes, we could make splice (from a file) do something like
+
+ - just fall back to copy if the page is already mapped (page->mapcount 
+   gives us that)
+
+ - set a bit ("splicemapped") when we splice it in, and increment 
+   page->mapcount for each splice copy.
+
+ - if a "splicemapped" page is ever mmap'ed or written to (either through 
+   write or truncate), we COW it then (and actually move the page cache 
+   page - it would be a "woc": a reverse cow, not a normal one).
+
+ - do all of this with page lock held, to make sure that there are no 
+   writers or new mappers happening.
+
+So it's probably doable. 
+
+(We could have a separate "splicecount", and actually allow non-writable 
+mappings, but I suspect we cannot afford the space in teh "struct space" 
+for a whole new count).
+
+> You're missing the real point of network splice().
+> 
+> It's not just for speed.
+> 
+> It's for sharing data.  Your TCP buffers can share data, when the same
+> big lump is in flight to lots of clients.  Think static file / web /
+> FTP server, the kind with 80% of hits to 0.01% of the files roughly
+> the same of your RAM.
+
+Maybe. Does it really show up as a big thing?
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
