@@ -1,74 +1,64 @@
-Date: Thu, 31 Jul 2008 18:17:50 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/1] mm: unify pmd_free() and __pmd_free_tlb()
-	implementation
-Message-ID: <20080731161750.GA26393@elte.hu>
-References: <alpine.LFD.1.10.0807280851130.3486@nehalem.linux-foundation.org> <488DF119.2000004@gmail.com> <20080729012656.566F.KOSAKI.MOTOHIRO@jp.fujitsu.com> <488DFFB0.1090107@gmail.com> <20080728133030.8b29fa5a.akpm@linux-foundation.org> <488E3020.1040701@goop.org> <488E4DEB.5010705@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <488E4DEB.5010705@gmail.com>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <4668997.1217521901885.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 1 Aug 2008 01:31:41 +0900 (JST)
+Subject: Re: Re: memo: mem+swap controller
+In-Reply-To: <20080731220323.61e44dec.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: 7bit
+References: <20080731220323.61e44dec.nishimura@mxp.nes.nec.co.jp>
+ <20080731101533.c82357b7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080731152533.dea7713a.nishimura@mxp.nes.nec.co.jp>
+	<20080731155127.064aaf11.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Righi <righi.andrea@gmail.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, hugh@veritas.com, linux-mm@kvack.org, menage@google.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* Andrea Righi <righi.andrea@gmail.com> wrote:
+>> > > Following is state transition and counter handling design memo.
+>> > > This uses "3" counters to handle above conrrectly. If you have other lo
+gic,
+>> > > please teach me. (and blame me if my diagram is broken.)
+>> > > 
+>> > I don't think counting "disk swap" is good idea(global linux
+>> > dosen't count it).
+>> > Instead, I prefer counting "total swap"(that is swap entry).
+>> > 
+>> Maybe my illustration is bad. 
+>> 
+>> total_swap = swap_cache + disk_swap. Yes, I count swp_entry.
+>> But just divides it to on-memory or not.
+>> 
+>> This is just a state transition problem. When we counting only total_swap,
+>> we cannot avoid double counting of a swap_cache as memory and as swap.
+>> 
+>I agree.
+>My intention was not counting only total_swap, but counting both
+>total_swap and swap_cache.
+>
+At early stage of diaglam, I just added total_swap counter.
+(total_swap here means # of used swp_entry.)
+And failed to write diaglam ;( Maybe selection of counters was bad.
 
-> Jeremy Fitzhardinge wrote:
-> > Andrew Morton wrote:
-> >> I can second that.  See
-> >> http://userweb.kernel.org/~akpm/mmotm/broken-out/include-asm-generic-pgtable-nopmdh-macros-are-noxious-reason-435.patch
-> >>
-> >> Ingo cruelly ignored it.  Probably he's used to ignoring the comit
-> >> storm which I send in his direction - I'll need to resend it sometime.
-> >>
-> >> I'd consider that patch to be partial - we should demacroize the
-> >> surrounding similar functions too.  But that will require a bit more
-> >> testing.
-> > 
-> > Its immediate neighbours should be easy enough (pmd_alloc_one, 
-> > __pmd_free_tlb), but any of the ones involving pmd_t risk #include hell 
-> > (though the earlier references to pud_t in inline functions suggest it 
-> > will work).  And pmd_addr_end is just ugly.
-> > 
-> >     J
-> > 
-> 
-> ok, let's start with the easiest: pmd_free() and __pmd_free_tlb().
-> 
-> Following another attempt to unify the implementations using inline 
-> functions. It seems to build fine on x86 (pae / non-pae) and on 
-> x86_64. This is an RFC patch right now, not for inclusion (just asking 
-> if it could be a reasonable approach or not). And in any case this 
-> would need more testing.
-> 
-> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
-> ---
->  arch/sparc/include/asm/pgalloc_64.h |    1 +
->  include/asm-alpha/pgalloc.h         |    1 +
->  include/asm-arm/pgalloc.h           |    1 -
->  include/asm-frv/pgalloc.h           |    2 --
->  include/asm-generic/pgtable-nopmd.h |   19 +++++++++++++++++--
->  include/asm-ia64/pgalloc.h          |    1 +
->  include/asm-m32r/pgalloc.h          |    2 --
->  include/asm-m68k/motorola_pgalloc.h |    3 ++-
->  include/asm-m68k/sun3_pgalloc.h     |    7 -------
->  include/asm-mips/pgalloc.h          |   12 +-----------
->  include/asm-parisc/pgalloc.h        |    2 +-
->  include/asm-powerpc/pgalloc-32.h    |    2 --
->  include/asm-powerpc/pgalloc-64.h    |    1 +
->  include/asm-s390/pgalloc.h          |    1 -
->  include/asm-sh/pgalloc.h            |    8 --------
->  include/asm-um/pgalloc.h            |    1 +
->  include/asm-x86/pgalloc.h           |    2 ++
->  17 files changed, 28 insertions(+), 38 deletions(-)
+If just 2 counters are enough, it's better.
 
-the x86 bits look good to me in principle but touches a ton of 
-architectures and deals with VM issues - the perfect candidate for -mm?
+Hmm..
+- on_memory .... # of pages used
+- disk_swap      .... # of swp_entry without SwapCache
 
-	Ingo
+limit_in_bytes ... limits on_memory
+total_limit    ... limits on_mempry + disk_swap.
+
+can work ?
+
+I'd like to write a sample patch in the next week.
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
