@@ -1,26 +1,27 @@
-Message-ID: <4891C8BC.1020509@linux-foundation.org>
-Date: Thu, 31 Jul 2008 09:14:20 -0500
+Message-ID: <4891C9D5.8000500@linux-foundation.org>
+Date: Thu, 31 Jul 2008 09:19:01 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Update Unevictable LRU and Mlocked Pages documentation
-References: <1217452439.7676.26.camel@lts-notebook>
-In-Reply-To: <1217452439.7676.26.camel@lts-notebook>
+Subject: Re: MMU notifiers review and some proposals
+References: <20080724143949.GB12897@wotan.suse.de> <20080725214552.GB21150@duo.random> <20080726030810.GA18896@wotan.suse.de> <20080726113813.GD21150@duo.random> <20080726122826.GA17958@wotan.suse.de> <20080726130202.GA9598@duo.random> <20080726131450.GC21820@wotan.suse.de> <48907880.3020105@linux-foundation.org> <20080730145436.GJ11494@duo.random> <48908BD4.10408@linux-foundation.org> <20080731061419.GB32644@wotan.suse.de>
+In-Reply-To: <20080731061419.GB32644@wotan.suse.de>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrea Arcangeli <andrea@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, steiner@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-> +Why maintain unevictable pages on an additional LRU list?  Primarily because
-> +we want to be able to migrate unevictable pages between nodes--for memory
-> +deframentation, workload management and memory hotplug.  The linux kernel can
-> +only migrate pages that it can successfully isolate from the lru lists.
-> +Therefore, we want to keep the unevictable pages on an lru-like list, where
-> +they can be found by isolate_lru_page().
+Nick Piggin wrote:
 
-The primary motivation for me was to get rid of the useless scanning of pages under memory pressure which led to live lock scenarios. mlocked pages are migratable now so the changes do not really change anything there. The unevictable lists are also necessary to spill pages back to the regular LRUs when unevictable pages become evictable again.
+> That's OK. We don't have to make decisions just by people supporting one
+> way or the other, because I'll come up with some competing patches and
+> if they turn out to be significantly simpler to the core VM without having
+> a significant negative impact on performance then naturally everybody should
+> be happy to merge them, so nobody has to argue with handwaving.
+
+We make decisions based on technical issues. If you can come up with a solution that addresses the issues (please review the earlier discussion on the subject matter) then we will all be happy to see that merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
