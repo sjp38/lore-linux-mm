@@ -1,56 +1,61 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [patch v3] splice: fix race with page invalidation
-Date: Thu, 31 Jul 2008 22:49:01 +1000
-References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731102612.GA29766@2ka.mipt.ru> <20080731123350.GB16481@shareable.org>
-In-Reply-To: <20080731123350.GB16481@shareable.org>
+Date: Thu, 31 Jul 2008 22:59:43 +1000
+References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
+In-Reply-To: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="iso-8859-1"
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200807312249.02287.nickpiggin@yahoo.com.au>
+Message-Id: <200807312259.43402.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jens.axboe@oracle.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 31 July 2008 22:33, Jamie Lokier wrote:
-> Evgeniy Polyakov wrote:
-> > On Thu, Jul 31, 2008 at 07:12:01AM +0100, Jamie Lokier 
-(jamie@shareable.org) wrote:
-> > > The obvious mechanism for completion notifications is the AIO event
-> > > interface.  I.e. aio_sendfile that reports completion when it's safe
-> > > to modify data it was using.  aio_splice would be logical for similar
-> > > reasons.  Note it doesn't mean when the data has reached a particular
-> > > place, it means when the pages it's holding are released.  Pity AIO
-> > > still sucks ;-)
-> >
-> > It is not that simple: page can be held in hardware or tcp queues for
-> > a long time, and the only possible way to know, that system finished
-> > with it, is receiving ack from the remote side. There is a project to
-> > implement such a callback at skb destruction time (it is freed after ack
-> > from the other peer), but do we really need it? System which does care
-> > about transmit will implement own ack mechanism, so page can be unlocked
-> > at higher layer. Actually page can be locked during transfer and
-> > unlocked after rpc reply received, so underlying page invalidation will
-> > be postponed and will not affect sendfile/splice.
+On Wednesday 30 July 2008 19:43, Miklos Szeredi wrote:
+> Jens,
 >
-> This is why marking the pages COW would be better.  Automatic!
-> There's no need for a notification, merely letting go of the page
-> references - yes, the hardware / TCP acks already do that, no locking
-> or anything!  :-)  The last reference is nothing special, it just means
-> the next file write/truncate sees the count is 1 and doesn't need to
-> COW the page.
+> Please apply or ack this for 2.6.27.
+>
+> [v3: respun against 2.6.27-rc1]
+>
+> Thanks,
+> Miklos
+>
+> ----
+> From: Miklos Szeredi <mszeredi@suse.cz>
+>
+> Brian Wang reported that a FUSE filesystem exported through NFS could
+> return I/O errors on read.  This was traced to splice_direct_to_actor()
+> returning a short or zero count when racing with page invalidation.
+>
+> However this is not FUSE or NFSD specific, other filesystems (notably NFS)
+> also call invalidate_inode_pages2() to purge stale data from the cache.
+>
+> If this happens while such pages are sitting in a pipe buffer, then
+> splice(2) from the pipe can return zero, and read(2) from the pipe can
+> return ENODATA.
+>
+> The zero return is especially bad, since it implies end-of-file or
+> disconnected pipe/socket, and is documented as such for splice.  But
+> returning an error for read() is also nasty, when in fact there was no
+> error (data becoming stale is not an error).
 
-Better == more bloat and complexity and corner cases in the VM?
+Hmm, the PageError case is a similar one which cannot be avoided, so
+it kind of indicates to me that the splice async API is slightly
+lacking (and provides me with some confirmation about my dislike of
+removing ClearPageUptodate from invalidate...)
 
-If the app wants to ensure some specific data is sent, then it has
-to wait until the receiver receives it before changing it, simple.
+Returning -EIO at the pipe read I don't think quite make sense because
+it is conceptually an IO error for the splicer, not the reader (who
+is reading from a pipe, not from the file causing the error).
 
-And you still don't avoid the fundamental problem that the receiver
-may not get exactly what the sender has put in flight if we do things
-asynchronously.
+It seems like the right way to fix this would be to allow the splicing
+process to be notified of a short read, in which case it could try to
+refill the pipe with the unread bytes...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
