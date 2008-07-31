@@ -1,48 +1,56 @@
-Date: Thu, 31 Jul 2008 07:40:39 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: Re: GRU driver feedback
-Message-ID: <20080731124039.GA27329@sgi.com>
-References: <20080723141229.GB13247@wotan.suse.de> <20080729185315.GA14260@sgi.com> <200807301550.34500.nickpiggin@yahoo.com.au> <200807311714.05252.nickpiggin@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch v3] splice: fix race with page invalidation
+Date: Thu, 31 Jul 2008 22:49:01 +1000
+References: <E1KOIYA-0002FG-Rg@pomaz-ex.szeredi.hu> <20080731102612.GA29766@2ka.mipt.ru> <20080731123350.GB16481@shareable.org>
+In-Reply-To: <20080731123350.GB16481@shareable.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200807311714.05252.nickpiggin@yahoo.com.au>
+Message-Id: <200807312249.02287.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Robin Holt <holt@sgi.com>, "Torvalds, Linus" <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Evgeniy Polyakov <johnpol@2ka.mipt.ru>, Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 31, 2008 at 05:14:04PM +1000, Nick Piggin wrote:
-> On Wednesday 30 July 2008 15:50, Nick Piggin wrote:
-> > On Wednesday 30 July 2008 04:53, Robin Holt wrote:
-> 
-> > > In the case where unmap_region is clearing page tables, the caller to
-> > > unmap_region is expected to be holding the mmap_sem writably.  Jacks
-> > > fault handler will immediately return when it fails on the
-> > > down_read_trylock().
+On Thursday 31 July 2008 22:33, Jamie Lokier wrote:
+> Evgeniy Polyakov wrote:
+> > On Thu, Jul 31, 2008 at 07:12:01AM +0100, Jamie Lokier 
+(jamie@shareable.org) wrote:
+> > > The obvious mechanism for completion notifications is the AIO event
+> > > interface.  I.e. aio_sendfile that reports completion when it's safe
+> > > to modify data it was using.  aio_splice would be logical for similar
+> > > reasons.  Note it doesn't mean when the data has reached a particular
+> > > place, it means when the pages it's holding are released.  Pity AIO
+> > > still sucks ;-)
 > >
-> > No, you are right of course. I had in my mind the problems faced by
-> > lockless get_user_pages, in which case I was worried about the page table
-> > existence, but missed the fact that you're holding mmap_sem to provide
-> > existence (which it would, as you note, although one day we may want to
-> > reclaim page tables or something that doesn't take mmap_sem, so a big
-> > comment would be nice here).
-> 
-> The other thing is... then GRU should get rid of the local_irq_disable
-> in the atomic pte lookup. By definition it is worthless if we can be
-> operating on an mm that is not running on current (and if I understand
-> correctly, sn2 can avoid sending tlb flush IPIs completely sometimes?)
+> > It is not that simple: page can be held in hardware or tcp queues for
+> > a long time, and the only possible way to know, that system finished
+> > with it, is receiving ack from the remote side. There is a project to
+> > implement such a callback at skb destruction time (it is freed after ack
+> > from the other peer), but do we really need it? System which does care
+> > about transmit will implement own ack mechanism, so page can be unlocked
+> > at higher layer. Actually page can be locked during transfer and
+> > unlocked after rpc reply received, so underlying page invalidation will
+> > be postponed and will not affect sendfile/splice.
+>
+> This is why marking the pages COW would be better.  Automatic!
+> There's no need for a notification, merely letting go of the page
+> references - yes, the hardware / TCP acks already do that, no locking
+> or anything!  :-)  The last reference is nothing special, it just means
+> the next file write/truncate sees the count is 1 and doesn't need to
+> COW the page.
 
-Done.
+Better == more bloat and complexity and corner cases in the VM?
 
-I'm collecting the fixes & additional comments to be added & will send
-them upstream later.
+If the app wants to ensure some specific data is sent, then it has
+to wait until the receiver receives it before changing it, simple.
 
-Thanks for the careful review.
-
-
---- jack
+And you still don't avoid the fundamental problem that the receiver
+may not get exactly what the sender has put in flight if we do things
+asynchronously.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
