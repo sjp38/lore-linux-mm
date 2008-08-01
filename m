@@ -1,86 +1,96 @@
-Date: Fri, 01 Aug 2008 18:42:21 +0900
+Date: Fri, 01 Aug 2008 20:16:20 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
-In-Reply-To: <4891C66A.3040302@linux-foundation.org>
-References: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com> <4891C66A.3040302@linux-foundation.org>
-Message-Id: <20080801180522.EC97.E1E9C6FF@jp.fujitsu.com>
+Subject: Re: memory hotplug: hot-add to ZONE_MOVABLE vs. min_free_kbytes
+In-Reply-To: <1217526327.4643.35.camel@localhost.localdomain>
+References: <20080731132213.GF1704@csn.ul.ie> <1217526327.4643.35.camel@localhost.localdomain>
+Message-Id: <20080801192646.EC99.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> Yasunori Goto wrote:
+> Sorry for mixing things up in this thread, the min_free_kbytes issue is
+> not related to memory hot-remove, but rather to hot-add and the things that
+> happen in setup_per_zone_pages_min(), which is called from online_pages().
+> It may well be that my assumptions are wrong, but I'd like to explain my
+> concerns again:
 > 
-> > Current my idea is using RCU feature for waiting them.
-> > Because it is the least impact against reader's performance,
-> > and pgdat remover can wait finish of reader's access to pgdat
-> > which is removing by synchronize_sched().
-> 
-> The use of RCU disables preemption which has implications as to
-> what can be done in a loop over nodes or zones.
-
-Yeap. It's the one of (big) cons.
-
-> This would also potentially add more overhead to the page allocator hotpaths.
-
-Agree.
-
-To tell the truth, I tried hackbench with 3rd patch which add rcu_read_lock
-in hot-path before this post to make rough estimate its impact.
-
-%hackbench 100 process 2000
-
-without patch.
-  39.93
-
-with patch
-  39.99
-(Both is 10 times avarage)
-
-I guess this result has effect of disable preemption.
-So, throughput looks not so bad, but probably, latency would be worse
-as you mind.
-
-Kame-san advised me I should take more other benchmarks which can get memory
-performance. I'll do it next week.
-
-> > If you have better idea, please let me know.
-> 
-> Use stop_machine()? The removal of a zone or node is a pretty rare event
-> after all and it would avoid having to deal with rcu etc etc.
+> If we have a system with 1 GB of memory, min_free_kbytes will be calculated
+> to 4 MB for ZONE_NORMAL, for example. Now, if we add 3 GB of hotplug memory
+> to ZONE_MOVABLE, the total min_free_kbytes will still remain 4 MB but it
+> will be distributed differently: ZONE_NORMAL will now have only 1 MB of
+> MIGRATE_RESERVE memory left, while ZONE_MOVABLE will have 3 MB, e.g.
 > 
 
-I thought it at first, but are there the following worst case?
+Right.
+
+> My assumption is now, that the reserved 3 MB in ZONE_MOVABLE won't be
+> usable by the kernel anymore, e.g. for PF_MEMALLOC, because it is in
+> ZONE_MOVABLE now.
+
+I don't make sense here. I suppose there is no relationship between
+ZONE_MOVABLE, PF_MEMALLOC and MIGRATE_RESERVE pages.
+Could you tell me more?
 
 
-   CPU 0                                    CPU 1
--------------------------------------------------------
-__alloc_pages()
-    
-    parsing_zonelist()
-        :
-    enter page_reclarim()
-    sleep (and remember zone)                 :
-                                              :
-                                        update zonelist and node_online_map
-                                          with stop_machine_run()
-                                        free pgdat().
-                                        remove the Node electrically.
+> This is what I mean with "effectively reducing the
+> available min_free_kbytes". The system would now behave in the same way
+> as a system which only had 1 MB of min_free_kbytes, although
+> /proc/sys/vm/min_free_kbytes would still say 4 MB. After all, this tunable
+> can have a rather negative impact on a system, especially if it is too
+> low, hence my concerns.
+>
+> > > Setting pages_min to 0 for ZONE_MOVABLE, while not capping pages_low
+> > > and pages_high, could be an option. I don't have a sufficient memory
+> > > managment overview to tell if that has negative side effects, maybe
+> > > someone with a deeper insight could comment on that.
+> > > 
+> > 
+> > pages_min of 0 means the other values would be 0 as well. This means that
+> > kswapd may never be woken up to free pages within that zone and lead to
+> > poor utilisation of the zone as allocators fallback to other zones to
+> > avoid direct reclaim. I don't think that is your intention nor will it
+> > help memory hot-remove.
+> 
+> Do you mean pages_low and pages_high? In setup_per_zone_pages_min(),
+> those would not be set to 0, even if we set pages_min to 0. Again, a
+> similar strategy is being used for highmem in that function, only that
+> pages_min is set to a small value instead of 0 in that case. So it should
+> not affect kswapd but only __GFP_HIGH and PF_MEMALLOC allocations, which
+> won't be allocated from ZONE_MOVABLE anyway if I understood that right.
 
-    wake up and touch remembered
-       zone,  but it is removed
-    (Oops!!!)
+
+pages_min seems to be used in get_pages_from_freelist().
+Do you mean following is not executed?
 
 
+                if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+                        unsigned long mark;
+                        if (alloc_flags & ALLOC_WMARK_MIN)
+                                mark = zone->pages_min;           <------!!!
+                        else if (alloc_flags & ALLOC_WMARK_LOW)
+                                mark = zone->pages_low;
+                        else
+                                mark = zone->pages_high;
+                        if (!zone_watermark_ok(zone, order, mark,   <-----!!!
+                                    classzone_idx, alloc_flags)) {
+                                if (!zone_reclaim_mode ||
+                                    !zone_reclaim(zone, gfp_mask, order))
+                                        goto this_zone_full;
+                        }
+                }
 
-Anyway, I'm happy if there is better way than my poor idea. :-)
+But even if pages_min is not used as you said, I suppose it is
+accidental by changing source code.
+It should work as watermark to keep its meaning.
+If not, it would be cause of bug in the future by misunderstanding.
 
-Thanks for your comment.
 
+Bye.
 
 -- 
 Yasunori Goto 
