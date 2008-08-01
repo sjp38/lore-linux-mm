@@ -1,28 +1,33 @@
-Date: Fri, 1 Aug 2008 11:32:48 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-In-Reply-To: <E1KOzMt-0003fa-Ah@pomaz-ex.szeredi.hu>
-Message-ID: <alpine.LFD.1.10.0808011131500.3277@nehalem.linux-foundation.org>
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <alpine.LFD.1.10.0807310957200.3277@nehalem.linux-foundation.org> <E1KOceD-0000nD-JA@pomaz-ex.szeredi.hu> <200808011122.51792.nickpiggin@yahoo.com.au> <E1KOzMt-0003fa-Ah@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 1 Aug 2008 15:09:01 -0500
+From: Jack Steiner <steiner@sgi.com>
+Subject: Re: GRU driver feedback
+Message-ID: <20080801200901.GA167958@sgi.com>
+References: <20080723141229.GB13247@wotan.suse.de> <20080729185315.GA14260@sgi.com> <200807301550.34500.nickpiggin@yahoo.com.au> <200807311714.05252.nickpiggin@yahoo.com.au> <20080731124039.GA27329@sgi.com> <Pine.LNX.4.64.0808011305080.20052@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0808011305080.20052@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: nickpiggin@yahoo.com.au, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Robin Holt <holt@sgi.com>, "Torvalds, Linus" <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Aug 01, 2008 at 01:11:09PM +0100, Hugh Dickins wrote:
+> On Thu, 31 Jul 2008, Jack Steiner wrote:
+> > 
+> > I'm collecting the fixes & additional comments to be added & will send
+> > them upstream later.
+> 
+> One small thing to remove if you've not already noticed:
+> EXPORT_SYMBOL_GPL(follow_page) got added to mm/memory.c,
+> despite our realization that GRU cannot and now does not use it.
+> 
 
-On Fri, 1 Aug 2008, Miklos Szeredi wrote:
->
-> Subject: mm: dont clear PG_uptodate on truncate/invalidate 
-> From: Miklos Szeredi <mszeredi@suse.cz>
+Thanks for catching this. I sent a patch upstream a few minutes ago to
+remove the export.
 
-Ok, this one I have no problems with what-so-ever. I'd like Ack's for this 
-kind of change (and obviously hope that it's tested), but it looks clean 
-and I think the new rules are better (not just for this case).
-
-		Linus
+--- jack
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
