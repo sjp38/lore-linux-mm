@@ -1,50 +1,52 @@
-Message-ID: <489314FE.7080900@linux-foundation.org>
-Date: Fri, 01 Aug 2008 08:51:58 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
-References: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com> <4891C66A.3040302@linux-foundation.org> <20080801180522.EC97.E1E9C6FF@jp.fujitsu.com>
-In-Reply-To: <20080801180522.EC97.E1E9C6FF@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 1 Aug 2008 10:06:23 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH] Update Unevictable LRU and Mlocked Pages documentation
+Message-ID: <20080801100623.4aae3e37@bree.surriel.com>
+In-Reply-To: <489313AC.3080605@linux-foundation.org>
+References: <1217452439.7676.26.camel@lts-notebook>
+	<4891C8BC.1020509@linux-foundation.org>
+	<1217515429.6507.7.camel@lts-notebook>
+	<489313AC.3080605@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
+On Fri, 01 Aug 2008 08:46:20 -0500
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-> I thought it at first, but are there the following worst case?
-> 
-> 
->    CPU 0                                    CPU 1
-> -------------------------------------------------------
-> __alloc_pages()
->     
->     parsing_zonelist()
->         :
->     enter page_reclarim()
->     sleep (and remember zone)                 :
->                                               :
->                                         update zonelist and node_online_map
->                                           with stop_machine_run()
->                                         free pgdat().
->                                         remove the Node electrically.
-> 
->     wake up and touch remembered
->        zone,  but it is removed
->     (Oops!!!)
-> 
-> 
-> 
-> Anyway, I'm happy if there is better way than my poor idea. :-)
-> 
-> Thanks for your comment.
+> Yes I know and I think the rationale is not convincing if the justification
+> of the additional LRU is primarily for page migration.
 
-Duh. Then the use of RCU would also mean that all of reclaim must be in a rcu period. So  reclaim cannot sleep anymore.
+Basically there are two alternatives:
 
+1) treat unevictable pages just like we treat other pages in the
+   system, which means we get to use the same code to manipulate
+   them, the same code to isolate them (for migrate, etc), the
+   same code to keep track of the statistics, etc...
 
+2) treat unevictable pages differently (not put them on a list)
+   and have special statistics code, special code to isolate
+   them, special code to detect them, etc...
+
+Because pretty much every time we move a page onto or off of the
+unevictable list, we also touch the list_head in the page for 
+other reasons (typically to add the page to or remove from a normal
+LRU list), we thought it would make the most sense to go with the
+approach that needs the least amount of special code for the
+unevictable pages.
+
+Besides, a locked page is locked - it should go through fewer
+list manipulations than the normal file and anon pages ever will,
+so if the list manipulation shows up as a bottleneck it will show
+up as a bottleneck for the evictable pages first...
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
