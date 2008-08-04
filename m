@@ -1,52 +1,162 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m74L44v5010345
-	for <linux-mm@kvack.org>; Mon, 4 Aug 2008 17:04:04 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m74LAGwB112824
-	for <linux-mm@kvack.org>; Mon, 4 Aug 2008 15:10:16 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m74LAGhi013933
-	for <linux-mm@kvack.org>; Mon, 4 Aug 2008 15:10:16 -0600
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080731103137.GD1704@csn.ul.ie>
-References: <cover.1216928613.git.ebmunson@us.ibm.com>
-	 <20080730014308.2a447e71.akpm@linux-foundation.org>
-	 <20080730172317.GA14138@csn.ul.ie>
-	 <20080730103407.b110afc2.akpm@linux-foundation.org>
-	 <20080730193010.GB14138@csn.ul.ie>
-	 <20080730130709.eb541475.akpm@linux-foundation.org>
-	 <20080731103137.GD1704@csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 04 Aug 2008 14:10:11 -0700
-Message-Id: <1217884211.20260.144.camel@nimitz>
+Date: Tue, 5 Aug 2008 00:39:36 +0300 (EEST)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: [RFC/PATCH] SLUB: dynamic per-cache MIN_PARTIAL
+Message-ID: <Pine.LNX.4.64.0808050037400.26319@sbz-30.cs.Helsinki.FI>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: matthew@wil.cx, akpm@linux-foundation.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-07-31 at 11:31 +0100, Mel Gorman wrote:
-> We are a lot more reliable than we were although exact quantification is
-> difficult because it's workload dependent. For a long time, I've been able
-> to test bits and pieces with hugepages by allocating the pool at the time
-> I needed it even after days of uptime. Previously this required a reboot.
+This patch changes the static MIN_PARTIAL to a dynamic per-cache ->min_partial
+value that is calculated from object size. The bigger the object size, the more
+pages we keep on the partial list.
 
-This is also a pretty big expansion of fs/hugetlb/ use outside of the
-filesystem itself.  It is hacking the existing shared memory
-kernel-internal user to spit out effectively anonymous memory.
+I tested SLAB, SLUB, and SLUB with this patch on Jens Axboe's 'netio' example
+script of the fio benchmarking tool. The script stresses the networking
+subsystem which should also give a fairly good beating of kmalloc() et al.
 
-Where do we draw the line where we stop using the filesystem for this?
-Other than the immediate code reuse, does it gain us anything?
+To run the test yourself, first clone the fio repository:
 
-I have to think that actually refactoring the filesystem code and making
-it usable for really anonymous memory, then using *that* in these
-patches would be a lot more sane.  Especially for someone that goes to
-look at it in a year. :)
+  git clone git://git.kernel.dk/fio.git
 
--- Dave
+and then run the following command n times on your machine:
+
+  time ./fio examples/netio
+
+The results on my 2-way 64-bit x86 machine are as follows:
+
+  [ the minimum, maximum, and average are captured from 50 individual runs ]
+
+                 real time (seconds)
+                 min      max      avg      sd
+  SLAB           22.76    23.38    22.98    0.17
+  SLUB           22.80    25.78    23.46    0.72
+  SLUB (dynamic) 22.74    23.54    23.00    0.20    
+
+                 sys time (seconds)
+                 min      max      avg      sd
+  SLAB           6.90     8.28     7.70     0.28
+  SLUB           7.42     16.95    8.89     2.28
+  SLUB (dynamic) 7.17     8.64     7.73     0.29    
+
+                 user time (seconds)
+                 min      max      avg      sd
+  SLAB           36.89    38.11    37.50    0.29
+  SLUB           30.85    37.99    37.06    1.67
+  SLUB (dynamic) 36.75    38.07    37.59    0.32    
+
+As you can see from the above numbers, this patch brings SLUB to the same level
+as SLAB for this particular workload fixing a ~2% regression. I'd expect this
+change to help similar workloads that allocate a lot of objects that are close
+to the size of a page.
+
+Cc: Matthew Wilcox <matthew@wil.cx>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
+ include/linux/slub_def.h |    1 +
+ mm/slub.c                |   26 +++++++++++++++++++-------
+ 2 files changed, 20 insertions(+), 7 deletions(-)
+
+Index: slab-2.6/include/linux/slub_def.h
+===================================================================
+--- slab-2.6.orig/include/linux/slub_def.h	2008-08-05 00:35:42.000000000 +0300
++++ slab-2.6/include/linux/slub_def.h	2008-08-05 00:36:21.000000000 +0300
+@@ -46,6 +46,7 @@
+ struct kmem_cache_node {
+ 	spinlock_t list_lock;	/* Protect partial list and nr_partial */
+ 	unsigned long nr_partial;
++	unsigned long min_partial;
+ 	struct list_head partial;
+ #ifdef CONFIG_SLUB_DEBUG
+ 	atomic_long_t nr_slabs;
+Index: slab-2.6/mm/slub.c
+===================================================================
+--- slab-2.6.orig/mm/slub.c	2008-08-05 00:35:42.000000000 +0300
++++ slab-2.6/mm/slub.c	2008-08-05 00:36:27.000000000 +0300
+@@ -1329,7 +1329,7 @@
+ 		n = get_node(s, zone_to_nid(zone));
+ 
+ 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+-				n->nr_partial > MIN_PARTIAL) {
++				n->nr_partial > n->min_partial) {
+ 			page = get_partial_node(n);
+ 			if (page)
+ 				return page;
+@@ -1381,7 +1381,7 @@
+ 		slab_unlock(page);
+ 	} else {
+ 		stat(c, DEACTIVATE_EMPTY);
+-		if (n->nr_partial < MIN_PARTIAL) {
++		if (n->nr_partial < n->min_partial) {
+ 			/*
+ 			 * Adding an empty slab to the partial slabs in order
+ 			 * to avoid page allocator overhead. This slab needs
+@@ -1913,9 +1913,21 @@
+ #endif
+ }
+ 
+-static void init_kmem_cache_node(struct kmem_cache_node *n)
++static void
++init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
+ {
+ 	n->nr_partial = 0;
++
++	/*
++	 * The larger the object size is, the more pages we want on the partial
++	 * list to avoid pounding the page allocator excessively.
++	 */
++	n->min_partial = ilog2(s->size);
++	if (n->min_partial < MIN_PARTIAL)
++		n->min_partial = MIN_PARTIAL;
++	else if (n->min_partial > MAX_PARTIAL)
++		n->min_partial = MAX_PARTIAL;
++
+ 	spin_lock_init(&n->list_lock);
+ 	INIT_LIST_HEAD(&n->partial);
+ #ifdef CONFIG_SLUB_DEBUG
+@@ -2087,7 +2099,7 @@
+ 	init_object(kmalloc_caches, n, 1);
+ 	init_tracking(kmalloc_caches, n);
+ #endif
+-	init_kmem_cache_node(n);
++	init_kmem_cache_node(n, kmalloc_caches);
+ 	inc_slabs_node(kmalloc_caches, node, page->objects);
+ 
+ 	/*
+@@ -2144,7 +2156,7 @@
+ 
+ 		}
+ 		s->node[node] = n;
+-		init_kmem_cache_node(n);
++		init_kmem_cache_node(n, s);
+ 	}
+ 	return 1;
+ }
+@@ -2155,7 +2167,7 @@
+ 
+ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
+ {
+-	init_kmem_cache_node(&s->local_node);
++	init_kmem_cache_node(&s->local_node, s);
+ 	return 1;
+ }
+ #endif
+@@ -2889,7 +2901,7 @@
+ 			ret = -ENOMEM;
+ 			goto out;
+ 		}
+-		init_kmem_cache_node(n);
++		init_kmem_cache_node(n, s);
+ 		s->node[nid] = n;
+ 	}
+ out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
