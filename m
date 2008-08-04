@@ -1,28 +1,33 @@
-Message-ID: <4897032E.5020601@linux-foundation.org>
-Date: Mon, 04 Aug 2008 08:25:02 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: by an-out-0708.google.com with SMTP id d17so387461and.105
+        for <linux-mm@kvack.org>; Mon, 04 Aug 2008 07:36:25 -0700 (PDT)
+Message-ID: <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com>
+Date: Mon, 4 Aug 2008 23:36:25 +0900
+From: "MinChan Kim" <minchan.kim@gmail.com>
+Subject: Race condition between putback_lru_page and mem_cgroup_move_list
 MIME-Version: 1.0
-Subject: Re: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
-References: <20080801180522.EC97.E1E9C6FF@jp.fujitsu.com> <489314FE.7080900@linux-foundation.org> <20080802090335.D6C8.E1E9C6FF@jp.fujitsu.com>
-In-Reply-To: <20080802090335.D6C8.E1E9C6FF@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Yasunori Goto wrote:
+I think this is a race condition if mem_cgroup_move_lists's comment isn't right.
+I am not sure that it was already known problem.
 
->>> Thanks for your comment.
->> Duh. Then the use of RCU would also mean that all of reclaim must
->>  be in a rcu period. So  reclaim cannot sleep anymore.
-> 
-> I use srcu_read_lock() (sleepable rcu lock) if kernel must be sleep for
-> page reclaim. So, my patch basic idea is followings.
+mem_cgroup_move_lists assume the appropriate zone's lru lock is already held.
+but putback_lru_page calls mem_cgroup_move_lists without holding lru_lock.
 
-But that introduces more overhead in __alloc_pages.
+Repeatedly, spin_[un/lock]_irq use in mem_cgroup_move_list have a big overhead
+while doing list iteration.
+
+Do we have to use pagevec ?
+
+-- 
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
