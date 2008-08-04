@@ -1,71 +1,70 @@
-Subject: Re: Race condition between putback_lru_page and
-	mem_cgroup_move_list
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com>
-References: <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com>
+Received: by rv-out-0708.google.com with SMTP id f25so2088183rvb.26
+        for <linux-mm@kvack.org>; Mon, 04 Aug 2008 09:37:33 -0700 (PDT)
+Message-ID: <2f11576a0808040937y70f274e0j32f6b9c98b0f992d@mail.gmail.com>
+Date: Tue, 5 Aug 2008 01:37:33 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Race condition between putback_lru_page and mem_cgroup_move_list
+In-Reply-To: <1217863870.7065.62.camel@lts-notebook>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Date: Mon, 04 Aug 2008 11:31:10 -0400
-Message-Id: <1217863870.7065.62.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: base64
+Content-Disposition: inline
+References: <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com>
+	 <1217863870.7065.62.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: MinChan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-08-04 at 23:36 +0900, MinChan Kim wrote:
-> I think this is a race condition if mem_cgroup_move_lists's comment isn't right.
-> I am not sure that it was already known problem.
-> 
-> mem_cgroup_move_lists assume the appropriate zone's lru lock is already held.
-> but putback_lru_page calls mem_cgroup_move_lists without holding lru_lock.
-> 
-
-Hmmm, the comment on mem_cgroup_move_lists() does say this.  Although,
-reading thru' the code, I can't see why it requires this.  But then it's
-Monday, here...
-
-
-> Repeatedly, spin_[un/lock]_irq use in mem_cgroup_move_list have a big overhead
-> while doing list iteration.
-> 
-> Do we have to use pagevec ?
-
-This shouldn't be necessary, IMO.  putback_lru_page() is used as
-follows:
-
-1) in vmscan.c [shrink_*_list()] when an unevictable page is
-encountered.  This should be relatively rare.  Once vmscan sees an
-unevictable page, it parks it on the unevictable lru list where it
-[vmscan] won't see the page again until it becomes reclaimable.
-
-2) as a replacement for move_to_lru() in page migration as the inverse
-to isolate_lru_page().  We did this to catch patches that became
-unevictable or, more importantly, evictable while page migration held
-them isolated.  move_to_lru() already grabbed and released the zone lru
-lock on each page migrated.
-
-3) In m[un]lock_vma_page() and clear_page_mlock(), new with in the
-"mlocked pages are unevictable" series.  This one can result in a storm
-of zone lru traffic--e.g., mlock()ing or munlocking() a large segment or
-mlockall() of a task with a lot of mapped address space.  Again, this is
-probably a very rare event--unless you're stressing [stressing over?]
-mlock(), as I've been doing :)--and often involves a major fault [page
-allocation], per page anyway.
-
-Ii>>? originally did have a pagevec for the unevictable lru but it
-complicated ensuring that we don't strand evictable pages on the
-unevictable list.  See the retry logic in putback_lru_page().
-
-As for the !UNEVICTABLE_LRU version, the only place this should be
-called is from page migration as none of the other call sites are
-compiled in or reachable when !UNEVICTABLE_LRU.
-
-Thoughts?
-
-Lee
-> 
+SGkKCj4+IEkgdGhpbmsgdGhpcyBpcyBhIHJhY2UgY29uZGl0aW9uIGlmIG1lbV9jZ3JvdXBfbW92
+ZV9saXN0cydzIGNvbW1lbnQgaXNuJ3QgcmlnaHQuCj4+IEkgYW0gbm90IHN1cmUgdGhhdCBpdCB3
+YXMgYWxyZWFkeSBrbm93biBwcm9ibGVtLgo+Pgo+PiBtZW1fY2dyb3VwX21vdmVfbGlzdHMgYXNz
+dW1lIHRoZSBhcHByb3ByaWF0ZSB6b25lJ3MgbHJ1IGxvY2sgaXMgYWxyZWFkeSBoZWxkLgo+PiBi
+dXQgcHV0YmFja19scnVfcGFnZSBjYWxscyBtZW1fY2dyb3VwX21vdmVfbGlzdHMgd2l0aG91dCBo
+b2xkaW5nIGxydV9sb2NrLgo+Cj4gSG1tbSwgdGhlIGNvbW1lbnQgb24gbWVtX2Nncm91cF9tb3Zl
+X2xpc3RzKCkgZG9lcyBzYXkgdGhpcy4gIEFsdGhvdWdoLAo+IHJlYWRpbmcgdGhydScgdGhlIGNv
+ZGUsIEkgY2FuJ3Qgc2VlIHdoeSBpdCByZXF1aXJlcyB0aGlzLiAgQnV0IHRoZW4gaXQncwo+IE1v
+bmRheSwgaGVyZS4uLgoKSSBhbHNvIHRoaW5rIHpvbmUncyBscnUgbG9jayBpcyB1bm5lY2Vzc2Fy
+eS4KU28sIEkgZ3Vlc3MgYmVsb3cgIml0IiBpbmRpY2F0ZSBsb2NrX3BhZ2VfY2dyb3VwLCBub3Qg
+em9uZSBscnUgbG9jay4KCiA+PiBCdXQgd2UgY2Fubm90IHNhZmVseSBnZXQgdG8gcGFnZV9jZ3Jv
+dXAgd2l0aG91dCBpdCwgc28ganVzdCB0cnlfbG9jayBpdDoKCmlmIG15IGFzc3VtcHRpb24gaXMg
+dHJ1ZSwgY29tbWVudCBtb2RpZnlpbmcgaXMgYmV0dGVyLgoKCj4+IFJlcGVhdGVkbHksIHNwaW5f
+W3VuL2xvY2tdX2lycSB1c2UgaW4gbWVtX2Nncm91cF9tb3ZlX2xpc3QgaGF2ZSBhIGJpZyBvdmVy
+aGVhZAo+PiB3aGlsZSBkb2luZyBsaXN0IGl0ZXJhdGlvbi4KPj4KPj4gRG8gd2UgaGF2ZSB0byB1
+c2UgcGFnZXZlYyA/Cj4KPiBUaGlzIHNob3VsZG4ndCBiZSBuZWNlc3NhcnksIElNTy4gIHB1dGJh
+Y2tfbHJ1X3BhZ2UoKSBpcyB1c2VkIGFzCj4gZm9sbG93czoKPgo+IDEpIGluIHZtc2Nhbi5jIFtz
+aHJpbmtfKl9saXN0KCldIHdoZW4gYW4gdW5ldmljdGFibGUgcGFnZSBpcwo+IGVuY291bnRlcmVk
+LiAgVGhpcyBzaG91bGQgYmUgcmVsYXRpdmVseSByYXJlLiAgT25jZSB2bXNjYW4gc2VlcyBhbgo+
+IHVuZXZpY3RhYmxlIHBhZ2UsIGl0IHBhcmtzIGl0IG9uIHRoZSB1bmV2aWN0YWJsZSBscnUgbGlz
+dCB3aGVyZSBpdAo+IFt2bXNjYW5dIHdvbid0IHNlZSB0aGUgcGFnZSBhZ2FpbiB1bnRpbCBpdCBi
+ZWNvbWVzIHJlY2xhaW1hYmxlLgo+Cj4gMikgYXMgYSByZXBsYWNlbWVudCBmb3IgbW92ZV90b19s
+cnUoKSBpbiBwYWdlIG1pZ3JhdGlvbiBhcyB0aGUgaW52ZXJzZQo+IHRvIGlzb2xhdGVfbHJ1X3Bh
+Z2UoKS4gIFdlIGRpZCB0aGlzIHRvIGNhdGNoIHBhdGNoZXMgdGhhdCBiZWNhbWUKPiB1bmV2aWN0
+YWJsZSBvciwgbW9yZSBpbXBvcnRhbnRseSwgZXZpY3RhYmxlIHdoaWxlIHBhZ2UgbWlncmF0aW9u
+IGhlbGQKPiB0aGVtIGlzb2xhdGVkLiAgbW92ZV90b19scnUoKSBhbHJlYWR5IGdyYWJiZWQgYW5k
+IHJlbGVhc2VkIHRoZSB6b25lIGxydQo+IGxvY2sgb24gZWFjaCBwYWdlIG1pZ3JhdGVkLgo+Cj4g
+MykgSW4gbVt1bl1sb2NrX3ZtYV9wYWdlKCkgYW5kIGNsZWFyX3BhZ2VfbWxvY2soKSwgbmV3IHdp
+dGggaW4gdGhlCj4gIm1sb2NrZWQgcGFnZXMgYXJlIHVuZXZpY3RhYmxlIiBzZXJpZXMuICBUaGlz
+IG9uZSBjYW4gcmVzdWx0IGluIGEgc3Rvcm0KPiBvZiB6b25lIGxydSB0cmFmZmljLS1lLmcuLCBt
+bG9jaygpaW5nIG9yIG11bmxvY2tpbmcoKSBhIGxhcmdlIHNlZ21lbnQgb3IKPiBtbG9ja2FsbCgp
+IG9mIGEgdGFzayB3aXRoIGEgbG90IG9mIG1hcHBlZCBhZGRyZXNzIHNwYWNlLiAgQWdhaW4sIHRo
+aXMgaXMKPiBwcm9iYWJseSBhIHZlcnkgcmFyZSBldmVudC0tdW5sZXNzIHlvdSdyZSBzdHJlc3Np
+bmcgW3N0cmVzc2luZyBvdmVyP10KPiBtbG9jaygpLCBhcyBJJ3ZlIGJlZW4gZG9pbmcgOiktLWFu
+ZCBvZnRlbiBpbnZvbHZlcyBhIG1ham9yIGZhdWx0IFtwYWdlCj4gYWxsb2NhdGlvbl0sIHBlciBw
+YWdlIGFueXdheS4KPgo+IEnvu78gb3JpZ2luYWxseSBkaWQgaGF2ZSBhIHBhZ2V2ZWMgZm9yIHRo
+ZSB1bmV2aWN0YWJsZSBscnUgYnV0IGl0Cj4gY29tcGxpY2F0ZWQgZW5zdXJpbmcgdGhhdCB3ZSBk
+b24ndCBzdHJhbmQgZXZpY3RhYmxlIHBhZ2VzIG9uIHRoZQo+IHVuZXZpY3RhYmxlIGxpc3QuICBT
+ZWUgdGhlIHJldHJ5IGxvZ2ljIGluIHB1dGJhY2tfbHJ1X3BhZ2UoKS4KPgo+IEFzIGZvciB0aGUg
+IVVORVZJQ1RBQkxFX0xSVSB2ZXJzaW9uLCB0aGUgb25seSBwbGFjZSB0aGlzIHNob3VsZCBiZQo+
+IGNhbGxlZCBpcyBmcm9tIHBhZ2UgbWlncmF0aW9uIGFzIG5vbmUgb2YgdGhlIG90aGVyIGNhbGwg
+c2l0ZXMgYXJlCj4gY29tcGlsZWQgaW4gb3IgcmVhY2hhYmxlIHdoZW4gIVVORVZJQ1RBQkxFX0xS
+VS4KPgo+IFRob3VnaHRzPwoKSSB0aGluayBib3RoIG9waW5pb24gaXMgY29ycmVjdC4KdW5ldmlj
+dGFibGUgbHJ1IHJlbGF0ZWQgY29kZSBkb2Vzbid0IHJlcXVpcmUgcGFnZXZlYy4KCmJ1dCBtZW1f
+Y2dyb3VwX21vdmVfbGlzdHMgaXMgdXNlZCBieSBhY3RpdmUvaW5hY3RpdmUgbGlzdCB0cmFuc2l0
+aW9uIHRvby4KdGhlbiwgcGFnZXZlYyBpcyBuZWNlc3NhcnkgZm9yIGtlZXBpbmcgcmVjbGFpbSB0
+aHJvdXB1dC4KCktpbS1zYW4sIFRoYW5rIHlvdSBuaWNlIHBvaW50IG91dCEKSSBxdWV1ZWQgdGhp
+cyBmaXggdG8gbXkgVE9ETyBsaXN0Lgo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
