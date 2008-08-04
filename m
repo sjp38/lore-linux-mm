@@ -1,72 +1,149 @@
-Received: from [172.20.17.31]([172.20.17.31]) (2562 bytes) by megami.veritas.com
-	via sendmail with P:esmtp/R:smart_host/T:smtp
-	(sender: <hugh@veritas.com>)
-	id <m1KPM55-00017IC@megami.veritas.com>
-	for <linux-mm@kvack.org>; Sat, 2 Aug 2008 11:43:55 -0700 (PDT)
-	(Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Sat, 2 Aug 2008 19:44:08 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: s390's PageSwapCache test
-In-Reply-To: <1217694031.22955.14.camel@localhost>
-Message-ID: <Pine.LNX.4.64.0808021924450.9727@blonde.site>
-References: <Pine.LNX.4.64.0808020944330.1992@blonde.site>
- <1217694031.22955.14.camel@localhost>
+Message-ID: <4896A070.2010805@sgi.com>
+Date: Mon, 04 Aug 2008 16:23:44 +1000
+From: Lachlan McIlroy <lachlan@sgi.com>
+Reply-To: lachlan@sgi.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc][patch 2/3] xfs: remove vmap cache
+References: <20080728123438.GA13926@wotan.suse.de> <20080728123621.GB13926@wotan.suse.de>
+In-Reply-To: <20080728123621.GB13926@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, xfs@oss.sgi.com, xen-devel@lists.xensource.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, dri-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2 Aug 2008, Martin Schwidefsky wrote:
-> On Sat, 2008-08-02 at 10:05 +0100, Hugh Dickins wrote:
-> > I'm slightly bothered by that PageSwapCache() test you've just added
-> > in page_remove_rmap(), before s390's page_test_dirty():
-> > 
-> > 		if ((!PageAnon(page) || PageSwapCache(page)) &&
-> > 		    page_test_dirty(page)) {
-> > 			page_clear_dirty(page);
-> > 			set_page_dirty(page);
-> > 		}
-> > 
-> > It's not wrong; but if it's necessary, then I need to understand why;
-> > and if it's unnecessary, then we'd do better to remove it (optimizing
-> > your optimization a little).
-> ... 
-> Hmm, what about the following sequence:
-> 1) a page is added to the swap
-> 2) the page is dirtied again
-> 3) the process forks
-> 4) the first process does an mlock
-> 5) vmscan succeeds in replacing the pte of the second process with a
-> swap entry but fails for the pte of the first process.
-> 6) the first process exists.
-                       exits
+Nick Piggin wrote:
+> XFS's vmap batching simply defers a number (up to 64) of vunmaps, and keeps
+> track of them in a list. To purge the batch, it just goes through the list and
+> calls vunamp on each one. This is pretty poor: a global TLB flush is still
+> performed on each vunmap, with the most expensive parts of the operation
+> being the broadcast IPIs and locking involved in the SMP callouts, and the
+> locking involved in the vmap management -- none of these are avoided by just
+> batching up the calls. I'm actually surprised it ever made much difference
+> at all.
+So am I.
+
 > 
-> If the PageSwapCache() check is missing zap_pte_range() will drop the
-> last pte for the page but won't transfer the dirty bit.
-> Wouldn't that break?
+> Rip all this logic out of XFS completely. I improve vmap performance
+> and scalability directly in the previous and subsequent patch.
+Sounds good to me.
 
-Yes, it took me a while to understand, but you are right.  I was
-blinkered, thinking always of page_remove_rmap called by zap_pte_range,
-forgetting page_remove_rmap called by try_to_unmap_one i.e. vmscan.
-
-Your example is dealt with on the non-s390 arches by try_to_unmap_one's
-	if (pte_dirty(pteval))
-		set_page_dirty(page);
-but s390 needs something else: and since you can't do it until the
-last mapping is removed, you're stuck with detecting the possibility
-of this case by testing PageSwapCache in there.
-
-It's a pity that so often it's irrelevant, but I can't offhand think
-of a better answer, and it would only be a small optimization to an
-already non-optimal path.
-
-Good thinking, Martin, and thank you for enlightening me:
-when I'm next in patch mode I'll add a comment there on it.
-
-Hugh
+> 
+> Signed-off-by: Nick Piggin <npiggin@suse.de>
+> ---
+> 
+> Index: linux-2.6/fs/xfs/linux-2.6/xfs_buf.c
+> ===================================================================
+> --- linux-2.6.orig/fs/xfs/linux-2.6/xfs_buf.c
+> +++ linux-2.6/fs/xfs/linux-2.6/xfs_buf.c
+> @@ -166,75 +166,6 @@ test_page_region(
+>  }
+>  
+>  /*
+> - *	Mapping of multi-page buffers into contiguous virtual space
+> - */
+> -
+> -typedef struct a_list {
+> -	void		*vm_addr;
+> -	struct a_list	*next;
+> -} a_list_t;
+> -
+> -static a_list_t		*as_free_head;
+> -static int		as_list_len;
+> -static DEFINE_SPINLOCK(as_lock);
+> -
+> -/*
+> - *	Try to batch vunmaps because they are costly.
+> - */
+> -STATIC void
+> -free_address(
+> -	void		*addr)
+> -{
+> -	a_list_t	*aentry;
+> -
+> -#ifdef CONFIG_XEN
+> -	/*
+> -	 * Xen needs to be able to make sure it can get an exclusive
+> -	 * RO mapping of pages it wants to turn into a pagetable.  If
+> -	 * a newly allocated page is also still being vmap()ed by xfs,
+> -	 * it will cause pagetable construction to fail.  This is a
+> -	 * quick workaround to always eagerly unmap pages so that Xen
+> -	 * is happy.
+> -	 */
+> -	vunmap(addr);
+> -	return;
+> -#endif
+> -
+> -	aentry = kmalloc(sizeof(a_list_t), GFP_NOWAIT);
+> -	if (likely(aentry)) {
+> -		spin_lock(&as_lock);
+> -		aentry->next = as_free_head;
+> -		aentry->vm_addr = addr;
+> -		as_free_head = aentry;
+> -		as_list_len++;
+> -		spin_unlock(&as_lock);
+> -	} else {
+> -		vunmap(addr);
+> -	}
+> -}
+> -
+> -STATIC void
+> -purge_addresses(void)
+> -{
+> -	a_list_t	*aentry, *old;
+> -
+> -	if (as_free_head == NULL)
+> -		return;
+> -
+> -	spin_lock(&as_lock);
+> -	aentry = as_free_head;
+> -	as_free_head = NULL;
+> -	as_list_len = 0;
+> -	spin_unlock(&as_lock);
+> -
+> -	while ((old = aentry) != NULL) {
+> -		vunmap(aentry->vm_addr);
+> -		aentry = aentry->next;
+> -		kfree(old);
+> -	}
+> -}
+> -
+> -/*
+>   *	Internal xfs_buf_t object manipulation
+>   */
+>  
+> @@ -334,7 +265,7 @@ xfs_buf_free(
+>  		uint		i;
+>  
+>  		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
+> -			free_address(bp->b_addr - bp->b_offset);
+> +			vunmap(bp->b_addr - bp->b_offset);
+>  
+>  		for (i = 0; i < bp->b_page_count; i++) {
+>  			struct page	*page = bp->b_pages[i];
+> @@ -456,8 +387,6 @@ _xfs_buf_map_pages(
+>  		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
+>  		bp->b_flags |= XBF_MAPPED;
+>  	} else if (flags & XBF_MAPPED) {
+> -		if (as_list_len > 64)
+> -			purge_addresses();
+>  		bp->b_addr = vmap(bp->b_pages, bp->b_page_count,
+>  					VM_MAP, PAGE_KERNEL);
+>  		if (unlikely(bp->b_addr == NULL))
+> @@ -1739,8 +1668,6 @@ xfsbufd(
+>  			count++;
+>  		}
+>  
+> -		if (as_list_len > 0)
+> -			purge_addresses();
+>  		if (count)
+>  			blk_run_address_space(target->bt_mapping);
+>  
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
