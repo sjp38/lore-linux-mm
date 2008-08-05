@@ -1,47 +1,26 @@
-Date: Tue, 5 Aug 2008 17:28:00 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-ID: <20080805162800.GJ20243@csn.ul.ie>
-References: <cover.1216928613.git.ebmunson@us.ibm.com> <20080730014308.2a447e71.akpm@linux-foundation.org> <20080730172317.GA14138@csn.ul.ie> <20080730103407.b110afc2.akpm@linux-foundation.org> <20080730193010.GB14138@csn.ul.ie> <20080730130709.eb541475.akpm@linux-foundation.org> <20080731103137.GD1704@csn.ul.ie> <1217884211.20260.144.camel@nimitz> <20080805111147.GD20243@csn.ul.ie> <1217952748.10907.18.camel@nimitz>
+Message-ID: <489888FB.9060401@linux-foundation.org>
+Date: Tue, 05 Aug 2008 12:08:11 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1217952748.10907.18.camel@nimitz>
+Subject: Re: [RFC:Patch: 000/008](memory hotplug) rough idea of pgdat removing
+References: <20080802090335.D6C8.E1E9C6FF@jp.fujitsu.com> <4897032E.5020601@linux-foundation.org> <20080805150434.BF32.E1E9C6FF@jp.fujitsu.com> <20080805111450.GE20243@csn.ul.ie>
+In-Reply-To: <20080805111450.GE20243@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (05/08/08 09:12), Dave Hansen didst pronounce:
-> On Tue, 2008-08-05 at 12:11 +0100, Mel Gorman wrote:
-> > See, that's great until you start dealing with MAP_SHARED|MAP_ANONYMOUS.
-> > To get that right between children, you end up something very fs-like
-> > when the child needs to fault in a page that is already populated by the
-> > parent. I strongly suspect we end up back at hugetlbfs backing it :/
-> 
-> Yeah, but the case I'm worried about is plain anonymous.  We already
-> have the fs to back SHARED|ANONYMOUS, and they're not really
-> anonymous. :)
-> 
-> This patch *really* needs anonymous pages, and it kinda shoehorns them
-> in with the filesystem.  Stacks aren't shared at all, so this is a
-> perfect example of where we can forget the fs, right?
-> 
+Mel Gorman wrote:
 
-Ok sure, you could do direct inserts for MAP_PRIVATE as conceptually it
-suits this patch.  However, I don't see what you gain. By reusing hugetlbfs,
-we get things like proper reservations which we can do for MAP_PRIVATE these
-days. Again, we could call that sort of thing directly if the reservation
-layer was split out separate from hugetlbfs but I still don't see the gain
-for all that churn.
+> Maybe I am missing something, but what is wrong with stop_machine during
+> memory hot-remove?
 
-What am I missing?
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Reclaim can sleep while going down a zonelist. There would need to be some
+form of synchronization to avoid removing a zone from the zonelist that we are
+just scanning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
