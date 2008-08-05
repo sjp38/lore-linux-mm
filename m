@@ -1,66 +1,47 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch v3] splice: fix race with page invalidation
-Date: Tue, 5 Aug 2008 12:57:12 +1000
-References: <E1KO8DV-0004E4-6H@pomaz-ex.szeredi.hu> <200808021426.50436.nickpiggin@yahoo.com.au> <20080804152949.GH18868@shareable.org>
-In-Reply-To: <20080804152949.GH18868@shareable.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <3182585.1217908165040.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 5 Aug 2008 12:49:25 +0900 (JST)
+Subject: Re: Re: Race condition between putback_lru_page and mem_cgroup_move_list
+In-Reply-To: <489741F8.2080104@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200808051257.12801.nickpiggin@yahoo.com.au>
+References: <489741F8.2080104@linux.vnet.ibm.com>
+ <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com> <1217863870.7065.62.camel@lts-notebook> <2f11576a0808040937y70f274e0j32f6b9c98b0f992d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>, mtk.manpages@gmail.com
-Cc: Miklos Szeredi <miklos@szeredi.hu>, torvalds@linux-foundation.org, jens.axboe@oracle.com, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, MinChan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 05 August 2008 01:29, Jamie Lokier wrote:
-> Nick Piggin wrote:
-> > On Saturday 02 August 2008 04:28, Miklos Szeredi wrote:
-> > > On Fri, 1 Aug 2008, Nick Piggin wrote:
-> > > > Well, a) it probably makes sense in that case to provide another mode
-> > > > of operation which fills the data synchronously from the sender and
-> > > > copys it to the pipe (although the sender might just use read/write)
-> > > > And b) we could *also* look at clearing PG_uptodate as an
-> > > > optimisation iff that is found to help.
-> > >
-> > > IMO it's not worth it to complicate the API just for the sake of
-> > > correctness in the so-very-rare read error case.  Users of the splice
-> > > API will simply ignore this requirement, because things will work fine
-> > > on ext3 and friends, and will break only rarely on NFS and FUSE.
-> > >
-> > > So I think it's much better to make the API simple: invalid pages are
-> > > OK, and for I/O errors we return -EIO on the pipe.  It's not 100%
-> > > correct, but all in all it will result in less buggy programs.
-> >
-> > That's true, but I hate how we always (in the VM, at least) just brush
-> > error handling under the carpet because it is too hard :(
-> >
-> > I guess your patch is OK, though. I don't see any reasons it could cause
-> > problems...
+>KOSAKI Motohiro wrote:
+>> Hi
+>> 
+>>>> I think this is a race condition if mem_cgroup_move_lists's comment isn't
+ right.
+>>>> I am not sure that it was already known problem.
+>>>>
+>>>> mem_cgroup_move_lists assume the appropriate zone's lru lock is already h
+eld.
+>>>> but putback_lru_page calls mem_cgroup_move_lists without holding lru_lock
+.
+>>> Hmmm, the comment on mem_cgroup_move_lists() does say this.  Although,
+>>> reading thru' the code, I can't see why it requires this.  But then it's
+>>> Monday, here...
+>> 
+>> I also think zone's lru lock is unnecessary.
+>> So, I guess below "it" indicate lock_page_cgroup, not zone lru lock.
+>> 
 >
-> At least, if there are situations where the data received is not what
-> a common sense programmer would expect (e.g. blocks of zeros, data
-> from an unexpected time in syscall sequence, or something, or just
-> "reliable except with FUSE and NFS"), please ensure it's documented in
-> splice.txt or wherever.
+>We need zone LRU lock, since the reclaim paths hold them. Not sure if I
+>understand why you call zone's LRU lock unnecessary, could you elaborate plea
+se?
+>
 
-Not quite true. Many filesystems can return -EIO, and truncate can
-partially zero pages.
+I guess the comment should be against mem_cgroup_isolate_pages()...
 
-Basically the man page should note that until the splice API is
-improved, then a) -EIO errors will be seen at the receiever, b)
-the pages can see transient zeroes (this is the case with read(2)
-as well, but splice has a much bigger window), and c) the sender
-does not send a snapshot of data because it can still be modified
-until it is recieved.
-
-c is not too surprising for an asynchronous interface, but it is
-nice to document in case people are expecting COw or something.
-b and c can more or less be worked around by not doing silly things
-like truncating or scribbling on data until reciever really has it.
-a, I argue, should be fixed in API.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
