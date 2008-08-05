@@ -1,76 +1,59 @@
-Date: Tue, 5 Aug 2008 13:32:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] hugetlb: call arch_prepare_hugepage() for surplus pages
-Message-Id: <20080805133216.cc5c14cf.akpm@linux-foundation.org>
-In-Reply-To: <1217950147.5032.15.camel@localhost.localdomain>
-References: <1217950147.5032.15.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sj-core-1.cisco.com (sj-core-1.cisco.com [171.71.177.237])
+	by sj-dkim-2.cisco.com (8.12.11/8.12.11) with ESMTP id m75Ldw9B014063
+	for <linux-mm@kvack.org>; Tue, 5 Aug 2008 14:39:58 -0700
+Received: from sausatlsmtp2.sciatl.com ([192.133.217.159])
+	by sj-core-1.cisco.com (8.13.8/8.13.8) with ESMTP id m75LdwIk018172
+	for <linux-mm@kvack.org>; Tue, 5 Aug 2008 21:39:58 GMT
+Message-ID: <4898C88E.9070006@sciatl.com>
+Date: Tue, 05 Aug 2008 14:39:26 -0700
+From: C Michael Sundius <Michael.sundius@sciatl.com>
+MIME-Version: 1.0
+Subject: Turning on Sparsemem
+References: <488F5D5F.9010006@sciatl.com> <1217368281.13228.72.camel@nimitz> <20080730093552.GD1369@brain> <4890957F.6080705@sciatl.com>
+In-Reply-To: <4890957F.6080705@sciatl.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, nacc@us.ibm.com, agl@us.ibm.com
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, msundius@sundius.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 05 Aug 2008 17:29:07 +0200
-Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
+Hi Andy and Dave,
 
-> From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> 
-> The s390 software large page emulation implements shared page tables
-> by using page->index of the first tail page from a compound large page
-> to store page table information. This is set up in arch_prepare_hugepage(),
-> which is called from alloc_fresh_huge_page_node().
-> 
-> A similar call to arch_prepare_hugepage() is missing for surplus large
-> pages that are allocated in alloc_buddy_huge_page(), which breaks the
-> software emulation mode for (surplus) large pages on s390. This patch
-> adds the missing call to arch_prepare_hugepage(). It will have no effect
-> on other architectures where arch_prepare_hugepage() is a nop.
-> 
-> Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> ---
-> 
->  mm/hugetlb.c |    7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
-> 
-> Index: linux/mm/hugetlb.c
-> ===================================================================
-> --- linux.orig/mm/hugetlb.c
-> +++ linux/mm/hugetlb.c
-> @@ -565,7 +565,7 @@ static struct page *alloc_fresh_huge_pag
->  		huge_page_order(h));
->  	if (page) {
->  		if (arch_prepare_hugepage(page)) {
-> -			__free_pages(page, HUGETLB_PAGE_ORDER);
-> +			__free_pages(page, huge_page_order(h));
+I turned on sparsemem as you described before. I am crashing in
+the mem_init() function when I try a call to pfn_to_page().
 
-As Nick pointed out, this is an unrelated bugfix.  I changelogged it. 
-Really it should have been two patches.
+I've noticed that that macro uses the sparsemem macro 
+__pfn_to_section(pfn) and
+that intern calls __nr_to_section(nr). That finally looks at the 
+mem_section[] variable.
+well.. this returns NULL since it seems as though my mem_section[] array 
+looks
+to be not initialized correctly.
 
->  			return NULL;
->  		}
->  		prep_new_huge_page(h, page, nid);
-> @@ -665,6 +665,11 @@ static struct page *alloc_buddy_huge_pag
->  					__GFP_REPEAT|__GFP_NOWARN,
->  					huge_page_order(h));
->  
-> +	if (page && arch_prepare_hugepage(page)) {
-> +		__free_pages(page, huge_page_order(h));
-> +		return NULL;
-> +	}
-> +
->  	spin_lock(&hugetlb_lock);
->  	if (page) {
->  		/*
+QUESTION: where does this array get initialized. I've looked through the 
+code and
+can't seem to see how that is initialized.
 
-afaict the second fix is needed in 2.6.26.x (but not 2.6.25.x), but
-this patch is not applicable to 2.6.26.x.
+recall I'm using mips32 processor, but I've looked in all the processors.
+it seems as though sparse_init() and memory present() both use 
+__nr_to_section()
+and thus would require mem_section[] to be set up already.
 
-So if you want this fix to be backported into 2.6.26.x, please send a
-suitable version of it to stable@kernel.org.
+thanks for your help
+Mike
+
+
+
+     - - - - -                              Cisco                            - - - - -         
+This e-mail and any attachments may contain information which is confidential, 
+proprietary, privileged or otherwise protected by law. The information is solely 
+intended for the named addressee (or a person responsible for delivering it to 
+the addressee). If you are not the intended recipient of this message, you are 
+not authorized to read, print, retain, copy or disseminate this message or any 
+part of it. If you have received this e-mail in error, please notify the sender 
+immediately by return e-mail and delete it from your computer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
