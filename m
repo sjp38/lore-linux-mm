@@ -1,96 +1,66 @@
-Subject: Re: [PATCH][RFC] dirty balancing for cgroups
-In-Reply-To: Your message of "Wed, 6 Aug 2008 17:53:52 +0900"
-	<20080806175352.6330c00a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080806175352.6330c00a.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id m76Dn8Hh526920
+	for <linux-mm@kvack.org>; Wed, 6 Aug 2008 13:49:08 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m76Dn7qU2580576
+	for <linux-mm@kvack.org>; Wed, 6 Aug 2008 15:49:07 +0200
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m76Dn7St005900
+	for <linux-mm@kvack.org>; Wed, 6 Aug 2008 15:49:07 +0200
+Subject: Re: [PATCH] hugetlb: call arch_prepare_hugepage() for surplus pages
+From: gerald_IMAP <gerald.schaefer@de.ibm.com>
+Reply-To: gerald.schaefer@de.ibm.com
+In-Reply-To: <20080805133216.cc5c14cf.akpm@linux-foundation.org>
+References: <1217950147.5032.15.camel@localhost.localdomain>
+	 <20080805133216.cc5c14cf.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 06 Aug 2008 15:48:50 +0200
+Message-Id: <1218030530.7764.18.camel@ubuntu>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080806091005.B883A5A7B@siro.lan>
-Date: Wed,  6 Aug 2008 18:10:05 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-s390@vger.kernel.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, nacc@us.ibm.com, agl@us.ibm.com, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-hi,
-
-> On Wed,  6 Aug 2008 17:20:46 +0900 (JST)
-> yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-> 
-> > hi,
+On Tue, 2008-08-05 at 13:32 -0700, Andrew Morton wrote:
+> > ---
 > > 
-> > > On Fri, 11 Jul 2008 17:34:46 +0900 (JST)
-> > > yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-> > > 
-> > > > hi,
-> > > > 
-> > > > > > my patch penalizes heavy-writer cgroups as task_dirty_limit does
-> > > > > > for heavy-writer tasks.  i don't think that it's necessary to be
-> > > > > > tied to the memory subsystem because i merely want to group writers.
-> > > > > > 
-> > > > > Hmm, maybe what I need is different from this ;)
-> > > > > Does not seem to be a help for memory reclaim under memcg.
-> > > > 
-> > > > to implement what you need, i think that we need to keep track of
-> > > > the numbers of dirty-pages in each memory cgroups as a first step.
-> > > > do you agree?
-> > > > 
-> > > yes, I think so, now.
-> > > 
-> > > may be not difficult but will add extra overhead ;( Sigh..
+> >  mm/hugetlb.c |    7 ++++++-
+> >  1 file changed, 6 insertions(+), 1 deletion(-)
 > > 
-> > the following is a patch to add the overhead. :)
-> > any comments?
-> > 
-> Do you have some numbers ? ;) 
-
-not yet.
-
-> I like this because this seems very straightforward. thank you.
-
-good to hear.
-
-> How about changing these to be
+> > Index: linux/mm/hugetlb.c
+> > ===================================================================
+> > --- linux.orig/mm/hugetlb.c
+> > +++ linux/mm/hugetlb.c
+> > @@ -565,7 +565,7 @@ static struct page *alloc_fresh_huge_pag
+> >  		huge_page_order(h));
+> >  	if (page) {
+> >  		if (arch_prepare_hugepage(page)) {
+> > -			__free_pages(page, HUGETLB_PAGE_ORDER);
+> > +			__free_pages(page, huge_page_order(h));
 > 
-> ==
-> void mem_cgroup_test_set_page_dirty()
-> {
-> 	if (try_lock_page_cgroup(pg)) {
-> 		pc = page_get_page_cgroup(pg);
-> 		if (pc ......) {
-> 		}
-> 		unlock_page_cgroup(pg)
-> 	}
-> }
-> ==
+> As Nick pointed out, this is an unrelated bugfix.  I changelogged it. 
+> Really it should have been two patches.
 
-i'm not sure how many opportunities to update statistics
-we would lose for the trylock failure.
-although the statistics don't need to be too precise,
-its error should have a reasonable upper-limit to be useful.
+Ok, thanks. I didn't see it as a bugfix because it doesn't make any
+difference on s390, and nobody else is using arch_prepare_hugepage()
+so far. But of course this may change, so I should have made two
+patches.
 
-> Off-topic: I wonder we can delete this "lock" in future.
+> afaict the second fix is needed in 2.6.26.x (but not 2.6.25.x), but
+> this patch is not applicable to 2.6.26.x.
 > 
-> Because page->page_cgroup is
->  1. attached at first use.(Obiously no race with set_dirty)
->  2. deleted at removal. (force_empty is problematic here..)
+> So if you want this fix to be backported into 2.6.26.x, please send a
+> suitable version of it to stable@kernel.org.
 
-i hope it's possible. :)
+Right, this was missing from the beginning. It affects s390 only,
+so I'll check if we need a backport.
 
-YAMAMOTO Takashi
+Thanks,
+Gerald
 
-> 
-> But, now, we need this lock.
-> 
-> Thanks,
-> -Kame
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
