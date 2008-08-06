@@ -1,31 +1,116 @@
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-From: Andi Kleen <andi@firstfloor.org>
-References: <cover.1216928613.git.ebmunson@us.ibm.com>
-	<20080730014308.2a447e71.akpm@linux-foundation.org>
-	<20080730172317.GA14138@csn.ul.ie>
-	<20080730103407.b110afc2.akpm@linux-foundation.org>
-Date: Wed, 06 Aug 2008 20:49:40 +0200
-In-Reply-To: <20080730103407.b110afc2.akpm@linux-foundation.org> (Andrew Morton's message of "Wed, 30 Jul 2008 10:34:07 -0700")
-Message-ID: <87fxpi567v.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 1/1] allocate structures for reservation tracking in hugetlbfs outside of spinlocks
+Date: Wed,  6 Aug 2008 20:03:45 +0100
+Message-Id: <1218049425-19416-1-git-send-email-apw@shadowen.org>
+In-Reply-To: <1218033802.7764.31.camel@ubuntu>
+References: <1218033802.7764.31.camel@ubuntu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+[Gerald, could you see if this works for you it seems to for us on
+an x86 build.  If it does we can push it up to Andrew.]
 
-> Do we expect that this change will be replicated in other
-> memory-intensive apps?  (I do).
+In the normal case, hugetlbfs reserves hugepages at map time so that the
+pages exist for future faults.  A struct file_region is used to track
+when reservations have been consumed and where.  These file_regions
+are allocated as necessary with kmalloc() which can sleep with the
+mm->page_table_lock held.  This is wrong and triggers may-sleep warning
+when PREEMPT is enabled.
 
-The catch with 2MB pages on x86 is that x86 CPUs generally have
-much less 2MB TLB entries than 4K entries. So if you're unlucky
-and access a lot of mappings you might actually thrash more with
-them. That is why they are not necessarily an universal win.
+Updates to the underlying file_region are done in two phases.  The first
+phase prepares the region for the change, allocating any necessary memory,
+without actually making the change.  The second phase actually commits
+the change.  This patch makes use of this by checking the reservations
+before the page_table_lock is taken; triggering any necessary allocations.
+This may then be safely repeated within the locks without any allocations
+being required.
 
--Andi
+Credit to Mel Gorman for diagnosing this failure and initial versions of
+the patch.
+
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ mm/hugetlb.c |   44 +++++++++++++++++++++++++++++++++++---------
+ 1 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 28a2980..c4413ae 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1937,6 +1937,15 @@ retry:
+ 			lock_page(page);
+ 	}
+ 
++	/*
++	 * If we are going to COW a private mapping later, we examine the
++	 * pending reservations for this page now. This will ensure that
++	 * any allocations necessary to record that reservation occur outside
++	 * the spinlock.
++	 */
++	if (write_access && !(vma->vm_flags & VM_SHARED))
++		vma_needs_reservation(h, vma, address);
++
+ 	spin_lock(&mm->page_table_lock);
+ 	size = i_size_read(mapping->host) >> huge_page_shift(h);
+ 	if (idx >= size)
+@@ -1973,6 +1982,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	pte_t *ptep;
+ 	pte_t entry;
+ 	int ret;
++	struct page *pagecache_page = NULL;
+ 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
+ 	struct hstate *h = hstate_vma(vma);
+ 
+@@ -1995,19 +2005,35 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	ret = 0;
+ 
++	/*
++	 * If we are going to COW the mapping later, we examine the pending
++	 * reservations for this page now. This will ensure that any
++	 * allocations necessary to record that reservation occur outside the
++	 * spinlock. For private mappings, we also lookup the pagecache
++	 * page now as it is used to determine if a reservation has been
++	 * consumed.
++	 */
++	if (write_access && !pte_write(entry)) {
++		vma_needs_reservation(h, vma, address);
++
++		if (!(vma->vm_flags & VM_SHARED))
++			pagecache_page = hugetlbfs_pagecache_page(h,
++								vma, address);
++	}
++
+ 	spin_lock(&mm->page_table_lock);
+ 	/* Check for a racing update before calling hugetlb_cow */
+ 	if (likely(pte_same(entry, huge_ptep_get(ptep))))
+-		if (write_access && !pte_write(entry)) {
+-			struct page *page;
+-			page = hugetlbfs_pagecache_page(h, vma, address);
+-			ret = hugetlb_cow(mm, vma, address, ptep, entry, page);
+-			if (page) {
+-				unlock_page(page);
+-				put_page(page);
+-			}
+-		}
++		if (write_access && !pte_write(entry))
++			ret = hugetlb_cow(mm, vma, address, ptep, entry,
++							pagecache_page);
+ 	spin_unlock(&mm->page_table_lock);
++
++	if (pagecache_page) {
++		unlock_page(pagecache_page);
++		put_page(pagecache_page);
++	}
++
+ 	mutex_unlock(&hugetlb_instantiation_mutex);
+ 
+ 	return ret;
+-- 
+1.6.0.rc1.258.g80295
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
