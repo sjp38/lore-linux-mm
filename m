@@ -1,57 +1,45 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 12/17] vfs: pagecache usage optimization for pagesize!=blocksize
-Date: Wed, 6 Aug 2008 15:36:31 +1000
-References: <200807282246.m6SMkaHT032267@imap1.linux-foundation.org> <20080728230031.GA22218@infradead.org> <200808041719.43293.nickpiggin@yahoo.com.au>
-In-Reply-To: <200808041719.43293.nickpiggin@yahoo.com.au>
+Received: by ti-out-0910.google.com with SMTP id j3so861329tid.8
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2008 22:43:31 -0700 (PDT)
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [PATCH][migration] Trivial cleanup
+Date: Wed, 6 Aug 2008 14:42:54 +0900
+References: <20080805135559.GQ26461@parisc-linux.org> <20080805092209.830f5d0a.akpm@linux-foundation.org>
+In-Reply-To: <20080805092209.830f5d0a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200808061536.32275.nickpiggin@yahoo.com.au>
+Message-Id: <200808061442.55159.minchan.kim@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, hifumi.hisashi@oss.ntt.co.jp, jack@ucw.cz, linux-ext4@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Any updates with this, please?
+This is a trivial cleanup.
+Anyone doesn't use it any more.  
 
-On Monday 04 August 2008 17:19, Nick Piggin wrote:
-> On Tuesday 29 July 2008 09:00, Christoph Hellwig wrote:
-> > On Mon, Jul 28, 2008 at 03:46:36PM -0700, akpm@linux-foundation.org wrote:
-> > > From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-> > >
-> > > When we read some part of a file through pagecache, if there is a
-> > > pagecache of corresponding index but this page is not uptodate, read IO
-> > > is issued and this page will be uptodate.
-> >
-> > I was under the impression we wanted to do this in a nicer way than
-> > the hacky method?
->
-> This patch unfortunately appears like it may introduce an
-> uninitialized memory leak due to a data race between one
-> thread initializing a buffer then marking it uptodate, and
-> the other testing buffer uptodate then reading from the
-> buffer (buffer, read as: page memory covered by buffer head).
->
-> For reference, this is basically the same class of data race
-> that I fixed 0ed361dec36945f3116ee1338638ada9a8920905
->
-> I should have picked up on this before it was merged, but I
-> was kind of rushed to review other things before they got
-> merged.
->
-> I don't think this patch got quite enough justification to
-> warrant just blindly putting barriers in the buffer bitops.
-> The best-case numbers for it were reasonable enough when the
-> downside was only an extra branch or two in a relatively slow
-> path. I don't really know how best to go from here (maybe
-> someone can argue it is not a problem or come up with a better
-> fix?).
->
-> Thanks,
-> Nick
+Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+---
+ mm/mempolicy.c |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 97020c0..36f4257 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -808,7 +808,6 @@ static int migrate_to_node(struct mm_struct *mm, int 
+source, int dest,
+ int do_migrate_pages(struct mm_struct *mm,
+ 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+ {
+-	LIST_HEAD(pagelist);
+ 	int busy = 0;
+ 	int err = 0;
+ 	nodemask_t tmp;
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
