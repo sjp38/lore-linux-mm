@@ -1,129 +1,73 @@
-Date: Wed, 6 Aug 2008 17:53:52 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][RFC] dirty balancing for cgroups
-Message-Id: <20080806175352.6330c00a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080806082046.349BE5A5F@siro.lan>
-References: <20080711175213.dc69f068.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080806082046.349BE5A5F@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 6 Aug 2008 10:02:22 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-ID: <20080806090222.GD21190@csn.ul.ie>
+References: <20080730172317.GA14138@csn.ul.ie> <20080730103407.b110afc2.akpm@linux-foundation.org> <20080730193010.GB14138@csn.ul.ie> <20080730130709.eb541475.akpm@linux-foundation.org> <20080731103137.GD1704@csn.ul.ie> <1217884211.20260.144.camel@nimitz> <20080805111147.GD20243@csn.ul.ie> <1217952748.10907.18.camel@nimitz> <20080805162800.GJ20243@csn.ul.ie> <1217958805.10907.45.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1217958805.10907.45.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, a.p.zijlstra@chello.nl
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  6 Aug 2008 17:20:46 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-
-> hi,
-> 
-> > On Fri, 11 Jul 2008 17:34:46 +0900 (JST)
-> > yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+On (05/08/08 10:53), Dave Hansen didst pronounce:
+> On Tue, 2008-08-05 at 17:28 +0100, Mel Gorman wrote:
+> > Ok sure, you could do direct inserts for MAP_PRIVATE as conceptually it
+> > suits this patch.  However, I don't see what you gain. By reusing hugetlbfs,
+> > we get things like proper reservations which we can do for MAP_PRIVATE these
+> > days. Again, we could call that sort of thing directly if the reservation
+> > layer was split out separate from hugetlbfs but I still don't see the gain
+> > for all that churn.
 > > 
-> > > hi,
-> > > 
-> > > > > my patch penalizes heavy-writer cgroups as task_dirty_limit does
-> > > > > for heavy-writer tasks.  i don't think that it's necessary to be
-> > > > > tied to the memory subsystem because i merely want to group writers.
-> > > > > 
-> > > > Hmm, maybe what I need is different from this ;)
-> > > > Does not seem to be a help for memory reclaim under memcg.
-> > > 
-> > > to implement what you need, i think that we need to keep track of
-> > > the numbers of dirty-pages in each memory cgroups as a first step.
-> > > do you agree?
-> > > 
-> > yes, I think so, now.
-> > 
-> > may be not difficult but will add extra overhead ;( Sigh..
+> > What am I missing?
 > 
-> the following is a patch to add the overhead. :)
-> any comments?
+> This is good for getting us incremental functionality.  It is probably
+> the smallest amount of code to get it functional.
 > 
-Do you have some numbers ? ;) 
-I like this because this seems very straightforward. thank you.
 
+I'm not keen on the idea of introducing another specialised path just for
+stacks. Testing coverage is tricky enough as it is and problems still slip
+through occasionally. Maybe going through hugetlbfs is less than ideal,
+but at least it is a shared path.
 
-> @@ -485,7 +502,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
->  		if (PageUnevictable(page) ||
->  		    (PageActive(page) && !active) ||
->  		    (!PageActive(page) && active)) {
-> -			__mem_cgroup_move_lists(pc, page_lru(page));
-> +			if (try_lock_page_cgroup(page)) {
-> +				__mem_cgroup_move_lists(pc, page_lru(page));
-> +				unlock_page_cgroup(page);
-> +			}
->  			continue;
->  		}
->  
+> My concern is that we're going down a path that all large page usage
+> should be through the one and only filesystem.  Once we establish that
+> dependency, it is going to be awfully hard to undo it;
 
-Hmm..ok, there will be new race between Dirty Bit and LRU bits.
+Not much harder than it is to write any alternative in the first place
+:/
 
+> just think of all
+> of the inherent behavior in hugetlbfs.  So, we better be sure that the
+> filesystem really is the way to go, especially if we're going to start
+> having other areas of the kernel depend on it internally.
+> 
 
-> @@ -772,6 +792,38 @@ void mem_cgroup_end_migration(struct page *newpage)
->  		mem_cgroup_uncharge_page(newpage);
->  }
->  
-> +void mem_cgroup_set_page_dirty(struct page *pg)
-> +{
-> +	struct page_cgroup *pc;
-> +
-> +	lock_page_cgroup(pg);
-> +	pc = page_get_page_cgroup(pg);
-> +	if (pc != NULL && (pc->flags & PAGE_CGROUP_FLAG_DIRTY) == 0) {
-> +		struct mem_cgroup *mem = pc->mem_cgroup;
-> +		struct mem_cgroup_stat *stat = &mem->stat;
-> +
-> +		pc->flags |= PAGE_CGROUP_FLAG_DIRTY;
-> +		__mem_cgroup_stat_add(stat, MEM_CGROUP_STAT_DIRTY, 1);
-> +	}
-> +	unlock_page_cgroup(pg);
-> +}
-> +
-> +void mem_cgroup_clear_page_dirty(struct page *pg)
-> +{
-> +	struct page_cgroup *pc;
-> +
-> +	lock_page_cgroup(pg);
-> +	pc = page_get_page_cgroup(pg);
-> +	if (pc != NULL && (pc->flags & PAGE_CGROUP_FLAG_DIRTY) != 0) {
-> +		struct mem_cgroup *mem = pc->mem_cgroup;
-> +		struct mem_cgroup_stat *stat = &mem->stat;
-> +
-> +		pc->flags &= ~PAGE_CGROUP_FLAG_DIRTY;
-> +		__mem_cgroup_stat_add(stat, MEM_CGROUP_STAT_DIRTY, -1);
-> +	}
-> +	unlock_page_cgroup(pg);
-> +}
-> +
+So far, it is working out as a decent model. It is able to track reservations
+and deal with the differences between SHARED and PRIVATE without massive
+difficulties. While we could add another specialised path to directly insert
+the pages into pagetables for private mappings, I find it hard to justify
+adding more test coverage problems. There might be minimal gains to be had
+in lock granularity but that's about it.
 
-How about changing these to be
+> That said, this particular patch doesn't appear *too* bound to hugetlb
+> itself.  But, some of its limitations *do* come from the filesystem,
+> like its inability to handle VM_GROWS...  
+> 
 
-==
-void mem_cgroup_test_set_page_dirty()
-{
-	if (try_lock_page_cgroup(pg)) {
-		pc = page_get_page_cgroup(pg);
-		if (pc ......) {
-		}
-		unlock_page_cgroup(pg)
-	}
-}
-==
+The lack of VM_GROWSX is an issue, but on its own it does not justify
+the amount of churn necessary to support direct pagetable insertions for
+MAP_ANONYMOUS|MAP_PRIVATE. I think we'd need another case or two that would
+really benefit from direct insertions to pagetables instead of hugetlbfs so
+that the path would get adequately tested.
 
-
-Off-topic: I wonder we can delete this "lock" in future.
-
-Because page->page_cgroup is
- 1. attached at first use.(Obiously no race with set_dirty)
- 2. deleted at removal. (force_empty is problematic here..)
-
-But, now, we need this lock.
-
-Thanks,
--Kame
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
