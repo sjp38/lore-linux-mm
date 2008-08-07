@@ -1,123 +1,116 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m77CgFt2010133
-	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 18:12:15 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m77CgEF41658992
-	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 18:12:14 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m77CgEK6009620
-	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 18:12:14 +0530
-Message-ID: <489AEDA6.5040802@linux.vnet.ibm.com>
-Date: Thu, 07 Aug 2008 18:12:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: Race condition between putback_lru_page and mem_cgroup_move_list
-References: <28c262360808040736u7f364fc0p28d7ceea7303a626@mail.gmail.com> <1217863870.7065.62.camel@lts-notebook> <2f11576a0808040937y70f274e0j32f6b9c98b0f992d@mail.gmail.com> <489741F8.2080104@linux.vnet.ibm.com> <1218041585.6173.45.camel@lts-notebook>
-In-Reply-To: <1218041585.6173.45.camel@lts-notebook>
-Content-Type: text/plain; charset=UTF-8
+Received: from edge04.upc.biz ([192.168.13.239]) by viefep17-int.chello.at
+          (InterMail vM.7.08.02.00 201-2186-121-20061213) with ESMTP
+          id <20080807133612.MIVB16026.viefep17-int.chello.at@edge04.upc.biz>
+          for <linux-mm@kvack.org>; Thu, 7 Aug 2008 15:36:12 +0200
+Subject: Re: [PATCH][RFC] dirty balancing for cgroups
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080806082046.349BE5A5F@siro.lan>
+References: <20080711175213.dc69f068.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080806082046.349BE5A5F@siro.lan>
+Content-Type: text/plain
+Date: Thu, 07 Aug 2008 15:36:08 +0200
+Message-Id: <1218116168.8625.38.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, MinChan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn wrote:
-> On Mon, 2008-08-04 at 23:22 +0530, Balbir Singh wrote:
->> KOSAKI Motohiro wrote:
->>> Hi
->>>
->>>>> I think this is a race condition if mem_cgroup_move_lists's comment isn't right.
->>>>> I am not sure that it was already known problem.
->>>>>
->>>>> mem_cgroup_move_lists assume the appropriate zone's lru lock is already held.
->>>>> but putback_lru_page calls mem_cgroup_move_lists without holding lru_lock.
->>>> Hmmm, the comment on mem_cgroup_move_lists() does say this.  Although,
->>>> reading thru' the code, I can't see why it requires this.  But then it's
->>>> Monday, here...
->>> I also think zone's lru lock is unnecessary.
->>> So, I guess below "it" indicate lock_page_cgroup, not zone lru lock.
->>>
->> We need zone LRU lock, since the reclaim paths hold them. Not sure if I
->> understand why you call zone's LRU lock unnecessary, could you elaborate please?
+On Wed, 2008-08-06 at 17:20 +0900, YAMAMOTO Takashi wrote:
+> hi,
 > 
-> Hi, Balbir:
+> > On Fri, 11 Jul 2008 17:34:46 +0900 (JST)
+> > yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+> > 
+> > > hi,
+> > > 
+> > > > > my patch penalizes heavy-writer cgroups as task_dirty_limit does
+> > > > > for heavy-writer tasks.  i don't think that it's necessary to be
+> > > > > tied to the memory subsystem because i merely want to group writers.
+> > > > > 
+> > > > Hmm, maybe what I need is different from this ;)
+> > > > Does not seem to be a help for memory reclaim under memcg.
+> > > 
+> > > to implement what you need, i think that we need to keep track of
+> > > the numbers of dirty-pages in each memory cgroups as a first step.
+> > > do you agree?
+> > > 
+> > yes, I think so, now.
+> > 
+> > may be not difficult but will add extra overhead ;( Sigh..
 > 
-> Sorry for the delay in responding.  Distracted...
+> the following is a patch to add the overhead. :)
+> any comments?
 > 
+> YAMAMOTO Takashi
 
-No problem at all.
-
-> I think that perhaps the zone's LRU lock is unnecessary because I didn't
-> see anything in mem_cgroup_move_lists() or it's callees that needed
-> protection by the zone lru_lock.  
-> 
-> Looking at the call sites in the reclaim paths [in
-> shrink_[in]active_page()] and activate_page(), they are holding the zone
-> lru_lock because they are manipulating the lru lists and/or zone
-> statistics. 
-
-Precisely, my point below about updating statistics for zones and you mention
-below that the zone LRU excludes the race I mentioned in (1). I am a bit
-confused with that statement, do you agree that zone lru_lock excludes the race
-and is therefore required?
-
- The places where pages are moved to a new lru list is where
-> you want to insert calls to mem_cgroup_move_lists(), so I think they
-> just happen to fall under the zone lru lock.  
-> 
-> Now, in a subsequent message in this thread, you ask:
-> 
-> "1. What happens if a global reclaim is in progress at the same time as
-> memory cgroup reclaim and they are both looking at the same page?"
-> 
-> This should not happen, I think.  Racing global and memory cgroup calls
-> to __isolate_lru_page() are mutually excluded by the zone lru_lock taken
-> in shrink_[in]active_page().
-
-Yes, I was referring to needing the zone lru_lock
-
-  In putback_lru_page(), where we call
-> mem_cgroup_move_lists() without holding the zone lru_lock, we've either
-> queued up the page for adding to one of the [in]active lists via the
-> pagevecs, or we've already moved it to the unevictable list.  If
-> mem_cgroup_isolate_pages() finds a page on one of the mz lists before it
-> has been drained to the LRU, it will [rightly] skip the page because
-> it's "!PageLRU(page)".
-> 
-> 
-> In same message, you state:
-> 
-> "2. In the shared reclaim infrastructure, we move pages and update
-> statistics for pages belonging to a particular zone in a particular
-> cgroup."
-> 
-> Sorry, I don't understand your point.  Are you concerned that the stats
-> can get out of sync?  I suppose that, in general, if we called
-> mem_cgroup_move_lists() from just anywhere without zone lru_lock
-> protection, we could have problems.  In the case of putback_lru_page(),
-> again, we've already put the page back on the global unevictable list
-> and updated the global stats, or it's on it's way to an [in]active list
-> via the pagevecs.  The stats will be updated when the pagevecs are
-> drained.
-> 
-> I think we're OK without explicit zone lru locking around the call to
-> mem_cgroup_move_lists() and the global lru list additions in
-> putback_lru_page().   
-> 
-
-I think I understand what you are stating clearly
-
-We don't need the zone lru_lock in putback_lru_page(). Am I missing something or
-do I have it right? (It's Thursday and one of my legs is already in the weekend).
+It _might_ (depends on the uglyness of the result) make sense to try and
+stick the mem_cgroup_*_page_dirty() stuff into the *PageDirty() macros.
 
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> @@ -485,7 +502,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+>  		if (PageUnevictable(page) ||
+>  		    (PageActive(page) && !active) ||
+>  		    (!PageActive(page) && active)) {
+> -			__mem_cgroup_move_lists(pc, page_lru(page));
+> +			if (try_lock_page_cgroup(page)) {
+> +				__mem_cgroup_move_lists(pc, page_lru(page));
+> +				unlock_page_cgroup(page);
+> +			}
+>  			continue;
+>  		}
+
+This chunk seems unrelated and lost....
+
+
+> @@ -772,6 +792,38 @@ void mem_cgroup_end_migration(struct page *newpage)
+>  		mem_cgroup_uncharge_page(newpage);
+>  }
+>  
+> +void mem_cgroup_set_page_dirty(struct page *pg)
+> +{
+> +	struct page_cgroup *pc;
+> +
+> +	lock_page_cgroup(pg);
+> +	pc = page_get_page_cgroup(pg);
+> +	if (pc != NULL && (pc->flags & PAGE_CGROUP_FLAG_DIRTY) == 0) {
+> +		struct mem_cgroup *mem = pc->mem_cgroup;
+> +		struct mem_cgroup_stat *stat = &mem->stat;
+> +
+> +		pc->flags |= PAGE_CGROUP_FLAG_DIRTY;
+> +		__mem_cgroup_stat_add(stat, MEM_CGROUP_STAT_DIRTY, 1);
+> +	}
+> +	unlock_page_cgroup(pg);
+> +}
+> +
+> +void mem_cgroup_clear_page_dirty(struct page *pg)
+> +{
+> +	struct page_cgroup *pc;
+> +
+> +	lock_page_cgroup(pg);
+> +	pc = page_get_page_cgroup(pg);
+> +	if (pc != NULL && (pc->flags & PAGE_CGROUP_FLAG_DIRTY) != 0) {
+> +		struct mem_cgroup *mem = pc->mem_cgroup;
+> +		struct mem_cgroup_stat *stat = &mem->stat;
+> +
+> +		pc->flags &= ~PAGE_CGROUP_FLAG_DIRTY;
+> +		__mem_cgroup_stat_add(stat, MEM_CGROUP_STAT_DIRTY, -1);
+> +	}
+> +	unlock_page_cgroup(pg);
+> +}
+> +
+>  /*
+>   * A call to try to shrink memory usage under specified resource controller.
+>   * This is typically used for page reclaiming for shmem for reducing side
+
+
+I presonally dislike the != 0, == 0 comparisons for bitmask operations,
+they seem to make it harder to read somewhow. I prefer to write !(flags
+& mask) and (flags & mask), instead.
+
+I guess taste differs,...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
