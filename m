@@ -1,32 +1,32 @@
-Date: Thu, 07 Aug 2008 16:00:21 +0900
+Date: Thu, 07 Aug 2008 20:00:37 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] Cleanup/rework Unevictable LRU and Mlocked Pages documentation
-In-Reply-To: <1218052276.19306.6.camel@lts-notebook>
-References: <1218052276.19306.6.camel@lts-notebook>
-Message-Id: <20080807155903.A8B5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: Race condition between putback_lru_page and mem_cgroup_move_list
+In-Reply-To: <1218041585.6173.45.camel@lts-notebook>
+References: <489741F8.2080104@linux.vnet.ibm.com> <1218041585.6173.45.camel@lts-notebook>
+Message-Id: <20080807185203.A8C2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Randy Dunlap <randy.dunlap@oracle.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Nick Piggin <npiggin@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, balbir@linux.vnet.ibm.com, MinChan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Against: 2.6.27-rc1-mm1
-> 
-> Cleanup and rework of Documentation/vm/unevictable-lru.txt:
-> 
-> + typos and such pointed out by Randy Dunlap
-> + rework rationale for use of LRU list based on discussion with
->   Christoph Lameter
-> + a few other area of rewording suggested by the rationale rework.
-> 
-> Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+Hi
 
-looks good to me. Thanks.
+> If you mean the "active/inactive list transition" in
+> shrink_[in]active_list(), these are already batched under zone lru_lock
+> with batch size determined by the 'release pages' pvec.  So, I think
+> we're OK here.
 
-(but I can't add reviewed-by because I can't believe my english skill..)
+No.
+
+AFAIK shrink_inactive_list batched zone->lru_lock, 
+but it doesn't batched mz->lru_lock.
+
+then, spin_lock_irqsave is freqently called.
+
 
 
 --
