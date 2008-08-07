@@ -1,43 +1,38 @@
-Subject: Re: Race condition between putback_lru_page and
-	mem_cgroup_move_list
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080807185203.A8C2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <489741F8.2080104@linux.vnet.ibm.com>
-	 <1218041585.6173.45.camel@lts-notebook>
-	 <20080807185203.A8C2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m77BZuwN203646
+	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 11:35:56 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m77BZt894481212
+	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 12:35:55 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m77BZtF9017434
+	for <linux-mm@kvack.org>; Thu, 7 Aug 2008 12:35:55 +0100
+Subject: Re: [PATCH 1/1] allocate structures for reservation tracking in
+	hugetlbfs outside of spinlocks
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <1218049425-19416-1-git-send-email-apw@shadowen.org>
+References: <1218033802.7764.31.camel@ubuntu>
+	 <1218049425-19416-1-git-send-email-apw@shadowen.org>
 Content-Type: text/plain
-Date: Thu, 07 Aug 2008 07:27:14 -0400
-Message-Id: <1218108434.6086.29.camel@lts-notebook>
+Date: Thu, 07 Aug 2008 13:35:54 +0200
+Message-Id: <1218108954.4662.3.camel@localhost.localdomain>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, MinChan Kim <minchan.kim@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-08-07 at 20:00 +0900, KOSAKI Motohiro wrote:
-> Hi
-> 
-> > If you mean the "active/inactive list transition" in
-> > shrink_[in]active_list(), these are already batched under zone lru_lock
-> > with batch size determined by the 'release pages' pvec.  So, I think
-> > we're OK here.
-> 
-> No.
-> 
-> AFAIK shrink_inactive_list batched zone->lru_lock, 
-> but it doesn't batched mz->lru_lock.
-> 
-> then, spin_lock_irqsave is freqently called.
+On Wed, 2008-08-06 at 20:03 +0100, Andy Whitcroft wrote:
+> [Gerald, could you see if this works for you it seems to for us on
+> an x86 build.  If it does we can push it up to Andrew.]
 
-Ah, I see what you mean.  Yes, the mem cgroup zone lru_lock will be
-cycled frequently as each back of pages is put back during reclaim.  So,
-you'd like to eliminate the mz lru_lock, move the mem cgroup zone info
-under the corresponding zone lru_lock and move the page between memcg
-lists atomically with adding to global lru lists?  
+Yes, it works fine with your patch.
 
-Lee
+Thanks,
+Gerald
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
