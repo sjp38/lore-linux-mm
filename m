@@ -1,264 +1,582 @@
 Received: by qb-out-1314.google.com with SMTP id e11so2064336qbc.4
-        for <linux-mm@kvack.org>; Sun, 10 Aug 2008 10:17:22 -0700 (PDT)
+        for <linux-mm@kvack.org>; Sun, 10 Aug 2008 10:17:15 -0700 (PDT)
 From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Subject: [PATCH 4/5] kmemtrace: SLUB hooks.
-Date: Sun, 10 Aug 2008 20:14:06 +0300
-Message-Id: <1218388447-5578-5-git-send-email-eduard.munteanu@linux360.ro>
-In-Reply-To: <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro>
+Subject: [PATCH 1/5] kmemtrace: Core implementation.
+Date: Sun, 10 Aug 2008 20:14:03 +0300
+Message-Id: <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro>
+In-Reply-To: <1218388447-5578-1-git-send-email-eduard.munteanu@linux360.ro>
 References: <1218388447-5578-1-git-send-email-eduard.munteanu@linux360.ro>
- <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro>
- <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro>
- <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: penberg@cs.helsinki.fi
 Cc: mathieu.desnoyers@polymtl.ca, cl@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com, rostedt@goodmis.org, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-This adds hooks for the SLUB allocator, to allow tracing with kmemtrace.
+kmemtrace provides tracing for slab allocator functions, such as kmalloc,
+kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected data is then fed
+to the userspace application in order to analyse allocation hotspots,
+internal fragmentation and so on, making it possible to see how well an
+allocator performs, as well as debug and profile kernel code.
 
 Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 ---
- include/linux/slub_def.h |   53 ++++++++++++++++++++++++++++++++++--
- mm/slub.c                |   66 +++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 110 insertions(+), 9 deletions(-)
+ Documentation/kernel-parameters.txt |   10 +
+ MAINTAINERS                         |    6 +
+ include/linux/kmemtrace.h           |   85 +++++++++
+ init/main.c                         |    2 +
+ lib/Kconfig.debug                   |   28 +++
+ mm/Makefile                         |    2 +-
+ mm/kmemtrace.c                      |  335 +++++++++++++++++++++++++++++++++++
+ 7 files changed, 467 insertions(+), 1 deletions(-)
+ create mode 100644 include/linux/kmemtrace.h
+ create mode 100644 mm/kmemtrace.c
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index d117ea2..d77012a 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -10,6 +10,7 @@
- #include <linux/gfp.h>
- #include <linux/workqueue.h>
- #include <linux/kobject.h>
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index b52f47d..446a257 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -49,6 +49,7 @@ parameter is applicable:
+ 	ISAPNP	ISA PnP code is enabled.
+ 	ISDN	Appropriate ISDN support is enabled.
+ 	JOY	Appropriate joystick support is enabled.
++	KMEMTRACE kmemtrace is enabled.
+ 	LIBATA  Libata driver is enabled
+ 	LP	Printer support is enabled.
+ 	LOOP	Loopback device support is enabled.
+@@ -941,6 +942,15 @@ and is between 256 and 4096 characters. It is defined in the file
+ 			use the HighMem zone if it exists, and the Normal
+ 			zone if it does not.
+ 
++	kmemtrace.enable=	[KNL,KMEMTRACE] Format: { yes | no }
++				Controls whether kmemtrace is enabled
++				at boot-time.
++
++	kmemtrace.subbufs=n	[KNL,KMEMTRACE] Overrides the number of
++			subbufs kmemtrace's relay channel has. Set this
++			higher than default (KMEMTRACE_N_SUBBUFS in code) if
++			you experience buffer overruns.
++
+ 	movablecore=nn[KMG]	[KNL,X86-32,IA-64,PPC,X86-64] This parameter
+ 			is similar to kernelcore except it specifies the
+ 			amount of memory used for migratable allocations.
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 56a2f67..e967bc2 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -2425,6 +2425,12 @@ M:	jason.wessel@windriver.com
+ L:	kgdb-bugreport@lists.sourceforge.net
+ S:	Maintained
+ 
++KMEMTRACE
++P:	Eduard - Gabriel Munteanu
++M:	eduard.munteanu@linux360.ro
++L:	linux-kernel@vger.kernel.org
++S:	Maintained
++
+ KPROBES
+ P:	Ananth N Mavinakayanahalli
+ M:	ananth@in.ibm.com
+diff --git a/include/linux/kmemtrace.h b/include/linux/kmemtrace.h
+new file mode 100644
+index 0000000..2c33201
+--- /dev/null
++++ b/include/linux/kmemtrace.h
+@@ -0,0 +1,85 @@
++/*
++ * Copyright (C) 2008 Eduard - Gabriel Munteanu
++ *
++ * This file is released under GPL version 2.
++ */
++
++#ifndef _LINUX_KMEMTRACE_H
++#define _LINUX_KMEMTRACE_H
++
++#ifdef __KERNEL__
++
++#include <linux/types.h>
++#include <linux/marker.h>
++
++enum kmemtrace_type_id {
++	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
++	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
++	KMEMTRACE_TYPE_PAGES,		/* __get_free_pages() and friends. */
++};
++
++#ifdef CONFIG_KMEMTRACE
++
++extern void kmemtrace_init(void);
++
++static inline void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
++					     unsigned long call_site,
++					     const void *ptr,
++					     size_t bytes_req,
++					     size_t bytes_alloc,
++					     gfp_t gfp_flags,
++					     int node)
++{
++	trace_mark(kmemtrace_alloc, "type_id %d call_site %lu ptr %lu "
++		   "bytes_req %lu bytes_alloc %lu gfp_flags %lu node %d",
++		   type_id, call_site, (unsigned long) ptr,
++		   bytes_req, bytes_alloc, (unsigned long) gfp_flags, node);
++}
++
++static inline void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
++				       unsigned long call_site,
++				       const void *ptr)
++{
++	trace_mark(kmemtrace_free, "type_id %d call_site %lu ptr %lu",
++		   type_id, call_site, (unsigned long) ptr);
++}
++
++#else /* CONFIG_KMEMTRACE */
++
++static inline void kmemtrace_init(void)
++{
++}
++
++static inline void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
++					     unsigned long call_site,
++					     const void *ptr,
++					     size_t bytes_req,
++					     size_t bytes_alloc,
++					     gfp_t gfp_flags,
++					     int node)
++{
++}
++
++static inline void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
++				       unsigned long call_site,
++				       const void *ptr)
++{
++}
++
++#endif /* CONFIG_KMEMTRACE */
++
++static inline void kmemtrace_mark_alloc(enum kmemtrace_type_id type_id,
++					unsigned long call_site,
++					const void *ptr,
++					size_t bytes_req,
++					size_t bytes_alloc,
++					gfp_t gfp_flags)
++{
++	kmemtrace_mark_alloc_node(type_id, call_site, ptr,
++				  bytes_req, bytes_alloc, gfp_flags, -1);
++}
++
++#endif /* __KERNEL__ */
++
++#endif /* _LINUX_KMEMTRACE_H */
++
+diff --git a/init/main.c b/init/main.c
+index 057f364..c00659c 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -66,6 +66,7 @@
+ #include <asm/setup.h>
+ #include <asm/sections.h>
+ #include <asm/cacheflush.h>
 +#include <linux/kmemtrace.h>
  
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
-@@ -203,13 +204,31 @@ static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
- void *__kmalloc(size_t size, gfp_t flags);
+ #ifdef CONFIG_X86_LOCAL_APIC
+ #include <asm/smp.h>
+@@ -641,6 +642,7 @@ asmlinkage void __init start_kernel(void)
+ 	enable_debug_pagealloc();
+ 	cpu_hotplug_init();
+ 	kmem_cache_init();
++	kmemtrace_init();
+ 	debug_objects_mem_init();
+ 	idr_init_cache();
+ 	setup_per_cpu_pageset();
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index d2099f4..0ade2ae 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -674,6 +674,34 @@ config FIREWIRE_OHCI_REMOTE_DMA
  
-+#ifdef CONFIG_KMEMTRACE
-+extern void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags);
-+#else
-+static __always_inline void *
-+kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
-+{
-+	return kmem_cache_alloc(s, gfpflags);
-+}
-+#endif
-+
- static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
- {
--	return (void *)__get_free_pages(flags | __GFP_COMP, get_order(size));
-+	unsigned int order = get_order(size);
-+	void *ret = (void *) __get_free_pages(flags, order);
-+
-+	kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC, _THIS_IP_, ret,
-+			     size, PAGE_SIZE << order, flags);
-+
-+	return ret;
- }
+ 	  If unsure, say N.
  
- static __always_inline void *kmalloc(size_t size, gfp_t flags)
- {
-+	void *ret;
++config KMEMTRACE
++	bool "Kernel memory tracer (kmemtrace)"
++	depends on RELAY && DEBUG_FS && MARKERS
++	help
++	  kmemtrace provides tracing for slab allocator functions, such as
++	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected
++	  data is then fed to the userspace application in order to analyse
++	  allocation hotspots, internal fragmentation and so on, making it
++	  possible to see how well an allocator performs, as well as debug
++	  and profile kernel code.
 +
- 	if (__builtin_constant_p(size)) {
- 		if (size > PAGE_SIZE)
- 			return kmalloc_large(size, flags);
-@@ -220,7 +239,13 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- 			if (!s)
- 				return ZERO_SIZE_PTR;
++	  This requires an userspace application to use. See
++	  Documentation/vm/kmemtrace.txt for more information.
++
++	  Saying Y will make the kernel somewhat larger and slower. However,
++	  if you disable kmemtrace at run-time or boot-time, the performance
++	  impact is minimal (depending on the arch the kernel is built for).
++
++	  If unsure, say N.
++
++config KMEMTRACE_DEFAULT_ENABLED
++	bool "Enabled by default at boot"
++	depends on KMEMTRACE
++	help
++	  Say Y here to enable kmemtrace at boot-time by default. Whatever
++	  the choice, the behavior can be overridden by a kernel parameter,
++	  as described in documentation.
++
+ source "samples/Kconfig"
  
--			return kmem_cache_alloc(s, flags);
-+			ret = kmem_cache_alloc_notrace(s, flags);
+ source "lib/Kconfig.kgdb"
+diff --git a/mm/Makefile b/mm/Makefile
+index 18c143b..d88a3bc 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -33,4 +33,4 @@ obj-$(CONFIG_MIGRATION) += migrate.o
+ obj-$(CONFIG_SMP) += allocpercpu.o
+ obj-$(CONFIG_QUICKLIST) += quicklist.o
+ obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
+-
++obj-$(CONFIG_KMEMTRACE) += kmemtrace.o
+diff --git a/mm/kmemtrace.c b/mm/kmemtrace.c
+new file mode 100644
+index 0000000..83ad1cc
+--- /dev/null
++++ b/mm/kmemtrace.c
+@@ -0,0 +1,335 @@
++/*
++ * Copyright (C) 2008 Pekka Enberg, Eduard - Gabriel Munteanu
++ *
++ * This file is released under GPL version 2.
++ */
 +
-+			kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC,
-+					     _THIS_IP_, ret,
-+					     size, s->size, flags);
-+
-+			return ret;
- 		}
- 	}
- 	return __kmalloc(size, flags);
-@@ -230,8 +255,24 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- void *__kmalloc_node(size_t size, gfp_t flags, int node);
- void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
- 
-+#ifdef CONFIG_KMEMTRACE
-+extern void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+					   gfp_t gfpflags,
-+					   int node);
-+#else
-+static __always_inline void *
-+kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+			      gfp_t gfpflags,
-+			      int node)
-+{
-+	return kmem_cache_alloc_node(s, gfpflags, node);
-+}
-+#endif
-+
- static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
- {
-+	void *ret;
-+
- 	if (__builtin_constant_p(size) &&
- 		size <= PAGE_SIZE && !(flags & SLUB_DMA)) {
- 			struct kmem_cache *s = kmalloc_slab(size);
-@@ -239,7 +280,13 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
- 		if (!s)
- 			return ZERO_SIZE_PTR;
- 
--		return kmem_cache_alloc_node(s, flags, node);
-+		ret = kmem_cache_alloc_node_notrace(s, flags, node);
-+
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-+					  _THIS_IP_, ret,
-+					  size, s->size, flags, node);
-+
-+		return ret;
- 	}
- 	return __kmalloc_node(size, flags, node);
- }
-diff --git a/mm/slub.c b/mm/slub.c
-index 315c392..940145f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -23,6 +23,7 @@
- #include <linux/kallsyms.h>
- #include <linux/memory.h>
- #include <linux/math64.h>
++#include <linux/string.h>
++#include <linux/debugfs.h>
++#include <linux/relay.h>
++#include <linux/module.h>
++#include <linux/marker.h>
++#include <linux/gfp.h>
 +#include <linux/kmemtrace.h>
- 
- /*
-  * Lock order:
-@@ -1652,18 +1653,47 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
- 
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- {
--	return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
-+	void *ret = slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
 +
-+	kmemtrace_mark_alloc(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
-+			     s->objsize, s->size, gfpflags);
++#define KMEMTRACE_SUBBUF_SIZE		524288
++#define KMEMTRACE_DEF_N_SUBBUFS		20
 +
-+	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc);
- 
-+#ifdef CONFIG_KMEMTRACE
-+void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
-+{
-+	return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
-+}
-+EXPORT_SYMBOL(kmem_cache_alloc_notrace);
++static struct rchan *kmemtrace_chan;
++static u32 kmemtrace_buf_overruns;
++
++static unsigned int kmemtrace_n_subbufs;
++#ifdef CONFIG_KMEMTRACE_DEFAULT_ENABLED
++static unsigned int kmemtrace_enabled = 1;
++#else
++static unsigned int kmemtrace_enabled = 0;
 +#endif
 +
- #ifdef CONFIG_NUMA
- void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
- {
--	return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
-+	void *ret = slab_alloc(s, gfpflags, node,
-+			       __builtin_return_address(0));
++/*
++ * The sequence number is used for reordering kmemtrace packets
++ * in userspace, since they are logged as per-CPU data.
++ *
++ * atomic_t should always be a 32-bit signed integer. Wraparound is not
++ * likely to occur, but userspace can deal with it by expecting a certain
++ * sequence number in the next packet that will be read.
++ */
++static atomic_t kmemtrace_seq_num;
 +
-+	kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_CACHE, _RET_IP_, ret,
-+				  s->objsize, s->size, gfpflags, node);
++#define KMEMTRACE_ABI_VERSION		1
 +
-+	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node);
- #endif
- 
-+#ifdef CONFIG_KMEMTRACE
-+void *kmem_cache_alloc_node_notrace(struct kmem_cache *s,
-+				    gfp_t gfpflags,
-+				    int node)
++static u32 kmemtrace_abi_version __read_mostly = KMEMTRACE_ABI_VERSION;
++
++enum kmemtrace_event_id {
++	KMEMTRACE_EVENT_ALLOC = 0,
++	KMEMTRACE_EVENT_FREE,
++};
++
++struct kmemtrace_event {
++	u8		event_id;
++	u8		type_id;
++	u16		event_size;
++	s32		seq_num;
++	u64		call_site;
++	u64		ptr;
++} __attribute__ ((__packed__));
++
++struct kmemtrace_stats_alloc {
++	u64		bytes_req;
++	u64		bytes_alloc;
++	u32		gfp_flags;
++	s32		numa_node;
++} __attribute__ ((__packed__));
++
++static void kmemtrace_probe_alloc(void *probe_data, void *call_data,
++				  const char *format, va_list *args)
 +{
-+	return slab_alloc(s, gfpflags, node, __builtin_return_address(0));
++	unsigned long flags;
++	struct kmemtrace_event *ev;
++	struct kmemtrace_stats_alloc *stats;
++	void *buf;
++
++	local_irq_save(flags);
++
++	buf = relay_reserve(kmemtrace_chan,
++			    sizeof(struct kmemtrace_event) +
++			    sizeof(struct kmemtrace_stats_alloc));
++	if (!buf)
++		goto failed;
++
++	/*
++	 * Don't convert this to use structure initializers,
++	 * C99 does not guarantee the rvalues evaluation order.
++	 */
++
++	ev = buf;
++	ev->event_id = KMEMTRACE_EVENT_ALLOC;
++	ev->type_id = va_arg(*args, int);
++	ev->event_size = sizeof(struct kmemtrace_event) +
++			 sizeof(struct kmemtrace_stats_alloc);
++	ev->seq_num = atomic_add_return(1, &kmemtrace_seq_num);
++	ev->call_site = va_arg(*args, unsigned long);
++	ev->ptr = va_arg(*args, unsigned long);
++
++	stats = buf + sizeof(struct kmemtrace_event);
++	stats->bytes_req = va_arg(*args, unsigned long);
++	stats->bytes_alloc = va_arg(*args, unsigned long);
++	stats->gfp_flags = va_arg(*args, unsigned long);
++	stats->numa_node = va_arg(*args, int);
++
++failed:
++	local_irq_restore(flags);
 +}
-+EXPORT_SYMBOL(kmem_cache_alloc_node_notrace);
-+#endif
 +
- /*
-  * Slow patch handling. This may still be called frequently since objects
-  * have a longer lifetime than the cpu slabs in most processing loads.
-@@ -1771,6 +1801,8 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
- 	page = virt_to_head_page(x);
- 
- 	slab_free(s, page, x, __builtin_return_address(0));
++static void kmemtrace_probe_free(void *probe_data, void *call_data,
++				 const char *format, va_list *args)
++{
++	unsigned long flags;
++	struct kmemtrace_event *ev;
 +
-+	kmemtrace_mark_free(KMEMTRACE_TYPE_CACHE, _RET_IP_, x);
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
-@@ -2676,6 +2708,7 @@ static struct kmem_cache *get_slab(size_t size, gfp_t flags)
- void *__kmalloc(size_t size, gfp_t flags)
- {
- 	struct kmem_cache *s;
-+	void *ret;
- 
- 	if (unlikely(size > PAGE_SIZE))
- 		return kmalloc_large(size, flags);
-@@ -2685,7 +2718,12 @@ void *__kmalloc(size_t size, gfp_t flags)
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	return slab_alloc(s, flags, -1, __builtin_return_address(0));
-+	ret = slab_alloc(s, flags, -1, __builtin_return_address(0));
++	local_irq_save(flags);
 +
-+	kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, ret,
-+			     size, s->size, flags);
++	ev = relay_reserve(kmemtrace_chan, sizeof(struct kmemtrace_event));
++	if (!ev)
++		goto failed;
 +
-+	return ret;
- }
- EXPORT_SYMBOL(__kmalloc);
- 
-@@ -2704,16 +2742,30 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
- void *__kmalloc_node(size_t size, gfp_t flags, int node)
- {
- 	struct kmem_cache *s;
-+	void *ret;
- 
--	if (unlikely(size > PAGE_SIZE))
--		return kmalloc_large_node(size, flags, node);
-+	if (unlikely(size > PAGE_SIZE)) {
-+		ret = kmalloc_large_node(size, flags, node);
++	/*
++	 * Don't convert this to use structure initializers,
++	 * C99 does not guarantee the rvalues evaluation order.
++	 */
++	ev->event_id = KMEMTRACE_EVENT_FREE;
++	ev->type_id = va_arg(*args, int);
++	ev->event_size = sizeof(struct kmemtrace_event);
++	ev->seq_num = atomic_add_return(1, &kmemtrace_seq_num);
++	ev->call_site = va_arg(*args, unsigned long);
++	ev->ptr = va_arg(*args, unsigned long);
 +
-+		kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
-+					  _RET_IP_, ret,
-+					  size, PAGE_SIZE << get_order(size),
-+					  flags, node);
++failed:
++	local_irq_restore(flags);
++}
 +
-+		return ret;
++static struct dentry *
++kmemtrace_create_buf_file(const char *filename, struct dentry *parent,
++			  int mode, struct rchan_buf *buf, int *is_global)
++{
++	return debugfs_create_file(filename, mode, parent, buf,
++				   &relay_file_operations);
++}
++
++static int kmemtrace_remove_buf_file(struct dentry *dentry)
++{
++	debugfs_remove(dentry);
++
++	return 0;
++}
++
++static int kmemtrace_subbuf_start(struct rchan_buf *buf,
++				  void *subbuf,
++				  void *prev_subbuf,
++				  size_t prev_padding)
++{
++	if (relay_buf_full(buf)) {
++		/*
++		 * We know it's not SMP-safe, but neither
++		 * debugfs_create_u32() is.
++		 */
++		kmemtrace_buf_overruns++;
++		return 0;
 +	}
- 
- 	s = get_slab(size, flags);
- 
- 	if (unlikely(ZERO_OR_NULL_PTR(s)))
- 		return s;
- 
--	return slab_alloc(s, flags, node, __builtin_return_address(0));
-+	ret = slab_alloc(s, flags, node, __builtin_return_address(0));
 +
-+	kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, ret,
-+				  size, s->size, flags, node);
++	return 1;
++}
 +
-+	return ret;
- }
- EXPORT_SYMBOL(__kmalloc_node);
- #endif
-@@ -2771,6 +2823,8 @@ void kfree(const void *x)
- 		return;
- 	}
- 	slab_free(page->slab, page, object, __builtin_return_address(0));
++static struct rchan_callbacks relay_callbacks = {
++	.create_buf_file = kmemtrace_create_buf_file,
++	.remove_buf_file = kmemtrace_remove_buf_file,
++	.subbuf_start = kmemtrace_subbuf_start,
++};
 +
-+	kmemtrace_mark_free(KMEMTRACE_TYPE_KMALLOC, _RET_IP_, x);
- }
- EXPORT_SYMBOL(kfree);
- 
++static struct dentry *kmemtrace_dir;
++static struct dentry *kmemtrace_overruns_dentry;
++static struct dentry *kmemtrace_abi_version_dentry;
++
++static struct dentry *kmemtrace_enabled_dentry;
++
++static int kmemtrace_start_probes(void)
++{
++	int err;
++
++	err = marker_probe_register("kmemtrace_alloc", "type_id %d "
++				    "call_site %lu ptr %lu "
++				    "bytes_req %lu bytes_alloc %lu "
++				    "gfp_flags %lu node %d",
++				    kmemtrace_probe_alloc, NULL);
++	if (err)
++		return err;
++	err = marker_probe_register("kmemtrace_free", "type_id %d "
++				    "call_site %lu ptr %lu",
++				    kmemtrace_probe_free, NULL);
++
++	return err;
++}
++
++static void kmemtrace_stop_probes(void)
++{
++	marker_probe_unregister("kmemtrace_alloc",
++				kmemtrace_probe_alloc, NULL);
++	marker_probe_unregister("kmemtrace_free",
++				kmemtrace_probe_free, NULL);
++}
++
++static int kmemtrace_enabled_get(void *data, u64 *val)
++{
++	*val = *((int *) data);
++
++	return 0;
++}
++
++static int kmemtrace_enabled_set(void *data, u64 val)
++{
++	u64 old_val = kmemtrace_enabled;
++
++	*((int *) data) = !!val;
++
++	if (old_val == val)
++		return 0;
++	if (val)
++		kmemtrace_start_probes();
++	else
++		kmemtrace_stop_probes();
++
++	return 0;
++}
++
++DEFINE_SIMPLE_ATTRIBUTE(kmemtrace_enabled_fops,
++			kmemtrace_enabled_get,
++			kmemtrace_enabled_set, "%llu\n");
++
++static void kmemtrace_cleanup(void)
++{
++	if (kmemtrace_enabled_dentry)
++		debugfs_remove(kmemtrace_enabled_dentry);
++
++	kmemtrace_stop_probes();
++
++	if (kmemtrace_abi_version_dentry)
++		debugfs_remove(kmemtrace_abi_version_dentry);
++	if (kmemtrace_overruns_dentry)
++		debugfs_remove(kmemtrace_overruns_dentry);
++
++	relay_close(kmemtrace_chan);
++	kmemtrace_chan = NULL;
++
++	if (kmemtrace_dir)
++		debugfs_remove(kmemtrace_dir);
++}
++
++static int __init kmemtrace_setup_late(void)
++{
++	if (!kmemtrace_chan)
++		goto failed;
++
++	kmemtrace_dir = debugfs_create_dir("kmemtrace", NULL);
++	if (!kmemtrace_dir)
++		goto cleanup;
++
++	kmemtrace_abi_version_dentry =
++		debugfs_create_u32("abi_version", S_IRUSR,
++				   kmemtrace_dir, &kmemtrace_abi_version);
++	kmemtrace_overruns_dentry =
++		debugfs_create_u32("total_overruns", S_IRUSR,
++				   kmemtrace_dir, &kmemtrace_buf_overruns);
++	if (!kmemtrace_overruns_dentry || !kmemtrace_abi_version_dentry)
++		goto cleanup;
++
++	kmemtrace_enabled_dentry =
++		debugfs_create_file("enabled", S_IRUSR | S_IWUSR,
++				    kmemtrace_dir, &kmemtrace_enabled,
++				    &kmemtrace_enabled_fops);
++	if (!kmemtrace_enabled_dentry)
++		goto cleanup;
++
++	if (relay_late_setup_files(kmemtrace_chan, "cpu", kmemtrace_dir))
++		goto cleanup;
++
++	printk(KERN_INFO "kmemtrace: fully up.\n");
++
++	return 0;
++
++cleanup:
++	kmemtrace_cleanup();
++failed:
++	return 1;
++}
++late_initcall(kmemtrace_setup_late);
++
++static int __init kmemtrace_set_boot_enabled(char *str)
++{
++	if (!str)
++		return -EINVAL;
++
++	if (!strcmp(str, "yes"))
++		kmemtrace_enabled = 1;
++	else if (!strcmp(str, "no"))
++		kmemtrace_enabled = 0;
++	else
++		return -EINVAL;
++
++	return 0;
++}
++early_param("kmemtrace.enable", kmemtrace_set_boot_enabled);
++
++static int __init kmemtrace_set_subbufs(char *str)
++{
++	get_option(&str, &kmemtrace_n_subbufs);
++	return 0;
++}
++early_param("kmemtrace.subbufs", kmemtrace_set_subbufs);
++
++void kmemtrace_init(void)
++{
++	if (!kmemtrace_enabled)
++		return;
++
++	if (!kmemtrace_n_subbufs)
++		kmemtrace_n_subbufs = KMEMTRACE_DEF_N_SUBBUFS;
++
++	kmemtrace_chan = relay_open(NULL, NULL, KMEMTRACE_SUBBUF_SIZE,
++				    kmemtrace_n_subbufs, &relay_callbacks,
++				    NULL);
++	if (unlikely(!kmemtrace_chan)) {
++		printk(KERN_ERR "kmemtrace: could not open relay channel.\n");
++		return;
++	}
++
++	if (unlikely(kmemtrace_start_probes()))
++		goto probe_fail;
++
++	printk(KERN_INFO "kmemtrace: early init successful.\n");
++
++	return;
++
++probe_fail:
++	printk(KERN_ERR "kmemtrace: could not register marker probes!\n");
++	kmemtrace_cleanup();
++}
++
 -- 
 1.5.6.1
 
