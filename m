@@ -1,129 +1,102 @@
-Date: Mon, 11 Aug 2008 16:43:06 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC PATCH for -mm 5/5] fix mlock return value for mm
-In-Reply-To: <20080811160751.9465.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080811160751.9465.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080811163121.9468.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 11 Aug 2008 09:04:49 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
+Message-ID: <20080811080449.GB17452@csn.ul.ie>
+References: <20080731103137.GD1704@csn.ul.ie> <1217884211.20260.144.camel@nimitz> <20080805111147.GD20243@csn.ul.ie> <1217952748.10907.18.camel@nimitz> <20080805162800.GJ20243@csn.ul.ie> <1217958805.10907.45.camel@nimitz> <20080806090222.GD21190@csn.ul.ie> <1218052249.10907.125.camel@nimitz> <20080807160605.GA9200@csn.ul.ie> <1218130190.10907.188.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1218130190.10907.188.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
 List-ID: <linux-mm.kvack.org>
 
-> Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
-> We shouldn't do that.
+On (07/08/08 10:29), Dave Hansen didst pronounce:
+> On Thu, 2008-08-07 at 17:06 +0100, Mel Gorman wrote:
+> > On (06/08/08 12:50), Dave Hansen didst pronounce:
+> > > The main thing this set of patches does that I care about is take an
+> > > anonymous VMA and replace it with a hugetlb VMA.  It does this on a
+> > > special cue, but does it nonetheless.
+> > 
+> > This is not actually a new thing. For a long time now, it has been possible to
+> > back  malloc() with hugepages at a userspace level using the morecore glibc
+> > hook. That is replacing anonymous memory with a file-backed VMA. It happens
+> > in a different place but it's just as deliberate as backing stack and the
+> > end result is very similar. As the file is ram-based, it doesn't have the
+> > same types of consequences like dirty page syncing that you'd ordinarily
+> > watch for when moving from anonymous to file-backed memory.
+> 
+> Yes, it has already been done in userspace.  That's fine.  It isn't
+> adding any complexity to the kernel.  This is adding behavior that the
+> kernel has to support as well as complexity.
+> 
 
-Oops, sorry.
-I sent older version, I resend it.
+The complexity is minimal and the progression logical.
+hugetlb_file_setup() is the API shmem was using to create a file on an
+internal mount suitable for MAP_SHARED. This patchset adds support for
+MAP_PRIVATE and the additional complexity is a lot less than supporting
+direct pagetable inserts.
 
-Definitly, I should learn an correct operation of quilt ;)
+> > > This patch has crossed a line in that it is really the first
+> > > *replacement* of a normal VMA with a hugetlb VMA instead of the creation
+> > > of the VMAs at the user's request. 
+> > 
+> > We crossed that line with morecore, it's back there somewhere. We're just
+> > doing in kernel this time because backing stacks with hugepages in userspace
+> > turned out to be a hairy endevour.
+> > 
+> > Properly supporting anonymous hugepages would either require larger
+> > changes to the core or reimplementing yet more of mm/ in mm/hugetlb.c.
+> > Neither is a particularly appealing approach, nor is it likely to be a
+> > very popular one.
+> 
+> I agree.  It is always much harder to write code that can work
+> generically??? (and get it accepted) than just write the smallest possible
+> hack and stick it in fs/exec.c.
+> 
+> Could this patch at least get fixed up to look like it could be used
+> more generically?  Some code to look up and replace anonymous VMAs with
+> hugetlb-backed ones???
 
+Ok, this latter point can be looked into at least although the
+underlying principal may still be using hugetlb_file_setup() rather than
+direct pagetable insertions.
 
---------------------------------------------------------------
-Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
-We shouldn't do that.
+> > > Because of the limitations like its inability to grow the VMA, I can't
+> > > imagine that this would be a generic mechanism that we can use
+> > > elsewhere.
+> > 
+> > What other than a stack even cares about VM_GROWSDOWN working? Besides,
+> > VM_GROWSDOWN could be supported in a hugetlbfs file by mapping the end of
+> > the file and moving the offset backwards (yeah ok, it ain't the prettiest
+> > but it's less churn than introducing significantly different codepaths). It's
+> > just not something that needs to be supported at first cut.
+> > 
+> > brk() if you wanted to back hugepages with it conceivably needs a resizing
+> > VMA but in that case it's growing up in which case just extend the end of
+> > the VMA and increase the size of the file.
+> 
+> I'm more worried about a small huge page size (say 64k) and not being
+> able to merge the VMAs.  I guess it could start in the *middle* of a
+> file and map both directions.
+> 
+> I guess you could always just have a single (very sparse) hugetlb file
+> per mm to do all of this 'anonymous' hugetlb memory memory stuff, and
+> just map its offsets 1:1 on to the process's virtual address space.
+> That would make sure you could always merge VMAs, no matter how they
+> grew together.
+> 
 
+That's an interesting idea. It isn't as straight-forward as it sounds
+due to reservation tracking but at the face of it, I can't see why it
+couldn't be made work.
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
----
- mm/mlock.c |   32 ++++++++++++++++++++++++--------
- 1 file changed, 24 insertions(+), 8 deletions(-)
-
-Index: b/mm/mlock.c
-===================================================================
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -165,8 +165,9 @@ static int __mlock_vma_pages_range(struc
- 	unsigned long addr = start;
- 	struct page *pages[16]; /* 16 gives a reasonable batch */
- 	int nr_pages = (end - start) / PAGE_SIZE;
--	int ret;
-+	int ret = 0;
- 	int gup_flags = 0;
-+	int ret2 = 0;
- 
- 	VM_BUG_ON(start & ~PAGE_MASK);
- 	VM_BUG_ON(end   & ~PAGE_MASK);
-@@ -249,9 +250,23 @@ static int __mlock_vma_pages_range(struc
- 		}
- 	}
- 
-+	/*
-+	  SUSv3 require following return value to mlock
-+	  - invalid addr generate to ENOMEM.
-+	  - out of memory generate EAGAIN.
-+	*/
-+	if (ret < 0) {
-+		if (ret == -EFAULT)
-+			ret2 = -ENOMEM;
-+		else if (ret == -ENOMEM)
-+			ret2 = -EAGAIN;
-+		else
-+			ret2 = ret;
-+	}
-+
- 	lru_add_drain_all();	/* to update stats */
- 
--	return 0;	/* count entire vma as locked_vm */
-+	return ret2;	/* count entire vma as locked_vm */
- }
- 
- #else /* CONFIG_UNEVICTABLE_LRU */
-@@ -263,9 +278,11 @@ static int __mlock_vma_pages_range(struc
- 				   unsigned long start, unsigned long end,
- 				   int mlock)
- {
-+	int ret = 0;
-+
- 	if (mlock && (vma->vm_flags & VM_LOCKED))
--		make_pages_present(start, end);
--	return 0;
-+		ret = make_pages_present(start, end);
-+	return ret;
- }
- #endif /* CONFIG_UNEVICTABLE_LRU */
- 
-@@ -276,7 +293,6 @@ int mlock_vma_pages_range(struct vm_area
- 			unsigned long start, unsigned long end)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	int error = 0;
- 	BUG_ON(!(vma->vm_flags & VM_LOCKED));
- 
- 	/*
-@@ -289,7 +305,7 @@ int mlock_vma_pages_range(struct vm_area
- 			is_vm_hugetlb_page(vma) ||
- 			vma == get_gate_vma(current))) {
- 		downgrade_write(&mm->mmap_sem);
--		error = __mlock_vma_pages_range(vma, start, end, 1);
-+		__mlock_vma_pages_range(vma, start, end, 1);
- 		up_read(&mm->mmap_sem);
- 		/* vma can change or disappear */
- 		down_write(&mm->mmap_sem);
-@@ -297,7 +313,7 @@ int mlock_vma_pages_range(struct vm_area
- 		/* non-NULL vma must contain @start, but need to check @end */
- 		if (!vma ||  end > vma->vm_end)
- 			return -ENOMEM;
--		return error;
-+		return 0;
- 	}
- 
- 	/*
-@@ -309,7 +325,7 @@ int mlock_vma_pages_range(struct vm_area
- 
- no_mlock:
- 	vma->vm_flags &= ~VM_LOCKED;	/* and don't come back! */
--	return error;			/* pages NOT mlocked */
-+	return 0;			/* pages NOT mlocked */
- }
- 
- 
-
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
