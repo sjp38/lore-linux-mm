@@ -1,16 +1,18 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7BA7NOc006301
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 06:07:23 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7BA7Nj5172550
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 04:07:23 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7BA7Mlw013883
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 04:07:23 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7BA7YWg020914
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 06:07:34 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7BA7YSE208020
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 06:07:34 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7BA7XZu018734
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 06:07:34 -0400
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 11 Aug 2008 15:37:19 +0530
-Message-Id: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
-Subject: [-mm][PATCH 0/2] Memory rlimit fix crash on fork
+Date: Mon, 11 Aug 2008 15:37:33 +0530
+Message-Id: <20080811100733.26336.31346.sendpatchset@balbir-laptop>
+In-Reply-To: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
+References: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
+Subject: [-mm][PATCH 1/2] mm owner fix race between swap and exit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
@@ -18,109 +20,85 @@ Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux
 List-ID: <linux-mm.kvack.org>
 
 
-This patch fixes a crash that occurs when kernbench is set with memrlimit
-set to 500M on my x86_64 box. The root cause for the failure is
+Reported-by: Hugh Dickins <hugh@veritas.com>
 
-1. We don't set mm->mmap to NULL for the process for which fork() failed
-2. mmput() dereferences vma (in unmap_vmas, vma->vm_mm).
+There's a race between mm->owner assignment and try_to_unuse(). The condition
+occurs when try_to_unuse() runs in parallel with an exiting task.
 
-This patch fixes the problem by
+The race can be visualized below. To quote Hugh
+"I don't think your careful alternation of CPU0/1 events at the end matters:
+the swapoff CPU simply dereferences mm->owner after that task has gone"
 
-1. Initializing mm->mmap to NULL prior to failing dup_mmap()
-2. unmap_vmas() check if mm->mmap is NULL (vma is NULL)
-3. Don't uncharge when do_fork() fails in exit_mmap()
+But the alteration does help understand the race better (at-least for me :))
+
+CPU0					CPU1
+					try_to_unuse
+task 1 stars exiting			look at mm = task1->mm
+..					increment mm_users
+task 1 exits
+mm->owner needs to be updated, but
+no new owner is found
+(mm_users > 1, but no other task
+has task->mm = task1->mm)
+mm_update_next_owner() leaves
+
+grace period
+					user count drops, call mmput(mm)
+task 1 freed
+					dereferencing mm->owner fails
+
+The fix is to notify the subsystem (via mm_owner_changed callback), if
+no new owner is found by specifying the new task as NULL.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- kernel/fork.c |   19 ++++++++++---------
- mm/memory.c   |    6 +++++-
- mm/mmap.c     |    6 +++++-
- 3 files changed, 20 insertions(+), 11 deletions(-)
+ kernel/cgroup.c |    5 +++--
+ kernel/exit.c   |   10 ++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)
 
-diff -puN mm/mmap.c~memrlimit-fix-crash-on-fork mm/mmap.c
---- linux-2.6.27-rc1/mm/mmap.c~memrlimit-fix-crash-on-fork	2008-08-11 14:45:07.000000000 +0530
-+++ linux-2.6.27-rc1-balbir/mm/mmap.c	2008-08-11 14:57:45.000000000 +0530
-@@ -2104,6 +2104,7 @@ void exit_mmap(struct mm_struct *mm)
- 	struct vm_area_struct *vma;
- 	unsigned long nr_accounted = 0;
- 	unsigned long end;
-+	bool uncharge_as = true;
+diff -puN kernel/exit.c~mm-owner-fix-race-with-swap kernel/exit.c
+--- linux-2.6.27-rc1/kernel/exit.c~mm-owner-fix-race-with-swap	2008-08-05 10:46:19.000000000 +0530
++++ linux-2.6.27-rc1-balbir/kernel/exit.c	2008-08-05 10:46:19.000000000 +0530
+@@ -625,6 +625,16 @@ retry:
+ 	} while_each_thread(g, c);
  
- 	/* mm's last user has gone, and its about to be pulled down */
- 	arch_exit_mmap(mm);
-@@ -2118,6 +2119,8 @@ void exit_mmap(struct mm_struct *mm)
- 		}
- 	}
- 	vma = mm->mmap;
-+	if (!vma)
-+		uncharge_as = false;
- 	lru_add_drain();
- 	flush_cache_mm(mm);
- 	tlb = tlb_gather_mmu(mm, 1);
-@@ -2125,7 +2128,8 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
- 	vm_unacct_memory(nr_accounted);
--	memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
-+	if (uncharge_as)
-+		memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
- 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
- 	tlb_finish_mmu(tlb, 0, end);
- 
-diff -puN kernel/fork.c~memrlimit-fix-crash-on-fork kernel/fork.c
---- linux-2.6.27-rc1/kernel/fork.c~memrlimit-fix-crash-on-fork	2008-08-11 14:45:07.000000000 +0530
-+++ linux-2.6.27-rc1-balbir/kernel/fork.c	2008-08-11 14:56:04.000000000 +0530
-@@ -274,15 +274,6 @@ static int dup_mmap(struct mm_struct *mm
- 	 */
- 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
- 
--	/*
--	 * Uncharging as a result of failure is done by mmput()
--	 * in dup_mm()
--	 */
--	if (memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm)) {
--		retval = -ENOMEM;
--		goto out;
--	}
--
- 	mm->locked_vm = 0;
- 	mm->mmap = NULL;
- 	mm->mmap_cache = NULL;
-@@ -295,6 +286,16 @@ static int dup_mmap(struct mm_struct *mm
- 	rb_parent = NULL;
- 	pprev = &mm->mmap;
- 
+ 	read_unlock(&tasklist_lock);
 +	/*
-+	 * Called after mm->mmap is set to NULL, so that the routines
-+	 * following this function understand that fork failed (read
-+	 * mmput).
++	 * We found no owner and mm_users > 1, this implies that
++	 * we are most likely racing with swap (try_to_unuse())
++	 * Mark owner as NULL, so that subsystems can understand
++	 * the callback and take action
 +	 */
-+	if (memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm)) {
-+		retval = -ENOMEM;
-+		goto out;
-+	}
-+
- 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
- 		struct file *file;
++	down_write(&mm->mmap_sem);
++	mm->owner = NULL;
++	cgroup_mm_owner_callbacks(mm->owner, NULL);
++	up_write(&mm->mmap_sem);
+ 	return;
  
-diff -puN mm/memory.c~memrlimit-fix-crash-on-fork mm/memory.c
---- linux-2.6.27-rc1/mm/memory.c~memrlimit-fix-crash-on-fork	2008-08-11 14:57:48.000000000 +0530
-+++ linux-2.6.27-rc1-balbir/mm/memory.c	2008-08-11 14:58:33.000000000 +0530
-@@ -901,8 +901,12 @@ unsigned long unmap_vmas(struct mmu_gath
- 	unsigned long start = start_addr;
- 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
- 	int fullmm = (*tlbp)->fullmm;
--	struct mm_struct *mm = vma->vm_mm;
-+	struct mm_struct *mm;
-+
-+	if (!vma)
-+		return;
+ assign_new_owner:
+diff -L kernel/cgroup/.c -puN /dev/null /dev/null
+diff -puN kernel/cgroup.c~mm-owner-fix-race-with-swap kernel/cgroup.c
+--- linux-2.6.27-rc1/kernel/cgroup.c~mm-owner-fix-race-with-swap	2008-08-05 10:47:20.000000000 +0530
++++ linux-2.6.27-rc1-balbir/kernel/cgroup.c	2008-08-05 10:47:55.000000000 +0530
+@@ -2740,14 +2740,15 @@ void cgroup_fork_callbacks(struct task_s
+  */
+ void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+ {
+-	struct cgroup *oldcgrp, *newcgrp;
++	struct cgroup *oldcgrp, *newcgrp = NULL;
  
-+	mm = vma->vm_mm;
- 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
- 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
- 		unsigned long end;
+ 	if (need_mm_owner_callback) {
+ 		int i;
+ 		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+ 			struct cgroup_subsys *ss = subsys[i];
+ 			oldcgrp = task_cgroup(old, ss->subsys_id);
+-			newcgrp = task_cgroup(new, ss->subsys_id);
++			if (new)
++				newcgrp = task_cgroup(new, ss->subsys_id);
+ 			if (oldcgrp == newcgrp)
+ 				continue;
+ 			if (ss->mm_owner_changed)
 _
 
 -- 
