@@ -1,102 +1,133 @@
-Date: Mon, 11 Aug 2008 09:04:49 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] [PATCH 0/5 V2] Huge page backed user-space stacks
-Message-ID: <20080811080449.GB17452@csn.ul.ie>
-References: <20080731103137.GD1704@csn.ul.ie> <1217884211.20260.144.camel@nimitz> <20080805111147.GD20243@csn.ul.ie> <1217952748.10907.18.camel@nimitz> <20080805162800.GJ20243@csn.ul.ie> <1217958805.10907.45.camel@nimitz> <20080806090222.GD21190@csn.ul.ie> <1218052249.10907.125.camel@nimitz> <20080807160605.GA9200@csn.ul.ie> <1218130190.10907.188.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1218130190.10907.188.camel@nimitz>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7BA7NOc006301
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 06:07:23 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7BA7Nj5172550
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 04:07:23 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7BA7Mlw013883
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2008 04:07:23 -0600
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Mon, 11 Aug 2008 15:37:19 +0530
+Message-Id: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
+Subject: [-mm][PATCH 0/2] Memory rlimit fix crash on fork
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, ebmunson@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, libhugetlbfs-devel@lists.sourceforge.net, abh@cray.com
+To: linux-mm@kvack.org
+Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, Pavel Emelianov <xemul@openvz.org>, hugh@veritas.com, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On (07/08/08 10:29), Dave Hansen didst pronounce:
-> On Thu, 2008-08-07 at 17:06 +0100, Mel Gorman wrote:
-> > On (06/08/08 12:50), Dave Hansen didst pronounce:
-> > > The main thing this set of patches does that I care about is take an
-> > > anonymous VMA and replace it with a hugetlb VMA.  It does this on a
-> > > special cue, but does it nonetheless.
-> > 
-> > This is not actually a new thing. For a long time now, it has been possible to
-> > back  malloc() with hugepages at a userspace level using the morecore glibc
-> > hook. That is replacing anonymous memory with a file-backed VMA. It happens
-> > in a different place but it's just as deliberate as backing stack and the
-> > end result is very similar. As the file is ram-based, it doesn't have the
-> > same types of consequences like dirty page syncing that you'd ordinarily
-> > watch for when moving from anonymous to file-backed memory.
-> 
-> Yes, it has already been done in userspace.  That's fine.  It isn't
-> adding any complexity to the kernel.  This is adding behavior that the
-> kernel has to support as well as complexity.
-> 
 
-The complexity is minimal and the progression logical.
-hugetlb_file_setup() is the API shmem was using to create a file on an
-internal mount suitable for MAP_SHARED. This patchset adds support for
-MAP_PRIVATE and the additional complexity is a lot less than supporting
-direct pagetable inserts.
+This patch fixes a crash that occurs when kernbench is set with memrlimit
+set to 500M on my x86_64 box. The root cause for the failure is
 
-> > > This patch has crossed a line in that it is really the first
-> > > *replacement* of a normal VMA with a hugetlb VMA instead of the creation
-> > > of the VMAs at the user's request. 
-> > 
-> > We crossed that line with morecore, it's back there somewhere. We're just
-> > doing in kernel this time because backing stacks with hugepages in userspace
-> > turned out to be a hairy endevour.
-> > 
-> > Properly supporting anonymous hugepages would either require larger
-> > changes to the core or reimplementing yet more of mm/ in mm/hugetlb.c.
-> > Neither is a particularly appealing approach, nor is it likely to be a
-> > very popular one.
-> 
-> I agree.  It is always much harder to write code that can work
-> generically??? (and get it accepted) than just write the smallest possible
-> hack and stick it in fs/exec.c.
-> 
-> Could this patch at least get fixed up to look like it could be used
-> more generically?  Some code to look up and replace anonymous VMAs with
-> hugetlb-backed ones???
+1. We don't set mm->mmap to NULL for the process for which fork() failed
+2. mmput() dereferences vma (in unmap_vmas, vma->vm_mm).
 
-Ok, this latter point can be looked into at least although the
-underlying principal may still be using hugetlb_file_setup() rather than
-direct pagetable insertions.
+This patch fixes the problem by
 
-> > > Because of the limitations like its inability to grow the VMA, I can't
-> > > imagine that this would be a generic mechanism that we can use
-> > > elsewhere.
-> > 
-> > What other than a stack even cares about VM_GROWSDOWN working? Besides,
-> > VM_GROWSDOWN could be supported in a hugetlbfs file by mapping the end of
-> > the file and moving the offset backwards (yeah ok, it ain't the prettiest
-> > but it's less churn than introducing significantly different codepaths). It's
-> > just not something that needs to be supported at first cut.
-> > 
-> > brk() if you wanted to back hugepages with it conceivably needs a resizing
-> > VMA but in that case it's growing up in which case just extend the end of
-> > the VMA and increase the size of the file.
-> 
-> I'm more worried about a small huge page size (say 64k) and not being
-> able to merge the VMAs.  I guess it could start in the *middle* of a
-> file and map both directions.
-> 
-> I guess you could always just have a single (very sparse) hugetlb file
-> per mm to do all of this 'anonymous' hugetlb memory memory stuff, and
-> just map its offsets 1:1 on to the process's virtual address space.
-> That would make sure you could always merge VMAs, no matter how they
-> grew together.
-> 
+1. Initializing mm->mmap to NULL prior to failing dup_mmap()
+2. unmap_vmas() check if mm->mmap is NULL (vma is NULL)
+3. Don't uncharge when do_fork() fails in exit_mmap()
 
-That's an interesting idea. It isn't as straight-forward as it sounds
-due to reservation tracking but at the face of it, I can't see why it
-couldn't be made work.
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ kernel/fork.c |   19 ++++++++++---------
+ mm/memory.c   |    6 +++++-
+ mm/mmap.c     |    6 +++++-
+ 3 files changed, 20 insertions(+), 11 deletions(-)
+
+diff -puN mm/mmap.c~memrlimit-fix-crash-on-fork mm/mmap.c
+--- linux-2.6.27-rc1/mm/mmap.c~memrlimit-fix-crash-on-fork	2008-08-11 14:45:07.000000000 +0530
++++ linux-2.6.27-rc1-balbir/mm/mmap.c	2008-08-11 14:57:45.000000000 +0530
+@@ -2104,6 +2104,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	struct vm_area_struct *vma;
+ 	unsigned long nr_accounted = 0;
+ 	unsigned long end;
++	bool uncharge_as = true;
+ 
+ 	/* mm's last user has gone, and its about to be pulled down */
+ 	arch_exit_mmap(mm);
+@@ -2118,6 +2119,8 @@ void exit_mmap(struct mm_struct *mm)
+ 		}
+ 	}
+ 	vma = mm->mmap;
++	if (!vma)
++		uncharge_as = false;
+ 	lru_add_drain();
+ 	flush_cache_mm(mm);
+ 	tlb = tlb_gather_mmu(mm, 1);
+@@ -2125,7 +2128,8 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
+ 	vm_unacct_memory(nr_accounted);
+-	memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
++	if (uncharge_as)
++		memrlimit_cgroup_uncharge_as(mm, mm->total_vm);
+ 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
+ 	tlb_finish_mmu(tlb, 0, end);
+ 
+diff -puN kernel/fork.c~memrlimit-fix-crash-on-fork kernel/fork.c
+--- linux-2.6.27-rc1/kernel/fork.c~memrlimit-fix-crash-on-fork	2008-08-11 14:45:07.000000000 +0530
++++ linux-2.6.27-rc1-balbir/kernel/fork.c	2008-08-11 14:56:04.000000000 +0530
+@@ -274,15 +274,6 @@ static int dup_mmap(struct mm_struct *mm
+ 	 */
+ 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
+ 
+-	/*
+-	 * Uncharging as a result of failure is done by mmput()
+-	 * in dup_mm()
+-	 */
+-	if (memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm)) {
+-		retval = -ENOMEM;
+-		goto out;
+-	}
+-
+ 	mm->locked_vm = 0;
+ 	mm->mmap = NULL;
+ 	mm->mmap_cache = NULL;
+@@ -295,6 +286,16 @@ static int dup_mmap(struct mm_struct *mm
+ 	rb_parent = NULL;
+ 	pprev = &mm->mmap;
+ 
++	/*
++	 * Called after mm->mmap is set to NULL, so that the routines
++	 * following this function understand that fork failed (read
++	 * mmput).
++	 */
++	if (memrlimit_cgroup_charge_as(oldmm, oldmm->total_vm)) {
++		retval = -ENOMEM;
++		goto out;
++	}
++
+ 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
+ 		struct file *file;
+ 
+diff -puN mm/memory.c~memrlimit-fix-crash-on-fork mm/memory.c
+--- linux-2.6.27-rc1/mm/memory.c~memrlimit-fix-crash-on-fork	2008-08-11 14:57:48.000000000 +0530
++++ linux-2.6.27-rc1-balbir/mm/memory.c	2008-08-11 14:58:33.000000000 +0530
+@@ -901,8 +901,12 @@ unsigned long unmap_vmas(struct mmu_gath
+ 	unsigned long start = start_addr;
+ 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
+ 	int fullmm = (*tlbp)->fullmm;
+-	struct mm_struct *mm = vma->vm_mm;
++	struct mm_struct *mm;
++
++	if (!vma)
++		return;
+ 
++	mm = vma->vm_mm;
+ 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
+ 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
+ 		unsigned long end;
+_
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+	Warm Regards,
+	Balbir Singh
+	Linux Technology Center
+	IBM, ISTL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
