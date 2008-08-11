@@ -1,9 +1,9 @@
-Date: Mon, 11 Aug 2008 16:04:21 +0900
+Date: Mon, 11 Aug 2008 16:05:37 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC PATCH for -mm 1/5]  mlock() fix return values for mainline
+Subject: [RFC PATCH for -mm 2/5] related function comment fixes (optional)
 In-Reply-To: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080811160128.9459.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080811160430.945C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,69 +13,45 @@ To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Le
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-following patch is the same to http://marc.info/?l=linux-kernel&m=121750892930775&w=2
-and it already stay in linus-tree.
+Now, __mlock_vma_pages_range has sevaral wrong comment.
+ - don't write about mlock parameter
+ - write about require write lock, but it is not true.
 
-but it is not merged in 2.6.27-rc1-mm1.
-
-So, please apply it first.
-
+following patch fixes it.
 
 
------------------------------------------------
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- mm/memory.c |   16 +++++++++++++---
- mm/mlock.c  |    2 --
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ mm/mlock.c |   13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
 
-Index: b/mm/memory.c
-===================================================================
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2814,16 +2814,26 @@ int make_pages_present(unsigned long add
- 
- 	vma = find_vma(current->mm, addr);
- 	if (!vma)
--		return -1;
-+		return -ENOMEM;
- 	write = (vma->vm_flags & VM_WRITE) != 0;
- 	BUG_ON(addr >= end);
- 	BUG_ON(end > vma->vm_end);
- 	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
- 	ret = get_user_pages(current, current->mm, addr,
- 			len, write, 0, NULL, NULL);
--	if (ret < 0)
-+	if (ret < 0) {
-+		/*
-+		   SUS require strange return value to mlock
-+		    - invalid addr generate to ENOMEM.
-+		    - out of memory should generate EAGAIN.
-+		*/
-+		if (ret == -EFAULT)
-+			ret = -ENOMEM;
-+		else if (ret == -ENOMEM)
-+			ret = -EAGAIN;
- 		return ret;
--	return ret == len ? 0 : -1;
-+	}
-+	return ret == len ? 0 : -ENOMEM;
- }
- 
- #if !defined(__HAVE_ARCH_GATE_AREA)
 Index: b/mm/mlock.c
 ===================================================================
 --- a/mm/mlock.c
 +++ b/mm/mlock.c
-@@ -425,8 +425,6 @@ success:
- 
- out:
- 	*prev = vma;
--	if (ret == -ENOMEM)
--		ret = -EAGAIN;
- 	return ret;
+@@ -144,11 +144,18 @@ static void munlock_vma_page(struct page
  }
  
+ /*
+- * mlock a range of pages in the vma.
++ * mlock/munlock a range of pages in the vma.
+  *
+- * This takes care of making the pages present too.
++ * If @mlock==1, this takes care of making the pages present too.
+  *
+- * vma->vm_mm->mmap_sem must be held for write.
++ * @vma:   target vma
++ * @start: start address
++ * @end:   end address
++ * @mlock: 0 indicate munlock, otherwise mlock.
++ *
++ * return 0 if successed, otherwse return negative value.
++ *
++ * vma->vm_mm->mmap_sem must be held for read.
+  */
+ static int __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 				   unsigned long start, unsigned long end,
 
 
 --
