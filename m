@@ -1,9 +1,9 @@
-Date: Mon, 11 Aug 2008 16:07:48 +0900
+Date: Mon, 11 Aug 2008 16:08:47 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC PATCH for -mm 4/5] fix mlock return value at munmap race
+Subject: [RFC PATCH for -mm 5/5] fix mlock return value for mm
 In-Reply-To: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20080811160642.9462.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080811160751.9465.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,45 +13,70 @@ To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Le
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Now, We call downgrade_write(&mm->mmap_sem) at begin of mlock.
-It increase mlock scalability.
-
-But if mlock and munmap conflict happend, We can find vma gone.
-At that time, kernel should return ENOMEM because mlock after munmap return ENOMEM.
-(in addition, EAGAIN indicate "please try again", but mlock() called again cause error again)
-
-This problem is theoretical issue.
-I can't reproduce that vma gone on my box, but fixes is better.
+Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
+We shouldn't do that.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- mm/mlock.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/mlock.c |   25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)
 
 Index: b/mm/mlock.c
 ===================================================================
 --- a/mm/mlock.c
 +++ b/mm/mlock.c
-@@ -296,7 +296,7 @@ int mlock_vma_pages_range(struct vm_area
- 		vma = find_vma(mm, start);
- 		/* non-NULL vma must contain @start, but need to check @end */
- 		if (!vma ||  end > vma->vm_end)
--			return -EAGAIN;
-+			return -ENOMEM;
- 		return error;
+@@ -165,8 +165,9 @@ static int __mlock_vma_pages_range(struc
+ 	unsigned long addr = start;
+ 	struct page *pages[16]; /* 16 gives a reasonable batch */
+ 	int nr_pages = (end - start) / PAGE_SIZE;
+-	int ret;
++	int ret = 0;
+ 	int gup_flags = 0;
++	int ret2 = 0;
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK);
+ 	VM_BUG_ON(end   & ~PAGE_MASK);
+@@ -249,9 +250,23 @@ static int __mlock_vma_pages_range(struc
+ 		}
  	}
  
-@@ -410,7 +410,7 @@ success:
- 		*prev = find_vma(mm, start);
- 		/* non-NULL *prev must contain @start, but need to check @end */
- 		if (!(*prev) || end > (*prev)->vm_end)
--			ret = -EAGAIN;
-+			ret = -ENOMEM;
- 	} else {
- 		/*
- 		 * TODO:  for unlocking, pages will already be resident, so
++	/*
++	  SUSv3 require following return value to mlock
++	  - invalid addr generate to ENOMEM.
++	  - out of memory generate EAGAIN.
++	*/
++	if (ret < 0) {
++		if (ret == -EFAULT)
++			ret2 = -ENOMEM;
++		else if (ret == -ENOMEM)
++			ret2 = -EAGAIN;
++		else
++			ret2 = ret;
++	}
++
+ 	lru_add_drain_all();	/* to update stats */
+ 
+-	return 0;	/* count entire vma as locked_vm */
++	return ret2;	/* count entire vma as locked_vm */
+ }
+ 
+ #else /* CONFIG_UNEVICTABLE_LRU */
+@@ -263,9 +278,11 @@ static int __mlock_vma_pages_range(struc
+ 				   unsigned long start, unsigned long end,
+ 				   int mlock)
+ {
++	int ret = 0;
++
+ 	if (mlock && (vma->vm_flags & VM_LOCKED))
+-		make_pages_present(start, end);
+-	return 0;
++		ret = make_pages_present(start, end);
++	return ret;
+ }
+ #endif /* CONFIG_UNEVICTABLE_LRU */
+ 
 
 
 --
