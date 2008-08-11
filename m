@@ -1,7 +1,9 @@
-Date: Mon, 11 Aug 2008 16:01:14 +0900
+Date: Mon, 11 Aug 2008 16:04:21 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC PATCH for -mm 0/5] mlock return value rework
-Message-Id: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [RFC PATCH for -mm 1/5]  mlock() fix return values for mainline
+In-Reply-To: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20080811160128.9459.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -11,20 +13,69 @@ To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Le
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-patch against: 2.6.27-rc1-mm1
+following patch is the same to http://marc.info/?l=linux-kernel&m=121750892930775&w=2
+and it already stay in linus-tree.
+
+but it is not merged in 2.6.27-rc1-mm1.
+
+So, please apply it first.
 
 
-Halesh Sadashiv reported 2.6.23.17 has a regression about mlock return value.
 
-http://marc.info/?l=linux-kernel&m=121749977015397&w=2
+-----------------------------------------------
 
-it is already fixed.
-but the test doesn't works on current -mm tree because split-lru patch
-introduce another regression.
+---
+ mm/memory.c |   16 +++++++++++++---
+ mm/mlock.c  |    2 --
+ 2 files changed, 13 insertions(+), 5 deletions(-)
 
-So, I try to rework to mlock return value behavior.
-
-Lee-san, could you please review this patches?
+Index: b/mm/memory.c
+===================================================================
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2814,16 +2814,26 @@ int make_pages_present(unsigned long add
+ 
+ 	vma = find_vma(current->mm, addr);
+ 	if (!vma)
+-		return -1;
++		return -ENOMEM;
+ 	write = (vma->vm_flags & VM_WRITE) != 0;
+ 	BUG_ON(addr >= end);
+ 	BUG_ON(end > vma->vm_end);
+ 	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
+ 	ret = get_user_pages(current, current->mm, addr,
+ 			len, write, 0, NULL, NULL);
+-	if (ret < 0)
++	if (ret < 0) {
++		/*
++		   SUS require strange return value to mlock
++		    - invalid addr generate to ENOMEM.
++		    - out of memory should generate EAGAIN.
++		*/
++		if (ret == -EFAULT)
++			ret = -ENOMEM;
++		else if (ret == -ENOMEM)
++			ret = -EAGAIN;
+ 		return ret;
+-	return ret == len ? 0 : -1;
++	}
++	return ret == len ? 0 : -ENOMEM;
+ }
+ 
+ #if !defined(__HAVE_ARCH_GATE_AREA)
+Index: b/mm/mlock.c
+===================================================================
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -425,8 +425,6 @@ success:
+ 
+ out:
+ 	*prev = vma;
+-	if (ret == -ENOMEM)
+-		ret = -EAGAIN;
+ 	return ret;
+ }
+ 
 
 
 --
