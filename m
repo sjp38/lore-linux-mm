@@ -1,44 +1,57 @@
-Received: from toip3.srvr.bell.ca ([209.226.175.86])
-          by tomts16-srv.bellnexxia.net
+Received: from toip4.srvr.bell.ca ([209.226.175.87])
+          by tomts13-srv.bellnexxia.net
           (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20080811182939.FPML1723.tomts16-srv.bellnexxia.net@toip3.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Mon, 11 Aug 2008 14:29:39 -0400
-Date: Mon, 11 Aug 2008 14:29:38 -0400
+          id <20080811183331.TTJJ29750.tomts13-srv.bellnexxia.net@toip4.srvr.bell.ca>
+          for <linux-mm@kvack.org>; Mon, 11 Aug 2008 14:33:31 -0400
+Date: Mon, 11 Aug 2008 14:28:31 -0400
 From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
 Subject: Re: [PATCH 4/5] kmemtrace: SLUB hooks.
-Message-ID: <20080811182938.GD32207@Krystal>
-References: <1218388447-5578-1-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-5-git-send-email-eduard.munteanu@linux360.ro> <48A046F5.2000505@linux-foundation.org> <1218463774.7813.291.camel@penberg-laptop> <48A048FD.30909@linux-foundation.org> <alpine.DEB.1.10.0808111027370.29861@gandalf.stny.rr.com> <48A04EC2.1080302@linux-foundation.org>
+Message-ID: <20080811182831.GC32207@Krystal>
+References: <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-5-git-send-email-eduard.munteanu@linux360.ro> <48A046F5.2000505@linux-foundation.org> <1218463774.7813.291.camel@penberg-laptop> <48A048FD.30909@linux-foundation.org> <1218464177.7813.293.camel@penberg-laptop> <48A04AEE.8090606@linux-foundation.org> <alpine.DEB.1.10.0808111033320.29861@gandalf.stny.rr.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <48A04EC2.1080302@linux-foundation.org>
+In-Reply-To: <alpine.DEB.1.10.0808111033320.29861@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-* Christoph Lameter (cl@linux-foundation.org) wrote:
-> Steven Rostedt wrote:
+* Steven Rostedt (rostedt@goodmis.org) wrote:
 > 
-> > The kmemtrace_mark_alloc_node itself is an inline function, which calls 
-> > another inline function "trace_mark" which is designed to test a 
-> > read_mostly variable, and will do an "unlikely" jmp if the variable is 
-> > set (which it is when tracing is enabled), to the actual function call.
+> On Mon, 11 Aug 2008, Christoph Lameter wrote:
+> 
+> > Pekka Enberg wrote:
 > > 
-> > There should be no extra function calls when this is configured on but 
-> > tracing disabled. We try very hard to keep the speed of the tracer as 
-> > close to a non tracing kernel as possible when tracing is disabled.
+> > > The function call is supposed to go away when we convert kmemtrace to
+> > > use Mathieu's markers but I suppose even then we have a problem with
+> > > inlining?
+> > 
+> > The function calls are overwritten with NOPs? Or how does that work?
 > 
-> Makes sense. But then we have even more code bloat because of the tests that
-> are inserted in all call sites of kmalloc.
+> I believe in the latest version they are just a variable test. But when 
+> Mathieu's immediate code makes it in (which it is in linux-tip), we will 
+> be overwriting the conditionals with nops (Mathieu, correct me if I'm 
+> wrong here).
 > 
 
-The long-term goal is to turn the tests into NOPs, but only once we get
-gcc support.
+The current immediate values in tip does a load immediate, test, branch,
+which removes the cost of the memory load. We will try to get gcc
+support to be able to declare patchable static jump sites, which could
+be patched with NOPs when disabled. But that will probably not happen
+"now".
 
 Mathieu
+
+> But the calls themselves are done in the unlikely branch. This is 
+> important, as Mathieu stated in previous thread. The reason is that all 
+> the stack setup for the function call is also in the unlikely branch, and 
+> the normal fast path does not take a hit for the function call setup.
+> 
+> -- Steve
+> 
 
 -- 
 Mathieu Desnoyers
