@@ -1,10 +1,10 @@
-Message-ID: <48A131C4.9060505@cs.helsinki.fi>
-Date: Tue, 12 Aug 2008 09:46:28 +0300
+Message-ID: <48A131D3.9020902@cs.helsinki.fi>
+Date: Tue, 12 Aug 2008 09:46:43 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] kmemtrace: Additional documentation.
-References: <1218388447-5578-1-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro>
-In-Reply-To: <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro>
+Subject: Re: [PATCH 3/5] kmemtrace: SLAB hooks.
+References: <1218388447-5578-1-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-2-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-3-git-send-email-eduard.munteanu@linux360.ro> <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro>
+In-Reply-To: <1218388447-5578-4-git-send-email-eduard.munteanu@linux360.ro>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,9 +14,11 @@ Cc: mathieu.desnoyers@polymtl.ca, cl@linux-foundation.org, linux-mm@kvack.org, l
 List-ID: <linux-mm.kvack.org>
 
 Eduard - Gabriel Munteanu wrote:
-> Documented kmemtrace's ABI, purpose and design. Also includes a short
-> usage guide, FAQ, as well as a link to the userspace application's Git
-> repository, which is currently hosted at repo.or.cz.
+> This adds hooks for the SLAB allocator, to allow tracing with kmemtrace.
+> 
+> We also convert some inline functions to __always_inline to make sure
+> _RET_IP_, which expands to __builtin_return_address(0), always works
+> as expected.
 > 
 > Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 
