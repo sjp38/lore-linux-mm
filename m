@@ -1,114 +1,94 @@
-Received: from edge04.upc.biz ([192.168.13.239]) by viefep17-int.chello.at
-          (InterMail vM.7.08.02.00 201-2186-121-20061213) with ESMTP
-          id <20080812102329.KLGS16026.viefep17-int.chello.at@edge04.upc.biz>
-          for <linux-mm@kvack.org>; Tue, 12 Aug 2008 12:23:29 +0200
-Subject: Re: [PATCH 05/30] mm: slb: add knowledge of reserve pages
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <18593.22902.998611.967202@notabene.brown>
-References: <20080724140042.408642539@chello.nl>
-	 <20080724141529.635920366@chello.nl>
-	 <18593.8466.965002.476705@notabene.brown>
-	 <1218525750.10800.156.camel@twins>
-	 <18593.22902.998611.967202@notabene.brown>
-Content-Type: text/plain
-Date: Tue, 12 Aug 2008 12:23:27 +0200
-Message-Id: <1218536607.10800.181.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Aug 2008 12:15:58 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [rfc][patch] mm: dirty page accounting hole
+In-Reply-To: <200808121558.40130.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0808121210250.31744@blonde.site>
+References: <200808121558.40130.nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-08-12 at 19:35 +1000, Neil Brown wrote:
-> On Tuesday August 12, a.p.zijlstra@chello.nl wrote:
-> > On Tue, 2008-08-12 at 15:35 +1000, Neil Brown wrote:
-> > > On Thursday July 24, a.p.zijlstra@chello.nl wrote:
-> > > > Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
-> > > > contexts that are entitled to it. This is done to ensure reserve pages don't
-> > > > leak out and get consumed.
-> > > 
-> > > This looks good (we are still missing slob though, aren't we :-( )
-> > 
-> > I actually have that now, just needs some testing..
+On Tue, 12 Aug 2008, Nick Piggin wrote:
 > 
-> Cool!
+> I think I'm running into a hole in dirty page accounting...
 > 
-> > 
-> > > > @@ -1526,7 +1540,7 @@ load_freelist:
-> > > >  	object = c->page->freelist;
-> > > >  	if (unlikely(!object))
-> > > >  		goto another_slab;
-> > > > -	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
-> > > > +	if (unlikely(PageSlubDebug(c->page) || c->reserve))
-> > > >  		goto debug;
-> > > 
-> > > This looks suspiciously like debugging code that you have left in.
-> > > Is it??
-> > 
-> > Its not, we need to force slub into the debug slow path when we have a
-> > reserve page, otherwise we cannot do the permission check on each
-> > allocation.
+> What seems to be happening is that a page gets written to via a
+> VM_SHARED vma. We then set the pte dirty, then mark the page dirty.
+> Next, mprotect changes the vma so it is no longer writeable so it
+> is no longer VM_SHARED. The pte is still dirty.
+
+I don't think you've got that right yet.
+
+mprotect can of course change vma->vm_flags to take VM_WRITE off,
+making vma no longer writeable; but it shouldn't be touching
+VM_SHARED.  And a quick check with debugger confirms that.
+
+It's precisely because of mprotect that page_mkclean_one tests
+VM_SHARED not VM_WRITE.  Changing that to VM_MAYSHARE, as in your
+patch below, should make no difference to correctness; but would
+potentially make its loop less efficient (it would also go off to
+check MAP_SHARED, PROT_READ, fd readonly mappings unnecessarily).
+
+Perhaps there's somewhere else that clears VM_SHARED by mistake?
+Or another path through mprotect which does so?  I haven't checked
+further, hoping this will jolt you into a different realization.
+
 > 
-> I see.... a little.  I'm trying to avoid understanding slub too
-> deeply, I don't want to use up valuable brain cell :-)
+> Then clear_page_dirty_for_io is called and leaves that pte dirty
+> and cleans the page. It never gets cleaned until munmap, so msync
+> and writeout accounting are broken.
+> 
+> I have a fix which just scans VM_SHARED to VM_MAYSHARE. The other
+> way I tried is to clear the dirty and write bits and set the page
+> dirty in mprotect. The problem with that for me is that I'm trying
+> to rework the vm/fs layer so we never have to allocate data to
+> write out dirty pages (using page_mkwrite and dirty accounting),
+> and so this still leaves me with a window where the vma flags are
+> changed but before the pte is marked clean, in which time the page
+> is still dirty but it may have its metadata freed because it
+> doesn't look dirty.
 
-:-)
+While I disagree with the patch itself, and don't understand the
+details of what you're working on there, I certainly agree that it's
+better for mprotect not to set the pages dirty: at present (on some
+arches, in most cases? it changes from time to time) change_pte_range
+is an operation on ptes which doesn't have to mess with struct pages.
 
-> Would we be justified in changing the label from 'debug:' to
-> 'slow_path:'  or something?  
+> 
+> There are several other problems I've also run into, including a
+> fundamentally indadequate page_mkwrite locking scheme, which was
+> naturally ignored when I brought it up during reviewing those
+> patches. I digress...
 
-Could do I guess.
+Unsatisfactory, yes, sorry about that;
+but no, you're not "naturally ignored".
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -1543,7 +1543,7 @@ load_freelist:
- 	if (unlikely(!object))
- 		goto another_slab;
- 	if (unlikely(PageSlubDebug(c->page) || c->reserve))
--		goto debug;
-+		goto slow_path;
- 
- 	c->freelist = object[c->offset];
- 	c->page->inuse = c->page->objects;
-@@ -1586,11 +1586,21 @@ grow_slab:
- 		goto load_freelist;
- 	}
- 	return NULL;
--debug:
-+
-+slow_path:
- 	if (PageSlubDebug(c->page) &&
- 			!alloc_debug_processing(s, c->page, object, addr))
- 		goto another_slab;
- 
-+	/*
-+	 * Avoid the slub fast path in slab_alloc by not setting
-+	 * c->freelist and the fast path in slab_fere by making 
-+	 * node_match() fail by setting c->node to -1.
-+	 *
-+	 * We use this for for debug checks and reserve handling,
-+	 * which needs to do permission checks on each allocation.
-+	 */
-+
- 	c->page->inuse++;
- 	c->page->freelist = object[c->offset];
- 	c->node = -1;
+> 
+> Anyway, here's a patch to fix this first particular issue...
 
+Could you please go back to inlining your patches?
 
-> And if it is just c->reserve, should
-> we avoid the call to alloc_debug_processing?
+Thanks,
+Hugh
 
-We already do:
-
-	if (PageSlubDebug(c->page) &&
-			!alloc_debug_processing(s, c->page, object, addr))
-		goto another_slab;
-
-since in that case PageSlubDebug() will be false.
+> 
+> Index: linux-2.6/mm/rmap.c
+> ===================================================================
+> --- linux-2.6.orig/mm/rmap.c
+> +++ linux-2.6/mm/rmap.c
+> @@ -481,7 +481,7 @@ static int page_mkclean_file(struct addr
+>  
+>  	spin_lock(&mapping->i_mmap_lock);
+>  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+> -		if (vma->vm_flags & VM_SHARED)
+> +		if (vma->vm_flags & VM_MAYSHARE)
+>  			ret += page_mkclean_one(page, vma);
+>  	}
+>  	spin_unlock(&mapping->i_mmap_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
