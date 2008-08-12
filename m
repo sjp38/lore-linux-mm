@@ -1,23 +1,72 @@
-Message-ID: <48A1D65A.8000600@linux-foundation.org>
-Date: Tue, 12 Aug 2008 13:28:42 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [BUG] linux-next: Tree for August 11/12 - powerpc - oops at __kmalloc_node_track_caller
- ()
-References: <20080812185345.d7496513.sfr@canb.auug.org.au> <48A1C924.6020000@linux.vnet.ibm.com>
-In-Reply-To: <48A1C924.6020000@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH for -mm 2/5] related function comment fixes
+	(optional)
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080811160430.945C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080811160430.945C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 12 Aug 2008 15:02:58 -0400
+Message-Id: <1218567778.6360.90.camel@lts-notebook>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Reboot and switch on debugging by either specifying slub_debug as a kernel
-command line parameter or setting CONFIG_SLUB_DEBUG_ON. This looks like the
-freelists are corrupted. Could be a use after free or something.
+On Mon, 2008-08-11 at 16:05 +0900, KOSAKI Motohiro wrote:
+> Now, __mlock_vma_pages_range has sevaral wrong comment.
+>  - don't write about mlock parameter
+>  - write about require write lock, but it is not true.
+> 
+> following patch fixes it.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> 
+> ---
+>  mm/mlock.c |   13 ++++++++++---
+>  1 file changed, 10 insertions(+), 3 deletions(-)
+> 
+> Index: b/mm/mlock.c
+> ===================================================================
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -144,11 +144,18 @@ static void munlock_vma_page(struct page
+>  }
+>  
+>  /*
+> - * mlock a range of pages in the vma.
+> + * mlock/munlock a range of pages in the vma.
+>   *
+> - * This takes care of making the pages present too.
+> + * If @mlock==1, this takes care of making the pages present too.
+>   *
+> - * vma->vm_mm->mmap_sem must be held for write.
+> + * @vma:   target vma
+> + * @start: start address
+> + * @end:   end address
+> + * @mlock: 0 indicate munlock, otherwise mlock.
+> + *
+> + * return 0 if successed, otherwse return negative value.
 
+How about:
+
+	return 0 on success, [negative] error number on error.
+
+Or something like that.
+> + *
+> + * vma->vm_mm->mmap_sem must be held for read.
+>   */
+>  static int __mlock_vma_pages_range(struct vm_area_struct *vma,
+>  				   unsigned long start, unsigned long end,
+> 
+> 
+
+Otherwise,
+
+Acked-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
