@@ -1,40 +1,52 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7C576Sh019721
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2008 15:07:06 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7C550Y02080998
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2008 15:05:00 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7C550vc030859
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2008 15:05:00 +1000
-Message-ID: <48A119FA.6070105@linux.vnet.ibm.com>
-Date: Tue, 12 Aug 2008 10:34:58 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+From: Neil Brown <neilb@suse.de>
+Date: Tue, 12 Aug 2008 15:35:14 +1000
 MIME-Version: 1.0
-Subject: Re: [-mm][PATCH 1/2] mm owner fix race between swap and exit
-References: <20080811100719.26336.98302.sendpatchset@balbir-laptop> <20080811100733.26336.31346.sendpatchset@balbir-laptop> <20080811173138.71f5bbe4.akpm@linux-foundation.org> <48A10C4C.6020009@linux.vnet.ibm.com> <20080811215633.f8f5406d.akpm@linux-foundation.org>
-In-Reply-To: <20080811215633.f8f5406d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18593.8466.965002.476705@notabene.brown>
+Subject: Re: [PATCH 05/30] mm: slb: add knowledge of reserve pages
+In-Reply-To: message from Peter Zijlstra on Thursday July 24
+References: <20080724140042.408642539@chello.nl>
+	<20080724141529.635920366@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> 
-> OK, I'll move it into the general MM patchpile for 2.6.28.  It will precede
-> any memrlimit merge.
+On Thursday July 24, a.p.zijlstra@chello.nl wrote:
+> Restrict objects from reserve slabs (ALLOC_NO_WATERMARKS) to allocation
+> contexts that are entitled to it. This is done to ensure reserve pages don't
+> leak out and get consumed.
 
-Thanks, sounds good.
+This looks good (we are still missing slob though, aren't we :-( )
 
--- 
-	Warm Regards,
-	Balbir Singh
-	Linux Technology Center
-	IBM, ISTL
+> @@ -1526,7 +1540,7 @@ load_freelist:
+>  	object = c->page->freelist;
+>  	if (unlikely(!object))
+>  		goto another_slab;
+> -	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
+> +	if (unlikely(PageSlubDebug(c->page) || c->reserve))
+>  		goto debug;
+
+This looks suspiciously like debugging code that you have left in.
+Is it??
+
+> @@ -265,7 +267,8 @@ struct array_cache {
+>  	unsigned int avail;
+>  	unsigned int limit;
+>  	unsigned int batchcount;
+> -	unsigned int touched;
+> +	unsigned int touched:1,
+> +		     reserve:1;
+
+This sort of thing always worries me.
+It is a per-cpu data structure so you won't get SMP races corrupting
+fields.  But you do get read-modify-write in place of simple updates.
+I guess it's not a problem..  But it worries me :-)
+
+
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
