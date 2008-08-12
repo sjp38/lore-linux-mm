@@ -1,11 +1,12 @@
-Subject: Re: [RFC PATCH for -mm 4/5] fix mlock return value at munmap race
+Subject: Re: [RFC PATCH for -mm 5/5] fix mlock return value for mm
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080811160642.9462.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080811163121.9468.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080811160642.9462.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080811160751.9465.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20080811163121.9468.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Tue, 12 Aug 2008 16:19:09 -0400
-Message-Id: <1218572349.6360.126.camel@lts-notebook>
+Date: Tue, 12 Aug 2008 16:30:14 -0400
+Message-Id: <1218573014.6360.131.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,51 +15,126 @@ To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-08-11 at 16:07 +0900, KOSAKI Motohiro wrote:
-> Now, We call downgrade_write(&mm->mmap_sem) at begin of mlock.
-> It increase mlock scalability.
+On Mon, 2008-08-11 at 16:43 +0900, KOSAKI Motohiro wrote:
+> > Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
+> > We shouldn't do that.
 > 
-> But if mlock and munmap conflict happend, We can find vma gone.
-> At that time, kernel should return ENOMEM because mlock after munmap return ENOMEM.
-> (in addition, EAGAIN indicate "please try again", but mlock() called again cause error again)
+> Oops, sorry.
+> I sent older version, I resend it.
 > 
-> This problem is theoretical issue.
-> I can't reproduce that vma gone on my box, but fixes is better.
+> Definitly, I should learn an correct operation of quilt ;)
+> 
+> 
+> --------------------------------------------------------------
+> Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
+> We shouldn't do that.
 
-OK.
+Could you explain, in comments or patch description, why, after patching
+__mlock_vma_pages_range() top return mlock() appropriate values for
+__get_user_pages() failures, you then ignore the return value of
+__mlock_vma_pages_range() in mlock_vma_pages_range() [last 4 hunks]?  Is
+it because mlock_vma_pages_range() is called from mmap(), mremap(), etc,
+and not from mlock()?
 
-Reviewed-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
-
+Lee
 > 
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > 
 > ---
->  mm/mlock.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>  mm/mlock.c |   32 ++++++++++++++++++++++++--------
+>  1 file changed, 24 insertions(+), 8 deletions(-)
 > 
 > Index: b/mm/mlock.c
 > ===================================================================
 > --- a/mm/mlock.c
 > +++ b/mm/mlock.c
-> @@ -296,7 +296,7 @@ int mlock_vma_pages_range(struct vm_area
->  		vma = find_vma(mm, start);
->  		/* non-NULL vma must contain @start, but need to check @end */
->  		if (!vma ||  end > vma->vm_end)
-> -			return -EAGAIN;
-> +			return -ENOMEM;
->  		return error;
+> @@ -165,8 +165,9 @@ static int __mlock_vma_pages_range(struc
+>  	unsigned long addr = start;
+>  	struct page *pages[16]; /* 16 gives a reasonable batch */
+>  	int nr_pages = (end - start) / PAGE_SIZE;
+> -	int ret;
+> +	int ret = 0;
+>  	int gup_flags = 0;
+> +	int ret2 = 0;
+>  
+>  	VM_BUG_ON(start & ~PAGE_MASK);
+>  	VM_BUG_ON(end   & ~PAGE_MASK);
+> @@ -249,9 +250,23 @@ static int __mlock_vma_pages_range(struc
+>  		}
 >  	}
 >  
-> @@ -410,7 +410,7 @@ success:
->  		*prev = find_vma(mm, start);
->  		/* non-NULL *prev must contain @start, but need to check @end */
->  		if (!(*prev) || end > (*prev)->vm_end)
-> -			ret = -EAGAIN;
-> +			ret = -ENOMEM;
->  	} else {
->  		/*
->  		 * TODO:  for unlocking, pages will already be resident, so
+> +	/*
+> +	  SUSv3 require following return value to mlock
+> +	  - invalid addr generate to ENOMEM.
+> +	  - out of memory generate EAGAIN.
+> +	*/
+> +	if (ret < 0) {
+> +		if (ret == -EFAULT)
+> +			ret2 = -ENOMEM;
+> +		else if (ret == -ENOMEM)
+> +			ret2 = -EAGAIN;
+> +		else
+> +			ret2 = ret;
+> +	}
+> +
+>  	lru_add_drain_all();	/* to update stats */
+>  
+> -	return 0;	/* count entire vma as locked_vm */
+> +	return ret2;	/* count entire vma as locked_vm */
+>  }
+>  
+>  #else /* CONFIG_UNEVICTABLE_LRU */
+> @@ -263,9 +278,11 @@ static int __mlock_vma_pages_range(struc
+>  				   unsigned long start, unsigned long end,
+>  				   int mlock)
+>  {
+> +	int ret = 0;
+> +
+>  	if (mlock && (vma->vm_flags & VM_LOCKED))
+> -		make_pages_present(start, end);
+> -	return 0;
+> +		ret = make_pages_present(start, end);
+> +	return ret;
+>  }
+>  #endif /* CONFIG_UNEVICTABLE_LRU */
+>  
+> @@ -276,7 +293,6 @@ int mlock_vma_pages_range(struct vm_area
+>  			unsigned long start, unsigned long end)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+> -	int error = 0;
+>  	BUG_ON(!(vma->vm_flags & VM_LOCKED));
+>  
+>  	/*
+> @@ -289,7 +305,7 @@ int mlock_vma_pages_range(struct vm_area
+>  			is_vm_hugetlb_page(vma) ||
+>  			vma == get_gate_vma(current))) {
+>  		downgrade_write(&mm->mmap_sem);
+> -		error = __mlock_vma_pages_range(vma, start, end, 1);
+> +		__mlock_vma_pages_range(vma, start, end, 1);
+>  		up_read(&mm->mmap_sem);
+>  		/* vma can change or disappear */
+>  		down_write(&mm->mmap_sem);
+> @@ -297,7 +313,7 @@ int mlock_vma_pages_range(struct vm_area
+>  		/* non-NULL vma must contain @start, but need to check @end */
+>  		if (!vma ||  end > vma->vm_end)
+>  			return -ENOMEM;
+> -		return error;
+> +		return 0;
+>  	}
+>  
+>  	/*
+> @@ -309,7 +325,7 @@ int mlock_vma_pages_range(struct vm_area
+>  
+>  no_mlock:
+>  	vma->vm_flags &= ~VM_LOCKED;	/* and don't come back! */
+> -	return error;			/* pages NOT mlocked */
+> +	return 0;			/* pages NOT mlocked */
+>  }
+>  
+> 
+> 
 > 
 > 
 
