@@ -1,75 +1,91 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: [rfc][patch] mm: dirty page accounting hole
-Date: Tue, 12 Aug 2008 15:58:39 +1000
+From: Neil Brown <neilb@suse.de>
+Date: Tue, 12 Aug 2008 16:23:08 +1000
 MIME-Version: 1.0
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_QaSoIF/hcJSK0Ib"
-Message-Id: <200808121558.40130.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <18593.11340.609526.649904@notabene.brown>
+Subject: Re: [PATCH 12/30] mm: memory reserve management
+In-Reply-To: message from Peter Zijlstra on Thursday July 24
+References: <20080724140042.408642539@chello.nl>
+	<20080724141530.127530749@chello.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: "Dickins, Hugh" <hugh@veritas.com>, "Zijlstra, Peter" <peterz@infradead.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
---Boundary-00=_QaSoIF/hcJSK0Ib
-Content-Type: text/plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+On Thursday July 24, a.p.zijlstra@chello.nl wrote:
+> Generic reserve management code. 
+> 
+> It provides methods to reserve and charge. Upon this, generic alloc/free style
+> reserve pools could be build, which could fully replace mempool_t
+> functionality.
 
-Hi,
+This looks quite different to last time I looked at the code (I
+think).
 
-I think I'm running into a hole in dirty page accounting...
+You now have a more structured "kmalloc_reserve" interface which
+returns a flag to say if the allocation was from an emergency pool.  I
+think this will be a distinct improvement at the call sites, though I
+haven't looked at them yet. :-)
 
-What seems to be happening is that a page gets written to via a
-VM_SHARED vma. We then set the pte dirty, then mark the page dirty.
-Next, mprotect changes the vma so it is no longer writeable so it
-is no longer VM_SHARED. The pte is still dirty.
+> +
+> +struct mem_reserve {
+> +	struct mem_reserve *parent;
+> +	struct list_head children;
+> +	struct list_head siblings;
+> +
+> +	const char *name;
+> +
+> +	long pages;
+> +	long limit;
+> +	long usage;
+> +	spinlock_t lock;	/* protects limit and usage */
+                                            ^^^^^
+> +
+> +	wait_queue_head_t waitqueue;
+> +};
 
-Then clear_page_dirty_for_io is called and leaves that pte dirty
-and cleans the page. It never gets cleaned until munmap, so msync
-and writeout accounting are broken.
+....
+> +static void __calc_reserve(struct mem_reserve *res, long pages, long limit)
+> +{
+> +	unsigned long flags;
+> +
+> +	for ( ; res; res = res->parent) {
+> +		res->pages += pages;
+> +
+> +		if (limit) {
+> +			spin_lock_irqsave(&res->lock, flags);
+> +			res->limit += limit;
+> +			spin_unlock_irqrestore(&res->lock, flags);
+> +		}
+> +	}
+> +}
 
-I have a fix which just scans VM_SHARED to VM_MAYSHARE. The other
-way I tried is to clear the dirty and write bits and set the page
-dirty in mprotect. The problem with that for me is that I'm trying
-to rework the vm/fs layer so we never have to allocate data to
-write out dirty pages (using page_mkwrite and dirty accounting),
-and so this still leaves me with a window where the vma flags are
-changed but before the pte is marked clean, in which time the page
-is still dirty but it may have its metadata freed because it
-doesn't look dirty.
+I cannot figure out why the spinlock is being used to protect updates
+to 'limit'.
+As far as I can see, mem_reserve_mutex already protects all those
+updates.
+Certainly we need the spinlock for usage, but why for limit??
 
-There are several other problems I've also run into, including a
-fundamentally indadequate page_mkwrite locking scheme, which was
-naturally ignored when I brought it up during reviewing those
-patches. I digress...
+> +
+> +void *___kmalloc_reserve(size_t size, gfp_t flags, int node, void *ip,
+> +			 struct mem_reserve *res, int *emerg)
+> +{
+....
+> +	if (emerg)
+> +		*emerg |= 1;
 
-Anyway, here's a patch to fix this first particular issue...
+Why not just
 
---Boundary-00=_QaSoIF/hcJSK0Ib
-Content-Type: text/x-diff;
-  charset="us-ascii";
-  name="mm-dirty-account-fix.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename="mm-dirty-account-fix.patch"
+	if (emerg)
+		*emerg = 1.
 
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c
-+++ linux-2.6/mm/rmap.c
-@@ -481,7 +481,7 @@ static int page_mkclean_file(struct addr
- 
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
--		if (vma->vm_flags & VM_SHARED)
-+		if (vma->vm_flags & VM_MAYSHARE)
- 			ret += page_mkclean_one(page, vma);
- 	}
- 	spin_unlock(&mapping->i_mmap_lock);
+I can't we where '*emerg' can have any value but 0 or 1, so the '|' is
+pointless ???
 
---Boundary-00=_QaSoIF/hcJSK0Ib--
+Thanks,
+NeilBrown
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
