@@ -1,78 +1,72 @@
-Date: Wed, 13 Aug 2008 18:37:11 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC PATCH for -mm 3/5] kill unnecessary locked_vm adjustment
-In-Reply-To: <1218570910.6360.120.camel@lts-notebook>
-References: <20080811160542.945F.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1218570910.6360.120.camel@lts-notebook>
-Message-Id: <20080813174122.E779.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Wed, 13 Aug 2008 12:44:45 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: pthread_create() slow for many threads; also time to revisit
+	64b context switch optimization?
+Message-ID: <20080813104445.GA24632@elte.hu>
+References: <af8810200808121736q76640cc1kb814385072fe9b29@mail.gmail.com> <af8810200808121745h596c175bk348d0aaeeb9bcb45@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <af8810200808121745h596c175bk348d0aaeeb9bcb45@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Pardo <pardo@google.com>
+Cc: akpm@linux-foundation.org, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, briangrant@google.com, cgd@google.com, mbligh@google.com, Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+* Pardo <pardo@google.com> wrote:
 
-> > Now, __mlock_vma_pages_range never return positive value.
-> > So, locked_vm adjustment code is unnecessary.
-> 
-> True, __mlock_vma_pages_range() does not return a positive value.  [It
-> didn't before this patch series, right?]  
+>  As example, in one case creating new threads goes from about 35,000 
+> cycles up to about 25,000,000 cycles -- which is under 100 threads per 
+> second. [...]
 
-True.
+> Various things would address the slow pthread_create().  Choices 
+> include:
+>  - Be more platform-aware about when to use MAP_32BIT.
+>  - Abandon use of MAP_32BIT entirely, with worse performance on some machines.
+>  - Change the mmap() algorithm to be faster on allocation failure
+> (avoid a linear search of vmas).
 
+Sigh, unfortunately MAP_32BIT use in 64-bit apps for stacks was 
+apparently created without foresight about what would happen in the MM 
+when thread stacks exhaust 4GB.
 
-> However, you are now counting
-> mlocked hugetlb pages and user mapped kernel pages against locked_vm--at
-> least in the mmap(MAP_LOCKED) path--even tho' we don't actually mlock().
-> Note that mlock[all]() will still avoid counting these pages in
-> mlock_fixup(), as I think it should.
-> 
-> Huge shm pages are already counted against user->locked_shm.  This patch
-> counts them against mm->locked_vm, as well, if one mlock()s them.  But,
-> since locked_vm and locked_shm are compared to the memlock rlimit
-> independently, so we won't be double counting the huge pages against
-> either limit.  However,  mlock()ed [not SHMLOCKed] hugetlb pages will
-> now be counted against locked_vm limit and will reduce the amount of
-> non-shm memory that the task can lock [maybe not such a bad thing?].
-> Also, mlock()ed hugetlb pages will be included in the /proc/<pid>/status
-> "VmLck" element, even tho' they're not really mlocked and they don't
-> show up in the /proc/meminfo "Mlocked" count.
-> 
-> Similarly, mlock()ing a vm range backed by kernel pages--e.g.,
-> VM_RESERVED|VM_DONTEXPAND vmas--will show up in the VmLck status
-> element, but won't actually be mlocked nor counted in Mlocked meminfo
-> field.  They will be counted against the task's locked vm limit.
-> 
-> So, I don't know whether to Ack or Nack this.  I guess it's no further
-> from reality than the current code.  But, I don't think you need this
-> one.  The code already differentiates between negative values as error
-> codes and non-negative values as an adjustment to locked_vm, so you
-> should be able to meet the standards mandated error returns without this
-> patch.  
-> 
-> Still thinking about this...
+The problem is that MAP_32BIT is used both as a performance hack for 
+64-bit apps and as an ABI compat mechanism for 32-bit apps. So we cannot 
+just start disregarding MAP_32BIT in the kernel - we'd break 32-bit 
+compat apps and/or compat 32-bit libraries.
 
-I think...
+There are various other options to solve the (severe!) performance 
+breakdown:
 
-In general, nobody want regression.
-and locked_vm exist from long time ago.
+1- glibc could start not using MAP_32BIT for 64-bit thread stacks (the 
+   boxes where context-switching is slow probably do not matter all that 
+   much anymore - they were very slow at everything 64-bit anyway)
 
-So, We shouldn't change locked_vm behavior although this have
-very strange behavior.
+     Pros: easiest solution.
+     Cons: slows down the affected machines and needs a new glibc.
 
-in linus-tree locked_vm indicate count of amount of VM_LOCKED vma range,
-not populated pages nor number of physical pages of locked vma.
+2- We could introduce a new MAP_64BIT_STACK flag which we could
+   propagate it into MAP_32BIT on those old CPUs. It would be 
+   disregarded on modern CPUs and thread stacks would be 64-bit.
 
-Yes, current linus-tree locked_vm code have some strange behavior.
-but if we want to change it, we should split out from split-lru patch, IMHO.
+     Pros: cleanest solution.
+     Cons: needs both new glibc and new kernel to take advantage of.
 
-Then, I hope to remove locked_vm adjustment code.
-Am I missing point?
+3- We could detect the first-4G-is-full condition and cache it. Problem
+   is, there will likely be small holes in it so it's rather hard to do 
+   it in a sane way. Also, every munmap() of a thread stack will 
+   invalidate this - triggering a slow linear search every now and then.
 
+     Pros: only needs a new kernel to take advantage of.
+     Cons: is the most complex and messiest solution with no clear 
+           benefit to other workloads. Also, does not 100% solve the 
+           performance problem and prolongues the 4GB stack threads 
+           hack.
 
+i'd go for 1) or 2).
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
