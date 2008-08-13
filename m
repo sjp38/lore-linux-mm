@@ -1,46 +1,35 @@
-Subject: Re: [PATCH][RFC] dirty balancing for cgroups
-In-Reply-To: Your message of "Thu, 07 Aug 2008 15:36:08 +0200"
-	<1218116168.8625.38.camel@twins>
-References: <1218116168.8625.38.camel@twins>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Message-Id: <20080813071505.930965A75@siro.lan>
-Date: Wed, 13 Aug 2008 16:15:05 +0900 (JST)
-From: yamamoto@valinux.co.jp (YAMAMOTO Takashi)
+Date: Wed, 13 Aug 2008 17:03:14 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC PATCH for -mm 1/5]  mlock() fix return values for mainline
+In-Reply-To: <1218573542.6360.136.camel@lts-notebook>
+References: <20080811160128.9459.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1218573542.6360.136.camel@lts-notebook>
+Message-Id: <20080813170235.E770.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: a.p.zijlstra@chello.nl
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, menage@google.com, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-hi,
-
-> > @@ -485,7 +502,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
-> >  		if (PageUnevictable(page) ||
-> >  		    (PageActive(page) && !active) ||
-> >  		    (!PageActive(page) && active)) {
-> > -			__mem_cgroup_move_lists(pc, page_lru(page));
-> > +			if (try_lock_page_cgroup(page)) {
-> > +				__mem_cgroup_move_lists(pc, page_lru(page));
-> > +				unlock_page_cgroup(page);
-> > +			}
-> >  			continue;
-> >  		}
+> On Mon, 2008-08-11 at 16:04 +0900, KOSAKI Motohiro wrote:
+> > following patch is the same to http://marc.info/?l=linux-kernel&m=121750892930775&w=2
+> > and it already stay in linus-tree.
+> > 
+> > but it is not merged in 2.6.27-rc1-mm1.
+> > 
+> > So, please apply it first.
 > 
-> This chunk seems unrelated and lost....
-
-it's necessary to protect from mem_cgroup_{set,clear}_dirty
-which modify pc->flags without holding mz->lru_lock.
-
-> I presonally dislike the != 0, == 0 comparisons for bitmask operations,
-> they seem to make it harder to read somewhow. I prefer to write !(flags
-> & mask) and (flags & mask), instead.
+> Kosaki-san:
 > 
-> I guess taste differs,...
+> make_pages_present() is called from other places than mlock[_fixup()].
+> However, I guess it's OK to put mlock() specific behavior in
+> make_pages_present() as all other callers [currently] ignore the return
+> value.  Is that your thinking?
 
-yes, it seems different. :)
+yup, others ignore it.
 
-YAMAMOTO Takashi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
