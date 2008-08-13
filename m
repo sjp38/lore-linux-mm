@@ -1,94 +1,41 @@
-Subject: Re: [RFC PATCH for -mm 1/5]  mlock() fix return values for mainline
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080811160128.9459.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080811151313.9456.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080811160128.9459.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 12 Aug 2008 16:39:02 -0400
-Message-Id: <1218573542.6360.136.camel@lts-notebook>
+Date: Tue, 12 Aug 2008 17:14:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [-mm][PATCH 0/2] Memory rlimit fix crash on fork
+Message-Id: <20080812171407.2f468729.akpm@linux-foundation.org>
+In-Reply-To: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
+References: <20080811100719.26336.98302.sendpatchset@balbir-laptop>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-08-11 at 16:04 +0900, KOSAKI Motohiro wrote:
-> following patch is the same to http://marc.info/?l=linux-kernel&m=121750892930775&w=2
-> and it already stay in linus-tree.
-> 
-> but it is not merged in 2.6.27-rc1-mm1.
-> 
-> So, please apply it first.
+On Mon, 11 Aug 2008 15:37:19 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Kosaki-san:
+> --- linux-2.6.27-rc1/mm/memory.c~memrlimit-fix-crash-on-fork	2008-08-11 14:57:48.000000000 +0530
+> +++ linux-2.6.27-rc1-balbir/mm/memory.c	2008-08-11 14:58:33.000000000 +0530
+> @@ -901,8 +901,12 @@ unsigned long unmap_vmas(struct mmu_gath
 
-make_pages_present() is called from other places than mlock[_fixup()].
-However, I guess it's OK to put mlock() specific behavior in
-make_pages_present() as all other callers [currently] ignore the return
-value.  Is that your thinking?
+^^ returns a long.
 
-Lee
-> 
-> 
-> 
-> -----------------------------------------------
-> 
-> ---
->  mm/memory.c |   16 +++++++++++++---
->  mm/mlock.c  |    2 --
->  2 files changed, 13 insertions(+), 5 deletions(-)
-> 
-> Index: b/mm/memory.c
-> ===================================================================
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2814,16 +2814,26 @@ int make_pages_present(unsigned long add
->  
->  	vma = find_vma(current->mm, addr);
->  	if (!vma)
-> -		return -1;
-> +		return -ENOMEM;
->  	write = (vma->vm_flags & VM_WRITE) != 0;
->  	BUG_ON(addr >= end);
->  	BUG_ON(end > vma->vm_end);
->  	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
->  	ret = get_user_pages(current, current->mm, addr,
->  			len, write, 0, NULL, NULL);
-> -	if (ret < 0)
-> +	if (ret < 0) {
-> +		/*
-> +		   SUS require strange return value to mlock
-> +		    - invalid addr generate to ENOMEM.
-> +		    - out of memory should generate EAGAIN.
-> +		*/
-> +		if (ret == -EFAULT)
-> +			ret = -ENOMEM;
-> +		else if (ret == -ENOMEM)
-> +			ret = -EAGAIN;
->  		return ret;
-> -	return ret == len ? 0 : -1;
-> +	}
-> +	return ret == len ? 0 : -ENOMEM;
->  }
->  
->  #if !defined(__HAVE_ARCH_GATE_AREA)
-> Index: b/mm/mlock.c
-> ===================================================================
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -425,8 +425,6 @@ success:
->  
->  out:
->  	*prev = vma;
-> -	if (ret == -ENOMEM)
-> -		ret = -EAGAIN;
->  	return ret;
->  }
->  
-> 
-> 
+>  	unsigned long start = start_addr;
+>  	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
+>  	int fullmm = (*tlbp)->fullmm;
+> -	struct mm_struct *mm = vma->vm_mm;
+> +	struct mm_struct *mm;
+> +
+> +	if (!vma)
+> +		return;
+
+^^ mm/memory.c:907: warning: 'return' with no value, in function returning non-void
+
+How does this happen?
+
+I'll drop the patch.  The above mystery change needs a comment, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
