@@ -1,9 +1,9 @@
-Date: Wed, 13 Aug 2008 17:36:12 +0900
+Date: Wed, 13 Aug 2008 17:37:19 +0900
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC PATCH for -mm 5/5] fix mlock return value for mm
-In-Reply-To: <1218573014.6360.131.camel@lts-notebook>
-References: <20080811163121.9468.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1218573014.6360.131.camel@lts-notebook>
-Message-Id: <20080813171025.E773.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [RFC PATCH for -mm 2/5] related function comment fixes (optional)
+In-Reply-To: <1218567778.6360.90.camel@lts-notebook>
+References: <20080811160430.945C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1218567778.6360.90.camel@lts-notebook>
+Message-Id: <20080813173639.E776.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,62 +13,21 @@ To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-> > > Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
-> > > We shouldn't do that.
-> > 
-> > Oops, sorry.
-> > I sent older version, I resend it.
-> > 
-> > Definitly, I should learn an correct operation of quilt ;)
-> > 
-> > 
-> > --------------------------------------------------------------
-> > Now, __mlock_vma_pages_range() ignore return value of __get_user_pages().
-> > We shouldn't do that.
+> > - * vma->vm_mm->mmap_sem must be held for write.
+> > + * @vma:   target vma
+> > + * @start: start address
+> > + * @end:   end address
+> > + * @mlock: 0 indicate munlock, otherwise mlock.
+> > + *
+> > + * return 0 if successed, otherwse return negative value.
 > 
-> Could you explain, in comments or patch description, why, after patching
-> __mlock_vma_pages_range() top return mlock() appropriate values for
-> __get_user_pages() failures, you then ignore the return value of
-> __mlock_vma_pages_range() in mlock_vma_pages_range() [last 4 hunks]?  Is
-> it because mlock_vma_pages_range() is called from mmap(), mremap(), etc,
-> and not from mlock()?
+> How about:
+> 
+> 	return 0 on success, [negative] error number on error.
 
-Ah, OK.
-I agreed with my patch description is too short.
+OK. I'll fix at next post.
 
-in linus-tree code, make_pages_present called from seven points
- - sys_remap_file_pages
- - mlock_fixup
- - mmap_region
- - find_extend_vma
- - do_brk
- - move_vma
- - do_mremap
-
-and, only mlock_fixup treat return value of it.
-IOW, linus-tree policy is
-
-mmap, brk, mremap	ignore error of page population
-mlock			treat error of page population
-
-
-In the other hand, __mlock_vma_pages_range() called from seven points.
- - sys_remap_file_pages (via mlock_vma_pages_range)
- - mmap_region (via mlock_vma_pages_range)
- - find_extend_vma (via mlock_vma_pages_range)
- - do_brk (via mlock_vma_pages_range)
- - move_vma (via mlock_vma_pages_range)
- - do_mremap (via mlock_vma_pages_range)
- - mlock_fixup
-
-this is not a coincidence.
-__mlock_vma_pages_range() aimed at unevictable lru aware make_pages_present().
-
-
-So, mlock_fixup shouldn't ignore get_user_pages() in __mlock_vma_pages_range().
-but others should ignore it.
+Thanks carefully review!
 
 
 
