@@ -1,47 +1,73 @@
-Date: Thu, 14 Aug 2008 13:47:17 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Received: from edge05.upc.biz ([192.168.13.212]) by viefep20-int.chello.at
+          (InterMail vM.7.08.02.02 201-2186-121-104-20070414) with ESMTP
+          id <20080814124903.YGD14987.viefep20-int.chello.at@edge05.upc.biz>
+          for <linux-mm@kvack.org>; Thu, 14 Aug 2008 14:49:03 +0200
 Subject: Re: [rfc][patch] mm: dirty page accounting race fix
-In-Reply-To: <1218716318.10800.209.camel@twins>
-Message-ID: <Pine.LNX.4.64.0808141328090.11013@blonde.site>
-References: <20080814094537.GA741@wotan.suse.de>  <Pine.LNX.4.64.0808141210200.4398@blonde.site>
- <1218716318.10800.209.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <Pine.LNX.4.64.0808141210200.4398@blonde.site>
+References: <20080814094537.GA741@wotan.suse.de>
+	 <Pine.LNX.4.64.0808141210200.4398@blonde.site>
+Content-Type: text/plain
+Date: Thu, 14 Aug 2008 14:49:09 +0200
+Message-Id: <1218718149.10800.224.camel@twins>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Hugh Dickins <hugh@veritas.com>
 Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Aug 2008, Peter Zijlstra wrote:
-> On Thu, 2008-08-14 at 12:55 +0100, Hugh Dickins wrote:
-> 
-> > But I got a bit distracted: mprotect's change_pte_range is
-> > traditionally where the pte_modify operation has been split up into
-> > stages on some arches, that really can be restricting permissions
-> > and needs to tread carefully.  Now I go to look there, I see its
-> > 		/*
-> > 		 * Avoid taking write faults for pages we know to be
-> > 		 * dirty.
-> > 		 */
-> > 		if (dirty_accountable && pte_dirty(ptent))
-> > 			ptent = pte_mkwrite(ptent);
-> > 
-> > and get rather worried: isn't that likely to be giving write permission
-> > to a pte in a vma we are precisely taking write permission away from?
-> 
-> Exactly, we do that because the page is already dirty, therefore we do
-> not need to trap on write to mark it dirty - at least, that was the idea
-> behind this optimization.
+On Thu, 2008-08-14 at 12:55 +0100, Hugh Dickins wrote:
 
-I realized that was the intended optimization, what I'd missed is that
-dirty_accountable can only be true there if (vma->vm_flags & VM_WRITE):
-that's checked in vma_wants_writenotify(), which is how dirty_accountable
-gets to be set.
+> Am I confused, or is your "do_wp_page calls ptep_clear_flush_notify"
+> example a very bad one?  The page it's dealing with there doesn't
+> go back into the page table (its COW does), and the dirty_accounting
+> case doesn't even get down there, it's dealt with in the reuse case
+> above, which uses ptep_set_access_flags. 
 
-So those lines are okay, panic over, phew.
+Also, the new page is only added to the rmap _after_ it has been
+installed. So page_mkclean() will never get to it to see the empty pte.
 
-Hugh
+>  Now, I think that one may
+> well behave as you suggest on some arches (though it's extending
+> permissions not restricting them, so maybe not); but please check
+> that out and improve your example.
+
+Another case I just looked at is if ptep_clear_flush_young() actually
+does the clear bit. But the few arches (x86_64, ppc64) that I looked at
+don't seem to do so.
+
+If someone would, you could hit this race.
+
+/me continues searching for a convincing candidate..
+
+> Even if it does, it's not clear to me that your fix is the answer.
+> That may well be because the whole of dirty page accounting grew too
+> subtle for me! 
+
+    CPU1                      CPU2
+
+    lock(pte_lock)
+    ptep_clear_flush(ptep)
+                            page_mkclean()
+                              page_check_address()
+                                !pte_present(ptep)
+                                   return NULL
+    ptep_set(ptep, new_pte);
+    unlock(pte_lock)
+
+Now, if page_check_address() doesn't return prematurely, but is forced
+to take the pte_lock, we won't see that hole and will not skip the page.
+
+> But holding the page table lock on one pte of the
+> page doesn't guarantee much about the integrity of the whole dance:
+> do_wp_page does its set_page_dirty_balance for this case, you'd
+> need to spell out the bad sequence more to convince me.
+ 
+Now you're confusing me... are you saying ptes can be changed from under
+your feet even while holding the pte_lock?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
