@@ -1,44 +1,45 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id m7EL9mdF154304
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 07:09:51 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7EKwUdH2740456
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 06:58:30 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7EKwUqr029747
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 06:58:30 +1000
-Message-ID: <48A49C78.7070100@linux.vnet.ibm.com>
-Date: Fri, 15 Aug 2008 02:28:32 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <48A4AC39.7020707@sciatl.com>
+Date: Thu, 14 Aug 2008 15:05:45 -0700
+From: C Michael Sundius <Michael.sundius@sciatl.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
-References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
-In-Reply-To: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: sparsemem support for mips with highmem
+Content-Type: multipart/mixed;
+ boundary="------------010403040800010305090501"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Jiri Slaby wrote:
-> Hi,
-> 
-> found this in mmotm, a fix for
-> mm-owner-fix-race-between-swap-and-exit.patch
-> 
+This is a multi-part message in MIME format.
+--------------010403040800010305090501
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Thanks for catching this
+Hi
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+I just got sparsemem working on our MIPS 32 platform. I'm not sure if 
+anyone
+has done that before since there seems to be a couple of problems in the 
+arch specific code.
 
--- 
-	Balbir
+Well I realize that it is blazingly simple to turn on sparsemem, but for 
+the idiots (like myself)
+out there I created a howto file to put in the Documentation directory 
+just because I thought
+it would be a good idea to have some official info on  it written down 
+somewhere.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+it saved me a ton of space by the way.  it seems to work great.
+
+Mike
+
+
+--------------010403040800010305090501
+Content-Type: text/plain;
+ name="mypatchfile"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mypatchfile"
+
+
+--------------010403040800010305090501--
