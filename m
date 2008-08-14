@@ -1,32 +1,41 @@
-Message-ID: <48A494B0.3050509@goop.org>
-Date: Thu, 14 Aug 2008 13:25:20 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id m7EL9mdF154304
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 07:09:51 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7EKwUdH2740456
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 06:58:30 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7EKwUqr029747
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 06:58:30 +1000
+Message-ID: <48A49C78.7070100@linux.vnet.ibm.com>
+Date: Fri, 15 Aug 2008 02:28:32 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [rfc][patch] mm: dirty page accounting race fix
-References: <20080814094537.GA741@wotan.suse.de>  <Pine.LNX.4.64.0808141210200.4398@blonde.site> <1218716318.10800.209.camel@twins> <Pine.LNX.4.64.0808141328090.11013@blonde.site>
-In-Reply-To: <Pine.LNX.4.64.0808141328090.11013@blonde.site>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
+References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
+In-Reply-To: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> I realized that was the intended optimization, what I'd missed is that
-> dirty_accountable can only be true there if (vma->vm_flags & VM_WRITE):
-> that's checked in vma_wants_writenotify(), which is how dirty_accountable
-> gets to be set.
->
-> So those lines are okay, panic over, phew.
->   
+Jiri Slaby wrote:
+> Hi,
+> 
+> found this in mmotm, a fix for
+> mm-owner-fix-race-between-swap-and-exit.patch
+> 
 
-I got bitten by precisely the same train of thought.  I think that code 
-officially Non Obvious (or at least Not Immediately Obvious, which is 
-bad in security-sensitive code).
+Thanks for catching this
 
-    J
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
