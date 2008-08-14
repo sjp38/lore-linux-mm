@@ -1,19 +1,19 @@
+Date: Thu, 14 Aug 2008 12:55:46 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [rfc][patch] mm: dirty page accounting race fix
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 In-Reply-To: <20080814094537.GA741@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0808141210200.4398@blonde.site>
 References: <20080814094537.GA741@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 14 Aug 2008 12:27:08 +0200
-Message-Id: <1218709628.10800.204.camel@twins>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-08-14 at 11:45 +0200, Nick Piggin wrote:
+On Thu, 14 Aug 2008, Nick Piggin wrote:
+
 > Hi,
 > 
 > Wonder if you would be kind enough to verify this? It solves my issues (well
@@ -22,13 +22,7 @@ On Thu, 2008-08-14 at 11:45 +0200, Nick Piggin wrote:
 > 
 > Thanks,
 > Nick
-
-s/synch/sync/ ?
-
-Indeed, that does look like a hole, and the proposed fix seems sane.
-
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
+> 
 > ---
 > There is a race with dirty page accounting where a page may not properly
 > be accounted for.
@@ -60,6 +54,9 @@ Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > 
 > Signed-off-by: Nick Piggin <npiggin@suse.de>
 > ---
+
+Thanks for the inlined patch.
+
 > Index: linux-2.6/include/linux/rmap.h
 > ===================================================================
 > --- linux-2.6.orig/include/linux/rmap.h
@@ -142,6 +139,47 @@ Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 >  	if (!pte)
 >  		goto out;
 >  
+> 
+
+I'm not against this if it really turns out to be the answer,
+it's simple enough and it sounds like a very good find; but
+I'm still not convinced that you've got to the bottom of it.
+
+Am I confused, or is your "do_wp_page calls ptep_clear_flush_notify"
+example a very bad one?  The page it's dealing with there doesn't
+go back into the page table (its COW does), and the dirty_accounting
+case doesn't even get down there, it's dealt with in the reuse case
+above, which uses ptep_set_access_flags.  Now, I think that one may
+well behave as you suggest on some arches (though it's extending
+permissions not restricting them, so maybe not); but please check
+that out and improve your example.
+
+Even if it does, it's not clear to me that your fix is the answer.
+That may well be because the whole of dirty page accounting grew too
+subtle for me!  But holding the page table lock on one pte of the
+page doesn't guarantee much about the integrity of the whole dance:
+do_wp_page does its set_page_dirty_balance for this case, you'd
+need to spell out the bad sequence more to convince me.
+
+Sorry, that may be a lot of work, to get it through my skull!
+And I may be lazily asking you to do my thinking for me.
+
+But I got a bit distracted: mprotect's change_pte_range is
+traditionally where the pte_modify operation has been split up into
+stages on some arches, that really can be restricting permissions
+and needs to tread carefully.  Now I go to look there, I see its
+		/*
+		 * Avoid taking write faults for pages we know to be
+		 * dirty.
+		 */
+		if (dirty_accountable && pte_dirty(ptent))
+			ptent = pte_mkwrite(ptent);
+
+and get rather worried: isn't that likely to be giving write permission
+to a pte in a vma we are precisely taking write permission away from?
+That's a different issue, of course; but perhaps it's even relevant.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
