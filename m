@@ -1,39 +1,73 @@
-Date: Fri, 15 Aug 2008 21:00:34 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: pthread_create() slow for many threads; also time to revisit
-	64b context switch optimization?
-Message-ID: <20080815190034.GA15356@elte.hu>
-References: <48A2F157.7000303@redhat.com> <20080813151007.GA8780@elte.hu> <48A2FC17.9070302@redhat.com> <20080813154043.GA11886@elte.hu> <48A303EE.8070002@redhat.com> <20080813160218.GB18037@elte.hu> <20080815155457.GA5210@shareable.org> <48A5B943.1010607@gmail.com> <20080815171913.GB23600@elte.hu> <a36005b50808151023s7baffae5w8e163046209ce9dc@mail.gmail.com>
+Date: Fri, 15 Aug 2008 21:49:25 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH] mm: page_remove_rmap comments on PageAnon
+Message-ID: <Pine.LNX.4.64.0808152146220.7958@blonde.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a36005b50808151023s7baffae5w8e163046209ce9dc@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich Drepper <drepper@gmail.com>
-Cc: Jamie Lokier <jamie@shareable.org>, Arjan van de Ven <arjan@infradead.org>, akpm@linux-foundation.org, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, briangrant@google.com, cgd@google.com, mbligh@google.com, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Ulrich Drepper <drepper@gmail.com> wrote:
+Add a comment to s390's page_test_dirty/page_clear_dirty/page_set_dirty
+dance in page_remove_rmap(): I was wrong to think the PageSwapCache test
+could be avoided, and would like a comment in there to remind me.  And
+mention s390, to help us remember that this block is not really common.
 
-> On Fri, Aug 15, 2008 at 10:19 AM, Ingo Molnar <mingo@elte.hu> wrote:
-> > ( also, just to make sure: all Linux kernel versions will ignore such
-> >  extra flags, so you can just update glibc to use this flag
-> >  unconditionally, correct? )
-> 
-> As soon as the patch hits Linus' tree I can change the code.
+Also move down the "It would be tidy to reset PageAnon" comment: it does
+not belong to s390's block, and it would be unwise to reset PageAnon
+before we're done with testing it.
 
-it's upstream now:
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+No big deal, but I hope for 2.6.27.
 
-| commit cd98a04a59e2f94fa64d5bf1e26498d27427d5e7
-| Author: Ingo Molnar <mingo@elte.hu>
-| Date:   Wed Aug 13 18:02:18 2008 +0200
-|
-|     x86: add MAP_STACK mmap flag
+ mm/rmap.c |   25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
 
-thanks everyone,
-
-	Ingo
+--- 2.6.27-rc3/mm/rmap.c	2008-08-06 08:36:20.000000000 +0100
++++ linux/mm/rmap.c	2008-08-13 04:33:56.000000000 +0100
+@@ -659,23 +659,30 @@ void page_remove_rmap(struct page *page,
+ 		}
+ 
+ 		/*
+-		 * It would be tidy to reset the PageAnon mapping here,
+-		 * but that might overwrite a racing page_add_anon_rmap
+-		 * which increments mapcount after us but sets mapping
+-		 * before us: so leave the reset to free_hot_cold_page,
+-		 * and remember that it's only reliable while mapped.
+-		 * Leaving it set also helps swapoff to reinstate ptes
+-		 * faster for those pages still in swapcache.
++		 * Now that the last pte has gone, s390 must transfer dirty
++		 * flag from storage key to struct page.  We can usually skip
++		 * this if the page is anon, so about to be freed; but perhaps
++		 * not if it's in swapcache - there might be another pte slot
++		 * containing the swap entry, but page not yet written to swap.
+ 		 */
+ 		if ((!PageAnon(page) || PageSwapCache(page)) &&
+ 		    page_test_dirty(page)) {
+ 			page_clear_dirty(page);
+ 			set_page_dirty(page);
+ 		}
+-		mem_cgroup_uncharge_page(page);
+ 
++		mem_cgroup_uncharge_page(page);
+ 		__dec_zone_page_state(page,
+-				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
++			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
++		/*
++		 * It would be tidy to reset the PageAnon mapping here,
++		 * but that might overwrite a racing page_add_anon_rmap
++		 * which increments mapcount after us but sets mapping
++		 * before us: so leave the reset to free_hot_cold_page,
++		 * and remember that it's only reliable while mapped.
++		 * Leaving it set also helps swapoff to reinstate ptes
++		 * faster for those pages still in swapcache.
++		 */
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
