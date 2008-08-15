@@ -1,60 +1,39 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7FFmgSh018865
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 11:48:42 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7FFmLJq225228
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 11:48:21 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7FFmLtD023568
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2008 11:48:21 -0400
-Subject: Re: sparsemem support for mips with highmem
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080815080331.GA6689@alpha.franken.de>
-References: <48A4AC39.7020707@sciatl.com> <1218753308.23641.56.camel@nimitz>
-	 <48A4C542.5000308@sciatl.com>  <20080815080331.GA6689@alpha.franken.de>
-Content-Type: text/plain; charset=UTF-8
-Date: Fri, 15 Aug 2008 08:48:19 -0700
-Message-Id: <1218815299.23641.80.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Date: Fri, 15 Aug 2008 16:54:57 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: pthread_create() slow for many threads; also time to revisit 64b context switch optimization?
+Message-ID: <20080815155457.GA5210@shareable.org>
+References: <20080813104445.GA24632@elte.hu> <20080813063533.444c650d@infradead.org> <48A2EE07.3040003@redhat.com> <20080813142529.GB21129@elte.hu> <48A2F157.7000303@redhat.com> <20080813151007.GA8780@elte.hu> <48A2FC17.9070302@redhat.com> <20080813154043.GA11886@elte.hu> <48A303EE.8070002@redhat.com> <20080813160218.GB18037@elte.hu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080813160218.GB18037@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Bogendoerfer <tsbogend@alpha.franken.de>
-Cc: C Michael Sundius <Michael.sundius@sciatl.com>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Ulrich Drepper <drepper@redhat.com>, Arjan van de Ven <arjan@infradead.org>, akpm@linux-foundation.org, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, briangrant@google.com, cgd@google.com, mbligh@google.com, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-08-15 at 10:03 +0200, Thomas Bogendoerfer wrote:
-> On Thu, Aug 14, 2008 at 04:52:34PM -0700, C Michael Sundius wrote:
-> > +
-> > +#ifndef CONFIG_64BIT
-> > +#define SECTION_SIZE_BITS       27	/* 128 MiB */
-> > +#define MAX_PHYSMEM_BITS        31	/* 2 GiB   */
-> > +#else
-> >  #define SECTION_SIZE_BITS       28
-> >  #define MAX_PHYSMEM_BITS        35
-> > +#endif
+Ingo Molnar wrote:
+> As unimplemented flags just get ignored by the kernel, if this flag goes 
+> into v2.6.27 as-is and is ignored by the kernel (i.e. we just use a 
+> plain old 64-bit [47-bit] allocation), then you could do the glibc 
+> change straight away, correct? So then if people complain we can fix it 
+> in the kernel purely.
 > 
-> why is this needed ?
+> how about this then?
 
-I'm sure Michael can speak to the specifics.  But, in general, making
-SECTION_SIZE_BITS smaller is good if you have lots of small holes in
-memory.  It does this at the cost if increasing the size of the
-mem_section[] array.
+> +#define MAP_64BIT_STACK 0x20000         /* give out 32bit addresses on old CPUs */
 
-MAX_PHYSMEM_BITS should be as as small as possible, but not so small
-that it restricts the amount of RAM that your systems
-support.  i>>?Increasing it has the effect of increasing the size of the
-mem_section[] array.
+I think the flag makes sense but it's name is confusing - 64BIT for a
+flag which means "maybe request 32-bit stack"!  Suggest:
 
-My guess would be that Michael knew that his 32-bit MIPS platform only
-ever has 2GB of memory.  He also knew that its holes (or RAM) come in
-128MB sections.  This configuration lets him save the most amount of
-memory with SPARSEMEM.
++#define MAP_STACK       0x20000         /* 31bit or 64bit address for stack, */
++                                        /* whichever is faster on this CPU */
 
-Michael, I *guess* you could also include a wee bit on how you chose
-your numbers in the documentation.  Not a big deal, though.
+Also, is this _only_ useful for thread stacks, or are there other
+memory allocations where 31-bitness affects execution speed on old P4s?
 
--- Dave
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
