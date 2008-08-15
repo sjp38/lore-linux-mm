@@ -1,28 +1,27 @@
-Date: Fri, 15 Aug 2008 11:33:50 +0200
+Date: Fri, 15 Aug 2008 13:09:26 +0200
 From: Jean Delvare <khali@linux-fr.org>
 Subject: Re: kernel BUG at arch/x86/mm/pat.c:233 in 2.6.27-rc3-git2
-Message-ID: <20080815113350.538d0ba8@hyperion.delvare>
-In-Reply-To: <9D39833986E69849A2A8E74C1078B6B3D7A7CD@orsmsx415.amr.corp.intel.com>
+Message-ID: <20080815130926.620cf987@hyperion.delvare>
+In-Reply-To: <20080814161852.2dce7c21@hyperion.delvare>
 References: <20080814161852.2dce7c21@hyperion.delvare>
-	<9D39833986E69849A2A8E74C1078B6B3D7A7CD@orsmsx415.amr.corp.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Moore, Robert" <robert.moore@intel.com>
-Cc: linux-mm@kvack.org, linux-acpi@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, lenb@kernel.org
+To: linux-mm@kvack.org, linux-acpi@vger.kernel.org
+Cc: Andi Kleen <ak@linux.intel.com>, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Aug 2008 12:59:45 -0700, Moore, Robert wrote:
-> Please open a bugzilla and attach the acpidump for the machine.
+On Thu, 14 Aug 2008 16:18:52 +0200, Jean Delvare wrote:
+> The boot then completes, but network doesn't work. Kernel 2.6.26.1
+> works fine on that machine, and I seem to recall that 2.6.27-rc2 did as
+> well (but I'm not 100% sure.)
 
-Done:
-http://bugzilla.kernel.org/show_bug.cgi?id=11346
+Correcting this: kernel 2.6.27-rc2 had the same problem.
 
-I've rebuilt the kernel with CONFIG_FRAME_POINTER=y as requested by
-Andi. I've also attached the kernel config and the output of dmesg for
-the last working kernel. If anything else is needed, just ask.
+> The board is an Intel D865GSA. I can provide additional information on
+> request. I can also create an entry in bugzilla if needed.
 
 -- 
 Jean Delvare
