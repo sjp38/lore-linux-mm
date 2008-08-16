@@ -1,48 +1,44 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate3.de.ibm.com (8.13.8/8.13.8) with ESMTP id m7GHbs2T188068
-	for <linux-mm@kvack.org>; Sat, 16 Aug 2008 17:37:54 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7GHbrQF1806372
-	for <linux-mm@kvack.org>; Sat, 16 Aug 2008 19:37:53 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7GHbrhf003763
-	for <linux-mm@kvack.org>; Sat, 16 Aug 2008 19:37:53 +0200
-Subject: Re: [PATCH] mm: page_remove_rmap comments on PageAnon
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0808152146220.7958@blonde.site>
-References: <Pine.LNX.4.64.0808152146220.7958@blonde.site>
-Content-Type: text/plain
-Date: Sat, 16 Aug 2008 19:37:50 +0200
-Message-Id: <1218908270.6037.2.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Sat, 16 Aug 2008 22:07:14 +0200
+Subject: Re: sparsemem support for mips with highmem
+Message-ID: <20080816200714.GA7041@alpha.franken.de>
+References: <1218753308.23641.56.camel@nimitz> <48A4C542.5000308@sciatl.com> <20080815080331.GA6689@alpha.franken.de> <1218815299.23641.80.camel@nimitz> <48A5AADE.1050808@sciatl.com> <20080815163302.GA9846@alpha.franken.de> <48A5B9F1.3080201@sciatl.com> <1218821875.23641.103.camel@nimitz> <48A5C831.3070002@sciatl.com> <1218824638.23641.106.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1218824638.23641.106.camel@nimitz>
+From: tsbogend@alpha.franken.de (Thomas Bogendoerfer)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: C Michael Sundius <Michael.sundius@sciatl.com>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-08-15 at 21:49 +0100, Hugh Dickins wrote:
-> Add a comment to s390's page_test_dirty/page_clear_dirty/page_set_dirty
-> dance in page_remove_rmap(): I was wrong to think the PageSwapCache test
-> could be avoided, and would like a comment in there to remind me.  And
-> mention s390, to help us remember that this block is not really common.
+On Fri, Aug 15, 2008 at 11:23:58AM -0700, Dave Hansen wrote:
+> On Fri, 2008-08-15 at 11:17 -0700, C Michael Sundius wrote:
+> > 
+> > diff --git a/include/asm-mips/sparsemem.h
+> > b/include/asm-mips/sparsemem.h
+> > index 795ac6c..64376db 100644
+> > --- a/include/asm-mips/sparsemem.h
+> > +++ b/include/asm-mips/sparsemem.h
+> > @@ -6,7 +6,7 @@
+> >   * SECTION_SIZE_BITS           2^N: how big each section will be
+> >   * MAX_PHYSMEM_BITS            2^N: how much memory we can have in
+> > that space
+> >   */
+> > -#define SECTION_SIZE_BITS       28
+> > +#define SECTION_SIZE_BITS       27     /* 128 MiB */
+> >  #define MAX_PHYSMEM_BITS        35
 > 
-> Also move down the "It would be tidy to reset PageAnon" comment: it does
-> not belong to s390's block, and it would be unwise to reset PageAnon
-> before we're done with testing it.
+> This looks great to me, as long as the existing MIPS users like it.
 
-Looks fine to me. Thanks Hugh. And if anybody cares:
+sounds good, I like it.
 
-Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Thomas.
 
 -- 
-blue skies,
-  Martin.
-
-"Reality continues to ruin my life." - Calvin.
-
+Crap can work. Given enough thrust pigs will fly, but it's not necessary a
+good idea.                                                [ RFC1925, 2.3 ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
