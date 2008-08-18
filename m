@@ -1,24 +1,34 @@
-Message-ID: <48A97F76.7060201@linux-foundation.org>
-Date: Mon, 18 Aug 2008 08:56:06 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: by wa-out-1112.google.com with SMTP id m28so1426414wag.8
+        for <linux-mm@kvack.org>; Mon, 18 Aug 2008 06:57:00 -0700 (PDT)
+Message-ID: <84144f020808180657v2bdd5f76l4b0f1897c73ec0c0@mail.gmail.com>
+Date: Mon, 18 Aug 2008 16:57:00 +0300
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch] mm: page allocator minor speedup
+In-Reply-To: <20080818122957.GE9062@wotan.suse.de>
 MIME-Version: 1.0
-Subject: Re: [BUG] linux-next: Tree for August 11/12 - powerpc - oops at __kmalloc_node_track_caller
- ()
-References: <20080812185345.d7496513.sfr@canb.auug.org.au> <48A1C924.6020000@linux.vnet.ibm.com> <48A1D65A.8000600@linux-foundation.org> <48A75E72.7050508@linux.vnet.ibm.com>
-In-Reply-To: <48A75E72.7050508@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080818122428.GA9062@wotan.suse.de>
+	 <20080818122957.GE9062@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kamalesh Babulal <kamalesh@linux.vnet.ibm.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Kernel Testers List <kernel-testers@vger.kernel.org>, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>, Balbir Singh <balbir@linux.vnet.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Kamalesh Babulal wrote:
-> C
-> Unable to handle kernel paging request for data at address 0x6b6b6b6b6b6b6be3
+Hi Nick,
 
-A pointer was dereferenced in an object that was already freed.
+On Mon, Aug 18, 2008 at 3:29 PM, Nick Piggin <npiggin@suse.de> wrote:
+> Now that we don't put a ZERO_PAGE in the pagetables any more, and the
+> "remove PageReserved from core mm" patch has had a long time to mature,
+> let's remove the page reserved logic from the allocator.
+>
+> This saves several branches and about 100 bytes in some important paths.
+
+Cool. Any numbers for this?
+
+                             Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
