@@ -1,93 +1,46 @@
-Date: Mon, 18 Aug 2008 14:24:28 +0200
+Date: Mon, 18 Aug 2008 14:25:54 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: pagecache insertion fewer atomics
-Message-ID: <20080818122428.GA9062@wotan.suse.de>
+Subject: [patch] mm: unlockless reclaim
+Message-ID: <20080818122554.GB9062@wotan.suse.de>
+References: <20080818122428.GA9062@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20080818122428.GA9062@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Setting and clearing the page locked when inserting it into swapcache /
-pagecache when it has no other references can use non-atomic page flags
-operations because no other CPU may be operating on it at this time.
-
-This saves one atomic operation when inserting a page into pagecache.
+unlock_page is fairly expensive. It can be avoided in page reclaim success
+path. By definition if we have any other references to the page it would
+be a bug anyway.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- include/linux/pagemap.h |   37 +++++++++++++++++++++++++++++++++----
- mm/swap_state.c         |    4 ++--
- 2 files changed, 35 insertions(+), 6 deletions(-)
+ mm/vmscan.c |    9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/mm/swap_state.c
+Index: linux-2.6/mm/vmscan.c
 ===================================================================
---- linux-2.6.orig/mm/swap_state.c
-+++ linux-2.6/mm/swap_state.c
-@@ -302,7 +302,7 @@ struct page *read_swap_cache_async(swp_e
- 		 * re-using the just freed swap entry for an existing page.
- 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
- 		 */
--		set_page_locked(new_page);
-+		__set_page_locked(new_page);
- 		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
- 		if (likely(!err)) {
- 			/*
-@@ -312,7 +312,7 @@ struct page *read_swap_cache_async(swp_e
- 			swap_readpage(NULL, new_page);
- 			return new_page;
- 		}
--		clear_page_locked(new_page);
-+		__clear_page_locked(new_page);
- 		swap_free(entry);
- 	} while (err != -ENOMEM);
+--- linux-2.6.orig/mm/vmscan.c
++++ linux-2.6/mm/vmscan.c
+@@ -637,7 +637,14 @@ static unsigned long shrink_page_list(st
+ 		if (!mapping || !__remove_mapping(mapping, page))
+ 			goto keep_locked;
  
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -271,14 +271,14 @@ extern int __lock_page_killable(struct p
- extern void __lock_page_nosync(struct page *page);
- extern void unlock_page(struct page *page);
- 
--static inline void set_page_locked(struct page *page)
-+static inline void __set_page_locked(struct page *page)
- {
--	set_bit(PG_locked, &page->flags);
-+	__set_bit(PG_locked, &page->flags);
- }
- 
--static inline void clear_page_locked(struct page *page)
-+static inline void __clear_page_locked(struct page *page)
- {
--	clear_bit(PG_locked, &page->flags);
-+	__clear_bit(PG_locked, &page->flags);
- }
- 
- static inline int trylock_page(struct page *page)
-@@ -410,17 +410,17 @@ extern void __remove_from_page_cache(str
- 
- /*
-  * Like add_to_page_cache_locked, but used to add newly allocated pages:
-- * the page is new, so we can just run set_page_locked() against it.
-+ * the page is new, so we can just run __set_page_locked() against it.
-  */
- static inline int add_to_page_cache(struct page *page,
- 		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
- {
- 	int error;
- 
--	set_page_locked(page);
-+	__set_page_locked(page);
- 	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
- 	if (unlikely(error))
--		clear_page_locked(page);
+-		unlock_page(page);
++		/*
++		 * At this point, we have no other references and there is
++		 * no way to pick any more up (removed from LRU, removed
++		 * from pagecache). Can use non-atomic bitops now (and
++		 * we obviously don't have to worry about waking up a process
++		 * waiting on the page lock, because there are no references.
++		 */
 +		__clear_page_locked(page);
- 	return error;
- }
- 
+ free_it:
+ 		nr_reclaimed++;
+ 		if (!pagevec_add(&freed_pvec, page)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
