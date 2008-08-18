@@ -1,80 +1,93 @@
-Date: Mon, 18 Aug 2008 11:59:18 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [BUG] __GFP_THISNODE is not always honored
-Message-ID: <20080818105918.GD32113@csn.ul.ie>
-References: <1218837685.12953.11.camel@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Date: Mon, 18 Aug 2008 14:24:28 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: pagecache insertion fewer atomics
+Message-ID: <20080818122428.GA9062@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1218837685.12953.11.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, apw <apw@shadowen.org>, agl <agl@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On (15/08/08 17:01), Adam Litke didst pronounce:
-> While running the libhugetlbfs test suite on a NUMA machine with 2.6.27-rc3, I
-> discovered some strange behavior with __GFP_THISNODE.  The hugetlb function
-> alloc_fresh_huge_page_node() calls alloc_pages_node() with __GFP_THISNODE but
-> occasionally a page that is not on the requested node is returned. 
+Setting and clearing the page locked when inserting it into swapcache /
+pagecache when it has no other references can use non-atomic page flags
+operations because no other CPU may be operating on it at this time.
 
-That's bad in itself and has wider reaching consequences than hugetlb
-getting its counters wrong. I believe SLUB depends on __GFP_THISNODE
-being obeyed for example. Can you boot the machine in question with
-mminit_loglevel=4 and loglevel=8 set on the command line and send me the
-dmesg please? It should output the zonelists and I might be able to
-figure out what's going wrong. Thanks
+This saves one atomic operation when inserting a page into pagecache.
 
-> Since the
-> hugetlb code assumes that the page will be on the requested node, badness follows
-> when the page is added to the wrong node's free_list.
-> 
-> There is clearly something wrong with the buddy allocator since __GFP_THISNODE
-> cannot be trusted.  Until that is fixed, the hugetlb code should not assume
-> that the newly allocated page is on the node asked for.  This patch prevents
-> the hugetlb pool counters from being corrupted and allows the code to cope with
-> unbalanced numa allocations.
-> 
-> So far my debugging has led me to get_page_from_freelist() inside the
-> for_each_zone_zonelist() loop.  When buffered_rmqueue() returns a page I
-> compare the value of page_to_nid(page), zone->node and the node that the
-> hugetlb code requested with __GFP_THISNODE.  These all match -- except when the
-> problem triggers.  In that case, zone->node matches the node we asked for but
-> page_to_nid() does not.
-> 
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+ include/linux/pagemap.h |   37 +++++++++++++++++++++++++++++++++----
+ mm/swap_state.c         |    4 ++--
+ 2 files changed, 35 insertions(+), 6 deletions(-)
 
-Feels like the wrong zonelist is being used. The dmesg with
-mminit_loglevel may tell.
-
-> Workaround patch:
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 67a7119..7a30a61 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -568,7 +568,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
->  			__free_pages(page, huge_page_order(h));
->  			return NULL;
->  		}
-> -		prep_new_huge_page(h, page, nid);
-> +		prep_new_huge_page(h, page, page_to_nid(page));
->  	}
-
-This will mask the bug for hugetlb but I wonder if this should be a
-VM_BUG_ON(page_to_nid(page) != nid) ?
-
->  
->  	return page;
-> 
-> -- 
-> Adam Litke - (agl at us.ibm.com)
-> IBM Linux Technology Center
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Index: linux-2.6/mm/swap_state.c
+===================================================================
+--- linux-2.6.orig/mm/swap_state.c
++++ linux-2.6/mm/swap_state.c
+@@ -302,7 +302,7 @@ struct page *read_swap_cache_async(swp_e
+ 		 * re-using the just freed swap entry for an existing page.
+ 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
+ 		 */
+-		set_page_locked(new_page);
++		__set_page_locked(new_page);
+ 		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
+ 		if (likely(!err)) {
+ 			/*
+@@ -312,7 +312,7 @@ struct page *read_swap_cache_async(swp_e
+ 			swap_readpage(NULL, new_page);
+ 			return new_page;
+ 		}
+-		clear_page_locked(new_page);
++		__clear_page_locked(new_page);
+ 		swap_free(entry);
+ 	} while (err != -ENOMEM);
+ 
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -271,14 +271,14 @@ extern int __lock_page_killable(struct p
+ extern void __lock_page_nosync(struct page *page);
+ extern void unlock_page(struct page *page);
+ 
+-static inline void set_page_locked(struct page *page)
++static inline void __set_page_locked(struct page *page)
+ {
+-	set_bit(PG_locked, &page->flags);
++	__set_bit(PG_locked, &page->flags);
+ }
+ 
+-static inline void clear_page_locked(struct page *page)
++static inline void __clear_page_locked(struct page *page)
+ {
+-	clear_bit(PG_locked, &page->flags);
++	__clear_bit(PG_locked, &page->flags);
+ }
+ 
+ static inline int trylock_page(struct page *page)
+@@ -410,17 +410,17 @@ extern void __remove_from_page_cache(str
+ 
+ /*
+  * Like add_to_page_cache_locked, but used to add newly allocated pages:
+- * the page is new, so we can just run set_page_locked() against it.
++ * the page is new, so we can just run __set_page_locked() against it.
+  */
+ static inline int add_to_page_cache(struct page *page,
+ 		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
+ {
+ 	int error;
+ 
+-	set_page_locked(page);
++	__set_page_locked(page);
+ 	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
+ 	if (unlikely(error))
+-		clear_page_locked(page);
++		__clear_page_locked(page);
+ 	return error;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
