@@ -1,54 +1,84 @@
-Date: Tue, 19 Aug 2008 12:07:00 +0200
+Date: Tue, 19 Aug 2008 12:19:07 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: pagecache insertion fewer atomics
-Message-ID: <20080819100700.GE10447@wotan.suse.de>
-References: <20080818122428.GA9062@wotan.suse.de> <20080819143922.60DD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch] mm: dirty page tracking race fix
+Message-ID: <20080819101907.GA16446@wotan.suse.de>
+References: <20080818053821.GA3011@wotan.suse.de> <20080819021155.3d92b193.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080819143922.60DD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080819021155.3d92b193.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 02:41:50PM +0900, KOSAKI Motohiro wrote:
-> Hi Nick,
+On Tue, Aug 19, 2008 at 02:11:55AM -0700, Andrew Morton wrote:
+> On Mon, 18 Aug 2008 07:38:21 +0200 Nick Piggin <npiggin@suse.de> wrote:
 > 
-> > Setting and clearing the page locked when inserting it into swapcache /
-> > pagecache when it has no other references can use non-atomic page flags
-> > operations because no other CPU may be operating on it at this time.
+> > There is a race with dirty page accounting where a page may not properly
+> > be accounted for.
 > > 
-> > This saves one atomic operation when inserting a page into pagecache.
+> > clear_page_dirty_for_io() calls page_mkclean; then TestClearPageDirty.
 > > 
-> > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > ---
-> >  include/linux/pagemap.h |   37 +++++++++++++++++++++++++++++++++----
-> >  mm/swap_state.c         |    4 ++--
-> >  2 files changed, 35 insertions(+), 6 deletions(-)
+> > page_mkclean walks the rmaps for that page, and for each one it cleans and
+> > write protects the pte if it was dirty. It uses page_check_address to find the
+> > pte. That function has a shortcut to avoid the ptl if the pte is not
+> > present. Unfortunately, the pte can be switched to not-present then back to
+> > present by other code while holding the page table lock -- this should not
+> > be a signal for page_mkclean to ignore that pte, because it may be dirty.
 > > 
-> > Index: linux-2.6/mm/swap_state.c
-> > ===================================================================
-> > --- linux-2.6.orig/mm/swap_state.c
-> > +++ linux-2.6/mm/swap_state.c
-> > @@ -302,7 +302,7 @@ struct page *read_swap_cache_async(swp_e
-> >  		 * re-using the just freed swap entry for an existing page.
-> >  		 * May fail (-ENOMEM) if radix-tree node allocation failed.
-> >  		 */
-> > -		set_page_locked(new_page);
-> > +		__set_page_locked(new_page);
-> >  		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
-> >  		if (likely(!err)) {
-> >  			/*
+> > For example, powerpc64's set_pte_at will clear a previously present pte before
+> > setting it to the desired value. There may also be other code in core mm or
+> > in arch which do similar things.
+> > 
+> > The consequence of the bug is loss of data integrity due to msync, and loss
+> > of dirty page accounting accuracy. XIP's __xip_unmap could easily also be
+> > unreliable (depending on the exact XIP locking scheme), which can lead to data
+> > corruption.
+> > 
+> > Fix this by having an option to always take ptl to check the pte in
+> > page_check_address.
+> > 
+> > It's possible to retain this optimization for page_referenced and
+> > try_to_unmap.
 > 
-> What version do you working on?
+> Is it also possible to retain it for
 > 
-> 2.6.27-rc1-mm1 is not contain set_page_locked().
-> mmotm?
+> /**
+>  * page_mapped_in_vma - check whether a page is really mapped in a VMA
+>  * @page: the page to test
+>  * @vma: the VMA to test
+>  *
+>  * Returns 1 if the page is mapped into the page tables of the VMA, 0
+>  * if the page is not mapped into the page tables of this VMA.  Only
+>  * valid for normal file or anonymous VMAs.
+>  */
+> static int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+> {
+> 	unsigned long address;
+> 	pte_t *pte;
+> 	spinlock_t *ptl;
+> 
+> 	address = vma_address(page, vma);
+> 	if (address == -EFAULT)		/* out of vma range */
+> 		return 0;
+> 	pte = page_check_address(page, vma->vm_mm, address, &ptl);
+> 	if (!pte)			/* the page is not in this mm */
+> 		return 0;
+> 	pte_unmap_unlock(pte, ptl);
+> 
+> 	return 1;
+> }
+> 
+> ?
 
-Upstream actually, because -mm was so far behind :) I forgot to check
-mmotm, sorry.
+No. While callers of page_mapped_in_vma might be OK with it, the function
+comments themselves indicate we can't take the shortcut.
+
+It was possible the retain the optimization for page_referenced and
+try_to_unmap because it is OK if those guys fail in rare cases. Page
+reclaim will do a final non-racy check of refcounts.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
