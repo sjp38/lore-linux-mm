@@ -1,44 +1,78 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m7JAaCd8018824
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:12 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7JAaC2u1310758
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:12 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m7JAaBZ6013950
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:11 +0530
-Message-ID: <48AAA217.8040307@linux.vnet.ibm.com>
-Date: Tue, 19 Aug 2008 16:06:07 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
-References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com> <48A49C78.7070100@linux.vnet.ibm.com> <48A9E82E.3060009@gmail.com> <48AA4003.5080300@linux.vnet.ibm.com> <48AA970D.5050403@gmail.com>
-In-Reply-To: <48AA970D.5050403@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 19 Aug 2008 12:39:52 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: rewrite vmap layer
+Message-ID: <20080819103952.GE16446@wotan.suse.de>
+References: <20080818133224.GA5258@wotan.suse.de> <20080818172446.9172ff98.akpm@linux-foundation.org> <20080819073719.GC30521@flint.arm.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080819073719.GC30521@flint.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jiri Slaby wrote:
-> On 08/19/2008 05:37 AM, Balbir Singh wrote:
->> Could you please help me with the steps to reproduce the problem.  I don't seem
->> to be hitting the mm->owner changed callback. I did have a test case for it when
->> I developed mm->owner functionality, but it does not trigger an oops for me.
+On Tue, Aug 19, 2008 at 08:37:19AM +0100, Russell King wrote:
+> On Mon, Aug 18, 2008 at 05:24:46PM -0700, Andrew Morton wrote:
+> > On Mon, 18 Aug 2008 15:32:24 +0200
+> > Nick Piggin <npiggin@suse.de> wrote:
+> > > XEN and PAT and such do not like deferred TLB flushing because they can't
+> > > always handle multiple aliasing virtual addresses to a physical address. They
+> > > now call vm_unmap_aliases() in order to flush any deferred mappings.  That call
+> > > is very expensive (well, actually not a lot more expensive than a single vunmap
+> > > under the old scheme), however it should be OK if not called too often.
+> > 
+> > What are the prospects now for making vunmap safe from atomic (or
+> > interrupt) contexts?  That's something which people keep on trying to
+> > do and all the other memory-freeing functions permit it.
 > 
-> I have no idea. My config is at:
-> http://decibel.fi.muni.cz/~xslaby/config-memrlimit-oops
-> I don't play with cgroups or anything, I just work on the system. Do you need a
-> test case, it's obvious from the code as far as I can see?
+> We've tried lazy unmap with dma_free_coherent() on ARM and had one
+> report of success and another of filesystem corruption.  Thankfully
+> vmap isn't used for this, but is used for ARMs ioremap.
 
-Yes, the problem is obvious, but I usually use small test cases or test
-scenarios to verify that the problem is fixed.
+Hmm. I've run it fairly extensively on x86 and ia64 (including the XFS
+workload, which makes heavy use of vmap). No problems yet here...
 
--- 
-	Balbir
+Is there anything I can do to reduce your concern, or are we resigned
+to wait-and-listen if we want to go ahead with this patch?
+
+ 
+> > > +#if 0 /* constant vmalloc space size */
+> > > +#define VMALLOC_SPACE		(VMALLOC_END-VMALLOC_START)
+> > 
+> > kill?
+> > 
+> > > +#else
+> > > +#if BITS_PER_LONG == 32
+> > > +#define VMALLOC_SPACE		(128UL*1024*1024)
+> > > +#else
+> > > +#define VMALLOC_SPACE		(128UL*1024*1024*1024)
+> > > +#endif
+> > > +#endif
+> > 
+> > So VMALLOC_SPACE has type unsigned long, whereas it previously had type
+> > <god-knows-what-usually-unsigned-long>.  Fair enough.
+> 
+> So the generic code knows enough about all the platforms Linux runs on
+> to be able to dictate that there shall be 128MB of space available on
+> all platforms?
+
+Right, it does not. But you see my first VMALLOC_SPACE definition does
+not work. We shouldn't actually explode if this goes wrong (unless the
+vmalloc space is *really* small). It is just an heuristic. But yes it
+might be an idea to get some more help from arch code here. As I said,
+I preferred not to bother just now, but I'll keep this in mind and
+ping linux-arch again before asking to merge upstream.
+
+ 
+> Second question - will ARMs separate module area still work with this
+> code in place (which allocates regions in a different address space
+> using __get_vm_area and __vmalloc_area)?
+
+I hope so. The old APIs are still in place. You will actually get lazy
+unmapping, but that should be a transparent change unless you have any
+issues with the aliasing.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
