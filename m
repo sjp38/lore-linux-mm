@@ -1,99 +1,38 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7J3c2wU032617
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 13:38:02 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7J3bgGT192636
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 13:37:42 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7J3bffN011039
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 13:37:42 +1000
-Message-ID: <48AA4003.5080300@linux.vnet.ibm.com>
-Date: Tue, 19 Aug 2008 09:07:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Tue, 19 Aug 2008 14:09:07 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] mm: unlockless reclaim
+In-Reply-To: <20080818122554.GB9062@wotan.suse.de>
+References: <20080818122428.GA9062@wotan.suse.de> <20080818122554.GB9062@wotan.suse.de>
+Message-Id: <20080819135424.60DA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
-References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com> <48A49C78.7070100@linux.vnet.ibm.com> <48A9E82E.3060009@gmail.com>
-In-Reply-To: <48A9E82E.3060009@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jiri Slaby wrote:
-> On 08/14/2008 10:58 PM, Balbir Singh wrote:
->> Jiri Slaby wrote:
->>> Hi,
->>>
->>> found this in mmotm, a fix for
->>> mm-owner-fix-race-between-swap-and-exit.patch
->>>
->> Thanks for catching this
-> 
-> Hmm, unfortunately there is one more issue with this patch.
-> memrlimit_cgroup_subsys doesn't expect NULL new cgroup and NULL task.
-> memrlimit_cgroup_mm_owner_changed blows up (called from
-> cgroup_mm_owner_callbacks as ss->mm_owner_changed).
-> 
-> I'm out for few days, please solve it somehow. Full oops message follows.
+> -		unlock_page(page);
+> +		/*
+> +		 * At this point, we have no other references and there is
+> +		 * no way to pick any more up (removed from LRU, removed
+> +		 * from pagecache). Can use non-atomic bitops now (and
+> +		 * we obviously don't have to worry about waking up a process
+> +		 * waiting on the page lock, because there are no references.
+> +		 */
+> +		__clear_page_locked(page);
+>  free_it:
+>  		nr_reclaimed++;
+>  		if (!pagevec_add(&freed_pvec, page)) {
 > 
 
-Could you please help me with the steps to reproduce the problem.  I don't seem
-to be hitting the mm->owner changed callback. I did have a test case for it when
-I developed mm->owner functionality, but it does not trigger an oops for me.
+To insert VM_BUG_ON(page_count(page) != 1) is better?
+Otherthing, looks good to me.
 
-> BUG: unable to handle kernel NULL pointer dereference at 00000000000004ac
-> IP: [<ffffffff8056c469>] _spin_lock+0x9/0x20
-> PGD 3ef84067 PUD 0
-> Oops: 0002 [2] SMP
-> last sysfs file: /sys/devices/platform/coretemp.1/temp1_input
-> CPU 0
-> Modules linked in: usblp ath5k mac80211 cfg80211 arc4 ecb cryptomgr aead
-> crypto_blkcipher crypto_algapi usbhid ohci1394 hid led_class ieee1394 evdev
-> rtc_cmos floppy ff_memless [last unloaded: cfg80211]
-> Pid: 27360, comm: automount Tainted: G      D W 2.6.27-rc3-mm1_64 #441
-> RIP: 0010:[<ffffffff8056c469>]  [<ffffffff8056c469>] _spin_lock+0x9/0x20
-> RSP: 0018:ffff88007839fd98  EFLAGS: 00010282
-> RAX: 0000000000000100 RBX: 0000000000000000 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff807d5f28 RDI: 00000000000004ac
-> RBP: ffff88007839fd98 R08: 00000000cc62b515 R09: 00000000f8f36e74
-> R10: 0000000000000001 R11: 0000000000000000 R12: 00000000000004ac
-> R13: ffffffff807d5f28 R14: ffff880047e2e500 R15: ffff880047e2e680
-> FS:  00007fca50fa66f0(0000) GS:ffffffff8070a480(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> CR2: 00000000000004ac CR3: 000000004510f000 CR4: 00000000000006e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process automount (pid: 27360, threadinfo ffff88007839e000, task ffff880047e2e500)
-> Stack:  ffff88007839fdb8 ffffffff80238ab3 ffffffff80589750 0000000000000000
->  ffff88007839fde8 ffffffff802b3f4b ffff8800010205b0 ffffffff80589750
->  0000000000000000 0000000000000000 ffff88007839fe18 ffffffff80270446
-> Call Trace:
->  [<ffffffff80238ab3>] get_task_mm+0x23/0x60
->  [<ffffffff802b3f4b>] memrlimit_cgroup_mm_owner_changed+0x1b/0x80
->  [<ffffffff80270446>] cgroup_mm_owner_callbacks+0x76/0x90
->  [<ffffffff8023d4d4>] mm_update_next_owner+0x1c4/0x240
->  [<ffffffff8023d65a>] exit_mm+0x10a/0x150
->  [<ffffffff8023f2ac>] do_exit+0x1dc/0x940
->  [<ffffffff8023375b>] ? wake_up_state+0xb/0x10
->  [<ffffffff802485c8>] ? signal_wake_up+0x38/0x40
->  [<ffffffff8023fa50>] do_group_exit+0x40/0xb0
->  [<ffffffff8023fad2>] sys_exit_group+0x12/0x20
->  [<ffffffff8020c65b>] system_call_fastpath+0x16/0x1b
-> Code: 00 00 55 48 89 e5 fa f0 81 2f 00 00 00 01 74 05 e8 dd 17 de ff c9 c3 66 66
-> 2e 0f 1f 84 00 00 00 00 00 55 b8 00 01 00 00 48 89 e5 <f0> 66 0f c1 07 38 e0 74
-> 06 f3 90 8a 07 eb f6 c9 c3 66 0f 1f 44
-> RIP  [<ffffffff8056c469>] _spin_lock+0x9/0x20
->  RSP <ffff88007839fd98>
-> CR2: 00000000000004ac
-> ---[ end trace 4eaa2a86a8e2da22 ]---
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 
--- 
-	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
