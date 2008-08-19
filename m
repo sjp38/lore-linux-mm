@@ -1,66 +1,69 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7J7Hed3020004
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 17:17:40 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7J7INVE215964
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 17:18:23 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7J7IMu1006347
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 17:18:22 +1000
-Message-ID: <48AA73B5.7010302@linux.vnet.ibm.com>
-Date: Tue, 19 Aug 2008 12:48:13 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: [discuss] memrlimit - potential applications that can use
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 19 Aug 2008 08:37:19 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [patch] mm: rewrite vmap layer
+Message-ID: <20080819073719.GC30521@flint.arm.linux.org.uk>
+References: <20080818133224.GA5258@wotan.suse.de> <20080818172446.9172ff98.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080818172446.9172ff98.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrea Righi <righi.andrea@gmail.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-After having discussed memrlimit at the container mini-summit, I've been
-investigating potential users of memrlimits. Here are the use cases that I have
-so far.
+On Mon, Aug 18, 2008 at 05:24:46PM -0700, Andrew Morton wrote:
+> On Mon, 18 Aug 2008 15:32:24 +0200
+> Nick Piggin <npiggin@suse.de> wrote:
+> > XEN and PAT and such do not like deferred TLB flushing because they can't
+> > always handle multiple aliasing virtual addresses to a physical address. They
+> > now call vm_unmap_aliases() in order to flush any deferred mappings.  That call
+> > is very expensive (well, actually not a lot more expensive than a single vunmap
+> > under the old scheme), however it should be OK if not called too often.
+> 
+> What are the prospects now for making vunmap safe from atomic (or
+> interrupt) contexts?  That's something which people keep on trying to
+> do and all the other memory-freeing functions permit it.
 
-1. To provide a soft landing mechanism for applications that exceed their memory
-limit. Currently in the memory resource controller, we swap and on failure OOM.
-2. To provide a mechanism similar to memory overcommit for control groups.
-Overcommit has finer accounting, we just account for virtual address space usage.
-3. Vserver will directly be able to port over on top of memrlimit (their address
-space limitation feature)
+We've tried lazy unmap with dma_free_coherent() on ARM and had one
+report of success and another of filesystem corruption.  Thankfully
+vmap isn't used for this, but is used for ARMs ioremap.
 
-The case against 1 has been that applications, do not tolerate malloc failure,
-does not imply that applications should not have the capability or will never be
-allowed the flexibility of doing so
+> > +/*** Per cpu kva allocator ***/
+> > +
+> > +/*
+> > + * vmap space is limited especially on 32 bit architectures. Ensure there is
+> > + * room for at least 16 percpu vmap blocks per CPU.
+> > + */
+> > +#if 0 /* constant vmalloc space size */
+> > +#define VMALLOC_SPACE		(VMALLOC_END-VMALLOC_START)
+> 
+> kill?
+> 
+> > +#else
+> > +#if BITS_PER_LONG == 32
+> > +#define VMALLOC_SPACE		(128UL*1024*1024)
+> > +#else
+> > +#define VMALLOC_SPACE		(128UL*1024*1024*1024)
+> > +#endif
+> > +#endif
+> 
+> So VMALLOC_SPACE has type unsigned long, whereas it previously had type
+> <god-knows-what-usually-unsigned-long>.  Fair enough.
 
-Other users of memory limits I found are
+So the generic code knows enough about all the platforms Linux runs on
+to be able to dictate that there shall be 128MB of space available on
+all platforms?
 
-1. php - through php.ini allows setting of maximum memory limit
-2. Apache - supports setting of memory limits for child processes (RLimitMEM
-Directive)
-3. Java/KVM all take hints about the maximum memory to be used by the application
-4. google.com/codesearch for RLIMIT_AS will show up a big list of applications
-that use memory limits.
-
-With this background, I propose that we need a mechanism of providing a memory
-overcommit feature for cgroups, the options are
-
-1. We keep memrlimit and use it. It's very flexible, but on the down side it
-does simple total_vm based accounting and provides functionality similar to
-RLIMIT_AS for control groups.
-2. We port the overcommit feature (Andrea did post patches for this), it's
-harder to implement, but provides functionality similar to what exists for
-overcommit.
-
-
-Comments?
+Second question - will ARMs separate module area still work with this
+code in place (which allocates regions in a different address space
+using __get_vm_area and __vmalloc_area)?
 
 -- 
-	Warm Regards,
-	Balbir
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
