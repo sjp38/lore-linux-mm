@@ -1,78 +1,33 @@
-Date: Tue, 19 Aug 2008 12:39:52 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: rewrite vmap layer
-Message-ID: <20080819103952.GE16446@wotan.suse.de>
-References: <20080818133224.GA5258@wotan.suse.de> <20080818172446.9172ff98.akpm@linux-foundation.org> <20080819073719.GC30521@flint.arm.linux.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080819073719.GC30521@flint.arm.linux.org.uk>
+Message-ID: <48AAC54D.8020609@linux-foundation.org>
+Date: Tue, 19 Aug 2008 08:06:21 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: sparsemem support for mips with highmem
+References: <48A4AC39.7020707@sciatl.com>	<1218753308.23641.56.camel@nimitz>	<48A4C542.5000308@sciatl.com>	<20080815080331.GA6689@alpha.franken.de>	<1218815299.23641.80.camel@nimitz>	<48A5AADE.1050808@sciatl.com>	<20080815163302.GA9846@alpha.franken.de>	<48A5B9F1.3080201@sciatl.com>	<1218821875.23641.103.camel@nimitz>	<48A5C831.3070002@sciatl.com> <20080818094412.09086445.rdunlap@xenotime.net> <48A9E89C.4020408@linux-foundation.org> <48A9F047.7050906@cisco.com>
+In-Reply-To: <48A9F047.7050906@cisco.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: David VomLehn <dvomlehn@cisco.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, C Michael Sundius <Michael.sundius@sciatl.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 08:37:19AM +0100, Russell King wrote:
-> On Mon, Aug 18, 2008 at 05:24:46PM -0700, Andrew Morton wrote:
-> > On Mon, 18 Aug 2008 15:32:24 +0200
-> > Nick Piggin <npiggin@suse.de> wrote:
-> > > XEN and PAT and such do not like deferred TLB flushing because they can't
-> > > always handle multiple aliasing virtual addresses to a physical address. They
-> > > now call vm_unmap_aliases() in order to flush any deferred mappings.  That call
-> > > is very expensive (well, actually not a lot more expensive than a single vunmap
-> > > under the old scheme), however it should be OK if not called too often.
-> > 
-> > What are the prospects now for making vunmap safe from atomic (or
-> > interrupt) contexts?  That's something which people keep on trying to
-> > do and all the other memory-freeing functions permit it.
-> 
-> We've tried lazy unmap with dma_free_coherent() on ARM and had one
-> report of success and another of filesystem corruption.  Thankfully
-> vmap isn't used for this, but is used for ARMs ioremap.
+David VomLehn wrote:
 
-Hmm. I've run it fairly extensively on x86 and ia64 (including the XFS
-workload, which makes heavy use of vmap). No problems yet here...
+> On MIPS processors, the kernel runs in unmapped memory, i.e. the TLB
+> isn't even
+> used, so I don't think you can use that trick. So, this comment doesn't
+> apply to
+> all processors.
 
-Is there anything I can do to reduce your concern, or are we resigned
-to wait-and-listen if we want to go ahead with this patch?
+In that case you have a choice between the overhead of sparsemem lookups in
+every pfn_to_page or using TLB entries to create a virtually mapped memmap
+which may create TLB pressure.
 
- 
-> > > +#if 0 /* constant vmalloc space size */
-> > > +#define VMALLOC_SPACE		(VMALLOC_END-VMALLOC_START)
-> > 
-> > kill?
-> > 
-> > > +#else
-> > > +#if BITS_PER_LONG == 32
-> > > +#define VMALLOC_SPACE		(128UL*1024*1024)
-> > > +#else
-> > > +#define VMALLOC_SPACE		(128UL*1024*1024*1024)
-> > > +#endif
-> > > +#endif
-> > 
-> > So VMALLOC_SPACE has type unsigned long, whereas it previously had type
-> > <god-knows-what-usually-unsigned-long>.  Fair enough.
-> 
-> So the generic code knows enough about all the platforms Linux runs on
-> to be able to dictate that there shall be 128MB of space available on
-> all platforms?
+The virtually mapped memmap results in smaller code and is typically more
+effective since the processor caches the TLB entries.
 
-Right, it does not. But you see my first VMALLOC_SPACE definition does
-not work. We shouldn't actually explode if this goes wrong (unless the
-vmalloc space is *really* small). It is just an heuristic. But yes it
-might be an idea to get some more help from arch code here. As I said,
-I preferred not to bother just now, but I'll keep this in mind and
-ping linux-arch again before asking to merge upstream.
-
- 
-> Second question - will ARMs separate module area still work with this
-> code in place (which allocates regions in a different address space
-> using __get_vm_area and __vmalloc_area)?
-
-I hope so. The old APIs are still in place. You will actually get lazy
-unmapping, but that should be a transparent change unless you have any
-issues with the aliasing.
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
