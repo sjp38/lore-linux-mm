@@ -1,57 +1,63 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Tue, 19 Aug 2008 17:05:33 -0400
-Message-Id: <20080819210533.27199.32744.sendpatchset@lts-notebook>
+Date: Tue, 19 Aug 2008 17:05:39 -0400
+Message-Id: <20080819210539.27199.97194.sendpatchset@lts-notebook>
 In-Reply-To: <20080819210509.27199.6626.sendpatchset@lts-notebook>
 References: <20080819210509.27199.6626.sendpatchset@lts-notebook>
-Subject: [PATCH 4/6] Mlock:  fix return value for munmap/mlock vma race
+Subject: [PATCH 5/6] Mlock:  revert mainline handling of mlock error return
 Sender: owner-linux-mm@kvack.org
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: riel@redhat.com, linux-mm <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Against 2.6.27-rc3-mmotm-080819-0259
+Against:  2.6.27-rc3-mmotm-080819-0259
 
-Now, We call downgrade_write(&mm->mmap_sem) at begin of mlock.
-It increase mlock scalability.
-
-But if mlock and munmap conflict happend, We can find vma gone.
-At that time, kernel should return ENOMEM because mlock after munmap return ENOMEM.
-(in addition, EAGAIN indicate "please try again", but mlock() called again cause error again)
-
-This problem is theoretical issue.
-I can't reproduce that vma gone on my box, but fixes is better.
+This can apply atop the mmotm series or anywhere after, say,
+mlock-count-attempts-to-free-mlocked-page-2.patch.
 
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Revert the change to make_page_present() error return.
+
+This change is intended to make mlock() error returns correct.
+make_page_present() is a lower level function used by more than
+mlock(), although only mlock() currently examines the return
+value.
+
+Subsequent patch[es] will add this error return fixup in an mlock
+specific path.
+
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
- mm/mlock.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/memory.c |   14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)
 
-Index: linux-2.6.27-rc3-mmotm/mm/mlock.c
+Index: linux-2.6.27-rc3-mmotm/mm/memory.c
 ===================================================================
---- linux-2.6.27-rc3-mmotm.orig/mm/mlock.c	2008-08-18 14:50:05.000000000 -0400
-+++ linux-2.6.27-rc3-mmotm/mm/mlock.c	2008-08-18 14:50:26.000000000 -0400
-@@ -268,7 +268,7 @@ long mlock_vma_pages_range(struct vm_are
- 		vma = find_vma(mm, start);
- 		/* non-NULL vma must contain @start, but need to check @end */
- 		if (!vma ||  end > vma->vm_end)
--			return -EAGAIN;
-+			return -ENOMEM;
- 		return nr_pages;
- 	}
- 
-@@ -389,7 +389,7 @@ success:
- 		*prev = find_vma(mm, start);
- 		/* non-NULL *prev must contain @start, but need to check @end */
- 		if (!(*prev) || end > (*prev)->vm_end)
+--- linux-2.6.27-rc3-mmotm.orig/mm/memory.c	2008-08-18 14:50:36.000000000 -0400
++++ linux-2.6.27-rc3-mmotm/mm/memory.c	2008-08-18 14:53:15.000000000 -0400
+@@ -2819,19 +2819,9 @@ int make_pages_present(unsigned long add
+ 	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
+ 	ret = get_user_pages(current, current->mm, addr,
+ 			len, write, 0, NULL, NULL);
+-	if (ret < 0) {
+-		/*
+-		   SUS require strange return value to mlock
+-		    - invalid addr generate to ENOMEM.
+-		    - out of memory should generate EAGAIN.
+-		*/
+-		if (ret == -EFAULT)
+-			ret = -ENOMEM;
+-		else if (ret == -ENOMEM)
 -			ret = -EAGAIN;
-+			ret = -ENOMEM;
- 	} else {
- 		/*
- 		 * TODO:  for unlocking, pages will already be resident, so
++	if (ret < 0)
+ 		return ret;
+-	}
+-	return ret == len ? 0 : -ENOMEM;
++	return ret == len ? 0 : -1;
+ }
+ 
+ #if !defined(__HAVE_ARCH_GATE_AREA)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
