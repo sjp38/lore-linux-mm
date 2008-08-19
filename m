@@ -1,45 +1,54 @@
-Date: Tue, 19 Aug 2008 12:05:30 +0200
+Date: Tue, 19 Aug 2008 12:07:00 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: unlockless reclaim
-Message-ID: <20080819100529.GD10447@wotan.suse.de>
-References: <20080818122428.GA9062@wotan.suse.de> <20080818122554.GB9062@wotan.suse.de> <20080819135424.60DA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch] mm: pagecache insertion fewer atomics
+Message-ID: <20080819100700.GE10447@wotan.suse.de>
+References: <20080818122428.GA9062@wotan.suse.de> <20080819143922.60DD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080819135424.60DA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080819143922.60DD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 02:09:07PM +0900, KOSAKI Motohiro wrote:
-> > -		unlock_page(page);
-> > +		/*
-> > +		 * At this point, we have no other references and there is
-> > +		 * no way to pick any more up (removed from LRU, removed
-> > +		 * from pagecache). Can use non-atomic bitops now (and
-> > +		 * we obviously don't have to worry about waking up a process
-> > +		 * waiting on the page lock, because there are no references.
-> > +		 */
-> > +		__clear_page_locked(page);
-> >  free_it:
-> >  		nr_reclaimed++;
-> >  		if (!pagevec_add(&freed_pvec, page)) {
-> > 
+On Tue, Aug 19, 2008 at 02:41:50PM +0900, KOSAKI Motohiro wrote:
+> Hi Nick,
 > 
-> To insert VM_BUG_ON(page_count(page) != 1) is better?
-> Otherthing, looks good to me.
+> > Setting and clearing the page locked when inserting it into swapcache /
+> > pagecache when it has no other references can use non-atomic page flags
+> > operations because no other CPU may be operating on it at this time.
+> > 
+> > This saves one atomic operation when inserting a page into pagecache.
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> >  include/linux/pagemap.h |   37 +++++++++++++++++++++++++++++++++----
+> >  mm/swap_state.c         |    4 ++--
+> >  2 files changed, 35 insertions(+), 6 deletions(-)
+> > 
+> > Index: linux-2.6/mm/swap_state.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/swap_state.c
+> > +++ linux-2.6/mm/swap_state.c
+> > @@ -302,7 +302,7 @@ struct page *read_swap_cache_async(swp_e
+> >  		 * re-using the just freed swap entry for an existing page.
+> >  		 * May fail (-ENOMEM) if radix-tree node allocation failed.
+> >  		 */
+> > -		set_page_locked(new_page);
+> > +		__set_page_locked(new_page);
+> >  		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
+> >  		if (likely(!err)) {
+> >  			/*
+> 
+> What version do you working on?
+> 
+> 2.6.27-rc1-mm1 is not contain set_page_locked().
+> mmotm?
 
-That is a very good idea, except that now with lockless pagecache, we're
-not so well placed to do this type of check. Actually at this point,
-the refcount will be 0 because of page_freeze_refs, and then if anybody
-else tries to do a get_page, they should hit the VM_BUG_ON in get_page.
-
- 
-> Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Thanks for looking at it.
+Upstream actually, because -mm was so far behind :) I forgot to check
+mmotm, sorry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
