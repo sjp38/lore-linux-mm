@@ -1,33 +1,94 @@
-Message-ID: <48AAC54D.8020609@linux-foundation.org>
-Date: Tue, 19 Aug 2008 08:06:21 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7JETHT5015991
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 00:29:17 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7JEUMbb262284
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 00:30:22 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7JEUMlu012908
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 00:30:22 +1000
+Date: Tue, 19 Aug 2008 19:43:45 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
+Message-ID: <20080819141344.GF25239@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
 MIME-Version: 1.0
-Subject: Re: sparsemem support for mips with highmem
-References: <48A4AC39.7020707@sciatl.com>	<1218753308.23641.56.camel@nimitz>	<48A4C542.5000308@sciatl.com>	<20080815080331.GA6689@alpha.franken.de>	<1218815299.23641.80.camel@nimitz>	<48A5AADE.1050808@sciatl.com>	<20080815163302.GA9846@alpha.franken.de>	<48A5B9F1.3080201@sciatl.com>	<1218821875.23641.103.camel@nimitz>	<48A5C831.3070002@sciatl.com> <20080818094412.09086445.rdunlap@xenotime.net> <48A9E89C.4020408@linux-foundation.org> <48A9F047.7050906@cisco.com>
-In-Reply-To: <48A9F047.7050906@cisco.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1218745013-9537-1-git-send-email-jirislaby@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David VomLehn <dvomlehn@cisco.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, C Michael Sundius <Michael.sundius@sciatl.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-David VomLehn wrote:
+* Jiri Slaby <jirislaby@gmail.com> [2008-08-14 22:16:53]:
 
-> On MIPS processors, the kernel runs in unmapped memory, i.e. the TLB
-> isn't even
-> used, so I don't think you can use that trick. So, this comment doesn't
-> apply to
-> all processors.
+> Hi,
+> 
+> found this in mmotm, a fix for
+> mm-owner-fix-race-between-swap-and-exit.patch
+>
 
-In that case you have a choice between the overhead of sparsemem lookups in
-every pfn_to_page or using TLB entries to create a virtually mapped memmap
-which may create TLB pressure.
+Does the patch below fix your problem, it's against mmotm 19th August
+2008.
 
-The virtually mapped memmap results in smaller code and is typically more
-effective since the processor caches the TLB entries.
+ 
+Reported-by: jirislaby@gmail.com
 
+Jiri reported a problem and saw an oops when the memrlimit-fix-race-with-swap
+patch is applied. He sent his patch on top to fix the problem, but ran into
+another issue. The root cause of the problem is that we are not suppose
+to call task_cgroup on NULL tasks. This patch reverts Jiri's patch and
+does not call task_cgroup if the passed task_struct (old) is NULL.
+
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ kernel/cgroup.c |    5 +++--
+ kernel/exit.c   |    2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff -puN kernel/exit.c~memrlimit-fix-race-with-swap-oops kernel/exit.c
+--- linux-2.6.27-rc3/kernel/exit.c~memrlimit-fix-race-with-swap-oops	2008-08-19 18:50:39.000000000 +0530
++++ linux-2.6.27-rc3-balbir/kernel/exit.c	2008-08-19 18:51:05.000000000 +0530
+@@ -641,8 +641,8 @@ retry:
+ 	 * the callback and take action
+ 	 */
+ 	down_write(&mm->mmap_sem);
+-	cgroup_mm_owner_callbacks(mm->owner, NULL);
+ 	mm->owner = NULL;
++	cgroup_mm_owner_callbacks(mm->owner, NULL);
+ 	up_write(&mm->mmap_sem);
+ 	return;
+ 
+diff -puN kernel/cgroup.c~memrlimit-fix-race-with-swap-oops kernel/cgroup.c
+--- linux-2.6.27-rc3/kernel/cgroup.c~memrlimit-fix-race-with-swap-oops	2008-08-19 18:50:39.000000000 +0530
++++ linux-2.6.27-rc3-balbir/kernel/cgroup.c	2008-08-19 18:55:38.000000000 +0530
+@@ -2743,13 +2743,14 @@ void cgroup_fork_callbacks(struct task_s
+  */
+ void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+ {
+-	struct cgroup *oldcgrp, *newcgrp = NULL;
++	struct cgroup *oldcgrp = NULL, *newcgrp = NULL;
+ 
+ 	if (need_mm_owner_callback) {
+ 		int i;
+ 		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+ 			struct cgroup_subsys *ss = subsys[i];
+-			oldcgrp = task_cgroup(old, ss->subsys_id);
++			if (old)
++				oldcgrp = task_cgroup(old, ss->subsys_id);
+ 			if (new)
+ 				newcgrp = task_cgroup(new, ss->subsys_id);
+ 			if (oldcgrp == newcgrp)
+diff -puN mm/memrlimitcgroup.c~memrlimit-fix-race-with-swap-oops mm/memrlimitcgroup.c
+_
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
