@@ -1,33 +1,48 @@
-Message-ID: <48AB1DE2.30402@cs.helsinki.fi>
-Date: Tue, 19 Aug 2008 22:24:18 +0300
+Message-ID: <48AB1E43.2010408@cs.helsinki.fi>
+Date: Tue, 19 Aug 2008 22:25:55 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] kmemtrace: Better alternative to "kmemtrace: fix
- printk format warnings".
-References: <1219167807-5407-1-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-2-git-send-email-eduard.munteanu@linux360.ro>
-In-Reply-To: <1219167807-5407-2-git-send-email-eduard.munteanu@linux360.ro>
+Subject: Re: [PATCH 1/5] Revert "kmemtrace: fix printk format warnings"
+References: <1219167807-5407-1-git-send-email-eduard.munteanu@linux360.ro> <Pine.LNX.4.64.0808191049260.7877@shark.he.net> <20080819175440.GA5435@localhost> <20080819181652.GA29757@Krystal> <20080819183203.GB5520@localhost>
+In-Reply-To: <20080819183203.GB5520@localhost>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, cl@linux-foundation.org, mathieu.desnoyers@polymtl.ca, tzanussi@gmail.com
+Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, "Randy.Dunlap" <rdunlap@xenotime.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, cl@linux-foundation.org, tzanussi@gmail.com
 List-ID: <linux-mm.kvack.org>
 
 Eduard - Gabriel Munteanu wrote:
-> Fix the problem "kmemtrace: fix printk format warnings" attempted to fix,
-> but resulted in marker-probe format mismatch warnings. Instead of carrying
-> size_t into probes, we get rid of it by casting to unsigned long, just as
-> we did with gfp_t.
+> On Tue, Aug 19, 2008 at 02:16:53PM -0400, Mathieu Desnoyers wrote:
+>> Question :
+>>
+>> Is this kmemtrace marker meant to be exposed to userspace ?
+>>
+>> I suspect not. In all case, not directly. I expect in-kernel probes to
+>> be connected on these markers which will get the arguments they need,
+>> and maybe access the inner data structures. Anyhow, tracepoints should
+>> be used for that, not markers. You can later put markers in the probes
+>> which are themselves connected to tracepoints.
+>>
+>> Tracepoints = in-kernel tracing API.
+>>
+>> Markers = Data-formatting tracing API, meant to export the data either
+>> to user-space in text or binary format.
+>>
+>> See
+>>
+>> http://git.kernel.org/?p=linux/kernel/git/compudj/linux-2.6-lttng.git;a=shortlog
+>>
+>> tracepoint-related patches.
 > 
-> This way, we don't need to change marker format strings and we don't have
-> to rely on other format specifiers like "%zu", making for consistent use
-> of more generic data types (since there are no format specifiers for
-> gfp_t, for example).
-> 
-> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+> I think we're ready to try tracepoints. Pekka, could you merge Mathieu's
+> tracepoints or otherwise provide a branch where I could submit a
+> tracepoint conversion patch for kmemtrace?
 
-Applied, thanks!
+Sorry, that's too much of a hassle for me. I'll happily take your 
+conversion patch once tracepoints hit mainline. Mathieu, are you aiming 
+for 2.6.28?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
