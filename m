@@ -1,84 +1,45 @@
-Date: Tue, 19 Aug 2008 12:19:07 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: dirty page tracking race fix
-Message-ID: <20080819101907.GA16446@wotan.suse.de>
-References: <20080818053821.GA3011@wotan.suse.de> <20080819021155.3d92b193.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080819021155.3d92b193.akpm@linux-foundation.org>
+Date: Tue, 19 Aug 2008 19:20:49 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] mm: unlockless reclaim
+In-Reply-To: <20080819100529.GD10447@wotan.suse.de>
+References: <20080819135424.60DA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080819100529.GD10447@wotan.suse.de>
+Message-Id: <20080819191820.12BF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 02:11:55AM -0700, Andrew Morton wrote:
-> On Mon, 18 Aug 2008 07:38:21 +0200 Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > There is a race with dirty page accounting where a page may not properly
-> > be accounted for.
+> On Tue, Aug 19, 2008 at 02:09:07PM +0900, KOSAKI Motohiro wrote:
+> > > -		unlock_page(page);
+> > > +		/*
+> > > +		 * At this point, we have no other references and there is
+> > > +		 * no way to pick any more up (removed from LRU, removed
+> > > +		 * from pagecache). Can use non-atomic bitops now (and
+> > > +		 * we obviously don't have to worry about waking up a process
+> > > +		 * waiting on the page lock, because there are no references.
+> > > +		 */
+> > > +		__clear_page_locked(page);
+> > >  free_it:
+> > >  		nr_reclaimed++;
+> > >  		if (!pagevec_add(&freed_pvec, page)) {
+> > > 
 > > 
-> > clear_page_dirty_for_io() calls page_mkclean; then TestClearPageDirty.
-> > 
-> > page_mkclean walks the rmaps for that page, and for each one it cleans and
-> > write protects the pte if it was dirty. It uses page_check_address to find the
-> > pte. That function has a shortcut to avoid the ptl if the pte is not
-> > present. Unfortunately, the pte can be switched to not-present then back to
-> > present by other code while holding the page table lock -- this should not
-> > be a signal for page_mkclean to ignore that pte, because it may be dirty.
-> > 
-> > For example, powerpc64's set_pte_at will clear a previously present pte before
-> > setting it to the desired value. There may also be other code in core mm or
-> > in arch which do similar things.
-> > 
-> > The consequence of the bug is loss of data integrity due to msync, and loss
-> > of dirty page accounting accuracy. XIP's __xip_unmap could easily also be
-> > unreliable (depending on the exact XIP locking scheme), which can lead to data
-> > corruption.
-> > 
-> > Fix this by having an option to always take ptl to check the pte in
-> > page_check_address.
-> > 
-> > It's possible to retain this optimization for page_referenced and
-> > try_to_unmap.
+> > To insert VM_BUG_ON(page_count(page) != 1) is better?
+> > Otherthing, looks good to me.
 > 
-> Is it also possible to retain it for
-> 
-> /**
->  * page_mapped_in_vma - check whether a page is really mapped in a VMA
->  * @page: the page to test
->  * @vma: the VMA to test
->  *
->  * Returns 1 if the page is mapped into the page tables of the VMA, 0
->  * if the page is not mapped into the page tables of this VMA.  Only
->  * valid for normal file or anonymous VMAs.
->  */
-> static int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
-> {
-> 	unsigned long address;
-> 	pte_t *pte;
-> 	spinlock_t *ptl;
-> 
-> 	address = vma_address(page, vma);
-> 	if (address == -EFAULT)		/* out of vma range */
-> 		return 0;
-> 	pte = page_check_address(page, vma->vm_mm, address, &ptl);
-> 	if (!pte)			/* the page is not in this mm */
-> 		return 0;
-> 	pte_unmap_unlock(pte, ptl);
-> 
-> 	return 1;
-> }
-> 
-> ?
+> That is a very good idea, except that now with lockless pagecache, we're
+> not so well placed to do this type of check. Actually at this point,
+> the refcount will be 0 because of page_freeze_refs, and then if anybody
+> else tries to do a get_page, they should hit the VM_BUG_ON in get_page.
 
-No. While callers of page_mapped_in_vma might be OK with it, the function
-comments themselves indicate we can't take the shortcut.
+Ah, you are right.
+Sorry, I often forgot it ;)
 
-It was possible the retain the optimization for page_referenced and
-try_to_unmap because it is OK if those guys fail in rare cases. Page
-reclaim will do a final non-racy check of refcounts.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
