@@ -1,52 +1,44 @@
-Date: Tue, 19 Aug 2008 12:25:10 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: page allocator minor speedup
-Message-ID: <20080819102510.GD16446@wotan.suse.de>
-References: <20080818122428.GA9062@wotan.suse.de> <20080818122957.GE9062@wotan.suse.de> <84144f020808180657v2bdd5f76l4b0f1897c73ec0c0@mail.gmail.com> <20080819074911.GA10447@wotan.suse.de> <1219132301.7813.358.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1219132301.7813.358.camel@penberg-laptop>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m7JAaCd8018824
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:12 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7JAaC2u1310758
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:12 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m7JAaBZ6013950
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2008 16:06:11 +0530
+Message-ID: <48AAA217.8040307@linux.vnet.ibm.com>
+Date: Tue, 19 Aug 2008 16:06:07 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
+References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com> <48A49C78.7070100@linux.vnet.ibm.com> <48A9E82E.3060009@gmail.com> <48AA4003.5080300@linux.vnet.ibm.com> <48AA970D.5050403@gmail.com>
+In-Reply-To: <48AA970D.5050403@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 10:51:41AM +0300, Pekka Enberg wrote:
-> Hi Nick,
+Jiri Slaby wrote:
+> On 08/19/2008 05:37 AM, Balbir Singh wrote:
+>> Could you please help me with the steps to reproduce the problem.  I don't seem
+>> to be hitting the mm->owner changed callback. I did have a test case for it when
+>> I developed mm->owner functionality, but it does not trigger an oops for me.
 > 
-> On Mon, Aug 18, 2008 at 3:29 PM, Nick Piggin <npiggin@suse.de> wrote:
-> > > > Now that we don't put a ZERO_PAGE in the pagetables any more, and the
-> > > > "remove PageReserved from core mm" patch has had a long time to mature,
-> > > > let's remove the page reserved logic from the allocator.
-> > > >
-> > > > This saves several branches and about 100 bytes in some important paths.
-> ???
-> On Mon, Aug 18, 2008 at 04:57:00PM +0300, Pekka Enberg wrote:
-> > > Cool. Any numbers for this?
-> 
-> ???On Tue, 2008-08-19 at 09:49 +0200, Nick Piggin wrote:
-> > No, no numbers. I expect it would be very difficult to measure because
-> > it probably only starts saving cycles when the workload exceeds L1I and/or
-> > the branch caches.
-> 
-> OK, I am asking this because any improvements in the page allocator fast
-> paths are going to be a gain for SLUB intensive workloads as well.
+> I have no idea. My config is at:
+> http://decibel.fi.muni.cz/~xslaby/config-memrlimit-oops
+> I don't play with cgroups or anything, I just work on the system. Do you need a
+> test case, it's obvious from the code as far as I can see?
 
-Right. "OLTP" is *very* cache and branch sensitive... but I doubt this
-would stand out from the noise.
+Yes, the problem is obvious, but I usually use small test cases or test
+scenarios to verify that the problem is fixed.
 
-BTW. I have a patch somewhere that adds a new interface to the page
-allocator which avoids setting the page refcount. This way if you're
-careful you can free the page after use without the expensive
-atomic_dec_and_test & branch.
-
-I didn't quite get it into a form that I like (would have required some
-more extensive page allocator rework). But if you're interested in
-numbers, then what I had should be enough to get an idea...
-
-Remember to give SLAB the same advantage too ;)!
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
