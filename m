@@ -1,76 +1,29 @@
-Date: Tue, 19 Aug 2008 02:11:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: dirty page tracking race fix
-Message-Id: <20080819021155.3d92b193.akpm@linux-foundation.org>
-In-Reply-To: <20080818053821.GA3011@wotan.suse.de>
-References: <20080818053821.GA3011@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by gv-out-0910.google.com with SMTP id l14so1492724gvf.19
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2008 02:49:04 -0700 (PDT)
+Message-ID: <48AA970D.5050403@gmail.com>
+Date: Tue, 19 Aug 2008 11:49:01 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
+References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com> <48A49C78.7070100@linux.vnet.ibm.com> <48A9E82E.3060009@gmail.com> <48AA4003.5080300@linux.vnet.ibm.com>
+In-Reply-To: <48AA4003.5080300@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Aug 2008 07:38:21 +0200 Nick Piggin <npiggin@suse.de> wrote:
+On 08/19/2008 05:37 AM, Balbir Singh wrote:
+> Could you please help me with the steps to reproduce the problem.  I don't seem
+> to be hitting the mm->owner changed callback. I did have a test case for it when
+> I developed mm->owner functionality, but it does not trigger an oops for me.
 
-> There is a race with dirty page accounting where a page may not properly
-> be accounted for.
-> 
-> clear_page_dirty_for_io() calls page_mkclean; then TestClearPageDirty.
-> 
-> page_mkclean walks the rmaps for that page, and for each one it cleans and
-> write protects the pte if it was dirty. It uses page_check_address to find the
-> pte. That function has a shortcut to avoid the ptl if the pte is not
-> present. Unfortunately, the pte can be switched to not-present then back to
-> present by other code while holding the page table lock -- this should not
-> be a signal for page_mkclean to ignore that pte, because it may be dirty.
-> 
-> For example, powerpc64's set_pte_at will clear a previously present pte before
-> setting it to the desired value. There may also be other code in core mm or
-> in arch which do similar things.
-> 
-> The consequence of the bug is loss of data integrity due to msync, and loss
-> of dirty page accounting accuracy. XIP's __xip_unmap could easily also be
-> unreliable (depending on the exact XIP locking scheme), which can lead to data
-> corruption.
-> 
-> Fix this by having an option to always take ptl to check the pte in
-> page_check_address.
-> 
-> It's possible to retain this optimization for page_referenced and
-> try_to_unmap.
-
-Is it also possible to retain it for
-
-/**
- * page_mapped_in_vma - check whether a page is really mapped in a VMA
- * @page: the page to test
- * @vma: the VMA to test
- *
- * Returns 1 if the page is mapped into the page tables of the VMA, 0
- * if the page is not mapped into the page tables of this VMA.  Only
- * valid for normal file or anonymous VMAs.
- */
-static int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
-{
-	unsigned long address;
-	pte_t *pte;
-	spinlock_t *ptl;
-
-	address = vma_address(page, vma);
-	if (address == -EFAULT)		/* out of vma range */
-		return 0;
-	pte = page_check_address(page, vma->vm_mm, address, &ptl);
-	if (!pte)			/* the page is not in this mm */
-		return 0;
-	pte_unmap_unlock(pte, ptl);
-
-	return 1;
-}
-
-?
+I have no idea. My config is at:
+http://decibel.fi.muni.cz/~xslaby/config-memrlimit-oops
+I don't play with cgroups or anything, I just work on the system. Do you need a
+test case, it's obvious from the code as far as I can see?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
