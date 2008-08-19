@@ -1,10 +1,10 @@
-Message-ID: <48AB1A8A.9010007@cs.helsinki.fi>
-Date: Tue, 19 Aug 2008 22:10:02 +0300
+Message-ID: <48AB1A94.8020701@cs.helsinki.fi>
+Date: Tue, 19 Aug 2008 22:10:12 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] kmemtrace: SLUB hooks.
-References: <1219167807-5407-1-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-2-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-3-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-4-git-send-email-eduard.munteanu@linux360.ro>
-In-Reply-To: <1219167807-5407-4-git-send-email-eduard.munteanu@linux360.ro>
+Subject: Re: [PATCH 5/5] kmemtrace: Fix 2 typos in documentation.
+References: <1219167807-5407-1-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-2-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-3-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-4-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-5-git-send-email-eduard.munteanu@linux360.ro>
+In-Reply-To: <1219167807-5407-5-git-send-email-eduard.munteanu@linux360.ro>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,7 +14,8 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@
 List-ID: <linux-mm.kvack.org>
 
 Eduard - Gabriel Munteanu wrote:
-> This adds hooks for the SLUB allocator, to allow tracing with kmemtrace.
+> Corrected the ABI description and the kmemtrace usage guide. Thanks to
+> Randy Dunlap for noticing these errors.
 > 
 > Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 
