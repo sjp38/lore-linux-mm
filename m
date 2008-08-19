@@ -1,39 +1,23 @@
-Message-ID: <48AB1817.8040100@cs.helsinki.fi>
-Date: Tue, 19 Aug 2008 21:59:35 +0300
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] SLUB: Replace __builtin_return_address(0) with	_RET_IP_.
+Received: by gxk8 with SMTP id 8so6125431gxk.14
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2008 12:08:20 -0700 (PDT)
+Date: Tue, 19 Aug 2008 22:05:06 +0300
+From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Subject: Re: [PATCH 3/5] SLUB: Replace __builtin_return_address(0) with
+	_RET_IP_.
+Message-ID: <20080819190506.GC5520@localhost>
 References: <1219167807-5407-1-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-2-git-send-email-eduard.munteanu@linux360.ro> <1219167807-5407-3-git-send-email-eduard.munteanu@linux360.ro> <48AB0D69.4090703@linux-foundation.org> <20080819182423.GA5520@localhost> <48AB1769.3040703@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <48AB1769.3040703@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, mathieu.desnoyers@polymtl.ca, tzanussi@gmail.com
+Cc: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, mathieu.desnoyers@polymtl.ca, tzanussi@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Eduard - Gabriel Munteanu wrote:
->> On Tue, Aug 19, 2008 at 01:14:01PM -0500, Christoph Lameter wrote:
->>> Eduard - Gabriel Munteanu wrote:
->>>
->>>>  void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
->>>>  {
->>>> -	return slab_alloc(s, gfpflags, -1, __builtin_return_address(0));
->>>> +	return slab_alloc(s, gfpflags, -1, (void *) _RET_IP_);
->>>>  }
->>> Could you get rid of the casts by changing the type of parameter of slab_alloc()?
->> I just looked at it and it isn't a trivial change. slab_alloc() calls
->> other functions which expect a void ptr. Even if slab_alloc() were to
->> take an unsigned long and then cast it to a void ptr, other functions do
->> call slab_alloc() with void ptr arguments (so the casts would move
->> there).
->>
->> I'd rather have this merged as it is and change things later, so that
->> kmemtrace gets some testing from Pekka and others. 
->>
-> 
+On Tue, Aug 19, 2008 at 01:56:41PM -0500, Christoph Lameter wrote:
+
 > Well maybe this patch will do it then:
 > 
 > Subject: slub: Use _RET_IP and use "unsigned long" for kernel text addresses
@@ -42,11 +26,16 @@ Christoph Lameter wrote:
 > instead of void * for addresses.
 > 
 > Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> ---
+>  mm/slub.c |   46 +++++++++++++++++++++++-----------------------
+>  1 file changed, 23 insertions(+), 23 deletions(-)
 
-Heh, heh. I'm happy to take your patch or alternatively you can ACK mine 
-(which is slightly different):
+It seems Pekka just submitted something like this. Though I think using 0L
+should be replaced with 0UL to be fully correct.
 
-http://lkml.org/lkml/2008/8/19/336
+Pekka, should I test one of these variants and resubmit, or will you
+merge it by yourself?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
