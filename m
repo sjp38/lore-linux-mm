@@ -1,79 +1,80 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7KIEbdZ012597
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 14:14:37 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7KIBr0o229930
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 14:11:53 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7KIBrJ9006872
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 14:11:53 -0400
-Subject: Re: [BUG] Make setup_zone_migrate_reserve() aware of overlapping
-	nodes
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1219252134.13885.25.camel@localhost.localdomain>
-References: <1218837685.12953.11.camel@localhost.localdomain>
-	 <1219252134.13885.25.camel@localhost.localdomain>
-Content-Type: text/plain; charset=UTF-8
-Date: Wed, 20 Aug 2008 11:11:51 -0700
-Message-Id: <1219255911.8960.41.camel@nimitz>
+Date: Wed, 20 Aug 2008 11:31:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 0/2] Quicklist is slighly problematic.
+Message-Id: <20080820113131.f032c8a2.akpm@linux-foundation.org>
+In-Reply-To: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, mel@csn.ul.ie, apw <apw@shadowen.org>, agl <agl@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-08-20 at 12:08 -0500, Adam Litke wrote:
-> I have gotten to the root cause of the hugetlb badness I reported back
-> on August 15th.  My system has the following memory topology (note the
-> overlapping node):
+On Wed, 20 Aug 2008 20:05:51 +0900
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> Hi Cristoph,
 > 
-> 	i>>?Node 0 Memory: 0x8000000-0x44000000
-> 	i>>?Node 1 Memory: 0x0-0x8000000 0x44000000-0x80000000
+> Thank you for explain your quicklist plan at OLS.
 > 
-> setup_zone_migrate_reserve() scans the address range 0x0-0x8000000
-> looking for a pageblock to move onto the MIGRATE_RESERVE list.  Finding
-> no candidates, it happily continues the scan into 0x8000000-0x44000000.
-> When a pageblock is found, the pages are moved to the MIGRATE_RESERVE
-> list on the wrong zone.  Oops.
+> So, I made summary to issue of quicklist.
+> if you have a bit time, Could you please read this mail and patches?
+> And, if possible, Could you please tell me your feeling?
+> 
+> 
+> --------------------------------------------------------------------
+> 
+> Now, Quicklist store some page in each CPU as cache.
+> (Each CPU has node_free_pages/16 pages)
+> 
+> and it is used for page table cache.
+> Then, exit() increase cache, the other hand fork() spent it.
+> 
+> So, if apache type (one parent and many child model) middleware run,
+> One CPU process fork(), Other CPU process the middleware work and exit().
+> 
+> At that time, One CPU don't have page table cache at all,
+> Others have maximum caches.
+> 
+> 	QList_max = (#ofCPUs - 1) x Free / 16
+> 	=> QList_max / (Free + QList_max) = (#ofCPUs - 1) / (16 + #ofCPUs - 1)
+> 
+> So, How much quicklist spent memory at maximum case?
+> That is #CPUs proposional because it is per CPU cache but cache amount calculation doesn't use #ofCPUs.
+> 
+> 	Above calculation mean
+> 
+> 	 Number of CPUs per node            2    4    8   16
+> 	 ==============================  ====================
+> 	 QList_max / (Free + QList_max)   5.8%  16%  30%  48%
+> 
+> 
+> Wow! Quicklist can spent about 50% memory at worst case.
+> More unfortunately, it doesn't have any cache shrinking mechanism.
+> So it cause some wrong thing.
+> 
+> 1. End user misunderstand to memory leak happend.
+> 	=> /proc/meminfo should display amount quicklist
+> 
+> 2. It can cause OOM killer
+> 	=> Amount of quicklists shouldn't be proposional to #ofCPUs.
+> 
 
-This eventually gets down into move_freepages() via:
+OK, that's a fatal bug and it's present in 2.6.25.x and 2.6.26.x.  A
+serious issue.
 
-	->setup_zone_migrate_reserve()
-	 ->move_freepages_block()
-	  ->move_freepages()
-right?
+The patches do apply to both stable kernels and I have tagged them for
+backporting into them.  They're nice and small, but I didn't get a
+really solid yes-this-is-what-we-should-do from Christoph?
 
-It looks like there have been bugs in this area before in
-move_freepages().  Should there be a more stringent check in *there*?
-Maybe a warning?
-> i>>?
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2512,6 +2512,10 @@ static void setup_zone_migrate_reserve(struct
-> zone *zone)
->                                                         pageblock_order;
->  
->         for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-> +               /* Watch out for overlapping nodes */
-> +               if (!early_pfn_in_nid(pfn, zone->node))
-> +                       continue;
 
-zone->node doesn't exist on !CONFIG_NUMA. :(
-
-You probably want:
-
-	if (!early_pfn_in_nid(pfn, zone_to_nid(zone)))
-		continue;
-
-Are you sure you need the "early_" variant here?  We're not using
-early_pfn_valid() right below it.  I guess you could also use:
-
-	if (!page_to_nid(page) != zone_to_nid(zone))
-		continue;
-
--- Dave
+This (from [patch 2/2]): "(Although its patch applied, quicklist can
+waste 64GB on 1TB server (= 1TB / 16), it is still too much??)" is a
+bit of a worry.  Yes, 64GB is too much!  But at least this is now only
+a performance issue rather than a stability issue, yes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
