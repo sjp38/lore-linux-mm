@@ -1,95 +1,43 @@
-Date: Wed, 20 Aug 2008 17:35:57 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6] Mlock:  make mlock error return Posixly Correct
-In-Reply-To: <20080819210545.27199.5276.sendpatchset@lts-notebook>
-References: <20080819210509.27199.6626.sendpatchset@lts-notebook> <20080819210545.27199.5276.sendpatchset@lts-notebook>
-Message-Id: <20080820163559.12D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Date: Wed, 20 Aug 2008 11:02:34 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: rewrite vmap layer
+Message-ID: <20080820090234.GA7018@wotan.suse.de>
+References: <20080818133224.GA5258@wotan.suse.de> <48AADBDC.2000608@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <48AADBDC.2000608@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, akpm@linux-foundation.org, riel@redhat.com, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> From:  KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Tue, Aug 19, 2008 at 09:42:36AM -0500, Christoph Lameter wrote:
+> Nick Piggin wrote:
 > 
-> Against:  2.6.27-rc3-mmotm-080816-0202
+> > +static void free_unmap_vmap_area(struct vmap_area *va)
+> > +{
+> > +	va->flags |= VM_LAZY_FREE;
+> > +	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+> > +	if (unlikely(atomic_read(&vmap_lazy_nr) > LAZY_MAX))
+> > +		purge_vmap_area_lazy();
+> > +}
 > 
-> Rework Posix error return for mlock().
-> 
-> Translate get_user_pages() error to posix specified error codes.
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> 
->  mm/memory.c |    2 +-
->  mm/mlock.c  |   27 ++++++++++++++++++++++++---
->  2 files changed, 25 insertions(+), 4 deletions(-)
-> 
-> Index: linux-2.6.27-rc3-mmotm/mm/mlock.c
-> ===================================================================
-> --- linux-2.6.27-rc3-mmotm.orig/mm/mlock.c	2008-08-18 15:57:11.000000000 -0400
-> +++ linux-2.6.27-rc3-mmotm/mm/mlock.c	2008-08-18 15:57:39.000000000 -0400
-> @@ -143,6 +143,18 @@ static void munlock_vma_page(struct page
->  	}
->  }
->  
-> +/*
-> + * convert get_user_pages() return value to posix mlock() error
-> + */
-> +static int __mlock_posix_error_return(long retval)
-> +{
-> +	if (retval == -EFAULT)
-> +		retval = -ENOMEM;
-> +	else if (retval == -ENOMEM)
-> +		retval = -EAGAIN;
-> +	return retval;
-> +}
-> +
->  /**
->   * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
->   * @vma:   target vma
-> @@ -209,8 +221,13 @@ static long __mlock_vma_pages_range(stru
->  		 * or for addresses that map beyond end of a file.
->  		 * We'll mlock the the pages if/when they get faulted in.
->  		 */
-> -		if (ret < 0)
-> +		if (ret < 0) {
-> +			if (vma->vm_flags & VM_NONLINEAR)
-> +				ret = 0;
-> +			else
-> +				ret = __mlock_posix_error_return(ret);
->  			break;
-> +		}
->  		if (ret == 0) {
->  			/*
->  			 * We know the vma is there, so the only time
+> Could you check here if we are in an atomic context and then simply not purge
+> the vmap area? That may we may get to a vfree that can be run in an atomic
+> context.
 
-__mlock_vma_pages_range is used by mmap() and mlock().
+If the locks and per-cpu access is made irq safe, then yes.
 
-mlock case 
+ 
+> Or run purge_vma_area_lazy from keventd?
+ 
+Right. But that's only needed if we want to vmap from irq context too
+(otherwise we can just do the purge check at vmap time).
 
-	sys_mlock
-		do_mlock
-			mlock_fixup
-				__mlock_vma_pages_range
-
-mmap case
-
-	do_mmap_pgoff
-		mmap_region
-			mlock_vma_pages_range
-				__mlock_vma_pages_range
-
-
-mlock() need error code if vma permission failure happend.
-but mmap() (and remap_pages_range(), etc..) should ignore it.
-
-So, mlock_vma_pages_range() should ignore __mlock_vma_pages_range()'s error code.
-
-
+Is there any good reason to be able to vmap or vunmap from interrupt
+time, though?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
