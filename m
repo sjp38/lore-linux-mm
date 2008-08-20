@@ -1,80 +1,86 @@
-Date: Wed, 20 Aug 2008 11:31:31 -0700
+Date: Wed, 20 Aug 2008 11:35:59 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH 0/2] Quicklist is slighly problematic.
-Message-Id: <20080820113131.f032c8a2.akpm@linux-foundation.org>
-In-Reply-To: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/2] Show quicklist at meminfo
+Message-Id: <20080820113559.f559a411.akpm@linux-foundation.org>
+In-Reply-To: <20080820200607.12ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080820200607.12ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com, stable@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Aug 2008 20:05:51 +0900
+On Wed, 20 Aug 2008 20:07:06 +0900
 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Hi Cristoph,
-> 
-> Thank you for explain your quicklist plan at OLS.
-> 
-> So, I made summary to issue of quicklist.
-> if you have a bit time, Could you please read this mail and patches?
-> And, if possible, Could you please tell me your feeling?
+> Now, Quicklist can spent several GB memory.
+> So, if end user can't hou much spent memory, he misunderstand to memory leak happend.
 > 
 > 
-> --------------------------------------------------------------------
+> after this patch applied, /proc/meminfo output following.
 > 
-> Now, Quicklist store some page in each CPU as cache.
-> (Each CPU has node_free_pages/16 pages)
+> % cat /proc/meminfo
 > 
-> and it is used for page table cache.
-> Then, exit() increase cache, the other hand fork() spent it.
+> MemTotal:        7701504 kB
+> MemFree:         5159040 kB
+> Buffers:          112960 kB
+> Cached:           337536 kB
+> SwapCached:            0 kB
+> Active:           218944 kB
+> Inactive:         350848 kB
+> Active(anon):     120832 kB
+> Inactive(anon):        0 kB
+> Active(file):      98112 kB
+> Inactive(file):   350848 kB
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> SwapTotal:       2031488 kB
+> SwapFree:        2031488 kB
+> Dirty:               320 kB
+> Writeback:             0 kB
+> AnonPages:        119488 kB
+> Mapped:            38528 kB
+> Slab:            1595712 kB
+> SReclaimable:      23744 kB
+> SUnreclaim:      1571968 kB
+> PageTables:        14336 kB
+> NFS_Unstable:          0 kB
+> Bounce:                0 kB
+> WritebackTmp:          0 kB
+> CommitLimit:     5882240 kB
+> Committed_AS:     356672 kB
+> VmallocTotal:   17592177655808 kB
+> VmallocUsed:       29056 kB
+> VmallocChunk:   17592177626304 kB
+> Quicklists:       283776 kB
+> HugePages_Total:     0
+> HugePages_Free:      0
+> HugePages_Rsvd:      0
+> HugePages_Surp:      0
+> Hugepagesize:    262144 kB
 > 
-> So, if apache type (one parent and many child model) middleware run,
-> One CPU process fork(), Other CPU process the middleware work and exit().
-> 
-> At that time, One CPU don't have page table cache at all,
-> Others have maximum caches.
-> 
-> 	QList_max = (#ofCPUs - 1) x Free / 16
-> 	=> QList_max / (Free + QList_max) = (#ofCPUs - 1) / (16 + #ofCPUs - 1)
-> 
-> So, How much quicklist spent memory at maximum case?
-> That is #CPUs proposional because it is per CPU cache but cache amount calculation doesn't use #ofCPUs.
-> 
-> 	Above calculation mean
-> 
-> 	 Number of CPUs per node            2    4    8   16
-> 	 ==============================  ====================
-> 	 QList_max / (Free + QList_max)   5.8%  16%  30%  48%
-> 
-> 
-> Wow! Quicklist can spent about 50% memory at worst case.
-> More unfortunately, it doesn't have any cache shrinking mechanism.
-> So it cause some wrong thing.
-> 
-> 1. End user misunderstand to memory leak happend.
-> 	=> /proc/meminfo should display amount quicklist
-> 
-> 2. It can cause OOM killer
-> 	=> Amount of quicklists shouldn't be proposional to #ofCPUs.
-> 
+> ...
+>
+>  		K(committed),
+>  		(unsigned long)VMALLOC_TOTAL >> 10,
+>  		vmi.used >> 10,
+> -		vmi.largest_chunk >> 10
+> +		vmi.largest_chunk >> 10,
+> +		K(quicklist_total_size())
+>  		);
 
-OK, that's a fatal bug and it's present in 2.6.25.x and 2.6.26.x.  A
-serious issue.
+quicklist_total_size() is racy against cpu hotplug.  That's OK for
+/proc/meminfo purposes (occasional transient inaccuracy?), but will it
+crash?  Not in the current implementation of per_cpu() afaict, but it
+might crash if we ever teach cpu hotunplug to free up the percpu
+resources.
 
-The patches do apply to both stable kernels and I have tagged them for
-backporting into them.  They're nice and small, but I didn't get a
-really solid yes-this-is-what-we-should-do from Christoph?
-
-
-This (from [patch 2/2]): "(Although its patch applied, quicklist can
-waste 64GB on 1TB server (= 1TB / 16), it is still too much??)" is a
-bit of a worry.  Yes, 64GB is too much!  But at least this is now only
-a performance issue rather than a stability issue, yes?
+I see no cpu hotplug handling in the quicklist code.  Do we leak all
+the hot-unplugged CPU's pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
