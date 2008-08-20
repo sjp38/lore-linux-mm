@@ -1,32 +1,126 @@
-Date: Tue, 19 Aug 2008 23:32:50 -0400
-From: Kyle McMartin <kyle@mcmartin.ca>
-Subject: Re: [patch] mm: rewrite vmap layer
-Message-ID: <20080820033249.GA19241@phobos.i.cabal.ca>
-References: <20080818133224.GA5258@wotan.suse.de> <20080818172446.9172ff98.akpm@linux-foundation.org> <20080819073719.GC30521@flint.arm.linux.org.uk> <20080819103952.GE16446@wotan.suse.de>
+Message-ID: <48ABA9A8.1060806@cn.fujitsu.com>
+Date: Wed, 20 Aug 2008 13:20:40 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080819103952.GE16446@wotan.suse.de>
+Subject: Re: [PATCH 1/1] mm_owner: fix cgroup null dereference
+References: <1218745013-9537-1-git-send-email-jirislaby@gmail.com> <20080819141344.GF25239@balbir.in.ibm.com>
+In-Reply-To: <20080819141344.GF25239@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Jiri Slaby <jirislaby@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 19, 2008 at 12:39:52PM +0200, Nick Piggin wrote:
-> > Second question - will ARMs separate module area still work with this
-> > code in place (which allocates regions in a different address space
-> > using __get_vm_area and __vmalloc_area)?
+Balbir Singh wote:
+> * Jiri Slaby <jirislaby@gmail.com> [2008-08-14 22:16:53]:
 > 
-> I hope so. The old APIs are still in place. You will actually get lazy
-> unmapping, but that should be a transparent change unless you have any
-> issues with the aliasing.
+>> Hi,
+>>
+>> found this in mmotm, a fix for
+>> mm-owner-fix-race-between-swap-and-exit.patch
+>>
+> 
+> Does the patch below fix your problem, it's against mmotm 19th August
+> 2008.
+> 
+
+I just triggered this bug. I think you also need the following change:
+
+make memrlimit_cgroup_mm_owner_changed() aware that old_cgrp can be NULL,
+and note we can't call memrlimit_cgroup_from_cgrp() with NULL argument.
+
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+
+diff --git a/mm/memrlimitcgroup.c.orig b/mm/memrlimitcgroup.c
+index f7536dc..6559470 100644
+--- a/mm/memrlimitcgroup.c.orig
++++ b/mm/memrlimitcgroup.c
+@@ -249,17 +249,23 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+ 	struct mm_struct *mm = get_task_mm(p);
+ 
+ 	BUG_ON(!mm);
+-	memrcg = memrlimit_cgroup_from_cgrp(cgrp);
+-	old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
+ 
+ 	/*
+ 	 * If we don't have a new cgroup, we just uncharge from the old one.
+ 	 * It means that the task is going away
+ 	 */
+-	if (memrcg &&
+-	    res_counter_charge(&memrcg->as_res, (mm->total_vm << PAGE_SHIFT)))
+-		goto out;
+-	res_counter_uncharge(&old_memrcg->as_res, (mm->total_vm << PAGE_SHIFT));
++	if (cgrp) {
++		memrcg = memrlimit_cgroup_from_cgrp(cgrp);
++		if (res_counter_charge(&memrcg->as_res,
++				       mm->total_vm << PAGE_SHIFT))
++			goto out;
++	}
++
++	if (old_cgrp) {
++		old_memrcg = memrlimit_cgroup_from_cgrp(old_cgrp);
++		res_counter_uncharge(&old_memrcg->as_res,
++				     mm->total_vm <<PAGE_SHIFT);
++	}
+ out:
+ 	mmput(mm);
+ }
+
+
 >  
-
-x86_64 does this anyway, so if that's continuing to work, then it should
-be fine.
-
-r, Kyle
+> Reported-by: jirislaby@gmail.com
+> 
+> Jiri reported a problem and saw an oops when the memrlimit-fix-race-with-swap
+> patch is applied. He sent his patch on top to fix the problem, but ran into
+> another issue. The root cause of the problem is that we are not suppose
+> to call task_cgroup on NULL tasks. This patch reverts Jiri's patch and
+> does not call task_cgroup if the passed task_struct (old) is NULL.
+> 
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  kernel/cgroup.c |    5 +++--
+>  kernel/exit.c   |    2 +-
+>  2 files changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff -puN kernel/exit.c~memrlimit-fix-race-with-swap-oops kernel/exit.c
+> --- linux-2.6.27-rc3/kernel/exit.c~memrlimit-fix-race-with-swap-oops	2008-08-19 18:50:39.000000000 +0530
+> +++ linux-2.6.27-rc3-balbir/kernel/exit.c	2008-08-19 18:51:05.000000000 +0530
+> @@ -641,8 +641,8 @@ retry:
+>  	 * the callback and take action
+>  	 */
+>  	down_write(&mm->mmap_sem);
+> -	cgroup_mm_owner_callbacks(mm->owner, NULL);
+>  	mm->owner = NULL;
+> +	cgroup_mm_owner_callbacks(mm->owner, NULL);
+>  	up_write(&mm->mmap_sem);
+>  	return;
+>  
+> diff -puN kernel/cgroup.c~memrlimit-fix-race-with-swap-oops kernel/cgroup.c
+> --- linux-2.6.27-rc3/kernel/cgroup.c~memrlimit-fix-race-with-swap-oops	2008-08-19 18:50:39.000000000 +0530
+> +++ linux-2.6.27-rc3-balbir/kernel/cgroup.c	2008-08-19 18:55:38.000000000 +0530
+> @@ -2743,13 +2743,14 @@ void cgroup_fork_callbacks(struct task_s
+>   */
+>  void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+>  {
+> -	struct cgroup *oldcgrp, *newcgrp = NULL;
+> +	struct cgroup *oldcgrp = NULL, *newcgrp = NULL;
+>  
+>  	if (need_mm_owner_callback) {
+>  		int i;
+>  		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
+>  			struct cgroup_subsys *ss = subsys[i];
+> -			oldcgrp = task_cgroup(old, ss->subsys_id);
+> +			if (old)
+> +				oldcgrp = task_cgroup(old, ss->subsys_id);
+>  			if (new)
+>  				newcgrp = task_cgroup(new, ss->subsys_id);
+>  			if (oldcgrp == newcgrp)
+> diff -puN mm/memrlimitcgroup.c~memrlimit-fix-race-with-swap-oops mm/memrlimitcgroup.c
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
