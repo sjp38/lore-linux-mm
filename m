@@ -1,106 +1,40 @@
-Subject: Re: [PATCH 6/6] Mlock:  make mlock error return Posixly Correct
+Subject: Re: [PATCH 6/6] Mlock: make mlock error return Posixly Correct
 From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20080820163559.12D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <84144f020808200317w71047efci51b23036e15c2eb4@mail.gmail.com>
 References: <20080819210509.27199.6626.sendpatchset@lts-notebook>
 	 <20080819210545.27199.5276.sendpatchset@lts-notebook>
-	 <20080820163559.12D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <84144f020808200317w71047efci51b23036e15c2eb4@mail.gmail.com>
 Content-Type: text/plain
-Date: Wed, 20 Aug 2008 12:24:01 -0400
-Message-Id: <1219249441.6075.14.camel@lts-notebook>
+Date: Wed, 20 Aug 2008 12:26:33 -0400
+Message-Id: <1219249593.6075.18.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, riel@redhat.com, linux-mm <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org, riel@redhat.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-08-20 at 17:35 +0900, KOSAKI Motohiro wrote:
-> > From:  KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > 
+On Wed, 2008-08-20 at 13:17 +0300, Pekka Enberg wrote:
+> Hi Lee,
+> 
+> On Wed, Aug 20, 2008 at 12:05 AM, Lee Schermerhorn
+> <lee.schermerhorn@hp.com> wrote:
 > > Against:  2.6.27-rc3-mmotm-080816-0202
-> > 
+> >
 > > Rework Posix error return for mlock().
-> > 
+> >
 > > Translate get_user_pages() error to posix specified error codes.
-> > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-> > 
-> >  mm/memory.c |    2 +-
-> >  mm/mlock.c  |   27 ++++++++++++++++++++++++---
-> >  2 files changed, 25 insertions(+), 4 deletions(-)
-> > 
-> > Index: linux-2.6.27-rc3-mmotm/mm/mlock.c
-> > ===================================================================
-> > --- linux-2.6.27-rc3-mmotm.orig/mm/mlock.c	2008-08-18 15:57:11.000000000 -0400
-> > +++ linux-2.6.27-rc3-mmotm/mm/mlock.c	2008-08-18 15:57:39.000000000 -0400
-> > @@ -143,6 +143,18 @@ static void munlock_vma_page(struct page
-> >  	}
-> >  }
-> >  
-> > +/*
-> > + * convert get_user_pages() return value to posix mlock() error
-> > + */
-> > +static int __mlock_posix_error_return(long retval)
-> > +{
-> > +	if (retval == -EFAULT)
-> > +		retval = -ENOMEM;
-> > +	else if (retval == -ENOMEM)
-> > +		retval = -EAGAIN;
-> > +	return retval;
-> > +}
-> > +
-> >  /**
-> >   * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
-> >   * @vma:   target vma
-> > @@ -209,8 +221,13 @@ static long __mlock_vma_pages_range(stru
-> >  		 * or for addresses that map beyond end of a file.
-> >  		 * We'll mlock the the pages if/when they get faulted in.
-> >  		 */
-> > -		if (ret < 0)
-> > +		if (ret < 0) {
-> > +			if (vma->vm_flags & VM_NONLINEAR)
-> > +				ret = 0;
-> > +			else
-> > +				ret = __mlock_posix_error_return(ret);
-> >  			break;
-> > +		}
-> >  		if (ret == 0) {
-> >  			/*
-> >  			 * We know the vma is there, so the only time
 > 
-> __mlock_vma_pages_range is used by mmap() and mlock().
-> 
-> mlock case 
-> 
-> 	sys_mlock
-> 		do_mlock
-> 			mlock_fixup
-> 				__mlock_vma_pages_range
-> 
-> mmap case
-> 
-> 	do_mmap_pgoff
-> 		mmap_region
-> 			mlock_vma_pages_range
-> 				__mlock_vma_pages_range
-> 
-> 
-> mlock() need error code if vma permission failure happend.
-> but mmap() (and remap_pages_range(), etc..) should ignore it.
-> 
-> So, mlock_vma_pages_range() should ignore __mlock_vma_pages_range()'s error code.
+> It would be nice if the changelog explained why this matters (i.e. why
+> we need this).
 
-Well, I don't know whether we can trigger a vma permission failure
-during mmap(MAP_LOCKED) or a remap within a VM_LOCKED vma, either of
-which will end up calling mlock_vma_pages_range().  However, [after
-rereading the man page] looks like we DO want to return any ENOMEM w/o
-translating to EAGAIN.  Guess that means I should do the translation
-from within for mlock() from within mlock_fixup().  remap_pages_range()
-probably wants to explicitly ignore any error from the mlock callout.
+OK.  This patch is actually moving code that was introduced upstream in
+another earlier patch that explained the rationale.  I'll include a
+pointer to that and a summary of why.
 
-Will resend.
+I need to respin this patch anyway.  I'll update the description when I
+resend.
 
 Thanks,
 Lee
