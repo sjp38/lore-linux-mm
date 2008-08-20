@@ -1,34 +1,50 @@
-Received: by wa-out-1112.google.com with SMTP id m28so91807wag.8
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2008 03:17:17 -0700 (PDT)
-Message-ID: <84144f020808200317w71047efci51b23036e15c2eb4@mail.gmail.com>
-Date: Wed, 20 Aug 2008 13:17:17 +0300
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH 6/6] Mlock: make mlock error return Posixly Correct
-In-Reply-To: <20080819210545.27199.5276.sendpatchset@lts-notebook>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 20 Aug 2008 19:41:08 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH -mm 0/7] memcg: lockless page_cgroup v1
+Message-Id: <20080820194108.e76b20b3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080820185306.e897c512.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080819173014.17358c17.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080820185306.e897c512.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080819210509.27199.6626.sendpatchset@lts-notebook>
-	 <20080819210545.27199.5276.sendpatchset@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, riel@redhat.com, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "yamamoto@valinux.co.jp" <yamamoto@valinux.co.jp>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, ryov@valinux.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Lee,
+On Wed, 20 Aug 2008 18:53:06 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-On Wed, Aug 20, 2008 at 12:05 AM, Lee Schermerhorn
-<lee.schermerhorn@hp.com> wrote:
-> Against:  2.6.27-rc3-mmotm-080816-0202
->
-> Rework Posix error return for mlock().
->
-> Translate get_user_pages() error to posix specified error codes.
+> Hi, this is a patch set for lockless page_cgroup.
+> 
+> dropped patches related to mem+swap controller for easy review.
+> (I'm rewriting it, too.)
+> 
+> Changes from current -mm is.
+>   - page_cgroup->flags operations is set to be atomic.
+>   - lock_page_cgroup() is removed.
+>   - page->page_cgroup is changed from unsigned long to struct page_cgroup*
+>   - page_cgroup is freed by RCU.
+>   - For avoiding race, charge/uncharge against mm/memory.c::insert_page() is
+>     omitted. This is ususally used for mapping device's page. (I think...)
+> 
+> In my quick test, perfomance is improved a little. But the benefit of this
+> patch is to allow access page_cgroup without lock. I think this is good 
+> for Yamamoto's Dirty page tracking for memcg.
+> For I/O tracking people, I added a header file for allowing access to
+> page_cgroup from out of memcontrol.c
+> 
+> The base kernel is recent mmtom. Any comments are welcome.
+> This is still under test. I have to do long-run test before removing "RFC".
+> 
+Known problem: force_emtpy is broken...so rmdir will struck into nightmare.
+It's because of patch 2/7.
+will be fixed in the next version.
 
-It would be nice if the changelog explained why this matters (i.e. why
-we need this).
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
