@@ -1,35 +1,43 @@
-Message-ID: <48AC244F.1030104@linux-foundation.org>
-Date: Wed, 20 Aug 2008 09:03:59 -0500
+Message-ID: <48AC25E7.4090005@linux-foundation.org>
+Date: Wed, 20 Aug 2008 09:10:47 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [patch] mm: rewrite vmap layer
-References: <20080818133224.GA5258@wotan.suse.de> <48AADBDC.2000608@linux-foundation.org> <20080820090234.GA7018@wotan.suse.de>
-In-Reply-To: <20080820090234.GA7018@wotan.suse.de>
+Subject: Re: [RFC][PATCH 0/2] Quicklist is slighly problematic.
+References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-
->> Or run purge_vma_area_lazy from keventd?
->  
-> Right. But that's only needed if we want to vmap from irq context too
-> (otherwise we can just do the purge check at vmap time).
+KOSAKI Motohiro wrote:
+> Hi Cristoph,
 > 
-> Is there any good reason to be able to vmap or vunmap from interrupt
-> time, though?
+> Thank you for explain your quicklist plan at OLS.
+> 
+> So, I made summary to issue of quicklist.
+> if you have a bit time, Could you please read this mail and patches?
+> And, if possible, Could you please tell me your feeling?
 
-It would be good to have vunmap work in an interrupt context like other free
-operations. One may hold spinlocks while freeing structure.
+I believe what I said at the OLS was that quicklists are fundamentally crappy
+and should be replaced by something that works (Guess that is what you meant
+by "plan"?). Quicklists were generalized from the IA64 arch code.
 
-vmap from interrupt context would be useful f.e. for general fallback in the
-page allocator to virtually mapped memory if no linear physical memory is
-available (virtualizable compound pages). Without a vmap that can be run in an
-interrupt context we cannot support GFP_ATOMIC allocs there.
+Good fixup but I would think that some more radical rework is needed.
+
+Maybe some of this needs to vanish into the TLB handling logic?
+
+Then I have thought for awhile that the main reason that quicklists exist are
+the performance problems in the page allocator. If you can make the single
+page alloc / free pass competitive in performance with quicklists then we
+could get rid of all uses.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
