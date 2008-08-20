@@ -1,40 +1,67 @@
-Message-ID: <48AC4EE0.4050603@linux-foundation.org>
-Date: Wed, 20 Aug 2008 12:05:36 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [patch] mm: rewrite vmap layer
-References: <20080818133224.GA5258@wotan.suse.de> <48AADBDC.2000608@linux-foundation.org> <20080820090234.GA7018@wotan.suse.de> <48AC244F.1030104@linux-foundation.org> <20080820162235.GA26894@wotan.suse.de> <48AC4B41.8080908@linux-foundation.org> <20080820165947.GA19656@wotan.suse.de>
-In-Reply-To: <20080820165947.GA19656@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m7KH8se6005309
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 13:08:54 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7KH8sQX228622
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 13:08:54 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7KH8rjK008656
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2008 13:08:53 -0400
+Subject: [BUG] Make setup_zone_migrate_reserve() aware of overlapping nodes
+From: Adam Litke <agl@us.ibm.com>
+In-Reply-To: <1218837685.12953.11.camel@localhost.localdomain>
+References: <1218837685.12953.11.camel@localhost.localdomain>
+Content-Type: text/plain; charset=UTF-8
+Date: Wed, 20 Aug 2008 12:08:54 -0500
+Message-Id: <1219252134.13885.25.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, mel@csn.ul.ie, apw <apw@shadowen.org>, agl <agl@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Wed, Aug 20, 2008 at 11:50:09AM -0500, Christoph Lameter wrote:
->> Nick Piggin wrote:
->>
->>> Indeed that would be a good use for it if this general fallback mechanism
->>> were to be merged.
->> Want me to rebase my virtualizable compound patchset on top of your vmap changes?
-> 
-> Is there much clash between them? Or just the fact that you'll have to
-> use vm_map_ram/vm_unmap_ram?
+I have gotten to the root cause of the hugetlb badness I reported back
+on August 15th.  My system has the following memory topology (note the
+overlapping node):
 
-There is not much of a clash. If you would make vmap/unmap atomic then there
-is barely any overlap at all and the patchset becomes much smaller and even
-the initial version of it can support in interrupt alloc / free.
+	i>>?Node 0 Memory: 0x8000000-0x44000000
+	i>>?Node 1 Memory: 0x0-0x8000000 0x44000000-0x80000000
 
-> I probably wouldn't be able to find time to look at that patchset again
-> for a while... but anyway, I've been running the vmap rewrite for quite
-> a while on several different systems and workloads without problems, so
-> it should be stable enough to test out. And the APIs should not change.
+setup_zone_migrate_reserve() scans the address range 0x0-0x8000000
+looking for a pageblock to move onto the MIGRATE_RESERVE list.  Finding
+no candidates, it happily continues the scan into 0x8000000-0x44000000.
+When a pageblock is found, the pages are moved to the MIGRATE_RESERVE
+list on the wrong zone.  Oops.
 
-Yes I think this is good stuff. Hopefully I will get enough time to check it
-out in detail.
+(Andrew: once the proper fix is agreed upon, this should also be a
+candidate for -stable.)
+
+setup_zone_migrate_reserve() should skip pageblocks in overlapping
+nodes.
+
+Signed-off-by: Adam Litke <agl@us.ibm.com>
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index af982f7..f297a9b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2512,6 +2512,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+ 							pageblock_order;
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
++		/* Watch out for overlapping nodes */
++		if (!early_pfn_in_nid(pfn, zone->node))
++			continue;
++
+ 		if (!pfn_valid(pfn))
+ 			continue;
+ 		page = pfn_to_page(pfn);
+
+-- 
+Adam Litke - (agl at us.ibm.com)
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
