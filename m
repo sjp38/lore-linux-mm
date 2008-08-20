@@ -1,44 +1,109 @@
-Date: Wed, 20 Aug 2008 18:22:35 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: rewrite vmap layer
-Message-ID: <20080820162235.GA26894@wotan.suse.de>
-References: <20080818133224.GA5258@wotan.suse.de> <48AADBDC.2000608@linux-foundation.org> <20080820090234.GA7018@wotan.suse.de> <48AC244F.1030104@linux-foundation.org>
+Subject: Re: [PATCH 6/6] Mlock:  make mlock error return Posixly Correct
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20080820163559.12D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080819210509.27199.6626.sendpatchset@lts-notebook>
+	 <20080819210545.27199.5276.sendpatchset@lts-notebook>
+	 <20080820163559.12D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 20 Aug 2008 12:24:01 -0400
+Message-Id: <1219249441.6075.14.camel@lts-notebook>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <48AC244F.1030104@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, riel@redhat.com, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 20, 2008 at 09:03:59AM -0500, Christoph Lameter wrote:
-> Nick Piggin wrote:
-> 
-> >> Or run purge_vma_area_lazy from keventd?
-> >  
-> > Right. But that's only needed if we want to vmap from irq context too
-> > (otherwise we can just do the purge check at vmap time).
+On Wed, 2008-08-20 at 17:35 +0900, KOSAKI Motohiro wrote:
+> > From:  KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > > 
-> > Is there any good reason to be able to vmap or vunmap from interrupt
-> > time, though?
+> > Against:  2.6.27-rc3-mmotm-080816-0202
+> > 
+> > Rework Posix error return for mlock().
+> > 
+> > Translate get_user_pages() error to posix specified error codes.
+> > 
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+> > 
+> >  mm/memory.c |    2 +-
+> >  mm/mlock.c  |   27 ++++++++++++++++++++++++---
+> >  2 files changed, 25 insertions(+), 4 deletions(-)
+> > 
+> > Index: linux-2.6.27-rc3-mmotm/mm/mlock.c
+> > ===================================================================
+> > --- linux-2.6.27-rc3-mmotm.orig/mm/mlock.c	2008-08-18 15:57:11.000000000 -0400
+> > +++ linux-2.6.27-rc3-mmotm/mm/mlock.c	2008-08-18 15:57:39.000000000 -0400
+> > @@ -143,6 +143,18 @@ static void munlock_vma_page(struct page
+> >  	}
+> >  }
+> >  
+> > +/*
+> > + * convert get_user_pages() return value to posix mlock() error
+> > + */
+> > +static int __mlock_posix_error_return(long retval)
+> > +{
+> > +	if (retval == -EFAULT)
+> > +		retval = -ENOMEM;
+> > +	else if (retval == -ENOMEM)
+> > +		retval = -EAGAIN;
+> > +	return retval;
+> > +}
+> > +
+> >  /**
+> >   * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
+> >   * @vma:   target vma
+> > @@ -209,8 +221,13 @@ static long __mlock_vma_pages_range(stru
+> >  		 * or for addresses that map beyond end of a file.
+> >  		 * We'll mlock the the pages if/when they get faulted in.
+> >  		 */
+> > -		if (ret < 0)
+> > +		if (ret < 0) {
+> > +			if (vma->vm_flags & VM_NONLINEAR)
+> > +				ret = 0;
+> > +			else
+> > +				ret = __mlock_posix_error_return(ret);
+> >  			break;
+> > +		}
+> >  		if (ret == 0) {
+> >  			/*
+> >  			 * We know the vma is there, so the only time
 > 
-> It would be good to have vunmap work in an interrupt context like other free
-> operations. One may hold spinlocks while freeing structure.
+> __mlock_vma_pages_range is used by mmap() and mlock().
+> 
+> mlock case 
+> 
+> 	sys_mlock
+> 		do_mlock
+> 			mlock_fixup
+> 				__mlock_vma_pages_range
+> 
+> mmap case
+> 
+> 	do_mmap_pgoff
+> 		mmap_region
+> 			mlock_vma_pages_range
+> 				__mlock_vma_pages_range
+> 
+> 
+> mlock() need error code if vma permission failure happend.
+> but mmap() (and remap_pages_range(), etc..) should ignore it.
+> 
+> So, mlock_vma_pages_range() should ignore __mlock_vma_pages_range()'s error code.
 
-I don't know if just-in-case is a strong argument to make the locks
-interrupt safe and logic to handle deferred flushing. I'd be happy
-to add it if there are some specific cases though.
- 
+Well, I don't know whether we can trigger a vma permission failure
+during mmap(MAP_LOCKED) or a remap within a VM_LOCKED vma, either of
+which will end up calling mlock_vma_pages_range().  However, [after
+rereading the man page] looks like we DO want to return any ENOMEM w/o
+translating to EAGAIN.  Guess that means I should do the translation
+from within for mlock() from within mlock_fixup().  remap_pages_range()
+probably wants to explicitly ignore any error from the mlock callout.
 
-> vmap from interrupt context would be useful f.e. for general fallback in the
-> page allocator to virtually mapped memory if no linear physical memory is
-> available (virtualizable compound pages). Without a vmap that can be run in an
-> interrupt context we cannot support GFP_ATOMIC allocs there.
+Will resend.
 
-Indeed that would be a good use for it if this general fallback mechanism
-were to be merged.
+Thanks,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
