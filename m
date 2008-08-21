@@ -1,42 +1,51 @@
-Date: Thu, 21 Aug 2008 08:45:29 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFC][PATCH 0/2] Quicklist is slighly problematic.
-Message-ID: <20080821134529.GD26567@sgi.com>
-References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080820113131.f032c8a2.akpm@linux-foundation.org> <20080821024240.GC23397@sgi.com> <48AD689F.6080103@linux-foundation.org> <20080821131404.GC26567@sgi.com> <48AD6B20.1080105@linux-foundation.org>
+Received: by wr-out-0506.google.com with SMTP id c30so36016wra.14
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2008 08:18:28 -0700 (PDT)
+Message-ID: <a2776ec50808210818n74c09003s98ee8e7bd8e73951@mail.gmail.com>
+Date: Thu, 21 Aug 2008 17:18:27 +0200
+From: righi.andrea@gmail.com
+Reply-To: righiandr@users.sourceforge.net
+Subject: Re: [discuss] memrlimit - potential applications that can use
+In-Reply-To: <20080821164339.679212b2.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <48AD6B20.1080105@linux-foundation.org>
+References: <48AA73B5.7010302@linux.vnet.ibm.com>
+	 <1219161525.23641.125.camel@nimitz>
+	 <48AAF8C0.1010806@linux.vnet.ibm.com>
+	 <1219167669.23641.156.camel@nimitz>
+	 <48ABD545.8010209@linux.vnet.ibm.com>
+	 <1219249757.8960.22.camel@nimitz>
+	 <48ACE040.2030807@linux.vnet.ibm.com>
+	 <20080821164339.679212b2.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tokunaga.keiich@jp.fujitsu.com, stable@kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 21, 2008 at 08:18:24AM -0500, Christoph Lameter wrote:
-> Robin Holt wrote:
-> 
-> >> We removed this code because it frees a page before the TLB flush has been
-> >> performed. This code segment was the reason that quicklists were not accepted
-> >> for x86.
-> > 
-> > How could we do this.  It was a _HUGE_ problem on altix boxes.  When you
-> > started a jobs with a large number of MPI ranks, they would all start
-> > from the shepherd process on a single node and the children would
-> > migrate to a different cpu.  Unless subsequent jobs used enough memory
-> > to flush those remote quicklists, we would end up with a depleted node
-> > that never reclaimed.
-> 
-> Well I tried to get the quicklist stuff resolved at SGI multiple times last
-> year when the early free before flush was discovered but there did not seem to
-> be much interest at that point, so we dropped it.
+On 8/21/08, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> I'm sorry I miss the point. My concern on memrlimit (for overcommiting) is
+> that
+> it's not fair because an application which get -ENOMEM at mmap() is just
+> someone
+> unlucky. I think it's better to trigger some notifier to application or
+> daemon
+> rather than return -ENOMEM at mmap(). Notification like "Oh, it seems the
+> VSZ
+> of total application exceeds the limit you set. Although you can continue
+> your
+> operation, it's recommended that you should fix up the  situation".
+> will be good.
 
-Well, now that you dope slap me, I vaguely remember this.  I also seem
-to recall being very busy with other stuff and convincing myself that a
-proper resolution would magically appear.  Argh.
+-ENOMEM should be considered by applications like "try again" (maybe
+-EAGAIN would be more appropriate). When the notification of the
+out-of-virtual-memory event occurs the dedicated userspace daemon can
+do ehm... something... to resolve the situation. Just like the OOM
+handling in userspace. Similar issues, but a common solution could
+resolve both problems.
 
-Sorry,
-Robin
+-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
