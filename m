@@ -1,44 +1,58 @@
-Received: by rv-out-0708.google.com with SMTP id f25so701238rvb.26
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2008 00:36:00 -0700 (PDT)
-Message-ID: <2f11576a0808210036icd9b61eue58049f15381bcc8@mail.gmail.com>
-Date: Thu, 21 Aug 2008 16:36:00 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/2] Show quicklist at meminfo
-In-Reply-To: <20080820113559.f559a411.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080820200607.12ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080820113559.f559a411.akpm@linux-foundation.org>
+Date: Thu, 21 Aug 2008 16:43:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [discuss] memrlimit - potential applications that can use
+Message-Id: <20080821164339.679212b2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48ACE040.2030807@linux.vnet.ibm.com>
+References: <48AA73B5.7010302@linux.vnet.ibm.com>
+	<1219161525.23641.125.camel@nimitz>
+	<48AAF8C0.1010806@linux.vnet.ibm.com>
+	<1219167669.23641.156.camel@nimitz>
+	<48ABD545.8010209@linux.vnet.ibm.com>
+	<1219249757.8960.22.camel@nimitz>
+	<48ACE040.2030807@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
+To: balbir@linux.vnet.ibm.com
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Andrea Righi <righi.andrea@gmail.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> quicklist_total_size() is racy against cpu hotplug.  That's OK for
-> /proc/meminfo purposes (occasional transient inaccuracy?), but will it
-> crash?  Not in the current implementation of per_cpu() afaict, but it
-> might crash if we ever teach cpu hotunplug to free up the percpu
-> resources.
+On Thu, 21 Aug 2008 08:55:52 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-First, Quicklist doesn't concern to cpu hotplug at all.
-it is another quicklist problem.
+> >>> So, before we expand the use of those features to control groups by
+> >>> adding a bunch of new code, let's make sure that there will be users
+> >> for
+> >>> it and that those users have no better way of doing it.
+> >> I am all ears to better ways of doing it. Are you suggesting that overcommit was
+> >> added even though we don't actually need it?
+> > 
+> > It serves a purpose, certainly.  We have have better ways of doing it
+> > now, though.  "i>>?So, before we expand the use of those features to
+> > control groups by adding a bunch of new code, let's make sure that there
+> > will be users for it and that those users have no better way of doing
+> > it."
+> > 
+> > The one concrete user that's been offered so far is postgres.  I've
+> 
+> No, you've been offered several, including php and apache that use memory limits.
+> 
+> > suggested something that I hope will be more effective than enforcing
+> > overcommit.  
+> 
 
-Next, I think it doesn't cause crash. but I haven't any test.
-So, I'll test cpu hotplug/unplug testing today.
+I'm sorry I miss the point. My concern on memrlimit (for overcommiting) is that
+it's not fair because an application which get -ENOMEM at mmap() is just someone
+unlucky. I think it's better to trigger some notifier to application or daemon
+rather than return -ENOMEM at mmap(). Notification like "Oh, it seems the VSZ
+of total application exceeds the limit you set. Although you can continue your
+operation, it's recommended that you should fix up the  situation".
+will be good.
 
-I'll report result tommorow.
-
-> I see no cpu hotplug handling in the quicklist code.  Do we leak all
-> the hot-unplugged CPU's pages?
-
-Yes.
-
-
-Thanks!
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
