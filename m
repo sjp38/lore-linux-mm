@@ -1,65 +1,33 @@
-Date: Wed, 20 Aug 2008 21:42:40 -0500
-From: Robin Holt <holt@sgi.com>
+Date: Wed, 20 Aug 2008 20:08:52 -0700 (PDT)
+Message-Id: <20080820.200852.193706487.davem@davemloft.net>
 Subject: Re: [RFC][PATCH 0/2] Quicklist is slighly problematic.
-Message-ID: <20080821024240.GC23397@sgi.com>
-References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080820113131.f032c8a2.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080820113131.f032c8a2.akpm@linux-foundation.org>
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20080821021332.GA23397@sgi.com>
+References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<48AC25E7.4090005@linux-foundation.org>
+	<20080821021332.GA23397@sgi.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Robin Holt <holt@sgi.com>
+Date: Wed, 20 Aug 2008 21:13:32 -0500
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com, stable@kernel.org
+To: holt@sgi.com
+Cc: cl@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> OK, that's a fatal bug and it's present in 2.6.25.x and 2.6.26.x.  A
-> serious issue.
-> 
-> The patches do apply to both stable kernels and I have tagged them for
-> backporting into them.  They're nice and small, but I didn't get a
-> really solid yes-this-is-what-we-should-do from Christoph?
-> 
-> 
-> This (from [patch 2/2]): "(Although its patch applied, quicklist can
-> waste 64GB on 1TB server (= 1TB / 16), it is still too much??)" is a
-> bit of a worry.  Yes, 64GB is too much!  But at least this is now only
-> a performance issue rather than a stability issue, yes?
+> One problem I see is somebody got rid of the node awareness.  We used
+> to not put pages onto a quicklist when they were being released from a
+> different node than the cpu is on.  Not sure where that went.  It was
+> done because of the trap page problem described here.
 
-That 64GB is not quite correct.  That assumes all 1TB is free.  The
-quicklists are trimmed down as the nodes undergo allocations.  The
-problem I see right now is that page tables allocated on one node and
-freed on a cpu on a different node could be placed early enough on the
-quicklist that it will not be freed until the other node gets under
-memory pressure.
+NUMA awareness is one of the reasons I keep thinking about dropping
+quicklist usage on sparc64.
 
-Could you give the following a try?  It hasn't even been compiled.  I
-think this in addition to your cpus per node change are the right thing
-to do.
-
-Thanks,
-Robin
-
-Index: ia64-cleanups/include/linux/quicklist.h
-===================================================================
---- ia64-cleanups.orig/include/linux/quicklist.h	2008-08-20 21:35:10.000000000 -0500
-+++ ia64-cleanups/include/linux/quicklist.h	2008-08-20 21:38:00.891943270 -0500
-@@ -66,6 +66,15 @@ static inline void __quicklist_free(int 
- 
- static inline void quicklist_free(int nr, void (*dtor)(void *), void *pp)
- {
-+#ifdef CONFIG_NUMA
-+	unsigned long nid = page_to_nid(virt_to_page(pp));
-+
-+	if (unlikely(nid != numa_node_id())) {
-+		free_page((unsigned long)pp);
-+		return;
-+	}
-+#endif
-+
- 	__quicklist_free(nr, dtor, pp, virt_to_page(pp));
- }
- 
+Using SLAB/SLUB for the page table bits with appropriate constructor
+and destructor bits ought to be able to approximate the gains
+from avoiding the initialization for cached objects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
