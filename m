@@ -1,46 +1,72 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [patch] mm: rewrite vmap layer
-References: <20080818133224.GA5258@wotan.suse.de>
-	<48AADBDC.2000608@linux-foundation.org>
-	<20080820090234.GA7018@wotan.suse.de>
-	<48AC244F.1030104@linux-foundation.org>
-Date: Thu, 21 Aug 2008 09:19:13 +0200
-In-Reply-To: <48AC244F.1030104@linux-foundation.org> (Christoph Lameter's
-	message of "Wed, 20 Aug 2008 09:03:59 -0500")
-Message-ID: <87y72q3kem.fsf@skyscraper.fehenstaub.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 21 Aug 2008 00:27:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH 2/2] quicklist shouldn't be proportional to # of
+ CPUs
+Message-Id: <20080821002757.b7c807ad.akpm@linux-foundation.org>
+In-Reply-To: <20080821.001322.236658980.davem@davemloft.net>
+References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080820200709.12F0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20080820234615.258a9c04.akpm@linux-foundation.org>
+	<20080821.001322.236658980.davem@davemloft.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <cl@linux-foundation.org> writes:
+On Thu, 21 Aug 2008 00:13:22 -0700 (PDT) David Miller <davem@davemloft.net> wrote:
 
-> Nick Piggin wrote:
->
->>> Or run purge_vma_area_lazy from keventd?
->>  
->> Right. But that's only needed if we want to vmap from irq context too
->> (otherwise we can just do the purge check at vmap time).
->> 
->> Is there any good reason to be able to vmap or vunmap from interrupt
->> time, though?
->
-> It would be good to have vunmap work in an interrupt context like other free
-> operations. One may hold spinlocks while freeing structure.
->
-> vmap from interrupt context would be useful f.e. for general fallback in the
-> page allocator to virtually mapped memory if no linear physical memory is
-> available (virtualizable compound pages). Without a vmap that can be run in an
-> interrupt context we cannot support GFP_ATOMIC allocs there.
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Date: Wed, 20 Aug 2008 23:46:15 -0700
+> 
+> > On Wed, 20 Aug 2008 20:08:13 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > 
+> > > +	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
+> > 
+> > sparc64 allmodconfig:
+> > 
+> > mm/quicklist.c: In function `max_pages':
+> > mm/quicklist.c:44: error: invalid lvalue in unary `&'
+> > 
+> > we seem to have a made a spectacular mess of cpumasks lately.
+> 
+> It should explode similarly on x86, since it also defines node_to_cpumask()
+> as an inline function.
+> 
+> IA64 seems to be one of the few platforms to define this as a macro
+> evaluating to the node-to-cpumask array entry, so it's clear what
+> platform Motohiro-san did build testing on :-)
 
-I have not much clue about the users but shouldn't you use vmalloc
-anyway if you don't need physically contiguous pages?
+Seems to compile OK on x86_32, x86_64, ia64 and powerpc for some reason.
 
-So while it would be usable then to have both vmap and vunmap work in
-atomic context, I don't really get the fallback use case..?
+This seems to fix things on sparc64:
+
+--- a/mm/quicklist.c~mm-quicklist-shouldnt-be-proportional-to-number-of-cpus-fix
++++ a/mm/quicklist.c
+@@ -28,7 +28,7 @@ static unsigned long max_pages(unsigned 
+ 	unsigned long node_free_pages, max;
+ 	int node = numa_node_id();
+ 	struct zone *zones = NODE_DATA(node)->node_zones;
+-	int num_cpus_per_node;
++	cpumask_t node_cpumask;
+ 
+ 	node_free_pages =
+ #ifdef CONFIG_ZONE_DMA
+@@ -41,8 +41,8 @@ static unsigned long max_pages(unsigned 
+ 
+ 	max = node_free_pages / FRACTION_OF_NODE_MEM;
+ 
+-	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
+-	max /= num_cpus_per_node;
++	node_cpumask = node_to_cpumask(node);
++	max /= cpus_weight_nr(node_cpumask);
+ 
+ 	return max(max, min_pages);
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
