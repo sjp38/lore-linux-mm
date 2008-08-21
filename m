@@ -1,106 +1,86 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7LBCrRM002069
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2008 21:12:53 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7LBDvum279412
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2008 21:13:57 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7LBDvUa019979
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2008 21:13:57 +1000
-Message-ID: <48AD4DF2.3050700@linux.vnet.ibm.com>
-Date: Thu, 21 Aug 2008 16:43:54 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Thu, 21 Aug 2008 12:33:39 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUG] [PATCH v2] Make setup_zone_migrate_reserve() aware of overlapping nodes
+Message-ID: <20080821113338.GA29950@csn.ul.ie>
+References: <1218837685.12953.11.camel@localhost.localdomain> <1219252134.13885.25.camel@localhost.localdomain> <1219255911.8960.41.camel@nimitz> <1219262152.13885.27.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [discuss] memrlimit - potential applications that can use
-References: <48AA73B5.7010302@linux.vnet.ibm.com> <1219161525.23641.125.camel@nimitz> <48AAF8C0.1010806@linux.vnet.ibm.com> <1219167669.23641.156.camel@nimitz> <48ABD545.8010209@linux.vnet.ibm.com> <1219249757.8960.22.camel@nimitz> <48ACE040.2030807@linux.vnet.ibm.com> <20080821164339.679212b2.kamezawa.hiroyu@jp.fujitsu.com> <48AD42E1.40204@linux.vnet.ibm.com> <20080821195915.f1ecd012.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080821195915.f1ecd012.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1219262152.13885.27.camel@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Dave Hansen <haveblue@us.ibm.com>, Andrea Righi <righi.andrea@gmail.com>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux kernel mailing list <linux-kernel@vger.kernel.org>
+To: Adam Litke <agl@us.ibm.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, apw <apw@shadowen.org>, agl <agl@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Thu, 21 Aug 2008 15:56:41 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
->> KAMEZAWA Hiroyuki wrote:
->>> On Thu, 21 Aug 2008 08:55:52 +0530
->>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>
->>>>>>> So, before we expand the use of those features to control groups by
->>>>>>> adding a bunch of new code, let's make sure that there will be users
->>>>>> for
->>>>>>> it and that those users have no better way of doing it.
->>>>>> I am all ears to better ways of doing it. Are you suggesting that overcommit was
->>>>>> added even though we don't actually need it?
->>>>> It serves a purpose, certainly.  We have have better ways of doing it
->>>>> now, though.  "i>>?So, before we expand the use of those features to
->>>>> control groups by adding a bunch of new code, let's make sure that there
->>>>> will be users for it and that those users have no better way of doing
->>>>> it."
->>>>>
->>>>> The one concrete user that's been offered so far is postgres.  I've
->>>> No, you've been offered several, including php and apache that use memory limits.
->>>>
->>>>> suggested something that I hope will be more effective than enforcing
->>>>> overcommit.  
->>> I'm sorry I miss the point. My concern on memrlimit (for overcommiting) is that
->>> it's not fair because an application which get -ENOMEM at mmap() is just someone
->>> unlucky.
->> It can happen today with overcommit turned on. Why is it unlucky?
->>
-> Today's overcommit is also unlucky ;) 
-> 
-> For example) process A and B is under a memrlimit.
->  process A no memory leak, it often calls malloc() and free().
->  process B does memory leak, 100MB per night.
-> 
-> process A cannot do anything when it notices malloc() returns NULL.
-> It controls his memory usage perfectly. He is unlucky and will die.
-> process B can use up VSZ which is freed by process A.
+On (20/08/08 14:55), Adam Litke didst pronounce:
+>     Changes since V1
+>      - Fix build for !NUMA
+>      - Add VM_BUG_ON() to catch this problem at the source
+>     
+>     I have gotten to the root cause of the hugetlb badness I reported back on
+>     August 15th.  My system has the following memory topology (note the
+>     overlapping node):
+>     
+>             Node 0 Memory: 0x8000000-0x44000000
+>             Node 1 Memory: 0x0-0x8000000 0x44000000-0x80000000
+>     
+>     setup_zone_migrate_reserve() scans the address range 0x0-0x8000000 looking
+>     for a pageblock to move onto the MIGRATE_RESERVE list.  Finding no
+>     candidates, it happily continues the scan into 0x8000000-0x44000000.  When
+>     a pageblock is found, the pages are moved to the MIGRATE_RESERVE list on
+>     the wrong zone.  Oops.
+>     
+>     (Andrew: once the proper fix is agreed upon, this should also be a
+>     candidate for -stable.)
+>     
+>     setup_zone_migrate_reserve() should skip pageblocks in overlapping nodes.
+>     
+>     Signed-off-by: Adam Litke <agl@us.ibm.com>
 > 
 
-Yes, true that will happen. Why will A die because it sees NULL? Yes, many
-applications do die, but that is not how malloc == NULL is expected to be
-handled. If that is a concern, do not use any memrlimits for A and B, if you do
-you will find the bug early.
+zone_to_nid(zone) is called every time in the loop even though it will never
+change. This is less than optimal but setup_zone_migrate_reserve() is only
+called during init and when min_free_kbytes is adjusted so it's not worth
+worrying about. Otherwise it looks good.
 
-Now consider the other scenario, if there really is a memory leak and process B
-is using all that memory, two things to consider
+Acked-by: Mel Gorman <mel@csn.ul.ie>
 
-1. Without swap controller, B will start swapping out A's memory and cause
-excessive swapping and performance loss
-2. With swap controller enabled, at some point we will hit the swap limit, what
-happens then?
-
-> (OOM-killer, is disliked by everyone, have some kind of fairness.
->  It checks usage.)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index af982f7..feb7916 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -694,6 +694,9 @@ static int move_freepages(struct zone *zone,
+>  #endif
+>  
+>  	for (page = start_page; page <= end_page;) {
+> +		/* Make sure we are not inadvertently changing nodes */
+> +		VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
+> +
+>  		if (!pfn_valid_within(page_to_pfn(page))) {
+>  			page++;
+>  			continue;
+> @@ -2516,6 +2519,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+>  			continue;
+>  		page = pfn_to_page(pfn);
+>  
+> +		/* Watch out for overlapping nodes */
+> +		if (page_to_nid(page) != zone_to_nid(zone))
+> +			continue;
+> +
+>  		/* Blocks with reserved pages will never free, skip them. */
+>  		if (PageReserved(page))
+>  			continue;
 > 
->>  I think it's better to trigger some notifier to application or daemon
->>> rather than return -ENOMEM at mmap(). Notification like "Oh, it seems the VSZ
->>> of total application exceeds the limit you set. Although you can continue your
->>> operation, it's recommended that you should fix up the  situation".
->>> will be good.
->>>
->> So you are suggesting that when we are running out of memory (as defined by our
->> current resource constraints), we don't return -ENOMEM, but instead we now
->> handle a new event that states that we are running out of memory?
->>
-> Not "running out of memory" Just "VSZ is over the limit you set/expected".
+> -- 
+> Adam Litke - (agl at us.ibm.com)
+> IBM Linux Technology Center
 > 
-> My point is an application witch can handle NULL returned by malloc() is
-> not very popular, I think.
-> 
-
-Yes and that's why we have the flexibility, if the application can't deal with
-it don't set memrlimits for those applications :)
 
 -- 
-	Balbir
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
