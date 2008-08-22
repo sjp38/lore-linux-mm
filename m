@@ -1,118 +1,63 @@
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 22 Aug 2008 17:11:13 -0400
-Message-Id: <20080822211113.29898.30218.sendpatchset@murky.usa.hp.com>
-In-Reply-To: <20080822211028.29898.82599.sendpatchset@murky.usa.hp.com>
-References: <20080822211028.29898.82599.sendpatchset@murky.usa.hp.com>
-Subject: [PATCH 7/7] Mlock:  make mlock error return Posixly Correct
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7MMoTSI021081
+	for <linux-mm@kvack.org>; Sat, 23 Aug 2008 08:50:29 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7MMpBEZ262172
+	for <linux-mm@kvack.org>; Sat, 23 Aug 2008 08:51:13 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7MMpAHw030020
+	for <linux-mm@kvack.org>; Sat, 23 Aug 2008 08:51:11 +1000
+Message-ID: <48AF42DC.7020705@linux.vnet.ibm.com>
+Date: Sat, 23 Aug 2008 04:21:08 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 1/14] memcg: unlimted root cgroup
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203025.eb4b2ec3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080822203025.eb4b2ec3.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: riel@redhat.com, linux-mm <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com, Eric.Whitney@hp.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Rework Posix error return for mlock().
+KAMEZAWA Hiroyuki wrote:
+> Make root cgroup of memory resource controller to have no limit.
+> 
+> By this, users cannot set limit to root group. This is for making root cgroup
+> as a kind of trash-can.
+> 
+> For accounting pages which has no owner, which are created by force_empty,
+> we need some cgroup with no_limit. A patch for rewriting force_empty will
+> will follow this one.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> ---
+>  Documentation/controllers/memory.txt |    4 ++++
+>  mm/memcontrol.c                      |   12 ++++++++++++
+>  2 files changed, 16 insertions(+)
+> 
+> Index: mmtom-2.6.27-rc3+/mm/memcontrol.c
+> ===================================================================
+> --- mmtom-2.6.27-rc3+.orig/mm/memcontrol.c
+> +++ mmtom-2.6.27-rc3+/mm/memcontrol.c
+> @@ -133,6 +133,10 @@ struct mem_cgroup {
+>  	 * statistics.
+>  	 */
+>  	struct mem_cgroup_stat stat;
+> +	/*
+> +	 * special flags.
+> +	 */
+> +	int	no_limit;
 
-Posix requires error code for mlock*() system calls for
-some conditions that differ from what kernel low level
-functions, such as get_user_pages(), return for those
-conditions.  For more info, see:
+Is this a generic implementation to support no limits? If not, why not store the
+root memory controller pointer and see if someone is trying to set a limit on that?
 
-http://marc.info/?l=linux-kernel&m=121750892930775&w=2
-
-This patch provides the same translation of get_user_pages()
-error codes to posix specified error codes in the context
-of the mlock rework for unevictable lru.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/memory.c |    2 +-
- mm/mlock.c  |   27 +++++++++++++++++++++------
- 2 files changed, 22 insertions(+), 7 deletions(-)
-
-Index: linux-2.6.27-rc4-mmotm/mm/mlock.c
-===================================================================
---- linux-2.6.27-rc4-mmotm.orig/mm/mlock.c	2008-08-21 12:06:04.000000000 -0400
-+++ linux-2.6.27-rc4-mmotm/mm/mlock.c	2008-08-21 12:06:08.000000000 -0400
-@@ -143,6 +143,18 @@ static void munlock_vma_page(struct page
- 	}
- }
- 
-+/*
-+ * convert get_user_pages() return value to posix mlock() error
-+ */
-+static int __mlock_posix_error_return(long retval)
-+{
-+	if (retval == -EFAULT)
-+		retval = -ENOMEM;
-+	else if (retval == -ENOMEM)
-+		retval = -EAGAIN;
-+	return retval;
-+}
-+
- /**
-  * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
-  * @vma:   target vma
-@@ -248,11 +260,12 @@ static long __mlock_vma_pages_range(stru
- 			addr += PAGE_SIZE;	/* for next get_user_pages() */
- 			nr_pages--;
- 		}
-+		ret = 0;
- 	}
- 
- 	lru_add_drain_all();	/* to update stats */
- 
--	return 0;	/* count entire vma as locked_vm */
-+	return ret;	/* count entire vma as locked_vm */
- }
- 
- #else /* CONFIG_UNEVICTABLE_LRU */
-@@ -265,7 +278,7 @@ static long __mlock_vma_pages_range(stru
- 				   int mlock)
- {
- 	if (mlock && (vma->vm_flags & VM_LOCKED))
--		make_pages_present(start, end);
-+		return make_pages_present(start, end);
- 	return 0;
- }
- #endif /* CONFIG_UNEVICTABLE_LRU */
-@@ -423,10 +436,7 @@ success:
- 		downgrade_write(&mm->mmap_sem);
- 
- 		ret = __mlock_vma_pages_range(vma, start, end, 1);
--		if (ret > 0) {
--			mm->locked_vm -= ret;
--			ret = 0;
--		}
-+
- 		/*
- 		 * Need to reacquire mmap sem in write mode, as our callers
- 		 * expect this.  We have no support for atomically upgrading
-@@ -440,6 +450,11 @@ success:
- 		/* non-NULL *prev must contain @start, but need to check @end */
- 		if (!(*prev) || end > (*prev)->vm_end)
- 			ret = -ENOMEM;
-+		else if (ret > 0) {
-+			mm->locked_vm -= ret;
-+			ret = 0;
-+		} else
-+			ret = __mlock_posix_error_return(ret); /* translate if needed */
- 	} else {
- 		/*
- 		 * TODO:  for unlocking, pages will already be resident, so
-Index: linux-2.6.27-rc4-mmotm/mm/memory.c
-===================================================================
---- linux-2.6.27-rc4-mmotm.orig/mm/memory.c	2008-08-21 12:06:04.000000000 -0400
-+++ linux-2.6.27-rc4-mmotm/mm/memory.c	2008-08-21 12:06:08.000000000 -0400
-@@ -2821,7 +2821,7 @@ int make_pages_present(unsigned long add
- 			len, write, 0, NULL, NULL);
- 	if (ret < 0)
- 		return ret;
--	return ret == len ? 0 : -1;
-+	return ret == len ? 0 : -EFAULT;
- }
- 
- #if !defined(__HAVE_ARCH_GATE_AREA)
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
