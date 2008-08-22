@@ -1,61 +1,60 @@
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Date: Fri, 22 Aug 2008 17:10:28 -0400
-Message-Id: <20080822211028.29898.82599.sendpatchset@murky.usa.hp.com>
-Subject: [Patch 0/7] Mlock:  doc, patch grouping and error return cleanups
+Date: Fri, 22 Aug 2008 17:10:34 -0400
+Message-Id: <20080822211034.29898.71186.sendpatchset@murky.usa.hp.com>
+In-Reply-To: <20080822211028.29898.82599.sendpatchset@murky.usa.hp.com>
+References: <20080822211028.29898.82599.sendpatchset@murky.usa.hp.com>
+Subject: [PATCH 1/7] Mlock:  fix __mlock_vma_pages_range comment block
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: riel@redhat.com, linux-mm <linux-mm@kvack.org>, kosaki.motohiro@jp.fujitsu.com, Eric.Whitney@hp.com
 List-ID: <linux-mm.kvack.org>
 
-The six patches introduced by this message are against:
+Against:  2.6.27-rc3-mmotm-080821-0003
 
-	2.6.27-rc3-mmotm-080821-0003
+fix to mmap-handle-mlocked-pages-during-map-remap-unmap.patch
 
-These patches replace the series of 6 patches posted by
-/me at:
+__mlock_vma_pages_range comment block needs updating:
+ - it fails to mention the mlock parameter
+ - no longer requires that mmap_sem be held for write.
 
-	http://marc.info/?l=linux-mm&m=121917996115763&w=4
+following patch fixes it.
 
-those patches themselves replace the series of 5 RFC patches
-posted by Kosaki Motohiro at:
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-	http://marc.info/?l=linux-mm&m=121843816412096&w=4
+ mm/mlock.c |   16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
 
-
-Patch 1/7 is a rework of KM's cleanup of the __mlock_vma_pages_range()
-comment block.  I tried to follow kerneldoc format.  Randy will tell me if
-I made a mistake :)
-
-Patch 2/7 is a rework of KM's patch to remove the locked_vm 
-adjustments for "special vmas" during mmap() processing.  Kosaki-san
-wanted to "kill" this adjustment.  After discussion, he requested that
-it be resubmitted as a separate patch.  This is the first step in providing
-the separate patch [even tho' I consider this part of correctly "handling
-mlocked pages during mmap()..."].
-
-Patch 3/7 resubmits the locked_vm adjustment during mmap(MAP_LOCKED)) to
-match the explicit mlock() behavior.
-
-Patch 4/7 is KM's patch to change the error return for mlock
-when, after downgrading the mmap semaphore to read during population of
-the vma and switching back to write lock as our callers expect, the 
-vma that we just locked no longer covers the range we expected.  See
-the description.
-
-Patch 5/7 is a new patch to ensure that locked_vm is updated correctly
-when munmap()ing an mlocked region.
-
-Patch 6/7 backs out a mainline patch to make_pages_present() to adjust
-the error return to match the Posix specification for mlock error
-returns.  make_pages_present() is used by other than mlock, so this
-isn't really the appropriate place to make the change, even tho'
-apparently only mlock() looks at the return value from make_pages_present().
-
-Patch 7/7 fixes the mlock error return to be Posixly Correct in the
-appropriate [IMO] paths in mlock.c.  Reworked in this version to
-hide pte population errors [get_user_pages()] during mlock from mmap()
-and related callers.
+Index: linux-2.6.27-rc3-mmotm/mm/mlock.c
+===================================================================
+--- linux-2.6.27-rc3-mmotm.orig/mm/mlock.c	2008-08-18 11:41:19.000000000 -0400
++++ linux-2.6.27-rc3-mmotm/mm/mlock.c	2008-08-18 11:48:13.000000000 -0400
+@@ -112,12 +112,20 @@ static void munlock_vma_page(struct page
+ 	}
+ }
+ 
+-/*
+- * mlock a range of pages in the vma.
++/**
++ * __mlock_vma_pages_range() -  mlock/munlock a range of pages in the vma.
++ * @vma:   target vma
++ * @start: start address
++ * @end:   end address
++ * @mlock: 0 indicate munlock, otherwise mlock.
++ *
++ * If @mlock == 0, unlock an mlocked range;
++ * else mlock the range of pages.  This takes care of making the pages present ,
++ * too.
+  *
+- * This takes care of making the pages present too.
++ * return 0 on success, negative error code on error.
+  *
+- * vma->vm_mm->mmap_sem must be held for write.
++ * vma->vm_mm->mmap_sem must be held for at least read.
+  */
+ static int __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 				   unsigned long start, unsigned long end,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
