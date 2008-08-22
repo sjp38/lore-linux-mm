@@ -1,7 +1,7 @@
-Date: Fri, 22 Aug 2008 20:41:57 +0900
+Date: Fri, 22 Aug 2008 20:44:55 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 13/14] memcg: mem+swap counter
-Message-Id: <20080822204157.15423d84.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 14/14]memcg: mem+swap accounting
+Message-Id: <20080822204455.922f87dc.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,299 +13,690 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Add counter for swap accounting to memory resource controller.
+Add Swap accounting feature to memory resource controller.
 
-This adds 1 counter and 1 limit.
-res.swaps and res.memsw_limit. res.swaps is a counter for # of swap usage.
-(Later, you'll see res.swaps shows the number of swap _on_ disk)
+Accounting is done in following logic.
 
-these counter works as
+Swap-out:
+  - When add_to_swap_cache() is called, swp_entry is marked as to be under
+    page->page_cgroup->mem_cgroup.
+  - When swap-cache is uncharged (fully unmapped), we don't uncharge it.
+  - When swap-cache is deleted, we uncharge it from memory and charge it to
+    swaps. This ops is done only when swap cache is already charged.
+           res.pages -=1, res.swaps +=1.
 
-  res.pages + res.swaps < res.memsw_limit.
+Swap-in:
+  - When add_to_swapcache() is called, we do nothing.
+  - When swap is mapped, we charge to memory and uncharge from swap
+	   res.pages +=1, res.swaps -=1.
 
-This means the sum of on_memory_resource and on_swap_resource is limited.
-So, a swap is accounted when an anonymous page is charged. By this, the
-user can avoid unexpected massive use of swap and kswapd, the global LRU,
-is not affected by swap resouce control feature when he try add_to_swap.
-...swap is considered to be already accounted as page.
+SwapCache-Deleting:
+  - If the page doesn't have page_cgroup, nothing to do.
+  - If the page is still charged as swap, just uncharge memory.
+    (This can happen under shmem/tmpfs.)
+  - If the page is not charged as swap, res.pages -= 1, res.swaps +=1.
 
-For avoiding too much #ifdefs, this patch uses "do_swap_account" macro.
-If config=n, the compiler does good job and ignore some pieces of codes.
+Swap-Freeing:
+  - if swap entry is charged, res.swaps -= 1.
 
-This patch doesn't includes swap_accounting infrastructure..then, 
-CONFIG_CGROUP_MEM_RES_CTLR_SWAP is still broken.
+Almost all operations are done against SwapCache, which is Locked.
 
+This patch uses an array to remember the owner of swp_entry. Considering x86-32,we should avoid to use NORMAL memory and vmalloc() area too much. This patch
+uses HIGHMEM to record information under kmap_atomic(KM_USER0). And information
+is recored in 2 bytes per 1 swap page.
+(memory controller's id is defined as smaller than unsigned short)
+
+Changelog: (preview) -> (v2)
+ - removed radix-tree. just use array.
+ - removed linked-list.
+ - use memcgroup_id rather than pointer.
+ - added force_empty (temporal) support.
+   This should be reworked in future. (But for now, this works well for us.)
+ 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- mm/memcontrol.c |  121 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 112 insertions(+), 9 deletions(-)
+ include/linux/swap.h |   38 +++++
+ init/Kconfig         |    2 
+ mm/memcontrol.c      |  364 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ mm/migrate.c         |    7 
+ mm/swap_state.c      |    7 
+ mm/swapfile.c        |   14 +
+ 6 files changed, 422 insertions(+), 10 deletions(-)
 
 Index: mmtom-2.6.27-rc3+/mm/memcontrol.c
 ===================================================================
 --- mmtom-2.6.27-rc3+.orig/mm/memcontrol.c
 +++ mmtom-2.6.27-rc3+/mm/memcontrol.c
-@@ -129,6 +129,8 @@ struct mem_counter {
- 	unsigned long	pages;
- 	unsigned long	pages_limit;
- 	unsigned long	max_pages;
-+	unsigned long	swaps;
-+	unsigned long	memsw_limit;
- 	unsigned long	failcnt;
- 	spinlock_t	lock;
- };
-@@ -178,6 +180,7 @@ DEFINE_PER_CPU(struct mem_cgroup_sink_li
- enum charge_type {
- 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
- 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
-+	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,
- 	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
- };
+@@ -34,6 +34,10 @@
+ #include <linux/mm_inline.h>
+ #include <linux/pagemap.h>
+ #include <linux/page_cgroup.h>
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#endif
  
-@@ -186,6 +189,8 @@ enum {
- 	MEMCG_FILE_PAGE_LIMIT,
- 	MEMCG_FILE_PAGE_USAGE,
- 	MEMCG_FILE_PAGE_MAX_USAGE,
-+	MEMCG_FILE_SWAP_USAGE,
-+	MEMCG_FILE_MEMSW_LIMIT,
- 	MEMCG_FILE_FAILCNT,
- };
+ #include <asm/uaccess.h>
  
-@@ -269,6 +274,7 @@ static void mem_counter_init(struct mem_
- {
- 	memset(&mem->res, 0, sizeof(mem->res));
- 	mem->res.pages_limit = ~0UL;
-+	mem->res.memsw_limit = ~0UL;
- 	spin_lock_init(&mem->res.lock);
- }
+@@ -43,9 +47,28 @@ static struct kmem_cache *page_cgroup_ca
+ #define NR_MEMCGRP_ID			(32767)
  
-@@ -279,6 +285,10 @@ static int mem_counter_charge(struct mem
- 	spin_lock_irqsave(&mem->res.lock, flags);
- 	if (mem->res.pages + num > mem->res.pages_limit)
- 		goto busy_out;
-+	if (do_swap_account &&
-+	    (mem->res.pages + mem->res.swaps > mem->res.memsw_limit))
-+		goto busy_out;
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 +
- 	mem->res.pages += num;
- 	if (mem->res.pages > mem->res.max_pages)
- 		mem->res.max_pages = mem->res.pages;
-@@ -298,6 +308,27 @@ static void mem_counter_uncharge_page(st
- 	spin_unlock_irqrestore(&mem->res.lock, flags);
- }
- 
-+static void mem_counter_recharge_swap(struct mem_cgroup *mem)
+ #define do_swap_account	(1)
++
++static void
++swap_cgroup_delete_account(struct mem_cgroup *mem, struct page *page);
++
++static struct mem_cgroup *lookup_mem_cgroup_from_swap(struct page *page);
++static void swap_cgroup_clean_account(struct mem_cgroup *mem);
+ #else
+ #define do_swap_account	(0)
++
++static void
++swap_cgroup_delete_account(struct mem_cgroup *mem, struct page *page)
 +{
-+        unsigned long flags;
-+	if (do_swap_account) {
-+        	spin_lock_irqsave(&mem->res.lock, flags);
-+		mem->res.pages -= 1;
-+        	mem->res.swaps += 1;
-+        	spin_unlock_irqrestore(&mem->res.lock, flags);
-+	}
 +}
-+
-+static void mem_counter_uncharge_swap(struct mem_cgroup *mem)
++static struct mem_cgroup *lookup_mem_cgroup_from_swap(struct page *page)
 +{
-+	unsigned long flags;
-+	if (do_swap_account) {
-+		spin_lock_irqsave(&mem->res.lock, flags);
-+		mem->res.swaps -= 1;
-+		spin_unlock_irqrestore(&mem->res.lock, flags);
-+	}
++	return NULL;
 +}
-+
- static int mem_counter_set_pages_limit(struct mem_cgroup *mem,
- 					unsigned long num)
- {
-@@ -305,7 +336,9 @@ static int mem_counter_set_pages_limit(s
- 	int ret = -EBUSY;
- 
- 	spin_lock_irqsave(&mem->res.lock, flags);
--	if (mem->res.pages < num) {
-+	if (mem->res.memsw_limit < num) {
-+		ret = -EINVAL;
-+	} else if (mem->res.pages < num) {
- 		mem->res.pages_limit = num;
- 		ret = 0;
- 	}
-@@ -313,6 +346,23 @@ static int mem_counter_set_pages_limit(s
- 	return ret;
- }
- 
-+static int
-+mem_counter_set_memsw_limit(struct mem_cgroup *mem, unsigned long num)
++static void swap_cgroup_clean_account(struct mem_cgroup *mem)
 +{
-+	unsigned long flags;
-+	int ret = -EBUSY;
-+
-+	spin_lock_irqsave(&mem->res.lock, flags);
-+	if (mem->res.pages_limit > num) {
-+		ret = -EINVAL;
-+	} else if (mem->res.swaps + mem->res.pages < num) {
-+		mem->res.memsw_limit = num;
-+		ret = 0;
-+	}
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
-+	return ret;
 +}
-+
- static int mem_counter_check_under_pages_limit(struct mem_cgroup *mem)
- {
- 	if (mem->res.pages < mem->res.pages_limit)
-@@ -320,6 +370,15 @@ static int mem_counter_check_under_pages
+ #endif
+ 
+ 
+@@ -889,6 +912,9 @@ static int mem_cgroup_charge_common(stru
+ 	__mem_cgroup_add_list(mz, pc);
+ 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 
++	/* We did swap-in, uncharge swap. */
++	if (do_swap_account && PageSwapCache(page))
++		swap_cgroup_delete_account(mem, page);
  	return 0;
+ out:
+ 	css_put(&mem->css);
+@@ -899,6 +925,8 @@ err:
+ 
+ int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
+ {
++	struct mem_cgroup *memcg = NULL;
++
+ 	if (mem_cgroup_subsys.disabled)
+ 		return 0;
+ 
+@@ -935,13 +963,19 @@ int mem_cgroup_charge(struct page *page,
+ 		}
+ 		rcu_read_unlock();
+ 	}
++	/* Swap-in ? */
++	if (do_swap_account && PageSwapCache(page))
++		memcg = lookup_mem_cgroup_from_swap(page);
++
+ 	return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
++				MEM_CGROUP_CHARGE_TYPE_MAPPED, memcg);
  }
  
-+static int mem_counter_check_under_memsw_limit(struct mem_cgroup *mem)
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
++	struct mem_cgroup *memcg = NULL;
++
+ 	if (mem_cgroup_subsys.disabled)
+ 		return 0;
+ 
+@@ -971,9 +1005,11 @@ int mem_cgroup_cache_charge(struct page 
+ 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
++	if (do_swap_account && PageSwapCache(page))
++		memcg = lookup_mem_cgroup_from_swap(page);
+ 
+ 	return mem_cgroup_charge_common(page, mm, gfp_mask,
+-				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
++				MEM_CGROUP_CHARGE_TYPE_CACHE, memcg);
+ }
+ 
+ /*
+@@ -998,9 +1034,11 @@ __mem_cgroup_uncharge_common(struct page
+ 
+ 	VM_BUG_ON(pc->page != page);
+ 
+-	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+-	    && ((PcgCache(pc) || page_mapped(page))))
+-		goto out;
++	if ((ctype != MEM_CGROUP_CHARGE_TYPE_FORCE))
++		if (PageSwapCache(page) || page_mapped(page) ||
++		    (page->mapping && !PageAnon(page)))
++			goto out;
++
+ 	mem = pc->mem_cgroup;
+ 	SetPcgObsolete(pc);
+ 	page_assign_page_cgroup(page, NULL);
+@@ -1577,6 +1615,8 @@ static void mem_cgroup_pre_destroy(struc
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 	mem_cgroup_force_empty(mem);
++	if (do_swap_account)
++		swap_cgroup_clean_account(mem);
+ }
+ 
+ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+@@ -1635,3 +1675,317 @@ struct cgroup_subsys mem_cgroup_subsys =
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
+ };
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++/*
++ * swap accounting infrastructure.
++ */
++DEFINE_MUTEX(swap_cgroup_mutex);
++spinlock_t swap_cgroup_lock[MAX_SWAPFILES];
++struct page **swap_cgroup_map[MAX_SWAPFILES];
++unsigned long swap_cgroup_pages[MAX_SWAPFILES];
++
++
++/* This definition is based onf NR_MEM_CGROUP==32768 */
++struct swap_cgroup {
++	unsigned short memcgrp_id:15;
++	unsigned short count:1;
++};
++#define ENTS_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
++
++/*
++ * Called from get_swap_ent().
++ */
++int swap_cgroup_prepare(swp_entry_t ent, gfp_t mask)
 +{
-+	if (!do_swap_account)
-+		return 1;
-+	if (mem->res.pages + mem->res.swaps < mem->res.memsw_limit)
-+		return 1;
++	struct page *page;
++	unsigned long array_index = swp_offset(ent) / ENTS_PER_PAGE;
++	int type = swp_type(ent);
++	unsigned long flags;
++
++	if (swap_cgroup_map[type][array_index])
++		return 0;
++	page = alloc_page(mask | __GFP_HIGHMEM | __GFP_ZERO);
++	if (!page)
++		return -ENOMEM;
++	spin_lock_irqsave(&swap_cgroup_lock[type], flags);
++	if (swap_cgroup_map[type][array_index] == NULL) {
++		swap_cgroup_map[type][array_index] = page;
++		page = NULL;
++	}
++	spin_unlock_irqrestore(&swap_cgroup_lock[type], flags);
++
++	if (page)
++		__free_page(page);
 +	return 0;
 +}
 +
- static void mem_counter_reset(struct mem_cgroup *mem, int member)
- {
- 	unsigned long flags;
-@@ -772,20 +831,28 @@ static int mem_cgroup_charge_common(stru
- 	}
- 
- 	while (mem_counter_charge(mem, 1)) {
-+		int progress;
- 		if (!(gfp_mask & __GFP_WAIT))
- 			goto out;
- 
--		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
--			continue;
-+		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
- 
- 		/*
-+		 * When we hit memsw limit, return value of "progress"
-+		 * has no meaning. (some pages may just be changed to swap)
-+		 */
-+		if (mem_counter_check_under_memsw_limit(mem) && progress)
-+			continue;
++/**
++ * swap_cgroup_record_info
++ * @page ..... a page which is in some mem_cgroup.
++ * @entry .... swp_entry of the page. (or old swp_entry of the page)
++ * @delete ... if 0 add entry, if 1 remove entry.
++ *
++ * At set new value:
++ * This is called from add_to_swap_cache() after added to swapper_space.
++ * Then...this is called under page_lock() and this page is on radix-tree
++ * We're safe to access page->page_cgroup->mem_cgroup.
++ * This function never fails. (may leak information...but it's not Oops.)
++ *
++ * At delettion:
++ * Returns count is set or not.
++ */
++int swap_cgroup_record_info(struct page *page, swp_entry_t entry, bool del)
++{
++	unsigned long flags;
++	int type = swp_type(entry);
++	unsigned long offset = swp_offset(entry);
++	unsigned long array_index = offset/ENTS_PER_PAGE;
++	unsigned long index = offset & (ENTS_PER_PAGE - 1);
++	struct page *mappage;
++	struct swap_cgroup *map;
++	struct page_cgroup *pc = NULL;
++	int ret = 0;
++
++	if (!del) {
 +		/*
- 		 * try_to_free_mem_cgroup_pages() might not give us a full
- 		 * picture of reclaim. Some pages are reclaimed and might be
- 		 * moved to swap cache or just unmapped from the cgroup.
- 		 * Check the limit again to see if the reclaim reduced the
- 		 * current usage of the cgroup before giving up
- 		 */
--		if (mem_counter_check_under_pages_limit(mem))
-+
-+		if (!do_swap_account
-+		   && mem_counter_check_under_pages_limit(mem))
- 			continue;
- 
- 		if (!nr_retries--) {
-@@ -938,7 +1005,10 @@ __mem_cgroup_uncharge_common(struct page
- 	SetPcgObsolete(pc);
- 	page_assign_page_cgroup(page, NULL);
- 
--	mem_counter_uncharge_page(mem, 1);
-+	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-+		mem_counter_recharge_swap(mem);
-+	else
-+		mem_counter_uncharge_page(mem, 1);
- 	free_obsolete_page_cgroup(pc);
- 
- out:
-@@ -1040,7 +1110,9 @@ int mem_cgroup_shrink_usage(struct mm_st
- 	return 0;
- }
- 
--int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
-+int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
-+			    unsigned long long val,
-+			    bool memswap)
- {
- 
- 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -1051,7 +1123,14 @@ int mem_cgroup_resize_limit(struct mem_c
- 	if (val & PAGE_SIZE)
- 		new_lim += 1;
- 
--	while (mem_counter_set_pages_limit(memcg, new_lim)) {
-+	do {
-+		if (memswap)
-+			ret = mem_counter_set_memsw_limit(memcg, new_lim);
-+		else
-+			ret = mem_counter_set_pages_limit(memcg, new_lim);
-+
-+		if (!ret || ret == -EINVAL)
-+			break;
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
- 			break;
-@@ -1063,7 +1142,8 @@ int mem_cgroup_resize_limit(struct mem_c
- 		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL);
- 		if (!progress)
- 			retry_count--;
--	}
-+	} while (1);
-+
- 	return ret;
- }
- 
-@@ -1214,6 +1294,12 @@ static u64 mem_cgroup_read(struct cgroup
- 	case MEMCG_FILE_FAILCNT:
- 		ret = (unsigned long long)mem->res.failcnt;
- 		break;
-+	case MEMCG_FILE_SWAP_USAGE:
-+		ret = (unsigned long long)mem->res.swaps << PAGE_SHIFT;
-+		break;
-+	case MEMCG_FILE_MEMSW_LIMIT:
-+		ret = (unsigned long long)mem->res.memsw_limit << PAGE_SHIFT;
-+		break;
- 	default:
- 		BUG();
- 	}
-@@ -1240,9 +1326,13 @@ static int mem_cgroup_write(struct cgrou
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
- 	unsigned long long val;
-+	bool memswap = false;
- 	int ret;
- 
- 	switch (cft->private) {
-+	case MEMCG_FILE_MEMSW_LIMIT:
-+		memswap = true;
-+		/* Fall through */
- 	case MEMCG_FILE_PAGE_LIMIT:
- 		if (memcg->no_limit == 1) {
- 			ret = -EINVAL;
-@@ -1251,7 +1341,7 @@ static int mem_cgroup_write(struct cgrou
- 		/* This function does all necessary parse...reuse it */
- 		ret = call_memparse(buffer, &val);
- 		if (!ret)
--			ret = mem_cgroup_resize_limit(memcg, val);
-+			ret = mem_cgroup_resize_limit(memcg, val, memswap);
- 		break;
- 	default:
- 		ret = -EINVAL; /* should be BUG() ? */
-@@ -1364,6 +1454,19 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+	{
-+		.name = "swap_in_bytes",
-+		.private = MEMCG_FILE_SWAP_USAGE,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
-+		.name = "memswap_limit_in_bytes",
-+		.private = MEMCG_FILE_MEMSW_LIMIT,
-+		.write_string = mem_cgroup_write,
-+		.read_u64 = mem_cgroup_read,
++		 * At swap-in, the page is added to swap cache before tied to
++		 * mem_cgroup. This page will be finally charged at page fault.
++		 * Ignore this at this point.
++		 */
++		pc = page_get_page_cgroup(page);
++		if (!pc)
++			return ret;
 +	}
++	if (!swap_cgroup_map[type])
++		return ret;
++	mappage = swap_cgroup_map[type][array_index];
++	if (!mappage)
++		return ret;
++
++	local_irq_save(flags);
++	map = kmap_atomic(mappage, KM_USER0);
++	if (!del) {
++		map[index].memcgrp_id = pc->mem_cgroup->memcgrp_id;
++		map[index].count = 0;
++	} else {
++		if (map[index].count) {
++			ret = map[index].memcgrp_id;
++			map[index].count = 0;
++		}
++		map[index].memcgrp_id = 0;
++	}
++	kunmap_atomic(mappage, KM_USER0);
++	local_irq_restore(flags);
++	return ret;
++}
++
++/*
++ * returns mem_cgroup pointer when swp_entry is assgiend to.
++ */
++static struct mem_cgroup *swap_cgroup_lookup(swp_entry_t entry)
++{
++	unsigned long flags;
++	int type = swp_type(entry);
++	unsigned long offset = swp_offset(entry);
++	unsigned long array_index = offset/ENTS_PER_PAGE;
++	unsigned long index = offset & (ENTS_PER_PAGE - 1);
++	struct page *mappage;
++	struct swap_cgroup *map;
++	unsigned short id;
++
++	if (!swap_cgroup_map[type])
++		return NULL;
++	mappage = swap_cgroup_map[type][array_index];
++	if (!mappage)
++		return NULL;
++
++	local_irq_save(flags);
++	map = kmap_atomic(mappage, KM_USER0);
++	id = map[index].memcgrp_id;
++	kunmap_atomic(mappage, KM_USER0);
++	local_irq_restore(flags);
++	return mem_cgroup_id_lookup(id);
++}
++
++static struct mem_cgroup *lookup_mem_cgroup_from_swap(struct page *page)
++{
++	swp_entry_t entry = { .val = page_private(page) };
++	return swap_cgroup_lookup(entry);
++}
++
++/*
++ * set/clear accounting information of swap_cgroup.
++ *
++ * Called when set/clear accounting information.
++ * returns 1 at success.
++ */
++static int swap_cgroup_account(struct mem_cgroup *memcg,
++			       swp_entry_t entry, bool set)
++{
++	unsigned long flags;
++	int type = swp_type(entry);
++	unsigned long offset = swp_offset(entry);
++	unsigned long array_index = offset/ENTS_PER_PAGE;
++	unsigned long index = offset & (ENTS_PER_PAGE - 1);
++	struct page *mappage;
++	struct swap_cgroup *map;
++	int ret = 0;
++
++	if (!swap_cgroup_map[type])
++		return ret;
++	mappage = swap_cgroup_map[type][array_index];
++	if (!mappage)
++		return ret;
++
++
++	local_irq_save(flags);
++	map = kmap_atomic(mappage, KM_USER0);
++	if (map[index].memcgrp_id == memcg->memcgrp_id) {
++		if (set && map[index].count == 0) {
++			map[index].count = 1;
++			ret = 1;
++		} else if (!set && map[index].count == 1) {
++			map[index].count = 0;
++			ret = 1;
++		}
++	}
++	kunmap_atomic(mappage, KM_USER0);
++	local_irq_restore(flags);
++	return ret;
++}
++
++void swap_cgroup_delete_account(struct mem_cgroup *mem, struct page *page)
++{
++	swp_entry_t val = { .val = page_private(page) };
++	if (swap_cgroup_account(mem, val, false))
++		mem_counter_uncharge_swap(mem);
++}
++
++/*
++ * Called from delete_from_swap_cache() then, page is Locked! and
++ * swp_entry is still in use.
++ */
++void swap_cgroup_delete_swapcache(struct page *page, swp_entry_t entry)
++{
++	struct page_cgroup *pc;
++
++	pc = page_get_page_cgroup(page);
++	/* swap-in but not mapped. */
++	if (!pc)
++		return;
++
++	if (swap_cgroup_account(pc->mem_cgroup, entry, true))
++		__mem_cgroup_uncharge_common(page,
++				MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
++	else if (page->mapping && !PageAnon(page))
++		__mem_cgroup_uncharge_common(page,
++				MEM_CGROUP_CHARGE_TYPE_CACHE);
++	else
++		__mem_cgroup_uncharge_common(page,
++				MEM_CGROUP_CHARGE_TYPE_MAPPED);
++	return;
++}
++
++void swap_cgroup_delete_swap(swp_entry_t entry)
++{
++	int ret;
++	struct mem_cgroup *mem;
++
++	ret = swap_cgroup_record_info(NULL, entry, true);
++	if (ret) {
++		mem = mem_cgroup_id_lookup(ret);
++		if (mem)
++			mem_counter_uncharge_swap(mem);
++	}
++}
++
++
++/*
++ * Forget all accounts under swap_cgroup of memcg.
++ * Called from destroying context.
++ */
++static void swap_cgroup_clean_account(struct mem_cgroup *memcg)
++{
++	int type;
++	unsigned long array_index, flags;
++	int index;
++	struct page *page;
++	struct swap_cgroup *map;
++
++	if (!memcg->res.swaps)
++		return;
++	mutex_lock(&swap_cgroup_mutex);
++	for (type = 0; type < MAX_SWAPFILES; type++) {
++		if (swap_cgroup_pages[type] == 0)
++			continue;
++		for (array_index = 0;
++		     array_index < swap_cgroup_pages[type];
++		     array_index++) {
++			page = swap_cgroup_map[type][array_index];
++			if (!page)
++				continue;
++			local_irq_save(flags);
++			map = kmap_atomic(page, KM_USER0);
++			for (index = 0; index < ENTS_PER_PAGE; index++) {
++				if (map[index].memcgrp_id
++				    == memcg->memcgrp_id) {
++					map[index].memcgrp_id = 0;
++					map[index].count = 0;
++				}
++			}
++			kunmap_atomic(page, KM_USER0);
++			local_irq_restore(flags);
++		}
++		mutex_unlock(&swap_cgroup_mutex);
++		yield();
++		mutex_lock(&swap_cgroup_mutex);
++	}
++	mutex_unlock(&swap_cgroup_mutex);
++}
++
++/*
++ * called from swapon().
++ */
++int swap_cgroup_swapon(int type, unsigned long max_pages)
++{
++	void *array;
++	int array_size;
++
++	VM_BUG_ON(swap_cgroup_map[type]);
++
++	array_size = ((max_pages/ENTS_PER_PAGE) + 1) * sizeof(void *);
++
++	array = vmalloc(array_size);
++	if (!array) {
++		printk("swap %d will not be accounted\n", type);
++		return -ENOMEM;
++	}
++	memset(array, 0, array_size);
++	mutex_lock(&swap_cgroup_mutex);
++	swap_cgroup_pages[type] = (max_pages/ENTS_PER_PAGE + 1);
++	swap_cgroup_map[type] = array;
++	mutex_unlock(&swap_cgroup_mutex);
++	spin_lock_init(&swap_cgroup_lock[type]);
++	return 0;
++}
++
++/*
++ * called from swapoff().
++ */
++void swap_cgroup_swapoff(int type)
++{
++	int i;
++	for (i = 0; i < swap_cgroup_pages[type]; i++) {
++		struct page *page = swap_cgroup_map[type][i];
++		if (page)
++			__free_page(page);
++	}
++	mutex_lock(&swap_cgroup_mutex);
++	vfree(swap_cgroup_map[type]);
++	swap_cgroup_map[type] = NULL;
++	mutex_unlock(&swap_cgroup_mutex);
++	swap_cgroup_pages[type] = 0;
++}
++
 +#endif
- };
+Index: mmtom-2.6.27-rc3+/include/linux/swap.h
+===================================================================
+--- mmtom-2.6.27-rc3+.orig/include/linux/swap.h
++++ mmtom-2.6.27-rc3+/include/linux/swap.h
+@@ -335,6 +335,44 @@ static inline void disable_swap_token(vo
+ 	put_swap_token(swap_token_mm);
+ }
  
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++extern int swap_cgroup_swapon(int type, unsigned long max_pages);
++extern void swap_cgroup_swapoff(int type);
++extern void swap_cgroup_delete_swap(swp_entry_t entry);
++extern int swap_cgroup_prepare(swp_entry_t ent, gfp_t mask);
++extern int swap_cgroup_record_info(struct page *, swp_entry_t ent, bool del);
++extern void swap_cgroup_delete_swapcache(struct page *page, swp_entry_t entry);
++
++#else
++static inline int swap_cgroup_swapon(int type, unsigned long max_pages)
++{
++	return 0;
++}
++static inline void swap_cgroup_swapoff(int type)
++{
++	return;
++}
++static inline void swap_cgroup_delete_swap(swp_entry_t entry)
++{
++	return;
++}
++static inline int swap_cgroup_prapare(swp_entry_t ent, gfp_t mask)
++{
++	return 0;
++}
++static inline int
++ swap_cgroup_record_info(struct page *, swp_entry_t ent, bool del)
++{
++	return 0;
++}
++static inline
++void swap_cgroup_delete_swapcache(struct page *page, swp_entry_t entry)
++{
++	return;
++}
++#endif
++
++
+ #else /* CONFIG_SWAP */
+ 
+ #define total_swap_pages			0
+Index: mmtom-2.6.27-rc3+/mm/swapfile.c
+===================================================================
+--- mmtom-2.6.27-rc3+.orig/mm/swapfile.c
++++ mmtom-2.6.27-rc3+/mm/swapfile.c
+@@ -270,8 +270,9 @@ out:
+ 	return NULL;
+ }	
+ 
+-static int swap_entry_free(struct swap_info_struct *p, unsigned long offset)
++static int swap_entry_free(struct swap_info_struct *p, swp_entry_t entry)
+ {
++	unsigned long offset = swp_offset(entry);
+ 	int count = p->swap_map[offset];
+ 
+ 	if (count < SWAP_MAP_MAX) {
+@@ -286,6 +287,7 @@ static int swap_entry_free(struct swap_i
+ 				swap_list.next = p - swap_info;
+ 			nr_swap_pages++;
+ 			p->inuse_pages--;
++			swap_cgroup_delete_swap(entry);
+ 		}
+ 	}
+ 	return count;
+@@ -301,7 +303,7 @@ void swap_free(swp_entry_t entry)
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		swap_entry_free(p, swp_offset(entry));
++		swap_entry_free(p, entry);
+ 		spin_unlock(&swap_lock);
+ 	}
+ }
+@@ -420,7 +422,7 @@ void free_swap_and_cache(swp_entry_t ent
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
++		if (swap_entry_free(p, entry) == 1) {
+ 			page = find_get_page(&swapper_space, entry.val);
+ 			if (page && !trylock_page(page)) {
+ 				page_cache_release(page);
+@@ -1343,6 +1345,7 @@ asmlinkage long sys_swapoff(const char _
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
++	swap_cgroup_swapoff(type);
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
+@@ -1669,6 +1672,11 @@ asmlinkage long sys_swapon(const char __
+ 				1 /* header page */;
+ 		if (error)
+ 			goto bad_swap;
++
++		if (swap_cgroup_swapon(type, maxpages)) {
++			printk("We don't enable swap accounting because of"
++				"memory shortage\n");
++		}
+ 	}
+ 
+ 	if (nr_good_pages) {
+Index: mmtom-2.6.27-rc3+/mm/swap_state.c
+===================================================================
+--- mmtom-2.6.27-rc3+.orig/mm/swap_state.c
++++ mmtom-2.6.27-rc3+/mm/swap_state.c
+@@ -76,6 +76,9 @@ int add_to_swap_cache(struct page *page,
+ 	BUG_ON(PageSwapCache(page));
+ 	BUG_ON(PagePrivate(page));
+ 	BUG_ON(!PageSwapBacked(page));
++	error = swap_cgroup_prepare(entry, gfp_mask);
++	if (error)
++		return error;
+ 	error = radix_tree_preload(gfp_mask);
+ 	if (!error) {
+ 		page_cache_get(page);
+@@ -89,6 +92,7 @@ int add_to_swap_cache(struct page *page,
+ 			total_swapcache_pages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 			INC_CACHE_INFO(add_total);
++			swap_cgroup_record_info(page, entry, false);
+ 		}
+ 		spin_unlock_irq(&swapper_space.tree_lock);
+ 		radix_tree_preload_end();
+@@ -108,6 +112,8 @@ int add_to_swap_cache(struct page *page,
+  */
+ void __delete_from_swap_cache(struct page *page)
+ {
++	swp_entry_t entry = { .val = page_private(page) };
++
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(!PageSwapCache(page));
+ 	BUG_ON(PageWriteback(page));
+@@ -117,6 +123,7 @@ void __delete_from_swap_cache(struct pag
+ 	set_page_private(page, 0);
+ 	ClearPageSwapCache(page);
+ 	total_swapcache_pages--;
++	swap_cgroup_delete_swapcache(page, entry);
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
+ }
+Index: mmtom-2.6.27-rc3+/init/Kconfig
+===================================================================
+--- mmtom-2.6.27-rc3+.orig/init/Kconfig
++++ mmtom-2.6.27-rc3+/init/Kconfig
+@@ -416,7 +416,7 @@ config CGROUP_MEM_RES_CTLR
+ 	  could in turn add some fork/exit overhead.
+ 
+ config CGROUP_MEM_RES_CTLR_SWAP
+-	bool "Memory Resource Controller Swap Extension (Broken)"
++	bool "Memory Resource Controller Swap Extension (EXPERIMENTAL)"
+ 	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
+ 	help
+ 	 Add swap management feature to memory resource controller. By this,
+Index: mmtom-2.6.27-rc3+/mm/migrate.c
+===================================================================
+--- mmtom-2.6.27-rc3+.orig/mm/migrate.c
++++ mmtom-2.6.27-rc3+/mm/migrate.c
+@@ -339,6 +339,8 @@ static int migrate_page_move_mapping(str
+  */
+ static void migrate_page_copy(struct page *newpage, struct page *page)
+ {
++	int was_swapcache = 0;
++
+ 	copy_highpage(newpage, page);
+ 
+ 	if (PageError(page))
+@@ -372,14 +374,17 @@ static void migrate_page_copy(struct pag
+ 	mlock_migrate_page(newpage, page);
+ 
+ #ifdef CONFIG_SWAP
++	was_swapcache = PageSwapCache(page);
+ 	ClearPageSwapCache(page);
+ #endif
+ 	ClearPagePrivate(page);
+ 	set_page_private(page, 0);
+ 	/* page->mapping contains a flag for PageAnon() */
+ 	if (PageAnon(page)) {
+-		/* This page is uncharged at try_to_unmap(). */
++		/* This page is uncharged at try_to_unmap() if not SwapCache. */
+ 		page->mapping = NULL;
++		if (was_swapcache)
++			mem_cgroup_uncharge_page(page);
+ 	} else {
+ 		/* Obsolete file cache should be uncharged */
+ 		page->mapping = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
