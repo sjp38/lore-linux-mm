@@ -1,66 +1,78 @@
-Date: Sat, 23 Aug 2008 22:29:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH 1/2] Show quicklist at meminfo
-Message-Id: <20080823222923.9a7ce3d5.akpm@linux-foundation.org>
-In-Reply-To: <20080823171352.2533.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080822100049.F562.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20080821212847.f7fc936b.akpm@linux-foundation.org>
-	<20080823171352.2533.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by ti-out-0910.google.com with SMTP id j3so679875tid.8
+        for <linux-mm@kvack.org>; Sun, 24 Aug 2008 10:49:55 -0700 (PDT)
+From: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Subject: [PATCH] kmemtrace: SLUB hooks for caller-tracking functions.
+Date: Sun, 24 Aug 2008 20:49:35 +0300
+Message-Id: <1219600175-5253-1-git-send-email-eduard.munteanu@linux360.ro>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
+To: penberg@cs.helsinki.fi
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, cl@linux-foundation.org, mathieu.desnoyers@polymtl.ca, tzanussi@gmail.com, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Aug 2008 17:24:31 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+This patch adds kmemtrace hooks for __kmalloc_track_caller() and
+__kmalloc_node_track_caller(). Currently, they set the call site pointer
+to the value recieved as a parameter. (This could change if we implement
+stack trace exporting in kmemtrace.)
 
-> > > OK.
-> > > I ran cpu hotplug/unplug coutinuous workload over 12H.
-> > > then, system crash doesn't happend.
-> > > 
-> > > So, I believe my patch is cpu unplug safe.
-> > 
-> > err, which patch?
-> > 
-> > I presently have:
-> > 
-> > mm-show-quicklist-memory-usage-in-proc-meminfo.patch
-> > mm-show-quicklist-memory-usage-in-proc-meminfo-fix.patch
-> > mm-quicklist-shouldnt-be-proportional-to-number-of-cpus.patch
-> > mm-quicklist-shouldnt-be-proportional-to-number-of-cpus-fix.patch
-> > 
-> > Is that what you have?
-> > 
-> > I'll consolidate them into two patches and will append them here.  Please check.
-> 
-> Andrew, Thank you for your attention.
-> 
-> I test on
-> 
-> mm-show-quicklist-memory-usage-in-proc-meminfo.patch
-> mm-show-quicklist-memory-usage-in-proc-meminfo-fix.patch
-> 
-> and 
-> 
-> http://marc.info/?l=linux-mm&m=121931317407295&w=2 
-> 
-> 
-> the above url's patch already checked sparc64 compilable by David.
-> and I tested it.
-> 
-> So, if possible, Could you replace current quicklist-shouldnt-be-proportional
-> patch to that?
-> (of cource, current -mm patch also works well)
-> 
+Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+---
+ mm/slub.c |   20 ++++++++++++++++++--
+ 1 files changed, 18 insertions(+), 2 deletions(-)
 
-OK, there's just too much potential for miscommunication and error here.
-
-Please resend everything as a sequence-numbered, fully-changlelogged
-signed-off patch series against current mainline.
-
+diff --git a/mm/slub.c b/mm/slub.c
+index 06755e2..e79b814 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3254,6 +3254,7 @@ static struct notifier_block __cpuinitdata slab_notifier = {
+ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
+ {
+ 	struct kmem_cache *s;
++	void *ret;
+ 
+ 	if (unlikely(size > PAGE_SIZE))
+ 		return kmalloc_large(size, gfpflags);
+@@ -3263,13 +3264,21 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, void *caller)
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+ 
+-	return slab_alloc(s, gfpflags, -1, caller);
++	ret = slab_alloc(s, gfpflags, -1, caller);
++
++	/* Honor the call site pointer we recieved. */
++	kmemtrace_mark_alloc(KMEMTRACE_TYPE_KMALLOC,
++			     (unsigned long) caller, ret,
++			     size, s->size, gfpflags);
++
++	return ret;
+ }
+ 
+ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+ 					int node, void *caller)
+ {
+ 	struct kmem_cache *s;
++	void *ret;
+ 
+ 	if (unlikely(size > PAGE_SIZE))
+ 		return kmalloc_large_node(size, gfpflags, node);
+@@ -3279,7 +3288,14 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+ 
+-	return slab_alloc(s, gfpflags, node, caller);
++	ret = slab_alloc(s, gfpflags, node, caller);
++
++	/* Honor the call site pointer we recieved. */
++	kmemtrace_mark_alloc_node(KMEMTRACE_TYPE_KMALLOC,
++				  (unsigned long) caller, ret,
++				  size, s->size, gfpflags, node);
++
++	return ret;
+ }
+ 
+ #ifdef CONFIG_SLUB_DEBUG
+-- 
+1.5.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
