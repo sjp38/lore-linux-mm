@@ -1,35 +1,42 @@
-Message-ID: <48B30031.201@linux-foundation.org>
-Date: Mon, 25 Aug 2008 13:55:45 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Date: Tue, 26 Aug 2008 08:31:02 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 2/2] quicklist shouldn't be proportional to # of CPUs
+In-Reply-To: <48B2FC9D.3020300@sgi.com>
+References: <20080821.001322.236658980.davem@davemloft.net> <48B2FC9D.3020300@sgi.com>
+Message-Id: <20080826082756.232C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: oom-killer why ?
-References: <48B296C3.6030706@iplabs.de> <48B2D615.4060509@linux-foundation.org> <48B2DB58.2010304@iplabs.de> <48B2DDDA.5010200@linux-foundation.org> <48B2EB37.2000200@iplabs.de>
-In-Reply-To: <48B2EB37.2000200@iplabs.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marco Nietz <m.nietz-mm@iplabs.de>
-Cc: linux-mm@kvack.org
+To: Mike Travis <travis@sgi.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Marco Nietz wrote:
-> It's should be possible to reproduce the oom, but it's a Production Server.
+Hi Mike, 
+
+> >>> +	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
 > 
-> The oom happens after if've increased the Maximum Connections and
-> Shared-Buffers for the Postgres Database Server on that Machine.
+> I think the more correct usage would be:
 > 
-> It's kernel: 2.6.18-6-686-bigmem a Debian Etch Server.
+> 	{
+> 		node_to_cpumask_ptr(v, node);
+> 		num_cpus_per_node = cpus_weight_nr(*v);
+> 		max /= num_cpus_per_node;
+> 
+> 		return max(max, min_pages);
+> 	}
+> 
+> which should load 'v' with a pointer to the node_to_cpumask_map[node] entry
+> [and avoid using stack space for the cpumask_t variable for those arch's
+> that define a node_to_cpumask_map (or similar).]  Otherwise a local cpumask_t
+> variable '_v' is created to which 'v' is pointing to and thus can be used
+> directly as an arg to the cpu_xxx ops.
 
-Hmmm... That should be fairly stable. I wonder how prostgres handles the
-buffers? If the pages are mlocked and are required to be in lowmem then what
-you saw could be related to the postgres configuration.
+Thank you for your attension.
+please see my latest patch (http://marc.info/?l=linux-mm&m=121966459713193&w=2)
+it do that.
 
-> And here is the Complete dmesg:
-
-
-The problem is that the boot messages are cut off we cannot see the basic
-operating system configuration and the hardware that was detected.
 
 
 --
