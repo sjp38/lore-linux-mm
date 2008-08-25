@@ -1,65 +1,80 @@
-Message-ID: <48B2FC9D.3020300@sgi.com>
-Date: Mon, 25 Aug 2008 11:40:29 -0700
+Message-ID: <48B2FD8F.4000808@sgi.com>
+Date: Mon, 25 Aug 2008 11:44:31 -0700
 From: Mike Travis <travis@sgi.com>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 2/2] quicklist shouldn't be proportional to # of
  CPUs
-References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<20080820200709.12F0.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<20080820234615.258a9c04.akpm@linux-foundation.org> <20080821.001322.236658980.davem@davemloft.net>
-In-Reply-To: <20080821.001322.236658980.davem@davemloft.net>
+References: <20080820195021.12E7.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <20080820200709.12F0.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <20080820234615.258a9c04.akpm@linux-foundation.org>	 <20080821.001322.236658980.davem@davemloft.net>	 <20080821002757.b7c807ad.akpm@linux-foundation.org> <1219311154.8651.96.camel@twins>
+In-Reply-To: <1219311154.8651.96.camel@twins>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-David Miller wrote:
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Date: Wed, 20 Aug 2008 23:46:15 -0700
-> 
->> On Wed, 20 Aug 2008 20:08:13 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Peter Zijlstra wrote:
+> On Thu, 2008-08-21 at 00:27 -0700, Andrew Morton wrote:
+>> On Thu, 21 Aug 2008 00:13:22 -0700 (PDT) David Miller <davem@davemloft.net> wrote:
 >>
->>> +	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
+>>> From: Andrew Morton <akpm@linux-foundation.org>
+>>> Date: Wed, 20 Aug 2008 23:46:15 -0700
+>>>
+>>>> On Wed, 20 Aug 2008 20:08:13 +0900 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+>>>>
+>>>>> +	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
+>>>> sparc64 allmodconfig:
+>>>>
+>>>> mm/quicklist.c: In function `max_pages':
+>>>> mm/quicklist.c:44: error: invalid lvalue in unary `&'
+>>>>
+>>>> we seem to have a made a spectacular mess of cpumasks lately.
+>>> It should explode similarly on x86, since it also defines node_to_cpumask()
+>>> as an inline function.
+>>>
+>>> IA64 seems to be one of the few platforms to define this as a macro
+>>> evaluating to the node-to-cpumask array entry, so it's clear what
+>>> platform Motohiro-san did build testing on :-)
+>> Seems to compile OK on x86_32, x86_64, ia64 and powerpc for some reason.
+>>
+>> This seems to fix things on sparc64:
+>>
+>> --- a/mm/quicklist.c~mm-quicklist-shouldnt-be-proportional-to-number-of-cpus-fix
+>> +++ a/mm/quicklist.c
+>> @@ -28,7 +28,7 @@ static unsigned long max_pages(unsigned 
+>>  	unsigned long node_free_pages, max;
+>>  	int node = numa_node_id();
+>>  	struct zone *zones = NODE_DATA(node)->node_zones;
+>> -	int num_cpus_per_node;
+>> +	cpumask_t node_cpumask;
+>>  
+>>  	node_free_pages =
+>>  #ifdef CONFIG_ZONE_DMA
+>> @@ -41,8 +41,8 @@ static unsigned long max_pages(unsigned 
+>>  
+>>  	max = node_free_pages / FRACTION_OF_NODE_MEM;
+>>  
+>> -	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
+>> -	max /= num_cpus_per_node;
+>> +	node_cpumask = node_to_cpumask(node);
+>> +	max /= cpus_weight_nr(node_cpumask);
+>>  
+>>  	return max(max, min_pages);
+>>  }
+> 
+> humm, I thought we wanted to keep cpumask_t stuff away from our stack -
+> since on insanely large SGI boxen (/me looks at mike) the thing becomes
+> 512 bytes.
 
-I think the more correct usage would be:
 
-	{
-		node_to_cpumask_ptr(v, node);
-		num_cpus_per_node = cpus_weight_nr(*v);
-		max /= num_cpus_per_node;
+Yes, thanks for pointing that out!  I did send out an alternate coding
+that should keep the cpumask_t off the stack for those arch's that need
+to worry about it (using the node_to_cpumask_ptr function).  I should
+probably devote some time to documenting some of these gotcha's in one
+of the Doc.../ files.
 
-		return max(max, min_pages);
-	}
-
-which should load 'v' with a pointer to the node_to_cpumask_map[node] entry
-[and avoid using stack space for the cpumask_t variable for those arch's
-that define a node_to_cpumask_map (or similar).]  Otherwise a local cpumask_t
-variable '_v' is created to which 'v' is pointing to and thus can be used
-directly as an arg to the cpu_xxx ops.
-
-Thanks,
 Mike
-
-
->> sparc64 allmodconfig:
->>
->> mm/quicklist.c: In function `max_pages':
->> mm/quicklist.c:44: error: invalid lvalue in unary `&'
->>
->> we seem to have a made a spectacular mess of cpumasks lately.
-> 
-> It should explode similarly on x86, since it also defines node_to_cpumask()
-> as an inline function.
-> 
-> IA64 seems to be one of the few platforms to define this as a macro
-> evaluating to the node-to-cpumask array entry, so it's clear what
-> platform Motohiro-san did build testing on :-)
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
