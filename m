@@ -1,84 +1,36 @@
-Message-ID: <48B2FE79.8060709@sgi.com>
-Date: Mon, 25 Aug 2008 11:48:25 -0700
-From: Mike Travis <travis@sgi.com>
+Message-ID: <48B30031.201@linux-foundation.org>
+Date: Mon, 25 Aug 2008 13:55:45 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/2] quicklist shouldn't be proportional to # of
- CPUs
-References: <20080821002757.b7c807ad.akpm@linux-foundation.org> <1219311154.8651.96.camel@twins> <20080821183648.22AF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20080821183648.22AF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: oom-killer why ?
+References: <48B296C3.6030706@iplabs.de> <48B2D615.4060509@linux-foundation.org> <48B2DB58.2010304@iplabs.de> <48B2DDDA.5010200@linux-foundation.org> <48B2EB37.2000200@iplabs.de>
+In-Reply-To: <48B2EB37.2000200@iplabs.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cl@linux-foundation.org, tokunaga.keiich@jp.fujitsu.com
+To: Marco Nietz <m.nietz-mm@iplabs.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
-> Hi Peter,
+Marco Nietz wrote:
+> It's should be possible to reproduce the oom, but it's a Production Server.
 > 
-> Thank you good point out!
+> The oom happens after if've increased the Maximum Connections and
+> Shared-Buffers for the Postgres Database Server on that Machine.
 > 
->>> @@ -41,8 +41,8 @@ static unsigned long max_pages(unsigned 
->>>  
->>>  	max = node_free_pages / FRACTION_OF_NODE_MEM;
->>>  
->>> -	num_cpus_per_node = cpus_weight_nr(node_to_cpumask(node));
->>> -	max /= num_cpus_per_node;
->>> +	node_cpumask = node_to_cpumask(node);
->>> +	max /= cpus_weight_nr(node_cpumask);
->>>  
->>>  	return max(max, min_pages);
->>>  }
->> humm, I thought we wanted to keep cpumask_t stuff away from our stack -
->> since on insanely large SGI boxen (/me looks at mike) the thing becomes
->> 512 bytes.
-> 
-> Hm, interesting.
-> I think following patch fill your point, right?
-> 
-> but I worry about it works on sparc64...
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
-> ---
->  mm/quicklist.c |    9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
-> 
-> Index: b/mm/quicklist.c
-> ===================================================================
-> --- a/mm/quicklist.c
-> +++ b/mm/quicklist.c
-> @@ -26,7 +26,10 @@ DEFINE_PER_CPU(struct quicklist, quickli
->  static unsigned long max_pages(unsigned long min_pages)
->  {
->  	unsigned long node_free_pages, max;
-> -	struct zone *zones = NODE_DATA(numa_node_id())->node_zones;
-> +	int node = numa_node_id();
-> +	struct zone *zones = NODE_DATA(node)->node_zones;
-> +	int num_cpus_on_node;
-> +	node_to_cpumask_ptr(cpumask_on_node, node);
->  
->  	node_free_pages =
->  #ifdef CONFIG_ZONE_DMA
-> @@ -38,6 +41,10 @@ static unsigned long max_pages(unsigned 
->  		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
->  
->  	max = node_free_pages / FRACTION_OF_NODE_MEM;
-> +
-> +	num_cpus_on_node = cpus_weight_nr(*cpumask_on_node);
-> +	max /= num_cpus_on_node;
-> +
->  	return max(max, min_pages);
->  }
->  
-> 
+> It's kernel: 2.6.18-6-686-bigmem a Debian Etch Server.
 
-Exactly!  And (many thanks to them!) the sparc maintainers have
-implemented a similar internal function definition for node_to_cpumask_ptr().
+Hmmm... That should be fairly stable. I wonder how prostgres handles the
+buffers? If the pages are mlocked and are required to be in lowmem then what
+you saw could be related to the postgres configuration.
 
-Mike
+> And here is the Complete dmesg:
+
+
+The problem is that the boot messages are cut off we cannot see the basic
+operating system configuration and the hardware that was detected.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
