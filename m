@@ -1,34 +1,49 @@
-Date: Mon, 25 Aug 2008 12:19:31 +0900
+Date: Mon, 25 Aug 2008 12:21:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/14] memcg: unlimted root cgroup
-Message-Id: <20080825121931.2bd134b4.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1409530.1219451890296.kamezawa.hiroyu@jp.fujitsu.com>
-References: <48AF42DC.7020705@linux.vnet.ibm.com>
-	<20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080822203025.eb4b2ec3.kamezawa.hiroyu@jp.fujitsu.com>
-	<1409530.1219451890296.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 2/14] memcg: rewrite force_empty
+Message-Id: <20080825122127.31959aac.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080822203114.bf6f08e4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080822203114.bf6f08e4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Aug 2008 09:38:10 +0900 (JST)
-kamezawa.hiroyu@jp.fujitsu.com wrote:
-> >Is this a generic implementation to support no limits? If not, why not store 
-> the
-> >root memory controller pointer and see if someone is trying to set a limit on
->  that?
-> >
-> Just because I designed this for supporting trash-box and changed my mind..
-> Sorry. If pointer comparison is better, I'll do that.
-> 
-I decieded to use follwoing macro instead of memcg->no_limit.
+On Fri, 22 Aug 2008 20:31:14 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-#define is_root_cgroup(cgrp)	((cgrp) == &init_mem_cgroup)
+> Current force_empty of memory resource controller just removes page_cgroup.
+> This maans the page is not accounted at all and create an in-use page which
+> has no page_cgroup.
+> 
+> This patch tries to move account to "root" cgroup. By this patch, force_empty
+> doesn't leak an account but move account to "root" cgroup. Maybe someone can
+> think of other enhancements as
+> 
+>  1. move account to its parent.
+>  2. move account to default-trash-can-cgroup somewhere.
+>  3. move account to a cgroup specified by an admin.
+> 
+> I think a routine this patch adds is an enough generic and can be the base
+> patch for supporting above behavior (if someone wants.). But, for now, just
+> moves account to root group.
+> 
+> While moving mem_cgroup, lock_page(page) is held. This helps us for avoiding
+> race condition with accessing page_cgroup->mem_cgroup.
+> While under lock_page(), page_cgroup->mem_cgroup points to right cgroup.
+> 
+
+I decided to divide this patch into 2 pieces.
+
+1. mem_cgroup_move_account() patch
+2. rewrite force_empty to use mem_cgroup_move_account() patch.
+
+(1) will add more generic helps for mem_cgroup in future.
 
 Thanks,
 -Kame
