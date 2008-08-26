@@ -1,70 +1,26 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m7QDIfsf020251
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 18:48:41 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7QDIftd1806400
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 18:48:41 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m7QDIeIS012339
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 18:48:41 +0530
-Message-ID: <48B402B1.8030902@linux.vnet.ibm.com>
-Date: Tue, 26 Aug 2008 18:48:41 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <48B403D7.4020404@linux-foundation.org>
+Date: Tue, 26 Aug 2008 08:23:35 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
 Subject: Re: oom-killer why ?
-References: <48B296C3.6030706@iplabs.de> <48B3E4CC.9060309@linux.vnet.ibm.com> <48B3F04B.9030308@iplabs.de> <48B401F8.9010703@linux.vnet.ibm.com>
-In-Reply-To: <48B401F8.9010703@linux.vnet.ibm.com>
+References: <48B296C3.6030706@iplabs.de> <48B2D615.4060509@linux-foundation.org> <48B2DB58.2010304@iplabs.de> <48B2DDDA.5010200@linux-foundation.org> <48B2EB37.2000200@iplabs.de> <48B30031.201@linux-foundation.org> <48B3A656.4000902@iplabs.de>
+In-Reply-To: <48B3A656.4000902@iplabs.de>
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marco Nietz <m.nietz-mm@iplabs.de>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Marco Nietz wrote:
->> Balbir Singh schrieb:
->>
->>>> DMA32 free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB
->>>> present:0kB pages_scanned:0 all_unreclaimable? no
->>>> lowmem_reserve[]: 0 0 880 17392
->>> pages_scanned is 0
->> Is'nt this zone irrelevant for a 32bit Kernel ?
->>
-> 
-> Doesn't matter, since you have 0 present pages.
-> 
->>>> Normal free:3664kB min:3756kB low:4692kB high:5632kB active:280kB
->>>> inactive:244kB present:901120kB pages_scanned:593 all_unreclaimable? yes
->>>> lowmem_reserve[]: 0 0 0 132096
->>> pages_scanned is 593 and all_unreclaimable is yes
->> Reclaimable means, that the Pages are reusable for other Purposes, or not ?
->>
-> 
-> It is set by a background routine that tries to reclaim pages (balance_pgdat()),
-> to indicate that it was unable to reclaim any pages from the zone, even though
-> it did a certain amount of work to do so.
-> 
->>>> HighMem free:5941820kB min:512kB low:18148kB high:35784kB
->>>> active:4408096kB inactive:5494404kB present:16908288kB pages_scanned:0
->>>> all_unreclaimable? no
->>> pages_scanned is 0
->>> Do you have CONFIG_HIGHPTE set? I suspect you don't (I don't really know the
->>> debian etch configuration)
->> No, it's not set in the running Debian Kernel.
-> 
-> Looks like CONFIG_HIGHPTE=y would have helped allocate pages since you do have
-> pages in HighMem available.
-> 
+Marco Nietz wrote:
+>
+> It's a Dell Poweredge 1950, Dual Quad Core with 2.66GHz and 16G Ram. The
+> Machine has two Raid-Controllers. One used for the OS and the other one
+> for a Direct Attached Storage (MD-3000). This Storage is controlled with
+> multipath-tools and used for Database Storage.
 
-Looking closely, may be there is a leak like Christoph suggested (most of the
-pages have been consumed by the kernel) - only 280kB+244kB is in use by user
-pages. The rest has either leaked or in use by the kernel.
-
--- 
-	Balbir
+I'd strongly suggest to go to 64 bit for that machine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
