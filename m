@@ -1,14 +1,21 @@
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m7QBBkEd000412
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 16:41:46 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7QBBkJG1413300
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 16:41:46 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m7QBBklE028263
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 16:41:46 +0530
+Message-ID: <48B3E4CC.9060309@linux.vnet.ibm.com>
+Date: Tue, 26 Aug 2008 16:41:08 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
 Subject: Re: oom-killer why ?
-From: Larry Woodman <lwoodman@redhat.com>
-Reply-To: lwoodman@redhat.com
-In-Reply-To: <48B2EB37.2000200@iplabs.de>
 References: <48B296C3.6030706@iplabs.de>
-	 <48B2D615.4060509@linux-foundation.org> <48B2DB58.2010304@iplabs.de>
-	 <48B2DDDA.5010200@linux-foundation.org>  <48B2EB37.2000200@iplabs.de>
-Content-Type: text/plain
-Date: Tue, 26 Aug 2008 06:45:59 -0400
-Message-Id: <1219747559.6705.8.camel@localhost.localdomain>
-Mime-Version: 1.0
+In-Reply-To: <48B296C3.6030706@iplabs.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -16,39 +23,118 @@ To: Marco Nietz <m.nietz-mm@iplabs.de>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-08-25 at 19:26 +0200, Marco Nietz wrote:
-> It's should be possible to reproduce the oom, but it's a Production Server.
+Marco Nietz wrote:
+> Today, i've meet the oom-killer the first time, but i could not
+> understand why this happens.
+> 
+> Swap and Highmem is ok, Could this be a Problem of lowmem and the bigmen
+>  (pae) Kernel ?
+> 
+> It's a Machine with 2x4 Xeon Cores and 16GB of physical Memory running
+> Debian Etch with Kernel 2.6.18-6-686-bigmem.
+> 
+> Hier the dmesg-Output
+> 
+> oom-killer: gfp_mask=0x84d0, order=0
+>  [<c014290b>] out_of_memory+0x25/0x13a
+>  [<c0143d74>] __alloc_pages+0x1f5/0x275
+>  [<c014a439>] __pte_alloc+0x11/0x9e
+>  [<c014b864>] copy_page_range+0x155/0x3da
+>  [<c01ba1d8>] vsnprintf+0x419/0x457
+>  [<c011c184>] copy_process+0xa73/0x10a9
+>  [<c011ca1f>] do_fork+0x91/0x17a
+>  [<c0124d67>] do_gettimeofday+0x31/0xce
+>  [<c01012c2>] sys_clone+0x28/0x2d
+>  [<c0102c0d>] sysenter_past_esp+0x56/0x79
+> Mem-info:
+> DMA per-cpu:
+> cpu 0 hot: high 0, batch 1 used:0
+> cpu 0 cold: high 0, batch 1 used:0
+> cpu 1 hot: high 0, batch 1 used:0
+> cpu 1 cold: high 0, batch 1 used:0
+> cpu 2 hot: high 0, batch 1 used:0
+> cpu 2 cold: high 0, batch 1 used:0
+> cpu 3 hot: high 0, batch 1 used:0
+> cpu 3 cold: high 0, batch 1 used:0
+> cpu 4 hot: high 0, batch 1 used:0
+> cpu 4 cold: high 0, batch 1 used:0
+> cpu 5 hot: high 0, batch 1 used:0
+> cpu 5 cold: high 0, batch 1 used:0
+> cpu 6 hot: high 0, batch 1 used:0
+> cpu 6 cold: high 0, batch 1 used:0
+> cpu 7 hot: high 0, batch 1 used:0
+> cpu 7 cold: high 0, batch 1 used:0
+> DMA32 per-cpu: empty
+> Normal per-cpu:
+> cpu 0 hot: high 186, batch 31 used:128
+> cpu 0 cold: high 62, batch 15 used:48
+> cpu 1 hot: high 186, batch 31 used:30
+> cpu 1 cold: high 62, batch 15 used:47
+> cpu 2 hot: high 186, batch 31 used:35
+> cpu 2 cold: high 62, batch 15 used:59
+> cpu 3 hot: high 186, batch 31 used:79
+> cpu 3 cold: high 62, batch 15 used:55
+> cpu 4 hot: high 186, batch 31 used:8
+> cpu 4 cold: high 62, batch 15 used:53
+> cpu 5 hot: high 186, batch 31 used:162
+> cpu 5 cold: high 62, batch 15 used:52
+> cpu 6 hot: high 186, batch 31 used:181
+> cpu 6 cold: high 62, batch 15 used:57
+> cpu 7 hot: high 186, batch 31 used:9
+> cpu 7 cold: high 62, batch 15 used:58
+> HighMem per-cpu:
+> cpu 0 hot: high 186, batch 31 used:18
+> cpu 0 cold: high 62, batch 15 used:9
+> cpu 1 hot: high 186, batch 31 used:47
+> cpu 1 cold: high 62, batch 15 used:1
+> cpu 2 hot: high 186, batch 31 used:102
+> cpu 2 cold: high 62, batch 15 used:7
+> cpu 3 hot: high 186, batch 31 used:171
+> cpu 3 cold: high 62, batch 15 used:7
+> cpu 4 hot: high 186, batch 31 used:172
+> cpu 4 cold: high 62, batch 15 used:14
+> cpu 5 hot: high 186, batch 31 used:26
+> cpu 5 cold: high 62, batch 15 used:14
+> cpu 6 hot: high 186, batch 31 used:29
+> cpu 6 cold: high 62, batch 15 used:2
+> cpu 7 hot: high 186, batch 31 used:99
+> cpu 7 cold: high 62, batch 15 used:3
+> Free pages:     5949076kB (5941820kB HighMem)
+> Active:1102100 inactive:1373666 dirty:4831 writeback:0 unstable:0
+> free:1487269 slab:35543 mapped:139487 pagetables:152485
+> DMA free:3592kB min:68kB low:84kB high:100kB active:24kB inactive:16kB
+> present:16384kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 880 17392
 
->   [<c014290b>] out_of_memory+0x25/0x13a
->   [<c0143d74>] __alloc_pages+0x1f5/0x275
->   [<c014a439>] __pte_alloc+0x11/0x9e
->   [<c014a576>] __handle_mm_fault+0xb0/0xa1f
+pages_scanned is 0
 
-> pagetables:152485
+> DMA32 free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB
+> present:0kB pages_scanned:0 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 880 17392
 
-> Normal free:3664kB min:3756kB low:4692kB high:5632kB active:280kB 
+pages_scanned is 0
+
+> Normal free:3664kB min:3756kB low:4692kB high:5632kB active:280kB
 > inactive:244kB present:901120kB pages_scanned:593 all_unreclaimable? yes
+> lowmem_reserve[]: 0 0 0 132096
 
-If it is allocating lowmem for ptepages CONFIG_HIGHPTE is not set so it
-exhausts the Normal zone with wired pte pages and eventually OOM kills.
+pages_scanned is 593 and all_unreclaimable is yes
 
------------------------------------------------------------------------
-pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-        struct page *pte;
 
-#ifdef CONFIG_HIGHPTE
-        pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|
-__GFP_ZERO, 0);
-#else
-        pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-#endif
-        if (pte)
-                pgtable_page_ctor(pte);
-        return pte;
-}
------------------------------------------------------------------------
+> HighMem free:5941820kB min:512kB low:18148kB high:35784kB
+> active:4408096kB inactive:5494404kB present:16908288kB pages_scanned:0
+> all_unreclaimable? no
 
+pages_scanned is 0
+
+Do you have CONFIG_HIGHPTE set? I suspect you don't (I don't really know the
+debian etch configuration). I suspect you've run out of zone normal pages to
+allocate.
+
+[snip]
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
