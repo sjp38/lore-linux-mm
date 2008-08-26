@@ -1,91 +1,54 @@
-Date: Tue, 26 Aug 2008 10:29:29 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [BUG] [PATCH v2] Make setup_zone_migrate_reserve() aware of
-	overlapping nodes
-Message-ID: <20080826092929.GD29207@brain>
-References: <1218837685.12953.11.camel@localhost.localdomain> <1219252134.13885.25.camel@localhost.localdomain> <1219255911.8960.41.camel@nimitz> <1219262152.13885.27.camel@localhost.localdomain> <20080821113338.GA29950@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080821113338.GA29950@csn.ul.ie>
+Subject: Re: oom-killer why ?
+From: Larry Woodman <lwoodman@redhat.com>
+Reply-To: lwoodman@redhat.com
+In-Reply-To: <48B2EB37.2000200@iplabs.de>
+References: <48B296C3.6030706@iplabs.de>
+	 <48B2D615.4060509@linux-foundation.org> <48B2DB58.2010304@iplabs.de>
+	 <48B2DDDA.5010200@linux-foundation.org>  <48B2EB37.2000200@iplabs.de>
+Content-Type: text/plain
+Date: Tue, 26 Aug 2008 06:45:59 -0400
+Message-Id: <1219747559.6705.8.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Adam Litke <agl@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, agl <agl@linux.vnet.ibm.com>
+To: Marco Nietz <m.nietz-mm@iplabs.de>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 21, 2008 at 12:33:39PM +0100, Mel Gorman wrote:
-> On (20/08/08 14:55), Adam Litke didst pronounce:
-> >     Changes since V1
-> >      - Fix build for !NUMA
-> >      - Add VM_BUG_ON() to catch this problem at the source
-> >     
-> >     I have gotten to the root cause of the hugetlb badness I reported back on
-> >     August 15th.  My system has the following memory topology (note the
-> >     overlapping node):
-> >     
-> >             Node 0 Memory: 0x8000000-0x44000000
-> >             Node 1 Memory: 0x0-0x8000000 0x44000000-0x80000000
-> >     
-> >     setup_zone_migrate_reserve() scans the address range 0x0-0x8000000 looking
-> >     for a pageblock to move onto the MIGRATE_RESERVE list.  Finding no
-> >     candidates, it happily continues the scan into 0x8000000-0x44000000.  When
-> >     a pageblock is found, the pages are moved to the MIGRATE_RESERVE list on
-> >     the wrong zone.  Oops.
-> >     
-> >     (Andrew: once the proper fix is agreed upon, this should also be a
-> >     candidate for -stable.)
-> >     
-> >     setup_zone_migrate_reserve() should skip pageblocks in overlapping nodes.
-> >     
-> >     Signed-off-by: Adam Litke <agl@us.ibm.com>
-> > 
-> 
-> zone_to_nid(zone) is called every time in the loop even though it will never
-> change. This is less than optimal but setup_zone_migrate_reserve() is only
-> called during init and when min_free_kbytes is adjusted so it's not worth
-> worrying about. Otherwise it looks good.
-> 
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index af982f7..feb7916 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -694,6 +694,9 @@ static int move_freepages(struct zone *zone,
-> >  #endif
-> >  
-> >  	for (page = start_page; page <= end_page;) {
-> > +		/* Make sure we are not inadvertently changing nodes */
-> > +		VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
-> > +
-> >  		if (!pfn_valid_within(page_to_pfn(page))) {
-> >  			page++;
-> >  			continue;
-> > @@ -2516,6 +2519,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
-> >  			continue;
-> >  		page = pfn_to_page(pfn);
-> >  
-> > +		/* Watch out for overlapping nodes */
-> > +		if (page_to_nid(page) != zone_to_nid(zone))
-> > +			continue;
-> > +
-> >  		/* Blocks with reserved pages will never free, skip them. */
-> >  		if (PageReserved(page))
-> >  			continue;
+On Mon, 2008-08-25 at 19:26 +0200, Marco Nietz wrote:
+> It's should be possible to reproduce the oom, but it's a Production Server.
 
-This patch looks sane.  I do note that we have a config option to tell
-us whether we have any possibility of overlapping nodes, and we have an
-early version of a check for this early_pfn_in_nid() in mm.h.  You might
-consider having a non-early variant of this which could be optimised
-away for those arches which do not have CONFIG_NODES_SPAN_OTHER_NODES.
+>   [<c014290b>] out_of_memory+0x25/0x13a
+>   [<c0143d74>] __alloc_pages+0x1f5/0x275
+>   [<c014a439>] __pte_alloc+0x11/0x9e
+>   [<c014a576>] __handle_mm_fault+0xb0/0xa1f
 
-In 'unearlifying' this to pfn_in_nid() I think we have a small naming
-issue with these function as they are only valid for use with pfns within
-an existing node.  They should probabally both be *pfn_in_nid_within()
-or something in line with pfn_valid_within().
+> pagetables:152485
 
--apw
+> Normal free:3664kB min:3756kB low:4692kB high:5632kB active:280kB 
+> inactive:244kB present:901120kB pages_scanned:593 all_unreclaimable? yes
+
+If it is allocating lowmem for ptepages CONFIG_HIGHPTE is not set so it
+exhausts the Normal zone with wired pte pages and eventually OOM kills.
+
+-----------------------------------------------------------------------
+pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+{
+        struct page *pte;
+
+#ifdef CONFIG_HIGHPTE
+        pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|
+__GFP_ZERO, 0);
+#else
+        pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+#endif
+        if (pte)
+                pgtable_page_ctor(pte);
+        return pte;
+}
+-----------------------------------------------------------------------
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
