@@ -1,212 +1,89 @@
-Date: Tue, 26 Aug 2008 10:09:36 +0100
+Date: Tue, 26 Aug 2008 10:29:29 +0100
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: sparsemem support for mips with highmem
-Message-ID: <20080826090936.GC29207@brain>
-References: <48A4AC39.7020707@sciatl.com> <1218753308.23641.56.camel@nimitz> <48A4C542.5000308@sciatl.com>
+Subject: Re: [BUG] [PATCH v2] Make setup_zone_migrate_reserve() aware of
+	overlapping nodes
+Message-ID: <20080826092929.GD29207@brain>
+References: <1218837685.12953.11.camel@localhost.localdomain> <1219252134.13885.25.camel@localhost.localdomain> <1219255911.8960.41.camel@nimitz> <1219262152.13885.27.camel@localhost.localdomain> <20080821113338.GA29950@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <48A4C542.5000308@sciatl.com>
+In-Reply-To: <20080821113338.GA29950@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: C Michael Sundius <Michael.sundius@sciatl.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Adam Litke <agl@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, nacc <nacc@linux.vnet.ibm.com>, agl <agl@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 14, 2008 at 04:52:34PM -0700, C Michael Sundius wrote:
-> fixed patch
->
->
+On Thu, Aug 21, 2008 at 12:33:39PM +0100, Mel Gorman wrote:
+> On (20/08/08 14:55), Adam Litke didst pronounce:
+> >     Changes since V1
+> >      - Fix build for !NUMA
+> >      - Add VM_BUG_ON() to catch this problem at the source
+> >     
+> >     I have gotten to the root cause of the hugetlb badness I reported back on
+> >     August 15th.  My system has the following memory topology (note the
+> >     overlapping node):
+> >     
+> >             Node 0 Memory: 0x8000000-0x44000000
+> >             Node 1 Memory: 0x0-0x8000000 0x44000000-0x80000000
+> >     
+> >     setup_zone_migrate_reserve() scans the address range 0x0-0x8000000 looking
+> >     for a pageblock to move onto the MIGRATE_RESERVE list.  Finding no
+> >     candidates, it happily continues the scan into 0x8000000-0x44000000.  When
+> >     a pageblock is found, the pages are moved to the MIGRATE_RESERVE list on
+> >     the wrong zone.  Oops.
+> >     
+> >     (Andrew: once the proper fix is agreed upon, this should also be a
+> >     candidate for -stable.)
+> >     
+> >     setup_zone_migrate_reserve() should skip pageblocks in overlapping nodes.
+> >     
+> >     Signed-off-by: Adam Litke <agl@us.ibm.com>
+> > 
+> 
+> zone_to_nid(zone) is called every time in the loop even though it will never
+> change. This is less than optimal but setup_zone_migrate_reserve() is only
+> called during init and when min_free_kbytes is adjusted so it's not worth
+> worrying about. Otherwise it looks good.
+> 
+> Acked-by: Mel Gorman <mel@csn.ul.ie>
+> 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index af982f7..feb7916 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -694,6 +694,9 @@ static int move_freepages(struct zone *zone,
+> >  #endif
+> >  
+> >  	for (page = start_page; page <= end_page;) {
+> > +		/* Make sure we are not inadvertently changing nodes */
+> > +		VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
+> > +
+> >  		if (!pfn_valid_within(page_to_pfn(page))) {
+> >  			page++;
+> >  			continue;
+> > @@ -2516,6 +2519,10 @@ static void setup_zone_migrate_reserve(struct zone *zone)
+> >  			continue;
+> >  		page = pfn_to_page(pfn);
+> >  
+> > +		/* Watch out for overlapping nodes */
+> > +		if (page_to_nid(page) != zone_to_nid(zone))
+> > +			continue;
+> > +
+> >  		/* Blocks with reserved pages will never free, skip them. */
+> >  		if (PageReserved(page))
+> >  			continue;
 
-Typically I was on holiday when you posted, how does that always happen.
+This patch looks sane.  I do note that we have a config option to tell
+us whether we have any possibility of overlapping nodes, and we have an
+early version of a check for this early_pfn_in_nid() in mm.h.  You might
+consider having a non-early variant of this which could be optimised
+away for those arches which do not have CONFIG_NODES_SPAN_OTHER_NODES.
 
-> diff --git a/Documentation/sparsemem.txt b/Documentation/sparsemem.txt
-> new file mode 100644
-> index 0000000..6aea0d1
-> --- /dev/null
-> +++ b/Documentation/sparsemem.txt
-> @@ -0,0 +1,93 @@
-> +Sparsemem divides up physical memory in your system into N section of M
-> +bytes. Page descriptors are created for only those sections that
-> +actually exist (as far as the sparsemem code is concerned). This allows
-> +for holes in the physical memory without having to waste space by
-> +creating page discriptors for those pages that do not exist.
-> +When page_to_pfn() or pfn_to_page() are called there is a bit of overhead to
-> +look up the proper memory section to get to the descriptors, but this
-> +is small compared to the memory you are likely to save. So, it's not the
-> +default, but should be used if you have big holes in physical memory.
-> +
-> +Note that discontiguous memory is more closely related to NUMA machines
-> +and if you are a single CPU system use sparsemem and not discontig. 
-> +It's much simpler. 
-> +
-> +1) CALL MEMORY_PRESENT()
-> +Once the bootmem allocator is up and running, you should call the
-> +sparsemem function "memory_present(node, pfn_start, pfn_end)" for each
-> +block of memory that exists on your system.
-> +
-> +2) DETERMINE AND SET THE SIZE OF SECTIONS AND PHYSMEM
-> +The size of N and M above depend upon your architecture
-> +and your platform and are specified in the file:
-> +
-> +      include/asm-<your_arch>/sparsemem.h
-> +
-> +and you should create the following lines similar to below: 
-> +
-> +	#ifdef CONFIG_YOUR_PLATFORM
-> +	 #define SECTION_SIZE_BITS       27	/* 128 MiB */
-> +	#endif
-> +	#define MAX_PHYSMEM_BITS        31	/* 2 GiB   */
-
-This example is slightly out of step with the reality of what you add.
-I would have expected the two defines to cary together?
-
-> +
-> +if they don't already exist, where: 
-> +
-> + * SECTION_SIZE_BITS            2^M: how big each section will be
-> + * MAX_PHYSMEM_BITS             2^N: how much memory we can have in that
-> +                                     space
-> +
-> +3) INITIALIZE SPARSE MEMORY
-> +You should make sure that you initialize the sparse memory code by calling 
-> +
-> +	bootmem_init();
-> +  +	sparse_init();
-> +	paging_init();
-> +
-> +just before you call paging_init() and after the bootmem_allocator is
-> +turned on in your setup_arch() code.  
-> +
-> +4) ENABLE SPARSEMEM IN KCONFIG
-> +Add a line like this:
-> +
-> +	select ARCH_SPARSEMEM_ENABLE
-> +
-> +into the config for your platform in arch/<your_arch>/Kconfig. This will
-> +ensure that turning on sparsemem is enabled for your platform. 
-
-One other thing to to worry about here is turning any of the _ENABLEs
-on tends to turn off the default models; particularly FLATMEM tends to
-turn off if you don't explicitly ask for it.  So you may also need to
-add entries for all of your models if none are already specified.
-
-> +
-> +5) CONFIG
-> +Run make menuconfig or make gconfig, as you like, and turn on the sparsemem
-> +memory model under the "Kernel Type" --> "Memory Model" and then build your
-> +kernel.
-> +
-> +
-> +6) Gotchas
-> +
-> +One trick that I encountered when I was turning this on for MIPS was that there
-> +was some code in mem_init() that set the "reserved" flag for pages that were not
-> +valid RAM. This caused my kernel to crash when I enabled sparsemem since those
-> +pages (and page descriptors) didn't actually exist. I changed my code by adding
-> +lines like below:
-> +
-> +
-> +	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
-> +		struct page *page = pfn_to_page(tmp);
-> +
-> +   +		if (!pfn_valid(tmp))
-> +   +			continue;
-> +   +
-> +		if (!page_is_ram(tmp)) {
-> +			SetPageReserved(page);
-> +			continue;
-> +		}
-> +		ClearPageReserved(page);
-> +		init_page_count(page);
-> +		__free_page(page);
-> +		physmem_record(PFN_PHYS(tmp), PAGE_SIZE, physmem_highmem);
-> +		totalhigh_pages++;
-> +	}
-> +
-> +
-> +Once I got that straight, it worked!!!! I saved 10MiB of memory.  
-
-That documentation is good whether the mips part is merged or not.  It
-is probabally worth making it a separate patch.
-
-> +
-> +
-> +
-> diff --git a/arch/mips/kernel/setup.c b/arch/mips/kernel/setup.c
-> index c6a063b..5b1af87 100644
-> --- a/arch/mips/kernel/setup.c
-> +++ b/arch/mips/kernel/setup.c
-> @@ -408,7 +408,6 @@ static void __init bootmem_init(void)
->  
->  		/* Register lowmem ranges */
->  		free_bootmem(PFN_PHYS(start), size << PAGE_SHIFT);
-> -		memory_present(0, start, end);
->  	}
->  
->  	/*
-> @@ -420,6 +419,23 @@ static void __init bootmem_init(void)
->  	 * Reserve initrd memory if needed.
->  	 */
->  	finalize_initrd();
-> +
-> +	/* call memory present for all the ram */
-> +	for (i = 0; i < boot_mem_map.nr_map; i++) {
-> +		unsigned long start, end;
-> +
-> +		/*
-> +		 * memory present only usable memory.
-> +		 */
-> +		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
-> +			continue;
-> +
-> +		start = PFN_UP(boot_mem_map.map[i].addr);
-> +		end   = PFN_DOWN(boot_mem_map.map[i].addr
-> +				    + boot_mem_map.map[i].size);
-> +
-> +		memory_present(0, start, end);
-> +	}
->  }
->  
->  #endif	/* CONFIG_SGI_IP27 */
-> diff --git a/arch/mips/mm/init.c b/arch/mips/mm/init.c
-> index 137c14b..31496a1 100644
-> --- a/arch/mips/mm/init.c
-> +++ b/arch/mips/mm/init.c
-> @@ -414,6 +414,9 @@ void __init mem_init(void)
->  	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
->  		struct page *page = pfn_to_page(tmp);
->  
-> +		if (!pfn_valid(tmp))
-> +			continue;
-> +
->  		if (!page_is_ram(tmp)) {
->  			SetPageReserved(page);
->  			continue;
-> diff --git a/include/asm-mips/sparsemem.h b/include/asm-mips/sparsemem.h
-> index 795ac6c..9faaf59 100644
-> --- a/include/asm-mips/sparsemem.h
-> +++ b/include/asm-mips/sparsemem.h
-> @@ -6,8 +6,14 @@
->   * SECTION_SIZE_BITS		2^N: how big each section will be
->   * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
->   */
-> +
-> +#ifndef CONFIG_64BIT
-> +#define SECTION_SIZE_BITS       27	/* 128 MiB */
-> +#define MAX_PHYSMEM_BITS        31	/* 2 GiB   */
-> +#else
->  #define SECTION_SIZE_BITS       28
->  #define MAX_PHYSMEM_BITS        35
-> +#endif
->  
->  #endif /* CONFIG_SPARSEMEM */
->  #endif /* _MIPS_SPARSEMEM_H */
-
-Otherwise it looks good to me.  I see from the rest of the thread that
-there is some discussion over the sizes of these, with that sorted.
-
-Acked-by: Andy Whitcroft <apw@shadowen.org>
+In 'unearlifying' this to pfn_in_nid() I think we have a small naming
+issue with these function as they are only valid for use with pfns within
+an existing node.  They should probabally both be *pfn_in_nid_within()
+or something in line with pfn_valid_within().
 
 -apw
 
