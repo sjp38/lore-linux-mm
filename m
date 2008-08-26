@@ -1,273 +1,47 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id m7QBkK2N000323
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 17:16:20 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7QBkKmi921780
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 17:16:20 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id m7QBkK8Y002799
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2008 17:16:20 +0530
-Message-ID: <48B3ED0C.6050409@linux.vnet.ibm.com>
-Date: Tue, 26 Aug 2008 17:16:20 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <48B3F04B.9030308@iplabs.de>
+Date: Tue, 26 Aug 2008 14:00:11 +0200
+From: Marco Nietz <m.nietz-mm@iplabs.de>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/14]  delay page_cgroup freeing
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203324.409635c6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080822203324.409635c6.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: oom-killer why ?
+References: <48B296C3.6030706@iplabs.de> <48B3E4CC.9060309@linux.vnet.ibm.com>
+In-Reply-To: <48B3E4CC.9060309@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Freeing page_cgroup at mem_cgroup_uncharge() in lazy way.
-> 
-> In mem_cgroup_uncharge_common(), we don't free page_cgroup
-> and just link it to per-cpu free queue.
-> And remove it later by checking threshold.
-> 
-> This patch is a base patch for freeing page_cgroup by RCU patch.
-> This patch depends on make-page_cgroup_flag-atomic patch.
-> 
-> Changelog: (v1) -> (v2)
->   - fixed mem_cgroup_move_list()'s checking of PcgObsolete()
->   - fixed force_empty.
-> Changelog: (preview) -> (v1)
->   - Clean up.
->   - renamed functions
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> ---
->  mm/memcontrol.c |  122 ++++++++++++++++++++++++++++++++++++++++++++++++++------
->  1 file changed, 110 insertions(+), 12 deletions(-)
-> 
-> Index: mmtom-2.6.27-rc3+/mm/memcontrol.c
-> ===================================================================
-> --- mmtom-2.6.27-rc3+.orig/mm/memcontrol.c
-> +++ mmtom-2.6.27-rc3+/mm/memcontrol.c
-> @@ -164,11 +164,13 @@ struct page_cgroup {
->  	struct page *page;
->  	struct mem_cgroup *mem_cgroup;
->  	unsigned long flags;
-> +	struct page_cgroup *next;
->  };
-> 
->  enum {
->  	/* flags for mem_cgroup */
->  	Pcg_CACHE, /* charged as cache */
-> +	Pcg_OBSOLETE,	/* this page cgroup is invalid (unused) */
->  	/* flags for LRU placement */
->  	Pcg_ACTIVE, /* page is active in this cgroup */
->  	Pcg_FILE, /* page is file system backed */
-> @@ -199,6 +201,10 @@ static inline void __ClearPcg##uname(str
->  TESTPCGFLAG(Cache, CACHE)
->  __SETPCGFLAG(Cache, CACHE)
-> 
-> +/* No "Clear" routine for OBSOLETE flag */
-> +TESTPCGFLAG(Obsolete, OBSOLETE);
-> +SETPCGFLAG(Obsolete, OBSOLETE);
-> +
->  /* LRU management flags (from global-lru definition) */
->  TESTPCGFLAG(File, FILE)
->  SETPCGFLAG(File, FILE)
-> @@ -225,6 +231,18 @@ static enum zone_type page_cgroup_zid(st
->  	return page_zonenum(pc->page);
->  }
-> 
-> +/*
-> + * per-cpu slot for freeing page_cgroup in lazy manner.
-> + * All page_cgroup linked to this list is OBSOLETE.
-> + */
-> +struct mem_cgroup_sink_list {
-> +	int count;
-> +	struct page_cgroup *next;
-> +};
+Balbir Singh schrieb:
 
-Can't we reuse the lru field in page_cgroup to build a list? Do we need them on
-the memory controller LRU if they are obsolete? I want to do something similar
-for both additions and deletions - reuse pagevec style, basically. I am OK,
-having a list as well, in that case we can just reuse the LRU pointer.
+>> DMA32 free:0kB min:0kB low:0kB high:0kB active:0kB inactive:0kB
+>> present:0kB pages_scanned:0 all_unreclaimable? no
+>> lowmem_reserve[]: 0 0 880 17392
+> 
+> pages_scanned is 0
 
-> +DEFINE_PER_CPU(struct mem_cgroup_sink_list, memcg_sink_list);
-> +#define MEMCG_LRU_THRESH	(16)
-> +
-> +
->  enum charge_type {
->  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
->  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
-> @@ -440,7 +458,7 @@ void mem_cgroup_move_lists(struct page *
->  		/*
->  		 * check against the race with force_empty.
->  		 */
-> -		if (likely(mem == pc->mem_cgroup))
-> +		if (!PcgObsolete(pc) && likely(mem == pc->mem_cgroup))
->  			__mem_cgroup_move_lists(pc, lru);
->  		spin_unlock_irqrestore(&mz->lru_lock, flags);
->  	}
-> @@ -531,6 +549,10 @@ unsigned long mem_cgroup_isolate_pages(u
->  	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
->  		if (scan >= nr_to_scan)
->  			break;
-> +
-> +		if (PcgObsolete(pc))
-> +			continue;
-> +
->  		page = pc->page;
-> 
->  		if (unlikely(!PageLRU(page)))
-> @@ -563,6 +585,81 @@ unsigned long mem_cgroup_isolate_pages(u
->  }
-> 
->  /*
-> + * Free obsolete page_cgroups which is linked to per-cpu drop list.
-> + */
-> +
-> +static void __free_obsolete_page_cgroup(void)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	struct page_cgroup *pc, *next;
-> +	struct mem_cgroup_per_zone *mz, *page_mz;
-> +	struct mem_cgroup_sink_list *mcsl;
-> +	unsigned long flags;
-> +
-> +	mcsl = &get_cpu_var(memcg_sink_list);
-> +	next = mcsl->next;
-> +	mcsl->next = NULL;
-> +	mcsl->count = 0;
-> +	put_cpu_var(memcg_sink_list);
-> +
-> +	mz = NULL;
-> +
-> +	local_irq_save(flags);
-> +	while (next) {
-> +		pc = next;
-> +		VM_BUG_ON(!PcgObsolete(pc));
-> +		next = pc->next;
-> +		prefetch(next);
-> +		page_mz = page_cgroup_zoneinfo(pc);
-> +		memcg = pc->mem_cgroup;
-> +		if (page_mz != mz) {
-> +			if (mz)
-> +				spin_unlock(&mz->lru_lock);
-> +			mz = page_mz;
-> +			spin_lock(&mz->lru_lock);
-> +		}
-> +		__mem_cgroup_remove_list(mz, pc);
-> +		css_put(&memcg->css);
-> +		kmem_cache_free(page_cgroup_cache, pc);
-> +	}
-> +	if (mz)
-> +		spin_unlock(&mz->lru_lock);
-> +	local_irq_restore(flags);
-> +}
-> +
-> +static void free_obsolete_page_cgroup(struct page_cgroup *pc)
-> +{
-> +	int count;
-> +	struct mem_cgroup_sink_list *mcsl;
-> +
-> +	mcsl = &get_cpu_var(memcg_sink_list);
-> +	pc->next = mcsl->next;
-> +	mcsl->next = pc;
-> +	count = ++mcsl->count;
-> +	put_cpu_var(memcg_sink_list);
-> +	if (count >= MEMCG_LRU_THRESH)
-> +		__free_obsolete_page_cgroup();
-> +}
-> +
-> +/*
-> + * Used when freeing memory resource controller to remove all
-> + * page_cgroup (in obsolete list).
-> + */
-> +static DEFINE_MUTEX(memcg_force_drain_mutex);
-> +
-> +static void mem_cgroup_local_force_drain(struct work_struct *work)
-> +{
-> +	__free_obsolete_page_cgroup();
-> +}
-> +
-> +static void mem_cgroup_all_force_drain(void)
-> +{
-> +	mutex_lock(&memcg_force_drain_mutex);
-> +	schedule_on_each_cpu(mem_cgroup_local_force_drain);
-> +	mutex_unlock(&memcg_force_drain_mutex);
-> +}
-> +
-> +/*
->   * Charge the memory controller for page usage.
->   * Return
->   * 0 if the charge was successful
-> @@ -627,6 +724,7 @@ static int mem_cgroup_charge_common(stru
->  	pc->mem_cgroup = mem;
->  	pc->page = page;
->  	pc->flags = 0;
-> +	pc->next = NULL;
->  	/*
->  	 * If a page is accounted as a page cache, insert to inactive list.
->  	 * If anon, insert to active list.
-> @@ -729,8 +827,6 @@ __mem_cgroup_uncharge_common(struct page
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup *mem;
-> -	struct mem_cgroup_per_zone *mz;
-> -	unsigned long flags;
-> 
->  	if (mem_cgroup_subsys.disabled)
->  		return;
-> @@ -748,20 +844,14 @@ __mem_cgroup_uncharge_common(struct page
->  	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
->  	    && ((PcgCache(pc) || page_mapped(page))))
->  		goto unlock;
-> -
-> -	mz = page_cgroup_zoneinfo(pc);
-> -	spin_lock_irqsave(&mz->lru_lock, flags);
-> -	__mem_cgroup_remove_list(mz, pc);
-> -	spin_unlock_irqrestore(&mz->lru_lock, flags);
-> -
-> +	mem = pc->mem_cgroup;
-> +	SetPcgObsolete(pc);
->  	page_assign_page_cgroup(page, NULL);
->  	unlock_page_cgroup(page);
-> 
-> -	mem = pc->mem_cgroup;
->  	res_counter_uncharge(&mem->res, PAGE_SIZE);
-> -	css_put(&mem->css);
-> +	free_obsolete_page_cgroup(pc);
-> 
-> -	kmem_cache_free(page_cgroup_cache, pc);
->  	return;
->  unlock:
->  	unlock_page_cgroup(page);
-> @@ -937,6 +1027,14 @@ static void mem_cgroup_force_empty_list(
->  	spin_lock_irqsave(&mz->lru_lock, flags);
->  	while (!list_empty(list)) {
->  		pc = list_entry(list->prev, struct page_cgroup, lru);
-> +		if (PcgObsolete(pc)) {
-> +			list_move(&pc->lru, list);
-> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
-> +			mem_cgroup_all_force_drain();
-> +			yield();
-> +			spin_lock_irqsave(&mz->lru_lock, flags);
-> +			continue;
-> +		}
->  		page = pc->page;
->  		if (!get_page_unless_zero(page)) {
->  			list_move(&pc->lru, list);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Is'nt this zone irrelevant for a 32bit Kernel ?
 
+>> Normal free:3664kB min:3756kB low:4692kB high:5632kB active:280kB
+>> inactive:244kB present:901120kB pages_scanned:593 all_unreclaimable? yes
+>> lowmem_reserve[]: 0 0 0 132096
+> 
+> pages_scanned is 593 and all_unreclaimable is yes
 
--- 
-	Balbir
+Reclaimable means, that the Pages are reusable for other Purposes, or not ?
+
+>> HighMem free:5941820kB min:512kB low:18148kB high:35784kB
+>> active:4408096kB inactive:5494404kB present:16908288kB pages_scanned:0
+>> all_unreclaimable? no
+> 
+> pages_scanned is 0
+
+> Do you have CONFIG_HIGHPTE set? I suspect you don't (I don't really know the
+> debian etch configuration)
+
+No, it's not set in the running Debian Kernel.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
