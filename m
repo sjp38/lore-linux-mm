@@ -1,252 +1,86 @@
-Date: Wed, 27 Aug 2008 10:58:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/14]  memcg: atomic_flags
-Message-Id: <20080827105821.a25d8c63.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080827085035.43b7e542.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080822203228.98adf408.kamezawa.hiroyu@jp.fujitsu.com>
-	<48B38CDB.1070102@linux.vnet.ibm.com>
-	<20080827085035.43b7e542.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7R2P7RJ014393
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:07 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7R2PqGq300986
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:52 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7R2PpXj014416
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:51 +1000
+Message-ID: <48B4BB2D.1000305@linux.vnet.ibm.com>
+Date: Wed, 27 Aug 2008 07:55:49 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 4/14]  delay page_cgroup freeing
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203324.409635c6.kamezawa.hiroyu@jp.fujitsu.com> <48B3ED0C.6050409@linux.vnet.ibm.com> <20080827085501.291f79b6.kamezawa.hiroyu@jp.fujitsu.com> <48B4AB47.7040209@linux.vnet.ibm.com> <20080827103933.b39cedc5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080827103933.b39cedc5.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Aug 2008 08:50:35 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Tue, 26 Aug 2008 10:25:55 +0530
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 27 Aug 2008 06:47:59 +0530
 > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > Before trying to modify memory resource controller, this atomic operation
-> > > on flags is necessary.
-> > > Changelog (v1) -> (v2)
-> > >  - no changes
-> > > Changelog  (preview) -> (v1):
-> > >  - patch ordering is changed.
-> > >  - Added macro for defining functions for Test/Set/Clear bit.
-> > >  - made the names of flags shorter.
-> > > 
-> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > 
-> > > ---
-> > >  mm/memcontrol.c |  108 +++++++++++++++++++++++++++++++++++++++-----------------
-> > >  1 file changed, 77 insertions(+), 31 deletions(-)
-> > > 
-> > > Index: mmtom-2.6.27-rc3+/mm/memcontrol.c
-> > > ===================================================================
-> > > --- mmtom-2.6.27-rc3+.orig/mm/memcontrol.c
-> > > +++ mmtom-2.6.27-rc3+/mm/memcontrol.c
-> > > @@ -163,12 +163,57 @@ struct page_cgroup {
-> > >  	struct list_head lru;		/* per cgroup LRU list */
-> > >  	struct page *page;
-> > >  	struct mem_cgroup *mem_cgroup;
-> > > -	int flags;
-> > > +	unsigned long flags;
-> > >  };
-> > > -#define PAGE_CGROUP_FLAG_CACHE	   (0x1)	/* charged as cache */
-> > > -#define PAGE_CGROUP_FLAG_ACTIVE    (0x2)	/* page is active in this cgroup */
-> > > -#define PAGE_CGROUP_FLAG_FILE	   (0x4)	/* page is file system backed */
-> > > -#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x8)	/* page is unevictableable */
-> > > +
-> > > +enum {
-> > > +	/* flags for mem_cgroup */
-> > > +	Pcg_CACHE, /* charged as cache */
-> > 
-> > Why Pcg_CACHE and not PCG_CACHE or PAGE_CGROUP_CACHE? I think the latter is more
-> > readable, no?
-> > 
-> Hmm, ok.
 > 
+>> KAMEZAWA Hiroyuki wrote:
+>>> On Tue, 26 Aug 2008 17:16:20 +0530
+>>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>>
+>>>>> +/*
+>>>>> + * per-cpu slot for freeing page_cgroup in lazy manner.
+>>>>> + * All page_cgroup linked to this list is OBSOLETE.
+>>>>> + */
+>>>>> +struct mem_cgroup_sink_list {
+>>>>> +	int count;
+>>>>> +	struct page_cgroup *next;
+>>>>> +};
+>>>> Can't we reuse the lru field in page_cgroup to build a list? Do we need them on
+>>>> the memory controller LRU if they are obsolete? I want to do something similar
+>>>> for both additions and deletions - reuse pagevec style, basically. I am OK,
+>>>> having a list as well, in that case we can just reuse the LRU pointer.
+>>>>
+>>> reusing page_cgroup->lru is not a choice because this patch is for avoid
+>>> locking on mz->lru_lock (and kfree).
+>>> But using vector can be a choice. I'll try in the next version.
+>> Kame,
+>>
+>> Do we need to use the lru_lock? If we do an atomic check on PcgObsolete(), can't
+>> we use another lock for obsolete pages and still use the lru list head?
 > 
-> > > +	/* flags for LRU placement */
-> > > +	Pcg_ACTIVE, /* page is active in this cgroup */
-> > > +	Pcg_FILE, /* page is file system backed */
-> > > +	Pcg_UNEVICTABLE, /* page is unevictableable */
-> > > +};
-> > > +
-> > > +#define TESTPCGFLAG(uname, lname)			\
-> >                       ^^ uname and lname?
-> > How about TEST_PAGE_CGROUP_FLAG(func, bit)
-> > 
-> This style is from PageXXX macros and I like shorter name.
+> To reuse that, we'll have to modify lru.prev or lru.next pointer. 
 > 
+> And there will be race with 
+>  - move_list,
+>  - isolate_pages,
+>  - (new) force_empty
 > 
-> > > +static inline int Pcg##uname(struct page_cgroup *pc)	\
-> > > +	{ return test_bit(Pcg_##lname, &pc->flags); }
-> > > +
-> > 
-> > I would prefer PageCgroup##func
-> > 
-> Hmm..ok. I'll rewrite and see 80 columns problem.
-> 
-> 
-> > > +#define SETPCGFLAG(uname, lname)			\
-> > > +static inline void SetPcg##uname(struct page_cgroup *pc)\
-> > > +	{ set_bit(Pcg_##lname, &pc->flags);  }
-> > > +
-> > > +#define CLEARPCGFLAG(uname, lname)			\
-> > > +static inline void ClearPcg##uname(struct page_cgroup *pc)	\
-> > > +	{ clear_bit(Pcg_##lname, &pc->flags);  }
-> > > +
-> > > +#define __SETPCGFLAG(uname, lname)			\
-> > > +static inline void __SetPcg##uname(struct page_cgroup *pc)\
-> > > +	{ __set_bit(Pcg_##lname, &pc->flags);  }
-> > > +
-> > 
-> > OK, so we have the non-atomic verion as well
-> > 
-> > > +#define __CLEARPCGFLAG(uname, lname)			\
-> > > +static inline void __ClearPcg##uname(struct page_cgroup *pc)	\
-> > > +	{ __clear_bit(Pcg_##lname, &pc->flags);  }
-> > > +
-> > > +/* Cache flag is set only once (at allocation) */
-> > > +TESTPCGFLAG(Cache, CACHE)
-> > > +__SETPCGFLAG(Cache, CACHE)
-> > > +
-> > > +/* LRU management flags (from global-lru definition) */
-> > > +TESTPCGFLAG(File, FILE)
-> > > +SETPCGFLAG(File, FILE)
-> > > +__SETPCGFLAG(File, FILE)
-> > > +CLEARPCGFLAG(File, FILE)
-> > > +
-> > > +TESTPCGFLAG(Active, ACTIVE)
-> > > +SETPCGFLAG(Active, ACTIVE)
-> > > +__SETPCGFLAG(Active, ACTIVE)
-> > > +CLEARPCGFLAG(Active, ACTIVE)
-> > > +
-> > > +TESTPCGFLAG(Unevictable, UNEVICTABLE)
-> > > +SETPCGFLAG(Unevictable, UNEVICTABLE)
-> > > +CLEARPCGFLAG(Unevictable, UNEVICTABLE)
-> > > +
-> > > 
-> > >  static int page_cgroup_nid(struct page_cgroup *pc)
-> > >  {
-> > > @@ -189,14 +234,15 @@ enum charge_type {
-> > >  /*
-> > >   * Always modified under lru lock. Then, not necessary to preempt_disable()
-> > >   */
-> > > -static void mem_cgroup_charge_statistics(struct mem_cgroup *mem, int flags,
-> > > -					bool charge)
-> > > +static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
-> > > +					 struct page_cgroup *pc,
-> > > +					 bool charge)
-> > >  {
-> > >  	int val = (charge)? 1 : -1;
-> > >  	struct mem_cgroup_stat *stat = &mem->stat;
-> > > 
-> > >  	VM_BUG_ON(!irqs_disabled());
-> > > -	if (flags & PAGE_CGROUP_FLAG_CACHE)
-> > > +	if (PcgCache(pc))
-> > 
-> > Shouldn't we use __PcgCache(), see my comments below
-> > 
-> > >  		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_CACHE, val);
-> > >  	else
-> > >  		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
-> > > @@ -289,18 +335,18 @@ static void __mem_cgroup_remove_list(str
-> > >  {
-> > >  	int lru = LRU_BASE;
-> > > 
-> > > -	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
-> > > +	if (PcgUnevictable(pc))
-> > 
-> > Since we call this under a lock, can't we use __PcgUnevictable(pc)? If not, what
-> > are we buying by doing atomic operations under a lock?
-> > 
-> > >  		lru = LRU_UNEVICTABLE;
-> > >  	else {
-> > > -		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
-> > > +		if (PcgActive(pc))
-> > 
-> > Ditto
-> > 
-> > >  			lru += LRU_ACTIVE;
-> > > -		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
-> > > +		if (PcgFile(pc))
-> > 
-> > Ditto
-> > 
-> > >  			lru += LRU_FILE;
-> > >  	}
-> > > 
-> > >  	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
-> > > 
-> > > -	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, false);
-> > > +	mem_cgroup_charge_statistics(pc->mem_cgroup, pc, false);
-> > >  	list_del(&pc->lru);
-> > >  }
-> > > 
-> > > @@ -309,27 +355,27 @@ static void __mem_cgroup_add_list(struct
-> > >  {
-> > >  	int lru = LRU_BASE;
-> > > 
-> > > -	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
-> > > +	if (PcgUnevictable(pc))
-> > 
-> > Ditto
-> > 
-> > >  		lru = LRU_UNEVICTABLE;
-> > >  	else {
-> > > -		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
-> > > +		if (PcgActive(pc))
-> > >  			lru += LRU_ACTIVE;
-> > > -		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
-> > > +		if (PcgFile(pc))
-> > 
-> > Ditto
-> > 
-> > >  			lru += LRU_FILE;
-> > >  	}
-> > > 
-> > >  	MEM_CGROUP_ZSTAT(mz, lru) += 1;
-> > >  	list_add(&pc->lru, &mz->lists[lru]);
-> > > 
-> > > -	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, true);
-> > > +	mem_cgroup_charge_statistics(pc->mem_cgroup, pc, true);
-> > >  }
-> > > 
-> > >  static void __mem_cgroup_move_lists(struct page_cgroup *pc, enum lru_list lru)
-> > >  {
-> > >  	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
-> > > -	int active    = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-> > > -	int file      = pc->flags & PAGE_CGROUP_FLAG_FILE;
-> > > -	int unevictable = pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE;
-> > > +	int active    = PcgActive(pc);
-> > > +	int file      = PcgFile(pc);
-> > > +	int unevictable = PcgUnevictable(pc);
-> > >  	enum lru_list from = unevictable ? LRU_UNEVICTABLE :
-> > >  				(LRU_FILE * !!file + !!active);
-> > > 
-> > > @@ -339,14 +385,14 @@ static void __mem_cgroup_move_lists(stru
-> > >  	MEM_CGROUP_ZSTAT(mz, from) -= 1;
-> > > 
-> > >  	if (is_unevictable_lru(lru)) {
-> > > -		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
-> > > -		pc->flags |= PAGE_CGROUP_FLAG_UNEVICTABLE;
-> > > +		ClearPcgActive(pc);
-> > > +		SetPcgUnevictable(pc);
-> > >  	} else {
-> > >  		if (is_active_lru(lru))
-> > > -			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
-> > > +			SetPcgActive(pc);
-> > >  		else
-> > > -			pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
-> > > -		pc->flags &= ~PAGE_CGROUP_FLAG_UNEVICTABLE;
-> > > +			ClearPcgActive(pc);
-> > > +		ClearPcgUnevictable(pc);
-> > 
-> > Again shouldn't we be using the __ variants?
-> > 
-> 
-> For testing, __ variants are ok, I think.
-Sorry for confusion, __xxx for test is meaningless ;)
 
-Thanks,
--Kame
+I was suggesting that we could mark the page as obsolete and then move it on to
+another queue, if the page_cgroup was marked as obsolete.
+
+> move_list and (new)force_empty modifies lru.prev/lru.next.
+> So, I think it's dangerous at this stage. (We can revist this when it's
+> necessary (if vector seems bad.)
+
+OK, lets try with the vector and see how that turns out.
+
+> Anyway, I think I'll be able to remove page_cgroup->next pointer I added.
+> 
+
+Yes, with the vector you should not need it.
+
+> Thanks,
+> -Kame
+> 
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
