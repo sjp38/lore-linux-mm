@@ -1,83 +1,45 @@
 Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7R2P7RJ014393
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:07 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7R2PqGq300986
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:52 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7R2PpXj014416
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:25:51 +1000
-Message-ID: <48B4BB2D.1000305@linux.vnet.ibm.com>
-Date: Wed, 27 Aug 2008 07:55:49 +0530
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7R2X4Du015175
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:33:04 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7R2WGo7272440
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:32:16 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7R2WG7u005958
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 12:32:16 +1000
+Message-ID: <48B4BCAE.7000906@linux.vnet.ibm.com>
+Date: Wed, 27 Aug 2008 08:02:14 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/14]  delay page_cgroup freeing
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203324.409635c6.kamezawa.hiroyu@jp.fujitsu.com> <48B3ED0C.6050409@linux.vnet.ibm.com> <20080827085501.291f79b6.kamezawa.hiroyu@jp.fujitsu.com> <48B4AB47.7040209@linux.vnet.ibm.com> <20080827103933.b39cedc5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080827103933.b39cedc5.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: oom-killer why ?
+References: <48B296C3.6030706@iplabs.de> <48B3E4CC.9060309@linux.vnet.ibm.com> <48B3F04B.9030308@iplabs.de> <48B401F8.9010703@linux.vnet.ibm.com> <48B402B1.8030902@linux.vnet.ibm.com> <1219777788.24829.53.camel@dhcp-100-19-198.bos.redhat.com>
+In-Reply-To: <1219777788.24829.53.camel@dhcp-100-19-198.bos.redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: Marco Nietz <m.nietz-mm@iplabs.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 27 Aug 2008 06:47:59 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
->> KAMEZAWA Hiroyuki wrote:
->>> On Tue, 26 Aug 2008 17:16:20 +0530
->>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>
->>>>> +/*
->>>>> + * per-cpu slot for freeing page_cgroup in lazy manner.
->>>>> + * All page_cgroup linked to this list is OBSOLETE.
->>>>> + */
->>>>> +struct mem_cgroup_sink_list {
->>>>> +	int count;
->>>>> +	struct page_cgroup *next;
->>>>> +};
->>>> Can't we reuse the lru field in page_cgroup to build a list? Do we need them on
->>>> the memory controller LRU if they are obsolete? I want to do something similar
->>>> for both additions and deletions - reuse pagevec style, basically. I am OK,
->>>> having a list as well, in that case we can just reuse the LRU pointer.
->>>>
->>> reusing page_cgroup->lru is not a choice because this patch is for avoid
->>> locking on mz->lru_lock (and kfree).
->>> But using vector can be a choice. I'll try in the next version.
->> Kame,
+Larry Woodman wrote:
+> On Tue, 2008-08-26 at 18:48 +0530, Balbir Singh wrote:
+>> Balbir Singh wrote:
 >>
->> Do we need to use the lru_lock? If we do an atomic check on PcgObsolete(), can't
->> we use another lock for obsolete pages and still use the lru list head?
+>> Looking closely, may be there is a leak like Christoph suggested (most of the
+>> pages have been consumed by the kernel) - only 280kB+244kB is in use by user
+>> pages. The rest has either leaked or in use by the kernel.
+>>
 > 
-> To reuse that, we'll have to modify lru.prev or lru.next pointer. 
-> 
-> And there will be race with 
->  - move_list,
->  - isolate_pages,
->  - (new) force_empty
-> 
+> There is no leak.  Between the ptepages(pagetables:152485), the
+> memmap(4456448 pages of RAM * 32bytes = 34816 pages) and the
+> slabcache(slab:35543) you can account for ~99% of the Normal zone and
+> its wired.  You simply cant run a large database without hugepages and
+> without CONFIG_HIGHPTE set and not exhaust Lowmem on a 16GB x86 system.
 
-I was suggesting that we could mark the page as obsolete and then move it on to
-another queue, if the page_cgroup was marked as obsolete.
-
-> move_list and (new)force_empty modifies lru.prev/lru.next.
-> So, I think it's dangerous at this stage. (We can revist this when it's
-> necessary (if vector seems bad.)
-
-OK, lets try with the vector and see how that turns out.
-
-> Anyway, I think I'll be able to remove page_cgroup->next pointer I added.
-> 
-
-Yes, with the vector you should not need it.
-
-> Thanks,
-> -Kame
-> 
-
+Thanks for looking at it more closely, Yes, we do need to have CONFIG_HIGHPTE
+enabled.
 
 -- 
 	Balbir
