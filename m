@@ -1,56 +1,56 @@
-Date: Wed, 27 Aug 2008 09:44:26 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 10/14] memcg: replace res_counter
-Message-Id: <20080827094426.2398d8c6.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080822203919.1aee02fc.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080822203919.1aee02fc.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7R1Gt3j029277
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 11:16:55 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7R1I2aw277910
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 11:18:02 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7R1I1tZ002819
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2008 11:18:02 +1000
+Message-ID: <48B4AB47.7040209@linux.vnet.ibm.com>
+Date: Wed, 27 Aug 2008 06:47:59 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 4/14]  delay page_cgroup freeing
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203324.409635c6.kamezawa.hiroyu@jp.fujitsu.com> <48B3ED0C.6050409@linux.vnet.ibm.com> <20080827085501.291f79b6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080827085501.291f79b6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+KAMEZAWA Hiroyuki wrote:
+> On Tue, 26 Aug 2008 17:16:20 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+>>> +/*
+>>> + * per-cpu slot for freeing page_cgroup in lazy manner.
+>>> + * All page_cgroup linked to this list is OBSOLETE.
+>>> + */
+>>> +struct mem_cgroup_sink_list {
+>>> +	int count;
+>>> +	struct page_cgroup *next;
+>>> +};
+>> Can't we reuse the lru field in page_cgroup to build a list? Do we need them on
+>> the memory controller LRU if they are obsolete? I want to do something similar
+>> for both additions and deletions - reuse pagevec style, basically. I am OK,
+>> having a list as well, in that case we can just reuse the LRU pointer.
+>>
+> reusing page_cgroup->lru is not a choice because this patch is for avoid
+> locking on mz->lru_lock (and kfree).
+> But using vector can be a choice. I'll try in the next version.
 
-> @@ -356,7 +447,7 @@ int mem_cgroup_calc_mapped_ratio(struct 
->  	 * usage is recorded in bytes. But, here, we assume the number of
->  	 * physical pages can be represented by "long" on any arch.
->  	 */
-> -	total = (long) (mem->res.usage >> PAGE_SHIFT) + 1L;
-> +	total = (long) (mem->res.pages >> PAGE_SHIFT) + 1L;
-I don't think this shift is needed.
+Kame,
 
->  	rss = (long)mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
->  	return (int)((rss * 100L) / total);
->  }
+Do we need to use the lru_lock? If we do an atomic check on PcgObsolete(), can't
+we use another lock for obsolete pages and still use the lru list head?
 
-
-> @@ -880,8 +971,12 @@ int mem_cgroup_resize_limit(struct mem_c
->  	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
->  	int progress;
->  	int ret = 0;
-> +	unsigned long new_lim = (unsigned long)(val >> PAGE_SHIFT);
->  
-> -	while (res_counter_set_limit(&memcg->res, val)) {
-> +	if (val & PAGE_SIZE)
-> +		new_lim += 1;
-> +
-I'm sorry I can't understand here.
-
-Should it be "val & (PAGE_SIZE-1)"?
-
-> +	while (mem_counter_set_pages_limit(memcg, new_lim)) {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
->  			break;
-
-
-Thanks,
-Daisuke Nishimura.
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
