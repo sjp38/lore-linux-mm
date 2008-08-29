@@ -1,55 +1,89 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m7SB08tV010098
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2008 21:00:08 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m7SB11uR3506260
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2008 21:01:01 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m7SB11M5010480
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2008 21:01:01 +1000
-Message-ID: <48B68569.7030906@linux.vnet.ibm.com>
-Date: Thu, 28 Aug 2008 16:30:57 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 7/14] memcg: add prefetch to spinlock
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com> <20080822203630.cac5c076.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080822203630.cac5c076.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Fri, 29 Aug 2008 20:45:49 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 2/14] memcg: rewrite force_empty
+Message-Id: <20080829204549.5150f351.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080822203114.bf6f08e4.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080822203114.bf6f08e4.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Address of "mz" can be calculated in easy way.
-> prefetch it (we do spin_lock.)
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> Index: mmtom-2.6.27-rc3+/mm/memcontrol.c
-> ===================================================================
-> --- mmtom-2.6.27-rc3+.orig/mm/memcontrol.c
-> +++ mmtom-2.6.27-rc3+/mm/memcontrol.c
-> @@ -707,6 +707,8 @@ static int mem_cgroup_charge_common(stru
->  		}
+>  /*
+> - * This routine traverse page_cgroup in given list and drop them all.
+> - * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
+> + * This routine moves all account to root cgroup.
+>   */
+> -#define FORCE_UNCHARGE_BATCH	(128)
+>  static void mem_cgroup_force_empty_list(struct mem_cgroup *mem,
+>  			    struct mem_cgroup_per_zone *mz,
+>  			    enum lru_list lru)
+>  {
+>  	struct page_cgroup *pc;
+>  	struct page *page;
+> -	int count = FORCE_UNCHARGE_BATCH;
+>  	unsigned long flags;
+>  	struct list_head *list;
+>  
+> @@ -853,22 +892,28 @@ static void mem_cgroup_force_empty_list(
+>  		pc = list_entry(list->prev, struct page_cgroup, lru);
+>  		page = pc->page;
+>  		get_page(page);
+> -		spin_unlock_irqrestore(&mz->lru_lock, flags);
+> -		/*
+> -		 * Check if this page is on LRU. !LRU page can be found
+> -		 * if it's under page migration.
+> -		 */
+> -		if (PageLRU(page)) {
+> -			__mem_cgroup_uncharge_common(page,
+> -					MEM_CGROUP_CHARGE_TYPE_FORCE);
+> +		if (!trylock_page(page)) {
+> +			list_move(&pc->lru, list);
+> +			put_page(page):
+                                     ^^^
+                                    s/:/;
+
+Just to make sure :)
+
+
+Thanks,
+Daisuke Nishimura.
+
+
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +			yield();
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +			continue;
+> +		}
+> +		if (mem_cgroup_move_account(page, pc, mem, &init_mem_cgroup)) {
+> +			/* some confliction */
+> +			list_move(&pc->lru, list);
+> +			unlock_page(page);
+>  			put_page(page);
+> -			if (--count <= 0) {
+> -				count = FORCE_UNCHARGE_BATCH;
+> -				cond_resched();
+> -			}
+> -		} else
+> -			cond_resched();
+> -		spin_lock_irqsave(&mz->lru_lock, flags);
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +			yield();
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +		} else {
+> +			unlock_page(page);
+> +			put_page(page);
+> +		}
+> +		if (atomic_read(&mem->css.cgroup->count) > 0)
+> +			break;
 >  	}
-> 
-> +	mz = mem_cgroup_zoneinfo(mem, page_to_nid(page), page_zonenum(page));
-> +	prefetchw(mz);
-
-Nice optimization!
-
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
--- 
-	Balbir
+>  	spin_unlock_irqrestore(&mz->lru_lock, flags);
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
