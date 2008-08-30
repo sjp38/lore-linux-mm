@@ -1,99 +1,48 @@
-Date: Sat, 30 Aug 2008 16:30:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/14] memcg: rewrite force_empty
-Message-Id: <20080830163005.416bb559.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080829204549.5150f351.nishimura@mxp.nes.nec.co.jp>
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080822203114.bf6f08e4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080829204549.5150f351.nishimura@mxp.nes.nec.co.jp>
+Date: Sat, 30 Aug 2008 14:19:08 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: oom-killer why ?
+Message-ID: <20080830141908.2fdf788b@bree.surriel.com>
+In-Reply-To: <48B4F268.20901@iplabs.de>
+References: <48B296C3.6030706@iplabs.de>
+	<48B3E4CC.9060309@linux.vnet.ibm.com>
+	<48B3F04B.9030308@iplabs.de>
+	<48B401F8.9010703@linux.vnet.ibm.com>
+	<48B402B1.8030902@linux.vnet.ibm.com>
+	<1219777788.24829.53.camel@dhcp-100-19-198.bos.redhat.com>
+	<48B4BCAE.7000906@linux.vnet.ibm.com>
+	<48B4F268.20901@iplabs.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Marco Nietz <m.nietz-mm@iplabs.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Aug 2008 20:45:49 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Wed, 27 Aug 2008 08:21:28 +0200
+Marco Nietz <m.nietz-mm@iplabs.de> wrote:
 
-> >  /*
-> > - * This routine traverse page_cgroup in given list and drop them all.
-> > - * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
-> > + * This routine moves all account to root cgroup.
-> >   */
-> > -#define FORCE_UNCHARGE_BATCH	(128)
-> >  static void mem_cgroup_force_empty_list(struct mem_cgroup *mem,
-> >  			    struct mem_cgroup_per_zone *mz,
-> >  			    enum lru_list lru)
-> >  {
-> >  	struct page_cgroup *pc;
-> >  	struct page *page;
-> > -	int count = FORCE_UNCHARGE_BATCH;
-> >  	unsigned long flags;
-> >  	struct list_head *list;
-> >  
-> > @@ -853,22 +892,28 @@ static void mem_cgroup_force_empty_list(
-> >  		pc = list_entry(list->prev, struct page_cgroup, lru);
-> >  		page = pc->page;
-> >  		get_page(page);
-> > -		spin_unlock_irqrestore(&mz->lru_lock, flags);
-> > -		/*
-> > -		 * Check if this page is on LRU. !LRU page can be found
-> > -		 * if it's under page migration.
-> > -		 */
-> > -		if (PageLRU(page)) {
-> > -			__mem_cgroup_uncharge_common(page,
-> > -					MEM_CGROUP_CHARGE_TYPE_FORCE);
-> > +		if (!trylock_page(page)) {
-> > +			list_move(&pc->lru, list);
-> > +			put_page(page):
->                                      ^^^
->                                     s/:/;
-> 
-> Just to make sure :)
-> 
-Oh, thanks.
+> My first guess that the oom where caused by running out of Lowmem was
+> confirmed and the Solution is to upgrade the Server to a 64bit OS.
 
--Kame
+Indeed.
+ 
+> All right to that point, but why this was affected by the raised up
+> Sharded Buffers from postgres ? Is shared buffer preferred to be in lowmem ?
+> 
+> With the smaller Buffersize (256mb) we haven't had any Problems with
+> that Machine.
 
+No, but the page tables used to map the shared buffer are in lowmem.
 
-> 
-> Thanks,
-> Daisuke Nishimura.
-> 
-> 
-> > +			spin_unlock_irqrestore(&mz->lru_lock, flags);
-> > +			yield();
-> > +			spin_lock_irqsave(&mz->lru_lock, flags);
-> > +			continue;
-> > +		}
-> > +		if (mem_cgroup_move_account(page, pc, mem, &init_mem_cgroup)) {
-> > +			/* some confliction */
-> > +			list_move(&pc->lru, list);
-> > +			unlock_page(page);
-> >  			put_page(page);
-> > -			if (--count <= 0) {
-> > -				count = FORCE_UNCHARGE_BATCH;
-> > -				cond_resched();
-> > -			}
-> > -		} else
-> > -			cond_resched();
-> > -		spin_lock_irqsave(&mz->lru_lock, flags);
-> > +			spin_unlock_irqrestore(&mz->lru_lock, flags);
-> > +			yield();
-> > +			spin_lock_irqsave(&mz->lru_lock, flags);
-> > +		} else {
-> > +			unlock_page(page);
-> > +			put_page(page);
-> > +		}
-> > +		if (atomic_read(&mem->css.cgroup->count) > 0)
-> > +			break;
-> >  	}
-> >  	spin_unlock_irqrestore(&mz->lru_lock, flags);
-> >  }
-> 
+Page tables take up 0.5% of the data size, per process.
+
+This means that if you have 200 processes mapping 1GB of data, you
+would need 1GB of page tables.  You do not have that much lowmem :)
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
