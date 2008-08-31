@@ -1,48 +1,32 @@
-Date: Sat, 30 Aug 2008 14:19:08 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: oom-killer why ?
-Message-ID: <20080830141908.2fdf788b@bree.surriel.com>
-In-Reply-To: <48B4F268.20901@iplabs.de>
-References: <48B296C3.6030706@iplabs.de>
-	<48B3E4CC.9060309@linux.vnet.ibm.com>
-	<48B3F04B.9030308@iplabs.de>
-	<48B401F8.9010703@linux.vnet.ibm.com>
-	<48B402B1.8030902@linux.vnet.ibm.com>
-	<1219777788.24829.53.camel@dhcp-100-19-198.bos.redhat.com>
-	<48B4BCAE.7000906@linux.vnet.ibm.com>
-	<48B4F268.20901@iplabs.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48BAAC3C.4050309@cs.helsinki.fi>
+Date: Sun, 31 Aug 2008 17:35:40 +0300
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+MIME-Version: 1.0
+Subject: Re: [PATCH] kmemtrace: SLUB hooks for caller-tracking functions.
+References: <1219600175-5253-1-git-send-email-eduard.munteanu@linux360.ro>
+In-Reply-To: <1219600175-5253-1-git-send-email-eduard.munteanu@linux360.ro>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marco Nietz <m.nietz-mm@iplabs.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rdunlap@xenotime.net, mpm@selenic.com, tglx@linutronix.de, rostedt@goodmis.org, cl@linux-foundation.org, mathieu.desnoyers@polymtl.ca, tzanussi@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Aug 2008 08:21:28 +0200
-Marco Nietz <m.nietz-mm@iplabs.de> wrote:
-
-> My first guess that the oom where caused by running out of Lowmem was
-> confirmed and the Solution is to upgrade the Server to a 64bit OS.
-
-Indeed.
- 
-> All right to that point, but why this was affected by the raised up
-> Sharded Buffers from postgres ? Is shared buffer preferred to be in lowmem ?
+Eduard - Gabriel Munteanu wrote:
+> This patch adds kmemtrace hooks for __kmalloc_track_caller() and
+> __kmalloc_node_track_caller(). Currently, they set the call site pointer
+> to the value recieved as a parameter. (This could change if we implement
+> stack trace exporting in kmemtrace.)
 > 
-> With the smaller Buffersize (256mb) we haven't had any Problems with
-> that Machine.
+> Signed-off-by: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
 
-No, but the page tables used to map the shared buffer are in lowmem.
+Applied. I had to do some manual tweaking, so can you please 
+double-check the result:
 
-Page tables take up 0.5% of the data size, per process.
+http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=b9f1ecc6428f0ba391845b2ac7df8618da287e4f
 
-This means that if you have 200 processes mapping 1GB of data, you
-would need 1GB of page tables.  You do not have that much lowmem :)
-
--- 
-All rights reversed.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
