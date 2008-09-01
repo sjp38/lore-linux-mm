@@ -1,31 +1,32 @@
-Received: from list by ciao.gmane.org with local (Exim 4.43)
-	id 1KaDrz-0003cb-OB
-	for linux-mm@kvack.org; Mon, 01 Sep 2008 18:11:19 +0000
-Received: from 87.114.164.140.plusnet.thn-ag1.dyn.plus.net ([87.114.164.140])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 18:11:19 +0000
-Received: from sitsofe by 87.114.164.140.plusnet.thn-ag1.dyn.plus.net with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 18:11:19 +0000
-From: Sitsofe Wheeler <sitsofe@yahoo.com>
-Subject: Anonymous memory on machines without swap
-Date: Mon, 01 Sep 2008 19:11:18 +0100
-Message-ID: <g9hb7v$bnr$1@ger.gmane.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 1 Sep 2008 20:09:20 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Anonymous memory on machines without swap
+In-Reply-To: <g9hb7v$bnr$1@ger.gmane.org>
+Message-ID: <Pine.LNX.4.64.0809012001280.19653@blonde.site>
+References: <g9hb7v$bnr$1@ger.gmane.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Sitsofe Wheeler <sitsofe@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 1 Sep 2008, Sitsofe Wheeler wrote:
+> 
+> Is it worth having the anonymous memory option turned on in kconfig when
+> using the kernel on a machine which has no swap/swapfiles? Does it
+> improve memory decisions in some secret way (even though there is no
+> swap available) or would it just be completely redundant?
 
-Is it worth having the anonymous memory option turned on in kconfig when
-using the kernel on a machine which has no swap/swapfiles? Does it
-improve memory decisions in some secret way (even though there is no
-swap available) or would it just be completely redundant?
+Which is the anonymous memory option in kconfig?
+
+There is CONFIG_SWAP, which you might as well turn off if you don't
+intend to use swap/swapfiles.  I don't think it makes any difference to
+memory decisions in such a case (they should be based on nr_swap_pages
+being 0), but it would shrink your kernel a little.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
