@@ -1,54 +1,58 @@
-Date: Mon, 1 Sep 2008 11:39:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-Message-Id: <20080901113918.b6f05ca6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080831174756.GA25790@balbir.in.ibm.com>
-References: <20080831174756.GA25790@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48BB5551.8000106@mxs.nes.nec.co.jp>
+Date: Mon, 01 Sep 2008 11:37:05 +0900
+From: "Ken'ichi Ohmichi" <oomichi@mxs.nes.nec.co.jp>
+MIME-Version: 1.0
+Subject: [PATCH][ia64] Fix the difference between node_mem_map and node_start_pfn
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, kexec-ml <kexec@lists.infradead.org>, Bernhard Walle <bwalle@suse.de>, Jay Lan <jlan@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 31 Aug 2008 23:17:56 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi,
 
-> 
-> This is a rewrite of a patch I had written long back to remove struct page
-> (I shared the patches with Kamezawa, but never posted them anywhere else).
-> I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug 2008).
-> 
-> I've tested the patches on an x86_64 box, I've run a simple test running
-> under the memory control group and the same test running concurrently under
-> two different groups (and creating pressure within their groups). I've also
-> compiled the patch with CGROUP_MEM_RES_CTLR turned off.
-> 
-> Advantages of the patch
-> 
-> 1. It removes the extra pointer in struct page
-> 
-> Disadvantages
-> 
-> 1. It adds an additional lock structure to struct page_cgroup
-> 2. Radix tree lookup is not an O(1) operation, once the page is known
->    getting to the page_cgroup (pc) is a little more expensive now.
-> 
-> This is an initial RFC for comments
-> 
-> TODOs
-> 
-> 1. Test the page migration changes
-> 2. Test the performance impact of the patch/approach
-> 
-> Comments/Reviews?
-> 
-BTW, how deep this radix-tree on 4GB/32GB/64GB/256GB machine ?
+makedumpfile[1] cannot run on ia64 discontigmem kernel, because the member
+node_mem_map of struct pgdat_list has invalid value. This patch fixes it.
 
-Thanks,
--Kame
+node_start_pfn shows the start pfn of each node, and node_mem_map should
+point 'struct page' of each node's node_start_pfn.
+On my machine, node0's node_start_pfn shows 0x400 and its node_mem_map points
+0xa0007fffbf000000. This address is the same as vmem_map, so the node_mem_map
+points 'struct page' of pfn 0, even if its node_start_pfn shows 0x400.
+
+The cause is due to the round down of min_pfn in count_node_pages() and
+node0's node_mem_map points 'struct page' of inactive pfn (0x0).
+This patch fixes it.
+
+
+makedumpfile[1]: dump filtering command
+https://sourceforge.net/projects/makedumpfile/
+
+Signed-off-by: Ken'ichi Ohmichi <oomichi@mxs.nes.nec.co.jp>
+---
+--- a/arch/ia64/mm/discontig.c	2008-08-29 23:05:52.000000000 +0900
++++ b/arch/ia64/mm/discontig.c	2008-08-29 23:06:59.000000000 +0900
+@@ -631,7 +631,6 @@ static __init int count_node_pages(unsig
+ 			(min(end, __pa(MAX_DMA_ADDRESS)) - start) >>PAGE_SHIFT;
+ #endif
+ 	start = GRANULEROUNDDOWN(start);
+-	start = ORDERROUNDDOWN(start);
+ 	end = GRANULEROUNDUP(end);
+ 	mem_data[node].max_pfn = max(mem_data[node].max_pfn,
+ 				     end >> PAGE_SHIFT);
+--- a/include/asm-ia64/meminit.h	2008-08-29 23:06:36.000000000 +0900
++++ b/include/asm-ia64/meminit.h	2008-08-29 23:06:48.000000000 +0900
+@@ -47,7 +47,6 @@ extern int reserve_elfcorehdr(unsigned l
+  */
+ #define GRANULEROUNDDOWN(n)	((n) & ~(IA64_GRANULE_SIZE-1))
+ #define GRANULEROUNDUP(n)	(((n)+IA64_GRANULE_SIZE-1) & ~(IA64_GRANULE_SIZE-1))
+-#define ORDERROUNDDOWN(n)	((n) & ~((PAGE_SIZE<<MAX_ORDER)-1))
+ 
+ #ifdef CONFIG_NUMA
+   extern void call_pernode_memory (unsigned long start, unsigned long len, void *func);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
