@@ -1,26 +1,26 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m813SWic000526
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 08:58:32 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m813SVwj1794262
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 08:58:31 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m813SVVd032702
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 08:58:31 +0530
-Message-ID: <48BB6160.4070904@linux.vnet.ibm.com>
-Date: Mon, 01 Sep 2008 08:58:32 +0530
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m813feuA002171
+	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 13:41:40 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m813gkfb268060
+	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 13:42:47 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m813gkVR013212
+	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 13:42:46 +1000
+Message-ID: <48BB64B5.4060208@linux.vnet.ibm.com>
+Date: Mon, 01 Sep 2008 09:12:45 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-References: <20080831174756.GA25790@balbir.in.ibm.com> <20080901090102.46b75141.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080901090102.46b75141.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080831174756.GA25790@balbir.in.ibm.com> <20080901113918.b6f05ca6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080901113918.b6f05ca6.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
@@ -31,16 +31,6 @@ KAMEZAWA Hiroyuki wrote:
 >> (I shared the patches with Kamezawa, but never posted them anywhere else).
 >> I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug 2008).
 >>
-> It's just because I think there is no strong requirements for 64bit count/mapcount.
-> There is no ZERO_PAGE() for ANON (by Nick Piggin. I add him to CC.)
-> (shmem still use it but impact is not big.)
-> 
-
-I understand the comment, but not it's context. Are you suggesting that the
-sizeof _count and _mapcount can be reduced? Hence the impact of having a member
-in struct page is not all that large? I think the patch is definitely very
-important for 32 bit systems.
-
 >> I've tested the patches on an x86_64 box, I've run a simple test running
 >> under the memory control group and the same test running concurrently under
 >> two different groups (and creating pressure within their groups). I've also
@@ -65,30 +55,19 @@ important for 32 bit systems.
 >>
 >> Comments/Reviews?
 >>
-> plz wait until lockless page cgroup....
-> 
+> BTW, how deep this radix-tree on 4GB/32GB/64GB/256GB machine ?
 
-That depends, if we can get the lockless page cgroup done quickly, I don't mind
-waiting, but if it is going to take longer, I would rather push these changes
-in. There should not be too much overhead in porting lockless page cgroup patch
-on top of this (remove pc->lock and use pc->flags). I'll help out, so as to
-avoid wastage of your effort.
+Good Question,
 
-> And If you don't support radix-tree-delete(), pre-allocating all at boot is better.
-> 
+My ball-park estimates are
 
-We do use radix-tree-delete() in the code, please see below. Pre-allocating has
-the disadvantage that we will pre-allocate even for kernel pages, etc.
+number of pfns = RADIX_TREE_TAG_LONGS/(RADIX_TREE_TAG_LONGS - 1) *
+(RADIX_TREE_LONGS^n - 1)
 
-> BTW, why pc->lock is necessary ? It increases size of struct page_cgroup and reduce 
-> the advantege of your patch's to half (8bytes -> 4bytes).
-> 
+and "n" is the number we are looking for.
 
-Yes, I've mentioned that as a disadvantage. Are you suggesting that with
-lockless page cgroup we won't need pc->lock?
-
-> Thanks,
-> -Kame
+For a 64 bit system with 256 GB and 4KB page size, I've calculated it to be 9
+levels deep.
 
 -- 
 	Balbir
