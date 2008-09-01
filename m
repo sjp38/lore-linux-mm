@@ -1,58 +1,63 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m819IoWj013035
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 19:18:50 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m819HQQl4026450
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 19:17:26 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m819HQqP005415
-	for <linux-mm@kvack.org>; Mon, 1 Sep 2008 19:17:26 +1000
-Message-ID: <48BBB326.3080505@linux.vnet.ibm.com>
-Date: Mon, 01 Sep 2008 14:47:26 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-References: <20080831174756.GA25790@balbir.in.ibm.com> <48BBAFDD.1000902@openvz.org>
-In-Reply-To: <48BBAFDD.1000902@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 1 Sep 2008 17:53:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 14/14]memcg: mem+swap accounting
+Message-Id: <20080901175302.737bca2e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080901165827.e21f9104.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080822204455.922f87dc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080901161501.2cba948e.nishimura@mxp.nes.nec.co.jp>
+	<20080901165827.e21f9104.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Emelyanov <xemul@openvz.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, menage@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Pavel Emelyanov wrote:
-> Balbir Singh wrote:
->> This is a rewrite of a patch I had written long back to remove struct page
->> (I shared the patches with Kamezawa, but never posted them anywhere else).
->> I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug 2008).
->>
->> I've tested the patches on an x86_64 box, I've run a simple test running
->> under the memory control group and the same test running concurrently under
->> two different groups (and creating pressure within their groups). I've also
->> compiled the patch with CGROUP_MEM_RES_CTLR turned off.
->>
->> Advantages of the patch
->>
->> 1. It removes the extra pointer in struct page
->>
->> Disadvantages
->>
->> 1. It adds an additional lock structure to struct page_cgroup
->> 2. Radix tree lookup is not an O(1) operation, once the page is known
->>    getting to the page_cgroup (pc) is a little more expensive now.
+On Mon, 1 Sep 2008 16:58:27 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 1 Sep 2008 16:15:01 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> And besides, we also have a global lock, that protects even lookup
-> from this structure. Won't this affect us too much on bug-smp nodes?
+> > Hi, Kamezawa-san.
+> > 
+> > I'm testing these patches on mmotm-2008-08-29-01-08
+> > (with some trivial fixes I've reported and some debug codes),
+This problem happens on the kernel without debug codes I added.
 
-Sorry, not sure I understand. The lookup is done under RCU. Updates are done
-using the global lock. It should not be hard to make the radix tree per node
-later (as an iterative refinement).
+> > but swap_in_bytes sometimes becomes very huge(it seems that
+> > over uncharge is happening..) and I can see OOM
+> > if I've set memswap_limit.
+> > 
+> > I'm digging this now, but have you also ever seen it?
+> > 
+> I didn't see that.
+I see, thanks.
 
--- 
-	Balbir
+> But, as you say, maybe over-uncharge. Hmm..
+> What kind of test ? Just use swap ? and did you use shmem or tmpfs ?
+> 
+I don't do anything special, and this can happen without shmem/tmpfs
+(can happen with shmem/tmpfs, too).
+
+For example:
+
+- make swap out/in activity for a while(I used page01 of ltp).
+- stop the test.
+
+[root@localhost ~]# cat /cgroup/memory/01/memory.swap_in_bytes
+4096
+
+- swapoff
+
+[root@localhost ~]# swapoff -a
+[root@localhost ~]# cat /cgroup/memory/01/memory.swap_in_bytes
+18446744073709395968
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
