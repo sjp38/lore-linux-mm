@@ -1,17 +1,17 @@
-Received: from root by ciao.gmane.org with local (Exim 4.43)
-	id 1KaBtm-0006Wa-VI
-	for linux-mm@kvack.org; Mon, 01 Sep 2008 16:05:02 +0000
+Received: from list by ciao.gmane.org with local (Exim 4.43)
+	id 1KaDrz-0003cb-OB
+	for linux-mm@kvack.org; Mon, 01 Sep 2008 18:11:19 +0000
 Received: from 87.114.164.140.plusnet.thn-ag1.dyn.plus.net ([87.114.164.140])
         by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
         id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 16:05:02 +0000
+        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 18:11:19 +0000
 Received: from sitsofe by 87.114.164.140.plusnet.thn-ag1.dyn.plus.net with local (Gmexim 0.1 (Debian))
         id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 16:05:02 +0000
+        for <linux-mm@kvack.org>; Mon, 01 Sep 2008 18:11:19 +0000
 From: Sitsofe Wheeler <sitsofe@yahoo.com>
 Subject: Anonymous memory on machines without swap
-Date: Mon, 01 Sep 2008 16:59:39 +0100
-Message-ID: <g9h3h5$gkb$1@ger.gmane.org>
+Date: Mon, 01 Sep 2008 19:11:18 +0100
+Message-ID: <g9hb7v$bnr$1@ger.gmane.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
