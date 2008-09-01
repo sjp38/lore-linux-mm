@@ -1,43 +1,79 @@
-Date: Mon, 1 Sep 2008 16:01:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 5/14]  memcg: free page_cgroup by RCU
-Message-Id: <20080901160151.4cd2ca3c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080901065144.CCA975A9C@siro.lan>
-References: <20080828194454.3fa6d0d0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080901065144.CCA975A9C@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
+Date: Mon, 1 Sep 2008 16:56:44 +1000
+References: <20080831174756.GA25790@balbir.in.ibm.com> <20080901090102.46b75141.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080901090102.46b75141.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200809011656.45190.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  1 Sep 2008 15:51:44 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
+On Monday 01 September 2008 10:01, KAMEZAWA Hiroyuki wrote:
+> On Sun, 31 Aug 2008 23:17:56 +0530
+>
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > This is a rewrite of a patch I had written long back to remove struct
+> > page (I shared the patches with Kamezawa, but never posted them anywhere
+> > else). I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug
+> > 2008).
+>
+> It's just because I think there is no strong requirements for 64bit
+> count/mapcount. There is no ZERO_PAGE() for ANON (by Nick Piggin. I add him
+> to CC.) (shmem still use it but impact is not big.)
 
-> hi,
-> 
-> > > > @@ -649,13 +673,17 @@ static DEFINE_MUTEX(memcg_force_drain_mu
-> > > > 
-> > > >  static void mem_cgroup_local_force_drain(struct work_struct *work)
-> > > >  {
-> > > > -	__free_obsolete_page_cgroup();
-> > > > +	int ret;
-> > > > +	do {
-> > > > +		ret = __free_obsolete_page_cgroup();
-> > > 
-> > > We keep repeating till we get 0?
-> > > 
-> > yes. this returns 0 or -ENOMEM. 
-> 
-> it's problematic to keep busy-looping on ENOMEM, esp. for GFP_ATOMIC.
-> 
-Ah thank you. I remove this routine in the next version.
+I think it would be nice to reduce the impact when it is not configured
+anyway. Normally I would not mind so much, but this is something that
+many distros will want to enable but fewer users will make use of it.
+
+I think it is always a very good idea to try to reduce struct page size.
+When looking at the performance impact though, just be careful with the
+alignment of struct page... I actually think it is going to be a
+performance win in many cases to make struct page 64 bytes.
+
+
+> > I've tested the patches on an x86_64 box, I've run a simple test running
+> > under the memory control group and the same test running concurrently
+> > under two different groups (and creating pressure within their groups).
+> > I've also compiled the patch with CGROUP_MEM_RES_CTLR turned off.
+> >
+> > Advantages of the patch
+> >
+> > 1. It removes the extra pointer in struct page
+> >
+> > Disadvantages
+> >
+> > 1. It adds an additional lock structure to struct page_cgroup
+> > 2. Radix tree lookup is not an O(1) operation, once the page is known
+> >    getting to the page_cgroup (pc) is a little more expensive now.
+> >
+> > This is an initial RFC for comments
+> >
+> > TODOs
+> >
+> > 1. Test the page migration changes
+> > 2. Test the performance impact of the patch/approach
+> >
+> > Comments/Reviews?
+>
+> plz wait until lockless page cgroup....
+>
+> And If you don't support radix-tree-delete(), pre-allocating all at boot is
+> better.
+
+If you do that, it might even be an idea to allocate flat arrays with
+bootmem. It would just be slightly more tricky more tricky to fit this
+in with the memory model. But that's not a requirement, just an idea
+for a small optimisation.
 
 Thanks,
--Kame
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
