@@ -1,32 +1,79 @@
-Date: Mon, 1 Sep 2008 20:09:20 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Anonymous memory on machines without swap
-In-Reply-To: <g9hb7v$bnr$1@ger.gmane.org>
-Message-ID: <Pine.LNX.4.64.0809012001280.19653@blonde.site>
-References: <g9hb7v$bnr$1@ger.gmane.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 Sep 2008 11:21:01 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 14/14]memcg: mem+swap accounting
+Message-Id: <20080902112101.820fb9d0.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080901185347.cfbc1817.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080822204455.922f87dc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080901161501.2cba948e.nishimura@mxp.nes.nec.co.jp>
+	<20080901165827.e21f9104.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080901175302.737bca2e.nishimura@mxp.nes.nec.co.jp>
+	<20080901185347.cfbc1817.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sitsofe Wheeler <sitsofe@yahoo.com>
-Cc: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Sep 2008, Sitsofe Wheeler wrote:
+On Mon, 1 Sep 2008 18:53:47 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 1 Sep 2008 17:53:02 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> Is it worth having the anonymous memory option turned on in kconfig when
-> using the kernel on a machine which has no swap/swapfiles? Does it
-> improve memory decisions in some secret way (even though there is no
-> swap available) or would it just be completely redundant?
+> > On Mon, 1 Sep 2008 16:58:27 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > On Mon, 1 Sep 2008 16:15:01 +0900
+> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > 
+> > > > Hi, Kamezawa-san.
+> > > > 
+> > > > I'm testing these patches on mmotm-2008-08-29-01-08
+> > > > (with some trivial fixes I've reported and some debug codes),
+> > This problem happens on the kernel without debug codes I added.
+> > 
+> > > > but swap_in_bytes sometimes becomes very huge(it seems that
+> > > > over uncharge is happening..) and I can see OOM
+> > > > if I've set memswap_limit.
+> > > > 
+> > > > I'm digging this now, but have you also ever seen it?
+> > > > 
+> > > I didn't see that.
+> > I see, thanks.
+> > 
+> > > But, as you say, maybe over-uncharge. Hmm..
+> > > What kind of test ? Just use swap ? and did you use shmem or tmpfs ?
+> > > 
+> > I don't do anything special, and this can happen without shmem/tmpfs
+> > (can happen with shmem/tmpfs, too).
+> > 
+> > For example:
+> > 
+> > - make swap out/in activity for a while(I used page01 of ltp).
+> > - stop the test.
+> > 
+> > [root@localhost ~]# cat /cgroup/memory/01/memory.swap_in_bytes
+> > 4096
+> > 
+> > - swapoff
+> > 
+> > [root@localhost ~]# swapoff -a
+> > [root@localhost ~]# cat /cgroup/memory/01/memory.swap_in_bytes
+> > 18446744073709395968
+> > 
+> > 
+> Hmm ? can happen without swapoff ?
+> It seems "accounted" flag is on by mistake.
+> 
+> 
+Just FYI, this orver-uncharge at swapoff seems to happen only when
+there remains a process(bash) in the cgroup.
 
-Which is the anonymous memory option in kconfig?
+I'll dig more.
 
-There is CONFIG_SWAP, which you might as well turn off if you don't
-intend to use swap/swapfiles.  I don't think it makes any difference to
-memory decisions in such a case (they should be based on nr_swap_pages
-being 0), but it would shrink your kernel a little.
 
-Hugh
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
