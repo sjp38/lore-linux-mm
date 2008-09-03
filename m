@@ -1,84 +1,47 @@
-Date: Wed, 3 Sep 2008 16:05:18 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 14/14]memcg: mem+swap accounting
-Message-Id: <20080903160518.10ff3879.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080903152314.95bc4dac.nishimura@mxp.nes.nec.co.jp>
-References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080822204455.922f87dc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080901161501.2cba948e.nishimura@mxp.nes.nec.co.jp>
-	<20080901165827.e21f9104.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080901175302.737bca2e.nishimura@mxp.nes.nec.co.jp>
-	<20080901185347.cfbc1817.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080902200905.cb18cce0.nishimura@mxp.nes.nec.co.jp>
-	<20080902204053.d3635bc8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080903152314.95bc4dac.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m837UAtY013655
+	for <linux-mm@kvack.org>; Wed, 3 Sep 2008 17:30:10 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m837VHG83842276
+	for <linux-mm@kvack.org>; Wed, 3 Sep 2008 17:31:17 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m837VHio007361
+	for <linux-mm@kvack.org>; Wed, 3 Sep 2008 17:31:17 +1000
+Message-ID: <48BE3D43.7090903@linux.vnet.ibm.com>
+Date: Wed, 03 Sep 2008 13:01:15 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
+References: <20080831174756.GA25790@balbir.in.ibm.com> <200809011656.45190.nickpiggin@yahoo.com.au> <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com> <200809011743.42658.nickpiggin@yahoo.com.au> <48BD0641.4040705@linux.vnet.ibm.com> <20080902190256.1375f593.kamezawa.hiroyu@jp.fujitsu.com> <48BD0E4A.5040502@linux.vnet.ibm.com> <20080902190723.841841f0.kamezawa.hiroyu@jp.fujitsu.com> <48BD119B.8020605@linux.vnet.ibm.com> <20080902195717.224b0822.kamezawa.hiroyu@jp.fujitsu.com> <48BD337E.40001@linux.vnet.ibm.com> <20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Sep 2008 15:23:14 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Tue, 02 Sep 2008 18:07:18 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> I understand your concern and I am not trying to reduce memcg's performance - or
+>> add a fancy feature. I am trying to make memcg more friendly for distros. I see
+>> your point about the overhead. I just got back my results - I see a 4% overhead
+>> with the patches. Let me see if I can rework them for better performance.
+>>
+> Just an idea, by using atomic_ops page_cgroup patch, you can encode page_cgroup->lock
+> to page_cgroup->flags and use bit_spinlock(), I think.
+> (my new patch set use bit_spinlock on page_cgroup->flags for avoiding some race.)
+> 
+> This will save extra 4 bytes.
 
-> On Tue, 2 Sep 2008 20:40:53 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > maybe like this.
-> > swap_cgroup_set_account()
-> >    -> mem_cgroup_uncharge()
-> >         -> the page is mapped ..no uncharge here.
-> >               -> then, res.page, res.swaps is not changed.
-> >                  -> we should mark swap account as false.
-> > 
-> > Anyway, thank you! I'll consider this again.
-> > 
-> I add some debug code to show why the uncharge fails there.
-> 
-> It showed that the cause of uncharge failure at swapoff was that
-> it tried to free a mapped page, as you said.
-> 
-> I think this can happen in the sequence below:
-> 
->   try_to_unuse()
->     unuse_mm()
->       ...
->       unuse_pte()
->         mem_cgroup_charge()
->           swap_cgroup_delete_account()
->             - swap_cgroup->count is turned off.
->         page_add_anon_rmap()
->           - map page.
->     ...
->     delete_from_swap_cache()
->       swap_cgroup_delete_swapcache()
->         - turns swap_cgroup->count on again.
->         - tries to uncharge a mapped page.
-> 
-> And I think deleting a swapcache of a mapped page can also happen
-> in other sequences(e.g. do_swap_page()->remove_exclusive_swap_cache()).
-> 
-> OTOH, as for shmem/tmpfs, swap_cgroup_delete_swapcache() tries to
-> uncharge a page which is on radix tree(that's why I saw over-uncharging),
-> because shmem_getpage() calls add_to_page_cache() before
-> delete_from_swap_cache().
-> 
-> 
-> So, I think current implementation should be changed anyway.
-> 
-Thank you for your investigation. I'll refine logic.
+Exactly the next step I was thinking about (since we already use it, in the
+current form). Thanks for the suggestion!
 
-I think I have to tune lockless** series first. It's almost done.
-mem+swap patch is also maintained but my usual 8cpu host is
-still under maintaince. (and the newest mmtom doesn't work on 2cpu my machine.)
-So, please be patient for a while if no updates from me.
-
-Of course, if you have your own, please post. I think kmap_atomic()
-logic in my patch is also benefial to your original version.
-
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
