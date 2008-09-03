@@ -1,48 +1,107 @@
-Date: Wed, 3 Sep 2008 14:01:40 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Subject: Re: Warning message when compiling ioremap.c
-Message-ID: <20080903140140.333bc137@doriath.conectiva>
-In-Reply-To: <48BCED2A.6030109@evidence.eu.com>
-References: <48BCED2A.6030109@evidence.eu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 2/4] pull out zone cpuset and watermark checks for reuse
+Date: Wed,  3 Sep 2008 19:44:10 +0100
+Message-Id: <1220467452-15794-3-git-send-email-apw@shadowen.org>
+In-Reply-To: <1220467452-15794-1-git-send-email-apw@shadowen.org>
+References: <1220467452-15794-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Claudio Scordino <claudio@evidence.eu.com>
-Cc: linux-mm@kvack.org, philb@gnu.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Em Tue, 02 Sep 2008 09:37:14 +0200
-Claudio Scordino <claudio@evidence.eu.com> escreveu:
+When allocating we need to confirm that the zone we are about to allocate
+from is acceptable to the CPUSET we are in, and that it does not violate
+the zone watermarks.  Pull these checks out so we can reuse them in a
+later patch.
 
-| Hi,
-| 
-|        I'm not skilled with MM at all, so sorry if I'm saying something
-| stupid.
-| 
-| When compiling Linux (latest kernel from Linus' git) on ARM, I noticed 
-| the following warning:
-| 
-| CC      arch/arm/mm/ioremap.o
-| arch/arm/mm/ioremap.c: In function '__arm_ioremap_pfn':
-| arch/arm/mm/ioremap.c:83: warning: control may reach end of non-void
-| function 'remap_area_pte' being inlined
-| 
-| According to the message in the printk, we go to "bad" when the page
-| already exists.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+---
+ mm/page_alloc.c |   62 ++++++++++++++++++++++++++++++++++++++----------------
+ 1 files changed, 43 insertions(+), 19 deletions(-)
 
- You see that right before the return you have added there is a
-BUG() macro? That macro will call panic(), this means that this
-function will never return if it reaches that point.
-
- If all you want is to silent gcc, you should remove the goto and
-move the bad label contents there.
-
- This is minor, but I see no need for the goto.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b2a2c2b..2c3874e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1274,6 +1274,44 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 	return 1;
+ }
+ 
++/*
++ * Return 1 if this zone is an acceptable source given the cpuset
++ * constraints.
++ */
++static inline int zone_cpuset_permits(struct zone *zone,
++					int alloc_flags, gfp_t gfp_mask)
++{
++	if ((alloc_flags & ALLOC_CPUSET) &&
++	    !cpuset_zone_allowed_softwall(zone, gfp_mask))
++		return 0;
++	return 1;
++}
++
++/*
++ * Return 1 if this zone is within the watermarks specified by the
++ * allocation flags.
++ */
++static inline int zone_watermark_permits(struct zone *zone, int order,
++			int classzone_idx, int alloc_flags, gfp_t gfp_mask)
++{
++	if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
++		unsigned long mark;
++		if (alloc_flags & ALLOC_WMARK_MIN)
++			mark = zone->pages_min;
++		else if (alloc_flags & ALLOC_WMARK_LOW)
++			mark = zone->pages_low;
++		else
++			mark = zone->pages_high;
++		if (!zone_watermark_ok(zone, order, mark,
++			    classzone_idx, alloc_flags)) {
++			if (!zone_reclaim_mode ||
++					!zone_reclaim(zone, gfp_mask, order))
++				return 0;
++		}
++	}
++	return 1;
++}
++
+ #ifdef CONFIG_NUMA
+ /*
+  * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
+@@ -1427,25 +1465,11 @@ zonelist_scan:
+ 		if (NUMA_BUILD && zlc_active &&
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+-				goto try_next_zone;
+-
+-		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+-			unsigned long mark;
+-			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = zone->pages_min;
+-			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = zone->pages_low;
+-			else
+-				mark = zone->pages_high;
+-			if (!zone_watermark_ok(zone, order, mark,
+-				    classzone_idx, alloc_flags)) {
+-				if (!zone_reclaim_mode ||
+-				    !zone_reclaim(zone, gfp_mask, order))
+-					goto this_zone_full;
+-			}
+-		}
++		if (!zone_cpuset_permits(zone, alloc_flags, gfp_mask))
++			goto try_next_zone;
++		if (!zone_watermark_permits(zone, order, classzone_idx,
++							alloc_flags, gfp_mask))
++			goto this_zone_full;
+ 
+ 		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
+ 		if (page)
 -- 
-Luiz Fernando N. Capitulino
+1.6.0.rc1.258.g80295
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
