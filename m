@@ -1,32 +1,40 @@
-Date: Thu, 04 Sep 2008 11:51:07 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH #2.6.27-rc5] mmap: fix petty bug in anonymous shared mmap offset handling
-In-Reply-To: <Pine.LNX.4.64.0809031713250.6250@blonde.site>
-References: <48BE9AAB.9070303@kernel.org> <Pine.LNX.4.64.0809031713250.6250@blonde.site>
-Message-Id: <20080904114324.DB0F.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for
+	allocation by the reclaimer
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <48BEFAF9.3030006@linux-foundation.org>
+References: <1220467452-15794-5-git-send-email-apw@shadowen.org>
+	 <1220475206-23684-1-git-send-email-apw@shadowen.org>
+	 <48BEFAF9.3030006@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 04 Sep 2008 08:38:28 +0200
+Message-Id: <1220510308.8609.167.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-> > Signed-off-by: Tejun Heo <tj@kernel.org>
+On Wed, 2008-09-03 at 16:00 -0500, Christoph Lameter wrote:
+> Andy Whitcroft wrote:
 > 
-> Fair enough.  The current behaviour has (almost) never bothered us,
-> so I'm uncertain if your test is legit, but I can't see any reason
-> to object to the change.  Particularly since (just out of sight below
-> the context of your patch) we force pgoff in the MAP_PRIVATE case.
+> >  
+> >  #ifndef __GENERATING_BOUNDS_H
+> > @@ -208,6 +211,9 @@ __PAGEFLAG(SlubDebug, slub_debug)
+> >   */
+> >  TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
+> >  __PAGEFLAG(Buddy, buddy)
+> > +PAGEFLAG(BuddyCapture, buddy_capture)	/* A buddy page, but reserved. */
+> > +	__SETPAGEFLAG(BuddyCapture, buddy_capture)
+> > +	__CLEARPAGEFLAG(BuddyCapture, buddy_capture)
 > 
-> Acked-by: Hugh Dickins <hugh@veritas.com>
+> Doesnt __PAGEFLAG do what you want without having to explicitly specify
+> __SET/__CLEAR?
 
-me too.
+PAGEFLAG() __PAGEFLAG()
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
+does TESTPAGEFLAG() double.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
