@@ -1,23 +1,18 @@
-Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for
-	allocation by the reclaimer
-From: Peter Zijlstra <peterz@infradead.org>
+Date: Thu, 04 Sep 2008 16:59:44 +0900
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for allocation by the reclaimer
 In-Reply-To: <1220475206-23684-1-git-send-email-apw@shadowen.org>
-References: <1220467452-15794-5-git-send-email-apw@shadowen.org>
-	 <1220475206-23684-1-git-send-email-apw@shadowen.org>
-Content-Type: text/plain
-Date: Thu, 04 Sep 2008 09:20:18 +0200
-Message-Id: <1220512818.8609.174.camel@twins>
-Mime-Version: 1.0
+References: <1220467452-15794-5-git-send-email-apw@shadowen.org> <1220475206-23684-1-git-send-email-apw@shadowen.org>
+Message-Id: <20080904162900.B262.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-09-03 at 21:53 +0100, Andy Whitcroft wrote:
-> [Doh, as pointed out by Christoph the patch was missing from this one...]
-> 
 > When a process enters direct reclaim it will expend effort identifying
 > and releasing pages in the hope of obtaining a page.  However as these
 > pages are released asynchronously there is every possibility that the
@@ -40,107 +35,23 @@ On Wed, 2008-09-03 at 21:53 +0100, Andy Whitcroft wrote:
 > Capture is only enabled when the reclaimer's allocation order exceeds
 > ALLOC_COSTLY_ORDER as free pages below this order should naturally occur
 > in large numbers following regular reclaim.
-> 
-> Thanks go to Mel Gorman for numerous discussions during the development
-> of this patch and for his repeated reviews.
 
-Whole series looks good, a few comments below.
 
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Hi Andy,
 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> ---
+I like almost part of your patch.
+(at least, I can ack patch 1/4 - 3/4)
 
-> @@ -4815,6 +4900,73 @@ out:
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  }
->  
-> +#define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> +
-> +/*
-> + * Run through the accumulated list of captured pages and the first
-> + * which is big enough to satisfy the original allocation.  Free
-> + * the remainder of that page and all other pages.
-> + */
+So, I worry about OOM risk.
+Can you remember desired page size to capture list (or any other location)?
+if possible, __capture_on_page can avoid to capture unnecessary pages.
 
-That sentence looks incomplete, did you intend to write something along
-the lines of:
+So, if __capture_on_page() can make desired size page by buddy merging, 
+it can free other pages on capture_list.
 
-Run through the accumulated list of captures pages and /take/ the first
-which is big enough to satisfy the original allocation. Free the
-remaining pages.
+In worst case, shrink_zone() is called by very much process at the same time.
+Then, if each process doesn't back few pages, very many pages doesn't be backed.
 
-?
-
-> +struct page *capture_alloc_or_return(struct zone *zone,
-> +		struct zone *preferred_zone, struct list_head *capture_list,
-> +		int order, int alloc_flags, gfp_t gfp_mask)
-> +{
-> +	struct page *capture_page = 0;
-> +	unsigned long flags;
-> +	int classzone_idx = zone_idx(preferred_zone);
-> +
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +
-> +	while (!list_empty(capture_list)) {
-> +		struct page *page;
-> +		int pg_order;
-> +
-> +		page = lru_to_page(capture_list);
-> +		list_del(&page->lru);
-> +		pg_order = page_order(page);
-> +
-> +		/*
-> +		 * Clear out our buddy size and list information before
-> +		 * releasing or allocating the page.
-> +		 */
-> +		rmv_page_order(page);
-> +		page->buddy_free = 0;
-> +		ClearPageBuddyCapture(page);
-> +
-> +		if (!capture_page && pg_order >= order) {
-> +			__carve_off(page, pg_order, order);
-> +			capture_page = page;
-> +		} else
-> +			__free_one_page(page, zone, pg_order);
-> +	}
-> +
-> +	/*
-> +	 * Ensure that this capture would not violate the watermarks.
-> +	 * Subtle, we actually already have the page outside the watermarks
-> +	 * so check if we can allocate an order 0 page.
-> +	 */
-> +	if (capture_page &&
-> +	    (!zone_cpuset_permits(zone, alloc_flags, gfp_mask) ||
-> +	     !zone_watermark_permits(zone, 0, classzone_idx,
-> +					     alloc_flags, gfp_mask))) {
-> +		__free_one_page(capture_page, zone, order);
-> +		capture_page = NULL;
-> +	}
-
-This makes me a little sad - we got a high order page and give it away
-again...
-
-Can we start another round of direct reclaim with a lower order to try
-and increase the watermarks while we hold on to this large order page?
-
-> +	if (capture_page)
-> +		__count_zone_vm_events(PGALLOC, zone, 1 << order);
-> +
-> +	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
-> +	zone->pages_scanned = 0;
-> +
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +
-> +	if (capture_page)
-> +		prep_new_page(capture_page, order, gfp_mask);
-> +
-> +	return capture_page;
-> +}
-> +
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  /*
->   * All pages in the range must be isolated before calling this.
 
 
 --
