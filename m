@@ -1,43 +1,45 @@
-Date: Thu, 04 Sep 2008 17:11:38 +0900
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for allocation by the reclaimer
-In-Reply-To: <48BEFAF9.3030006@linux-foundation.org>
-References: <1220475206-23684-1-git-send-email-apw@shadowen.org> <48BEFAF9.3030006@linux-foundation.org>
-Message-Id: <20080904170016.B265.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Thu, 4 Sep 2008 09:58:09 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for
+	allocation by the reclaimer
+Message-ID: <20080904085809.GA6460@brain>
+References: <1220467452-15794-5-git-send-email-apw@shadowen.org> <1220475206-23684-1-git-send-email-apw@shadowen.org> <48BEFAF9.3030006@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <48BEFAF9.3030006@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-Hi Cristoph
+On Wed, Sep 03, 2008 at 04:00:41PM -0500, Christoph Lameter wrote:
+> Andy Whitcroft wrote:
+> 
+> >  
+> >  #ifndef __GENERATING_BOUNDS_H
+> > @@ -208,6 +211,9 @@ __PAGEFLAG(SlubDebug, slub_debug)
+> >   */
+> >  TESTPAGEFLAG(Writeback, writeback) TESTSCFLAG(Writeback, writeback)
+> >  __PAGEFLAG(Buddy, buddy)
+> > +PAGEFLAG(BuddyCapture, buddy_capture)	/* A buddy page, but reserved. */
+> > +	__SETPAGEFLAG(BuddyCapture, buddy_capture)
+> > +	__CLEARPAGEFLAG(BuddyCapture, buddy_capture)
+> 
+> Doesnt __PAGEFLAG do what you want without having to explicitly specify
+> __SET/__CLEAR?
+
+I think I end up with one extra test that I don't need, but its
+probabally much clearer.
 
 > How does page allocator fastpath behavior fare with this pathch?
 
-Don't worry it because
+The fastpath should be unaffected on the allocation side.  On the free
+side there is an additional check for merging with a buddy under capture
+as we merge buddies in __free_one_page.
 
-1. shrink_zone() isn't fastpath because any reclaim isn't fastpath.
-2. buddy combining on __free_one_page() isn't fastpath because
-   any buddy combining isn't fastpath. (*)
-
-(*)
-all modern allocator have delayed buddy combining mecanism
-because buddy combining increase cache miss.
-(please imazine address X+1 is freed when address X is cold.
- combining cause next alloc get address X, then caller see cold page)
-
-at least, allocator's fastpath should avoid its combining IMHO.
-
-Unfortunately the linux buddy's one is limited because
-zone->pcp only cache order-0 page.
-
-Then, higher order pages's free always use slow path now.
-but it isn't his patch failure.
-
-
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
