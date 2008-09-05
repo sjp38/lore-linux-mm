@@ -1,81 +1,48 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 3/4] buddy: explicitly identify buddy field use in struct page
-Date: Fri,  5 Sep 2008 11:20:01 +0100
-Message-Id: <1220610002-18415-4-git-send-email-apw@shadowen.org>
-In-Reply-To: <1220610002-18415-1-git-send-email-apw@shadowen.org>
-References: <1220610002-18415-1-git-send-email-apw@shadowen.org>
+Received: from zps76.corp.google.com (zps76.corp.google.com [172.25.146.76])
+	by smtp-out.google.com with ESMTP id m85G3opI014098
+	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 17:03:51 +0100
+Received: from gxk14 (gxk14.prod.google.com [10.202.11.14])
+	by zps76.corp.google.com with ESMTP id m85Fwr0X021386
+	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 09:03:50 -0700
+Received: by gxk14 with SMTP id 14so7064339gxk.20
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2008 09:03:49 -0700 (PDT)
+Message-ID: <6599ad830809050903s7e1a1004i6b31660502c0dcf2@mail.gmail.com>
+Date: Fri, 5 Sep 2008 09:03:49 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH][mmotm]memcg: handle null dereference of mm->owner
+In-Reply-To: <20080905174021.9fa29b01.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20080905165017.b2715fe4.nishimura@mxp.nes.nec.co.jp>
+	 <20080905174021.9fa29b01.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Explicitly define the struct page fields which buddy uses when it owns
-pages.  Defines a new anonymous struct to allow additional fields to
-be defined in a later patch.
+On Fri, Sep 5, 2008 at 1:40 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+> BTW, I have a question to Balbir and Paul. (I'm sorry I missed the discussion.)
+> Recently I wonder why we need MM_OWNER.
+>
+> - What's bad with thread's cgroup ?
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
----
- include/linux/mm_types.h |    3 +++
- mm/internal.h            |    2 +-
- mm/page_alloc.c          |    4 ++--
- 3 files changed, 6 insertions(+), 3 deletions(-)
+Because lots of mm operations take place in a context where we don't
+have a thread pointer, and hence no cgroup.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 995c588..906d8e0 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -70,6 +70,9 @@ struct page {
- #endif
- 	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
- 	    struct page *first_page;	/* Compound tail pages */
-+	    struct {
-+		unsigned long buddy_order;     /* buddy: free page order */
-+	    };
- 	};
- 	union {
- 		pgoff_t index;		/* Our offset within mapping. */
-diff --git a/mm/internal.h b/mm/internal.h
-index c0e4859..fcedcd0 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -58,7 +58,7 @@ extern void __free_pages_bootmem(struct page *page, unsigned int order);
- static inline unsigned long page_order(struct page *page)
- {
- 	VM_BUG_ON(!PageBuddy(page));
--	return page_private(page);
-+	return page->buddy_order;
- }
- 
- extern int mlock_vma_pages_range(struct vm_area_struct *vma,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2c3874e..db0dbd6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -331,7 +331,7 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
- 
- static inline void set_page_order(struct page *page, int order)
- {
--	set_page_private(page, order);
-+	page->buddy_order = order;
- 	__SetPageBuddy(page);
- #ifdef CONFIG_PAGE_OWNER
- 		page->order = -1;
-@@ -341,7 +341,7 @@ static inline void set_page_order(struct page *page, int order)
- static inline void rmv_page_order(struct page *page)
- {
- 	__ClearPageBuddy(page);
--	set_page_private(page, 0);
-+	page->buddy_order = 0;
- }
- 
- /*
--- 
-1.6.0.rc1.258.g80295
+> - Why we can't disallow per-thread cgroup under memcg ?)
+
+We can, but that's orthogonal - we still need to be able to get to
+some thread (or a pointer directly in the mm to the cgroup, but with
+multiple cgroup subsystems popping up that needed such a pointer, it
+seems cleaner to have the owner pointer rather than adding multiple
+separate cgroup subsystem pointers to mm.
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
