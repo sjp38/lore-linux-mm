@@ -1,70 +1,110 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m859i3b8026718
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 19:44:03 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m859j901292740
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 19:45:11 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m859j85E025901
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 19:45:09 +1000
-Message-ID: <48C0FF9F.3060803@linux.vnet.ibm.com>
-Date: Fri, 05 Sep 2008 15:15:03 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH][mmotm]memcg: handle null dereference of mm->owner
-References: <20080905165017.b2715fe4.nishimura@mxp.nes.nec.co.jp> <20080905174021.9fa29b01.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080905174021.9fa29b01.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 2/4] pull out zone cpuset and watermark checks for reuse
+Date: Fri,  5 Sep 2008 11:20:00 +0100
+Message-Id: <1220610002-18415-3-git-send-email-apw@shadowen.org>
+In-Reply-To: <1220610002-18415-1-git-send-email-apw@shadowen.org>
+References: <1220610002-18415-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "menage@google.com" <menage@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Fri, 5 Sep 2008 16:50:17 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
->> Hi.
->>
->> mm_update_next_owner() may clear mm->owner to NULL
->> if it races with swapoff, page migration, etc.
->> (This behavior was introduced by mm-owner-fix-race-between-swap-and-exit.patch.)
->>
->> But memcg doesn't take account of this situation, and causes:
->>
->>   BUG: unable to handle kernel NULL pointer dereference at 0000000000000630
->>
->> This fixes it.
->>
-> Thank you for catching this.
-> 
+When allocating we need to confirm that the zone we are about to allocate
+from is acceptable to the CPUSET we are in, and that it does not violate
+the zone watermarks.  Pull these checks out so we can reuse them in a
+later patch.
 
-Thanks, Daisuke
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/page_alloc.c |   62 ++++++++++++++++++++++++++++++++++++++----------------
+ 1 files changed, 43 insertions(+), 19 deletions(-)
 
-> BTW, I have a question to Balbir and Paul. (I'm sorry I missed the discussion.)
-> Recently I wonder why we need MM_OWNER.
-> 
-> - What's bad with thread's cgroup ?
-> - Why we can't disallow per-thread cgroup under memcg ?)
-> 
-
-
-For the following reasons, I had initially designed it to be that way because
-
-1. There is no concept of a thread maintaining or managing its memory
-independently of others
-2. If we ever support full migration, it is easier to do so with the thread
-group leader owning the memory, rather than figuring out what to do everytime a
-task changed a cgroup.
-3. A task with appropriate permissions can spread itself across cgroups and hog
-memory
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b2a2c2b..2c3874e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1274,6 +1274,44 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 	return 1;
+ }
+ 
++/*
++ * Return 1 if this zone is an acceptable source given the cpuset
++ * constraints.
++ */
++static inline int zone_cpuset_permits(struct zone *zone,
++					int alloc_flags, gfp_t gfp_mask)
++{
++	if ((alloc_flags & ALLOC_CPUSET) &&
++	    !cpuset_zone_allowed_softwall(zone, gfp_mask))
++		return 0;
++	return 1;
++}
++
++/*
++ * Return 1 if this zone is within the watermarks specified by the
++ * allocation flags.
++ */
++static inline int zone_watermark_permits(struct zone *zone, int order,
++			int classzone_idx, int alloc_flags, gfp_t gfp_mask)
++{
++	if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
++		unsigned long mark;
++		if (alloc_flags & ALLOC_WMARK_MIN)
++			mark = zone->pages_min;
++		else if (alloc_flags & ALLOC_WMARK_LOW)
++			mark = zone->pages_low;
++		else
++			mark = zone->pages_high;
++		if (!zone_watermark_ok(zone, order, mark,
++			    classzone_idx, alloc_flags)) {
++			if (!zone_reclaim_mode ||
++					!zone_reclaim(zone, gfp_mask, order))
++				return 0;
++		}
++	}
++	return 1;
++}
++
+ #ifdef CONFIG_NUMA
+ /*
+  * zlc_setup - Setup for "zonelist cache".  Uses cached zone data to
+@@ -1427,25 +1465,11 @@ zonelist_scan:
+ 		if (NUMA_BUILD && zlc_active &&
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+-				goto try_next_zone;
+-
+-		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+-			unsigned long mark;
+-			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = zone->pages_min;
+-			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = zone->pages_low;
+-			else
+-				mark = zone->pages_high;
+-			if (!zone_watermark_ok(zone, order, mark,
+-				    classzone_idx, alloc_flags)) {
+-				if (!zone_reclaim_mode ||
+-				    !zone_reclaim(zone, gfp_mask, order))
+-					goto this_zone_full;
+-			}
+-		}
++		if (!zone_cpuset_permits(zone, alloc_flags, gfp_mask))
++			goto try_next_zone;
++		if (!zone_watermark_permits(zone, order, classzone_idx,
++							alloc_flags, gfp_mask))
++			goto this_zone_full;
+ 
+ 		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask);
+ 		if (page)
 -- 
-	Balbir
+1.6.0.rc1.258.g80295
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
