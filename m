@@ -1,63 +1,84 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m85LtJSO032716
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 17:55:19 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m85LtD38201834
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 15:55:18 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m85LtCbN015376
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 15:55:13 -0600
-Date: Fri, 5 Sep 2008 14:54:52 -0700
-From: Gary Hade <garyhade@us.ibm.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e1.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m85MXpG2012776
+	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 18:33:51 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m85MXpSE205592
+	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 18:33:51 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m85MXoKD010840
+	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 18:33:51 -0400
 Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
-Message-ID: <20080905215452.GF11692@us.ibm.com>
-References: <20080905172132.GA11692@us.ibm.com> <87ej3yv588.fsf@basil.nowhere.org> <20080905195314.GE11692@us.ibm.com> <20080905200401.GA18288@one.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080905200401.GA18288@one.firstfloor.org>
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20080905185455.GY18288@one.firstfloor.org>
+References: <20080905172132.GA11692@us.ibm.com>
+	 <87ej3yv588.fsf@basil.nowhere.org>
+	 <1220639514.25932.28.camel@badari-desktop>
+	 <20080905185455.GY18288@one.firstfloor.org>
+Content-Type: text/plain
+Date: Fri, 05 Sep 2008 15:34:03 -0700
+Message-Id: <1220654043.25932.43.camel@badari-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
+Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 05, 2008 at 10:04:01PM +0200, Andi Kleen wrote:
-> > The inability to offline all non-primary node memory sections
-> > certainly needs to be addressed.  The pgdat removal work that
-> > Yasunori Goto has started will hopefully continue and help resolve
-> > this issue. 
+On Fri, 2008-09-05 at 20:54 +0200, Andi Kleen wrote:
+> > At this time we are interested on node remove (on x86_64). 
+> > It doesn't really work well at this time - 
 > 
-> You make it sound like it's just some minor technical hurdle
-> that needs to be addressed.
+> That's a quite euphemistic way to put it.
+> 
+> > due to some of the structures
+> 
+> That means you can never put any slab data on specific nodes.
+> And all the kernel subsystems on that node will not ever get local
+> memory.  How are you going to solve that?  And if you disallow
+> kernel allocations in so large memory areas you get many of the highmem
+> issues that plagued 32bit back in the 64bit kernel.
 
-Sorry, that was not my intent.
+You are absolutely correct. There is no easy solution - one has 
+to loose performance in order to support node removal, along with
+some old x86 issues :(
 
-> But from all analysis of these issues
-> I've seen so far it's extremly hard and all possible solutions
-> have serious issues. So before doing some baby steps there
-> should be at least some general idea how this thing is supposed
-> to work in the end.
+We were contemplating idea of limiting node removal to few
+select set of nodes as a compromise - but it didn't sound right :(
 
-I am not sure if I understand why you appear to be opposed to
-enabling the hotremove function before all the issues related
-to an eventual goal of being able to free all memory on a node
-are addressed.  Even in the absence of solutions for these issues
-it seems like there could still be other possible benefits such
-as the ability to selectively expand and shrink available memory
-for testing or debugging purposes.  I believe it would also be
-helpful to those working on or testing possible solutions for
-the removal issues.
+> 
+> There are lots of other issues. It's quite questionable if this
+> whole exercise makes sense at all.
 
-Gary
+Same issues exist with ia64 and x86_64 won't be any worse off.
+Gary was trying to enable the functionality so that we can atleast
+test out offlining memory section easier (test page migration,
+isolation code and hash out issues)
 
--- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+Another possible idea being considered (still lot of unknowns)
+to make use offline memory section feature for power management
+(*cough*).
+
+Anyway, as you can see this patch doesn't add any code - just
+enables config option for x86_64. (if you are worried about
+code bloat).
+
+> > (BTW, on ppc64 this works fine - since we are interested mostly in
+> > removing *some* sections of memory to give it back to hypervisor - 
+> > not entire node removal).
+> 
+> Ok for hypervisors you can do it reasonably easy on x86 too, but it's likely
+> that some hypercall interface is better than going through
+> sysfs. 
+
+sysfs interface already exists to offline sections of memory. (same
+interface as online).
+
+The proposed patch provides easy way to find out what sections of
+memory belongs to which node. (could be useful on its own).
+
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
