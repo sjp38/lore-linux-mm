@@ -1,112 +1,89 @@
-Date: Thu, 4 Sep 2008 20:06:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: rewrite vmap layer
-Message-Id: <20080904200625.a926e274.akpm@linux-foundation.org>
-In-Reply-To: <20080818133224.GA5258@wotan.suse.de>
-References: <20080818133224.GA5258@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m853I5PZ008695
+	for <linux-mm@kvack.org>; Thu, 4 Sep 2008 23:18:05 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m853I5Tf184584
+	for <linux-mm@kvack.org>; Thu, 4 Sep 2008 23:18:05 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m853I5Lv006460
+	for <linux-mm@kvack.org>; Thu, 4 Sep 2008 23:18:05 -0400
+Date: Thu, 4 Sep 2008 20:18:04 -0700
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: Re: [PATCH] Show memory section to node relationship in sysfs
+Message-ID: <20080905031803.GH26795@us.ibm.com>
+References: <20080904202212.GB26795@us.ibm.com> <1220566546.23386.65.camel@nimitz> <20080905004044.GA2768@kroah.com> <20080905011500.GF26795@us.ibm.com> <20080905012110.GA3170@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080905012110.GA3170@kroah.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-arch@vger.kernel.org, Dave Airlie <airlied@linux.ie>
+To: Greg KH <greg@kroah.com>
+Cc: Gary Hade <garyhade@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Aug 2008 15:32:24 +0200 Nick Piggin <npiggin@suse.de> wrote:
+On Thu, Sep 04, 2008 at 06:21:10PM -0700, Greg KH wrote:
+> On Thu, Sep 04, 2008 at 06:15:00PM -0700, Gary Hade wrote:
+> > On Thu, Sep 04, 2008 at 05:40:44PM -0700, Greg KH wrote:
+> > > On Thu, Sep 04, 2008 at 03:15:46PM -0700, Dave Hansen wrote:
+> > > > On Thu, 2008-09-04 at 13:22 -0700, Gary Hade wrote:
+> > > > > 
+> > > > > --- linux-2.6.27-rc5.orig/drivers/base/memory.c 2008-09-03 14:24:54.000000000 -0700
+> > > > > +++ linux-2.6.27-rc5/drivers/base/memory.c      2008-09-03 14:25:14.000000000 -0700
+> > > > > @@ -150,6 +150,22 @@
+> > > > >         return len;
+> > > > >  }
+> > > > > 
+> > > > > +/*
+> > > > > + * node on which memory section resides
+> > > > > + */
+> > > > > +static ssize_t show_mem_node(struct sys_device *dev,
+> > > > > +                       struct sysdev_attribute *attr, char *buf)
+> > > > > +{
+> > > > > +       unsigned long start_pfn;
+> > > > > +       int ret;
+> > > > > +       struct memory_block *mem =
+> > > > > +               container_of(dev, struct memory_block, sysdev);
+> > > > > +
+> > > > > +       start_pfn = section_nr_to_pfn(mem->phys_index);
+> > > > > +       ret = pfn_to_nid(start_pfn);
+> > > > > +       return sprintf(buf, "%d\n", ret);
+> > > > > +}
+> > > > 
+> > > > I only wonder if this is the "sysfs" way to do it.
+> > > > 
+> > > > I mean, we don't put a file with the PCI id of a device in the device's
+> > > > sysfs directory.  We put a symlink to its place in the bus tree.
+> > > > 
+> > > > Should we just link over to the NUMA node directory?  We have it there,
+> > > > so we might as well use it.
+> > > 
+> > > That sounds reasonable to me.  Someone is documenting this new addition
+> > > with an entry in Documentation/ABI/, right?
+> > 
+> > Yes, my bad.  Revision will add that to Documentation/memory-hotplug.txt
+> > as well as a description of the 'removable' file that Badari mentioned,
+> > if OK to include both in the same patch.
+> 
+> Care to move the information from memory-hotplug.txt into the proper
+> place for this kind of stuff (Documentation/ABI for all external kernel
+> ABIs).
 
-> Rewrite the vmap allocator to use rbtrees and lazy tlb flushing, and provide a
-> fast, scalable percpu frontend for small vmaps (requires a slightly different
-> API, though).
+Sorry, I think I got it now.  Badari has already documented the
+memory section 'removable' file in
+  Documentation/ABI/testing/sysfs-devices-memory
+but descriptions for the other memory section files are not yet
+included there.  I will make sure this gets fixed.
 
-With the full -mm lineup my ancient PIII machine is saying
+Gary
 
-calling agp_init+0x0/0x30
-Linux agpgart interface v0.103
-initcall agp_init+0x0/0x30 returned 0 after 0 msecs
-calling agp_intel_init+0x0/0x30
-agpgart-intel 0000:00:00.0: Intel 440BX Chipset
-------------[ cut here ]------------
-WARNING: at mm/vmalloc.c:105 vmap_page_range+0xea/0x130()
-Modules linked in:
-Pid: 1, comm: swapper Not tainted 2.6.27-rc5-mm1 #1
- [<c0126404>] warn_on_slowpath+0x54/0x70
- [<c016dce9>] ? rmqueue_bulk+0x69/0x80
- [<c014666b>] ? trace_hardirqs_on+0xb/0x10
- [<c01465d4>] ? trace_hardirqs_on_caller+0xd4/0x160
- [<c016ece9>] ? get_page_from_freelist+0x229/0x4f0
- [<c018278a>] vmap_page_range+0xea/0x130
- [<c0182801>] map_vm_area+0x31/0x50
- [<c01828d4>] __vmalloc_area_node+0xb4/0x110
- [<c01829c9>] __vmalloc_node+0x99/0xa0
- [<c02c4040>] ? agp_add_bridge+0x1e0/0x4b0
- [<c02c4040>] ? agp_add_bridge+0x1e0/0x4b0
- [<c0182a23>] vmalloc+0x23/0x30
- [<c02c4040>] ? agp_add_bridge+0x1e0/0x4b0
- [<c02c4040>] agp_add_bridge+0x1e0/0x4b0
- [<c03d70c5>] agp_intel_probe+0x145/0x2d0
- [<c029f81e>] pci_device_probe+0x5e/0x80
- [<c02d4ef4>] driver_probe_device+0x84/0x180
- [<c02d5065>] __driver_attach+0x75/0x80
- [<c02d45a9>] bus_for_each_dev+0x49/0x70
- [<c029f760>] ? pci_device_remove+0x0/0x40
- [<c02d4d69>] driver_attach+0x19/0x20
- [<c02d4ff0>] ? __driver_attach+0x0/0x80
- [<c02d49ff>] bus_add_driver+0xaf/0x220
- [<c028e46f>] ? kset_find_obj+0x5f/0x80
- [<c029f760>] ? pci_device_remove+0x0/0x40
- [<c02d51ff>] driver_register+0x4f/0x120
- [<c02974a2>] ? __spin_lock_init+0x32/0x60
- [<c054f2c0>] ? agp_intel_init+0x0/0x30
- [<c029fa8b>] __pci_register_driver+0x5b/0xb0
- [<c054f2c0>] ? agp_intel_init+0x0/0x30
- [<c054f2e5>] agp_intel_init+0x25/0x30
- [<c010102a>] _stext+0x2a/0x150
- [<c054f2c0>] ? agp_intel_init+0x0/0x30
- [<c011deff>] ? wake_up_process+0xf/0x20
- [<c0135d3d>] ? start_workqueue_thread+0x1d/0x20
- [<c0136103>] ? __create_workqueue_key+0x143/0x190
- [<c0532732>] kernel_init+0x182/0x280
- [<c05325b0>] ? kernel_init+0x0/0x280
- [<c0103fff>] kernel_thread_helper+0x7/0x18
- =======================
----[ end trace e9106f0cfec79452 ]---
-agpgart-intel 0000:00:00.0: can't allocate memory for key lists
-agpgart-intel 0000:00:00.0: agp_backend_initialize() failed
-agpgart-intel: probe of 0000:00:00.0 failed with error -12
-initcall agp_intel_init+0x0/0x30 returned 0 after 10 msecs
-
-: static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
-: 		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-: {
-: 	pte_t *pte;
-: 
-: 	/*
-: 	 * nr is a running index into the array which helps higher level
-: 	 * callers keep track of where we're up to.
-: 	 */
-: 
-: 	pte = pte_alloc_kernel(pmd, addr);
-: 	if (!pte)
-: 		return -ENOMEM;
-: 	do {
-: 		struct page *page = pages[*nr];
-: 
-: -->>		if (WARN_ON(!pte_none(*pte)))
-: 			return -EBUSY;
-: 		if (WARN_ON(!page))
-: 			return -ENOMEM;
-: 		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
-: 		(*nr)++;
-: 	} while (pte++, addr += PAGE_SIZE, addr != end);
-: 	return 0;
-: }
-: 
-
-wanna take a look please?
-
-config: http://userweb.kernel.org/~akpm/config-vmm.txt
-dmesg: http://userweb.kernel.org/~akpm/dmesg-vmm.txt
+-- 
+Gary Hade
+System x Enablement
+IBM Linux Technology Center
+503-578-4503  IBM T/L: 775-4503
+garyhade@us.ibm.com
+http://www.ibm.com/linux/ltc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
