@@ -1,78 +1,39 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m85JrOi0002118
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 15:53:24 -0400
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m85JrIvq158768
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 13:53:23 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m85JrHYC014532
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 13:53:18 -0600
-Date: Fri, 5 Sep 2008 12:53:14 -0700
-From: Gary Hade <garyhade@us.ibm.com>
+Date: Fri, 5 Sep 2008 22:04:01 +0200
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
-Message-ID: <20080905195314.GE11692@us.ibm.com>
-References: <20080905172132.GA11692@us.ibm.com> <87ej3yv588.fsf@basil.nowhere.org>
-MIME-Version: 1.0
+Message-ID: <20080905200401.GA18288@one.firstfloor.org>
+References: <20080905172132.GA11692@us.ibm.com> <87ej3yv588.fsf@basil.nowhere.org> <20080905195314.GE11692@us.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87ej3yv588.fsf@basil.nowhere.org>
+In-Reply-To: <20080905195314.GE11692@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
+To: Gary Hade <garyhade@us.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 05, 2008 at 08:04:55PM +0200, Andi Kleen wrote:
-> Gary Hade <garyhade@us.ibm.com> writes:
-> >
-> > Add memory hotremove config option to x86_64
-> >
-> > Memory hotremove functionality can currently be configured into
-> > the ia64, powerpc, and s390 kernels.  This patch makes it possible
-> > to configure the memory hotremove functionality into the x86_64
-> > kernel as well. 
-> 
-> You forgot to describe how you tested it? Does it actually work.
+> The inability to offline all non-primary node memory sections
+> certainly needs to be addressed.  The pgdat removal work that
+> Yasunori Goto has started will hopefully continue and help resolve
+> this issue. 
 
-So far, I have tested it on a 2-node IBM x460, 2-node IBM x3950, and
-a 4-node IBM x3950 M2 and have been able to successfully offline and
-re-online all memory sections marked as removable multiple times with
-no apparent problems.
+You make it sound like it's just some minor technical hurdle
+that needs to be addressed. But from all analysis of these issues
+I've seen so far it's extremly hard and all possible solutions
+have serious issues. So before doing some baby steps there
+should be at least some general idea how this thing is supposed
+to work in the end.
 
-By directing the change to -mm our hope is that others will try it
-on their systems and help us shake out any issues that they my find.
+> We have only just started thinking about issues related
+> to resources other that CPUs and memory that will need to be released
+> in preparation for node removal (e.g. memory and i/o resources
+> assigned to PCI devices on a node targeted for removal). 
 
-> And why do you want to do it it? What's the use case?
+That's the easy stuff. The hard parts are all the kernel objects
+that you cannot move.
 
-A baby step towards evental total node removal.
-
-> 
-> The general understanding was that it doesn't work very well on a real
-> machine at least because it cannot be controlled how that memory maps
-> to real pluggable hardware (and you cannot completely empty a node at runtime)
-> and a Hypervisor would likely use different interfaces anyways.
-
-The inability to offline all non-primary node memory sections
-certainly needs to be addressed.  The pgdat removal work that
-Yasunori Goto has started will hopefully continue and help resolve
-this issue.  We have only just started thinking about issues related
-to resources other that CPUs and memory that will need to be released
-in preparation for node removal (e.g. memory and i/o resources
-assigned to PCI devices on a node targeted for removal).  Much of
-this is new territory for us so any suggestions that you and others
-can offer will be much appreciated.
-
-Thanks for asking.
-
-Gary
-
--- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
