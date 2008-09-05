@@ -1,37 +1,68 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m85HgVG2008951
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 13:42:31 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m85HgLVY161008
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 13:42:21 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m85HgKBh020432
-	for <linux-mm@kvack.org>; Fri, 5 Sep 2008 13:42:21 -0400
-Subject: Re: [PATCH] Show memory section to node relationship in sysfs
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080905010010.GE26795@us.ibm.com>
-References: <20080904202212.GB26795@us.ibm.com>
-	 <1220566546.23386.65.camel@nimitz>  <20080905010010.GE26795@us.ibm.com>
-Content-Type: text/plain
-Date: Fri, 05 Sep 2008 10:42:18 -0700
-Message-Id: <1220636538.23386.128.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 5 Sep 2008 19:44:49 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
+Message-ID: <20080905174449.GC27395@elte.hu>
+References: <20080905172132.GA11692@us.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20080905172132.GA11692@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Gary Hade <garyhade@us.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, Greg KH <greg@kroah.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-09-04 at 18:00 -0700, Gary Hade wrote:
+* Gary Hade <garyhade@us.ibm.com> wrote:
+
+> Add memory hotremove config option to x86_64
 > 
-> In any case, the symlink sounds like a good idea and would be
-> sufficient by itself but I'm wondering if it would be overkill to
-> provide both? e.g. a 'node' symlink and a 'node_num' file.
+> Memory hotremove functionality can currently be configured into the 
+> ia64, powerpc, and s390 kernels.  This patch makes it possible to 
+> configure the memory hotremove functionality into the x86_64 kernel as 
+> well.
 
-Yep, that's overkill.  I'd just do the symlink.
+hm, why is it for 64-bit only?
 
--- Dave
+> +++ linux-2.6.27-rc5/arch/x86/Kconfig	2008-09-03 13:34:55.000000000 -0700
+> @@ -1384,6 +1384,9 @@
+>  	def_bool y
+>  	depends on X86_64 || (X86_32 && HIGHMEM)
+> 
+> +config ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	def_bool y
+
+so this will break the build on 32-bit, if CONFIG_MEMORY_HOTREMOVE=y? 
+mm/memory_hotplug.c assumes that remove_memory() is provided by the 
+architecture.
+
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +int remove_memory(u64 start, u64 size)
+> +{
+> +	unsigned long start_pfn, end_pfn;
+> +	unsigned long timeout = 120 * HZ;
+> +	int ret;
+> +	start_pfn = start >> PAGE_SHIFT;
+> +	end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +	ret = offline_pages(start_pfn, end_pfn, timeout);
+> +	if (ret)
+> +		goto out;
+> +	/* Arch-specific calls go here */
+> +out:
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL_GPL(remove_memory);
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
+
+hm, nothing appears to be arch-specific about this trivial wrapper 
+around offline_pages().
+
+Shouldnt this be moved to the CONFIG_MEMORY_HOTREMOVE portion of 
+mm/memory_hotplug.c instead, as a weak function? That way architectures 
+only have to enable ARCH_ENABLE_MEMORY_HOTREMOVE - and architectures 
+with different/special needs can override it.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
