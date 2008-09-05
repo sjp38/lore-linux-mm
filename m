@@ -1,80 +1,98 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 0/4] Reclaim page capture v3
-Date: Fri,  5 Sep 2008 11:19:58 +0100
-Message-Id: <1220610002-18415-1-git-send-email-apw@shadowen.org>
+Subject: [PATCH 1/4] pull out the page pre-release and sanity check logic for reuse
+Date: Fri,  5 Sep 2008 11:19:59 +0100
+Message-Id: <1220610002-18415-2-git-send-email-apw@shadowen.org>
+In-Reply-To: <1220610002-18415-1-git-send-email-apw@shadowen.org>
+References: <1220610002-18415-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-For sometime we have been looking at mechanisms for improving the availability
-of larger allocations under load.  One of the options we have explored is
-the capturing of pages freed under direct reclaim in order to increase the
-chances of free pages coelescing before they are subject to reallocation
-by racing allocators.
+When we are about to release a page we perform a number of actions
+on that page.  We clear down any anonymous mappings, confirm that
+the page is safe to release, check for freeing locks, before mapping
+the page should that be required.  Pull this processing out into a
+helper function for reuse in a later patch.
 
-Following this email is a patch stack implementing page capture during
-direct reclaim.  It consits of four patches.  The first two simply pull
-out existing code into helpers for reuse.  The third makes buddy's use
-of struct page explicit.  The fourth contains the meat of the changes,
-and its leader contains a much fuller description of the feature.
+Note that we do not convert the similar cleardown in free_hot_cold_page()
+as the optimiser is unable to squash the loops during the inline.
 
-This update represents a rebase to -mm and incorporates feedback from
-KOSAKI Motohiro.  It also incorporates an accounting fix which was
-preventing some captures.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/page_alloc.c |   43 ++++++++++++++++++++++++++++++-------------
+ 1 files changed, 30 insertions(+), 13 deletions(-)
 
-I have done a lot of comparitive testing with and without this patch
-set and in broad brush I am seeing improvements in hugepage allocations
-(worst case size) success on all of my test systems.  These tests consist
-of placing a constant stream of high order allocations on the system,
-at varying rates.  The results for these various runs are then averaged
-to give an overall improvement.
-
-		Absolute	Effective
-x86-64		2.48%		 4.58%
-powerpc		5.55%		25.22%
-
-x86-64 has a relatively small huge page size and so is always much more
-effective at allocating huge pages.  Even there we get a measurable
-improvement.  On powerpc the huge pages are much larger and much harder
-to recover.  Here we see a full 25% increase in page recovery.
-
-It should be noted that these are worst case testing, and very agressive
-taking every possible page in the system.  It would be helpful to get
-wider testing in -mm.
-
-Against: 2.6.27-rc1-mm1
-
-Andrew, please consider for -mm.
-
--apw
-
-Changes since V2:
- - Incorporates review feedback from Christoph Lameter,
- - Incorporates review feedback from Peter Zijlstra, and
- - Checkpatch fixes.
-
-Changes since V1:
- - Incorporates review feedback from KOSAKI Motohiro,
- - fixes up accounting when checking watermarks for captured pages,
- - rebase 2.6.27-rc1-mm1,
- - Incorporates review feedback from Mel.
-
-
-Andy Whitcroft (4):
-  pull out the page pre-release and sanity check logic for reuse
-  pull out zone cpuset and watermark checks for reuse
-  buddy: explicitly identify buddy field use in struct page
-  capture pages freed during direct reclaim for allocation by the
-    reclaimer
-
- include/linux/mm_types.h   |    4 +
- include/linux/page-flags.h |    4 +
- mm/internal.h              |    8 +-
- mm/page_alloc.c            |  263 ++++++++++++++++++++++++++++++++++++++------
- mm/vmscan.c                |  115 ++++++++++++++++----
- 5 files changed, 338 insertions(+), 56 deletions(-)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f52fcf1..b2a2c2b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -489,6 +489,35 @@ static inline int free_pages_check(struct page *page)
+ }
+ 
+ /*
++ * Prepare this page for release to the buddy.  Sanity check the page.
++ * Returns 1 if the page is safe to free.
++ */
++static inline int free_page_prepare(struct page *page, int order)
++{
++	int i;
++	int reserved = 0;
++
++	if (PageAnon(page))
++		page->mapping = NULL;
++
++	for (i = 0 ; i < (1 << order) ; ++i)
++		reserved += free_pages_check(page + i);
++	if (reserved)
++		return 0;
++
++	if (!PageHighMem(page)) {
++		debug_check_no_locks_freed(page_address(page),
++							PAGE_SIZE << order);
++		debug_check_no_obj_freed(page_address(page),
++					   PAGE_SIZE << order);
++	}
++	arch_free_page(page, order);
++	kernel_map_pages(page, 1 << order, 0);
++
++	return 1;
++}
++
++/*
+  * Frees a list of pages. 
+  * Assumes all pages on list are in same zone, and of same order.
+  * count is the number of pages to free.
+@@ -529,22 +558,10 @@ static void free_one_page(struct zone *zone, struct page *page, int order)
+ static void __free_pages_ok(struct page *page, unsigned int order)
+ {
+ 	unsigned long flags;
+-	int i;
+-	int reserved = 0;
+ 
+-	for (i = 0 ; i < (1 << order) ; ++i)
+-		reserved += free_pages_check(page + i);
+-	if (reserved)
++	if (!free_page_prepare(page, order))
+ 		return;
+ 
+-	if (!PageHighMem(page)) {
+-		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
+-		debug_check_no_obj_freed(page_address(page),
+-					   PAGE_SIZE << order);
+-	}
+-	arch_free_page(page, order);
+-	kernel_map_pages(page, 1 << order, 0);
+-
+ 	local_irq_save(flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+ 	free_one_page(page_zone(page), page, order);
+-- 
+1.6.0.rc1.258.g80295
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
