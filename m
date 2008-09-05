@@ -1,69 +1,82 @@
-Date: Fri, 05 Sep 2008 11:29:19 +0900
+Date: Fri, 05 Sep 2008 12:02:31 +0900
 From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] Show memory section to node relationship in sysfs
-In-Reply-To: <20080905020729.GG26795@us.ibm.com>
-References: <48C06FB4.1040100@us.ibm.com> <20080905020729.GG26795@us.ibm.com>
-Message-Id: <20080905112632.6756.E1E9C6FF@jp.fujitsu.com>
+Subject: Re: [PATCH] Add memory hotremove config option to x86_64
+In-Reply-To: <20080904202153.GA26795@us.ibm.com>
+References: <20080904202153.GA26795@us.ibm.com>
+Message-Id: <20080905115721.6758.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Gary Hade <garyhade@us.ibm.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Thu, Sep 04, 2008 at 04:31:00PM -0700, Badari Pulavarty wrote:
-> > Nish Aravamudan wrote:
-> >> On 9/4/08, Gary Hade <garyhade@us.ibm.com> wrote:
-> >>   
-> >>> Show memory section to node relationship in sysfs
-> >>>
-> >>>  Add /sys/devices/system/memory/memoryX/node files to show
-> >>>  the node on which each memory section resides.
-> >>>     
-> >>
-> >> I think this patch needs an additional bit for Documentation/ABI
-> >> (might be other parts of /sys/devices/system/memory missing from
-> >> there).
-> >>
-> >>   
-> > Yes. I added Documentation/ABI for "removable". We should update it for  
-> > this too.
-> >> Also, I wonder if it might not make more sense to use a symlink here? That is
-> >>
-> >> /sys/devices/system/memory/memoryX/node -> /sys/devices/system/node/nodeY ?
-> >>
-> >>   
-> > Makes sense. Since we already have "node/nodeY", we might as well make  
-> > use of it
-> > instead of duplicating it.
-> >> And then we could, potentially, have symlinks returning from the node
-> >> side to indicate all memory sections on that node (might be handy for
-> >> node offline?):
-> >>
-> >> /sys/devices/system/node/nodeX/memory1 -> /sys/devices/system/memory/memoryY
-> >> /sys/devices/system/node/nodeX/memory2 -> /sys/devices/system/memory/memoryZ
-> >>
-> >>   
-> > I don't think we need both. Gary wants to do "node removal/offline" and  
-> > wants
-> > to find out all the memory sections that belong to nodeX. May be this is a
-> > a better interface. This way, we can quickly get through all the memory  
-> > sections without looking at all the sections. Gary ?
-> 
-> Yes, either way would work fine but I think symlinks in the
-> /sys/devices/system/node/nodeX directories would make the
-> script or program driven memory section offlining complete
-> a little more quickly.  However, if we do this we might want to
-> make the symlink names to match the memory section directory names.
->   /sys/devices/system/node/nodeX/memoryY -> /sys/devices/system/memory/memoryY
->   /sys/devices/system/node/nodeX/memoryZ -> /sys/devices/system/memory/memoryZ
+Looks good to me.
 
-Agree. I think this is better way.
-
+Acked-by: Yasunori Goto <y-goto@jp.fujitsu.com>
 
 Thanks.
+
+> 
+> Add memory hotremove config option to x86_64
+> 
+> Memory hotremove functionality can currently be configured into
+> the ia64, powerpc, and s390 kernels.  This patch makes it possible
+> to configure the memory hotremove functionality into the x86_64
+> kernel as well. 
+> 
+> Signed-off-by: Gary Hade <garyhade@us.ibm.com>
+> 
+> ---
+>  arch/x86/Kconfig      |    3 +++
+>  arch/x86/mm/init_64.c |   18 ++++++++++++++++++
+>  2 files changed, 21 insertions(+)
+> 
+> Index: linux-2.6.27-rc5/arch/x86/Kconfig
+> ===================================================================
+> --- linux-2.6.27-rc5.orig/arch/x86/Kconfig	2008-09-03 13:33:59.000000000 -0700
+> +++ linux-2.6.27-rc5/arch/x86/Kconfig	2008-09-03 13:34:55.000000000 -0700
+> @@ -1384,6 +1384,9 @@
+>  	def_bool y
+>  	depends on X86_64 || (X86_32 && HIGHMEM)
+>  
+> +config ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	def_bool y
+> +
+>  config HAVE_ARCH_EARLY_PFN_TO_NID
+>  	def_bool X86_64
+>  	depends on NUMA
+> Index: linux-2.6.27-rc5/arch/x86/mm/init_64.c
+> ===================================================================
+> --- linux-2.6.27-rc5.orig/arch/x86/mm/init_64.c	2008-09-03 13:34:08.000000000 -0700
+> +++ linux-2.6.27-rc5/arch/x86/mm/init_64.c	2008-09-03 13:34:55.000000000 -0700
+> @@ -740,6 +740,24 @@
+>  EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +int remove_memory(u64 start, u64 size)
+> +{
+> +	unsigned long start_pfn, end_pfn;
+> +	unsigned long timeout = 120 * HZ;
+> +	int ret;
+> +	start_pfn = start >> PAGE_SHIFT;
+> +	end_pfn = start_pfn + (size >> PAGE_SHIFT);
+> +	ret = offline_pages(start_pfn, end_pfn, timeout);
+> +	if (ret)
+> +		goto out;
+> +	/* Arch-specific calls go here */
+> +out:
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL_GPL(remove_memory);
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
+> +
+>  #endif /* CONFIG_MEMORY_HOTPLUG */
+>  
+>  /*
 
 -- 
 Yasunori Goto 
