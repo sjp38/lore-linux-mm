@@ -1,7 +1,7 @@
 From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 1/4] pull out the page pre-release and sanity check logic for reuse
-Date: Fri,  5 Sep 2008 11:19:59 +0100
-Message-Id: <1220610002-18415-2-git-send-email-apw@shadowen.org>
+Subject: [PATCH 3/4] buddy: explicitly identify buddy field use in struct page
+Date: Fri,  5 Sep 2008 11:20:01 +0100
+Message-Id: <1220610002-18415-4-git-send-email-apw@shadowen.org>
 In-Reply-To: <1220610002-18415-1-git-send-email-apw@shadowen.org>
 References: <1220610002-18415-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
@@ -10,87 +10,70 @@ To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-When we are about to release a page we perform a number of actions
-on that page.  We clear down any anonymous mappings, confirm that
-the page is safe to release, check for freeing locks, before mapping
-the page should that be required.  Pull this processing out into a
-helper function for reuse in a later patch.
-
-Note that we do not convert the similar cleardown in free_hot_cold_page()
-as the optimiser is unable to squash the loops during the inline.
+Explicitly define the struct page fields which buddy uses when it owns
+pages.  Defines a new anonymous struct to allow additional fields to
+be defined in a later patch.
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |   43 ++++++++++++++++++++++++++++++-------------
- 1 files changed, 30 insertions(+), 13 deletions(-)
+ include/linux/mm_types.h |    3 +++
+ mm/internal.h            |    2 +-
+ mm/page_alloc.c          |    4 ++--
+ 3 files changed, 6 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 995c588..906d8e0 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -70,6 +70,9 @@ struct page {
+ #endif
+ 	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+ 	    struct page *first_page;	/* Compound tail pages */
++	    struct {
++		unsigned long buddy_order;     /* buddy: free page order */
++	    };
+ 	};
+ 	union {
+ 		pgoff_t index;		/* Our offset within mapping. */
+diff --git a/mm/internal.h b/mm/internal.h
+index c0e4859..fcedcd0 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -58,7 +58,7 @@ extern void __free_pages_bootmem(struct page *page, unsigned int order);
+ static inline unsigned long page_order(struct page *page)
+ {
+ 	VM_BUG_ON(!PageBuddy(page));
+-	return page_private(page);
++	return page->buddy_order;
+ }
+ 
+ extern int mlock_vma_pages_range(struct vm_area_struct *vma,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f52fcf1..b2a2c2b 100644
+index 2c3874e..db0dbd6 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -489,6 +489,35 @@ static inline int free_pages_check(struct page *page)
+@@ -331,7 +331,7 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
+ 
+ static inline void set_page_order(struct page *page, int order)
+ {
+-	set_page_private(page, order);
++	page->buddy_order = order;
+ 	__SetPageBuddy(page);
+ #ifdef CONFIG_PAGE_OWNER
+ 		page->order = -1;
+@@ -341,7 +341,7 @@ static inline void set_page_order(struct page *page, int order)
+ static inline void rmv_page_order(struct page *page)
+ {
+ 	__ClearPageBuddy(page);
+-	set_page_private(page, 0);
++	page->buddy_order = 0;
  }
  
  /*
-+ * Prepare this page for release to the buddy.  Sanity check the page.
-+ * Returns 1 if the page is safe to free.
-+ */
-+static inline int free_page_prepare(struct page *page, int order)
-+{
-+	int i;
-+	int reserved = 0;
-+
-+	if (PageAnon(page))
-+		page->mapping = NULL;
-+
-+	for (i = 0 ; i < (1 << order) ; ++i)
-+		reserved += free_pages_check(page + i);
-+	if (reserved)
-+		return 0;
-+
-+	if (!PageHighMem(page)) {
-+		debug_check_no_locks_freed(page_address(page),
-+							PAGE_SIZE << order);
-+		debug_check_no_obj_freed(page_address(page),
-+					   PAGE_SIZE << order);
-+	}
-+	arch_free_page(page, order);
-+	kernel_map_pages(page, 1 << order, 0);
-+
-+	return 1;
-+}
-+
-+/*
-  * Frees a list of pages. 
-  * Assumes all pages on list are in same zone, and of same order.
-  * count is the number of pages to free.
-@@ -529,22 +558,10 @@ static void free_one_page(struct zone *zone, struct page *page, int order)
- static void __free_pages_ok(struct page *page, unsigned int order)
- {
- 	unsigned long flags;
--	int i;
--	int reserved = 0;
- 
--	for (i = 0 ; i < (1 << order) ; ++i)
--		reserved += free_pages_check(page + i);
--	if (reserved)
-+	if (!free_page_prepare(page, order))
- 		return;
- 
--	if (!PageHighMem(page)) {
--		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
--		debug_check_no_obj_freed(page_address(page),
--					   PAGE_SIZE << order);
--	}
--	arch_free_page(page, order);
--	kernel_map_pages(page, 1 << order, 0);
--
- 	local_irq_save(flags);
- 	__count_vm_events(PGFREE, 1 << order);
- 	free_one_page(page_zone(page), page, order);
 -- 
 1.6.0.rc1.258.g80295
 
