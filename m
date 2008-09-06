@@ -1,50 +1,42 @@
-Date: Sat, 6 Sep 2008 10:53:20 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
-Message-ID: <20080906085320.GE18288@one.firstfloor.org>
-References: <20080905215452.GF11692@us.ibm.com> <20080906000154.GC18288@one.firstfloor.org> <20080906153855.7260.E1E9C6FF@jp.fujitsu.com>
+Subject: Re: [RFC:Patch: 008/008](memory hotplug) remove_pgdat() function
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20080731210326.2A51.E1E9C6FF@jp.fujitsu.com>
+References: <20080731203549.2A3F.E1E9C6FF@jp.fujitsu.com>
+	 <20080731210326.2A51.E1E9C6FF@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Sat, 06 Sep 2008 16:21:35 +0200
+Message-Id: <1220710895.8687.12.camel@twins.programming.kicks-ass.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20080906153855.7260.E1E9C6FF@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Sep 06, 2008 at 04:06:38PM +0900, Yasunori Goto wrote:
-> > not.
-> > 
-> > This means I don't see a real use case for this feature.
-> 
-> I don't think its driver is almighty.
-> IIRC, balloon driver can be cause of fragmentation for 24-7 system.
+On Thu, 2008-07-31 at 21:04 +0900, Yasunori Goto wrote:
 
-Sure the balloon driver can be likely improved too, it's just
-that I don't think a balloon driver should call into the function
-the original patch in the series hooked up.
-> 
-> In addition, I have heard that memory hotplug would be useful for reducing
-> of power consumption of DIMM.
+> +int remove_pgdat(int nid)
+> +{
+> +	struct pglist_data *pgdat = NODE_DATA(nid);
+> +
+> +	if (cpus_busy_on_node(nid))
+> +		return -EBUSY;
+> +
+> +	if (sections_busy_on_node(pgdat))
+> +		return -EBUSY;
+> +
+> +	node_set_offline(nid);
+> +	synchronize_sched();
+> +	synchronize_srcu(&pgdat_remove_srcu);
+> +
+> +	free_pgdat(nid, pgdat);
+> +
+> +	return 0;
+> +}
 
-It's unclear that memory hotplug is the right model for DIMM power management.
-The problem is that DIMMs are interleaved, so you again have to completely
-free a quite large area. It's not much easier than node hotplug.
-
-> I have to admit that memory hotplug has many issues, but I would like to
-
-Let's call it "node" or "hardware" memory hot unplug, not that
-anyone confuses it with the easier VM based hot unplug or the really
-easy hotadd.
-
-> solve them step by step.
-
-The question is if they are even solvable in a useful way.
-I'm not sure it's that useful to start and then find out
-that it doesn't work anyways.
-
--Andi
+FWIW synchronize_sched() is the wrong function to use here,
+synchronize_rcu() is the right one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
