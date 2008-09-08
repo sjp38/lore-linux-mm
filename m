@@ -1,490 +1,154 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m88FSdK0031461
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 01:28:39 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m88FTZJ0177894
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 01:29:39 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m88FTZ12029930
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 01:29:35 +1000
-Date: Mon, 8 Sep 2008 20:58:10 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-Message-ID: <20080908152810.GA12065@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com> <200809011743.42658.nickpiggin@yahoo.com.au> <48BD0641.4040705@linux.vnet.ibm.com> <20080902190256.1375f593.kamezawa.hiroyu@jp.fujitsu.com> <48BD0E4A.5040502@linux.vnet.ibm.com> <20080902190723.841841f0.kamezawa.hiroyu@jp.fujitsu.com> <48BD119B.8020605@linux.vnet.ibm.com> <20080902195717.224b0822.kamezawa.hiroyu@jp.fujitsu.com> <48BD337E.40001@linux.vnet.ibm.com> <20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 8 Sep 2008 17:41:53 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 0/4] Reclaim page capture v3
+Message-ID: <20080908164153.GC9190@brain>
+References: <1220610002-18415-1-git-send-email-apw@shadowen.org> <200809081608.03793.nickpiggin@yahoo.com.au> <20080908114423.GE18694@brain> <200809082359.55288.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <200809082359.55288.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-09-03 12:33:06]:
-
-> On Tue, 02 Sep 2008 18:07:18 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > I understand your concern and I am not trying to reduce memcg's performance - or
-> > add a fancy feature. I am trying to make memcg more friendly for distros. I see
-> > your point about the overhead. I just got back my results - I see a 4% overhead
-> > with the patches. Let me see if I can rework them for better performance.
-> > 
-> Just an idea, by using atomic_ops page_cgroup patch, you can encode page_cgroup->lock
-> to page_cgroup->flags and use bit_spinlock(), I think.
-> (my new patch set use bit_spinlock on page_cgroup->flags for avoiding some race.)
+On Mon, Sep 08, 2008 at 11:59:54PM +1000, Nick Piggin wrote:
+> On Monday 08 September 2008 21:44, Andy Whitcroft wrote:
+> > On Mon, Sep 08, 2008 at 04:08:03PM +1000, Nick Piggin wrote:
+> > > On Friday 05 September 2008 20:19, Andy Whitcroft wrote:
 > 
-> This will save extra 4 bytes.
+> > > > 		Absolute	Effective
+> > > > x86-64		2.48%		 4.58%
+> > > > powerpc		5.55%		25.22%
+> > >
+> > > These are the numbers for the improvement of hugepage allocation success?
+> > > Then what do you mean by absolute and effective?
+> >
+> > The absolute improvement is the literal change in success percentage,
+> > the literal percentage of all memory which may be allocated as huge
+> > pages.  The effective improvement is percentage of the baseline success
+> > rates that this change represents; for the powerpc results we get some
+> > 20% of memory allocatable without the patches, and 25% with, 25% more
+> > pages are allocatable with the patches.
+> 
+> OK.
+> 
+> > > What sort of constant stream of high order allocations are you talking
+> > > about? In what "real" situations are you seeing higher order page
+> > > allocation failures, and in those cases, how much do these patches help?
+> >
+> > The test case simulates a constant demand for huge pages, at various
+> > rates.  This is intended to replicate the scenario where a system is
+> > used with mixed small page and huge page applications, with a dynamic
+> > huge page pool.  Particularly we are examining the effect of starting a
+> > very large huge page job on a busy system.  Obviously starting hugepage
+> > applications depends on hugepage availability as they are not swappable.
+> > This test was chosen because it both tests the initial large page demand
+> > and then pushes the system to the limit.
+> 
+> So... what does the non-simulation version (ie. the real app) say?
 
-Sorry for the delay in sending out the new patch, I am traveling and
-thus a little less responsive. Here is the update patch
+In the common use model, use of huge pages is all or nothing.  Either
+there are sufficient pages allocatable at application start time or there
+are not.  As huge pages are not swappable once allocated they stay there.
+Applications either start using huge pages or they fallback to small pages
+and continue.  This makes the real metric, how often does the customer get
+annoyed becuase their application has fallen back to small pages and is
+slow, or how often does their database fail to start.  It is very hard to
+directly measure that and thus to get a comparitive figure.  Any attempt
+to replicate that seems as necessarly artificial as the current test.
 
+> > > I must say I don't really like this approach. IMO it might be better to
+> > > put some sort of queue in the page allocator, so if memory becomes low,
+> > > then processes will start queueing up and not be allowed to jump the
+> > > queue and steal memory that has been freed by hard work of a direct
+> > > reclaimer. That would improve a lot of fairness problems as well as
+> > > improve coalescing for higher order allocations without introducing this
+> > > capture stuff.
+> >
+> > The problem with queuing all allocators is two fold.  Firstly allocations
+> > are obviously required for reclaim and those would have to be exempt
+> > from the queue, and these are as likely to prevent coelesce of pages
+> > as any other.
+> 
+> *Much* less likely, actually. Because there should be very little allocation
+> required for reclaim (only dirty pages, and only when backed by filesystems
+> that do silly things like not ensuring their own reserves before allowing
+> the page to be dirtied).
 
-v3...v2
-1. Convert flags to unsigned long
-2. Move page_cgroup->lock to a bit spin lock in flags
+Well yes and no.  A lot of filesystems do do such stupid things.
+Allocating things like journal pages which have relativly long lives
+during reclaim.  We have seen these getting placed into the memory we
+have just freed and preventing higher order coelesce.
 
-v2...v1
+> Also, your scheme still doesn't avoid allocation for reclaim so I don't see
+> how you can use that as a point against queueing but not capturing!
 
-1. Fix a small bug, don't call radix_tree_preload_end(), if preload fails
+Obviously we cannot prevent allocations during reclaim.  But we can avoid
+those allocations falling within the captured range.  All pages under
+capture are marked.  Any page returning to the allocator that merges with a
+buddy under capture, or that is a buddy under capture are kept separatly.
+Such that any allocations from within reclaim will necessarily take
+pages from elsewhere in the pool.  The key thing about capture is that it
+effectivly marks ranges of pages out of use for allocations for the period
+of the reclaim, so we have a number of small ranges blocked out, not the
+whole pool.  This allows parallel allocations (reclaim and otherwise)
+to succeed against the reserves (refilled by kswapd etc), whilst marking
+the pages under capture out and preventing them from being used.
 
-This is a rewrite of a patch I had written long back to remove struct page
-(I shared the patches with Kamezawa, but never posted them anywhere else).
-I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug 2008).
+> > Secondly where a very large allocation is requested 
+> > all allocators would be held while reclaim at that size is performed,
+> > majorly increasing latency for those allocations.  Reclaim for an order
+> > 0 page may target of the order of 32 pages, whereas reclaim for x86_64
+> > hugepages is 1024 pages minimum.  It would be grosly unfair for a single
+> > large allocation to hold up normal allocations.
+> 
+> I don't see why it should be unfair to allow a process to allocate 1024
+> order-0 pages ahead of one order-10 page (actually, yes the order 10 page
+> is I guess somewhat more valueable than the same number of fragmented
+> pages, but you see where I'm coming from).
 
-I've tested the patches on an x86_64 box, I've run a simple test running
-under the memory control group and the same test running concurrently under
-two different groups (and creating pressure within their groups). I've also
-compiled the patch with CGROUP_MEM_RES_CTLR turned off.
+I think we have our wires crossed here.  I was saying it would seem
+unfair to block the allocator from giving out order-0 pages while we are
+struggling to get an order-10 page for one process.  Having a queue
+would seem to generate such behaviour.  What I am trying to achieve with
+capture is to push areas likely to return us a page of the requested
+size out of use, while we try and reclaim it without blocking the rest
+of the allocator.
 
-Advantages of the patch
+> At least with queueing you are basing the idea on *some* reasonable policy,
+> rather than purely random "whoever happens to take this lock at the right
+> time will win" strategy, which might I add, can even be much more unfair
+> than you might say queueing is.
+> 
+> However, queueing would still be able to allow some flexibility in priority.
+> For example:
+> 
+> if (must_queue) {
+>   if (queue_head_prio == 0)
+>     join_queue(1<<order);
+>   else {
+>     queue_head_prio -= 1<<order;
+>     skip_queue();
+>   }
+> }
 
-1. It removes the extra pointer in struct page
+Sure you would be able to make some kind of more flexible decisions, but
+that still seems like a heavy handed approach.  You are important enough
+to takes pages (possibly from our mostly free high order page) or not. 
 
-Disadvantages
+In a perfect world we would be able to know in advance that an order-N
+region would definatly come free if reclaimed and allocate that preemptivly
+to the requestor, apply reclaim to it, and then actually allocate the page.
 
-1. Radix tree lookup is not an O(1) operation, once the page is known
-   getting to the page_cgroup (pc) is a little more expensive now.
+Obviously the world is not quite that perfect, but we are trying to
+follow that model with capture.  Picking areas of the appropriate order,
+applying reclaim to just those areas, and preventing any freed pages
+getting back into the general population.  This behaviour should mark
+the minimum memory out of use as possible.
 
-This is an initial RFC for comments
-
-TODOs
-
-1. Test the page migration changes
-
-Performance
-
-In a unixbench run, these patches had a performance impact of 2% (slowdown).
-
-Comments/Reviews?
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
-
- include/linux/memcontrol.h |   23 +++++
- include/linux/mm_types.h   |    4 
- mm/memcontrol.c            |  187 +++++++++++++++++++++++++++++----------------
- 3 files changed, 144 insertions(+), 70 deletions(-)
-
-diff -puN mm/memcontrol.c~memcg_move_to_radix_tree mm/memcontrol.c
---- linux-2.6.27-rc5/mm/memcontrol.c~memcg_move_to_radix_tree	2008-09-04 15:45:54.000000000 +0530
-+++ linux-2.6.27-rc5-balbir/mm/memcontrol.c	2008-09-08 20:15:30.000000000 +0530
-@@ -24,6 +24,7 @@
- #include <linux/smp.h>
- #include <linux/page-flags.h>
- #include <linux/backing-dev.h>
-+#include <linux/radix-tree.h>
- #include <linux/bit_spinlock.h>
- #include <linux/rcupdate.h>
- #include <linux/slab.h>
-@@ -40,6 +41,9 @@ struct cgroup_subsys mem_cgroup_subsys _
- static struct kmem_cache *page_cgroup_cache __read_mostly;
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- 
-+static struct radix_tree_root mem_cgroup_tree;
-+static spinlock_t mem_cgroup_tree_lock;
-+
- /*
-  * Statistics for memory cgroup.
-  */
-@@ -137,20 +141,6 @@ struct mem_cgroup {
- static struct mem_cgroup init_mem_cgroup;
- 
- /*
-- * We use the lower bit of the page->page_cgroup pointer as a bit spin
-- * lock.  We need to ensure that page->page_cgroup is at least two
-- * byte aligned (based on comments from Nick Piggin).  But since
-- * bit_spin_lock doesn't actually set that lock bit in a non-debug
-- * uniprocessor kernel, we should avoid setting it here too.
-- */
--#define PAGE_CGROUP_LOCK_BIT 	0x0
--#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
--#define PAGE_CGROUP_LOCK 	(1 << PAGE_CGROUP_LOCK_BIT)
--#else
--#define PAGE_CGROUP_LOCK	0x0
--#endif
--
--/*
-  * A page_cgroup page is associated with every page descriptor. The
-  * page_cgroup helps us identify information about the cgroup
-  */
-@@ -158,12 +148,17 @@ struct page_cgroup {
- 	struct list_head lru;		/* per cgroup LRU list */
- 	struct page *page;
- 	struct mem_cgroup *mem_cgroup;
--	int flags;
-+	unsigned long flags;
- };
--#define PAGE_CGROUP_FLAG_CACHE	   (0x1)	/* charged as cache */
--#define PAGE_CGROUP_FLAG_ACTIVE    (0x2)	/* page is active in this cgroup */
--#define PAGE_CGROUP_FLAG_FILE	   (0x4)	/* page is file system backed */
--#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x8)	/* page is unevictableable */
-+
-+/*
-+ * LOCK_BIT is 0, with value 1
-+ */
-+#define PAGE_CGROUP_FLAG_LOCK_BIT   (0x0)  /* lock bit */
-+#define PAGE_CGROUP_FLAG_CACHE	   (0x2)   /* charged as cache */
-+#define PAGE_CGROUP_FLAG_ACTIVE    (0x4)   /* page is active in this cgroup */
-+#define PAGE_CGROUP_FLAG_FILE	   (0x8)   /* page is file system backed */
-+#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x10)/* page is unevictableable */
- 
- static int page_cgroup_nid(struct page_cgroup *pc)
- {
-@@ -248,35 +243,81 @@ struct mem_cgroup *mem_cgroup_from_task(
- 				struct mem_cgroup, css);
- }
- 
--static inline int page_cgroup_locked(struct page *page)
-+static inline void lock_page_cgroup(struct page_cgroup *pc)
- {
--	return bit_spin_is_locked(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
-+	bit_spin_lock(PAGE_CGROUP_FLAG_LOCK_BIT, &pc->flags);
- }
- 
--static void page_assign_page_cgroup(struct page *page, struct page_cgroup *pc)
-+static inline int trylock_page_cgroup(struct page_cgroup *pc)
- {
--	VM_BUG_ON(!page_cgroup_locked(page));
--	page->page_cgroup = ((unsigned long)pc | PAGE_CGROUP_LOCK);
-+	return bit_spin_trylock(PAGE_CGROUP_FLAG_LOCK_BIT, &pc->flags);
- }
- 
--struct page_cgroup *page_get_page_cgroup(struct page *page)
-+static inline void unlock_page_cgroup(struct page_cgroup *pc)
- {
--	return (struct page_cgroup *) (page->page_cgroup & ~PAGE_CGROUP_LOCK);
-+	bit_spin_unlock(PAGE_CGROUP_FLAG_LOCK_BIT, &pc->flags);
- }
- 
--static void lock_page_cgroup(struct page *page)
-+static int page_assign_page_cgroup(struct page *page, struct page_cgroup *pc,
-+					gfp_t gfp_mask)
- {
--	bit_spin_lock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
--}
-+	unsigned long pfn = page_to_pfn(page);
-+	unsigned long flags;
-+	int err = 0;
-+	struct page_cgroup *old_pc;
- 
--static int try_lock_page_cgroup(struct page *page)
--{
--	return bit_spin_trylock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
-+	if (pc) {
-+		err = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-+		if (err) {
-+			printk(KERN_WARNING "could not preload radix tree "
-+				"in %s\n", __func__);
-+			goto done;
-+		}
-+	}
-+
-+	spin_lock_irqsave(&mem_cgroup_tree_lock, flags);
-+	old_pc = radix_tree_lookup(&mem_cgroup_tree, pfn);
-+	if (pc && old_pc) {
-+		err = -EEXIST;
-+		goto pc_race;
-+	}
-+	if (pc) {
-+		err = radix_tree_insert(&mem_cgroup_tree, pfn, pc);
-+		if (err)
-+			printk(KERN_WARNING "Inserting into radix tree failed "
-+				"in %s\n", __func__);
-+	} else
-+		radix_tree_delete(&mem_cgroup_tree, pfn);
-+pc_race:
-+	spin_unlock_irqrestore(&mem_cgroup_tree_lock, flags);
-+	if (pc)
-+		radix_tree_preload_end();
-+done:
-+	return err;
- }
- 
--static void unlock_page_cgroup(struct page *page)
-+struct page_cgroup *__page_get_page_cgroup(struct page *page, bool lock,
-+						bool trylock)
- {
--	bit_spin_unlock(PAGE_CGROUP_LOCK_BIT, &page->page_cgroup);
-+	unsigned long pfn = page_to_pfn(page);
-+	struct page_cgroup *pc;
-+	int ret;
-+
-+	rcu_read_lock();
-+	pc = radix_tree_lookup(&mem_cgroup_tree, pfn);
-+
-+	if (pc && lock)
-+		lock_page_cgroup(pc);
-+
-+	if (pc && trylock) {
-+		ret = trylock_page_cgroup(pc);
-+		if (!ret)
-+			pc = NULL;
-+	}
-+
-+	rcu_read_unlock();
-+
-+	return pc;
- }
- 
- static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
-@@ -377,17 +418,15 @@ void mem_cgroup_move_lists(struct page *
- 	 * safely get to page_cgroup without it, so just try_lock it:
- 	 * mem_cgroup_isolate_pages allows for page left on wrong list.
- 	 */
--	if (!try_lock_page_cgroup(page))
-+	pc = page_get_page_cgroup_trylock(page);
-+	if (!pc)
- 		return;
- 
--	pc = page_get_page_cgroup(page);
--	if (pc) {
--		mz = page_cgroup_zoneinfo(pc);
--		spin_lock_irqsave(&mz->lru_lock, flags);
--		__mem_cgroup_move_lists(pc, lru);
--		spin_unlock_irqrestore(&mz->lru_lock, flags);
--	}
--	unlock_page_cgroup(page);
-+	mz = page_cgroup_zoneinfo(pc);
-+	spin_lock_irqsave(&mz->lru_lock, flags);
-+	__mem_cgroup_move_lists(pc, lru);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
-+	unlock_page_cgroup(pc);
- }
- 
- /*
-@@ -516,7 +555,7 @@ static int mem_cgroup_charge_common(stru
- 				struct mem_cgroup *memcg)
- {
- 	struct mem_cgroup *mem;
--	struct page_cgroup *pc;
-+	struct page_cgroup *pc, *old_pc;
- 	unsigned long flags;
- 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 	struct mem_cgroup_per_zone *mz;
-@@ -569,35 +608,49 @@ static int mem_cgroup_charge_common(stru
- 
- 	pc->mem_cgroup = mem;
- 	pc->page = page;
-+	pc->flags = 0;		/* No lock, no other bits either */
-+
- 	/*
- 	 * If a page is accounted as a page cache, insert to inactive list.
- 	 * If anon, insert to active list.
- 	 */
- 	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE) {
--		pc->flags = PAGE_CGROUP_FLAG_CACHE;
-+		pc->flags |= PAGE_CGROUP_FLAG_CACHE;
- 		if (page_is_file_cache(page))
- 			pc->flags |= PAGE_CGROUP_FLAG_FILE;
- 		else
- 			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
- 	} else
--		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
-+		pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
-+
-+	old_pc = page_get_page_cgroup_locked(page);
-+	if (old_pc) {
-+		unlock_page_cgroup(old_pc);
-+		res_counter_uncharge(&mem->res, PAGE_SIZE);
-+		css_put(&mem->css);
-+		kmem_cache_free(page_cgroup_cache, pc);
-+		goto done;
-+	}
- 
--	lock_page_cgroup(page);
--	if (unlikely(page_get_page_cgroup(page))) {
--		unlock_page_cgroup(page);
-+	lock_page_cgroup(pc);
-+	/*
-+	 * page_get_page_cgroup() does not necessarily guarantee that
-+	 * there will be no race in checking for pc, page_assign_page_pc()
-+	 * will definitely catch it.
-+	 */
-+	if (page_assign_page_cgroup(page, pc, gfp_mask)) {
-+		unlock_page_cgroup(pc);
- 		res_counter_uncharge(&mem->res, PAGE_SIZE);
- 		css_put(&mem->css);
- 		kmem_cache_free(page_cgroup_cache, pc);
- 		goto done;
- 	}
--	page_assign_page_cgroup(page, pc);
- 
- 	mz = page_cgroup_zoneinfo(pc);
- 	spin_lock_irqsave(&mz->lru_lock, flags);
- 	__mem_cgroup_add_list(mz, pc);
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
--
--	unlock_page_cgroup(page);
-+	unlock_page_cgroup(pc);
- done:
- 	return 0;
- out:
-@@ -645,15 +698,13 @@ int mem_cgroup_cache_charge(struct page 
- 	if (!(gfp_mask & __GFP_WAIT)) {
- 		struct page_cgroup *pc;
- 
--		lock_page_cgroup(page);
--		pc = page_get_page_cgroup(page);
-+		pc = page_get_page_cgroup_locked(page);
- 		if (pc) {
- 			VM_BUG_ON(pc->page != page);
- 			VM_BUG_ON(!pc->mem_cgroup);
--			unlock_page_cgroup(page);
-+			unlock_page_cgroup(pc);
- 			return 0;
- 		}
--		unlock_page_cgroup(page);
- 	}
- 
- 	if (unlikely(!mm))
-@@ -673,6 +724,7 @@ __mem_cgroup_uncharge_common(struct page
- 	struct mem_cgroup *mem;
- 	struct mem_cgroup_per_zone *mz;
- 	unsigned long flags;
-+	int ret;
- 
- 	if (mem_cgroup_subsys.disabled)
- 		return;
-@@ -680,8 +732,7 @@ __mem_cgroup_uncharge_common(struct page
- 	/*
- 	 * Check if our page_cgroup is valid
- 	 */
--	lock_page_cgroup(page);
--	pc = page_get_page_cgroup(page);
-+	pc = page_get_page_cgroup_locked(page);
- 	if (unlikely(!pc))
- 		goto unlock;
- 
-@@ -697,8 +748,9 @@ __mem_cgroup_uncharge_common(struct page
- 	__mem_cgroup_remove_list(mz, pc);
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
- 
--	page_assign_page_cgroup(page, NULL);
--	unlock_page_cgroup(page);
-+	ret = page_assign_page_cgroup(page, NULL, GFP_KERNEL);
-+	VM_BUG_ON(ret);
-+	unlock_page_cgroup(pc);
- 
- 	mem = pc->mem_cgroup;
- 	res_counter_uncharge(&mem->res, PAGE_SIZE);
-@@ -707,7 +759,14 @@ __mem_cgroup_uncharge_common(struct page
- 	kmem_cache_free(page_cgroup_cache, pc);
- 	return;
- unlock:
--	unlock_page_cgroup(page);
-+	unlock_page_cgroup(pc);
-+}
-+
-+void page_reset_bad_cgroup(struct page *page)
-+{
-+	int ret;
-+	ret = page_assign_page_cgroup(page, NULL, GFP_KERNEL);
-+	VM_BUG_ON(ret);
- }
- 
- void mem_cgroup_uncharge_page(struct page *page)
-@@ -734,15 +793,14 @@ int mem_cgroup_prepare_migration(struct 
- 	if (mem_cgroup_subsys.disabled)
- 		return 0;
- 
--	lock_page_cgroup(page);
--	pc = page_get_page_cgroup(page);
-+	pc = page_get_page_cgroup_locked(page);
- 	if (pc) {
- 		mem = pc->mem_cgroup;
- 		css_get(&mem->css);
- 		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
- 			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-+		unlock_page_cgroup(pc);
- 	}
--	unlock_page_cgroup(page);
- 	if (mem) {
- 		ret = mem_cgroup_charge_common(newpage, NULL, GFP_KERNEL,
- 			ctype, mem);
-@@ -1107,6 +1165,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
- 		page_cgroup_cache = KMEM_CACHE(page_cgroup, SLAB_PANIC);
-+		spin_lock_init(&mem_cgroup_tree_lock);
- 	} else {
- 		mem = mem_cgroup_alloc();
- 		if (!mem)
-diff -puN include/linux/memcontrol.h~memcg_move_to_radix_tree include/linux/memcontrol.h
---- linux-2.6.27-rc5/include/linux/memcontrol.h~memcg_move_to_radix_tree	2008-09-04 15:45:54.000000000 +0530
-+++ linux-2.6.27-rc5-balbir/include/linux/memcontrol.h	2008-09-04 15:45:54.000000000 +0530
-@@ -27,9 +27,28 @@ struct mm_struct;
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
- 
--#define page_reset_bad_cgroup(page)	((page)->page_cgroup = 0)
-+extern void page_reset_bad_cgroup(struct page *page);
-+extern struct page_cgroup *__page_get_page_cgroup(struct page *page, bool lock,
-+							bool trylock);
-+
-+static __always_inline
-+struct page_cgroup *page_get_page_cgroup(struct page *page)
-+{
-+	return __page_get_page_cgroup(page, false, false);
-+}
-+
-+static __always_inline
-+struct page_cgroup *page_get_page_cgroup_trylock(struct page *page)
-+{
-+	return __page_get_page_cgroup(page, false, true);
-+}
-+
-+static __always_inline
-+struct page_cgroup *page_get_page_cgroup_locked(struct page *page)
-+{
-+	return __page_get_page_cgroup(page, true, false);
-+}
- 
--extern struct page_cgroup *page_get_page_cgroup(struct page *page);
- extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask);
- extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-diff -puN include/linux/mm_types.h~memcg_move_to_radix_tree include/linux/mm_types.h
---- linux-2.6.27-rc5/include/linux/mm_types.h~memcg_move_to_radix_tree	2008-09-04 15:45:54.000000000 +0530
-+++ linux-2.6.27-rc5-balbir/include/linux/mm_types.h	2008-09-04 15:45:54.000000000 +0530
-@@ -92,10 +92,6 @@ struct page {
- 	void *virtual;			/* Kernel virtual address (NULL if
- 					   not kmapped, ie. highmem) */
- #endif /* WANT_PAGE_VIRTUAL */
--#ifdef CONFIG_CGROUP_MEM_RES_CTLR
--	unsigned long page_cgroup;
--#endif
--
- #ifdef CONFIG_KMEMCHECK
- 	void *shadow;
- #endif
-diff -puN mm/page_alloc.c~memcg_move_to_radix_tree mm/page_alloc.c
-_
-
--- 
-	Balbir
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
