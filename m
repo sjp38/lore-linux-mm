@@ -1,63 +1,107 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
-Date: Mon, 8 Sep 2008 23:48:33 +1000
-References: <20080905215452.GF11692@us.ibm.com> <200809082119.32725.nickpiggin@yahoo.com.au> <20080908113025.GF26079@one.firstfloor.org>
-In-Reply-To: <20080908113025.GF26079@one.firstfloor.org>
+Subject: Re: [PATCH 0/4] Reclaim page capture v3
+Date: Mon, 8 Sep 2008 23:59:54 +1000
+References: <1220610002-18415-1-git-send-email-apw@shadowen.org> <200809081608.03793.nickpiggin@yahoo.com.au> <20080908114423.GE18694@brain>
+In-Reply-To: <20080908114423.GE18694@brain>
 MIME-Version: 1.0
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200809082348.34674.nickpiggin@yahoo.com.au>
+Message-Id: <200809082359.55288.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 08 September 2008 21:30, Andi Kleen wrote:
-> > Sorry, by "block", I really mean spin I guess. I mean that the CPU will
-> > be forced to stop executing due to the page fault during this sequence:
+On Monday 08 September 2008 21:44, Andy Whitcroft wrote:
+> On Mon, Sep 08, 2008 at 04:08:03PM +1000, Nick Piggin wrote:
+> > On Friday 05 September 2008 20:19, Andy Whitcroft wrote:
+
+> > > 		Absolute	Effective
+> > > x86-64		2.48%		 4.58%
+> > > powerpc		5.55%		25.22%
+> >
+> > These are the numbers for the improvement of hugepage allocation success?
+> > Then what do you mean by absolute and effective?
 >
-> It's hard for NMIs at least. They cannot execute faults.
+> The absolute improvement is the literal change in success percentage,
+> the literal percentage of all memory which may be allocated as huge
+> pages.  The effective improvement is percentage of the baseline success
+> rates that this change represents; for the powerpc results we get some
+> 20% of memory allocatable without the patches, and 25% with, 25% more
+> pages are allocatable with the patches.
 
-Well, just for executing code (and reading RO data), then it shouldn't
-matter at all actually if the CPU starts executing from the new page
-or the old page, so long as there is a way to quiesce NMIs before freeing
-the old page.
-
-So the NMI can run, and read data, but it may have a problem with stores.
-At least, some kind of redesign of NMI handlers might be required so that
-they can make a note of the pending operation and try to do something
-sane in that case. Or, there could be a small region of memory; a page or
-two, which does not get migrated and NMIs can write to it. I don't think
-you need to go so far as saying the entire kernel image must be non
-movable just for NMIs.
+OK.
 
 
-> In the end you would need to define a core kernel which
-> cannot be remapped and the rest which can and you end up
-> with even more micro kernel like mess.
-
-Are there any important NMIs that really can't fit with this?
-
-
-> > ptep_clear_flush(ptep)         <--- from here
-> > set_pte(ptep, newpte)          <--- until here
-> >
-> > for prot RW, the window also would include the memcpy, however if that
-> > adds too much latency for execute/reads, then it can be mapped RO first,
-> > then memcpy, then flushed and switched.
-> >
-> > > Then that would be essentially a hypervisor or micro kernel approach.
-> >
-> > What would be? Blocking in interrupts? Or non-linear kernel mapping in
+> > What sort of constant stream of high order allocations are you talking
+> > about? In what "real" situations are you seeing higher order page
+> > allocation failures, and in those cases, how much do these patches help?
 >
-> Well in general someone remapping all the memory beyond you.
-> That's essentially a hypervisor in my book.
+> The test case simulates a constant demand for huge pages, at various
+> rates.  This is intended to replicate the scenario where a system is
+> used with mixed small page and huge page applications, with a dynamic
+> huge page pool.  Particularly we are examining the effect of starting a
+> very large huge page job on a busy system.  Obviously starting hugepage
+> applications depends on hugepage availability as they are not swappable.
+> This test was chosen because it both tests the initial large page demand
+> and then pushes the system to the limit.
 
-I don't see it. It is among one of the things a hypervisor may do.
-But anyway, call it what you will.
+So... what does the non-simulation version (ie. the real app) say?
+
+
+> > I must say I don't really like this approach. IMO it might be better to
+> > put some sort of queue in the page allocator, so if memory becomes low,
+> > then processes will start queueing up and not be allowed to jump the
+> > queue and steal memory that has been freed by hard work of a direct
+> > reclaimer. That would improve a lot of fairness problems as well as
+> > improve coalescing for higher order allocations without introducing this
+> > capture stuff.
+>
+> The problem with queuing all allocators is two fold.  Firstly allocations
+> are obviously required for reclaim and those would have to be exempt
+> from the queue, and these are as likely to prevent coelesce of pages
+> as any other.
+
+*Much* less likely, actually. Because there should be very little allocation
+required for reclaim (only dirty pages, and only when backed by filesystems
+that do silly things like not ensuring their own reserves before allowing
+the page to be dirtied).
+
+Also, your scheme still doesn't avoid allocation for reclaim so I don't see
+how you can use that as a point against queueing but not capturing!
+
+
+> Secondly where a very large allocation is requested 
+> all allocators would be held while reclaim at that size is performed,
+> majorly increasing latency for those allocations.  Reclaim for an order
+> 0 page may target of the order of 32 pages, whereas reclaim for x86_64
+> hugepages is 1024 pages minimum.  It would be grosly unfair for a single
+> large allocation to hold up normal allocations.
+
+I don't see why it should be unfair to allow a process to allocate 1024
+order-0 pages ahead of one order-10 page (actually, yes the order 10 page
+is I guess somewhat more valueable than the same number of fragmented
+pages, but you see where I'm coming from).
+
+At least with queueing you are basing the idea on *some* reasonable policy,
+rather than purely random "whoever happens to take this lock at the right
+time will win" strategy, which might I add, can even be much more unfair
+than you might say queueing is.
+
+However, queueing would still be able to allow some flexibility in priority.
+For example:
+
+if (must_queue) {
+  if (queue_head_prio == 0)
+    join_queue(1<<order);
+  else {
+    queue_head_prio -= 1<<order;
+    skip_queue();
+  }
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
