@@ -1,36 +1,63 @@
-Subject: Re: Warning message when compiling ioremap.c
-From: Phil Blundell <philb@gnu.org>
-In-Reply-To: <48C5247A.1030801@evidence.eu.com>
-References: <48BCED2A.6030109@evidence.eu.com>
-	 <20080903140140.333bc137@doriath.conectiva>
-	 <48C5247A.1030801@evidence.eu.com>
-Content-Type: text/plain
-Date: Mon, 08 Sep 2008 14:19:28 +0100
-Message-Id: <1220879968.1250.1.camel@mill.internal.reciva.com>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH] [RESEND] x86_64: add memory hotremove config option
+Date: Mon, 8 Sep 2008 23:48:33 +1000
+References: <20080905215452.GF11692@us.ibm.com> <200809082119.32725.nickpiggin@yahoo.com.au> <20080908113025.GF26079@one.firstfloor.org>
+In-Reply-To: <20080908113025.GF26079@one.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200809082348.34674.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Claudio Scordino <claudio@evidence.eu.com>
-Cc: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Yasunori Goto <y-goto@jp.fujitsu.com>, Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-09-08 at 15:11 +0200, Claudio Scordino wrote: 
-> The need for the goto exists only if BUG() can return, and it doesn't, 
-> so we can safely remove it as you suggested.
+On Monday 08 September 2008 21:30, Andi Kleen wrote:
+> > Sorry, by "block", I really mean spin I guess. I mean that the CPU will
+> > be forced to stop executing due to the page fault during this sequence:
+>
+> It's hard for NMIs at least. They cannot execute faults.
 
-The structure of the original code (with the goto) is arranged so that
-the code path is a straight line for the normal, non-bad case.  If you
-want to remove the goto, you should wrap the condition in unlikely() so
-as not to introduce another branch.
+Well, just for executing code (and reading RO data), then it shouldn't
+matter at all actually if the CPU starts executing from the new page
+or the old page, so long as there is a way to quiesce NMIs before freeing
+the old page.
 
-> Who's in charge of maintaining this piece of code? Should the patch
-> in attachment be submitted to some specific person?
+So the NMI can run, and read data, but it may have a problem with stores.
+At least, some kind of redesign of NMI handlers might be required so that
+they can make a note of the pending operation and try to do something
+sane in that case. Or, there could be a small region of memory; a page or
+two, which does not get migrated and NMIs can write to it. I don't think
+you need to go so far as saying the entire kernel image must be non
+movable just for NMIs.
 
-I guess you should send it to the linux-arm-kernel list.
 
-p.
+> In the end you would need to define a core kernel which
+> cannot be remapped and the rest which can and you end up
+> with even more micro kernel like mess.
 
+Are there any important NMIs that really can't fit with this?
+
+
+> > ptep_clear_flush(ptep)         <--- from here
+> > set_pte(ptep, newpte)          <--- until here
+> >
+> > for prot RW, the window also would include the memcpy, however if that
+> > adds too much latency for execute/reads, then it can be mapped RO first,
+> > then memcpy, then flushed and switched.
+> >
+> > > Then that would be essentially a hypervisor or micro kernel approach.
+> >
+> > What would be? Blocking in interrupts? Or non-linear kernel mapping in
+>
+> Well in general someone remapping all the memory beyond you.
+> That's essentially a hypervisor in my book.
+
+I don't see it. It is among one of the things a hypervisor may do.
+But anyway, call it what you will.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
