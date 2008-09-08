@@ -1,107 +1,125 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 0/4] Reclaim page capture v3
-Date: Mon, 8 Sep 2008 23:59:54 +1000
-References: <1220610002-18415-1-git-send-email-apw@shadowen.org> <200809081608.03793.nickpiggin@yahoo.com.au> <20080908114423.GE18694@brain>
-In-Reply-To: <20080908114423.GE18694@brain>
+Received: by ti-out-0910.google.com with SMTP id j3so930165tid.8
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2008 07:11:22 -0700 (PDT)
+Message-ID: <44c63dc40809080711v98f4fdbs19081aa7cb81634d@mail.gmail.com>
+Date: Mon, 8 Sep 2008 23:11:22 +0900
+From: "MinChan Kim" <barrioskmc@gmail.com>
+Subject: Re: [PATCH 1/4] pull out the page pre-release and sanity check logic for reuse
+In-Reply-To: <1220610002-18415-2-git-send-email-apw@shadowen.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200809082359.55288.nickpiggin@yahoo.com.au>
+References: <1220610002-18415-1-git-send-email-apw@shadowen.org>
+	 <1220610002-18415-2-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 08 September 2008 21:44, Andy Whitcroft wrote:
-> On Mon, Sep 08, 2008 at 04:08:03PM +1000, Nick Piggin wrote:
-> > On Friday 05 September 2008 20:19, Andy Whitcroft wrote:
-
-> > > 		Absolute	Effective
-> > > x86-64		2.48%		 4.58%
-> > > powerpc		5.55%		25.22%
-> >
-> > These are the numbers for the improvement of hugepage allocation success?
-> > Then what do you mean by absolute and effective?
+On Fri, Sep 5, 2008 at 7:19 PM, Andy Whitcroft <apw@shadowen.org> wrote:
+> When we are about to release a page we perform a number of actions
+> on that page.  We clear down any anonymous mappings, confirm that
+> the page is safe to release, check for freeing locks, before mapping
+> the page should that be required.  Pull this processing out into a
+> helper function for reuse in a later patch.
 >
-> The absolute improvement is the literal change in success percentage,
-> the literal percentage of all memory which may be allocated as huge
-> pages.  The effective improvement is percentage of the baseline success
-> rates that this change represents; for the powerpc results we get some
-> 20% of memory allocatable without the patches, and 25% with, 25% more
-> pages are allocatable with the patches.
-
-OK.
-
-
-> > What sort of constant stream of high order allocations are you talking
-> > about? In what "real" situations are you seeing higher order page
-> > allocation failures, and in those cases, how much do these patches help?
+> Note that we do not convert the similar cleardown in free_hot_cold_page()
+> as the optimiser is unable to squash the loops during the inline.
 >
-> The test case simulates a constant demand for huge pages, at various
-> rates.  This is intended to replicate the scenario where a system is
-> used with mixed small page and huge page applications, with a dynamic
-> huge page pool.  Particularly we are examining the effect of starting a
-> very large huge page job on a busy system.  Obviously starting hugepage
-> applications depends on hugepage availability as they are not swappable.
-> This test was chosen because it both tests the initial large page demand
-> and then pushes the system to the limit.
-
-So... what does the non-simulation version (ie. the real app) say?
-
-
-> > I must say I don't really like this approach. IMO it might be better to
-> > put some sort of queue in the page allocator, so if memory becomes low,
-> > then processes will start queueing up and not be allowed to jump the
-> > queue and steal memory that has been freed by hard work of a direct
-> > reclaimer. That would improve a lot of fairness problems as well as
-> > improve coalescing for higher order allocations without introducing this
-> > capture stuff.
+> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/page_alloc.c |   43 ++++++++++++++++++++++++++++++-------------
+>  1 files changed, 30 insertions(+), 13 deletions(-)
 >
-> The problem with queuing all allocators is two fold.  Firstly allocations
-> are obviously required for reclaim and those would have to be exempt
-> from the queue, and these are as likely to prevent coelesce of pages
-> as any other.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f52fcf1..b2a2c2b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -489,6 +489,35 @@ static inline int free_pages_check(struct page *page)
+>  }
+>
+>  /*
+> + * Prepare this page for release to the buddy.  Sanity check the page.
+> + * Returns 1 if the page is safe to free.
+> + */
+> +static inline int free_page_prepare(struct page *page, int order)
+> +{
+> +       int i;
+> +       int reserved = 0;
+> +
+> +       if (PageAnon(page))
+> +               page->mapping = NULL;
 
-*Much* less likely, actually. Because there should be very little allocation
-required for reclaim (only dirty pages, and only when backed by filesystems
-that do silly things like not ensuring their own reserves before allowing
-the page to be dirtied).
+Why do you need to clear down anonymous mapping ?
+I think if you don't convert this cleardown in free_hot_cold_page(),
+you don't need it.
 
-Also, your scheme still doesn't avoid allocation for reclaim so I don't see
-how you can use that as a point against queueing but not capturing!
+If you do it, bad_page can't do his role.
+
+> +       for (i = 0 ; i < (1 << order) ; ++i)
+> +               reserved += free_pages_check(page + i);
+> +       if (reserved)
+> +               return 0;
+> +
+> +       if (!PageHighMem(page)) {
+> +               debug_check_no_locks_freed(page_address(page),
+> +                                                       PAGE_SIZE << order);
+> +               debug_check_no_obj_freed(page_address(page),
+> +                                          PAGE_SIZE << order);
+> +       }
+> +       arch_free_page(page, order);
+> +       kernel_map_pages(page, 1 << order, 0);
+> +
+> +       return 1;
+> +}
+> +
+> +/*
+>  * Frees a list of pages.
+>  * Assumes all pages on list are in same zone, and of same order.
+>  * count is the number of pages to free.
+> @@ -529,22 +558,10 @@ static void free_one_page(struct zone *zone, struct page *page, int order)
+>  static void __free_pages_ok(struct page *page, unsigned int order)
+>  {
+>        unsigned long flags;
+> -       int i;
+> -       int reserved = 0;
+>
+> -       for (i = 0 ; i < (1 << order) ; ++i)
+> -               reserved += free_pages_check(page + i);
+> -       if (reserved)
+> +       if (!free_page_prepare(page, order))
+>                return;
+>
+> -       if (!PageHighMem(page)) {
+> -               debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
+> -               debug_check_no_obj_freed(page_address(page),
+> -                                          PAGE_SIZE << order);
+> -       }
+> -       arch_free_page(page, order);
+> -       kernel_map_pages(page, 1 << order, 0);
+> -
+>        local_irq_save(flags);
+>        __count_vm_events(PGFREE, 1 << order);
+>        free_one_page(page_zone(page), page, order);
+> --
+> 1.6.0.rc1.258.g80295
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 
-> Secondly where a very large allocation is requested 
-> all allocators would be held while reclaim at that size is performed,
-> majorly increasing latency for those allocations.  Reclaim for an order
-> 0 page may target of the order of 32 pages, whereas reclaim for x86_64
-> hugepages is 1024 pages minimum.  It would be grosly unfair for a single
-> large allocation to hold up normal allocations.
 
-I don't see why it should be unfair to allow a process to allocate 1024
-order-0 pages ahead of one order-10 page (actually, yes the order 10 page
-is I guess somewhat more valueable than the same number of fragmented
-pages, but you see where I'm coming from).
-
-At least with queueing you are basing the idea on *some* reasonable policy,
-rather than purely random "whoever happens to take this lock at the right
-time will win" strategy, which might I add, can even be much more unfair
-than you might say queueing is.
-
-However, queueing would still be able to allow some flexibility in priority.
-For example:
-
-if (must_queue) {
-  if (queue_head_prio == 0)
-    join_queue(1<<order);
-  else {
-    queue_head_prio -= 1<<order;
-    skip_queue();
-  }
-}
+-- 
+Thanks,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
