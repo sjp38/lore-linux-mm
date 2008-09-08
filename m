@@ -1,45 +1,48 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m87FXXXT028309
-	for <linux-mm@kvack.org>; Sun, 7 Sep 2008 21:03:33 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m87FXU2C1769558
-	for <linux-mm@kvack.org>; Sun, 7 Sep 2008 21:03:33 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m87FXTkX008806
-	for <linux-mm@kvack.org>; Sun, 7 Sep 2008 21:03:30 +0530
-Message-ID: <48C3F444.4060908@linux.vnet.ibm.com>
-Date: Sun, 07 Sep 2008 21:03:24 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Mon, 08 Sep 2008 12:07:14 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [RFC:Patch: 008/008](memory hotplug) remove_pgdat() function
+In-Reply-To: <1220710895.8687.12.camel@twins.programming.kicks-ass.net>
+References: <20080731210326.2A51.E1E9C6FF@jp.fujitsu.com> <1220710895.8687.12.camel@twins.programming.kicks-ass.net>
+Message-Id: <20080908120324.B3DA.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH][mmotm]memcg: handle null dereference of mm->owner
-References: <20080905165017.b2715fe4.nishimura@mxp.nes.nec.co.jp> <20080905174021.9fa29b01.kamezawa.hiroyu@jp.fujitsu.com> <6599ad830809050903s7e1a1004i6b31660502c0dcf2@mail.gmail.com>
-In-Reply-To: <6599ad830809050903s7e1a1004i6b31660502c0dcf2@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage wrote:
-> On Fri, Sep 5, 2008 at 1:40 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> BTW, I have a question to Balbir and Paul. (I'm sorry I missed the discussion.)
->> Recently I wonder why we need MM_OWNER.
->>
->> - What's bad with thread's cgroup ?
+> On Thu, 2008-07-31 at 21:04 +0900, Yasunori Goto wrote:
 > 
-> Because lots of mm operations take place in a context where we don't
-> have a thread pointer, and hence no cgroup.
+> > +int remove_pgdat(int nid)
+> > +{
+> > +	struct pglist_data *pgdat = NODE_DATA(nid);
+> > +
+> > +	if (cpus_busy_on_node(nid))
+> > +		return -EBUSY;
+> > +
+> > +	if (sections_busy_on_node(pgdat))
+> > +		return -EBUSY;
+> > +
+> > +	node_set_offline(nid);
+> > +	synchronize_sched();
+> > +	synchronize_srcu(&pgdat_remove_srcu);
+> > +
+> > +	free_pgdat(nid, pgdat);
+> > +
+> > +	return 0;
+> > +}
 > 
+> FWIW synchronize_sched() is the wrong function to use here,
+> synchronize_rcu() is the right one.
 
-Right, Thanks! Allocating memory is not that big a problem (we usually know the
-context), while freeing memory, we can't assume that current is freeing it
+Thanks. I'll fix it.
+
 
 -- 
-	Balbir
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
