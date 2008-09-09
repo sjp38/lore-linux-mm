@@ -1,59 +1,44 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m89FCcI8006936
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m89FCcRA226866
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m89FCbZf020465
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
-Subject: Re: [PATCH] Cleanup to make  remove_memory() arch neutral
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20080909101703.C099.E1E9C6FF@jp.fujitsu.com>
-References: <1220910754.25932.57.camel@badari-desktop>
-	 <20080908175621.6dfad0a6.akpm@linux-foundation.org>
-	 <20080909101703.C099.E1E9C6FF@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Tue, 09 Sep 2008 08:12:52 -0700
-Message-Id: <1220973172.25932.68.camel@badari-desktop>
+Date: Tue, 9 Sep 2008 16:21:22 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: Remove warning in compilation of ioremap
+Message-ID: <20080909152122.GI8894@flint.arm.linux.org.uk>
+References: <20080909135532.GE8894@flint.arm.linux.org.uk> <157617.9043.qm@web54404.mail.yahoo.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <157617.9043.qm@web54404.mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <y-goto@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, garyhade@us.ibm.com, linux-mm@kvack.org, mel@csn.ul.ie, lcm@us.ibm.com, linux-kernel@vger.kernel.org, x86@kernel.org, mingo@elte.hu
+To: David Anders <dave123_aml@yahoo.com>
+Cc: linux-mm@kvack.org, Phil Blundell <philb@gnu.org>, "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>, linux-arm-kernel@lists.arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-09-09 at 10:21 +0900, Yasunori Goto wrote:
-> > On Mon, 08 Sep 2008 14:52:34 -0700
-> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > 
-> > > There is nothing architecture specific about remove_memory().
-> > > remove_memory() function is common for all architectures which
-> > > support hotplug memory remove. Instead of duplicating it in every
-> > > architecture, collapse them into arch neutral function.
-> > > 
-> > > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-> > > 
-> > >  arch/ia64/mm/init.c   |   17 -----------------
-> > >  arch/powerpc/mm/mem.c |   17 -----------------
-> > >  arch/s390/mm/init.c   |   11 -----------
-> > >  mm/memory_hotplug.c   |   10 ++++++++++
-> > >  4 files changed, 10 insertions(+), 45 deletions(-)
-> > 
-> > I spent some time trying to build-test this on ia64 and gave up.  How
-> > the heck do you turn on memory hotplug on ia64?
-> > 
-> 
-> EXPORT_SYMBOL_GPL(remove_memory) is removed.
-> It is required by drivers/acpi/acpi_memhotplug.ko.
+On Tue, Sep 09, 2008 at 07:59:27AM -0700, David Anders wrote:
+> Russell,
+>...
+> i apologize if this is a rant, no disrespect for your work or the
+> pressure you are under to maintain LAK, but shall we always wait
+> until there is a 100% elegant solution to a known issue before
+> fixing it?
 
-Thanks for catching it. I forgot that it was being used
-by acpi. Since we didn't export it for ppc and s390,
-I assumed its safe to remove the export. Sorry !!
+How about realising that I'm not perfect, and sometimes need reminding
+(*after* a reasonable period of about a week or so)?
 
-Thanks,
-Badari
+Rather than just saying "I submitted this, got ignored and gave up" ?
+
+It's a bit like putting a slip of paper in a secretaries tray from your
+doctor requesting another appointment in 4 weeks time.  You wait and
+wait for notification, which never comes.
+
+What do you do?  Do you give up?  Or do you wait a reasonable time
+before telephoning the secretary to find out what's happening?
+
+Guess what I did this morning?  I telephoned the secretary to find
+out what was happening.  Result is I now have an appointment.  I didn't
+give up.
+
+This is no different.  People forget things.  Things get mislayed.
+People have to be constantly hastled to do anything.  That's life.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
