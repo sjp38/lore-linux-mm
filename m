@@ -1,73 +1,79 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m894IjGM016112
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 14:18:45 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.0) with ESMTP id m894JewP194406
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 14:19:54 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m894JdMG014254
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 14:19:40 +1000
-Message-ID: <48C5F91D.5070500@linux.vnet.ibm.com>
-Date: Mon, 08 Sep 2008 21:18:37 -0700
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
+Date: Tue, 9 Sep 2008 13:53:17 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-References: <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com> <200809011743.42658.nickpiggin@yahoo.com.au> <48BD0641.4040705@linux.vnet.ibm.com> <20080902190256.1375f593.kamezawa.hiroyu@jp.fujitsu.com> <48BD0E4A.5040502@linux.vnet.ibm.com> <20080902190723.841841f0.kamezawa.hiroyu@jp.fujitsu.com> <48BD119B.8020605@linux.vnet.ibm.com> <20080902195717.224b0822.kamezawa.hiroyu@jp.fujitsu.com> <48BD337E.40001@linux.vnet.ibm.com> <20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com> <20080908152810.GA12065@balbir.in.ibm.com> <20080909125751.37042345.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080909125751.37042345.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20080909135317.cbff4871.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <200809091358.28350.nickpiggin@yahoo.com.au>
+References: <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080908152810.GA12065@balbir.in.ibm.com>
+	<20080909125751.37042345.kamezawa.hiroyu@jp.fujitsu.com>
+	<200809091358.28350.nickpiggin@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: balbir@linux.vnet.ibm.com, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Mon, 8 Sep 2008 20:58:10 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->> Sorry for the delay in sending out the new patch, I am traveling and
->> thus a little less responsive. Here is the update patch
->>
->>
-> Hmm.. I've considered this approach for a while and my answer is that
-> this is not what you really want.
+On Tue, 9 Sep 2008 13:58:27 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+
+> On Tuesday 09 September 2008 13:57, KAMEZAWA Hiroyuki wrote:
+> > On Mon, 8 Sep 2008 20:58:10 +0530
+> >
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > Sorry for the delay in sending out the new patch, I am traveling and
+> > > thus a little less responsive. Here is the update patch
+> >
+> > Hmm.. I've considered this approach for a while and my answer is that
+> > this is not what you really want.
+> >
+> > Because you just moves the placement of pointer from memmap to
+> > radix_tree both in GFP_KERNEL, total kernel memory usage is not changed.
+> > So, at least, you have to add some address calculation (as I did in March)
+> > to getting address of page_cgroup. But page_cgroup itself consumes 32bytes
+> > per page. Then.....
 > 
-> Because you just moves the placement of pointer from memmap to
-> radix_tree both in GFP_KERNEL, total kernel memory usage is not changed.
-
-Agreed, but we do reduce the sizeof(struct page) without adding on to
-page_cgroup's size. So why don't we want this?
-
-> So, at least, you have to add some address calculation (as I did in March)
-> to getting address of page_cgroup.
-
-What address calculation do we need, sorry I don't recollect it.
-
- But page_cgroup itself consumes 32bytes
-> per page. Then.....
-> 
-> My proposal to 32bit system is following 
->  - remove page_cgroup completely.
->    - As a result, there is no per-cgroup lru. But it will not be bad
->      bacause the number of cgroups and pages are not big.
->      just a trade-off between kernel-memory-space v.s. speed.
-
-32 bit systems with PAE can support quite a lot of memory, so I am not sure I
-agree. I don't like this approach
-
->    - Removing page_cgroup and just remember address of mem_cgroup per page.
+> Just keep in mind that an important point is to make it more attractive
+> to configure cgroup into the kernel, but have it disabled or unused at
+> runtime.
 > 
 
-This is on top of the suggested approach above?
+Hmm..kicking out 4bytes per 4096bytes if disabled ?
 
-> How do you think ?
-> 
+maybe a routine like SPARSEMEM is a choice.
 
-I don't like the approach.
+Following is pointer pre-allocation. (just pointer, not page_cgroup itself)
+==
+#define PCG_SECTION_SHIFT	(10)
+#define PCG_SECTION_SIZE	(1 << PCG_SECTION_SHIFT)
 
--- 
-	Balbir
+struct pcg_section {
+	struct page_cgroup **map[PCG_SECTION_SHIFT]; //array of pointer.
+};
+
+struct page_cgroup *get_page_cgroup(unsigned long pfn)
+{
+	struct pcg_section *sec;
+	sec = pcg_section[(pfn >> PCG_SECTION_SHIFT)];
+	return *sec->page_cgroup[(pfn & ((1 << PCG_SECTTION_SHIFT) - 1];
+}
+==
+If we go extreme, we can use kmap_atomic() for pointer array.
+
+Overhead of pointer-walk is not so bad, maybe.
+
+For 64bit systems, we can find a way like SPARSEMEM_VMEMMAP.
+
+Thanks,
+-Kame
+
+
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
