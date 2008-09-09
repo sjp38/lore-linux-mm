@@ -1,84 +1,59 @@
-Date: Tue, 9 Sep 2008 07:59:27 -0700 (PDT)
-From: David Anders <dave123_aml@yahoo.com>
-Reply-To: dave123_aml@yahoo.com
-Subject: Re: Remove warning in compilation of ioremap
-In-Reply-To: <20080909135532.GE8894@flint.arm.linux.org.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Message-ID: <157617.9043.qm@web54404.mail.yahoo.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m89FCcI8006936
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m89FCcRA226866
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m89FCbZf020465
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2008 11:12:38 -0400
+Subject: Re: [PATCH] Cleanup to make  remove_memory() arch neutral
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20080909101703.C099.E1E9C6FF@jp.fujitsu.com>
+References: <1220910754.25932.57.camel@badari-desktop>
+	 <20080908175621.6dfad0a6.akpm@linux-foundation.org>
+	 <20080909101703.C099.E1E9C6FF@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 09 Sep 2008 08:12:52 -0700
+Message-Id: <1220973172.25932.68.camel@badari-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: linux-arm-kernel@lists.arm.linux.org.uk, Claudio Scordino <claudio@evidence.eu.com>, linux-mm@kvack.org, Phil Blundell <philb@gnu.org>, "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, garyhade@us.ibm.com, linux-mm@kvack.org, mel@csn.ul.ie, lcm@us.ibm.com, linux-kernel@vger.kernel.org, x86@kernel.org, mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
-Russell,
-
-> > i hope you have a better time getting this fixed than
-> i have,
-> > i've been submitting patches as far back as
-> 2.6.16:
+On Tue, 2008-09-09 at 10:21 +0900, Yasunori Goto wrote:
+> > On Mon, 08 Sep 2008 14:52:34 -0700
+> > Badari Pulavarty <pbadari@us.ibm.com> wrote:
 > > 
-> >
-> http://lists.arm.linux.org.uk/lurker/message/20070906.135142.6c5e4d6f.en.html
-> >
-> http://lists.arm.linux.org.uk/lurker/message/20070906.140649.79f143a0.en.html
+> > > There is nothing architecture specific about remove_memory().
+> > > remove_memory() function is common for all architectures which
+> > > support hotplug memory remove. Instead of duplicating it in every
+> > > architecture, collapse them into arch neutral function.
+> > > 
+> > > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> > > 
+> > >  arch/ia64/mm/init.c   |   17 -----------------
+> > >  arch/powerpc/mm/mem.c |   17 -----------------
+> > >  arch/s390/mm/init.c   |   11 -----------
+> > >  mm/memory_hotplug.c   |   10 ++++++++++
+> > >  4 files changed, 10 insertions(+), 45 deletions(-)
 > > 
-> > 2.6.23 was when i gave up.
+> > I spent some time trying to build-test this on ia64 and gave up.  How
+> > the heck do you turn on memory hotplug on ia64?
+> > 
 > 
-> It's not like you were ignored, both of those messages
-> contain replies
-> from Erik Mouw, both of which were positive.
-> 
-> Unfortunately, I didn't see it as a high priority so it
-> got left a little
-> too long and I never got around to commenting about it (I
-> thought it was
-> a complex way of fixing what was a trivial problem.)
-> 
+> EXPORT_SYMBOL_GPL(remove_memory) is removed.
+> It is required by drivers/acpi/acpi_memhotplug.ko.
 
-water under the bridge, just happy it got fixed.
+Thanks for catching it. I forgot that it was being used
+by acpi. Since we didn't export it for ppc and s390,
+I assumed its safe to remove the export. Sorry !!
 
-> Take a look at the difference between yours:
-> 
-> 
-> http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=4563/1
-> 
-> Comapred with the one which has been merged:
-> 
-> 
-> http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=5211/2
-> 
-> Sorry.
-
-agreed there are differences between what got accepted and what i submited. however, i did not randomly choose the code used in that define. i went back to the mailing lists for x86,powerpc, parisc, mips and sh. the code format of BUG() had been discussed on each of these lists, with x86, powerpc, and parisc using the exact same code format as i submitted, with mips and sh using one almost identical.
-
-from include/asm-x86/bug.h
-
-#define BUG()				\
-	do {				\
-		asm volatile("ud2");	\
-		for(;;) ;		\
-	} while(0)
-
-what i submited:
-
-+#define BUG()				\
-+	do {				\
-+		(*(int *)0 = 0);	\
-+		for(;;) ;		\
-+	} while(0)
-
-i apologize if this is a rant, no disrespect for your work or the pressure you are under to maintain LAK, but shall we always wait until there is a 100% elegant solution to a known issue before fixing it?
-
-Dave Anders
-
-
-
-
-
-
-      
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
