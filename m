@@ -1,42 +1,39 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-Date: Tue, 9 Sep 2008 22:28:18 +1000
-References: <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com> <20080909141244.721dfd39.kamezawa.hiroyu@jp.fujitsu.com> <48C66AF8.5070505@linux.vnet.ibm.com>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <30229398.1220963412858.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 9 Sep 2008 21:30:12 +0900 (JST)
+Subject: Re: Re: [RFC][PATCH] Remove cgroup member from struct page
 In-Reply-To: <48C66AF8.5070505@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200809092228.18680.nickpiggin@yahoo.com.au>
+References: <48C66AF8.5070505@linux.vnet.ibm.com>
+ <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com> <200809091358.28350.nickpiggin@yahoo.com.au> <20080909135317.cbff4871.kamezawa.hiroyu@jp.fujitsu.com> <200809091500.10619.nickpiggin@yahoo.com.au> <20080909141244.721dfd39.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 09 September 2008 22:24, Balbir Singh wrote:
-> KAMEZAWA Hiroyuki wrote:
-
-> > Balbir, are you ok to CONFIG_CGROUP_MEM_RES_CTLR depends on
-> > CONFIG_SPARSEMEM ? I thinks SPARSEMEM(SPARSEMEM_VMEMMAP) is widely used
-> > in various archs now.
+----- Original Message -----
+>> Balbir, are you ok to CONFIG_CGROUP_MEM_RES_CTLR depends on CONFIG_SPARSEME
+M ?
+>> I thinks SPARSEMEM(SPARSEMEM_VMEMMAP) is widely used in various archs now.
 >
-> Can't we make it more generic. I was thinking of allocating memory for each
-> node for page_cgroups (of the size of spanned_pages) at initialization
-> time. I've not yet prototyped the idea. BTW, even with your approach I fail
-> to see why we need to add a dependency on CONFIG_SPARSEMEM (but again it is
-> 4:30 in the morning and I might be missing the obvious)
+>Can't we make it more generic. I was thinking of allocating memory for each n
+ode
+>for page_cgroups (of the size of spanned_pages) at initialization time. I've 
+not
+>yet prototyped the idea. BTW, even with your approach I fail to see why we ne
+ed
+>to add a dependency on CONFIG_SPARSEMEM (but again it is 4:30 in the morning 
+and
+>I might be missing the obvious)
 
-I guess it would be just a matter of coding up the implementation for
-each model you want to support. In some cases, you might lose memory
-(eg in the case of flatmem where you have holes in ram), but in those
-cases you lose memory from the struct pages anyway so I wouldn't worry
-too much.
+Doesn't have big issue without CONFIG_SPARSEMEM, maybe.
+Sorry for my confusion.
 
-I think it would be reasonable to provide an implementation for flatmem
-as well (which AFAIK is the other non-deprecated memory model). It
-should not be hard to code AFAIKS.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
