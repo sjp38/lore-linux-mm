@@ -1,55 +1,109 @@
-Date: Tue, 9 Sep 2008 16:37:21 +0900
+Date: Tue, 9 Sep 2008 16:56:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page
-Message-Id: <20080909163721.76a2249d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48C5F91D.5070500@linux.vnet.ibm.com>
-References: <20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com>
-	<200809011743.42658.nickpiggin@yahoo.com.au>
-	<48BD0641.4040705@linux.vnet.ibm.com>
-	<20080902190256.1375f593.kamezawa.hiroyu@jp.fujitsu.com>
-	<48BD0E4A.5040502@linux.vnet.ibm.com>
-	<20080902190723.841841f0.kamezawa.hiroyu@jp.fujitsu.com>
-	<48BD119B.8020605@linux.vnet.ibm.com>
-	<20080902195717.224b0822.kamezawa.hiroyu@jp.fujitsu.com>
-	<48BD337E.40001@linux.vnet.ibm.com>
-	<20080903123306.316beb9d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080908152810.GA12065@balbir.in.ibm.com>
-	<20080909125751.37042345.kamezawa.hiroyu@jp.fujitsu.com>
-	<48C5F91D.5070500@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 6/14]  memcg: lockless page cgroup
+Message-Id: <20080909165608.878d7182.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080909144007.48e6633a.nishimura@mxp.nes.nec.co.jp>
+References: <20080822202720.b7977aab.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080822203551.598a263c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080909144007.48e6633a.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 08 Sep 2008 21:18:37 -0700
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tue, 9 Sep 2008 14:40:07 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Mon, 8 Sep 2008 20:58:10 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> >> Sorry for the delay in sending out the new patch, I am traveling and
-> >> thus a little less responsive. Here is the update patch
-> >>
-> >>
-> > Hmm.. I've considered this approach for a while and my answer is that
-> > this is not what you really want.
-> > 
-> > Because you just moves the placement of pointer from memmap to
-> > radix_tree both in GFP_KERNEL, total kernel memory usage is not changed.
+> > +	/* Double counting race condition ? */
+> > +	VM_BUG_ON(page_get_page_cgroup(page));
+> > +
+> >  	page_assign_page_cgroup(page, pc);
+> >  
+> >  	mz = page_cgroup_zoneinfo(pc);
 > 
-> Agreed, but we do reduce the sizeof(struct page) without adding on to
-> page_cgroup's size. So why don't we want this?
+> I got this VM_BUG_ON at swapoff.
 > 
-Because it's depends on CONFIG.
+> Trying to shmem_unuse_inode a page which has been moved
+> to swapcache by shmem_writepage causes this BUG, because
+> the page has not been uncharged(with all the patches applied).
+> 
+> I made a patch which changes shmem_unuse_inode to charge with
+> GFP_NOWAIT first and shrink usage on failure, as shmem_getpage does.
+> 
+> But I don't stick to my patch if you handle this case :)
+> 
+Thank you for testing and sorry for no progress in these days.
 
-But ok, I'll recall my patches from grave. Maybe it can be a hint for you.
+I'm sorry to say that I'll have to postpone this to remove
+page->page_cgroup pointer. I need some more performance-improvement
+effort to remove page->page_cgroup pointer without significant overhead.
 
-Thanks,
+So please be patient for a while.
+
+
+Sorry,
 -Kame
+
+
+> 
+> Thanks,
+> Daisuke Nishimura.
+> 
+> ====
+> Change shmem_unuse_inode to charge with GFP_NOWAIT first and
+> shrink usage on failure, as shmem_getpage does.
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+> ---
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 72b5f03..d37cd51 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -922,15 +922,10 @@ found:
+>  	error = 1;
+>  	if (!inode)
+>  		goto out;
+> -	/* Precharge page using GFP_KERNEL while we can wait */
+> -	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
+> -	if (error)
+> -		goto out;
+> +retry:
+>  	error = radix_tree_preload(GFP_KERNEL);
+> -	if (error) {
+> -		mem_cgroup_uncharge_cache_page(page);
+> +	if (error)
+>  		goto out;
+> -	}
+>  	error = 1;
+>  
+>  	spin_lock(&info->lock);
+> @@ -938,9 +933,17 @@ found:
+>  	if (ptr && ptr->val == entry.val) {
+>  		error = add_to_page_cache_locked(page, inode->i_mapping,
+>  						idx, GFP_NOWAIT);
+> -		/* does mem_cgroup_uncharge_cache_page on error */
+> -	} else	/* we must compensate for our precharge above */
+> -		mem_cgroup_uncharge_cache_page(page);
+> +		if (error == -ENOMEM) {
+> +			if (ptr)
+> +				shmem_swp_unmap(ptr);
+> +			spin_unlock(&info->lock);
+> +			radix_tree_preload_end();
+> +			error = mem_cgroup_shrink_usage(current->mm, GFP_KERNEL);
+> +			if (error)
+> +				goto out;
+> +			goto retry;
+> +		}
+> +	}
+>  
+>  	if (error == -EEXIST) {
+>  		struct page *filepage = find_get_page(inode->i_mapping, idx);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
