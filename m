@@ -1,7 +1,7 @@
-Date: Thu, 11 Sep 2008 20:16:57 +0900
+Date: Thu, 11 Sep 2008 20:17:51 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] [PATCH 4/9] memcg: new force empty
-Message-Id: <20080911201657.8705b120.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 5/9] memcg: set mapping null before uncharge
+Message-Id: <20080911201751.4b81bbb8.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -13,141 +13,82 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: balbir@linux.vnet.ibm.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-Current force_empty of memory resource controller just removes page_cgroup.
-This maans the page is never accounted at all and create an in-use page which
-has no page_cgroup. (And we have to feat terrible race condition....)
+This patch tries to make page->mapping to be NULL before
+mem_cgroup_uncharge_cache_page() is called.
 
-This patch tries to move account to "root" cgroup at force_empty.
-By this patch, force_empty doesn't leak an account but move account
-to "root" cgroup. Maybe someone can think of other enhancements as moving
-account to its parent. Someone will revisit this behavior later.
+"page->mapping == NULL" is a good check for "whether the page is still
+radix-tree or not".
+This patch also adds BUG_ON() to mem_cgroup_uncharge_cache_page();
 
-For now, just moves account to root cgroup.
-
-Note: all lock other than old mem_cgroup's lru_lock
-      in this path is try_lock().
-
-Changelog (v2) -> (v3)
- - splitted out mem_cgroup_move_account().
- - replaced get_page() with get_page_unless_zero().
-   (This is necessary for avoiding confliction with migration)
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- Documentation/controllers/memory.txt |    7 ++--
- mm/memcontrol.c                      |   51 +++++++++++++++++++++--------------
- 2 files changed, 35 insertions(+), 23 deletions(-)
+ mm/filemap.c    |    2 +-
+ mm/memcontrol.c |    1 +
+ mm/migrate.c    |   12 +++++++++---
+ 3 files changed, 11 insertions(+), 4 deletions(-)
 
+Index: mmtom-2.6.27-rc5+/mm/filemap.c
+===================================================================
+--- mmtom-2.6.27-rc5+.orig/mm/filemap.c
++++ mmtom-2.6.27-rc5+/mm/filemap.c
+@@ -116,12 +116,12 @@ void __remove_from_page_cache(struct pag
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
+-	mem_cgroup_uncharge_cache_page(page);
+ 	radix_tree_delete(&mapping->page_tree, page->index);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	BUG_ON(page_mapped(page));
++	mem_cgroup_uncharge_cache_page(page);
+ 
+ 	/*
+ 	 * Some filesystems seem to re-dirty the page even after
 Index: mmtom-2.6.27-rc5+/mm/memcontrol.c
 ===================================================================
 --- mmtom-2.6.27-rc5+.orig/mm/memcontrol.c
 +++ mmtom-2.6.27-rc5+/mm/memcontrol.c
-@@ -29,6 +29,7 @@
- #include <linux/slab.h>
- #include <linux/swap.h>
- #include <linux/spinlock.h>
-+#include <linux/pagemap.h>
- #include <linux/fs.h>
- #include <linux/seq_file.h>
- #include <linux/vmalloc.h>
-@@ -977,17 +978,14 @@ int mem_cgroup_resize_limit(struct mem_c
- 
- 
- /*
-- * This routine traverse page_cgroup in given list and drop them all.
-- * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
-+ * This routine traverse page_cgroup in given list and move them all.
-  */
--#define FORCE_UNCHARGE_BATCH	(128)
- static void mem_cgroup_force_empty_list(struct mem_cgroup *mem,
- 			    struct mem_cgroup_per_zone *mz,
- 			    enum lru_list lru)
+@@ -864,6 +864,7 @@ void mem_cgroup_uncharge_page(struct pag
+ void mem_cgroup_uncharge_cache_page(struct page *page)
  {
- 	struct page_cgroup *pc;
- 	struct page *page;
--	int count = FORCE_UNCHARGE_BATCH;
- 	unsigned long flags;
- 	struct list_head *list;
- 
-@@ -997,23 +995,36 @@ static void mem_cgroup_force_empty_list(
- 	while (!list_empty(list)) {
- 		pc = list_entry(list->prev, struct page_cgroup, lru);
- 		page = pc->page;
--		get_page(page);
--		spin_unlock_irqrestore(&mz->lru_lock, flags);
--		/*
--		 * Check if this page is on LRU. !LRU page can be found
--		 * if it's under page migration.
--		 */
--		if (PageLRU(page)) {
--			__mem_cgroup_uncharge_common(page,
--					MEM_CGROUP_CHARGE_TYPE_FORCE);
-+		/* For avoiding race with speculative page cache handling. */
-+		if (!PageLRU(page) || !get_page_unless_zero(page)) {
-+			list_move(&pc->lru, list);
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
-+			yield();
-+			spin_lock_irqsave(&mz->lru_lock, flags);
-+			continue;
-+		}
-+		if (!trylock_page(page)) {
-+			list_move(&pc->lru, list);
- 			put_page(page);
--			if (--count <= 0) {
--				count = FORCE_UNCHARGE_BATCH;
--				cond_resched();
--			}
--		} else
--			cond_resched();
--		spin_lock_irqsave(&mz->lru_lock, flags);
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
-+			yield();
-+			spin_lock_irqsave(&mz->lru_lock, flags);
-+			continue;
-+		}
-+		if (mem_cgroup_move_account(page, pc, mem, &init_mem_cgroup)) {
-+			/* some confliction */
-+			list_move(&pc->lru, list);
-+			unlock_page(page);
-+			put_page(page);
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
-+			yield();
-+			spin_lock_irqsave(&mz->lru_lock, flags);
-+		} else {
-+			unlock_page(page);
-+			put_page(page);
-+		}
-+		if (atomic_read(&mem->css.cgroup->count) > 0)
-+			break;
- 	}
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 	VM_BUG_ON(page_mapped(page));
++	VM_BUG_ON(page->mapping);
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
  }
-Index: mmtom-2.6.27-rc5+/Documentation/controllers/memory.txt
+ 
+Index: mmtom-2.6.27-rc5+/mm/migrate.c
 ===================================================================
---- mmtom-2.6.27-rc5+.orig/Documentation/controllers/memory.txt
-+++ mmtom-2.6.27-rc5+/Documentation/controllers/memory.txt
-@@ -207,7 +207,8 @@ The memory.force_empty gives an interfac
+--- mmtom-2.6.27-rc5+.orig/mm/migrate.c
++++ mmtom-2.6.27-rc5+/mm/migrate.c
+@@ -330,8 +330,6 @@ static int migrate_page_move_mapping(str
+ 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
  
- # echo 1 > memory.force_empty
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	if (!PageSwapCache(newpage))
+-		mem_cgroup_uncharge_cache_page(page);
  
--will drop all charges in cgroup. Currently, this is maintained for test.
-+will move all charges to root cgroup.
-+(This policy may be modified in future.)
+ 	return 0;
+ }
+@@ -378,7 +376,15 @@ static void migrate_page_copy(struct pag
+ #endif
+ 	ClearPagePrivate(page);
+ 	set_page_private(page, 0);
+-	page->mapping = NULL;
++	/* page->mapping contains a flag for PageAnon() */
++	if (PageAnon(page)) {
++		/* This page is uncharged at try_to_unmap(). */
++		page->mapping = NULL;
++	} else {
++		/* Obsolete file cache should be uncharged */
++		page->mapping = NULL;
++		mem_cgroup_uncharge_cache_page(page);
++	}
  
- 4. Testing
- 
-@@ -238,8 +239,8 @@ reclaimed.
- 
- A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
- cgroup might have some charge associated with it, even though all
--tasks have migrated away from it. Such charges are automatically dropped at
--rmdir() if there are no tasks.
-+tasks have migrated away from it. Such charges are automatically moved to
-+root cgroup at rmidr() if there are no tasks. (This policy may be changed.)
- 
- 5. TODO
- 
+ 	/*
+ 	 * If any waiters have accumulated on the new page then
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
