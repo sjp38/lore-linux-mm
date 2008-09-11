@@ -1,59 +1,86 @@
-Date: Thu, 11 Sep 2008 11:47:36 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC PATCH] discarding swap
-In-Reply-To: <20080911085816.GP20055@kernel.dk>
-Message-ID: <Pine.LNX.4.64.0809111128170.16065@blonde.site>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
- <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site>
- <20080911085816.GP20055@kernel.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 11 Sep 2008 20:08:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 0/9]  remove page_cgroup pointer (with some
+ enhancements)
+Message-Id: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: David Woodhouse <dwmw2@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: kamezawa.hiroyu@jp.fujitsu.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Sep 2008, Jens Axboe wrote:
-> On Wed, Sep 10 2008, Hugh Dickins wrote:
-> > 
-> > 3. Add an occasional cond_resched() into the loop, to avoid risking bad
-> >    latencies when discarding a large area in small max_hw_sectors steps.
-> 
-> Hugh, I applied this - but on 2nd though, I killed the cond_resched()
-> for two reasons:
+Hi, Balbir.
 
-Thanks.  Yes, that was definitely the most dubious part of the patch.
+I wrote remove-page-cgroup-pointer patch on top of my small patches.
+This series includes enhancements patches for memory resource controller
+on my queue. 
 
-> 
-> - We should only add stuff like that if it's known problematic
+I think I can (or have to) do more twaeks but post this while it's hot.
+Passed some tests.
 
-Fair enough.  I tend to be more proactive than that with mm loops,
-and perhaps had it overmuch on my mind because the swap allocation
-loop itself used to be such a prime offender.
+remove-page-cgroup-pointer patch is [8/9] and [9/9].
+How about this ?
 
-(There's also the argument that those most worried about such latencies
-will be setting CONFIG_PREEMPT=y, in which case no cond_resched() needed:
-I like to give that argument some respect, but not take it too far.)
+Peformance comparison is below.
+==
+rc5-mm1
+==
+Execl Throughput                           3006.5 lps   (29.8 secs, 3 samples)
+C Compiler Throughput                      1006.7 lpm   (60.0 secs, 3 samples)
+Shell Scripts (1 concurrent)               4863.7 lpm   (60.0 secs, 3 samples)
+Shell Scripts (8 concurrent)                943.7 lpm   (60.0 secs, 3 samples)
+Shell Scripts (16 concurrent)               482.7 lpm   (60.0 secs, 3 samples)
+Dc: sqrt(2) to 99 decimal places         124804.9 lpm   (30.0 secs, 3 samples)
 
-> - We'll be throttling on the request allocation eventually, once we get
->   128 of these in flight.
+After this series
+==
+Execl Throughput                           3003.3 lps   (29.8 secs, 3 samples)
+C Compiler Throughput                      1008.0 lpm   (60.0 secs, 3 samples)
+Shell Scripts (1 concurrent)               4580.6 lpm   (60.0 secs, 3 samples)
+Shell Scripts (8 concurrent)                913.3 lpm   (60.0 secs, 3 samples)
+Shell Scripts (16 concurrent)               569.0 lpm   (60.0 secs, 3 samples)
+Dc: sqrt(2) to 99 decimal places         124918.7 lpm   (30.0 secs, 3 samples)
 
-Yes, my worry was that if the device completes these requests quickly
-enough (as we hope it, or many of them, will), blkdev_issue_discard()
-may never reach that throttling, despite doing lots more than 128.
+Hmm..no loss ? But maybe I should find what I can do to improve this.
 
-> 
-> So if this turns out to be a problem, we can revisit the cond_resched()
-> solution.
+Brief patch description is below.
 
-Indeed - and it doesn't affect the blkdev_issue_discard() interface,
-just its implementation.
+1. patches/nolimit_root.patch
+   This patch makes 'root' cgroup's limit to be fixed to unlimited.
 
-(I'm still mulling over, in between unrelated work,
-David's point on the barriers: will reply to that later.)
+2. patches/atomic_flags.patch
+   This patch makes page_cgroup->flags to be unsigned long and add atomic ops.
 
-Hugh
+3. patches/account_move.patch
+   This patch implements move_account() function for recharging account 
+   from a memory resource controller to another.
+
+4. patches/new_force_empty.patch
+   This patch makes force_empty() to use move_account() rather than just drop
+   accounts. (As fist step, account is moved to 'root'. We can change this later.)
+
+5. patches/make_mapping_null.patch
+   Clean up. This guarantees page->mapping to be NULL before uncharge() against 
+   page cache is called.
+
+6. patches/stat.patch
+   Optimize page_cgroup_change_statistics().
+
+7. patches/charge-will-success.patch
+   Add "likely" to charge function.
+
+8. patches/page_cgroup.patch
+   remove page_cgroup pointer from struct page and add lookup-system for
+   page_cgroup from pfn,
+
+9. patches/boost_page_cgroup_lookupg.patch
+   user per-cpu cache for fast access to page_cgroup.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
