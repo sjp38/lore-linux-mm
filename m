@@ -1,86 +1,81 @@
-Date: Thu, 11 Sep 2008 20:08:55 +0900
+Date: Thu, 11 Sep 2008 20:11:39 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] [PATCH 0/9]  remove page_cgroup pointer (with some
- enhancements)
-Message-Id: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 1/9] memcg:make root no limit
+Message-Id: <20080911201139.32bf59a2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Balbir.
+Make root cgroup of memory resource controller to have no limit.
 
-I wrote remove-page-cgroup-pointer patch on top of my small patches.
-This series includes enhancements patches for memory resource controller
-on my queue. 
+By this, users cannot set limit to root group. This is for making root cgroup
+as a kind of trash-can.
 
-I think I can (or have to) do more twaeks but post this while it's hot.
-Passed some tests.
+For accounting pages which has no owner, which are created by force_empty,
+we need some cgroup with no_limit. A patch for rewriting force_empty will
+will follow this one.
 
-remove-page-cgroup-pointer patch is [8/9] and [9/9].
-How about this ?
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Peformance comparison is below.
-==
-rc5-mm1
-==
-Execl Throughput                           3006.5 lps   (29.8 secs, 3 samples)
-C Compiler Throughput                      1006.7 lpm   (60.0 secs, 3 samples)
-Shell Scripts (1 concurrent)               4863.7 lpm   (60.0 secs, 3 samples)
-Shell Scripts (8 concurrent)                943.7 lpm   (60.0 secs, 3 samples)
-Shell Scripts (16 concurrent)               482.7 lpm   (60.0 secs, 3 samples)
-Dc: sqrt(2) to 99 decimal places         124804.9 lpm   (30.0 secs, 3 samples)
+---
+ Documentation/controllers/memory.txt |    4 ++++
+ mm/memcontrol.c                      |    7 +++++++
+ 2 files changed, 11 insertions(+)
 
-After this series
-==
-Execl Throughput                           3003.3 lps   (29.8 secs, 3 samples)
-C Compiler Throughput                      1008.0 lpm   (60.0 secs, 3 samples)
-Shell Scripts (1 concurrent)               4580.6 lpm   (60.0 secs, 3 samples)
-Shell Scripts (8 concurrent)                913.3 lpm   (60.0 secs, 3 samples)
-Shell Scripts (16 concurrent)               569.0 lpm   (60.0 secs, 3 samples)
-Dc: sqrt(2) to 99 decimal places         124918.7 lpm   (30.0 secs, 3 samples)
-
-Hmm..no loss ? But maybe I should find what I can do to improve this.
-
-Brief patch description is below.
-
-1. patches/nolimit_root.patch
-   This patch makes 'root' cgroup's limit to be fixed to unlimited.
-
-2. patches/atomic_flags.patch
-   This patch makes page_cgroup->flags to be unsigned long and add atomic ops.
-
-3. patches/account_move.patch
-   This patch implements move_account() function for recharging account 
-   from a memory resource controller to another.
-
-4. patches/new_force_empty.patch
-   This patch makes force_empty() to use move_account() rather than just drop
-   accounts. (As fist step, account is moved to 'root'. We can change this later.)
-
-5. patches/make_mapping_null.patch
-   Clean up. This guarantees page->mapping to be NULL before uncharge() against 
-   page cache is called.
-
-6. patches/stat.patch
-   Optimize page_cgroup_change_statistics().
-
-7. patches/charge-will-success.patch
-   Add "likely" to charge function.
-
-8. patches/page_cgroup.patch
-   remove page_cgroup pointer from struct page and add lookup-system for
-   page_cgroup from pfn,
-
-9. patches/boost_page_cgroup_lookupg.patch
-   user per-cpu cache for fast access to page_cgroup.
-
-Thanks,
--Kame
+Index: mmtom-2.6.27-rc5+/mm/memcontrol.c
+===================================================================
+--- mmtom-2.6.27-rc5+.orig/mm/memcontrol.c
++++ mmtom-2.6.27-rc5+/mm/memcontrol.c
+@@ -136,6 +136,9 @@ struct mem_cgroup {
+ };
+ static struct mem_cgroup init_mem_cgroup;
+ 
++#define is_root_cgroup(cgrp)	((cgrp) == &init_mem_cgroup)
++
++
+ /*
+  * We use the lower bit of the page->page_cgroup pointer as a bit spin
+  * lock.  We need to ensure that page->page_cgroup is at least two
+@@ -937,6 +940,10 @@ static int mem_cgroup_write(struct cgrou
+ 
+ 	switch (cft->private) {
+ 	case RES_LIMIT:
++		if (is_root_cgroup(memcg)) {
++			ret = -EINVAL;
++			break;
++		}
+ 		/* This function does all necessary parse...reuse it */
+ 		ret = res_counter_memparse_write_strategy(buffer, &val);
+ 		if (!ret)
+Index: mmtom-2.6.27-rc5+/Documentation/controllers/memory.txt
+===================================================================
+--- mmtom-2.6.27-rc5+.orig/Documentation/controllers/memory.txt
++++ mmtom-2.6.27-rc5+/Documentation/controllers/memory.txt
+@@ -121,6 +121,9 @@ The corresponding routines that remove a
+ a page from Page Cache is used to decrement the accounting counters of the
+ cgroup.
+ 
++The root cgroup is not allowed to be set limit but usage is accounted.
++For controlling usage of memory, you need to create a cgroup.
++
+ 2.3 Shared Page Accounting
+ 
+ Shared pages are accounted on the basis of the first touch approach. The
+@@ -172,6 +175,7 @@ We can alter the memory limit:
+ 
+ NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
+ mega or gigabytes.
++Note: root cgroup is not able to be set limit.
+ 
+ # cat /cgroups/0/memory.limit_in_bytes
+ 4194304
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
