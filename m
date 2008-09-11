@@ -1,68 +1,55 @@
-From: kamezawa.hiroyu@jp.fujitsu.com
-Message-ID: <14174529.1221145313517.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 12 Sep 2008 00:01:53 +0900 (JST)
-Subject: Re: Re: Re: [RFC] [PATCH 8/9] memcg: remove page_cgroup pointer from memmap
-In-Reply-To: <33551037.1221143889677.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
+Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
+	by smtp-out3.google.com with ESMTP id m8BJssNw019758
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2008 20:54:55 +0100
+Received: from rv-out-0708.google.com (rvbf25.prod.google.com [10.140.82.25])
+	by wpaz1.hot.corp.google.com with ESMTP id m8BJsgwv017908
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2008 12:54:53 -0700
+Received: by rv-out-0708.google.com with SMTP id f25so469315rvb.50
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2008 12:54:53 -0700 (PDT)
+Message-ID: <6599ad830809111254h62e1945egd72b30f2c8585104@mail.gmail.com>
+Date: Thu, 11 Sep 2008 12:54:53 -0700
+From: "Paul Menage" <menage@google.com>
+Subject: Re: [PATCH -mm] cgroup,cpuset: use alternative malloc to allocate large memory buf for tasks
+In-Reply-To: <6599ad830809110945pb85ec68o16328b31cbb0dc52@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-References: <33551037.1221143889677.kamezawa.hiroyu@jp.fujitsu.com>
- <200809120000.37901.nickpiggin@yahoo.com.au>
- <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com> <20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Disposition: inline
+References: <48C8F32E.2020004@cn.fujitsu.com>
+	 <6599ad830809110945pb85ec68o16328b31cbb0dc52@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, balbir@linux.vnet.ibm.com, xemul@openvz.org, hugh@veritas.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
+To: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Jackson <pj@sgi.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>On Thursday 11 September 2008 21:22, KAMEZAWA Hiroyuki wrote:
->>> Remove page_cgroup pointer from struct page.
->>>
->>> This patch removes page_cgroup pointer from struct page and make it be abl
-e
->>> to get from pfn. Then, relationship of them is
->>>
->>> Before this:
->>>   pfn <-> struct page <-> struct page_cgroup.
->>> After this:
->>>   struct page <-> pfn -> struct page_cgroup -> struct page.
->>
->>So...
->>
->>pfn -> *hash* -> struct page_cgroup, right?
->>
->right.
+On Thu, Sep 11, 2008 at 9:45 AM, Paul Menage <menage@google.com> wrote:
+> On Thu, Sep 11, 2008 at 3:30 AM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
+>> This new alternative allocation implementation can allocate memory
+>> up to 64M in 32bits system or 512M in 64bits system.
 >
->>While I don't think there is anything wrong with the approach, I
->>don't understand exactly where you guys are hoping to end up with
->>this?
->>
->No. but this is simple. I'd like to use linear mapping like
->sparsemem-vmemmap and HUGTLB kernel pages at the end.
->But it needs much more work and should be done in the future.
->(And it seems to have to depend on SPARSEMEM.)
->This is just a generic one.
->
-This is my thinking, now.
+> Isn't a lot of this patch just reimplementing vmalloc()?
 
-Adding a patch for FLATMEM is very easy, maybe. (Just Do as Balbir's one.)
+To extend on this, I think there are two ways of fixing the large
+allocation problem:
 
-Adding a patch for DISCONTIGMEM is doubtful. I'm not sure how it's widely
-used now.
+1) just use vmalloc() rather than kmalloc() when the pid array is over
+a certain threshold (probably 1 page?)
 
-When it comes to SPARSEMEM, our target is 64bit arch and we need 
-SPARSEMEM_EXTREME...2 level table. Maybe not far different from current hash.
+2) allocate pages/chunks in a similar way to your CL, but don't bother
+mapping them. Instead we'd use the fact that each record (pid) is the
+same size, and hence we can very easily use the high bits of an index
+to select the chunk and the low bits to select the pid within the
+chunk - no need to suffer the overhead of setting up and tearing down
+ptes in order for the MMU do the same operation for us in hardware.
 
-Our way should be linear mapping like SPARSEMEM_VMEMMAP. But it needs
-arch dependent code and some difficulty to allocate virtual space,
-which can be very Huge.
-This should be updated one by one (for each arch.).
+Obviously option 1 is a lot simpler, but option 2 avoids a
+vmap()/vunmap() on every open/close of a tasks file. I'm not familiar
+enough with the performance of vmap/vunmap on typical
+hardware/workloads to know how high this overhead is  - maybe a VM
+guru can comment?
 
-Thanks,
--Kame
-
-
-
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
