@@ -1,79 +1,74 @@
-Date: Thu, 11 Sep 2008 10:56:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Approach #2] [RFC][PATCH] Remove cgroup member from struct
- page
-Message-Id: <20080911105638.1581db90.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48C878AD.4040404@linux.vnet.ibm.com>
-References: <48C66AF8.5070505@linux.vnet.ibm.com>
-	<20080901161927.a1fe5afc.kamezawa.hiroyu@jp.fujitsu.com>
-	<200809091358.28350.nickpiggin@yahoo.com.au>
-	<20080909135317.cbff4871.kamezawa.hiroyu@jp.fujitsu.com>
-	<200809091500.10619.nickpiggin@yahoo.com.au>
-	<20080909141244.721dfd39.kamezawa.hiroyu@jp.fujitsu.com>
-	<30229398.1220963412858.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080910012048.GA32752@balbir.in.ibm.com>
-	<1221085260.6781.69.camel@nimitz>
-	<48C84C0A.30902@linux.vnet.ibm.com>
-	<1221087408.6781.73.camel@nimitz>
-	<20080911103500.d22d0ea1.kamezawa.hiroyu@jp.fujitsu.com>
-	<48C878AD.4040404@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 11 Sep 2008 10:58:16 +0200
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [RFC PATCH] discarding swap
+Message-ID: <20080911085816.GP20055@kernel.dk>
+References: <Pine.LNX.4.64.0809092222110.25727@blonde.site> <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0809102015230.16131@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: David Woodhouse <dwmw2@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Sep 2008 18:47:25 -0700
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Wed, 10 Sep 2008 15:56:48 -0700
-> > Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+On Wed, Sep 10 2008, Hugh Dickins wrote:
+> On Wed, 10 Sep 2008, Jens Axboe wrote:
+> > On Tue, Sep 09 2008, Hugh Dickins wrote:
 > > 
-> >> On Wed, 2008-09-10 at 15:36 -0700, Balbir Singh wrote:
-> >>> Dave Hansen wrote:
-> >>>> On Tue, 2008-09-09 at 18:20 -0700, Balbir Singh wrote:
-> >>>>> +       start = pgdat->node_start_pfn;
-> >>>>> +       end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
-> >>>>> +       size = (end - start) * sizeof(struct page_cgroup);
-> >>>>> +       printk("Allocating %lu bytes for node %d\n", size, n);
-> >>>>> +       pcg_map[n] = alloc_bootmem_node(pgdat, size);
-> >>>>> +       /*
-> >>>>> +        * We can do smoother recovery
-> >>>>> +        */
-> >>>>> +       BUG_ON(!pcg_map[n]);
-> >>>>> +       return 0;
-> >>>>>  }
-> >>>> This will really suck for sparse memory machines.  Imagine a machine
-> >>>> with 1GB of memory at 0x0 and another 1GB of memory at 1TB up in the
-> >>>> address space.
-> >>>>
-> >>> I would hate to re-implement the entire sparsemem code :(
-> >>> Kame did suggest making the memory controller depend on sparsemem (to hook in
-> >>> from there for allocations)
-> >> Yeah, you could just make another mem_section member.  Or, you could
-> >> work to abstract the sparsemem code so that other people can use it, or
-> >> maybe make it more dynamic so we can have multiple pfn->object lookups
-> >> in parallel.  Adding the struct member is obviously easier.
-> >>
-> > Don't worry. I'll care sparse memory map and hotplug.
-> > But whether making this depends on SPARSEMEM or not is not fixed yet.
-> > I'll try generic one, at first. If it's dirty, start discussion about SPARSEMEM.
+> > > It seems odd to me that the data-less blkdev_issue_discard() is limited
+> > > at all by max_hw_sectors; but I'm guessing there's a good reason, safety
+> > > perhaps, which has forced you to that.
 > > 
-> > (Honestly, I love sparsemem than others ;)
+> > The discard request needs to be turned into a hw command at some point,
+> > and for that we still need to fit the offset and size in there. So we
+> > are still limited by 32MB commands on sata w/lba48, even though we are
+> > not moving any data. Suboptimal, but...
 > 
-> My concern is that if we depend on sparsemem, then we force distros to turn on
-> sparsemem (which might be the default, but not on all architectures), we might
-> end up losing those architectures (w.r.t. turning on the memory controller)
-> where sparsemem is not the default on the distro.
+> ... makes good sense, thanks.
 > 
-Yes. I share your concern. Then, I'll try not-on-sparsemem version, at first.
+> > > Here's the proposed patch, or combination of patches: the blkdev and
+> > > swap parts should certainly be separated.  Advice welcome - thanks!
+> > 
+> > I'll snatch up the blk bits and put them in for-2.6.28. OK if I add your
+> > SOB to that?
+> 
+> That would be great.  Thanks a lot for all your comments, I'd been
+> expecting a much rougher ride!  If you've not already put it in,
+> here's that subset of the patch - change it around as you wish.
+> 
+> 
+> [PATCH] block: adjust blkdev_issue_discard for swap
+> 
+> Three mods to blkdev_issue_discard(), thinking ahead to its use on swap:
+> 
+> 1. Add gfp_mask argument, so swap allocation can use it where GFP_KERNEL
+>    might deadlock but GFP_NOIO is safe.
+> 
+> 2. Enlarge nr_sects argument from unsigned to sector_t: unsigned long is
+>    enough to cover a whole swap area, but sector_t suits any partition.
+> 
+> 3. Add an occasional cond_resched() into the loop, to avoid risking bad
+>    latencies when discarding a large area in small max_hw_sectors steps.
+> 
+> Change sb_issue_discard()'s nr_blocks to sector_t too; but no need seen
+> for a gfp_mask there, just pass GFP_KERNEL down to blkdev_issue_discard().
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
 
-Thanks,
--Kame
+Hugh, I applied this - but on 2nd though, I killed the cond_resched()
+for two reasons:
+
+- We should only add stuff like that if it's known problematic
+- We'll be throttling on the request allocation eventually, once we get
+  128 of these in flight.
+
+So if this turns out to be a problem, we can revisit the cond_resched()
+solution.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
