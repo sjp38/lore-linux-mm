@@ -1,56 +1,33 @@
-Date: Fri, 12 Sep 2008 10:10:07 +0900
+Date: Fri, 12 Sep 2008 13:36:01 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Mark the correct zone as full when scanning zonelists
-Message-Id: <20080912101007.ed56780f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080911144155.c70ef145.akpm@linux-foundation.org>
-References: <20080911212550.GA18087@csn.ul.ie>
-	<20080911144155.c70ef145.akpm@linux-foundation.org>
+Subject: Re: [RFC] [PATCH 3/9]  memcg: move_account between groups
+Message-Id: <20080912133601.1d3d82a6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080911201451.6aecd29a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080911201451.6aecd29a.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 Sep 2008 14:41:55 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, 11 Sep 2008 20:14:51 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Thu, 11 Sep 2008 22:25:51 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> 
-> > The for_each_zone_zonelist() uses a struct zoneref *z cursor when scanning
-> > zonelists to keep track of where in the zonelist it is. The zoneref that
-> > is returned corresponds to the the next zone that is to be scanned, not
-> > the current one as it originally thought of as an opaque list.
-> > 
-> > When the page allocator is scanning a zonelist, it marks zones that it
-> > temporarily full zones to eliminate near-future scanning attempts.
-> 
-> That sentence needs help.
-> 
-Hmm, should we rename
+> +	if (try_lock_page_cgroup(page))
+> +		return ret;
+Here is buggy and should be !try_lock_page_cgroup().
+and uncharge should be called.
 
- next_zone_zonelist() => get_appropriate_zone_from_list()
+> +
+> +	if (page_get_page_cgroup(page) != pc)
+> +		goto out;
+uncharge should be called.
 
-or some better name ?
-
-> > It uses
-> > the zoneref for the marking and consequently the incorrect zone gets marked
-> > full. This leads to a suitable zone being skipped in the mistaken belief
-> > it is full. This patch corrects the problem by changing zoneref to be the
-> > current zone being scanned instead of the next one.
-> 
-> Applicable to 2.6.26 as well, yes?
-> 
-Maybe yes. But it's better to show where this patch really fixes.
-Is this a fix for misunderstanding usage of zoneref in
-mm/page_alloc.c::get_page_from_freelist() ?
-
-== here ?==
-  if (NUMA_BUILD)
-	zlc_mark_zone_full(zonelist, z);
+Updated version will appear in the next week.
 
 Thanks,
 -Kame
