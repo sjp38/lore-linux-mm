@@ -1,73 +1,72 @@
-Date: Fri, 12 Sep 2008 16:52:22 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC PATCH] discarding swap
-In-Reply-To: <1221228567.3919.35.camel@macbook.infradead.org>
-Message-ID: <Pine.LNX.4.64.0809121631050.5142@blonde.site>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
- <20080910173518.GD20055@kernel.dk>  <Pine.LNX.4.64.0809102015230.16131@blonde.site>
-  <1221082117.13621.25.camel@macbook.infradead.org>
- <Pine.LNX.4.64.0809121154430.12812@blonde.site> <1221228567.3919.35.camel@macbook.infradead.org>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28esmtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id m8CGCuk9031638
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 21:42:56 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8CGCuLQ1802372
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 21:42:56 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m8CGCtAE019383
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 21:42:56 +0530
+Message-ID: <48CA9500.5060309@linux.vnet.ibm.com>
+Date: Fri, 12 Sep 2008 09:12:48 -0700
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] [PATCH 8/9] memcg: remove page_cgroup pointer from memmap
+References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com> <20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Sep 2008, David Woodhouse wrote:
-> On Fri, 2008-09-12 at 13:10 +0100, Hugh Dickins wrote:
-> > So long as the I/O schedulers guarantee that a WRITE bio submitted
-> > to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
-> > DISCARD_NOBARRIER - ...
+KAMEZAWA Hiroyuki wrote:
+> Remove page_cgroup pointer from struct page.
 > 
-> > That seems a reasonable guarantee to me, and perhaps it's trivially
-> > obvious to those who know their I/O schedulers; but I don't, so I'd
-> > like to hear such assurance given.
+> This patch removes page_cgroup pointer from struct page and make it be able
+> to get from pfn. Then, relationship of them is
 > 
-> No, that's the point. the I/O schedulers _don't_ give you that guarantee
-> at all. They can treat DISCARD_NOBARRIER just like a write. That's all
-> it is, really -- a special kind of WRITE request without any data.
-
-Hmmm.  In that case I'll need to continue with DISCARD_BARRIER,
-unless/until I rejig swap allocation to wait for discard completion,
-which I've no great desire to do.
-
-Is there any particular reason why DISCARD_NOBARRIER shouldn't be
-enhanced to give the intuitive guarantee I suggest?  It is distinct
-from a WRITE, I don't see why it has to be treated in the same way
-if that's unhelpful to its users.
-
-I expect the answer will be: it could be so enhanced, but we really
-don't know if it's worth adding special code for that without the
-experience of more users.
-
+> Before this:
+>   pfn <-> struct page <-> struct page_cgroup.
+> After this:
+>   struct page <-> pfn -> struct page_cgroup -> struct page.
 > 
-> But -- and this came as a bit of a shock to me -- they don't guarantee
-> that writes don't cross writes on their queue. If you issue two WRITE
-> requests to the same sector, you have to make sure for _yourself_ that
-> there is some kind of barrier between them to keep them in the right
-> order.
-
-Right, I recall from skimming the linux-fsdevel threads that it
-emerged that currently WRITEs are depending on page lock for
-that serialization, which cannot apply in the discard case.
-
-So, there's been no need for such a guarantee in the WRITE case;
-but it sure would be helpful in the DISCARD case, which has no
-pages to lock anyway.
-
+> Benefit of this approach is we can remove 8(4) bytes from struct page.
 > 
-> Does swap do that, when a page on the disk is deallocated and then used
-> for something else?
+> Other changes are:
+>   - lock/unlock_page_cgroup() uses its own bit on struct page_cgroup.
+>   - all necessary page_cgroups are allocated at boot.
+> 
+> Characteristics:
+>   - page cgroup is allocated as some amount of chunk.
+>     This patch uses SECTION_SIZE as size of chunk if 64bit/SPARSEMEM is enabled.
+>     If not, appropriate default number is selected.
+>   - all page_cgroup struct is maintained by hash. 
+>     I think we have 2 ways to handle sparse index in general
+>     ...radix-tree and hash. This uses hash because radix-tree's layout is
+>     affected by memory map's layout.
+>   - page_cgroup.h/page_cgroup.c is added.
+> 
+> TODO:
+>   - memory hotplug support. (not difficult)
 
-Yes, that's managed through the PageWriteback flag: there are various
-places where we'd like to free up swap, but cannot do so because it's
-still attached to a cached page with PageWriteback set; in which case
-its freeing has to be left until vmscan.c finds PageWriteback cleared,
-then removes page from swapcache and frees the swap.
+Kamezawa,
 
-Hugh
+I feel we can try the following approaches
+
+1. Try per-node per-zone radix tree with dynamic allocation
+2. Try the approach you have
+3. Integrate with sparsemem (last resort for performance), Dave Hansen suggested
+adding a mem_section member and using that.
+
+I am going to try #1 today and see what the performance looks like
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
