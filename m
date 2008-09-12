@@ -1,79 +1,72 @@
-Date: Fri, 12 Sep 2008 13:10:05 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC PATCH] discarding swap
-In-Reply-To: <1221082117.13621.25.camel@macbook.infradead.org>
-Message-ID: <Pine.LNX.4.64.0809121154430.12812@blonde.site>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
- <20080910173518.GD20055@kernel.dk>  <Pine.LNX.4.64.0809102015230.16131@blonde.site>
- <1221082117.13621.25.camel@macbook.infradead.org>
+Message-ID: <48CA611A.8060706@inria.fr>
+Date: Fri, 12 Sep 2008 14:31:22 +0200
+From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-1647284174-1221221405=:12812"
+Subject: [PATCH] mm: make do_move_pages() complexity linear
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
---8323584-1647284174-1221221405=:12812
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+Page migration is currently very slow because its overhead is quadratic
+with the number of pages. This is caused by each single page migration
+doing a linear lookup in the page array in new_page_node().
+    
+Since pages are stored in the array order in the pagelist and do_move_pages
+process this list in order, new_page_node() can increase the "pm" pointer
+to the page array so that the next iteration will find the next page in
+0 or few lookup steps.
+    
+Signed-off-by: Brice Goglin <Brice.Goglin@inria.fr>
+Signed-off-by: Nathalie Furmento <Nathalie.Furmento@labri.fr>
 
-On Wed, 10 Sep 2008, David Woodhouse wrote:
-> On Wed, 2008-09-10 at 20:51 +0100, Hugh Dickins wrote:
->=20
-> blkdev_issue_discard() is for na=C3=AFve callers who don't want to have t=
-o
-> think about barriers. You might benefit from issuing discard requests
-> without an implicit softbarrier, for swap.
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -837,14 +837,23 @@ struct page_to_node {
+ 	int status;
+ };
+ 
++/*
++ * Allocate a page on the node given as a page_to_node in private.
++ * Increase private to point to the next page_to_node so that the
++ * next iteration does not have to traverse the whole pm array.
++ */
+ static struct page *new_page_node(struct page *p, unsigned long private,
+ 		int **result)
+ {
+-	struct page_to_node *pm = (struct page_to_node *)private;
++	struct page_to_node **pmptr = (struct page_to_node **)private;
++	struct page_to_node *pm = *pmptr;
+ 
+ 	while (pm->node != MAX_NUMNODES && pm->page != p)
+ 		pm++;
+ 
++	/* prepare for the next iteration */
++	*pmptr = pm + 1;
++
+ 	if (pm->node == MAX_NUMNODES)
+ 		return NULL;
+ 
+@@ -926,10 +935,12 @@ set_status:
+ 		pp->status = err;
+ 	}
+ 
+-	if (!list_empty(&pagelist))
++	if (!list_empty(&pagelist)) {
++		/* new_page_node() will modify tmp */
++		struct page_to_node *tmp = pm;
+ 		err = migrate_pages(&pagelist, new_page_node,
+-				(unsigned long)pm);
+-	else
++				    (unsigned long)&tmp);
++	} else
+ 		err = -ENOENT;
+ 
+ 	up_read(&mm->mmap_sem);
 
-Whilst I'd certainly categorize myself as a na=C3=AFve caller, swap should
-not be, and I now believe you're right that it would be better for
-swap not to be using DISCARD_BARRIER there - thanks for noticing.
-
-For that I think we'd want blk-barrier.c's blkdev_issue_discard() to
-become __blkdev_issue_discard() with a fourth arg (either a boolean,
-or DISCARD_BARRIER versus DISCARD_NOBARRIER), with blkdev_issue_discard()
-and blkdev_issue_discard_nobarrier() functions inlined in blkdev.h.
-
-I don't think it would be wise for mm/swapfile.c to duplicate
-blkdev_issue_discard() without the _BARRIER: I expect that function
-to go through a few changes as experience gathers with devices coming
-onstream, changes we'd rather not track in mm; and I don't think mm
-(beyond bounce.c) should get into request_queues and max_hw_sectors.
-
-> Of course, you then have to ensure that a discard can't still be
-> in-flight and actually happen _after_ a subsequent write to that page.
-
-I was certainly terrified of a write sneaking down before the discard
-when it was supposed to come after, and therefore took comfort from
-the DISCARD_BARRIER - but was, I think, failing to understand that
-it's for a filesystem which needs guarantees on the ordering
-between data and metadata *in different areas* of the partition,
-not an issue for swap at all.
-
-Looking at what I ended up with, I had to put "wait_for_discard"
-serialization in at the swap end anyway; and though I thought at the
-time that the _BARRIER was saving me from waiting for completion
-(only having to wait for completed submission), now I don't see
-the _BARRIER as playing any part at all.
-
-So long as the I/O schedulers guarantee that a WRITE bio submitted
-to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
-DISCARD_NOBARRIER - where "already" means the submit_bio(WRITE, bio2)
-is issued after the submit_bio(DISCARD_NOBARRIER, bio1) has returned
-to caller (but its "I/O" of course not necessarily completed).
-
-That seems a reasonable guarantee to me, and perhaps it's trivially
-obvious to those who know their I/O schedulers; but I don't, so I'd
-like to hear such assurance given.
-
-(If there's a problem giving that assurance for WRITE, but it can be
-given for WRITE_SYNC, that would suit me quite nicely too, because I'm
-looking for a justification for WRITE_SYNC in swap_writepage(): Jens,
-it makes those x86_64-tmpfs-swapping-on-CFQ cases a lot better.)
-
-Hugh
---8323584-1647284174-1221221405=:12812--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
