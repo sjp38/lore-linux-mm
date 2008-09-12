@@ -1,72 +1,47 @@
-Message-ID: <48CA611A.8060706@inria.fr>
-Date: Fri, 12 Sep 2008 14:31:22 +0200
-From: Brice Goglin <Brice.Goglin@inria.fr>
+Message-ID: <48CA727F.1050405@linux-foundation.org>
+Date: Fri, 12 Sep 2008 08:45:35 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: [PATCH] mm: make do_move_pages() complexity linear
+Subject: Re: [PATCH] mm: make do_move_pages() complexity linear
+References: <48CA611A.8060706@inria.fr>
+In-Reply-To: <48CA611A.8060706@inria.fr>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
+To: Brice Goglin <Brice.Goglin@inria.fr>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
-Page migration is currently very slow because its overhead is quadratic
-with the number of pages. This is caused by each single page migration
-doing a linear lookup in the page array in new_page_node().
-    
-Since pages are stored in the array order in the pagelist and do_move_pages
-process this list in order, new_page_node() can increase the "pm" pointer
-to the page array so that the next iteration will find the next page in
-0 or few lookup steps.
-    
-Signed-off-by: Brice Goglin <Brice.Goglin@inria.fr>
-Signed-off-by: Nathalie Furmento <Nathalie.Furmento@labri.fr>
+Brice Goglin wrote:
+> Page migration is currently very slow because its overhead is quadratic
+> with the number of pages. This is caused by each single page migration
+> doing a linear lookup in the page array in new_page_node().
 
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -837,14 +837,23 @@ struct page_to_node {
- 	int status;
- };
- 
-+/*
-+ * Allocate a page on the node given as a page_to_node in private.
-+ * Increase private to point to the next page_to_node so that the
-+ * next iteration does not have to traverse the whole pm array.
-+ */
- static struct page *new_page_node(struct page *p, unsigned long private,
- 		int **result)
- {
--	struct page_to_node *pm = (struct page_to_node *)private;
-+	struct page_to_node **pmptr = (struct page_to_node **)private;
-+	struct page_to_node *pm = *pmptr;
- 
- 	while (pm->node != MAX_NUMNODES && pm->page != p)
- 		pm++;
- 
-+	/* prepare for the next iteration */
-+	*pmptr = pm + 1;
-+
- 	if (pm->node == MAX_NUMNODES)
- 		return NULL;
- 
-@@ -926,10 +935,12 @@ set_status:
- 		pp->status = err;
- 	}
- 
--	if (!list_empty(&pagelist))
-+	if (!list_empty(&pagelist)) {
-+		/* new_page_node() will modify tmp */
-+		struct page_to_node *tmp = pm;
- 		err = migrate_pages(&pagelist, new_page_node,
--				(unsigned long)pm);
--	else
-+				    (unsigned long)&tmp);
-+	} else
- 		err = -ENOENT;
- 
- 	up_read(&mm->mmap_sem);
+Page migration in general is not affected by this issue. This is specific to
+the sys_move_pages() system call. The API was so far only used to migrate a
+limited number of pages. For more one would use either the cpuset or the
+sys_migrate_pages() APIs since these do not require an array that describes
+how every single page needs to be moved.
 
+> Since pages are stored in the array order in the pagelist and do_move_pages
+> process this list in order, new_page_node() can increase the "pm" pointer
+> to the page array so that the next iteration will find the next page in
+> 0 or few lookup steps.
+
+I agree. It would be good increase the speed of sys_move_pages().
+
+However, note that your patch assumes that new_page_node() is called in
+sequence for each of the pages in the page descriptor array. new_page_node()
+is skipped in the loop if
+
+1. The page is not present
+2. The page is reserved
+3. The page is already on the intended node
+4. The page is shared between processes.
+
+If any of those cases happen then your patch will result in the association of
+page descriptors with the wrong pages for the remaining pages in the array.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
