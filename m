@@ -1,42 +1,48 @@
-Date: Fri, 12 Sep 2008 17:50:39 +0100
-From: Jamie Lokier <jamie@shareable.org>
+Date: Fri, 12 Sep 2008 18:25:17 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC PATCH] discarding swap
-Message-ID: <20080912165038.GA12849@shareable.org>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site> <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site> <1221082117.13621.25.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121154430.12812@blonde.site> <1221228567.3919.35.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121631050.5142@blonde.site>
+In-Reply-To: <20080912165038.GA12849@shareable.org>
+Message-ID: <Pine.LNX.4.64.0809121812440.15514@blonde.site>
+References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
+ <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site>
+ <1221082117.13621.25.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121154430.12812@blonde.site>
+ <1221228567.3919.35.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121631050.5142@blonde.site>
+ <20080912165038.GA12849@shareable.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0809121631050.5142@blonde.site>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Jamie Lokier <jamie@shareable.org>
 Cc: David Woodhouse <dwmw2@infradead.org>, Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> > Does swap do that, when a page on the disk is deallocated and then used
-> > for something else?
+On Fri, 12 Sep 2008, Jamie Lokier wrote:
 > 
-> Yes, that's managed through the PageWriteback flag: there are various
-> places where we'd like to free up swap, but cannot do so because it's
-> still attached to a cached page with PageWriteback set; in which case
-> its freeing has to be left until vmscan.c finds PageWriteback cleared,
-> then removes page from swapcache and frees the swap.
+> Here's an idea which is prompted by DISCARD:
+> 
+> One thing the request layer doesn't do is cancellations.
+> But if it did:
+> 
+> If you schedule some swap to be written, then later it is no longer
+> required before the WRITE has completed (e.g. process exits), on a
+> busy system would it be worth _cancelling_ the WRITE while it's still
+> in the request queue?  This is quite similar to DISCARDing, but
+> internal to the kernel.
 
-Here's an idea which is prompted by DISCARD:
+You mean, like those "So Andso wishes to recall the embarrassing
+message accidentally sent to everyone in the company" which I
+sometimes see from MS users?
 
-One thing the request layer doesn't do is cancellations.
-But if it did:
+Yes, it could be applicable when there's a huge quantity of I/O in
+flight that suddenly becomes redundant, on process exit (for swap)
+or file truncation.  But is the upper level likely to want submit
+bios for all such pages?  And it only works so long as the bio has
+not yet gone out for I/O - therefore seems of limited usefulness?
 
-If you schedule some swap to be written, then later it is no longer
-required before the WRITE has completed (e.g. process exits), on a
-busy system would it be worth _cancelling_ the WRITE while it's still
-in the request queue?  This is quite similar to DISCARDing, but
-internal to the kernel.
+But might come pretty much for free if it were decided that DISCARD
+does need more complicated detect-if-writes-already-queued semantics.
 
-(Many userspace AIO interfaces do have cancellations, perhaps this is why).
-
--- Jamie
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
