@@ -1,72 +1,43 @@
-Subject: Re: [RFC PATCH] discarding swap
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <Pine.LNX.4.64.0809121631050.5142@blonde.site>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
-	 <20080910173518.GD20055@kernel.dk>
-	 <Pine.LNX.4.64.0809102015230.16131@blonde.site>
-	 <1221082117.13621.25.camel@macbook.infradead.org>
-	 <Pine.LNX.4.64.0809121154430.12812@blonde.site>
-	 <1221228567.3919.35.camel@macbook.infradead.org>
-	 <Pine.LNX.4.64.0809121631050.5142@blonde.site>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8CGFjMa029649
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 12:15:45 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8CGNMSh202046
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 10:23:22 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8CMNLkx009301
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 16:23:21 -0600
+Subject: Re: [RFC] [PATCH 8/9] memcg: remove page_cgroup pointer from memmap
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1221236354.17910.18.camel@nimitz>
+References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
+	 <48CA9500.5060309@linux.vnet.ibm.com>  <1221236354.17910.18.camel@nimitz>
 Content-Type: text/plain
-Date: Fri, 12 Sep 2008 09:22:08 -0700
-Message-Id: <1221236528.21323.22.camel@macbook.infradead.org>
+Date: Fri, 12 Sep 2008 09:23:13 -0700
+Message-Id: <1221236593.17910.21.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-09-12 at 16:52 +0100, Hugh Dickins wrote:
-> On Fri, 12 Sep 2008, David Woodhouse wrote:
-> > On Fri, 2008-09-12 at 13:10 +0100, Hugh Dickins wrote:
-> > > So long as the I/O schedulers guarantee that a WRITE bio submitted
-> > > to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
-> > > DISCARD_NOBARRIER - ...
-> > 
-> > > That seems a reasonable guarantee to me, and perhaps it's trivially
-> > > obvious to those who know their I/O schedulers; but I don't, so I'd
-> > > like to hear such assurance given.
-> > 
-> > No, that's the point. the I/O schedulers _don't_ give you that guarantee
-> > at all. They can treat DISCARD_NOBARRIER just like a write. That's all
-> > it is, really -- a special kind of WRITE request without any data.
+On Fri, 2008-09-12 at 09:19 -0700, Dave Hansen wrote:
+> On Fri, 2008-09-12 at 09:12 -0700, Balbir Singh wrote:
+> > 3. Integrate with sparsemem (last resort for performance), Dave Hansen suggested
+> > adding a mem_section member and using that.
 > 
-> Hmmm.  In that case I'll need to continue with DISCARD_BARRIER,
-> unless/until I rejig swap allocation to wait for discard completion,
-> which I've no great desire to do.
-> 
-> Is there any particular reason why DISCARD_NOBARRIER shouldn't be
-> enhanced to give the intuitive guarantee I suggest?  It is distinct
-> from a WRITE, I don't see why it has to be treated in the same way
-> if that's unhelpful to its users.
+> I also suggested using the sparsemem *structure* without necessarily
+> using it for pfn_to_page() lookups.  That'll take some rework to
+> separate out SPARSEMEM_FOR_MEMMAP vs. CONFIG_SPARSE_STRUCTURE_FUN, but
+> it should be able to be prototyped pretty fast.
 
-The semantics we want would be something like "when a WRITE or DISCARD
-request is submitted, automatically turn it into a soft barrier if there
-is already an outstanding WRITE or DISCARD request overlapping the same
-sectors".
+Heh, now that I think about it, you could also use vmemmap to do the
+same thing.
 
-Detecting overlap isn't hard in the single-queue case, but things like
-CFQ make it interesting -- you'd have to search _every_ queue. And you
-couldn't just do it when inserting barriers -- you need a write to gain
-the barrier flag, if it's inserted after a discard. So we really do care
-about the performance.
-
-I agree it would be nice to have if we can do it cheaply enough, though.
-
-> I expect the answer will be: it could be so enhanced, but we really
-> don't know if it's worth adding special code for that without the
-> experience of more users.
-
-That too. We don't yet really know how much the DISCARD requests buy us
-in terms of performance or device lifetime. It'll depend a lot on the
-internals of the devices, and we don't get told a lot about that.
-
--- 
-David Woodhouse                            Open Source Technology Centre
-David.Woodhouse@intel.com                              Intel Corporation
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
