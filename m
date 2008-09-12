@@ -1,46 +1,49 @@
-Date: Fri, 12 Sep 2008 18:25:17 +0100 (BST)
+Date: Fri, 12 Sep 2008 18:46:50 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC PATCH] discarding swap
-In-Reply-To: <20080912165038.GA12849@shareable.org>
-Message-ID: <Pine.LNX.4.64.0809121812440.15514@blonde.site>
+In-Reply-To: <1221236528.21323.22.camel@macbook.infradead.org>
+Message-ID: <Pine.LNX.4.64.0809121845040.17067@blonde.site>
 References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
- <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site>
- <1221082117.13621.25.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121154430.12812@blonde.site>
- <1221228567.3919.35.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121631050.5142@blonde.site>
- <20080912165038.GA12849@shareable.org>
+ <20080910173518.GD20055@kernel.dk>  <Pine.LNX.4.64.0809102015230.16131@blonde.site>
+  <1221082117.13621.25.camel@macbook.infradead.org>
+ <Pine.LNX.4.64.0809121154430.12812@blonde.site>  <1221228567.3919.35.camel@macbook.infradead.org>
+  <Pine.LNX.4.64.0809121631050.5142@blonde.site> <1221236528.21323.22.camel@macbook.infradead.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: David Woodhouse <dwmw2@infradead.org>, Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Sep 2008, Jamie Lokier wrote:
-> 
-> Here's an idea which is prompted by DISCARD:
-> 
-> One thing the request layer doesn't do is cancellations.
-> But if it did:
-> 
-> If you schedule some swap to be written, then later it is no longer
-> required before the WRITE has completed (e.g. process exits), on a
-> busy system would it be worth _cancelling_ the WRITE while it's still
-> in the request queue?  This is quite similar to DISCARDing, but
-> internal to the kernel.
+On Fri, 12 Sep 2008, David Woodhouse wrote:
+> On Fri, 2008-09-12 at 16:52 +0100, Hugh Dickins wrote:
+> > On Fri, 12 Sep 2008, David Woodhouse wrote:
+> > > On Fri, 2008-09-12 at 13:10 +0100, Hugh Dickins wrote:
+> > > > So long as the I/O schedulers guarantee that a WRITE bio submitted
+> > > > to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
+> > > > DISCARD_NOBARRIER - ...
+> > > 
+> > > No, that's the point. the I/O schedulers _don't_ give you that guarantee
+> > > at all. They can treat DISCARD_NOBARRIER just like a write. That's all
+> > > it is, really -- a special kind of WRITE request without any data.
+> > 
+> > Hmmm.  In that case I'll need to continue with DISCARD_BARRIER,
+> > unless/until I rejig swap allocation to wait for discard completion,
+> > which I've no great desire to do.
 
-You mean, like those "So Andso wishes to recall the embarrassing
-message accidentally sent to everyone in the company" which I
-sometimes see from MS users?
+I'll leave it to Jens to comment on your reply, but I'd like to go
+back and add in a further, orthogonal concern or misunderstanding here.
 
-Yes, it could be applicable when there's a huge quantity of I/O in
-flight that suddenly becomes redundant, on process exit (for swap)
-or file truncation.  But is the upper level likely to want submit
-bios for all such pages?  And it only works so long as the bio has
-not yet gone out for I/O - therefore seems of limited usefulness?
+Am I right to be a little perturbed by blk_partition_remap()
+and the particular stage at which it's called?
 
-But might come pretty much for free if it were decided that DISCARD
-does need more complicated detect-if-writes-already-queued semantics.
+Does it imply that a _BARRIER on swap would have the effect of
+inserting a barrier into, say, root and home I/Os too, if swap
+and root and home were in separate partitions on the same storage?
+
+Whereas a filesystem would logically only want a barrier to span
+its own partition?  (I'm ignoring md/dm.)
 
 Hugh
 
