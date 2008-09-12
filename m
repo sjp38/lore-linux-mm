@@ -1,51 +1,85 @@
-Date: Fri, 12 Sep 2008 18:46:50 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC PATCH] discarding swap
-In-Reply-To: <1221236528.21323.22.camel@macbook.infradead.org>
-Message-ID: <Pine.LNX.4.64.0809121845040.17067@blonde.site>
-References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
- <20080910173518.GD20055@kernel.dk>  <Pine.LNX.4.64.0809102015230.16131@blonde.site>
-  <1221082117.13621.25.camel@macbook.infradead.org>
- <Pine.LNX.4.64.0809121154430.12812@blonde.site>  <1221228567.3919.35.camel@macbook.infradead.org>
-  <Pine.LNX.4.64.0809121631050.5142@blonde.site> <1221236528.21323.22.camel@macbook.infradead.org>
+Date: Fri, 12 Sep 2008 19:58:18 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Mark the correct zone as full when scanning zonelists
+Message-ID: <20080912185817.GA20056@csn.ul.ie>
+References: <20080911212550.GA18087@csn.ul.ie> <20080911144155.c70ef145.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080911144155.c70ef145.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Sep 2008, David Woodhouse wrote:
-> On Fri, 2008-09-12 at 16:52 +0100, Hugh Dickins wrote:
-> > On Fri, 12 Sep 2008, David Woodhouse wrote:
-> > > On Fri, 2008-09-12 at 13:10 +0100, Hugh Dickins wrote:
-> > > > So long as the I/O schedulers guarantee that a WRITE bio submitted
-> > > > to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
-> > > > DISCARD_NOBARRIER - ...
-> > > 
-> > > No, that's the point. the I/O schedulers _don't_ give you that guarantee
-> > > at all. They can treat DISCARD_NOBARRIER just like a write. That's all
-> > > it is, really -- a special kind of WRITE request without any data.
+On (11/09/08 14:41), Andrew Morton didst pronounce:
+> On Thu, 11 Sep 2008 22:25:51 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > The for_each_zone_zonelist() uses a struct zoneref *z cursor when scanning
+> > zonelists to keep track of where in the zonelist it is. The zoneref that
+> > is returned corresponds to the the next zone that is to be scanned, not
+> > the current one as it originally thought of as an opaque list.
 > > 
-> > Hmmm.  In that case I'll need to continue with DISCARD_BARRIER,
-> > unless/until I rejig swap allocation to wait for discard completion,
-> > which I've no great desire to do.
+> > When the page allocator is scanning a zonelist, it marks zones that it
+> > temporarily full zones to eliminate near-future scanning attempts.
+> 
+> That sentence needs help.
+> 
 
-I'll leave it to Jens to comment on your reply, but I'd like to go
-back and add in a further, orthogonal concern or misunderstanding here.
+I've posted a revised leader below.
 
-Am I right to be a little perturbed by blk_partition_remap()
-and the particular stage at which it's called?
+> > It uses
+> > the zoneref for the marking and consequently the incorrect zone gets marked
+> > full. This leads to a suitable zone being skipped in the mistaken belief
+> > it is full. This patch corrects the problem by changing zoneref to be the
+> > current zone being scanned instead of the next one.
+> 
+> Applicable to 2.6.26 as well, yes?
+> 
 
-Does it imply that a _BARRIER on swap would have the effect of
-inserting a barrier into, say, root and home I/Os too, if swap
-and root and home were in separate partitions on the same storage?
+Yes. I was going to get it right for mainline first before posting to
+stable.
 
-Whereas a filesystem would logically only want a barrier to span
-its own partition?  (I'm ignoring md/dm.)
+> 
+> Someone reported a bug a few weeks ago which I think this patch will fix,
+> yes?  I don't remember who that was, nor do I recall the precise details
+> of what the userspace-visible (mis)behaviour was.
+> 
+> Are you able to fill in the gaps here?  Put yourself in the position of
+> a poor little -stable maintainer scratching his head wondering ytf he
+> was sent this patch.
+> 
 
-Hugh
+I'm not aware of this bug but I'll go digging for it and see what I
+find. Thanks
+
+=== Begin revised changelog ===
+
+The iterator for_each_zone_zonelist() uses a struct zoneref *z cursor when
+scanning zonelists to keep track of where in the zonelist it is. The zoneref
+that is returned corresponds to the the next zone that is to be scanned,
+not the current one. It was intended to be treated as an opaque list.
+
+When the page allocator is scanning a zonelist, it marks elements in the
+zonelist corresponding to zones that are temporarily full. As the zonelist
+is being updated, it uses the cursor here;
+
+  if (NUMA_BUILD)
+        zlc_mark_zone_full(zonelist, z);
+
+This is intended to prevent rescanning in the near future but the zoneref
+cursor does not correspond to the zone that has been found to be full. This is
+an easy misunderstanding to make so this patch corrects the problem by changing
+zoneref cursor to be the current zone being scanned instead of the next one.
+
+This issue affects 2.6.26.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
