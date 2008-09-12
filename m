@@ -1,83 +1,70 @@
-Received: by yw-out-1718.google.com with SMTP id 5so368148ywm.26
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2008 13:10:58 -0700 (PDT)
-Message-ID: <48CACCCD.3020400@gmail.com>
-Date: Fri, 12 Sep 2008 23:10:53 +0300
-From: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
+Date: Fri, 12 Sep 2008 21:37:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] Mark the correct zone as full when scanning zonelists
+Message-ID: <20080912203752.GB30869@csn.ul.ie>
+References: <20080911212550.GA18087@csn.ul.ie> <20080911144155.c70ef145.akpm@linux-foundation.org> <20080912101007.ed56780f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: mmap/munmap latency on multithreaded apps, because pagefaults
- hold mmap_sem during disk read
-References: <48B1CC15.2040006@gmail.com> <1219643476.20732.1.camel@twins>	<48B25988.8040302@gmail.com> <1219656190.8515.7.camel@twins>	<48B28015.3040602@gmail.com> <1219658527.8515.16.camel@twins>	<48B287D8.1000000@gmail.com> <1219660582.8515.24.camel@twins>	<48B290E7.4070805@gmail.com> <1219664477.8515.54.camel@twins>	<20080825134801.GN1408@mit.edu> <87y72k9otw.fsf@basil.nowhere.org> <48C57898.1080304@gmail.com> <48CAC02B.8090003@gmail.com> <48CAC47F.8070206@google.com>
-In-Reply-To: <48CAC47F.8070206@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080912101007.ed56780f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Theodore Tso <tytso@mit.edu>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Linux Kernel <linux-kernel@vger.kernel.org>, "Thomas Gleixner mingo@redhat.com" <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On 2008-09-12 22:35, Mike Waychison wrote:
-> Torok Edwin wrote:
->> On 2008-09-08 22:10, Torok Edwin wrote:
->>> [snip]
->>> There is however a problem with mmap [mmap with N threads is as slow as
->>> mmap with 1 thread, i.e. it is sequential :(], pagefaults and disk I/O,
->>> I think I am hitting the problem described in this thread (2 years
->>> ago!)
->>> http://lwn.net/Articles/200215/
->>> http://lkml.org/lkml/2006/9/19/260
->>>
->>> It looks like such a patch is still not part of 2.6.27, what
->>> happened to it?
->>> I will see if that patch applies to 2.6.27, and will rerun my test with
->>> that patch applied too.
->>>   
->>
->> The patch doesn't apply to 2.6.27-rc6, I tried manually applying the
->> patch.
->> There have been many changes since 2.6.18 (like replacing find_get_page
->> with find_lock_page, filemap returning VM_FAULT codes, etc.).
->> I have probably done something wrong, because the resulting kernel won't
->> boot: I  get abnormal exits and random sigbus during boot.
->>
->> Can you please help porting the patch to 2.6.27-rc6? I have attached my
->> 2 attempts at the end of this mail.
->
-> I actually have to forward port this and a bunch of other mm speed-ups
-> in the coming two weeks, though they'll be ports from 2.6.18 to
-> 2.6.26.  I'll be sending them out to linux-mm once I've done so and
-> completed some testing.
->
+On (12/09/08 10:10), KAMEZAWA Hiroyuki didst pronounce:
+> On Thu, 11 Sep 2008 14:41:55 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Thu, 11 Sep 2008 22:25:51 +0100
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > 
+> > > The for_each_zone_zonelist() uses a struct zoneref *z cursor when scanning
+> > > zonelists to keep track of where in the zonelist it is. The zoneref that
+> > > is returned corresponds to the the next zone that is to be scanned, not
+> > > the current one as it originally thought of as an opaque list.
+> > > 
+> > > When the page allocator is scanning a zonelist, it marks zones that it
+> > > temporarily full zones to eliminate near-future scanning attempts.
+> > 
+> > That sentence needs help.
+> > 
+> Hmm, should we rename
+> 
+>  next_zone_zonelist() => get_appropriate_zone_from_list()
+> 
+> or some better name ?
+> 
 
+Maybe as a separate patch, but to be honest the name still makes sense
+to me but I'm biased.
 
-That would be great, thanks!
+> > > It uses
+> > > the zoneref for the marking and consequently the incorrect zone gets marked
+> > > full. This leads to a suitable zone being skipped in the mistaken belief
+> > > it is full. This patch corrects the problem by changing zoneref to be the
+> > > current zone being scanned instead of the next one.
+> > 
+> > Applicable to 2.6.26 as well, yes?
+> > 
+> Maybe yes. But it's better to show where this patch really fixes.
+> Is this a fix for misunderstanding usage of zoneref in
+> mm/page_alloc.c::get_page_from_freelist() ?
+> 
+> == here ?==
+>   if (NUMA_BUILD)
+> 	zlc_mark_zone_full(zonelist, z);
+> 
 
->>
->> Also it looks like the original patch just releases the mmap_sem if
->> there is lock contention on the page, but keeps mmap_sem during read?
->> I would like mmap_sem be released during disk I/O too.
->
-> The 'lock'ing of the page is the part that waits for the read to
-> finish, and is the part that is contentious.
+I spelled this out a bit better hopefully in the updated changelog.
 
-Didn't know that, thanks for explaining.
+Thanks
 
->
->>
->> I also tried changing i_mmap_lock into a semaphore, however I that won't
->> work since some users of i_mmap_lock can't sleep.
->> Taking the i_mmap_lock spinlock in filemap fault is also not possible,
->> since we would sleep while holding a spinlock.
->
-> You shouldn't be seeing much contention on the i_mmap_lock, at least
-> not in the fault path (it's mostly just painful when you have a lot of
-> threads in direct reclaim and you have a large file mmaped).
-
-I was thinking of using i_mmap_lock as an alternative to holding
-mmap_sem, but it didn't seem like a good idea after all.
-
-Best regards,
---Edwin
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
