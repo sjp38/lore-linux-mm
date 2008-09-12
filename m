@@ -1,43 +1,42 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8CGFjMa029649
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 12:15:45 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8CGNMSh202046
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 10:23:22 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8CMNLkx009301
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2008 16:23:21 -0600
-Subject: Re: [RFC] [PATCH 8/9] memcg: remove page_cgroup pointer from memmap
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1221236354.17910.18.camel@nimitz>
-References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
-	 <48CA9500.5060309@linux.vnet.ibm.com>  <1221236354.17910.18.camel@nimitz>
-Content-Type: text/plain
-Date: Fri, 12 Sep 2008 09:23:13 -0700
-Message-Id: <1221236593.17910.21.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Sep 2008 17:50:39 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [RFC PATCH] discarding swap
+Message-ID: <20080912165038.GA12849@shareable.org>
+References: <Pine.LNX.4.64.0809092222110.25727@blonde.site> <20080910173518.GD20055@kernel.dk> <Pine.LNX.4.64.0809102015230.16131@blonde.site> <1221082117.13621.25.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121154430.12812@blonde.site> <1221228567.3919.35.camel@macbook.infradead.org> <Pine.LNX.4.64.0809121631050.5142@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0809121631050.5142@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, Dave Hansen <haveblue@us.ibm.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: David Woodhouse <dwmw2@infradead.org>, Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-09-12 at 09:19 -0700, Dave Hansen wrote:
-> On Fri, 2008-09-12 at 09:12 -0700, Balbir Singh wrote:
-> > 3. Integrate with sparsemem (last resort for performance), Dave Hansen suggested
-> > adding a mem_section member and using that.
+Hugh Dickins wrote:
+> > Does swap do that, when a page on the disk is deallocated and then used
+> > for something else?
 > 
-> I also suggested using the sparsemem *structure* without necessarily
-> using it for pfn_to_page() lookups.  That'll take some rework to
-> separate out SPARSEMEM_FOR_MEMMAP vs. CONFIG_SPARSE_STRUCTURE_FUN, but
-> it should be able to be prototyped pretty fast.
+> Yes, that's managed through the PageWriteback flag: there are various
+> places where we'd like to free up swap, but cannot do so because it's
+> still attached to a cached page with PageWriteback set; in which case
+> its freeing has to be left until vmscan.c finds PageWriteback cleared,
+> then removes page from swapcache and frees the swap.
 
-Heh, now that I think about it, you could also use vmemmap to do the
-same thing.
+Here's an idea which is prompted by DISCARD:
 
--- Dave
+One thing the request layer doesn't do is cancellations.
+But if it did:
+
+If you schedule some swap to be written, then later it is no longer
+required before the WRITE has completed (e.g. process exits), on a
+busy system would it be worth _cancelling_ the WRITE while it's still
+in the request queue?  This is quite similar to DISCARDing, but
+internal to the kernel.
+
+(Many userspace AIO interfaces do have cancellations, perhaps this is why).
+
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
