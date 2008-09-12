@@ -1,61 +1,47 @@
-Message-ID: <48CA748F.8020701@inria.fr>
-Date: Fri, 12 Sep 2008 15:54:23 +0200
-From: Brice Goglin <Brice.Goglin@inria.fr>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: make do_move_pages() complexity linear
-References: <48CA611A.8060706@inria.fr> <48CA727F.1050405@linux-foundation.org>
-In-Reply-To: <48CA727F.1050405@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH] discarding swap
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <Pine.LNX.4.64.0809121154430.12812@blonde.site>
+References: <Pine.LNX.4.64.0809092222110.25727@blonde.site>
+	 <20080910173518.GD20055@kernel.dk>
+	 <Pine.LNX.4.64.0809102015230.16131@blonde.site>
+	 <1221082117.13621.25.camel@macbook.infradead.org>
+	 <Pine.LNX.4.64.0809121154430.12812@blonde.site>
+Content-Type: text/plain
+Date: Fri, 12 Sep 2008 07:09:27 -0700
+Message-Id: <1221228567.3919.35.camel@macbook.infradead.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jens Axboe <jens.axboe@oracle.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Brice Goglin wrote:
->> Page migration is currently very slow because its overhead is quadratic
->> with the number of pages. This is caused by each single page migration
->> doing a linear lookup in the page array in new_page_node().
-> 
-> Page migration in general is not affected by this issue. This is specific to
-> the sys_move_pages() system call. The API was so far only used to migrate a
-> limited number of pages. For more one would use either the cpuset or the
-> sys_migrate_pages() APIs since these do not require an array that describes
-> how every single page needs to be moved.
-> 
->> Since pages are stored in the array order in the pagelist and do_move_pages
->> process this list in order, new_page_node() can increase the "pm" pointer
->> to the page array so that the next iteration will find the next page in
->> 0 or few lookup steps.
-> 
-> I agree. It would be good increase the speed of sys_move_pages().
-> 
-> However, note that your patch assumes that new_page_node() is called in
-> sequence for each of the pages in the page descriptor array.
+On Fri, 2008-09-12 at 13:10 +0100, Hugh Dickins wrote:
+> So long as the I/O schedulers guarantee that a WRITE bio submitted
+> to an area already covered by a DISCARD_NOBARRIER bio cannot pass that
+> DISCARD_NOBARRIER - ...
 
-No, it assumes that pages are stored in pagelist in order. But some of
-them can be missing compared to the page array.
+> That seems a reasonable guarantee to me, and perhaps it's trivially
+> obvious to those who know their I/O schedulers; but I don't, so I'd
+> like to hear such assurance given.
 
-> new_page_node() is skipped in the loop if
-> 
-> 1. The page is not present
-> 2. The page is reserved
-> 3. The page is already on the intended node
-> 4. The page is shared between processes.
-> 
-> If any of those cases happen then your patch will result in the association of
-> page descriptors with the wrong pages for the remaining pages in the array.
+No, that's the point. the I/O schedulers _don't_ give you that guarantee
+at all. They can treat DISCARD_NOBARRIER just like a write. That's all
+it is, really -- a special kind of WRITE request without any data.
 
-I don't think so. If this happens, the while loop will skip those pages.
-(while in the regular case, the while loop does 0 iterations).
-The while loop is still here to make sure we are processing the right pm
-entry. What the patch changes is only that we don't uselessly look at
-the already-processed beginning of pm.
+But -- and this came as a bit of a shock to me -- they don't guarantee
+that writes don't cross writes on their queue. If you issue two WRITE
+requests to the same sector, you have to make sure for _yourself_ that
+there is some kind of barrier between them to keep them in the right
+order.
 
-thanks,
-Brice
+Does swap do that, when a page on the disk is deallocated and then used
+for something else?
+
+-- 
+David Woodhouse                            Open Source Technology Centre
+David.Woodhouse@intel.com                              Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
