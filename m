@@ -1,62 +1,54 @@
-Date: Tue, 16 Sep 2008 00:20:57 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] Mark the correct zone as full when scanning zonelists
-Message-ID: <20080915232056.GA23031@csn.ul.ie>
-References: <20080911212550.GA18087@csn.ul.ie> <20080911144155.c70ef145.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080911144155.c70ef145.akpm@linux-foundation.org>
+Date: Tue, 16 Sep 2008 21:13:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: memcg: lazy_lru (was Re: [RFC] [PATCH 8/9] memcg: remove
+ page_cgroup pointer from memmap)
+Message-Id: <20080916211355.277b625d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48CA9500.5060309@linux.vnet.ibm.com>
+References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
+	<48CA9500.5060309@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, apw@shadowen.org
+To: balbir@linux.vnet.ibm.com
+Cc: "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, Dave Hansen <haveblue@us.ibm.com>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On (11/09/08 14:41), Andrew Morton didst pronounce:
-> On Thu, 11 Sep 2008 22:25:51 +0100
-> Mel Gorman <mel@csn.ul.ie> wrote:
+On Fri, 12 Sep 2008 09:12:48 -0700
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> Kamezawa,
 > 
-> > The for_each_zone_zonelist() uses a struct zoneref *z cursor when scanning
-> > zonelists to keep track of where in the zonelist it is. The zoneref that
-> > is returned corresponds to the the next zone that is to be scanned, not
-> > the current one as it originally thought of as an opaque list.
-> > 
-> > When the page allocator is scanning a zonelist, it marks zones that it
-> > temporarily full zones to eliminate near-future scanning attempts.
+> I feel we can try the following approaches
 > 
-> That sentence needs help.
+> 1. Try per-node per-zone radix tree with dynamic allocation
+> 2. Try the approach you have
+> 3. Integrate with sparsemem (last resort for performance), Dave Hansen suggested
+> adding a mem_section member and using that.
 > 
-> > It uses
-> > the zoneref for the marking and consequently the incorrect zone gets marked
-> > full. This leads to a suitable zone being skipped in the mistaken belief
-> > it is full. This patch corrects the problem by changing zoneref to be the
-> > current zone being scanned instead of the next one.
-> 
-> Applicable to 2.6.26 as well, yes?
-> 
-> 
-> Someone reported a bug a few weeks ago which I think this patch will fix,
-> yes?  I don't remember who that was, nor do I recall the precise details
-> of what the userspace-visible (mis)behaviour was.
-> 
-> Are you able to fill in the gaps here? 
-
-I searched through the archives and couldn't find a bug report that this
-patch may be the fix to. However, I understand that the initial leader
-could have been a lot better.
-
-> Put yourself in the position of
-> a poor little -stable maintainer scratching his head wondering ytf he
-> was sent this patch.
-> 
-> Thanks.
+> I am going to try #1 today and see what the performance looks like
 > 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+I'm now writing *lazy* lru handing via per-cpu struct like pagevec.
+It seems works well (but not so fast as expected on 2cpu box....)
+I need more tests but it's not so bad to share the logic at this stage.
+
+I added 3 patches on to this set. (my old set need bug fix.)
+==
+[1] patches/page_count.patch    ....get_page()/put_page() via page_cgroup.
+[2] patches/lazy_lru_free.patch ....free page_cgroup from LRU in lazy way.
+[3] patches/lazy_lru_add.patch  ....add page_cgroup to LRU in lazy way.
+
+3 patches will follow this mail.
+
+Because of speculative radix-tree lookup, page_count patch seems a bit
+difficult. 
+
+Anyway, I'll make this patch readable and post again.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
