@@ -1,7 +1,7 @@
-Date: Tue, 16 Sep 2008 21:19:34 +0900
+Date: Tue, 16 Sep 2008 21:21:03 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 11/9] lazy lru free vector for memcg
-Message-Id: <20080916211934.25c36d20.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC] [PATCH 12/9] lazy lru add vie per cpu vector for memcg.
+Message-Id: <20080916212103.200934bb.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080916211355.277b625d.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080911200855.94d33d3b.kamezawa.hiroyu@jp.fujitsu.com>
 	<20080911202249.df6026ae.kamezawa.hiroyu@jp.fujitsu.com>
@@ -16,246 +16,226 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: balbir@linux.vnet.ibm.com, "xemul@openvz.org" <xemul@openvz.org>, "hugh@veritas.com" <hugh@veritas.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, Dave Hansen <haveblue@us.ibm.com>, "nickpiggin@yahoo.com.au" <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Free page_cgroup from its LRU in batched manner.
+Delaying add_to_lru() and do it by batch.
 
-When uncharge() is called, page is pushed ontto per-cpu vector and
-removed from LRU. This is depends on increment-page-count-via-page-cgroup
-patch. Because page_cgroup has refcnt to the page, we don't have to be
-afraid that the page is reused while it's on vector.
+For delaying, PCG_LRU flag is added. If PCG_LRU is set, page is on
+LRU and unchage() have to call remove from lru. If not, the page is
+not added to LRU.
+
+For avoid race, all flags are modified under lock_page_cgroup().
+
+Lazy-add logic reuses Lazy-free's one.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- mm/memcontrol.c |  163 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 155 insertions(+), 8 deletions(-)
+ include/linux/page_cgroup.h |    4 +
+ mm/memcontrol.c             |   91 ++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 84 insertions(+), 11 deletions(-)
 
+Index: mmtom-2.6.27-rc5+/include/linux/page_cgroup.h
+===================================================================
+--- mmtom-2.6.27-rc5+.orig/include/linux/page_cgroup.h
++++ mmtom-2.6.27-rc5+/include/linux/page_cgroup.h
+@@ -23,6 +23,7 @@ enum {
+ 	PCG_LOCK,  /* page cgroup is locked */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
++	PCG_LRU, /* this is on LRU */
+ 	/* flags for LRU placement */
+ 	PCG_ACTIVE, /* page is active in this cgroup */
+ 	PCG_FILE, /* page is file system backed */
+@@ -57,6 +58,9 @@ TESTPCGFLAG(Used, USED)
+ __SETPCGFLAG(Used, USED)
+ __CLEARPCGFLAG(Used, USED)
+ 
++TESTPCGFLAG(LRU, LRU)
++SETPCGFLAG(LRU, LRU)
++
+ /* LRU management flags (from global-lru definition) */
+ TESTPCGFLAG(File, FILE)
+ SETPCGFLAG(File, FILE)
 Index: mmtom-2.6.27-rc5+/mm/memcontrol.c
 ===================================================================
 --- mmtom-2.6.27-rc5+.orig/mm/memcontrol.c
 +++ mmtom-2.6.27-rc5+/mm/memcontrol.c
-@@ -35,6 +35,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mm_inline.h>
- #include <linux/page_cgroup.h>
-+#include <linux/cpu.h>
+@@ -348,7 +348,7 @@ void mem_cgroup_move_lists(struct page *
+ 	if (!trylock_page_cgroup(pc))
+ 		return;
  
- #include <asm/uaccess.h>
+-	if (PageCgroupUsed(pc)) {
++	if (PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
+ 		mem = pc->mem_cgroup;
+ 		mz = page_cgroup_zoneinfo(pc);
+ 		spin_lock_irqsave(&mz->lru_lock, flags);
+@@ -508,6 +508,9 @@ int mem_cgroup_move_account(struct page 
+ 	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
+ 	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
  
-@@ -539,6 +540,120 @@ out:
- 	return ret;
++	if (!PageCgroupLRU(pc))
++		return ret;
++
+ 	if (res_counter_charge(&to->res, PAGE_SIZE)) {
+ 		/* Now, we assume no_limit...no failure here. */
+ 		return ret;
+@@ -550,6 +553,7 @@ struct memcg_percpu_vec {
+ 	struct page_cgroup *vec[MEMCG_PCPVEC_SIZE];
+ };
+ DEFINE_PER_CPU(struct memcg_percpu_vec, memcg_free_vec);
++DEFINE_PER_CPU(struct memcg_percpu_vec, memcg_add_vec);
+ 
+ static void
+ __release_page_cgroup(struct memcg_percpu_vec *mpv)
+@@ -580,6 +584,40 @@ __release_page_cgroup(struct memcg_percp
  }
  
-+
-+#define MEMCG_PCPVEC_SIZE	(8)
-+struct memcg_percpu_vec {
-+	int nr;
-+	int limit;
-+	struct mem_cgroup 	   *hot_memcg;
-+	struct mem_cgroup_per_zone *hot_mz;
-+	struct page_cgroup *vec[MEMCG_PCPVEC_SIZE];
-+};
-+DEFINE_PER_CPU(struct memcg_percpu_vec, memcg_free_vec);
-+
-+static void
-+__release_page_cgroup(struct memcg_percpu_vec *mpv)
+ static void
++__use_page_cgroup(struct memcg_percpu_vec *mpv)
 +{
 +	unsigned long flags;
 +	struct mem_cgroup_per_zone *mz;
 +	struct mem_cgroup *owner;
 +	struct page_cgroup *pc;
 +	struct page *freed[MEMCG_PCPVEC_SIZE];
-+	int i, nr;
++	int i, nr, freed_num;
 +
 +	mz = mpv->hot_mz;
 +	owner = mpv->hot_memcg;
 +	spin_lock_irqsave(&mz->lru_lock, flags);
 +	nr = mpv->nr;
++	mpv->nr = 0;
++	freed_num = 0;
 +	for (i = nr - 1; i >= 0; i--) {
 +		pc = mpv->vec[i];
-+		VM_BUG_ON(PageCgroupUsed(pc));
-+		__mem_cgroup_remove_list(mz, pc);
-+		css_put(&owner->css);
-+		freed[i] = pc->page;
-+		pc->mem_cgroup = NULL;
++		lock_page_cgroup(pc);
++		if (likely(PageCgroupUsed(pc))) {
++			__mem_cgroup_add_list(mz, pc);
++			SetPageCgroupLRU(pc);
++		} else {
++			css_put(&owner->css);
++			freed[freed_num++] = pc->page;
++			pc->mem_cgroup = NULL;
++		}
++		unlock_page_cgroup(pc);
 +	}
-+	mpv->nr = 0;
 +	spin_unlock_irqrestore(&mz->lru_lock, flags);
-+	for (i = nr - 1; i >= 0; i--)
-+		put_page(freed[i]);
++	while (freed_num--)
++		put_page(freed[freed_num]);
 +}
 +
 +static void
-+release_page_cgroup(struct mem_cgroup_per_zone *mz,struct page_cgroup *pc)
+ release_page_cgroup(struct mem_cgroup_per_zone *mz,struct page_cgroup *pc)
+ {
+ 	struct memcg_percpu_vec *mpv;
+@@ -597,11 +635,30 @@ release_page_cgroup(struct mem_cgroup_pe
+ 	put_cpu_var(memcg_free_vec);
+ }
+ 
++static void
++use_page_cgroup(struct mem_cgroup_per_zone *mz, struct page_cgroup *pc)
 +{
 +	struct memcg_percpu_vec *mpv;
-+
-+	mpv = &get_cpu_var(memcg_free_vec);
++	mpv = &get_cpu_var(memcg_add_vec);
 +	if (mpv->hot_mz != mz) {
 +		if (mpv->nr > 0)
-+			__release_page_cgroup(mpv);
++			__use_page_cgroup(mpv);
 +		mpv->hot_mz = mz;
 +		mpv->hot_memcg = pc->mem_cgroup;
 +	}
 +	mpv->vec[mpv->nr++] = pc;
 +	if (mpv->nr >= mpv->limit)
-+		__release_page_cgroup(mpv);
-+	put_cpu_var(memcg_free_vec);
++		__use_page_cgroup(mpv);
++	put_cpu_var(memcg_add_vec);
 +}
 +
-+static void page_cgroup_start_cache_cpu(int cpu)
-+{
-+	struct memcg_percpu_vec *mpv;
-+	mpv = &per_cpu(memcg_free_vec, cpu);
+ static void page_cgroup_start_cache_cpu(int cpu)
+ {
+ 	struct memcg_percpu_vec *mpv;
+ 	mpv = &per_cpu(memcg_free_vec, cpu);
+ 	mpv->limit = MEMCG_PCPVEC_SIZE;
++	mpv = &per_cpu(memcg_add_vec, cpu);
 +	mpv->limit = MEMCG_PCPVEC_SIZE;
-+}
-+
-+#ifdef CONFIG_HOTPLUG_CPU
-+static void page_cgroup_stop_cache_cpu(int cpu)
-+{
-+	struct memcg_percpu_vec *mpv;
-+	mpv = &per_cpu(memcg_free_vec, cpu);
+ }
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+@@ -610,6 +667,8 @@ static void page_cgroup_stop_cache_cpu(i
+ 	struct memcg_percpu_vec *mpv;
+ 	mpv = &per_cpu(memcg_free_vec, cpu);
+ 	mpv->limit = 0;
++	mpv = &per_cpu(memcg_add_vec, cpu);
 +	mpv->limit = 0;
-+}
-+#endif
-+
-+
-+/*
-+ * Used when freeing memory resource controller to remove all
-+ * page_cgroup (in obsolete list).
-+ */
-+static DEFINE_MUTEX(memcg_force_drain_mutex);
-+
-+static void drain_page_cgroup_local(struct work_struct *work)
-+{
-+	struct memcg_percpu_vec *mpv;
-+	mpv = &get_cpu_var(memcg_free_vec);
-+	__release_page_cgroup(mpv);
+ }
+ #endif
+ 
+@@ -623,6 +682,9 @@ static DEFINE_MUTEX(memcg_force_drain_mu
+ static void drain_page_cgroup_local(struct work_struct *work)
+ {
+ 	struct memcg_percpu_vec *mpv;
++	mpv = &get_cpu_var(memcg_add_vec);
++	__use_page_cgroup(mpv);
 +	put_cpu_var(mpv);
-+}
-+
-+static void drain_page_cgroup_cpu(int cpu)
-+{
-+	int local_cpu;
-+	struct work_struct work;
-+
-+	local_cpu = get_cpu();
-+	if (local_cpu == cpu) {
-+		drain_page_cgroup_local(NULL);
-+		put_cpu();
-+		return;
-+	}
-+	put_cpu();
-+
-+	INIT_WORK(&work, drain_page_cgroup_local);
-+	schedule_work_on(cpu, &work);
-+	flush_work(&work);
-+}
-+
-+static void drain_page_cgroup_all(void)
-+{
-+	mutex_lock(&memcg_force_drain_mutex);
-+	schedule_on_each_cpu(drain_page_cgroup_local);
-+	mutex_unlock(&memcg_force_drain_mutex);
-+}
-+
-+
- /*
-  * Charge the memory controller for page usage.
-  * Return
-@@ -715,7 +830,6 @@ __mem_cgroup_uncharge_common(struct page
+ 	mpv = &get_cpu_var(memcg_free_vec);
+ 	__release_page_cgroup(mpv);
+ 	put_cpu_var(mpv);
+@@ -668,7 +730,6 @@ static int mem_cgroup_charge_common(stru
+ 	struct page_cgroup *pc;
+ 	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 	struct mem_cgroup_per_zone *mz;
+-	unsigned long flags;
+ 
+ 	/* avoid case in boot sequence */
+ 	if (unlikely(PageReserved(page)))
+@@ -753,9 +814,7 @@ static int mem_cgroup_charge_common(stru
+ 	unlock_page_cgroup(pc);
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+-	spin_lock_irqsave(&mz->lru_lock, flags);
+-	__mem_cgroup_add_list(mz, pc);
+-	spin_unlock_irqrestore(&mz->lru_lock, flags);
++	use_page_cgroup(mz, pc);
+ 	preempt_enable();
+ 
+ done:
+@@ -830,23 +889,33 @@ __mem_cgroup_uncharge_common(struct page
  	struct mem_cgroup *mem;
  	struct mem_cgroup_per_zone *mz;
  	unsigned long pfn = page_to_pfn(page);
--	unsigned long flags;
++	int need_to_release;
  
  	if (!under_mem_cgroup(page))
  		return;
-@@ -727,17 +841,12 @@ __mem_cgroup_uncharge_common(struct page
+ 	pc = lookup_page_cgroup(pfn);
+-	if (unlikely(!pc || !PageCgroupUsed(pc)))
++	if (unlikely(!pc))
+ 		return;
+-
+ 	preempt_disable();
++
  	lock_page_cgroup(pc);
++
++	if (unlikely(!PageCgroupUsed(pc))) {
++		unlock_page_cgroup(pc);
++		preempt_enable();
++		return;
++	}
++
++	need_to_release = PageCgroupLRU(pc);
++	mem = pc->mem_cgroup;
  	__ClearPageCgroupUsed(pc);
  	unlock_page_cgroup(pc);
-+	preempt_enable();
+ 	preempt_enable();
  
- 	mem = pc->mem_cgroup;
- 	mz = page_cgroup_zoneinfo(pc);
- 
--	spin_lock_irqsave(&mz->lru_lock, flags);
--	__mem_cgroup_remove_list(mz, pc);
--	spin_unlock_irqrestore(&mz->lru_lock, flags);
--	put_page(pc->page);
--	pc->mem_cgroup = NULL;
--	css_put(&mem->css);
--	preempt_enable();
-+	release_page_cgroup(mz, pc);
+-	mem = pc->mem_cgroup;
+-	mz = page_cgroup_zoneinfo(pc);
+-
+-	release_page_cgroup(mz, pc);
++	if (likely(need_to_release)) {
++		mz = page_cgroup_zoneinfo(pc);
++		release_page_cgroup(mz, pc);
++	}
  	res_counter_uncharge(&mem->res, PAGE_SIZE);
  
  	return;
-@@ -938,6 +1047,7 @@ static int mem_cgroup_force_empty(struct
- 	 * So, we have to do loop here until all lists are empty.
- 	 */
- 	while (mem->res.usage > 0) {
-+		drain_page_cgroup_all();
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
- 		for_each_node_state(node, N_POSSIBLE)
-@@ -950,6 +1060,7 @@ static int mem_cgroup_force_empty(struct
- 			}
- 	}
- 	ret = 0;
-+	drain_page_cgroup_all();
- out:
- 	css_put(&mem->css);
- 	return ret;
-@@ -1154,6 +1265,38 @@ static void mem_cgroup_free(struct mem_c
- 		vfree(mem);
- }
- 
-+static void mem_cgroup_init_pcp(int cpu)
-+{
-+	page_cgroup_start_cache_cpu(cpu);
-+}
-+
-+static int cpu_memcgroup_callback(struct notifier_block *nb,
-+			unsigned long action, void *hcpu)
-+{
-+	int cpu = (long)hcpu;
-+
-+	switch(action) {
-+	case CPU_UP_PREPARE:
-+	case CPU_UP_PREPARE_FROZEN:
-+		mem_cgroup_init_pcp(cpu);
-+		break;
-+#ifdef CONFIG_HOTPLUG_CPU
-+	case CPU_DOWN_PREPARE:
-+	case CPU_DOWN_PREPARE_FROZEN:
-+		page_cgroup_stop_cache_cpu(cpu);
-+		drain_page_cgroup_cpu(cpu);
-+		break;
-+#endif
-+	default:
-+		break;
-+	}
-+	return NOTIFY_OK;
-+}
-+
-+static struct notifier_block __refdata memcgroup_nb =
-+{
-+	.notifier_call = cpu_memcgroup_callback,
-+};
- 
- static struct cgroup_subsys_state *
- mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
-@@ -1164,6 +1307,10 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (unlikely((cont->parent) == NULL)) {
- 		page_cgroup_init();
- 		mem = &init_mem_cgroup;
-+		cpu_memcgroup_callback(&memcgroup_nb,
-+					(unsigned long)CPU_UP_PREPARE,
-+					(void *)(long)smp_processor_id());
-+		register_hotcpu_notifier(&memcgroup_nb);
- 	} else {
- 		mem = mem_cgroup_alloc();
- 		if (!mem)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
