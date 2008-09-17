@@ -1,43 +1,34 @@
-Message-ID: <48D17AEC.3070804@goop.org>
-Date: Wed, 17 Sep 2008 14:47:24 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Message-ID: <48D17E75.80807@redhat.com>
+Date: Wed, 17 Sep 2008 15:02:29 -0700
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <20080917142805.41e2b07e@bree.surriel.com>
-In-Reply-To: <20080917142805.41e2b07e@bree.surriel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <48D142B2.3040607@goop.org>
+In-Reply-To: <48D142B2.3040607@goop.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> On Wed, 17 Sep 2008 10:47:30 -0700
-> Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+Jeremy Fitzhardinge wrote:
+> Minor faults are easier; if the page already exists in memory, we should
+> just create mappings to it.  If neighbouring pages are also already
+> present, then we can can cheaply create mappings for them too.
 >
 >   
->> Minor faults are easier; if the page already exists in memory, we should
->> just create mappings to it.  If neighbouring pages are also already
->> present, then we can can cheaply create mappings for them too.
->>     
->
-> This is especially true for mmaped files, where we do not have to
-> allocate anything to create the mapping.
->   
 
-Yes, that was the case I particularly had in mind.
+One problem is the accessed bit.  If it's unset, the shadow code cannot 
+make the pte present (since it has to trap in order to set the accessed 
+bit); if it's set, we're lying to the vm.
 
-> Populating multiple PTEs at a time is questionable for anonymous
-> memory, where we'd have to allocate extra pages.
->   
+This doesn't affect Xen, only kvm.
 
-It might be worthwhile if the memory access pattern to anonymous memory
-is linear.  I agree that speculatively allocating pages on a random
-access region would be a bad idea.
-
-    J
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
