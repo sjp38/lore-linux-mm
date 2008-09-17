@@ -1,62 +1,103 @@
-Message-ID: <48D18919.9060808@redhat.com>
-Date: Wed, 17 Sep 2008 15:47:53 -0700
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org>
-In-Reply-To: <48D1851B.70703@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Wed, 17 Sep 2008 15:51:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] memcg: fix handling of shmem migration(v2)
+Message-Id: <20080917155112.eefd2f8a.akpm@linux-foundation.org>
+In-Reply-To: <20080917165544.3873bbb2.nishimura@mxp.nes.nec.co.jp>
+References: <20080917133149.b012a1c2.nishimura@mxp.nes.nec.co.jp>
+	<20080917144659.2e363edc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917145003.fb4d0b95.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917151951.9a181e7d.nishimura@mxp.nes.nec.co.jp>
+	<20080917153826.8efbdc4b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917154511.683691d1.nishimura@mxp.nes.nec.co.jp>
+	<20080917165544.3873bbb2.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
->> One problem is the accessed bit.  If it's unset, the shadow code
->> cannot make the pte present (since it has to trap in order to set the
->> accessed bit); if it's set, we're lying to the vm.
->>     
->
-> So even if the guest pte were present but non-accessed, the shadow pte
-> would have to be non-present and you'd end up taking the fault anyway?
->
->   
+On Wed, 17 Sep 2008 16:55:44 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-Yes.
+> Before this patch, if migrating shmem/tmpfs pages, newpage would be
+> charged with PAGE_CGROUP_FLAG_FILE set, while oldpage has been charged
+> without the flag.
+> 
+> The problem here is mem_cgroup_move_lists doesn't clear(or set)
+> the PAGE_CGROUP_FLAG_FILE flag, so pc->flags of the newpage
+> remains PAGE_CGROUP_FLAG_FILE set even when the pc is moved to
+> another lru(anon) by mem_cgroup_move_lists. And this leads to
+> incorrect MEM_CGROUP_ZSTAT.
+> (In my test, I see an underflow of MEM_CGROUP_ZSTAT(active_file).
+> As a result, mem_cgroup_calc_reclaim returns very huge number and
+> causes soft lockup on page reclaim.)
+> 
+> I'm not sure if mem_cgroup_move_lists should handle PAGE_CGROUP_FLAG_FILE
+> or not(I suppose it should be used to move between active <-> inactive,
+> not anon <-> file), I added MEM_CGROUP_CHARGE_TYPE_SHMEM for precharge
+> at shmem's page migration.
+> 
+> 
+> ChangeLog: v1->v2
+> - instead of modifying migrate.c, modify memcontrol.c only.
+> - add MEM_CGROUP_CHARGE_TYPE_SHMEM.
+> 
+> 
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  mm/memcontrol.c |   13 ++++++++++---
+>  1 files changed, 10 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2979d22..ef8812d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -179,6 +179,7 @@ enum charge_type {
+>  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+>  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+>  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+> +	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+>  };
+>  
+>  /*
+> @@ -579,8 +580,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+>  			pc->flags |= PAGE_CGROUP_FLAG_FILE;
+>  		else
+>  			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
+> -	} else
+> +	} else if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+>  		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+> +	else /* MEM_CGROUP_CHARGE_TYPE_SHMEM */
+> +		pc->flags = PAGE_CGROUP_FLAG_CACHE | PAGE_CGROUP_FLAG_ACTIVE;
+>  
+>  	lock_page_cgroup(page);
+>  	if (unlikely(page_get_page_cgroup(page))) {
+> @@ -739,8 +742,12 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
+>  	if (pc) {
+>  		mem = pc->mem_cgroup;
+>  		css_get(&mem->css);
+> -		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
+> -			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> +		if (pc->flags & PAGE_CGROUP_FLAG_CACHE) {
+> +			if (page_is_file_cache(page))
+> +				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> +			else
+> +				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> +		}
+>  	}
+>  	unlock_page_cgroup(page);
+>  	if (mem) {
 
-> Hm, that does undermine the benefits.  Does that mean that when the vm
-> clears the access bit, you always have to make the shadow non-present? 
-> I guess so.  And similarly with dirty and writable shadow.
->
->   
+I queued this as a fix against
+vmscan-split-lru-lists-into-anon-file-sets.patch.  Was that appropriate?
 
-Yes.
+If the bug you're fixing here is also present in mainline then I'll
+need to ask for a tested patch against mainline, please.
 
-> The counter-argument is that something has gone wrong if we start
-> populating ptes that aren't going to be used in the near future anyway -
-> if they're never used then any effort taken to populate them is wasted. 
-> Therefore, setting accessed on them from the outset isn't terribly bad.
->
->   
 
-We don't know whether the page will be used or not.  Keeping the 
-accessed bit clear allows the vm to reclaim it early, and in preference 
-to the pages it actually used.
-
-We could work around it by having a hypercall to read and clear accessed 
-bits.  If we know the guest will only do that via the hypercall, we can 
-keep the accessed (and dirty) bits in the host, and not update them in 
-the guest at all.  Given good batching, there's potential for a large 
-win there.
-
-(If the host throws away a shadow page, it could sync the bits back into 
-the guest pte for safekeeping)
-
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
