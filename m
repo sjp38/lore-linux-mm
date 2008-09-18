@@ -1,7 +1,7 @@
-Date: Thu, 18 Sep 2008 11:03:53 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Date: Thu, 18 Sep 2008 11:38:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH -mm] memcg: fix handling of shmem migration(v2)
-Message-Id: <20080918110353.2c8d0602.nishimura@mxp.nes.nec.co.jp>
+Message-Id: <20080918113851.16082bb7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20080917155112.eefd2f8a.akpm@linux-foundation.org>
 References: <20080917133149.b012a1c2.nishimura@mxp.nes.nec.co.jp>
 	<20080917144659.2e363edc.kamezawa.hiroyu@jp.fujitsu.com>
@@ -17,10 +17,12 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Sep 2008 15:51:12 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed, 17 Sep 2008 15:51:12 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
 > On Wed, 17 Sep 2008 16:55:44 +0900
 > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
@@ -96,18 +98,14 @@ On Wed, 17 Sep 2008 15:51:12 -0700, Andrew Morton <akpm@linux-foundation.org> wr
 > I queued this as a fix against
 > vmscan-split-lru-lists-into-anon-file-sets.patch.  Was that appropriate?
 > 
-Yes, thanks.
-
 > If the bug you're fixing here is also present in mainline then I'll
 > need to ask for a tested patch against mainline, please.
 > 
-I don't think this bug exist in mainline, where memcg have
-only two ZSTAT(active/inactive) and mem_cgroup_move_lists can handle
-them properly.
-
+I think this bug depends on split-lru patch set.
+Mayne not in mainline yet...?
 
 Thanks,
-Daisuke Nishimura.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
