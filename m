@@ -1,58 +1,48 @@
-Message-ID: <48D2E65A.6020004@redhat.com>
-Date: Thu, 18 Sep 2008 16:38:02 -0700
-From: Avi Kivity <avi@redhat.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8INt9c6004531
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 09:55:09 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8INtgqB3325974
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 09:55:42 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8INtfg8015375
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 09:55:42 +1000
+Message-ID: <48D2EA6B.9090504@linux.vnet.ibm.com>
+Date: Thu, 18 Sep 2008 16:55:23 -0700
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com> <48D2D3B2.10503@goop.org>
-In-Reply-To: <48D2D3B2.10503@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and control
+ (v4)
+References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain> <20080514130951.24440.73671.sendpatchset@localhost.localdomain> <20080918135430.e2979ab1.akpm@linux-foundation.org>
+In-Reply-To: <20080918135430.e2979ab1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Avi Kivity wrote:
->   
->>> Do you need to set the A bit synchronously?  
->>>       
->> Yes, of course (if no guest cooperation).
->>     
+Andrew Morton wrote:
+> On Wed, 14 May 2008 18:39:51 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+>> This patch adds support for accounting and control of virtual address space
+>> limits.
 >
-> Is the A bit architecturally guaranteed to be synchronously set?  
 
-I believe so.  The cpu won't cache tlb entries with the A bit clear 
-(much like the shadow code), and will rmw the pte on first access.
+[snip]
 
-> Can
-> speculative accesses set it?  
+> 
+> could you plese take a look at today's mmotm and see what needs to be
+> done to salvage it?  Most of the code you were altering got moved into
+> arch/x86/kernel/ds.c and got changed rather a lot.
 
-Yes, but don't abuse this.
-
->> If we add an async mode for guests that can cope, maybe this is
->> workable.  I guess this is what you're suggesting.
->>
->>     
->
-> Yes.  At worst Linux would underestimate the process RSS a bit
-> (depending on how many unsynchronized ptes you leave lying around).  I
->   
-
-Not the RSS (that's pte.present pages) but the working set (aka active 
-list).
-
-> bet there's an appropriate pvop hook you could use to force
-> synchronization just before the kernel actually inspects the bits
-> (leaving lazy mode sounds good).
->   
-
-It would have to be a new lazy mode, not the existing one, I think.
+I'll take a look tonight and see what needs to be done
 
 -- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
