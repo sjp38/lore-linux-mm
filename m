@@ -1,39 +1,34 @@
-Message-ID: <48D2D3B2.10503@goop.org>
-Date: Thu, 18 Sep 2008 15:18:26 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
+Date: Fri, 19 Sep 2008 07:21:34 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com>
-In-Reply-To: <48D2B970.7040903@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <48D2AE6C.7060507@linux-foundation.org>
+References: <48D2A392.6010308@goop.org> <48D2AE6C.7060507@linux-foundation.org>
+Message-Id: <20080920191928.50ED.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Jeremy Fitzhardinge <jeremy@goop.org>, Chris Snook <csnook@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Martin J. Bligh" <mbligh@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity wrote:
->> Do you need to set the A bit synchronously?  
->
-> Yes, of course (if no guest cooperation).
+> Jeremy Fitzhardinge wrote:
+> > Thanks, that was exactly what I was hoping to see.  I didn't see any
+> > definitive statements against the patch set, other than a concern that
+> > it could make things worse.  Was the upshot that no consensus was
+> > reached about how to detect when its beneficial to preallocate anonymous
+> > pages?
+> 
+> There were multiple discussions on the subject. The consensus was that it was
+> difficult to generalize this and it would only work on special loads. Plus it
+> would add some overhead to the general case.
 
-Is the A bit architecturally guaranteed to be synchronously set?  Can
-speculative accesses set it?  SDM vol 3 is a bit vague about it.
+but at that time, x86_64 large server doesn't exist yet.
+I think mesurement again is valuable because typical server environment
+is changed in these days.
 
-> I'll fail my own unit tests.
->
-> If we add an async mode for guests that can cope, maybe this is
-> workable.  I guess this is what you're suggesting.
->
 
-Yes.  At worst Linux would underestimate the process RSS a bit
-(depending on how many unsynchronized ptes you leave lying around).  I
-bet there's an appropriate pvop hook you could use to force
-synchronization just before the kernel actually inspects the bits
-(leaving lazy mode sounds good).
-
-    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
