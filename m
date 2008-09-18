@@ -1,57 +1,34 @@
-Date: Thu, 18 Sep 2008 13:43:04 +0900
+Date: Thu, 18 Sep 2008 13:50:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH] Remove cgroup member from struct page (v3)
-Message-Id: <20080918134304.93985542.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080917184008.92b7fc4c.akpm@linux-foundation.org>
-References: <200809091500.10619.nickpiggin@yahoo.com.au>
-	<20080909141244.721dfd39.kamezawa.hiroyu@jp.fujitsu.com>
-	<30229398.1220963412858.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080910012048.GA32752@balbir.in.ibm.com>
-	<1221085260.6781.69.camel@nimitz>
-	<48C84C0A.30902@linux.vnet.ibm.com>
-	<1221087408.6781.73.camel@nimitz>
-	<20080911103500.d22d0ea1.kamezawa.hiroyu@jp.fujitsu.com>
-	<48C878AD.4040404@linux.vnet.ibm.com>
-	<20080911105638.1581db90.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080918135023.99cac1d0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080918.132613.74431429.taka@valinux.co.jp>
+References: <20080911105638.1581db90.kamezawa.hiroyu@jp.fujitsu.com>
 	<20080917232826.GA19256@balbir.in.ibm.com>
 	<20080917184008.92b7fc4c.akpm@linux-foundation.org>
+	<20080918.132613.74431429.taka@valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbir@linux.vnet.ibm.com, Dave Hansen <dave@linux.vnet.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Sep 2008 18:40:08 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-> > Advantages of the patch
-> > 
-> > 1. It removes the extra pointer in struct page
-> > 
-> > Disadvantages
-> > 
-> > 1. Radix tree lookup is not an O(1) operation, once the page is known
-> >    getting to the page_cgroup (pc) is a little more expensive now.
-> 
-> Why are we doing this?  I can guess, but I'd rather not have to.
-> 
-> a) It's slower.
-> 
-> b) It uses even more memory worst-case.
-> 
-> c) It uses less memory best-case.
-> 
-> someone somewhere decided that (Aa + Bb) / Cc < 1.0.  What are the values
-> of A, B and C and where did they come from? ;)
-> 
+On Thu, 18 Sep 2008 13:26:13 +0900 (JST)
+Hirokazu Takahashi <taka@valinux.co.jp> wrote:
 
-Balbir, don't you like pre-allocate-page-cgroup-at-boot at all ?
-I don't like radix-tree for objects which can spread to very vast/sparse area ;)
 
-BTW, I already have lazy-lru-by-pagevec protocol on my patch(hash version) and
-seems to work well. I'm now testing it and will post today if I'm enough lucky.
+> But I think each memory model type should have its own way of managing
+> its page_cgroup arrays as doing for its struct page arrays.
+> It would be better rather than the sparsemem approach he said.
+> 
+My patch adds an interface. Then...
+FLATMEM support will be very easy.
+I'll ignore DISCONTIGMEM and SPARSEMEM (they will use my 'hash')
+SPARSEMEM_VMEMMAP support will took some amount of time. It will need
+per-arch patches.
 
 Thanks,
 -Kame
