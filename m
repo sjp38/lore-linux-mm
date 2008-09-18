@@ -1,116 +1,48 @@
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28esmtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id m8I5i3v5031094
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2008 11:14:03 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8I5i3hJ827456
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2008 11:14:03 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id m8I5i30j022150
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2008 15:44:03 +1000
-Message-ID: <48D1EA9E.9030309@linux.vnet.ibm.com>
-Date: Wed, 17 Sep 2008 22:43:58 -0700
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] memcg: fix handling of shmem migration(v2)
-References: <20080917133149.b012a1c2.nishimura@mxp.nes.nec.co.jp> <20080917144659.2e363edc.kamezawa.hiroyu@jp.fujitsu.com> <20080917145003.fb4d0b95.kamezawa.hiroyu@jp.fujitsu.com> <20080917151951.9a181e7d.nishimura@mxp.nes.nec.co.jp> <20080917153826.8efbdc4b.kamezawa.hiroyu@jp.fujitsu.com> <20080917154511.683691d1.nishimura@mxp.nes.nec.co.jp> <20080917165544.3873bbb2.nishimura@mxp.nes.nec.co.jp> <20080917155112.eefd2f8a.akpm@linux-foundation.org> <20080918113851.16082bb7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080918113851.16082bb7.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Thu, 18 Sep 2008 15:13:26 +0900 (JST)
+Message-Id: <20080918.151326.98179387.taka@valinux.co.jp>
+Subject: Re: [RFC][PATCH] Remove cgroup member from struct page (v3)
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20080918135023.99cac1d0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20080917184008.92b7fc4c.akpm@linux-foundation.org>
+	<20080918.132613.74431429.taka@valinux.co.jp>
+	<20080918135023.99cac1d0.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xemul@openvz.org
+To: kamezawa.hiroyu@jp.fujitsu.com
+Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 17 Sep 2008 15:51:12 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
->> On Wed, 17 Sep 2008 16:55:44 +0900
->> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
->>
->>> Before this patch, if migrating shmem/tmpfs pages, newpage would be
->>> charged with PAGE_CGROUP_FLAG_FILE set, while oldpage has been charged
->>> without the flag.
->>>
->>> The problem here is mem_cgroup_move_lists doesn't clear(or set)
->>> the PAGE_CGROUP_FLAG_FILE flag, so pc->flags of the newpage
->>> remains PAGE_CGROUP_FLAG_FILE set even when the pc is moved to
->>> another lru(anon) by mem_cgroup_move_lists. And this leads to
->>> incorrect MEM_CGROUP_ZSTAT.
->>> (In my test, I see an underflow of MEM_CGROUP_ZSTAT(active_file).
->>> As a result, mem_cgroup_calc_reclaim returns very huge number and
->>> causes soft lockup on page reclaim.)
->>>
->>> I'm not sure if mem_cgroup_move_lists should handle PAGE_CGROUP_FLAG_FILE
->>> or not(I suppose it should be used to move between active <-> inactive,
->>> not anon <-> file), I added MEM_CGROUP_CHARGE_TYPE_SHMEM for precharge
->>> at shmem's page migration.
->>>
->>>
->>> ChangeLog: v1->v2
->>> - instead of modifying migrate.c, modify memcontrol.c only.
->>> - add MEM_CGROUP_CHARGE_TYPE_SHMEM.
->>>
->>>
->>> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
->>> ---
->>>  mm/memcontrol.c |   13 ++++++++++---
->>>  1 files changed, 10 insertions(+), 3 deletions(-)
->>>
->>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>> index 2979d22..ef8812d 100644
->>> --- a/mm/memcontrol.c
->>> +++ b/mm/memcontrol.c
->>> @@ -179,6 +179,7 @@ enum charge_type {
->>>  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
->>>  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
->>>  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
->>> +	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
->>>  };
->>>  
->>>  /*
->>> @@ -579,8 +580,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
->>>  			pc->flags |= PAGE_CGROUP_FLAG_FILE;
->>>  		else
->>>  			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
->>> -	} else
->>> +	} else if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
->>>  		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
->>> +	else /* MEM_CGROUP_CHARGE_TYPE_SHMEM */
->>> +		pc->flags = PAGE_CGROUP_FLAG_CACHE | PAGE_CGROUP_FLAG_ACTIVE;
->>>  
->>>  	lock_page_cgroup(page);
->>>  	if (unlikely(page_get_page_cgroup(page))) {
->>> @@ -739,8 +742,12 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
->>>  	if (pc) {
->>>  		mem = pc->mem_cgroup;
->>>  		css_get(&mem->css);
->>> -		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
->>> -			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
->>> +		if (pc->flags & PAGE_CGROUP_FLAG_CACHE) {
->>> +			if (page_is_file_cache(page))
->>> +				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
->>> +			else
->>> +				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
->>> +		}
->>>  	}
->>>  	unlock_page_cgroup(page);
->>>  	if (mem) {
->> I queued this as a fix against
->> vmscan-split-lru-lists-into-anon-file-sets.patch.  Was that appropriate?
->>
->> If the bug you're fixing here is also present in mainline then I'll
->> need to ask for a tested patch against mainline, please.
->>
-> I think this bug depends on split-lru patch set.
-> Mayne not in mainline yet...?
+Hello,
 
-Yes, that sounds correct to me, this should be a -mm only patch.
+> > But I think each memory model type should have its own way of managing
+> > its page_cgroup arrays as doing for its struct page arrays.
+> > It would be better rather than the sparsemem approach he said.
+> > 
+> My patch adds an interface. Then...
+> FLATMEM support will be very easy.
 
--- 
-	Balbir
+Yes, that is true, it is really easy.
+
+> I'll ignore DISCONTIGMEM and SPARSEMEM (they will use my 'hash')
+
+What part of this do you think is the problem to implement it in the
+straight way for this model?
+I think it won't be difficult to implement it since each pgdat can have
+its page_cgroup array, which can care about holes in the node as well as
+doing it for its struct page array.
+
+> SPARSEMEM_VMEMMAP support will took some amount of time. It will need
+> per-arch patches.
+
+Yes, each of ia64, powerpc and x86_64 use this memory model.
+
+We should also care about the regular SPARSEMEM case as you mentioned.
+
+> Thanks,
+> -Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
