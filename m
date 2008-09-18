@@ -1,73 +1,55 @@
-Message-ID: <48D2B970.7040903@redhat.com>
-Date: Thu, 18 Sep 2008 13:26:24 -0700
-From: Avi Kivity <avi@redhat.com>
-MIME-Version: 1.0
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id m8IKq60L000969
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2008 21:52:06 +0100
+Received: from gxk6 (gxk6.prod.google.com [10.202.11.6])
+	by zps38.corp.google.com with ESMTP id m8IKo5o2023799
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2008 13:52:05 -0700
+Received: by gxk6 with SMTP id 6so22548806gxk.5
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2008 13:52:04 -0700 (PDT)
+Message-ID: <33307c790809181352h14f2cf26kc73de75b939177b5@mail.gmail.com>
+Date: Thu, 18 Sep 2008 13:52:04 -0700
+From: "Martin Bligh" <mbligh@google.com>
 Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org>
-In-Reply-To: <48D18C6B.5010407@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+In-Reply-To: <48D2A392.6010308@goop.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <48D142B2.3040607@goop.org> <48D1625C.7000309@redhat.com>
+	 <48D17A93.4000803@goop.org> <48D29AFB.5070409@linux-foundation.org>
+	 <48D2A392.6010308@goop.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Chris Snook <csnook@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-(potential victim cc'ed)
-
-Jeremy Fitzhardinge wrote:
-> Avi Kivity wrote:
->   
->> We could work around it by having a hypercall to read and clear
->> accessed bits.  If we know the guest will only do that via the
->> hypercall, we can keep the accessed (and dirty) bits in the host, and
->> not update them in the guest at all.  Given good batching, there's
->> potential for a large win there.
->>     
 >
-> We added a hypercall to update just the AD bits, though it was primarily
-> to update D without losing the hardware-set A bit.
+> Thanks, that was exactly what I was hoping to see.  I didn't see any
+> definitive statements against the patch set, other than a concern that
+> it could make things worse.  Was the upshot that no consensus was
+> reached about how to detect when its beneficial to preallocate anonymous
+> pages?
 >
-> I don't think it would be practical to add a hypercall to read the A
-> bit.  There's too much code which just assumes it can grab a pte and
-> test the bit state.  There's no pv_op for reading a pte in general, and
-> even if there were you'd need to have a specialized pv-op for
-> specifically reading the A bit to avoid unnecessary hypercalls.
+> Martin, in that thread you mentioned that you had tried pre-populating
+> file-backed mappings as well, but "Mmmm ... we tried doing this before
+> for filebacked pages by sniffing the
+> pagecache, but it crippled forky workloads (like kernel compile) with the
+> extra cost in zap_pte_range, etc. ".
 >
->   
+> Could you describe, or have a pointer to, what you tried and how it
+> turned out?
 
-I didn't think so much code would be interested in the accessed bit.  I 
-can think of
+Don't have the patches still, but it was fairly simple - just faulted in
+the next 3 pages whenever we took a fault, if the pages were already
+in pagecache. I would have thought that was pretty lightweight and
+non-invasive, but turns out it slowed things down.
 
- - pte teardown (to mark the page accessed)
- - scanning the active list
- - fork (which copies ptes)
+> Did you end up populating so many (unused) ptes that
+> zap_pte_range needed to do lots more work?
 
-> Setting/clearing the A bit could be done via the normal set_pte pv_op,
-> so that's not a big deal.
->
-> Do you need to set the A bit synchronously?  
-
-Yes, of course (if no guest cooperation).
-
-> What happens if you install
-> the guest and shadow pte with A clear, and then lazily transfer the A
-> bit state from the shadow to guest pte?  Maybe at some significant event
-> like  a tlb flush or:
->
->   
->> (If the host throws away a shadow page, it could sync the bits back
->> into the guest pte for safekeeping)
->>     
-
-I'll fail my own unit tests.
-
-If we add an async mode for guests that can cope, maybe this is 
-workable.  I guess this is what you're suggesting.
-
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
+Yup, basically you're assuming good locality of reference, but it turns
+out that (as davej would say) "userspace sucks".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
