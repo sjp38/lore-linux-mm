@@ -1,64 +1,58 @@
-Received: by wr-out-0506.google.com with SMTP id c30so64919wra.14
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2008 16:16:43 -0700 (PDT)
-Message-ID: <28c262360809181616p481f9126p50c9a8c971fbbf9e@mail.gmail.com>
-Date: Fri, 19 Sep 2008 08:16:43 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: Populating multiple ptes at fault time
-In-Reply-To: <48D2D4C7.8080209@redhat.com>
+Message-ID: <48D2E65A.6020004@redhat.com>
+Date: Thu, 18 Sep 2008 16:38:02 -0700
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: Populating multiple ptes at fault time
+References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com> <48D2D3B2.10503@goop.org>
+In-Reply-To: <48D2D3B2.10503@goop.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <48D142B2.3040607@goop.org>
-	 <33307c790809181411j41a6fc4ev8560a13ed8661ec2@mail.gmail.com>
-	 <48D2C46A.5030702@linux-foundation.org>
-	 <33307c790809181421k52ed6a36h9d4ee40d5799a536@mail.gmail.com>
-	 <48D2C8DD.4040303@linux-foundation.org>
-	 <28c262360809181449v1050c1f7ndf17dadba9fac0bf@mail.gmail.com>
-	 <48D2CEF3.6060308@linux-foundation.org>
-	 <33307c790809181508v2e64c0a4j8f0e93df99673e63@mail.gmail.com>
-	 <48D2D22B.2070408@linux-foundation.org> <48D2D4C7.8080209@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Snook <csnook@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Martin Bligh <mbligh@google.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 19, 2008 at 7:23 AM, Chris Snook <csnook@redhat.com> wrote:
-> Christoph Lameter wrote:
->>
->> Martin Bligh wrote:
->>>>
->>>> My patches were only for anonymous pages not for file backed because
->>>> readahead
->>>> is available for file backed mappings.
->>>
->>> Do we populate the PTEs though? I didn't think that was batched, but I
->>> might well be wrong.
->>
->> We do not populate the PTEs and AFAICT PTE population was assumed not to
->> be
->> performance critical since the backing media is comparatively slow.
->>
+Jeremy Fitzhardinge wrote:
+> Avi Kivity wrote:
+>   
+>>> Do you need to set the A bit synchronously?  
+>>>       
+>> Yes, of course (if no guest cooperation).
+>>     
 >
-> Perhaps we should.  In a virtual guest, the backing media is often an
-> emulated IDE device, or something similarly inefficient, such that the
-> bottleneck is the CPU.
+> Is the A bit architecturally guaranteed to be synchronously set?  
 
-In embedded environment, many people use nand-like device as storage.
-Read cost of nand-like device is less than IDE's one.
-Also, Nowaday Embedded stuff would like to use multi-core step by step.
-So, pte population become important more and more.
+I believe so.  The cpu won't cache tlb entries with the A bit clear 
+(much like the shadow code), and will rmw the pte on first access.
 
+> Can
+> speculative accesses set it?  
 
-> -- Chris
+Yes, but don't abuse this.
+
+>> If we add an async mode for guests that can cope, maybe this is
+>> workable.  I guess this is what you're suggesting.
+>>
+>>     
 >
+> Yes.  At worst Linux would underestimate the process RSS a bit
+> (depending on how many unsynchronized ptes you leave lying around).  I
+>   
 
+Not the RSS (that's pte.present pages) but the working set (aka active 
+list).
 
+> bet there's an appropriate pvop hook you could use to force
+> synchronization just before the kernel actually inspects the bits
+> (leaving lazy mode sounds good).
+>   
+
+It would have to be a new lazy mode, not the existing one, I think.
 
 -- 
-Kinds regards,
-MinChan Kim
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
