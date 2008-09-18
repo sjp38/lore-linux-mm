@@ -1,33 +1,136 @@
-Message-ID: <48D2AE6C.7060507@linux-foundation.org>
-Date: Thu, 18 Sep 2008 14:39:24 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: by ug-out-1314.google.com with SMTP id p35so782735ugc.19
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2008 13:14:24 -0700 (PDT)
+Message-ID: <48D2B69D.8080404@gmail.com>
+Date: Thu, 18 Sep 2008 22:14:21 +0200
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
 MIME-Version: 1.0
-Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D1625C.7000309@redhat.com> <48D17A93.4000803@goop.org> <48D29AFB.5070409@linux-foundation.org> <48D2A392.6010308@goop.org>
-In-Reply-To: <48D2A392.6010308@goop.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH -mm] memrlimit: fix task_lock() recursive locking
+References: <48D29485.5010900@gmail.com> <48D2A21E.7050806@linux.vnet.ibm.com>
+In-Reply-To: <48D2A21E.7050806@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Chris Snook <csnook@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Martin J. Bligh" <mbligh@google.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, containers@lists.linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Thanks, that was exactly what I was hoping to see.  I didn't see any
-> definitive statements against the patch set, other than a concern that
-> it could make things worse.  Was the upshot that no consensus was
-> reached about how to detect when its beneficial to preallocate anonymous
-> pages?
+Hi Balbir,
 
-There were multiple discussions on the subject. The consensus was that it was
-difficult to generalize this and it would only work on special loads. Plus it
-would add some overhead to the general case.
+Balbir Singh wrote:
+>>  static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>>  						struct cgroup *old_cgrp,
+>> @@ -246,7 +246,7 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>>  						struct task_struct *p)
+>>  {
+>>  	struct memrlimit_cgroup *memrcg, *old_memrcg;
+>> -	struct mm_struct *mm = get_task_mm(p);
+>> +	struct mm_struct *mm = get_task_mm_task_locked(p);
+>>
+> 
+> Since we hold task_lock(), we know that p->mm cannot change and we don't have to
+> worry about incrementing mm_users. I think using just p->mm will work, we do
+> have checks to make sure we don't pick a kernel thread. I vote for going down
+> that road.
 
-> Christoph (and others): do you think vm changes in the last 4 years
-> would have changed the outcome of these results?
+Sounds good. What about this?
 
-Seems that the code today is similar. So it would still work.
+---
+cgroup_mm_owner_callbacks() can be called with task_lock() held in
+mm_update_next_owner(), and all the .mm_owner_changed callbacks seem to
+be *always* called with task_lock() held.
+
+Actually, memrlimit is using task_lock() via get_task_mm() in
+memrlimit_cgroup_mm_owner_changed(), raising the following recursive locking
+trace:
+
+[ 5346.421365] =============================================
+[ 5346.421374] [ INFO: possible recursive locking detected ]
+[ 5346.421381] 2.6.27-rc5-mm1 #20
+[ 5346.421385] ---------------------------------------------
+[ 5346.421391] interbench/10530 is trying to acquire lock:
+[ 5346.421396]  (&p->alloc_lock){--..}, at: [<ffffffff8023b034>] get_task_mm+0x24/0x70
+[ 5346.421417]
+[ 5346.421418] but task is already holding lock:
+[ 5346.421423]  (&p->alloc_lock){--..}, at: [<ffffffff8023db98>] mm_update_next_owner+0x148/0x230
+[ 5346.421438]
+[ 5346.421440] other info that might help us debug this:
+[ 5346.421446] 2 locks held by interbench/10530:
+[ 5346.421450]  #0:  (&mm->mmap_sem){----}, at: [<ffffffff8023db90>] mm_update_next_owner+0x140/0x230
+[ 5346.421467]  #1:  (&p->alloc_lock){--..}, at: [<ffffffff8023db98>] mm_update_next_owner+0x148/0x230
+[ 5346.421483]
+[ 5346.421485] stack backtrace:
+[ 5346.421491] Pid: 10530, comm: interbench Not tainted 2.6.27-rc5-mm1 #20
+[ 5346.421496] Call Trace:
+[ 5346.421507]  [<ffffffff80263383>] validate_chain+0xb03/0x10d0
+[ 5346.421515]  [<ffffffff80263c05>] __lock_acquire+0x2b5/0x9c0
+[ 5346.421522]  [<ffffffff80262cc2>] validate_chain+0x442/0x10d0
+[ 5346.421530]  [<ffffffff802643aa>] lock_acquire+0x9a/0xe0
+[ 5346.421537]  [<ffffffff8023b034>] get_task_mm+0x24/0x70
+[ 5346.421546]  [<ffffffff804757c7>] _spin_lock+0x37/0x70
+[ 5346.421553]  [<ffffffff8023b034>] get_task_mm+0x24/0x70
+[ 5346.421560]  [<ffffffff8023b034>] get_task_mm+0x24/0x70
+[ 5346.421569]  [<ffffffff802b91f8>] memrlimit_cgroup_mm_owner_changed+0x18/0x90
+[ 5346.421579]  [<ffffffff80278b03>] cgroup_mm_owner_callbacks+0x93/0xc0
+[ 5346.421587]  [<ffffffff8023dc36>] mm_update_next_owner+0x1e6/0x230
+[ 5346.421595]  [<ffffffff8023dd72>] exit_mm+0xf2/0x120
+[ 5346.421602]  [<ffffffff8023f547>] do_exit+0x167/0x930
+[ 5346.421610]  [<ffffffff8047604a>] _spin_unlock_irq+0x2a/0x50
+[ 5346.421618]  [<ffffffff8023fd46>] do_group_exit+0x36/0xa0
+[ 5346.421626]  [<ffffffff8020b7cb>] system_call_fastpath+0x16/0x1b
+
+Since we hold task_lock(), we know that p->mm cannot change and we don't have
+to worry about incrementing mm_users. So, just use p->mm directly and check
+that we've not picked a kernel thread.
+
+Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+---
+ kernel/cgroup.c      |    3 ++-
+ mm/memrlimitcgroup.c |    6 +++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 678a680..03cc925 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -2757,7 +2757,8 @@ void cgroup_fork_callbacks(struct task_struct *child)
+  * invoke this routine, since it assigns the mm->owner the first time
+  * and does not change it.
+  *
+- * The callbacks are invoked with mmap_sem held in read mode.
++ * The callbacks are invoked with task_lock held and mmap_sem held in read
++ * mode.
+  */
+ void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+ {
+diff --git a/mm/memrlimitcgroup.c b/mm/memrlimitcgroup.c
+index 8ee74f6..0e30465 100644
+--- a/mm/memrlimitcgroup.c
++++ b/mm/memrlimitcgroup.c
+@@ -238,7 +238,7 @@ out:
+ }
+ 
+ /*
+- * This callback is called with mmap_sem held
++ * This callback is called with mmap_sem and task_lock held
+  */
+ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+ 						struct cgroup *old_cgrp,
+@@ -246,9 +246,9 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+ 						struct task_struct *p)
+ {
+ 	struct memrlimit_cgroup *memrcg, *old_memrcg;
+-	struct mm_struct *mm = get_task_mm(p);
++	struct mm_struct *mm = p->mm;
+ 
+-	BUG_ON(!mm);
++	BUG_ON(!mm || (p->flags & PF_KTHREAD));
+ 
+ 	/*
+ 	 * If we don't have a new cgroup, we just uncharge from the old one.
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
