@@ -1,17 +1,21 @@
-Date: Thu, 18 Sep 2008 15:58:26 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 18 Sep 2008 16:26:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: Populating multiple ptes at fault time
+Message-Id: <20080918162644.1d4beab7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <28c262360809171650g1395bbe2ya4e560851d37760d@mail.gmail.com>
-References: <48D142B2.3040607@goop.org> <28c262360809171650g1395bbe2ya4e560851d37760d@mail.gmail.com>
-Message-Id: <20080920035706.BAD6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+References: <48D142B2.3040607@goop.org>
+	<28c262360809171650g1395bbe2ya4e560851d37760d@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: MinChan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Jeremy Fitzhardinge <jeremy@goop.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>
 List-ID: <linux-mm.kvack.org>
+
+On Thu, 18 Sep 2008 08:50:05 +0900
+"MinChan Kim" <minchan.kim@gmail.com> wrote:
 
 > Hi, all
 > 
@@ -24,14 +28,20 @@ List-ID: <linux-mm.kvack.org>
 > What do you think about this idea in native ?
 > Do you really think that this idea don't help much in native ?
 > 
+Hmm, is enlarging page-size-for-anonymous-page more difficult ?
+(maybe, yes.)
+
 > If I implement it in native, What kinds of benchmark do I need?
 > Could you recommend any benchmark ?
+> 
 
-I guess it is also useful for native.
-Then, if you post patch & benchmark result, I'll review it with presusure.
+Testing some kind of scripts (shell/perl etc..) is candidates.
 
+I use unixbench's exec/shell test to see charge/uncharge overhead of memory
+resource controller, which happens at major page fault.
 
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
