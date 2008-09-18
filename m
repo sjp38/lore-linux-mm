@@ -1,78 +1,113 @@
-Date: Wed, 17 Sep 2008 18:40:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page (v3)
-Message-Id: <20080917184008.92b7fc4c.akpm@linux-foundation.org>
-In-Reply-To: <20080917232826.GA19256@balbir.in.ibm.com>
-References: <200809091500.10619.nickpiggin@yahoo.com.au>
-	<20080909141244.721dfd39.kamezawa.hiroyu@jp.fujitsu.com>
-	<30229398.1220963412858.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080910012048.GA32752@balbir.in.ibm.com>
-	<1221085260.6781.69.camel@nimitz>
-	<48C84C0A.30902@linux.vnet.ibm.com>
-	<1221087408.6781.73.camel@nimitz>
-	<20080911103500.d22d0ea1.kamezawa.hiroyu@jp.fujitsu.com>
-	<48C878AD.4040404@linux.vnet.ibm.com>
-	<20080911105638.1581db90.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080917232826.GA19256@balbir.in.ibm.com>
+Date: Thu, 18 Sep 2008 11:03:53 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH -mm] memcg: fix handling of shmem migration(v2)
+Message-Id: <20080918110353.2c8d0602.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080917155112.eefd2f8a.akpm@linux-foundation.org>
+References: <20080917133149.b012a1c2.nishimura@mxp.nes.nec.co.jp>
+	<20080917144659.2e363edc.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917145003.fb4d0b95.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917151951.9a181e7d.nishimura@mxp.nes.nec.co.jp>
+	<20080917153826.8efbdc4b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080917154511.683691d1.nishimura@mxp.nes.nec.co.jp>
+	<20080917165544.3873bbb2.nishimura@mxp.nes.nec.co.jp>
+	<20080917155112.eefd2f8a.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Sep 2008 16:28:26 -0700 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Wed, 17 Sep 2008 15:51:12 -0700, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 17 Sep 2008 16:55:44 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > Before this patch, if migrating shmem/tmpfs pages, newpage would be
+> > charged with PAGE_CGROUP_FLAG_FILE set, while oldpage has been charged
+> > without the flag.
+> > 
+> > The problem here is mem_cgroup_move_lists doesn't clear(or set)
+> > the PAGE_CGROUP_FLAG_FILE flag, so pc->flags of the newpage
+> > remains PAGE_CGROUP_FLAG_FILE set even when the pc is moved to
+> > another lru(anon) by mem_cgroup_move_lists. And this leads to
+> > incorrect MEM_CGROUP_ZSTAT.
+> > (In my test, I see an underflow of MEM_CGROUP_ZSTAT(active_file).
+> > As a result, mem_cgroup_calc_reclaim returns very huge number and
+> > causes soft lockup on page reclaim.)
+> > 
+> > I'm not sure if mem_cgroup_move_lists should handle PAGE_CGROUP_FLAG_FILE
+> > or not(I suppose it should be used to move between active <-> inactive,
+> > not anon <-> file), I added MEM_CGROUP_CHARGE_TYPE_SHMEM for precharge
+> > at shmem's page migration.
+> > 
+> > 
+> > ChangeLog: v1->v2
+> > - instead of modifying migrate.c, modify memcontrol.c only.
+> > - add MEM_CGROUP_CHARGE_TYPE_SHMEM.
+> > 
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  mm/memcontrol.c |   13 ++++++++++---
+> >  1 files changed, 10 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 2979d22..ef8812d 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -179,6 +179,7 @@ enum charge_type {
+> >  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+> >  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+> >  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+> > +	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+> >  };
+> >  
+> >  /*
+> > @@ -579,8 +580,10 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+> >  			pc->flags |= PAGE_CGROUP_FLAG_FILE;
+> >  		else
+> >  			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
+> > -	} else
+> > +	} else if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+> >  		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+> > +	else /* MEM_CGROUP_CHARGE_TYPE_SHMEM */
+> > +		pc->flags = PAGE_CGROUP_FLAG_CACHE | PAGE_CGROUP_FLAG_ACTIVE;
+> >  
+> >  	lock_page_cgroup(page);
+> >  	if (unlikely(page_get_page_cgroup(page))) {
+> > @@ -739,8 +742,12 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
+> >  	if (pc) {
+> >  		mem = pc->mem_cgroup;
+> >  		css_get(&mem->css);
+> > -		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
+> > -			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> > +		if (pc->flags & PAGE_CGROUP_FLAG_CACHE) {
+> > +			if (page_is_file_cache(page))
+> > +				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> > +			else
+> > +				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+> > +		}
+> >  	}
+> >  	unlock_page_cgroup(page);
+> >  	if (mem) {
+> 
+> I queued this as a fix against
+> vmscan-split-lru-lists-into-anon-file-sets.patch.  Was that appropriate?
+> 
+Yes, thanks.
 
+> If the bug you're fixing here is also present in mainline then I'll
+> need to ask for a tested patch against mainline, please.
 > 
-> Before trying the sparsemem approach, I tried a radix tree per node,
-> per zone and I seemed to actually get some performance
-> improvement.(1.5% (noise maybe))
-> 
-> But please do see and review (tested on my x86_64 box with unixbench
-> and some other simple tests)
-> 
-> v4..v3
-> 1. Use a radix tree per node, per zone
-> 
-> v3...v2
-> 1. Convert flags to unsigned long
-> 2. Move page_cgroup->lock to a bit spin lock in flags
-> 
-> v2...v1
-> 
-> 1. Fix a small bug, don't call radix_tree_preload_end(), if preload fails
-> 
-> This is a rewrite of a patch I had written long back to remove struct page
-> (I shared the patches with Kamezawa, but never posted them anywhere else).
-> I spent the weekend, cleaning them up for 2.6.27-rc5-mmotm (29 Aug 2008).
-> 
-> I've tested the patches on an x86_64 box, I've run a simple test running
-> under the memory control group and the same test running concurrently under
-> two different groups (and creating pressure within their groups).
-> 
-> Advantages of the patch
-> 
-> 1. It removes the extra pointer in struct page
-> 
-> Disadvantages
-> 
-> 1. Radix tree lookup is not an O(1) operation, once the page is known
->    getting to the page_cgroup (pc) is a little more expensive now.
+I don't think this bug exist in mainline, where memcg have
+only two ZSTAT(active/inactive) and mem_cgroup_move_lists can handle
+them properly.
 
-Why are we doing this?  I can guess, but I'd rather not have to.
 
-a) It's slower.
-
-b) It uses even more memory worst-case.
-
-c) It uses less memory best-case.
-
-someone somewhere decided that (Aa + Bb) / Cc < 1.0.  What are the values
-of A, B and C and where did they come from? ;)
-
-(IOW, your changelog is in the category "sucky", along with 90% of the others)
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
