@@ -1,48 +1,37 @@
-Date: Thu, 18 Sep 2008 15:13:26 +0900 (JST)
-Message-Id: <20080918.151326.98179387.taka@valinux.co.jp>
-Subject: Re: [RFC][PATCH] Remove cgroup member from struct page (v3)
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20080918135023.99cac1d0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080917184008.92b7fc4c.akpm@linux-foundation.org>
-	<20080918.132613.74431429.taka@valinux.co.jp>
-	<20080918135023.99cac1d0.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Thu, 18 Sep 2008 15:58:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Populating multiple ptes at fault time
+In-Reply-To: <28c262360809171650g1395bbe2ya4e560851d37760d@mail.gmail.com>
+References: <48D142B2.3040607@goop.org> <28c262360809171650g1395bbe2ya4e560851d37760d@mail.gmail.com>
+Message-Id: <20080920035706.BAD6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: akpm@linux-foundation.org, balbir@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, nickpiggin@yahoo.com.au, hugh@veritas.com, menage@google.com, xemul@openvz.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Jeremy Fitzhardinge <jeremy@goop.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Avi Kivity <avi@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+> Hi, all
+> 
+> I have been thinking about this idea in native.
+> I didn't consider it in minor page fault.
+> As you know, it costs more cheap than major fault.
+> However, the page fault is one of big bottleneck on demand-paging system.
+> I think major fault might be a rather big overhead in many core system.
+> 
+> What do you think about this idea in native ?
+> Do you really think that this idea don't help much in native ?
+> 
+> If I implement it in native, What kinds of benchmark do I need?
+> Could you recommend any benchmark ?
 
-> > But I think each memory model type should have its own way of managing
-> > its page_cgroup arrays as doing for its struct page arrays.
-> > It would be better rather than the sparsemem approach he said.
-> > 
-> My patch adds an interface. Then...
-> FLATMEM support will be very easy.
+I guess it is also useful for native.
+Then, if you post patch & benchmark result, I'll review it with presusure.
 
-Yes, that is true, it is really easy.
 
-> I'll ignore DISCONTIGMEM and SPARSEMEM (they will use my 'hash')
 
-What part of this do you think is the problem to implement it in the
-straight way for this model?
-I think it won't be difficult to implement it since each pgdat can have
-its page_cgroup array, which can care about holes in the node as well as
-doing it for its struct page array.
-
-> SPARSEMEM_VMEMMAP support will took some amount of time. It will need
-> per-arch patches.
-
-Yes, each of ia64, powerpc and x86_64 use this memory model.
-
-We should also care about the regular SPARSEMEM case as you mentioned.
-
-> Thanks,
-> -Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
