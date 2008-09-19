@@ -1,197 +1,57 @@
-Received: from smtp21.orange.fr (mwinf2103 [10.232.7.25])
-	by mwinf2115.orange.fr (SMTP Server) with ESMTP id BA88E1C09501
-	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 18:27:43 +0200 (CEST)
-Message-ID: <48D3D2EF.5090808@cosmosbay.com>
-Date: Fri, 19 Sep 2008 18:27:27 +0200
-From: Eric Dumazet <dada1@cosmosbay.com>
-MIME-Version: 1.0
-Subject: Re: [patch 3/4] cpu alloc: The allocator
-References: <20080919145859.062069850@quilx.com> <20080919145929.158651064@quilx.com>
-In-Reply-To: <20080919145929.158651064@quilx.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8BIT
+Subject: PTE access rules & abstraction
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+Content-Type: text/plain
+Date: Fri, 19 Sep 2008 10:42:19 -0700
+Message-Id: <1221846139.8077.25.camel@pasglop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+To: Linux Memory Management List <linux-mm@kvack.org>
+Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter a ecrit :
-> The per cpu allocator allows dynamic allocation of memory on all
-> processors simultaneously. A bitmap is used to track used areas.
-> The allocator implements tight packing to reduce the cache footprint
-> and increase speed since cacheline contention is typically not a concern
-> for memory mainly used by a single cpu. Small objects will fill up gaps
-> left by larger allocations that required alignments.
-> 
-> The size of the cpu_alloc area can be changed via the percpu=xxx
-> kernel parameter.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-> 
-> ---
->  include/linux/percpu.h |   46 ++++++++++++
->  include/linux/vmstat.h |    2 
->  mm/Makefile            |    2 
->  mm/cpu_alloc.c         |  181 +++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/vmstat.c            |    1 
->  5 files changed, 230 insertions(+), 2 deletions(-)
->  create mode 100644 include/linux/cpu_alloc.h
->  create mode 100644 mm/cpu_alloc.c
-> 
-> Index: linux-2.6/include/linux/vmstat.h
-> ===================================================================
-> --- linux-2.6.orig/include/linux/vmstat.h	2008-09-19 09:45:02.000000000 -0500
-> +++ linux-2.6/include/linux/vmstat.h	2008-09-19 09:49:05.000000000 -0500
-> @@ -37,7 +37,7 @@
->  		FOR_ALL_ZONES(PGSCAN_KSWAPD),
->  		FOR_ALL_ZONES(PGSCAN_DIRECT),
->  		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
-> -		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-> +		PAGEOUTRUN, ALLOCSTALL, PGROTATED, CPU_BYTES,
->  #ifdef CONFIG_HUGETLB_PAGE
->  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
->  #endif
-> Index: linux-2.6/mm/Makefile
-> ===================================================================
-> --- linux-2.6.orig/mm/Makefile	2008-09-19 09:45:02.000000000 -0500
-> +++ linux-2.6/mm/Makefile	2008-09-19 09:49:05.000000000 -0500
-> @@ -11,7 +11,7 @@
->  			   maccess.o page_alloc.o page-writeback.o pdflush.o \
->  			   readahead.o swap.o truncate.o vmscan.o \
->  			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
-> -			   page_isolation.o mm_init.o $(mmu-y)
-> +			   page_isolation.o mm_init.o cpu_alloc.o $(mmu-y)
->  
->  obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
->  obj-$(CONFIG_BOUNCE)	+= bounce.o
-> Index: linux-2.6/mm/cpu_alloc.c
-> ===================================================================
-> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-> +++ linux-2.6/mm/cpu_alloc.c	2008-09-19 09:49:59.000000000 -0500
-> @@ -0,0 +1,182 @@
-> +/*
-> + * Cpu allocator - Manage objects allocated for each processor
-> + *
-> + * (C) 2008 SGI, Christoph Lameter <cl@linux-foundation.org>
-> + * 	Basic implementation with allocation and free from a dedicated per
-> + * 	cpu area.
-> + *
-> + * The per cpu allocator allows a dynamic allocation of a piece of memory on
-> + * every processor. A bitmap is used to track used areas.
-> + * The allocator implements tight packing to reduce the cache footprint
-> + * and increase speed since cacheline contention is typically not a concern
-> + * for memory mainly used by a single cpu. Small objects will fill up gaps
-> + * left by larger allocations that required alignments.
-> + */
-> +#include <linux/mm.h>
-> +#include <linux/mmzone.h>
-> +#include <linux/module.h>
-> +#include <linux/percpu.h>
-> +#include <linux/bitmap.h>
-> +#include <asm/sections.h>
-> +#include <linux/bootmem.h>
-> +
-> +/*
-> + * Basic allocation unit. A bit map is created to track the use of each
-> + * UNIT_SIZE element in the cpu area.
-> + */
-> +#define UNIT_TYPE int
-> +#define UNIT_SIZE sizeof(UNIT_TYPE)
-> +
-> +int units;	/* Actual available units */
-> +
-> +/*
-> + * How many units are needed for an object of a given size
-> + */
-> +static int size_to_units(unsigned long size)
-> +{
-> +	return DIV_ROUND_UP(size, UNIT_SIZE);
-> +}
-> +
-> +/*
-> + * Lock to protect the bitmap and the meta data for the cpu allocator.
-> + */
-> +static DEFINE_SPINLOCK(cpu_alloc_map_lock);
-> +static unsigned long *cpu_alloc_map;
-> +static int nr_units;		/* Number of available units */
-> +static int first_free;		/* First known free unit */
-> +
-> +/*
-> + * Mark an object as used in the cpu_alloc_map
-> + *
-> + * Must hold cpu_alloc_map_lock
-> + */
-> +static void set_map(int start, int length)
-> +{
-> +	while (length-- > 0)
-> +		__set_bit(start++, cpu_alloc_map);
-> +}
-> +
-> +/*
-> + * Mark an area as freed.
-> + *
-> + * Must hold cpu_alloc_map_lock
-> + */
-> +static void clear_map(int start, int length)
-> +{
-> +	while (length-- > 0)
-> +		__clear_bit(start++, cpu_alloc_map);
-> +}
-> +
-> +/*
-> + * Allocate an object of a certain size
-> + *
-> + * Returns a special pointer that can be used with CPU_PTR to find the
-> + * address of the object for a certain cpu.
-> + */
-> +void *cpu_alloc(unsigned long size, gfp_t gfpflags, unsigned long align)
-> +{
-> +	unsigned long start;
-> +	int units = size_to_units(size);
-> +	void *ptr;
-> +	int first;
-> +	unsigned long flags;
-> +
-> +	if (!size)
-> +		return ZERO_SIZE_PTR;
-> +
-> +	WARN_ON(align > PAGE_SIZE);
+Hi !
 
-if (align < UNIT_SIZE)
-	align = UNIT_SIZE;
+Just yesterday, I was browsing through the users of set_pte_at() to
+check something, and stumbled on a (new ?) bug that will introduce
+subtle problems on at least powerpc and s390.
 
-> +
-> +	spin_lock_irqsave(&cpu_alloc_map_lock, flags);
-> +
-> +	first = 1;
-> +	start = first_free;
-> +
-> +	for ( ; ; ) {
-> +
-> +		start = find_next_zero_bit(cpu_alloc_map, nr_units, start);
-> +		if (start >= nr_units)
-> +			goto out_of_memory;
-> +
-> +		if (first)
-> +			first_free = start;
-> +
-> +		/*
-> +		 * Check alignment and that there is enough space after
-> +		 * the starting unit.
-> +		 */
-> +		if (start % (align / UNIT_SIZE) == 0 &&
+No big deal, I'll send a fix, but I'm becoming concerned with how
+fragile our page table & PTE access has become.
 
-or else... divide per 0 ?
+(The bug btw is that we ptep_get_and_clear followed by a set_pte_at, at
+least on those architectures, you -must- flush before you put something
+new after you have cleared a PTE, I'll have to fixup our implementation
+of the new pte_modify_start/commit).
 
-> +			find_next_bit(cpu_alloc_map, nr_units, start + 1)
-> +					>= start + units)
-> +				break;
-> +		start++;
-> +		first = 0;
-> +	}
+With the need of the various virtual machines on x86, we've seen new
+page table accessors being created like there is no tomorrow, changes in
+the PTEs are accessed that may or may not be things we can rely on being
+stable in arch code, etc...
 
+Unfortunately, the arch code often has a very intimate relationship to
+how page tables are handled. The rules for locking, what can and cannot
+be done within a single PTE lock section, what can or cannot be done on
+a PTE, for example after it's been cleared, etc... vary in subtle ways
+and the way the things are today, the situation is very messy and
+fragile.
 
+Maybe it's time to have one head in "charge" of the page table access to
+try to keep some sanity, maybe it's time to write down some rules (for
+example, can we rely now and forever that set_pte_at() will -never- be
+called to write on top of an already valid PTE ?, etc...).
+
+But maybe it's time to try to move the abstraction up a bit, maybe along
+the lines of what Nick proposed a while ago, some kind of transactional
+model. That would give a lot more freedom to architectures to have their
+own PTE access rules and optimisations. 
+
+Comments ? Ideas ?
+
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
