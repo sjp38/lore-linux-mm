@@ -1,400 +1,232 @@
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [patch 3/4] cpu alloc: The allocator
-Date: Fri, 19 Sep 2008 07:59:02 -0700
-Message-ID: <20080919145929.158651064@quilx.com>
-References: <20080919145859.062069850@quilx.com>
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754239AbYISPCV@vger.kernel.org>
-Content-Disposition: inline; filename=cpu_alloc_base
+Subject: [patch 2/3] cpu alloc: Remove slub fields
+Date: Fri, 19 Sep 2008 13:37:05 -0700
+Message-ID: <20080919203724.240858174@quilx.com>
+References: <20080919203703.312007962@quilx.com>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755903AbYISUkO@vger.kernel.org>
+Content-Disposition: inline; filename=cpu_alloc_remove_slub_fields
 Sender: linux-kernel-owner@vger.kernel.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
 List-Id: linux-mm.kvack.org
 
-The per cpu allocator allows dynamic allocation of memory on all
-processors simultaneously. A bitmap is used to track used areas.
-The allocator implements tight packing to reduce the cache footprint
-and increase speed since cacheline contention is typically not a concern
-for memory mainly used by a single cpu. Small objects will fill up gaps
-left by larger allocations that required alignments.
+Remove the fields in kmem_cache_cpu that were used to cache data from
+kmem_cache when they were in different cachelines. The cacheline that holds
+the per cpu array pointer now also holds these values. We can cut down the
+struct kmem_cache_cpu size to almost half.
 
-The size of the cpu_alloc area can be changed via the percpu=xxx
-kernel parameter.
+The get_freepointer() and set_freepointer() functions that used to be only
+intended for the slow path now are also useful for the hot path since access
+to the field does not require accessing an additional cacheline anymore. This
+results in consistent use of setting the freepointer for objects throughout
+SLUB.
+
+Also we initialize all possible kmem_cache_cpu structures when a slab is
+created. No need to initialize them when a processor or node comes online.
+And all fields are set to zero. So just use __GFP_ZERO on cpu alloc.
 
 Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
----
- include/linux/percpu.h |   46 ++++++++++++
- include/linux/vmstat.h |    2 
- mm/Makefile            |    2 
- mm/cpu_alloc.c         |  181 +++++++++++++++++++++++++++++++++++++++++++++++++
- mm/vmstat.c            |    1 
- 5 files changed, 230 insertions(+), 2 deletions(-)
- create mode 100644 include/linux/cpu_alloc.h
- create mode 100644 mm/cpu_alloc.c
-
-Index: linux-2.6/include/linux/vmstat.h
+Index: linux-2.6/include/linux/slub_def.h
 ===================================================================
---- linux-2.6.orig/include/linux/vmstat.h	2008-09-19 09:45:02.000000000 -0500
-+++ linux-2.6/include/linux/vmstat.h	2008-09-19 09:49:05.000000000 -0500
-@@ -37,7 +37,7 @@
- 		FOR_ALL_ZONES(PGSCAN_KSWAPD),
- 		FOR_ALL_ZONES(PGSCAN_DIRECT),
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_STEAL, KSWAPD_INODESTEAL,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		PAGEOUTRUN, ALLOCSTALL, PGROTATED, CPU_BYTES,
- #ifdef CONFIG_HUGETLB_PAGE
- 		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
+--- linux-2.6.orig/include/linux/slub_def.h	2008-09-19 14:57:50.000000000 -0500
++++ linux-2.6/include/linux/slub_def.h	2008-09-19 14:57:51.000000000 -0500
+@@ -36,8 +36,6 @@
+ 	void **freelist;	/* Pointer to first free per cpu object */
+ 	struct page *page;	/* The slab from which we are allocating */
+ 	int node;		/* The node of the page (or -1 for debug) */
+-	unsigned int offset;	/* Freepointer offset (in word units) */
+-	unsigned int objsize;	/* Size of an object (from kmem_cache) */
+ #ifdef CONFIG_SLUB_STATS
+ 	unsigned stat[NR_SLUB_STAT_ITEMS];
  #endif
-Index: linux-2.6/mm/Makefile
+Index: linux-2.6/mm/slub.c
 ===================================================================
---- linux-2.6.orig/mm/Makefile	2008-09-19 09:45:02.000000000 -0500
-+++ linux-2.6/mm/Makefile	2008-09-19 09:49:05.000000000 -0500
-@@ -11,7 +11,7 @@
- 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
- 			   readahead.o swap.o truncate.o vmscan.o \
- 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
--			   page_isolation.o mm_init.o $(mmu-y)
-+			   page_isolation.o mm_init.o cpu_alloc.o $(mmu-y)
- 
- obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
- obj-$(CONFIG_BOUNCE)	+= bounce.o
-Index: linux-2.6/mm/cpu_alloc.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6/mm/cpu_alloc.c	2008-09-19 09:49:59.000000000 -0500
-@@ -0,0 +1,182 @@
-+/*
-+ * Cpu allocator - Manage objects allocated for each processor
-+ *
-+ * (C) 2008 SGI, Christoph Lameter <cl@linux-foundation.org>
-+ * 	Basic implementation with allocation and free from a dedicated per
-+ * 	cpu area.
-+ *
-+ * The per cpu allocator allows a dynamic allocation of a piece of memory on
-+ * every processor. A bitmap is used to track used areas.
-+ * The allocator implements tight packing to reduce the cache footprint
-+ * and increase speed since cacheline contention is typically not a concern
-+ * for memory mainly used by a single cpu. Small objects will fill up gaps
-+ * left by larger allocations that required alignments.
-+ */
-+#include <linux/mm.h>
-+#include <linux/mmzone.h>
-+#include <linux/module.h>
-+#include <linux/percpu.h>
-+#include <linux/bitmap.h>
-+#include <asm/sections.h>
-+#include <linux/bootmem.h>
-+
-+/*
-+ * Basic allocation unit. A bit map is created to track the use of each
-+ * UNIT_SIZE element in the cpu area.
-+ */
-+#define UNIT_TYPE int
-+#define UNIT_SIZE sizeof(UNIT_TYPE)
-+
-+int units;	/* Actual available units */
-+
-+/*
-+ * How many units are needed for an object of a given size
-+ */
-+static int size_to_units(unsigned long size)
-+{
-+	return DIV_ROUND_UP(size, UNIT_SIZE);
-+}
-+
-+/*
-+ * Lock to protect the bitmap and the meta data for the cpu allocator.
-+ */
-+static DEFINE_SPINLOCK(cpu_alloc_map_lock);
-+static unsigned long *cpu_alloc_map;
-+static int nr_units;		/* Number of available units */
-+static int first_free;		/* First known free unit */
-+
-+/*
-+ * Mark an object as used in the cpu_alloc_map
-+ *
-+ * Must hold cpu_alloc_map_lock
-+ */
-+static void set_map(int start, int length)
-+{
-+	while (length-- > 0)
-+		__set_bit(start++, cpu_alloc_map);
-+}
-+
-+/*
-+ * Mark an area as freed.
-+ *
-+ * Must hold cpu_alloc_map_lock
-+ */
-+static void clear_map(int start, int length)
-+{
-+	while (length-- > 0)
-+		__clear_bit(start++, cpu_alloc_map);
-+}
-+
-+/*
-+ * Allocate an object of a certain size
-+ *
-+ * Returns a special pointer that can be used with CPU_PTR to find the
-+ * address of the object for a certain cpu.
-+ */
-+void *cpu_alloc(unsigned long size, gfp_t gfpflags, unsigned long align)
-+{
-+	unsigned long start;
-+	int units = size_to_units(size);
-+	void *ptr;
-+	int first;
-+	unsigned long flags;
-+
-+	if (!size)
-+		return ZERO_SIZE_PTR;
-+
-+	WARN_ON(align > PAGE_SIZE);
-+
-+	spin_lock_irqsave(&cpu_alloc_map_lock, flags);
-+
-+	first = 1;
-+	start = first_free;
-+
-+	for ( ; ; ) {
-+
-+		start = find_next_zero_bit(cpu_alloc_map, nr_units, start);
-+		if (start >= nr_units)
-+			goto out_of_memory;
-+
-+		if (first)
-+			first_free = start;
-+
-+		/*
-+		 * Check alignment and that there is enough space after
-+		 * the starting unit.
-+		 */
-+		if (start % (align / UNIT_SIZE) == 0 &&
-+			find_next_bit(cpu_alloc_map, nr_units, start + 1)
-+					>= start + units)
-+				break;
-+		start++;
-+		first = 0;
-+	}
-+
-+	if (first)
-+		first_free = start + units;
-+
-+	if (start + units > nr_units)
-+		goto out_of_memory;
-+
-+	set_map(start, units);
-+	__count_vm_events(CPU_BYTES, units * UNIT_SIZE);
-+
-+	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
-+
-+	ptr = __per_cpu_end + start;
-+
-+	if (gfpflags & __GFP_ZERO) {
-+		int cpu;
-+
-+		for_each_possible_cpu(cpu)
-+			memset(CPU_PTR(ptr, cpu), 0, size);
-+	}
-+
-+	return ptr;
-+
-+out_of_memory:
-+	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(cpu_alloc);
-+
-+/*
-+ * Free an object. The pointer must be a cpu pointer allocated
-+ * via cpu_alloc.
-+ */
-+void cpu_free(void *start, unsigned long size)
-+{
-+	unsigned long units = size_to_units(size);
-+	unsigned long index = (int *)start - (int *)__per_cpu_end;
-+	unsigned long flags;
-+
-+	if (!start || start == ZERO_SIZE_PTR)
-+		return;
-+
-+	if (WARN_ON(index >= nr_units))
-+		return;
-+
-+	if (WARN_ON(!test_bit(index, cpu_alloc_map) ||
-+		!test_bit(index + units - 1, cpu_alloc_map)))
-+			return;
-+
-+	spin_lock_irqsave(&cpu_alloc_map_lock, flags);
-+
-+	clear_map(index, units);
-+	__count_vm_events(CPU_BYTES, -units * UNIT_SIZE);
-+
-+	if (index < first_free)
-+		first_free = index;
-+
-+	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
-+}
-+EXPORT_SYMBOL(cpu_free);
-+
-+
-+void cpu_alloc_init(void)
-+{
-+	nr_units = percpu_reserve / UNIT_SIZE;
-+
-+	cpu_alloc_map = alloc_bootmem(BITS_TO_LONGS(nr_units));
-+}
-+
-Index: linux-2.6/mm/vmstat.c
-===================================================================
---- linux-2.6.orig/mm/vmstat.c	2008-09-19 09:45:02.000000000 -0500
-+++ linux-2.6/mm/vmstat.c	2008-09-19 09:49:05.000000000 -0500
-@@ -671,6 +671,7 @@
- 	"allocstall",
- 
- 	"pgrotated",
-+	"cpu_bytes",
- #ifdef CONFIG_HUGETLB_PAGE
- 	"htlb_buddy_alloc_success",
- 	"htlb_buddy_alloc_fail",
-Index: linux-2.6/include/linux/percpu.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu.h	2008-09-19 09:49:04.000000000 -0500
-+++ linux-2.6/include/linux/percpu.h	2008-09-19 09:49:05.000000000 -0500
-@@ -107,4 +107,52 @@
- #define free_percpu(ptr)	percpu_free((ptr))
- #define per_cpu_ptr(ptr, cpu)	percpu_ptr((ptr), (cpu))
- 
-+
-+/*
-+ * cpu allocator definitions
-+ *
-+ * The cpu allocator allows allocating an instance of an object for each
-+ * processor and the use of a single pointer to access all instances
-+ * of the object. cpu_alloc provides optimized means for accessing the
-+ * instance of the object belonging to the currently executing processor
-+ * as well as special atomic operations on fields of objects of the
-+ * currently executing processor.
-+ *
-+ * Cpu objects are typically small. The allocator packs them tightly
-+ * to increase the chance on each access that a per cpu object is already
-+ * cached. Alignments may be specified but the intent is to align the data
-+ * properly due to cpu alignment constraints and not to avoid cacheline
-+ * contention. Any holes left by aligning objects are filled up with smaller
-+ * objects that are allocated later.
-+ *
-+ * Cpu data can be allocated using CPU_ALLOC. The resulting pointer is
-+ * pointing to the instance of the variable in the per cpu area provided
-+ * by the loader. It is generally an error to use the pointer directly
-+ * unless we are booting the system.
-+ *
-+ * __GFP_ZERO may be passed as a flag to zero the allocated memory.
-+ */
-+
-+/* Return a pointer to the instance of a object for a particular processor */
-+#define CPU_PTR(__p, __cpu)	SHIFT_PERCPU_PTR((__p), per_cpu_offset(__cpu))
-+
-+/*
-+ * Return a pointer to the instance of the object belonging to the processor
-+ * running the current code.
-+ */
-+#define THIS_CPU(__p)	SHIFT_PERCPU_PTR((__p), my_cpu_offset)
-+#define __THIS_CPU(__p)	SHIFT_PERCPU_PTR((__p), __my_cpu_offset)
-+
-+#define CPU_ALLOC(type, flags)	((typeof(type) *)cpu_alloc(sizeof(type), (flags), \
-+							__alignof__(type)))
-+#define CPU_FREE(pointer)	cpu_free((pointer), sizeof(*(pointer)))
-+
-+/*
-+ * Raw calls
-+ */
-+void *cpu_alloc(unsigned long size, gfp_t flags, unsigned long align);
-+void cpu_free(void *cpu_pointer, unsigned long size);
-+
-+void cpu_alloc_init(void);
-+
- #endif /* __LINUX_PERCPU_H */
-Index: linux-2.6/init/main.c
-===================================================================
---- linux-2.6.orig/init/main.c	2008-09-19 09:49:04.000000000 -0500
-+++ linux-2.6/init/main.c	2008-09-19 09:49:05.000000000 -0500
-@@ -261,7 +261,7 @@
- 	return 0;
+--- linux-2.6.orig/mm/slub.c	2008-09-19 14:57:50.000000000 -0500
++++ linux-2.6/mm/slub.c	2008-09-19 15:28:00.000000000 -0500
+@@ -244,13 +244,6 @@
+ 	return 1;
  }
  
--early_param("percpu=", init_percpu_reserve);
-+early_param("percpu", init_percpu_reserve);
- 
- /*
-  * Unknown boot options get handed to init, unless they look like
-@@ -368,7 +368,11 @@
- #define smp_init()	do { } while (0)
- #endif
- 
--static inline void setup_per_cpu_areas(void) { }
-+static inline void setup_per_cpu_areas(void)
-+{
-+	cpu_alloc_init();
-+}
-+
- static inline void setup_nr_cpu_ids(void) { }
- static inline void smp_prepare_cpus(unsigned int maxcpus) { }
- 
-@@ -405,6 +409,7 @@
- 	char *ptr;
- 	unsigned long nr_possible_cpus = num_possible_cpus();
- 
-+	cpu_alloc_init();
- 	/* Copy section for each CPU (we discard the original) */
- 	size = ALIGN(PERCPU_AREA_SIZE, PAGE_SIZE);
- 	printk(KERN_INFO "percpu area: %d bytes total, %d available.\n",
-Index: linux-2.6/arch/x86/kernel/setup_percpu.c
-===================================================================
---- linux-2.6.orig/arch/x86/kernel/setup_percpu.c	2008-09-19 09:49:04.000000000 -0500
-+++ linux-2.6/arch/x86/kernel/setup_percpu.c	2008-09-19 09:49:05.000000000 -0500
-@@ -144,6 +144,7 @@
- 	char *ptr;
- 	int cpu;
- 
-+	cpu_alloc_init();
- 	/* Setup cpu_pda map */
- 	setup_cpu_pda_map();
- 
-Index: linux-2.6/arch/ia64/kernel/setup.c
-===================================================================
---- linux-2.6.orig/arch/ia64/kernel/setup.c	2008-09-19 09:45:02.000000000 -0500
-+++ linux-2.6/arch/ia64/kernel/setup.c	2008-09-19 09:49:05.000000000 -0500
-@@ -842,6 +842,7 @@
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
- 	prefill_possible_map();
- #endif
-+	cpu_alloc_init();
- }
- 
- /*
-Index: linux-2.6/arch/powerpc/kernel/setup_64.c
-===================================================================
---- linux-2.6.orig/arch/powerpc/kernel/setup_64.c	2008-09-19 09:49:04.000000000 -0500
-+++ linux-2.6/arch/powerpc/kernel/setup_64.c	2008-09-19 09:49:05.000000000 -0500
-@@ -611,6 +611,7 @@
- 		paca[i].data_offset = ptr - __per_cpu_start;
- 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
- 	}
-+	cpu_alloc_init();
- }
- #endif
- 
-Index: linux-2.6/arch/sparc64/mm/init.c
-===================================================================
---- linux-2.6.orig/arch/sparc64/mm/init.c	2008-09-19 09:45:03.000000000 -0500
-+++ linux-2.6/arch/sparc64/mm/init.c	2008-09-19 09:49:05.000000000 -0500
-@@ -1644,6 +1644,7 @@
- /* Dummy function */
- void __init setup_per_cpu_areas(void)
+-/*
+- * Slow version of get and set free pointer.
+- *
+- * This version requires touching the cache lines of kmem_cache which
+- * we avoid to do in the fast alloc free paths. There we obtain the offset
+- * from the page struct.
+- */
+ static inline void *get_freepointer(struct kmem_cache *s, void *object)
  {
-+	cpu_alloc_init();
+ 	return *(void **)(object + s->offset);
+@@ -1415,10 +1408,10 @@
+ 
+ 		/* Retrieve object from cpu_freelist */
+ 		object = c->freelist;
+-		c->freelist = c->freelist[c->offset];
++		c->freelist = get_freepointer(s, c->freelist);
+ 
+ 		/* And put onto the regular freelist */
+-		object[c->offset] = page->freelist;
++		set_freepointer(s, object, page->freelist);
+ 		page->freelist = object;
+ 		page->inuse--;
+ 	}
+@@ -1514,7 +1507,7 @@
+ 	if (unlikely(SLABDEBUG && PageSlubDebug(c->page)))
+ 		goto debug;
+ 
+-	c->freelist = object[c->offset];
++	c->freelist = get_freepointer(s, object);
+ 	c->page->inuse = c->page->objects;
+ 	c->page->freelist = NULL;
+ 	c->node = page_to_nid(c->page);
+@@ -1558,7 +1551,7 @@
+ 		goto another_slab;
+ 
+ 	c->page->inuse++;
+-	c->page->freelist = object[c->offset];
++	c->page->freelist = get_freepointer(s, object);
+ 	c->node = -1;
+ 	goto unlock_out;
+ }
+@@ -1588,7 +1581,7 @@
+ 		object = __slab_alloc(s, gfpflags, node, addr, c);
+ 
+ 	else {
+-		c->freelist = object[c->offset];
++		c->freelist = get_freepointer(s, object);
+ 		stat(c, ALLOC_FASTPATH);
+ 	}
+ 	local_irq_restore(flags);
+@@ -1622,7 +1615,7 @@
+  * handling required then we can return immediately.
+  */
+ static void __slab_free(struct kmem_cache *s, struct page *page,
+-				void *x, void *addr, unsigned int offset)
++				void *x, void *addr)
+ {
+ 	void *prior;
+ 	void **object = (void *)x;
+@@ -1636,7 +1629,8 @@
+ 		goto debug;
+ 
+ checks_ok:
+-	prior = object[offset] = page->freelist;
++	prior = page->freelist;
++	set_freepointer(s, object, prior);
+ 	page->freelist = object;
+ 	page->inuse--;
+ 
+@@ -1700,15 +1694,15 @@
+ 
+ 	local_irq_save(flags);
+ 	c = __THIS_CPU(s->cpu_slab);
+-	debug_check_no_locks_freed(object, c->objsize);
++	debug_check_no_locks_freed(object, s->objsize);
+ 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
+ 		debug_check_no_obj_freed(object, s->objsize);
+ 	if (likely(page == c->page && c->node >= 0)) {
+-		object[c->offset] = c->freelist;
++		set_freepointer(s, object, c->freelist);
+ 		c->freelist = object;
+ 		stat(c, FREE_FASTPATH);
+ 	} else
+-		__slab_free(s, page, x, addr, c->offset);
++		__slab_free(s, page, x, addr);
+ 
+ 	local_irq_restore(flags);
+ }
+@@ -1889,19 +1883,6 @@
+ 	return ALIGN(align, sizeof(void *));
  }
  
- void __init paging_init(void)
+-static void init_kmem_cache_cpu(struct kmem_cache *s,
+-			struct kmem_cache_cpu *c)
+-{
+-	c->page = NULL;
+-	c->freelist = NULL;
+-	c->node = 0;
+-	c->offset = s->offset / sizeof(void *);
+-	c->objsize = s->objsize;
+-#ifdef CONFIG_SLUB_STATS
+-	memset(c->stat, 0, NR_SLUB_STAT_ITEMS * sizeof(unsigned));
+-#endif
+-}
+-
+ static void
+ init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
+ {
+@@ -1926,20 +1907,6 @@
+ #endif
+ }
+ 
+-static int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
+-{
+-	int cpu;
+-
+-	s->cpu_slab = CPU_ALLOC(struct kmem_cache_cpu, flags);
+-
+-	if (!s->cpu_slab)
+-		return 0;
+-
+-	for_each_possible_cpu(cpu)
+-		init_kmem_cache_cpu(s, CPU_PTR(s->cpu_slab, cpu));
+-	return 1;
+-}
+-
+ #ifdef CONFIG_NUMA
+ /*
+  * No kmalloc_node yet so do it by hand. We know that this is the first
+@@ -2196,8 +2163,11 @@
+ 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
+ 		goto error;
+ 
+-	if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
++	s->cpu_slab = CPU_ALLOC(struct kmem_cache_cpu,
++				(flags & ~SLUB_DMA) | __GFP_ZERO);
++	if (!s->cpu_slab)
+ 		return 1;
++
+ 	free_kmem_cache_nodes(s);
+ error:
+ 	if (flags & SLAB_PANIC)
+@@ -2977,8 +2947,6 @@
+ 	down_write(&slub_lock);
+ 	s = find_mergeable(size, align, flags, name, ctor);
+ 	if (s) {
+-		int cpu;
+-
+ 		s->refcount++;
+ 		/*
+ 		 * Adjust the object sizes so that we clear
+@@ -2986,13 +2954,6 @@
+ 		 */
+ 		s->objsize = max(s->objsize, (int)size);
+ 
+-		/*
+-		 * And then we need to update the object size in the
+-		 * per cpu structures
+-		 */
+-		for_each_online_cpu(cpu)
+-			CPU_PTR(s->cpu_slab, cpu)->objsize = s->objsize;
+-
+ 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
+ 		up_write(&slub_lock);
+ 
+@@ -3037,14 +2998,6 @@
+ 	unsigned long flags;
+ 
+ 	switch (action) {
+-	case CPU_UP_PREPARE:
+-	case CPU_UP_PREPARE_FROZEN:
+-		down_read(&slub_lock);
+-		list_for_each_entry(s, &slab_caches, list)
+-			init_kmem_cache_cpu(s, CPU_PTR(s->cpu_slab, cpu));
+-		up_read(&slub_lock);
+-		break;
+-
+ 	case CPU_UP_CANCELED:
+ 	case CPU_UP_CANCELED_FROZEN:
+ 	case CPU_DEAD:
 
 -- 
