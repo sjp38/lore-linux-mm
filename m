@@ -1,59 +1,102 @@
-Message-ID: <48D2F571.4010504@goop.org>
-Date: Thu, 18 Sep 2008 17:42:25 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8J3STEA001437
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 13:28:29 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8J3Sjxh266904
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 13:29:18 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8J3Sit5024645
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2008 13:28:45 +1000
+Message-ID: <48D31C59.7050404@linux.vnet.ibm.com>
+Date: Thu, 18 Sep 2008 20:28:25 -0700
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com> <48D2D3B2.10503@goop.org> <48D2E65A.6020004@redhat.com> <48D2EBBB.205@goop.org> <48D2F05C.4040000@redhat.com>
-In-Reply-To: <48D2F05C.4040000@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH -mm] memrlimit: fix task_lock() recursive locking (v2)
+References: <48D2CD1D.9040202@gmail.com>
+In-Reply-To: <48D2CD1D.9040202@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: righi.andrea@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, containers@lists.linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity wrote:
->>
->> The only direct use of pte_young() is in zap_pte_range, within a
->> mmu_lazy region.  So syncing the A bit state on entering lazy mmu mode
->> would work fine there.
->>
->>   
->
-> Ugh, leaving lazy pte.a mode when entering lazy mmu mode?
+Andrea Righi wrote:
 
-Well, sort of but not quite.  The kernel's announcing its about to start
-processing a batch of ptes, so the hypervisor can take the opportunity
-to update their state before processing.  "Lazy-mode" is from the
-perspective of the kernel lazily updating some state the hypervisor
-might care about, and the sync happens when leaving mode.
+> Since we hold task_lock(), we know that p->mm cannot change and we don't have
+> to worry about incrementing mm_users. So, just use p->mm directly and
+> check that we've not picked a kernel thread.
+> 
+> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+> ---
+>  kernel/cgroup.c      |    3 ++-
+>  mm/memrlimitcgroup.c |   10 ++++------
+>  2 files changed, 6 insertions(+), 7 deletions(-)
+> 
+> diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+> index 678a680..03cc925 100644
+> --- a/kernel/cgroup.c
+> +++ b/kernel/cgroup.c
+> @@ -2757,7 +2757,8 @@ void cgroup_fork_callbacks(struct task_struct *child)
+>   * invoke this routine, since it assigns the mm->owner the first time
+>   * and does not change it.
+>   *
+> - * The callbacks are invoked with mmap_sem held in read mode.
+> + * The callbacks are invoked with task_lock held and mmap_sem held in read
+> + * mode.
+>   */
+>  void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
+>  {
+> diff --git a/mm/memrlimitcgroup.c b/mm/memrlimitcgroup.c
+> index 8ee74f6..b3d20f5 100644
+> --- a/mm/memrlimitcgroup.c
+> +++ b/mm/memrlimitcgroup.c
+> @@ -238,7 +238,7 @@ out:
+>  }
+> 
+>  /*
+> - * This callback is called with mmap_sem held
+> + * This callback is called with mmap_sem and task_lock held
+>   */
+>  static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>  						struct cgroup *old_cgrp,
+> @@ -246,9 +246,9 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>  						struct task_struct *p)
+>  {
+>  	struct memrlimit_cgroup *memrcg, *old_memrcg;
+> -	struct mm_struct *mm = get_task_mm(p);
+> +	struct mm_struct *mm = p->mm;
+> 
+> -	BUG_ON(!mm);
+> +	BUG_ON(!mm || (p->flags & PF_KTHREAD));
+> 
+>  	/*
+>  	 * If we don't have a new cgroup, we just uncharge from the old one.
+> @@ -258,7 +258,7 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>  		memrcg = memrlimit_cgroup_from_cgrp(cgrp);
+>  		if (res_counter_charge(&memrcg->as_res,
+>  				mm->total_vm << PAGE_SHIFT))
+> -			goto out;
+> +			return;
+>  	}
+> 
+>  	if (old_cgrp) {
+> @@ -266,8 +266,6 @@ static void memrlimit_cgroup_mm_owner_changed(struct cgroup_subsys *ss,
+>  		res_counter_uncharge(&old_memrcg->as_res,
+>  				mm->total_vm << PAGE_SHIFT);
+>  	}
+> -out:
+> -	mmput(mm);
+>  }
 
-The flip-side is when the hypervisor is lazily updating some state the
-kernel cares about, so it makes sense that the sync when the kernel
-enters its lazy mode.  But the analogy isn't very good because we don't
-really have an explicit notion of "hypervisor lazy mode", or a formal
-handoff of shared state between the kernel and hypervisor.  But in this
-case the behaviour isn't too bad.
+Seems reasonable
 
->> The call via page_referenced_one() doesn't seem to have a very
->> convenient hook though.  Perhaps putting something in
->> page_check_address() would do the job.
->>
->>   
->
-> Why there?
->
-> Why not explicitly in the callers?  We need more than to exit lazy
-> pte.a mode, we also need to enter it again later.
->
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Because that's the code that actually walks the pagetable and has the
-address of the pte; it just returns a pte_t, not a pte_t *.  It depends
-on whether you want fetch the A bit via ptep or vaddr (in general we
-pass mm, ptep and vaddr to ops which operate on the current pagetable).
-
-    J
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
