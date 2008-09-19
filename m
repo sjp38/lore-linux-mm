@@ -1,65 +1,35 @@
-Date: Fri, 19 Sep 2008 13:14:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm][PATCH 4/4] Add memrlimit controller accounting and
- control (v4)
-Message-Id: <20080919131405.1a95c491.akpm@linux-foundation.org>
-In-Reply-To: <20080919063823.GA27639@balbir.in.ibm.com>
-References: <20080514130904.24440.23486.sendpatchset@localhost.localdomain>
-	<20080514130951.24440.73671.sendpatchset@localhost.localdomain>
-	<20080918135430.e2979ab1.akpm@linux-foundation.org>
-	<20080919063823.GA27639@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48D40C43.5070200@linux-foundation.org>
+Date: Fri, 19 Sep 2008 15:32:03 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [patch 3/4] cpu alloc: The allocator
+References: <20080919145859.062069850@quilx.com> <20080919145929.158651064@quilx.com>
+In-Reply-To: <20080919145929.158651064@quilx.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, skumar@linux.vnet.ibm.com, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, mingo@elte.hu
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Sep 2008 23:38:23 -0700
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Duh. A cast went missing which results in a pointer calculation going haywire.
 
-> * Andrew Morton <akpm@linux-foundation.org> [2008-09-18 13:54:30]:
-> 
-> > On Wed, 14 May 2008 18:39:51 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > This patch adds support for accounting and control of virtual address space
-> > > limits.
-> > 
-> > 
-> > Large changes in linux-next's arch/x86/kernel/ptrace.c caused damage to
-> > the memrlimit patches.
-> > 
-> > I decided to retain the patches because it looks repairable.  The
-> > problem is this reject from
-> > memrlimit-add-memrlimit-controller-accounting-and-control.patch:
-> >
-> 
-> Andrew,
-> 
-> I could not apply mmotm to linux-next (both downloaded right now).
+Signed-off-by: <cl@linux-foundation.org>
 
-mmotm includes linux-next.patch.  mmotm is based upon the most recent
-2.6.x-rcy.
+Index: linux-2.6/mm/cpu_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/cpu_alloc.c	2008-09-19 14:57:25.000000000 -0500
++++ linux-2.6/mm/cpu_alloc.c	2008-09-19 14:57:33.000000000 -0500
+@@ -126,7 +126,7 @@
 
-This is the only way to do it - I often have to change linux-next.patch
-due to rejects and it's unreasonable to expect people to base off the
-same version of linux-next as I did.
+ 	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
 
-> I
-> applied the patches one-by-one resolving differences starting from #mm
-> in the series file.
-> 
-> Here is my fixed version of the patch, I compiled the patch, but could
-> not run it, since I could not create the full series of applied
-> patches. I compiled arch/x86/kernel/ds.o and ptrace.o. I've included
-> the patch below, please let me know if the code looks OK (via review)
-> and the patch applies. I'll test it once I can resonably resolve all
-> conflicts between linux-next and mmotm.
+-	ptr = __per_cpu_end + start;
++	ptr = (int *)__per_cpu_end + start;
 
-OK, we'll give it a shot, thanks.
+ 	printk(KERN_INFO "%d per cpu units allocated at offset %lx address %p\n",
+ 		units, start, ptr)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
