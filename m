@@ -1,119 +1,94 @@
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 2/2] Report the pagesize backing a VMA in /proc/pid/maps
-Date: Mon, 22 Sep 2008 02:38:12 +0100
-Message-Id: <1222047492-27622-3-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1222047492-27622-1-git-send-email-mel@csn.ul.ie>
-References: <1222047492-27622-1-git-send-email-mel@csn.ul.ie>
+Message-ID: <48D739B2.1050202@goop.org>
+Date: Sun, 21 Sep 2008 23:22:42 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
+Subject: Re: PTE access rules & abstraction
+References: <1221846139.8077.25.camel@pasglop>
+In-Reply-To: <1221846139.8077.25.camel@pasglop>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>
+To: benh@kernel.crashing.org
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds a new field for hugepage-backed memory regions to show the
-pagesize in /proc/pid/maps.  While the information is available in smaps,
-maps is more human-readable and does not incur the significant cost of
-calculating Pss. An example of a /proc/self/maps output for an application
-using hugepages with this patch applied is;
+Benjamin Herrenschmidt wrote:
+> Just yesterday, I was browsing through the users of set_pte_at() to
+> check something, and stumbled on a (new ?) bug that will introduce
+> subtle problems on at least powerpc and s390.
+>
+> No big deal, I'll send a fix, but I'm becoming concerned with how
+> fragile our page table & PTE access has become.
+>
+> (The bug btw is that we ptep_get_and_clear followed by a set_pte_at, at
+> least on those architectures, you -must- flush before you put something
+> new after you have cleared a PTE, I'll have to fixup our implementation
+> of the new pte_modify_start/commit).
+>   
 
-08048000-0804c000 r-xp 00000000 03:01 49135      /bin/cat
-0804c000-0804d000 rw-p 00003000 03:01 49135      /bin/cat
-08400000-08800000 rw-p 00000000 00:10 4055       /mnt/libhugetlbfs.tmp.QzPPTJ (deleted) (hpagesize=4096kB)
-b7daa000-b7dab000 rw-p b7daa000 00:00 0
-b7dab000-b7ed2000 r-xp 00000000 03:01 116846     /lib/tls/i686/cmov/libc-2.3.6.so
-b7ed2000-b7ed7000 r--p 00127000 03:01 116846     /lib/tls/i686/cmov/libc-2.3.6.so
-b7ed7000-b7ed9000 rw-p 0012c000 03:01 116846     /lib/tls/i686/cmov/libc-2.3.6.so
-b7ed9000-b7edd000 rw-p b7ed9000 00:00 0
-b7ee1000-b7ee8000 r-xp 00000000 03:01 49262      /root/libhugetlbfs-git/obj32/libhugetlbfs.so
-b7ee8000-b7ee9000 rw-p 00006000 03:01 49262      /root/libhugetlbfs-git/obj32/libhugetlbfs.so
-b7ee9000-b7eed000 rw-p b7ee9000 00:00 0
-b7eed000-b7f02000 r-xp 00000000 03:01 119345     /lib/ld-2.3.6.so
-b7f02000-b7f04000 rw-p 00014000 03:01 119345     /lib/ld-2.3.6.so
-bf8ef000-bf903000 rwxp bffeb000 00:00 0          [stack]
-bf903000-bf904000 rw-p bffff000 00:00 0
-ffffe000-fffff000 r-xp 00000000 00:00 0          [vdso]
+When I added the ptep_modify_* interface, it occurred to me that
+assuming that ptep_get_and_clear would always prevent async pte updates
+was a bit optimistic, or at least presumptuous.  And certainly not
+flushing the tlb seems like something that just happens to work on x86
+(in fact I'm not quite sure how it does work on x86).
 
-To be predictable for parsers, the patch adds the notion of reporting
-VMA attributes by adding fields that look like "(attribute[=value])". This
-already happens when a file is deleted and the user sees (deleted) after the
-filename. The expectation is that existing parsers will not break as those
-that read the filename should be reading forward after the inode number
-and stopping when it sees something that is not part of the filename.
-Parsers that assume everything after / is a filename will get confused by
-(hpagesize=XkB) but are already broken due to (deleted).
+I didn't change the function of that code when I made the change, so the
+bug was pre-existing; I think it has been like that for quite a while
+(though I haven't done any git archaeology to back that up).  So I don't
+think there's a new bug here.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- fs/proc/task_mmu.c |   23 +++++++++++++++++------
- 1 files changed, 17 insertions(+), 6 deletions(-)
+What's the consequence of not flushing for you?
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 81a3f91..80233e6 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -198,7 +198,7 @@ static int do_maps_open(struct inode *inode, struct file *file,
- 	return ret;
- }
- 
--static int show_map(struct seq_file *m, void *v)
-+static int __show_map(struct seq_file *m, void *v, int showattributes)
- {
- 	struct proc_maps_private *priv = m->private;
- 	struct task_struct *task = priv->task;
-@@ -233,8 +233,8 @@ static int show_map(struct seq_file *m, void *v)
- 	 * Print the dentry name for named mappings, and a
- 	 * special [heap] marker for the heap:
- 	 */
-+	pad_len_spaces(m, len);
- 	if (file) {
--		pad_len_spaces(m, len);
- 		seq_path(m, &file->f_path, "\n");
- 	} else {
- 		const char *name = arch_vma_name(vma);
-@@ -251,11 +251,17 @@ static int show_map(struct seq_file *m, void *v)
- 				name = "[vdso]";
- 			}
- 		}
--		if (name) {
--			pad_len_spaces(m, len);
-+		if (name)
- 			seq_puts(m, name);
--		}
- 	}
-+
-+	/*
-+	 * Print additional attributes of the VMA of interest
-+	 * - hugepage size if hugepage-backed
-+	 */
-+	if (showattributes && vma->vm_flags & VM_HUGETLB)
-+		seq_printf(m, " (hpagesize=%lukB)", vma_page_size(vma) >> 10);
-+
- 	seq_putc(m, '\n');
- 
- 	if (m->count < m->size)  /* vma is copied successfully */
-@@ -263,6 +269,11 @@ static int show_map(struct seq_file *m, void *v)
- 	return 0;
- }
- 
-+static int show_map(struct seq_file *m, void *v)
-+{
-+	return __show_map(m, v, 1);
-+}
-+
- static const struct seq_operations proc_pid_maps_op = {
- 	.start	= m_start,
- 	.next	= m_next,
-@@ -381,7 +392,7 @@ static int show_smap(struct seq_file *m, void *v)
- 	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
- 		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
- 
--	ret = show_map(m, v);
-+	ret = __show_map(m, v, 0);
- 	if (ret)
- 		return ret;
- 
--- 
-1.5.6.5
+> With the need of the various virtual machines on x86, we've seen new
+> page table accessors being created like there is no tomorrow, changes in
+> the PTEs are accessed that may or may not be things we can rely on being
+> stable in arch code, etc...
+>   
+
+There have been a few optional-extras calls, which are all fine to leave
+as no-ops.  I don't think we've added or changed any must-have interfaces.
+
+> Unfortunately, the arch code often has a very intimate relationship to
+> how page tables are handled. The rules for locking, what can and cannot
+> be done within a single PTE lock section, what can or cannot be done on
+> a PTE, for example after it's been cleared, etc... vary in subtle ways
+> and the way the things are today, the situation is very messy and
+> fragile.
+>   
+
+It seems to me that the rules are roughly "anything goes while you're
+holding the pte lock, but it all must be sane by the time you release
+it".  But a bit more precision would be useful.
+
+> Maybe it's time to have one head in "charge" of the page table access to
+> try to keep some sanity, maybe it's time to write down some rules (for
+> example, can we rely now and forever that set_pte_at() will -never- be
+> called to write on top of an already valid PTE ?, etc...).
+>   
+
+I don't know if there's any such rule regarding set_pte_at().  Certainly
+if you were overwriting an existing valid entry, you'd have to arrange
+for a tlb flush.
+
+> But maybe it's time to try to move the abstraction up a bit, maybe along
+> the lines of what Nick proposed a while ago, some kind of transactional
+> model. That would give a lot more freedom to architectures to have their
+> own PTE access rules and optimisations. 
+
+Do you have a reference to Nick's proposals?
+
+A higher level interface might give us virtualization people more scope
+to play with things.  But given that the current interface mostly works
+for everyone, a high level interface would tend to result in a lot of
+duplicated code unless you pretty strictly stipluate something like
+"implement the highest level interface you need *and no higher*; use
+common library code for everything else".
+
+I think documenting the real rules for the current interface would be a
+more immediately fruitful path to start with.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
