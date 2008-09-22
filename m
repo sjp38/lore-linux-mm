@@ -1,39 +1,49 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8MGegrR011996
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 12:40:43 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8MGmcWC203398
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 10:48:38 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8MMmT1E025724
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 16:48:29 -0600
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in
-	/proc/pid/smaps
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080922162152.GB7716@csn.ul.ie>
-References: <1222047492-27622-1-git-send-email-mel@csn.ul.ie>
-	 <1222047492-27622-2-git-send-email-mel@csn.ul.ie>
-	 <1222098955.8533.50.camel@nimitz>  <20080922162152.GB7716@csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 22 Sep 2008 09:48:18 -0700
-Message-Id: <1222102098.8533.62.camel@nimitz>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <4937651.1222104886847.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 23 Sep 2008 02:34:46 +0900 (JST)
+Subject: Re: Re: Re: Re: [PATCH 9/13] memcg: lookup page cgroup (and remove pointer from struct page)
+In-Reply-To: <1222099850.8533.60.camel@nimitz>
 Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <1222099850.8533.60.camel@nimitz>
+ <1222098450.8533.41.camel@nimitz>
+	 <1222095177.8533.14.camel@nimitz>
+	 <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080922201206.e73d9ce6.kamezawa.hiroyu@jp.fujitsu.com>
+	 <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
+	 <32459434.1222099038142.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-09-22 at 17:21 +0100, Mel Gorman wrote:
-> The corollary is that someone running with a 64K base page kernel may be
-> surprised that the pagesize is always 4K. However I'll check if there is
-> a simple way of checking out if the MMU size differs from PAGE_SIZE.
+>On Tue, 2008-09-23 at 00:57 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
+>> I'll add FLATMEM/SPARSEMEM support later. Could you wait for a while ?
+>> Because we have lookup_page_cgroup() after this, we can do anything.
+>
+>OK, I'll stop harassing for the moment, and take a look at the cache. :)
+>
+Why I don't say "optimize this! now! more!" is where this is called is
+limited now. only at charge/uncharge. This is not memmap.
 
-Sure.  If it isn't easy, the best thing to do is probably just to
-document the "interesting" behavior.
+ charge     ...the first page fault to the page
+                  add to radix-tree
+ uncharge   ...the last unmap aginst the page
+                  remove from radix-tree.
 
--- Dave
+I can make this faster by using charactoristics of FLATMEM and others.
+(with more #ifdefs and codes.)
+But would like to start from generic one because adding interface is
+the first thing I have to do here.
+
+BTW, to be honest, I don't like 2-level-table-lookup like
+SPARSEMEM_EXTREME, here. A style like SPARSEMEM_VMEMMAP...using 
+linear virtual address map will be goal of mine.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
