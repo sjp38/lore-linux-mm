@@ -1,41 +1,68 @@
-Subject: Re: Re: [PATCH 4/13] memcg: force_empty moving account
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <19184326.1222095015978.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1222093420.16700.2.camel@lappy.programming.kicks-ass.net>
-	 <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080922200025.49ea6d70.kamezawa.hiroyu@jp.fujitsu.com>
-	 <19184326.1222095015978.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 22 Sep 2008 16:56:03 +0200
-Message-Id: <1222095363.16700.15.camel@lappy.programming.kicks-ass.net>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 23 Sep 2008 00:14:43 +0900 (JST)
+Subject: Re: Re: [PATCH 9/13] memcg: lookup page cgroup (and remove pointer from struct page)
+In-Reply-To: <1222095177.8533.14.camel@nimitz>
 Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <1222095177.8533.14.camel@nimitz>
+ <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080922201206.e73d9ce6.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-09-22 at 23:50 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
-> ----- Original Message -----
-> >> +			spin_lock_irqsave(&mz->lru_lock, flags);
-> >> +		} else {
-> >> +			unlock_page(page);
-> >> +			put_page(page);
-> >> +		}
-> >> +		if (atomic_read(&mem->css.cgroup->count) > 0)
-> >> +			break;
-> >>  	}
-> >>  	spin_unlock_irqrestore(&mz->lru_lock, flags);
-> >
-> >do _NOT_ use yield() ever! unless you know what you're doing, and
-> >probably not even then.
-> >
-> >NAK!
-> Hmm, sorry. cond_resched() is ok ?
+----- Original Message -----
+>On Mon, 2008-09-22 at 20:12 +0900, KAMEZAWA Hiroyuki wrote:
+>> +       /* we don't need too large hash */
+>> +       default_pcg_hash_size = (max_pfn/ENTS_PER_CHUNK);
+>> +       default_pcg_hash_size *= 2;
+>> +       /* if too big, use automatic calclation */
+>> +       if (default_pcg_hash_size > 1024 * 1024)
+>> +               default_pcg_hash_size = 0;
+>> +
+>> +       pcg_hashtable = alloc_large_system_hash("PageCgroup Hash",
+>> +                               sizeof(struct pcg_hash_head),
+>> +                               default_pcg_hash_size,
+>> +                               13,
+>> +                               0,
+>> +                               &pcg_hashshift,
+>> +                               &pcg_hashmask,
+>> +                               0);
+>
+>The one thing I don't see here is much explanation about how large this
+>structure will get.
+>
+max 8MB. (1024 *1024 * 8)...I'll reduce this.
 
-depends on what you want to do, please explain what you're trying to do.
+>Basing it on max_pfn makes me nervous because of what it will do on
+>machines with very sparse memory.  Is this like sparsemem where the
+>structure can be small enough to actually span all of physical memory,
+>or will it be a large memory user?
+>
+I admit this calcuration is too easy. Hmm, based on totalram_pages is 
+better. ok.
 
+
+>Can you lay out how much memory this will use on a machine like Dave
+>Miller's which has 1GB of memory at 0x0 and 1GB of memory at 1TB up in
+>the address space?
+>
+
+>Also, how large do the hash buckets get in the average case?
+>
+on my 48GB box, hashtable was 16384bytes. (in dmesg log.)
+(section size was 128MB.)
+
+I'll rewrite this based on totalram_pages.
+
+BTW, do you know difference between num_physpages and totalram_pages ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
