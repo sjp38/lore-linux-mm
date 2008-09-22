@@ -1,94 +1,122 @@
-Message-ID: <48D739B2.1050202@goop.org>
-Date: Sun, 21 Sep 2008 23:22:42 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Date: Mon, 22 Sep 2008 08:58:54 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] hugetlbfs: add llseek method
+Message-ID: <20080922075853.GA5905@csn.ul.ie>
+References: <20080908174634.GC19912@lst.de>
 MIME-Version: 1.0
-Subject: Re: PTE access rules & abstraction
-References: <1221846139.8077.25.camel@pasglop>
-In-Reply-To: <1221846139.8077.25.camel@pasglop>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080908174634.GC19912@lst.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: benh@kernel.crashing.org
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> Just yesterday, I was browsing through the users of set_pte_at() to
-> check something, and stumbled on a (new ?) bug that will introduce
-> subtle problems on at least powerpc and s390.
->
-> No big deal, I'll send a fix, but I'm becoming concerned with how
-> fragile our page table & PTE access has become.
->
-> (The bug btw is that we ptep_get_and_clear followed by a set_pte_at, at
-> least on those architectures, you -must- flush before you put something
-> new after you have cleared a PTE, I'll have to fixup our implementation
-> of the new pte_modify_start/commit).
->   
+On (08/09/08 19:46), Christoph Hellwig didst pronounce:
+> Hugetlbfs currently doesn't set a llseek method for regular files, which
+> means it will fall back to default_llseek.  This means no one can seek
+> beyond 2 Gigabytes.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-When I added the ptep_modify_* interface, it occurred to me that
-assuming that ptep_get_and_clear would always prevent async pte updates
-was a bit optimistic, or at least presumptuous.  And certainly not
-flushing the tlb seems like something that just happens to work on x86
-(in fact I'm not quite sure how it does work on x86).
+I am probably missing something embarassingly simple. My reading of this
+description made me assume lseek64() must be broken so why does the following
+test not fail?
 
-I didn't change the function of that code when I made the change, so the
-bug was pre-existing; I think it has been like that for quite a while
-(though I haven't done any git archaeology to back that up).  So I don't
-think there's a new bug here.
+/*
+ * This test program writes numbers throughout a large hugetlb-backed file
+ * and checks if lseek64 can be used to read beyond the 2GB file boundary.
+ * mmap() is used to write the file as the write method is not supported on
+ * hugetlbfs. To test the program
+ * 1. mount -t hugetlbfs none /mnt
+ * 2. echo NR_HUGE > /proc/sys/vm/nr_hugepages
+ * 3. gcc -g -Wall hugetlbfs-llseek-test.c -o hugetlbfs-llseek-test && ./hugetlbfs-llseek-test
+ *
+ * where NR_HUGE would be 16 on POWER, 64 with 4M huge pagesize and 128 with
+ * 2MB huge pagesize
+ */
+#define _LARGEFILE64_SOURCE
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
-What's the consequence of not flushing for you?
+#define FILE_NAME "/mnt/hugepagefile"
+#define QGB (256UL*1024UL*1024UL)
+#define NR_QGB 16
+#define MAP_LENGTH (16UL*1024*1024)
+#define PROTECTION (PROT_READ | PROT_WRITE)
 
-> With the need of the various virtual machines on x86, we've seen new
-> page table accessors being created like there is no tomorrow, changes in
-> the PTEs are accessed that may or may not be things we can rely on being
-> stable in arch code, etc...
->   
+/* Only ia64 requires this */
+#ifdef __ia64__
+#define ADDR (void *)(0x8000000000000000UL)
+#define FLAGS (MAP_SHARED | MAP_FIXED | MAP_NORESERVE)
+#else
+#define ADDR (void *)(0x0UL)
+#define FLAGS (MAP_SHARED)
+#endif
 
-There have been a few optional-extras calls, which are all fine to leave
-as no-ops.  I don't think we've added or changed any must-have interfaces.
+int main(int argc, char **argv)
+{
+	char *addr;
+	int fd, i;
 
-> Unfortunately, the arch code often has a very intimate relationship to
-> how page tables are handled. The rules for locking, what can and cannot
-> be done within a single PTE lock section, what can or cannot be done on
-> a PTE, for example after it's been cleared, etc... vary in subtle ways
-> and the way the things are today, the situation is very messy and
-> fragile.
->   
+	/*
+	 * Open a hugetlbfs-backed file and then unlink it so we can exit
+	 * and have the file automatically cleared up
+	 */
+	printf("Opening file " FILE_NAME "\n");
+	fd = open(FILE_NAME, O_CREAT | O_RDWR, 0755);
+	if (fd < 0) {
+		perror("Open failed");
+		exit(1);
+	}
+	unlink(FILE_NAME);
 
-It seems to me that the rules are roughly "anything goes while you're
-holding the pte lock, but it all must be sane by the time you release
-it".  But a bit more precision would be useful.
+	/* Write a known value every quarter gigabyte of the file */
+	printf("Attemping write mmap: ");
+	for (i = 0; i < NR_QGB; i++) {
+		off_t offset = i * QGB;
 
-> Maybe it's time to have one head in "charge" of the page table access to
-> try to keep some sanity, maybe it's time to write down some rules (for
-> example, can we rely now and forever that set_pte_at() will -never- be
-> called to write on top of an already valid PTE ?, etc...).
->   
+		addr = mmap(ADDR, MAP_LENGTH, PROTECTION, FLAGS, fd, offset);
+		if (addr == MAP_FAILED) {
+			printf("FAIL mmap %d\n", i);
+			perror("mmap");
+			exit(-1);
+		}
+		*addr = i;
+		munmap(addr, MAP_LENGTH);
+	}
+	printf(" PASS\n");
 
-I don't know if there's any such rule regarding set_pte_at().  Certainly
-if you were overwriting an existing valid entry, you'd have to arrange
-for a tlb flush.
+	/* Attempt to read the values back using lseek64 */
+	printf("Attemping read seek: ");
+	for (i = 0; i < NR_QGB; i++) {
+		char val = 0;
+		off64_t offset = i * QGB;
 
-> But maybe it's time to try to move the abstraction up a bit, maybe along
-> the lines of what Nick proposed a while ago, some kind of transactional
-> model. That would give a lot more freedom to architectures to have their
-> own PTE access rules and optimisations. 
+		printf("%d ", i);
+		if (lseek64(fd, offset, SEEK_SET) != offset) {
+			printf("FAIL seek %llu\n", offset);
+			perror("lseek");
+			exit(-1);
+		}
 
-Do you have a reference to Nick's proposals?
+		if (read(fd, &val, 1) == -1 || val != i) {
+			printf("FAIL read %d != %d\n", val, i);
+			perror("read");
+			exit(-1);
+		}
 
-A higher level interface might give us virtualization people more scope
-to play with things.  But given that the current interface mostly works
-for everyone, a high level interface would tend to result in a lot of
-duplicated code unless you pretty strictly stipluate something like
-"implement the highest level interface you need *and no higher*; use
-common library code for everything else".
+	}
+	printf("\nTest passed successfully\n");
 
-I think documenting the real rules for the current interface would be a
-more immediately fruitful path to start with.
-
-    J
+	close(fd);
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
