@@ -1,51 +1,84 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8MFtvNG021744
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:57 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8MFtv26218586
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:57 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8MFtu95032689
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:56 -0400
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in
-	/proc/pid/smaps
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1222047492-27622-2-git-send-email-mel@csn.ul.ie>
-References: <1222047492-27622-1-git-send-email-mel@csn.ul.ie>
-	 <1222047492-27622-2-git-send-email-mel@csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 22 Sep 2008 08:55:55 -0700
-Message-Id: <1222098955.8533.50.camel@nimitz>
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <32459434.1222099038142.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Tue, 23 Sep 2008 00:57:18 +0900 (JST)
+Subject: Re: Re: Re: [PATCH 9/13] memcg: lookup page cgroup (and remove pointer from struct page)
+In-Reply-To: <1222098450.8533.41.camel@nimitz>
 Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <1222098450.8533.41.camel@nimitz>
+ <1222095177.8533.14.camel@nimitz>
+	 <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080922201206.e73d9ce6.kamezawa.hiroyu@jp.fujitsu.com>
+	 <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-09-22 at 02:38 +0100, Mel Gorman wrote:
-> It is useful to verify that a hugepage-aware application is using the expected
-> pagesizes in each of its memory regions. This patch reports the pagesize
-> backing the VMA in /proc/pid/smaps. This should not break any sensible
-> parser as the file format is multi-line and it should skip information it
-> does not recognise.
+----- Original Message -----
+>> >
+>> I admit this calcuration is too easy. Hmm, based on totalram_pages is 
+>> better. ok.
+>
+>No, I was setting a trap. ;)
+>
+Bomb!
 
-Time to play devil's advocate. :)
+>If you use totalram_pages, I'll just complain that it doesn't work if a
+>memory hotplug machine drastically changes its size.  You'll end up with
+>pretty darn big hash buckets.
+>
+As I wrote, this is just _generic_ one.
+I'll add FLATMEM and SPARSEMEM support later.
 
-To be fair, this doesn't return the MMU pagesize backing the VMA.  It
-returns pagesize that hugetlb reports *or* the kernel's base PAGE_SIZE.
+I never want to write SPARSEMEM_EXTREME by myself and want to depend
+on SPARSEMEM's internal implementation, which I know well.
 
-The ppc64 case where we have a 64k PAGE_SIZE, but no hardware 64k
-support means that we'll have a 4k MMU pagesize that we're pretending is
-a 64k MMU page.  That might confuse someone seeing 16x the number of TLB
-misses they expect.
 
-This also doesn't work if, in the future, we get multiple page sizes
-mapped under one VMA.  But, I guess that all only matters if you worry
-about how the kernel is treating the pages vs. the MMU hardware.
+>You basically can't get away with the fact that you (potentially) have
+>really sparse addresses to play with here.  Using a hash table is
+>exactly the same as using an array such as sparsemem except you randomly
+>index into it instead of using straight arithmetic.
+>
+see the next patch. per-cpu look-aside cache works well.
 
--- Dave
+>My gut says that you'll need to do exactly the same things sparsemem did
+>here, which is at *least* have a two-level lookup before you get to the
+>linear search.  The two-level lookup also makes the hotplug problem
+>easier.
+>
+>As I look at this, I always have to bounce between these tradeoffs:
+>
+>1. deal with sparse address spaces (keeps you from using max_pfn)
+>2. scale as that sparse address space has memory hotplugged into it
+>   (keeps you from using boot-time present_pages)
+>3. deal with performance impacts from new data structures created to
+>   deal with the other two :)
+>
+>> >Can you lay out how much memory this will use on a machine like Dave
+>> >Miller's which has 1GB of memory at 0x0 and 1GB of memory at 1TB up in
+>> >the address space?
+>> 
+>> >Also, how large do the hash buckets get in the average case?
+>> >
+>> on my 48GB box, hashtable was 16384bytes. (in dmesg log.)
+>> (section size was 128MB.)
+>
+>I'm wondering how long the linear searches of those hlists get.
+>
+In above case, just one step.  16384/8 * 128MB.
+In ppc, it has 16MB sections, hash table will be bigger. But "walk" is
+not very long.
+Anyway, How "walk" is long is not very big problem because look-aside
+buffer helps.
+
+I'll add FLATMEM/SPARSEMEM support later. Could you wait for a while ?
+Because we have lookup_page_cgroup() after this, we can do anything.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
