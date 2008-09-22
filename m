@@ -1,83 +1,49 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8MFpclR017639
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:51:38 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8MFlXrZ270912
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:47:33 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8MFlW7K005488
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:47:33 -0400
-Subject: Re: Re: [PATCH 9/13] memcg: lookup page cgroup (and remove pointer
-	from struct page)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8MFtvNG021744
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:57 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8MFtv26218586
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:57 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8MFtu95032689
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 11:55:56 -0400
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in
+	/proc/pid/smaps
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1222095177.8533.14.camel@nimitz>
-	 <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080922201206.e73d9ce6.kamezawa.hiroyu@jp.fujitsu.com>
-	 <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1222047492-27622-2-git-send-email-mel@csn.ul.ie>
+References: <1222047492-27622-1-git-send-email-mel@csn.ul.ie>
+	 <1222047492-27622-2-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain
-Date: Mon, 22 Sep 2008 08:47:30 -0700
-Message-Id: <1222098450.8533.41.camel@nimitz>
+Date: Mon, 22 Sep 2008 08:55:55 -0700
+Message-Id: <1222098955.8533.50.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-09-23 at 00:14 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
-> >Basing it on max_pfn makes me nervous because of what it will do on
-> >machines with very sparse memory.  Is this like sparsemem where the
-> >structure can be small enough to actually span all of physical memory,
-> >or will it be a large memory user?
-> >
-> I admit this calcuration is too easy. Hmm, based on totalram_pages is 
-> better. ok.
+On Mon, 2008-09-22 at 02:38 +0100, Mel Gorman wrote:
+> It is useful to verify that a hugepage-aware application is using the expected
+> pagesizes in each of its memory regions. This patch reports the pagesize
+> backing the VMA in /proc/pid/smaps. This should not break any sensible
+> parser as the file format is multi-line and it should skip information it
+> does not recognise.
 
-No, I was setting a trap. ;)
+Time to play devil's advocate. :)
 
-If you use totalram_pages, I'll just complain that it doesn't work if a
-memory hotplug machine drastically changes its size.  You'll end up with
-pretty darn big hash buckets.
+To be fair, this doesn't return the MMU pagesize backing the VMA.  It
+returns pagesize that hugetlb reports *or* the kernel's base PAGE_SIZE.
 
-You basically can't get away with the fact that you (potentially) have
-really sparse addresses to play with here.  Using a hash table is
-exactly the same as using an array such as sparsemem except you randomly
-index into it instead of using straight arithmetic.
+The ppc64 case where we have a 64k PAGE_SIZE, but no hardware 64k
+support means that we'll have a 4k MMU pagesize that we're pretending is
+a 64k MMU page.  That might confuse someone seeing 16x the number of TLB
+misses they expect.
 
-My gut says that you'll need to do exactly the same things sparsemem did
-here, which is at *least* have a two-level lookup before you get to the
-linear search.  The two-level lookup also makes the hotplug problem
-easier.
-
-As I look at this, I always have to bounce between these tradeoffs:
-
-1. deal with sparse address spaces (keeps you from using max_pfn)
-2. scale as that sparse address space has memory hotplugged into it
-   (keeps you from using boot-time present_pages)
-3. deal with performance impacts from new data structures created to
-   deal with the other two :)
-
-> >Can you lay out how much memory this will use on a machine like Dave
-> >Miller's which has 1GB of memory at 0x0 and 1GB of memory at 1TB up in
-> >the address space?
-> 
-> >Also, how large do the hash buckets get in the average case?
-> >
-> on my 48GB box, hashtable was 16384bytes. (in dmesg log.)
-> (section size was 128MB.)
-
-I'm wondering how long the linear searches of those hlists get.
-
-> I'll rewrite this based on totalram_pages.
-> 
-> BTW, do you know difference between num_physpages and totalram_pages ?
-
-num_physpages appears to be linked to the size of the address space and
-totalram_pages looks like the amount of ram present.  Kinda
-spanned_pages and present_pages.  But, who knows how consistent they are
-these days. :)
+This also doesn't work if, in the future, we get multiple page sizes
+mapped under one VMA.  But, I guess that all only matters if you worry
+about how the kernel is treating the pages vs. the MMU hardware.
 
 -- Dave
 
