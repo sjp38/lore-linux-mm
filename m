@@ -1,85 +1,74 @@
-Date: Mon, 22 Sep 2008 20:28:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/13] memory cgroup updates v4
-Message-Id: <20080922202858.14525857.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/13] memcg: force_empty moving account
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <20080922200025.49ea6d70.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20080922200025.49ea6d70.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Mon, 22 Sep 2008 16:23:40 +0200
+Message-Id: <1222093420.16700.2.camel@lappy.programming.kicks-ass.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Sep 2008 19:51:59 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Brief description.
-> 
-> 1/13 .... special mapping fix. (NEW)
->      => avoid accounting pages not on LRU...which we cannot reclaim.
-> 
-> 2/13 .... account swap-cache under lock.
->      => move accounting of swap-cache under lock for avoiding unnecessary race.
->          
-> 3/13 .... make root cgroup to be unlimited.
->      => fix root cgroup's memory limit to unlimited.
-> 
-> 4/13 .... atomic-flags for page_cgroup
->      => make page_cgroup->flags to be atomic.
-> 
-> 5/13 .... implement move_account function.
->      => add a function for moving page_cgroup's account to other cgroup.
-> 
-> 6/13 ... force_empty to migrate account
->      => move all account to root cgroup rather than forget all.
-> 
-> 7/13 ...make mapping NULL (clean up)
->      => ensure page->mapping to be NULL before calling mem_cgroup_uncharge_cache().
-> 
-> 8/13 ...optimize cpustat
->      => optimize access to per-cpu statistics for memcg.
-> 
-> 9/13 ...lookup page_cgroup (CHANGED)
->      => preallocate all page_cgroup at boot and remove page->page_cgroup pointer.
-> 
-> 10/13...page_cgroup lookaside buffer 
->      => helps looking up page_cgroup from page.
-> 
-> 11/13...lazy lru freeing page_cgroup (NEW)
->      => do removal from LRU in bached manner like pagevec.
-> 
-> 12/13...lazy lru add page_cgroup (NEW)
->      => do addition to LRU in bached manner like pagevec.
-> 
-> 13/13...swap accountig fix. (NEW)
->      => fix race in swap accounting (can be happen)
->         and this intrduce new protocal as precharge/commit/cancel.
-> 
-> Some patches are big but not complicated I think.
-> 
-Sorry for crazy patch numbering...
+On Mon, 2008-09-22 at 20:00 +0900, KAMEZAWA Hiroyuki wrote:
 
-1   -> 1
-2   -> 2
-3   -> 3
-3.5 -> 4
-3.6 -> 5
-4   -> 6
-5   -> 7
-6   -> 8
-9   -> 9
-10  -> 10
-11  -> 11
-12  -> 12
+> +		/* For avoiding race with speculative page cache handling. */
+> +		if (!PageLRU(page) || !get_page_unless_zero(page)) {
+> +			list_move(&pc->lru, list);
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +			yield();
 
-I may not able to do quick responce, sorry.
+Gah, no way!
 
-Thanks,
--Kame
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +			continue;
+> +		}
+> +		if (!trylock_page(page)) {
+> +			list_move(&pc->lru, list);
+>  			put_page(page);
+> -			if (--count <= 0) {
+> -				count = FORCE_UNCHARGE_BATCH;
+> -				cond_resched();
+> -			}
+> -		} else
+> -			cond_resched();
+> -		spin_lock_irqsave(&mz->lru_lock, flags);
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +			yield();
 
+Seriously?!
 
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +			continue;
+> +		}
+> +		if (mem_cgroup_move_account(page, pc, mem, &init_mem_cgroup)) {
+> +			/* some confliction */
+> +			list_move(&pc->lru, list);
+> +			unlock_page(page);
+> +			put_page(page);
+> +			spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +			yield();
+
+Inflicting pain..
+
+> +			spin_lock_irqsave(&mz->lru_lock, flags);
+> +		} else {
+> +			unlock_page(page);
+> +			put_page(page);
+> +		}
+> +		if (atomic_read(&mem->css.cgroup->count) > 0)
+> +			break;
+>  	}
+>  	spin_unlock_irqrestore(&mz->lru_lock, flags);
+
+do _NOT_ use yield() ever! unless you know what you're doing, and
+probably not even then.
+
+NAK!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
