@@ -1,40 +1,63 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8MGDfhV031913
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 12:13:41 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8MGArJC202502
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 12:10:53 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8MGAqCG001682
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2008 12:10:52 -0400
-Subject: Re: Re: Re: [PATCH 9/13] memcg: lookup page cgroup (and remove
-	pointer from struct page)
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <32459434.1222099038142.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1222098450.8533.41.camel@nimitz>
-	 <1222095177.8533.14.camel@nimitz>
-	 <20080922195159.41a9d2bc.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20080922201206.e73d9ce6.kamezawa.hiroyu@jp.fujitsu.com>
-	 <31600854.1222096483210.kamezawa.hiroyu@jp.fujitsu.com>
-	 <32459434.1222099038142.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 22 Sep 2008 09:10:50 -0700
-Message-Id: <1222099850.8533.60.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 22 Sep 2008 17:17:06 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Message-ID: <20080922161705.GA7716@csn.ul.ie>
+References: <1222047492-27622-1-git-send-email-mel@csn.ul.ie> <1222047492-27622-2-git-send-email-mel@csn.ul.ie> <20080922013053.39fd367a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080922013053.39fd367a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, xemul@openvz.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-09-23 at 00:57 +0900, kamezawa.hiroyu@jp.fujitsu.com wrote:
-> I'll add FLATMEM/SPARSEMEM support later. Could you wait for a while ?
-> Because we have lookup_page_cgroup() after this, we can do anything.
+On (22/09/08 01:30), Andrew Morton didst pronounce:
+> On Mon, 22 Sep 2008 02:38:11 +0100 Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > +		   vma_page_size(vma) >> 10);
+> >  
+> >  	return ret;
+> >  }
+> > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> > index 32e0ef0..0c83445 100644
+> > --- a/include/linux/hugetlb.h
+> > +++ b/include/linux/hugetlb.h
+> > @@ -231,6 +231,19 @@ static inline unsigned long huge_page_size(struct hstate *h)
+> >  	return (unsigned long)PAGE_SIZE << h->order;
+> >  }
+> >  
+> > +static inline unsigned long vma_page_size(struct vm_area_struct *vma)
+> > +{
+> > +	struct hstate *hstate;
+> > +
+> > +	if (!is_vm_hugetlb_page(vma))
+> > +		return PAGE_SIZE;
+> > +
+> > +	hstate = hstate_vma(vma);
+> > +	VM_BUG_ON(!hstate);
+> > +
+> > +	return 1UL << (hstate->order + PAGE_SHIFT);
+> > +}
+> > +
+> 
+> CONFIG_HUGETLB_PAGE=n?
+> 
 
-OK, I'll stop harassing for the moment, and take a look at the cache. :)
+Fails miserably.
 
--- Dave
+> What did you hope to gain by inlining this?
+> 
+
+Inclusion with similar helper functions in the header but it's the wrong thing
+to do in this case, obvious when pointed out. It's too large and called from
+multiple places. I'll revise the patch
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
