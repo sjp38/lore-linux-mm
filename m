@@ -1,402 +1,465 @@
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [patch 1/3] cpu alloc: Use in slub
-Date: Fri, 19 Sep 2008 13:37:04 -0700
-Message-ID: <20080919203724.012145763@quilx.com>
-References: <20080919203703.312007962@quilx.com>
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: pageable memory allocator (for DRM-GEM?)
+Date: Tue, 23 Sep 2008 11:10:17 +0200
+Message-ID: <20080923091017.GB29718__13440.0051123977$1222161160$gmane$org@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Return-path: <owner-linux-mm@kvack.org>
-Content-Disposition: inline; filename=cpu_alloc_slub_conversion
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+To: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net
 List-Id: linux-mm.kvack.org
 
-Using cpu alloc removes the needs for the per cpu arrays in the kmem_cache struct.
-These could get quite big if we have to support system of up to thousands of cpus.
-The use of cpu_alloc means that:
+Hi,
 
-1. The size of kmem_cache for SMP configuration shrinks since we will only
-   need 1 pointer instead of NR_CPUS. The same pointer can be used by all
-   processors. Reduces cache footprint of the allocator.
+So I promised I would look at this again, because I (and others) have some
+issues with exporting shmem_file_setup for DRM-GEM to go off and do things
+with.
 
-2. We can dynamically size kmem_cache according to the actual nodes in the
-   system meaning less memory overhead for configurations that may potentially
-   support up to 1k NUMA nodes / 4k cpus.
+The rationale for using shmem seems to be that pageable "objects" are needed,
+and they can't be created by userspace because that would be ugly for some
+reason, and/or they are required before userland is running.
 
-3. We can remove the diddle widdle with allocating and releasing of
-   kmem_cache_cpu structures when bringing up and shutting down cpus. The cpu
-   alloc logic will do it all for us. Removes some portions of the cpu hotplug
-   functionality.
+I particularly don't like the idea of exposing these vfs objects to random
+drivers because they're likely to get things wrong or become out of synch
+or unreviewed if things change. I suggested a simple pageable object allocator
+that could live in mm and hide the exact details of how shmem / pagecache
+works. So I've coded that up quickly.
 
-4. Fastpath performance increases.
+Upon actually looking at how "GEM" makes use of its shmem_file_setup filp, I
+see something strange... it seems that userspace actually gets some kind of
+descriptor, a descriptor to an object backed by this shmem file (let's call it
+a "file descriptor"). Anyway, it turns out that userspace sometimes needs to
+pread, pwrite, and mmap these objects, but unfortunately it has no direct way
+to do that, due to not having open(2)ed the files directly. So what GEM does
+is to add some ioctls which take the "file descriptor" things, and derives
+the shmem file from them, and then calls into the vfs to perform the operation.
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+If my cursory reading is correct, then my allocator won't work so well as a
+drop in replacement because one isn't allowed to know about the filp behind
+the pageable object. It would also indicate some serious crack smoking by
+anyone who thinks open(2), pread(2), mmap(2), etc is ugly in comparison...
 
-Index: linux-2.6/include/linux/slub_def.h
+So please, nobody who worked on that code is allowed to use ugly as an
+argument. Technical arguments are fine, so let's try to cover them.
+
+BTW. without knowing much of either the GEM or the SPU subsystems, the
+GEM problem seems similar to SPU. Did anyone look at that code? Was it ever
+considered to make the object allocator be a filesystem? That way you could
+control the backing store to the objects yourself, those that want pageable
+memory could use the following allocator, the ioctls could go away,
+you could create your own objects if needed before userspace is up...
+
+---
+
+Create a simple memory allocator which can page out objects when they are
+not in use. Uses shmem for the main infrastructure (except in the nommu
+case where it uses slab). The smallest unit of granularity is a page, so it
+is not yet suitable for tiny objects.
+
+The API allows creation and deletion of memory objects, pinning and
+unpinning of address ranges within an object, mapping ranges of an object
+in KVA, dirtying ranges of an object, and operating on pages within the
+object.
+
+Cc: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net
+
+---
+Index: linux-2.6/include/linux/pageable_alloc.h
 ===================================================================
---- linux-2.6.orig/include/linux/slub_def.h	2008-09-19 13:14:36.000000000 -0500
-+++ linux-2.6/include/linux/slub_def.h	2008-09-19 13:24:04.000000000 -0500
-@@ -68,6 +68,7 @@
-  * Slab cache management.
-  */
- struct kmem_cache {
-+	struct kmem_cache_cpu *cpu_slab;
- 	/* Used for retriving partial slabs etc */
- 	unsigned long flags;
- 	int size;		/* The size of an object including meta data */
-@@ -100,12 +101,7 @@
- 	 * Defragmentation by allocating from a remote node.
- 	 */
- 	int remote_node_defrag_ratio;
--	struct kmem_cache_node *node[MAX_NUMNODES];
--#endif
--#ifdef CONFIG_SMP
--	struct kmem_cache_cpu *cpu_slab[NR_CPUS];
--#else
--	struct kmem_cache_cpu cpu_slab;
-+	struct kmem_cache_node *node[];
- #endif
- };
- 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-09-19 13:14:36.000000000 -0500
-+++ linux-2.6/mm/slub.c	2008-09-19 13:25:51.000000000 -0500
-@@ -226,15 +226,6 @@
- #endif
- }
- 
--static inline struct kmem_cache_cpu *get_cpu_slab(struct kmem_cache *s, int cpu)
--{
--#ifdef CONFIG_SMP
--	return s->cpu_slab[cpu];
--#else
--	return &s->cpu_slab;
--#endif
--}
--
- /* Verify that a pointer has an address that is valid within a slab page */
- static inline int check_valid_pointer(struct kmem_cache *s,
- 				struct page *page, const void *object)
-@@ -1087,7 +1078,7 @@
- 		if (!page)
- 			return NULL;
- 
--		stat(get_cpu_slab(s, raw_smp_processor_id()), ORDER_FALLBACK);
-+		stat(THIS_CPU(s->cpu_slab), ORDER_FALLBACK);
- 	}
- 	page->objects = oo_objects(oo);
- 	mod_zone_page_state(page_zone(page),
-@@ -1364,7 +1355,7 @@
- static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
- {
- 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
--	struct kmem_cache_cpu *c = get_cpu_slab(s, smp_processor_id());
-+	struct kmem_cache_cpu *c = THIS_CPU(s->cpu_slab);
- 
- 	__ClearPageSlubFrozen(page);
- 	if (page->inuse) {
-@@ -1396,7 +1387,7 @@
- 			slab_unlock(page);
- 		} else {
- 			slab_unlock(page);
--			stat(get_cpu_slab(s, raw_smp_processor_id()), FREE_SLAB);
-+			stat(__THIS_CPU(s->cpu_slab), FREE_SLAB);
- 			discard_slab(s, page);
- 		}
- 	}
-@@ -1449,7 +1440,7 @@
-  */
- static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
- {
--	struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-+	struct kmem_cache_cpu *c = CPU_PTR(s->cpu_slab, cpu);
- 
- 	if (likely(c && c->page))
- 		flush_slab(s, c);
-@@ -1552,7 +1543,7 @@
- 		local_irq_disable();
- 
- 	if (new) {
--		c = get_cpu_slab(s, smp_processor_id());
-+		c = __THIS_CPU(s->cpu_slab);
- 		stat(c, ALLOC_SLAB);
- 		if (c->page)
- 			flush_slab(s, c);
-@@ -1588,24 +1579,22 @@
- 	void **object;
- 	struct kmem_cache_cpu *c;
- 	unsigned long flags;
--	unsigned int objsize;
- 
- 	local_irq_save(flags);
--	c = get_cpu_slab(s, smp_processor_id());
--	objsize = c->objsize;
--	if (unlikely(!c->freelist || !node_match(c, node)))
-+	c = __THIS_CPU(s->cpu_slab);
-+	object = c->freelist;
-+	if (unlikely(!object || !node_match(c, node)))
- 
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
- 	else {
--		object = c->freelist;
- 		c->freelist = object[c->offset];
- 		stat(c, ALLOC_FASTPATH);
- 	}
- 	local_irq_restore(flags);
- 
- 	if (unlikely((gfpflags & __GFP_ZERO) && object))
--		memset(object, 0, objsize);
-+		memset(object, 0, s->objsize);
- 
- 	return object;
- }
-@@ -1639,7 +1628,7 @@
- 	void **object = (void *)x;
- 	struct kmem_cache_cpu *c;
- 
--	c = get_cpu_slab(s, raw_smp_processor_id());
-+	c = __THIS_CPU(s->cpu_slab);
- 	stat(c, FREE_SLOWPATH);
- 	slab_lock(page);
- 
-@@ -1710,7 +1699,7 @@
- 	unsigned long flags;
- 
- 	local_irq_save(flags);
--	c = get_cpu_slab(s, smp_processor_id());
-+	c = __THIS_CPU(s->cpu_slab);
- 	debug_check_no_locks_freed(object, c->objsize);
- 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
- 		debug_check_no_obj_freed(object, s->objsize);
-@@ -1937,130 +1926,19 @@
- #endif
- }
- 
--#ifdef CONFIG_SMP
--/*
-- * Per cpu array for per cpu structures.
-- *
-- * The per cpu array places all kmem_cache_cpu structures from one processor
-- * close together meaning that it becomes possible that multiple per cpu
-- * structures are contained in one cacheline. This may be particularly
-- * beneficial for the kmalloc caches.
-- *
-- * A desktop system typically has around 60-80 slabs. With 100 here we are
-- * likely able to get per cpu structures for all caches from the array defined
-- * here. We must be able to cover all kmalloc caches during bootstrap.
-- *
-- * If the per cpu array is exhausted then fall back to kmalloc
-- * of individual cachelines. No sharing is possible then.
-- */
--#define NR_KMEM_CACHE_CPU 100
--
--static DEFINE_PER_CPU(struct kmem_cache_cpu,
--				kmem_cache_cpu)[NR_KMEM_CACHE_CPU];
--
--static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
--static cpumask_t kmem_cach_cpu_free_init_once = CPU_MASK_NONE;
--
--static struct kmem_cache_cpu *alloc_kmem_cache_cpu(struct kmem_cache *s,
--							int cpu, gfp_t flags)
--{
--	struct kmem_cache_cpu *c = per_cpu(kmem_cache_cpu_free, cpu);
--
--	if (c)
--		per_cpu(kmem_cache_cpu_free, cpu) =
--				(void *)c->freelist;
--	else {
--		/* Table overflow: So allocate ourselves */
--		c = kmalloc_node(
--			ALIGN(sizeof(struct kmem_cache_cpu), cache_line_size()),
--			flags, cpu_to_node(cpu));
--		if (!c)
--			return NULL;
--	}
--
--	init_kmem_cache_cpu(s, c);
--	return c;
--}
--
--static void free_kmem_cache_cpu(struct kmem_cache_cpu *c, int cpu)
--{
--	if (c < per_cpu(kmem_cache_cpu, cpu) ||
--			c > per_cpu(kmem_cache_cpu, cpu) + NR_KMEM_CACHE_CPU) {
--		kfree(c);
--		return;
--	}
--	c->freelist = (void *)per_cpu(kmem_cache_cpu_free, cpu);
--	per_cpu(kmem_cache_cpu_free, cpu) = c;
--}
--
--static void free_kmem_cache_cpus(struct kmem_cache *s)
--{
--	int cpu;
--
--	for_each_online_cpu(cpu) {
--		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
--		if (c) {
--			s->cpu_slab[cpu] = NULL;
--			free_kmem_cache_cpu(c, cpu);
--		}
--	}
--}
--
- static int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
- {
- 	int cpu;
- 
--	for_each_online_cpu(cpu) {
--		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
--		if (c)
--			continue;
--
--		c = alloc_kmem_cache_cpu(s, cpu, flags);
--		if (!c) {
--			free_kmem_cache_cpus(s);
--			return 0;
--		}
--		s->cpu_slab[cpu] = c;
--	}
--	return 1;
--}
--
--/*
-- * Initialize the per cpu array.
-- */
--static void init_alloc_cpu_cpu(int cpu)
--{
--	int i;
--
--	if (cpu_isset(cpu, kmem_cach_cpu_free_init_once))
--		return;
-+	s->cpu_slab = CPU_ALLOC(struct kmem_cache_cpu, flags);
- 
--	for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
--		free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i], cpu);
--
--	cpu_set(cpu, kmem_cach_cpu_free_init_once);
--}
--
--static void __init init_alloc_cpu(void)
--{
--	int cpu;
--
--	for_each_online_cpu(cpu)
--		init_alloc_cpu_cpu(cpu);
--  }
--
--#else
--static inline void free_kmem_cache_cpus(struct kmem_cache *s) {}
--static inline void init_alloc_cpu(void) {}
-+	if (!s->cpu_slab)
-+		return 0;
- 
--static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
--{
--	init_kmem_cache_cpu(s, &s->cpu_slab);
-+	for_each_possible_cpu(cpu)
-+		init_kmem_cache_cpu(s, CPU_PTR(s->cpu_slab, cpu));
- 	return 1;
- }
--#endif
- 
- #ifdef CONFIG_NUMA
- /*
-@@ -2427,9 +2305,8 @@
- 	int node;
- 
- 	flush_all(s);
--
-+	CPU_FREE(s->cpu_slab);
- 	/* Attempt to free all objects */
--	free_kmem_cache_cpus(s);
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
- 
-@@ -2946,8 +2823,6 @@
- 	int i;
- 	int caches = 0;
- 
--	init_alloc_cpu();
--
- #ifdef CONFIG_NUMA
- 	/*
- 	 * Must first have the slab cache available for the allocations of the
-@@ -3015,11 +2890,12 @@
- 	for (i = KMALLOC_SHIFT_LOW; i <= PAGE_SHIFT; i++)
- 		kmalloc_caches[i]. name =
- 			kasprintf(GFP_KERNEL, "kmalloc-%d", 1 << i);
--
- #ifdef CONFIG_SMP
- 	register_cpu_notifier(&slab_notifier);
--	kmem_size = offsetof(struct kmem_cache, cpu_slab) +
--				nr_cpu_ids * sizeof(struct kmem_cache_cpu *);
+--- /dev/null
++++ linux-2.6/include/linux/pageable_alloc.h
+@@ -0,0 +1,112 @@
++#ifndef __MM_PAGEABLE_ALLOC_H__
++#define __MM_PAGEABLE_ALLOC_H__
++
++#include <linux/mm.h>
++
++struct pgobj;
++typedef struct pgobj pgobj_t;
++
++/**
++ * pageable_alloc_object - Allocate a pageable object
++ * @size: size in bytes
++ * @nid: preferred node, or -1 for default policy
++ * Returns: an object pointer, or IS_ERR pointer on fail
++ */
++pgobj_t *pageable_alloc_object(unsigned long size, int nid);
++
++/**
++ * pageable_free_object - Free a pageable object
++ * @object: object pointer
++ */
++void pageable_free_object(pgobj_t *object);
++
++/**
++ * pageable_pin_object - Pin an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be pinned
++ * @end: last byte in the object to be pinned (not inclusive)
++ *
++ * pageable_pin_object must be called before the memory range can be used in
++ * any way the pageable object accessor functions. pageable_pin_object may
++ * have to swap pages in from disk. A successful call must be followed (at
++ * some point) by a call to pageable_unpin_object with the same range.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_unpin_object - Unpin an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be unpinned
++ * @end: last byte in the object to be unpinned (not inclusive)
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_dirty_object - Dirty an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be dirtied
++ * @end: last byte in the object to be dirtied (not inclusive)
++ *
++ * If a part of the memory of a pageable object is written to,
++ * pageable_dirty_object must be called on this range before it is unpinned.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_get_page - Get one page of a pageable object
++ * @object: object pointer
++ * @off: byte in the object containing the desired page
++ * @Returns: page pointer requested
++ *
++ * Note: this does not increment the page refcount in any way, however the
++ * page refcount would already be pinned by a call to pageable_pin_object.
++ */
++struct page *pageable_get_page(pgobj_t *object, unsigned long off);
++
++/**
++ * pageable_dirty_page - Dirty one page of a pageable object
++ * @object: object pointer
++ * @page: page pointer returned by pageable_get_page
++ *
++ * Like pageable_dirty_object. If the page returned by pageable_get_page
++ * is dirtied, pageable_dirty_page must be called before it is unpinned.
++ */
++void pageable_dirty_page(pgobj_t *object, struct page *page);
++
++/**
++ * pageable_vmap_object - Map an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be mapped
++ * @end: last byte in the object to be mapped (not inclusive)
++ * @Returns: kernel virtual address, NULL on memory allocation failure
++ *
++ * This maps a specified range of a pageable object into kernel virtual
++ * memory, where it can be treated and operated on as regular memory. It
++ * must be followed by a call to pageable_vunmap_object.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_vunmap_object - Unmap an address range of a pageable object
++ * @object: object pointer
++ * @ptr: pointer returned by pageable_vmap_object
++ * @start: first byte in the object to be mapped
++ * @end: last byte in the object to be mapped (not inclusive)
++ *
++ * This maps a specified range of a pageable object into kernel virtual
++ * memory, where it can be treated and operated on as regular memory. It
++ * must be followed by a call to pageable_vunmap_object.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end);
++
 +#endif
-+#ifdef CONFIG_NUMA
-+	kmem_size = offsetof(struct kmem_cache, node) +
-+				nr_node_ids * sizeof(struct kmem_cache_node *);
- #else
- 	kmem_size = sizeof(struct kmem_cache);
- #endif
-@@ -3115,7 +2991,7 @@
- 		 * per cpu structures
- 		 */
- 		for_each_online_cpu(cpu)
--			get_cpu_slab(s, cpu)->objsize = s->objsize;
-+			CPU_PTR(s->cpu_slab, cpu)->objsize = s->objsize;
+Index: linux-2.6/mm/Makefile
+===================================================================
+--- linux-2.6.orig/mm/Makefile
++++ linux-2.6/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o mm_init.o $(mmu-y)
++			   page_isolation.o mm_init.o pageable_alloc.o $(mmu-y)
  
- 		s->inuse = max_t(int, s->inuse, ALIGN(size, sizeof(void *)));
- 		up_write(&slub_lock);
-@@ -3163,11 +3039,9 @@
- 	switch (action) {
- 	case CPU_UP_PREPARE:
- 	case CPU_UP_PREPARE_FROZEN:
--		init_alloc_cpu_cpu(cpu);
- 		down_read(&slub_lock);
- 		list_for_each_entry(s, &slab_caches, list)
--			s->cpu_slab[cpu] = alloc_kmem_cache_cpu(s, cpu,
--							GFP_KERNEL);
-+			init_kmem_cache_cpu(s, CPU_PTR(s->cpu_slab, cpu));
- 		up_read(&slub_lock);
- 		break;
- 
-@@ -3177,13 +3051,9 @@
- 	case CPU_DEAD_FROZEN:
- 		down_read(&slub_lock);
- 		list_for_each_entry(s, &slab_caches, list) {
--			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
--
- 			local_irq_save(flags);
- 			__flush_cpu_slab(s, cpu);
- 			local_irq_restore(flags);
--			free_kmem_cache_cpu(c, cpu);
--			s->cpu_slab[cpu] = NULL;
- 		}
- 		up_read(&slub_lock);
- 		break;
-@@ -3674,7 +3544,7 @@
- 		int cpu;
- 
- 		for_each_possible_cpu(cpu) {
--			struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-+			struct kmem_cache_cpu *c = CPU_PTR(s->cpu_slab, cpu);
- 
- 			if (!c || c->node < 0)
- 				continue;
-@@ -4079,7 +3949,7 @@
- 		return -ENOMEM;
- 
- 	for_each_online_cpu(cpu) {
--		unsigned x = get_cpu_slab(s, cpu)->stat[si];
-+		unsigned x = CPU_PTR(s->cpu_slab, cpu)->stat[si];
- 
- 		data[cpu] = x;
- 		sum += x;
-
--- 
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+Index: linux-2.6/mm/pageable_alloc.c
+===================================================================
+--- /dev/null
++++ linux-2.6/mm/pageable_alloc.c
+@@ -0,0 +1,260 @@
++/*
++ * Simple pageable memory allocator
++ *
++ * Copyright (C) 2008 Nick Piggin
++ * Copyright (C) 2008 Novell Inc.
++ */
++#include <linux/pageable_alloc.h>
++#include <linux/mm.h>
++#include <linux/fs.h>
++#include <linux/pagemap.h>
++#include <linux/file.h>
++#include <linux/vmalloc.h>
++#include <linux/slab.h>
++#include <linux/radix-tree.h>
++
++#ifdef CONFIG_MMU
++struct pgobj {
++	struct file f;
++};
++
++pgobj_t *pageable_alloc_object(unsigned long size, int nid)
++{
++	struct file *filp;
++
++	filp = shmem_file_setup("pageable object", size, 0);
++
++	return (struct pgobj *)filp;
++}
++
++void pageable_free_object(pgobj_t *object)
++{
++	struct file *filp = (struct file *)object;
++
++	fput(filp);
++}
++
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++	int err = 0;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		page = read_mapping_page(mapping, i, filp);
++		if (IS_ERR(page)) {
++			err = PTR_ERR(page);
++			goto out_error;
++		}
++	}
++
++	BUG_ON(err);
++	return 0;
++
++out_error:
++	if (i > first)
++		pageable_unpin_object(object, start, start + i*PAGE_SIZE);
++	return err;
++}
++
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++		page_cache_release(page);
++	}
++}
++
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++		set_page_dirty(page);
++	}
++}
++
++struct page *pageable_get_page(pgobj_t *object, unsigned long off)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	struct page *page;
++
++	rcu_read_lock();
++	page = radix_tree_lookup(&mapping->page_tree, off / PAGE_SIZE);
++	rcu_read_unlock();
++
++	BUG_ON(!page);
++	BUG_ON(page_count(page) < 2);
++
++	return page;
++}
++
++void pageable_dirty_page(pgobj_t *object, struct page *page)
++{
++	BUG_ON(page_count(page) < 2);
++	set_page_dirty(page);
++}
++
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	unsigned int offset = start & ~PAGE_CACHE_MASK;
++	pgoff_t first, last, i;
++	struct page **pages;
++	int nr;
++	void *ret;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++	nr = last - first;
++
++#ifndef CONFIG_HIGHMEM
++	if (nr == 1) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, first);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++
++		ret = page_address(page);
++
++		goto out;
++	}
++#endif
++
++	pages = kmalloc(sizeof(struct page *) * nr, GFP_KERNEL);
++	if (!pages)
++		return NULL;
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++
++		pages[i] = page;
++	}
++
++	ret = vmap(pages, nr, VM_MAP, PAGE_KERNEL);
++	kfree(pages);
++	if (!ret)
++		return NULL;
++
++out:
++	return ret + offset;
++}
++
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end)
++{
++#ifndef CONFIG_HIGHMEM
++	pgoff_t first, last;
++	int nr;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++	nr = last - first;
++	if (nr == 1)
++		return;
++#endif
++
++	vunmap((void *)((unsigned long)ptr & PAGE_CACHE_MASK));
++}
++
++#else
++
++pgobj_t *pageable_alloc_object(unsigned long size, int nid)
++{
++	void *ret;
++
++	ret = kmalloc(size, GFP_KERNEL);
++	if (!ret)
++		return ERR_PTR(-ENOMEM);
++
++	return ret;
++}
++
++void pageable_free_object(pgobj_t *object)
++{
++	kfree(object);
++}
++
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end){
++	return 0;
++}
++
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++}
++
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++}
++
++struct page *pageable_get_page(pgobj_t *object, unsigned long off)
++{
++	void *ptr = object;
++	return virt_to_page(ptr + off);
++}
++
++void pageable_dirty_page(pgobj_t *object, struct page *page)
++{
++}
++
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	void *ptr = object;
++	return ptr + start;
++}
++
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end)
++{
++}
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
