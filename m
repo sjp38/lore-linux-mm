@@ -1,97 +1,465 @@
-Subject: Re: PTE access rules & abstraction
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <48D88904.4030909@goop.org>
-References: <1221846139.8077.25.camel@pasglop> <48D739B2.1050202@goop.org>
-	 <1222117551.12085.39.camel@pasglop> <20080923031037.GA11907@wotan.suse.de>
-	 <1222147886.12085.93.camel@pasglop>  <48D88904.4030909@goop.org>
-Content-Type: text/plain
-Date: Tue, 23 Sep 2008 16:49:32 +1000
-Message-Id: <1222152572.12085.129.camel@pasglop>
+Date: Tue, 23 Sep 2008 11:10:17 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: pageable memory allocator (for DRM-GEM?)
+Message-ID: <20080923091017.GB29718@wotan.suse.de>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>
+To: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> A good first step might be to define some conventions.  For example,
-> define that set_pte*() *always* means setting a non-valid pte to either
-> a new non-valid state (like a swap reference) or to a valid state. 
-> modify_pte() would modify the flags of a valid
-> pte, giving a new valid pte.  etc...
+Hi,
 
-Yup. Or make it clear that ptep_set_access_flags() should only be used
-to -relax- access (ie, set dirty, writeable, accessed, ... but not
-remove any of them).
+So I promised I would look at this again, because I (and others) have some
+issues with exporting shmem_file_setup for DRM-GEM to go off and do things
+with.
 
-> It may be that a given architecture collapses some or all of these down
-> to the same underlying functionality, but it would allow the core intent
-> to be clearly expressed.
-> 
-> What is the complete set of primitives we need?  I also noticed that a
-> number of the existing pagetable operations are used only once or twice
-> in the core code; I wonder if we really need such special cases, or
-> whether we can make each arch pte operation carry a bit more weight?
+The rationale for using shmem seems to be that pageable "objects" are needed,
+and they can't be created by userspace because that would be ugly for some
+reason, and/or they are required before userland is running.
 
-Yes, that was some of my concern. It's getting close to having one API
-per call site :-)
+I particularly don't like the idea of exposing these vfs objects to random
+drivers because they're likely to get things wrong or become out of synch
+or unreviewed if things change. I suggested a simple pageable object allocator
+that could live in mm and hide the exact details of how shmem / pagecache
+works. So I've coded that up quickly.
 
-> Also, rather than leaving all the rule enforcing to documentation and a
-> maintainer, we should also consider having a debug mode which adds
-> enough paranoid checks to each operation so that any rule breakage will
-> fail obviously on all architectures.
+Upon actually looking at how "GEM" makes use of its shmem_file_setup filp, I
+see something strange... it seems that userspace actually gets some kind of
+descriptor, a descriptor to an object backed by this shmem file (let's call it
+a "file descriptor"). Anyway, it turns out that userspace sometimes needs to
+pread, pwrite, and mmap these objects, but unfortunately it has no direct way
+to do that, due to not having open(2)ed the files directly. So what GEM does
+is to add some ioctls which take the "file descriptor" things, and derives
+the shmem file from them, and then calls into the vfs to perform the operation.
 
-We could do both.
+If my cursory reading is correct, then my allocator won't work so well as a
+drop in replacement because one isn't allowed to know about the filp behind
+the pageable object. It would also indicate some serious crack smoking by
+anyone who thinks open(2), pread(2), mmap(2), etc is ugly in comparison...
 
-Now, regarding operations, let's first find the major call sites, see
-what I miss. I'm omitting free_* in memory.c as those are for freeing
-pte pages, not accessing PTEs themselves. I'm also ignoring read-only
-call sites and hugetlb for now.
+So please, nobody who worked on that code is allowed to use ugly as an
+argument. Technical arguments are fine, so let's try to cover them.
 
-* None-iterative accessors
+BTW. without knowing much of either the GEM or the SPU subsystems, the
+GEM problem seems similar to SPU. Did anyone look at that code? Was it ever
+considered to make the object allocator be a filesystem? That way you could
+control the backing store to the objects yourself, those that want pageable
+memory could use the following allocator, the ioctls could go away,
+you could create your own objects if needed before userspace is up...
 
- - handle_pte_fault in memory.c, on "fixup" faults (pte is present and
-it's not a COW), for fixing up DIRTY and ACCESSED (btw, could we make
-that also fixup EXEC ? I would like this for some stuff I'm working on
-at the moment, ie set it if the vma has VM_EXEC and it was lost from the
-PTE as I might want to mask it out of PTEs under some circumstances).
-Textbook usage of ptep_set_access_flags(), so that's fine.
+---
 
- - do_wp_page() in memory.c for COW or fixup of shared writeable mapping
-writeable-ness. Doesn't overwrite existing PTE for COW anymore, it uses
-clear_flush nowadays and fixup of shared writeable mapping uses
-ptep_set_access_flags() as it should, so that's all good.
+Create a simple memory allocator which can page out objects when they are
+not in use. Uses shmem for the main infrastructure (except in the nommu
+case where it uses slab). The smallest unit of granularity is a page, so it
+is not yet suitable for tiny objects.
 
- - insert_pfn() and insert_page() still in memory.c for fancy page
-faults. Just a trivial set_pte_at() of a !present one, no big deal here
+The API allows creation and deletion of memory objects, pinning and
+unpinning of address ranges within an object, mapping ranges of an object
+in KVA, dirtying ranges of an object, and operating on pages within the
+object.
 
-  - RMAP ones ? Some ad-hoc stuff due to _notify thingies.
+Cc: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net
 
-* Iterative accessors (some don't batch, maybe they could/should).
-
- - zapping a mapping (zap_p*) in memory.c
- - fork (copy_p*) in memory.c could batch better maybe ?
- - setting linear user mappings (remap_p*) in memory.c, trivial
-set_pte_at() on a range, pte's should be !present I think.
- - mprotect (change_p*) in memory.c, which has the problem I mentioned
- - moving page tables (move_p*), pretty trivial clear_flush + set_pte_at
- - clear_regs_pte_range via walk_page_range in fs/proc/task_mmu.c, does
-a test_and_clear_young, flushes mm afterward, could use some lazy stuff
-so we can batch properly on ppc64.
- - vmalloc, that's a bit special and kernel only, doesn't have nasty
-races between creating/tearing down mappings vs. using them
- - highmem I leave alone for now, it's mostly trivial set_pte_at &
-flushing for normal kmap but kmap_atomic can be nasty, though it's arch
-specific.
- - some stuff in fremap I'm not too familiar with and I need to run...
-
-What did I miss ?
-
-Cheers,
-Ben.
-
+---
+Index: linux-2.6/include/linux/pageable_alloc.h
+===================================================================
+--- /dev/null
++++ linux-2.6/include/linux/pageable_alloc.h
+@@ -0,0 +1,112 @@
++#ifndef __MM_PAGEABLE_ALLOC_H__
++#define __MM_PAGEABLE_ALLOC_H__
++
++#include <linux/mm.h>
++
++struct pgobj;
++typedef struct pgobj pgobj_t;
++
++/**
++ * pageable_alloc_object - Allocate a pageable object
++ * @size: size in bytes
++ * @nid: preferred node, or -1 for default policy
++ * Returns: an object pointer, or IS_ERR pointer on fail
++ */
++pgobj_t *pageable_alloc_object(unsigned long size, int nid);
++
++/**
++ * pageable_free_object - Free a pageable object
++ * @object: object pointer
++ */
++void pageable_free_object(pgobj_t *object);
++
++/**
++ * pageable_pin_object - Pin an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be pinned
++ * @end: last byte in the object to be pinned (not inclusive)
++ *
++ * pageable_pin_object must be called before the memory range can be used in
++ * any way the pageable object accessor functions. pageable_pin_object may
++ * have to swap pages in from disk. A successful call must be followed (at
++ * some point) by a call to pageable_unpin_object with the same range.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_unpin_object - Unpin an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be unpinned
++ * @end: last byte in the object to be unpinned (not inclusive)
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_dirty_object - Dirty an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be dirtied
++ * @end: last byte in the object to be dirtied (not inclusive)
++ *
++ * If a part of the memory of a pageable object is written to,
++ * pageable_dirty_object must be called on this range before it is unpinned.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_get_page - Get one page of a pageable object
++ * @object: object pointer
++ * @off: byte in the object containing the desired page
++ * @Returns: page pointer requested
++ *
++ * Note: this does not increment the page refcount in any way, however the
++ * page refcount would already be pinned by a call to pageable_pin_object.
++ */
++struct page *pageable_get_page(pgobj_t *object, unsigned long off);
++
++/**
++ * pageable_dirty_page - Dirty one page of a pageable object
++ * @object: object pointer
++ * @page: page pointer returned by pageable_get_page
++ *
++ * Like pageable_dirty_object. If the page returned by pageable_get_page
++ * is dirtied, pageable_dirty_page must be called before it is unpinned.
++ */
++void pageable_dirty_page(pgobj_t *object, struct page *page);
++
++/**
++ * pageable_vmap_object - Map an address range of a pageable object
++ * @object: object pointer
++ * @start: first byte in the object to be mapped
++ * @end: last byte in the object to be mapped (not inclusive)
++ * @Returns: kernel virtual address, NULL on memory allocation failure
++ *
++ * This maps a specified range of a pageable object into kernel virtual
++ * memory, where it can be treated and operated on as regular memory. It
++ * must be followed by a call to pageable_vunmap_object.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end);
++
++/**
++ * pageable_vunmap_object - Unmap an address range of a pageable object
++ * @object: object pointer
++ * @ptr: pointer returned by pageable_vmap_object
++ * @start: first byte in the object to be mapped
++ * @end: last byte in the object to be mapped (not inclusive)
++ *
++ * This maps a specified range of a pageable object into kernel virtual
++ * memory, where it can be treated and operated on as regular memory. It
++ * must be followed by a call to pageable_vunmap_object.
++ *
++ * Note: the end address is not inclusive, so a (0, 1) range is the first byte.
++ */
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end);
++
++#endif
+Index: linux-2.6/mm/Makefile
+===================================================================
+--- linux-2.6.orig/mm/Makefile
++++ linux-2.6/mm/Makefile
+@@ -11,7 +11,7 @@ obj-y			:= bootmem.o filemap.o mempool.o
+ 			   maccess.o page_alloc.o page-writeback.o pdflush.o \
+ 			   readahead.o swap.o truncate.o vmscan.o \
+ 			   prio_tree.o util.o mmzone.o vmstat.o backing-dev.o \
+-			   page_isolation.o mm_init.o $(mmu-y)
++			   page_isolation.o mm_init.o pageable_alloc.o $(mmu-y)
+ 
+ obj-$(CONFIG_PROC_PAGE_MONITOR) += pagewalk.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+Index: linux-2.6/mm/pageable_alloc.c
+===================================================================
+--- /dev/null
++++ linux-2.6/mm/pageable_alloc.c
+@@ -0,0 +1,260 @@
++/*
++ * Simple pageable memory allocator
++ *
++ * Copyright (C) 2008 Nick Piggin
++ * Copyright (C) 2008 Novell Inc.
++ */
++#include <linux/pageable_alloc.h>
++#include <linux/mm.h>
++#include <linux/fs.h>
++#include <linux/pagemap.h>
++#include <linux/file.h>
++#include <linux/vmalloc.h>
++#include <linux/slab.h>
++#include <linux/radix-tree.h>
++
++#ifdef CONFIG_MMU
++struct pgobj {
++	struct file f;
++};
++
++pgobj_t *pageable_alloc_object(unsigned long size, int nid)
++{
++	struct file *filp;
++
++	filp = shmem_file_setup("pageable object", size, 0);
++
++	return (struct pgobj *)filp;
++}
++
++void pageable_free_object(pgobj_t *object)
++{
++	struct file *filp = (struct file *)object;
++
++	fput(filp);
++}
++
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++	int err = 0;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		page = read_mapping_page(mapping, i, filp);
++		if (IS_ERR(page)) {
++			err = PTR_ERR(page);
++			goto out_error;
++		}
++	}
++
++	BUG_ON(err);
++	return 0;
++
++out_error:
++	if (i > first)
++		pageable_unpin_object(object, start, start + i*PAGE_SIZE);
++	return err;
++}
++
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++		page_cache_release(page);
++	}
++}
++
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	pgoff_t first, last, i;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++		set_page_dirty(page);
++	}
++}
++
++struct page *pageable_get_page(pgobj_t *object, unsigned long off)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	struct page *page;
++
++	rcu_read_lock();
++	page = radix_tree_lookup(&mapping->page_tree, off / PAGE_SIZE);
++	rcu_read_unlock();
++
++	BUG_ON(!page);
++	BUG_ON(page_count(page) < 2);
++
++	return page;
++}
++
++void pageable_dirty_page(pgobj_t *object, struct page *page)
++{
++	BUG_ON(page_count(page) < 2);
++	set_page_dirty(page);
++}
++
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	struct file *filp = (struct file *)object;
++	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
++	unsigned int offset = start & ~PAGE_CACHE_MASK;
++	pgoff_t first, last, i;
++	struct page **pages;
++	int nr;
++	void *ret;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++	nr = last - first;
++
++#ifndef CONFIG_HIGHMEM
++	if (nr == 1) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, first);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++
++		ret = page_address(page);
++
++		goto out;
++	}
++#endif
++
++	pages = kmalloc(sizeof(struct page *) * nr, GFP_KERNEL);
++	if (!pages)
++		return NULL;
++
++	for (i = first; i < last; i++) {
++		struct page *page;
++
++		rcu_read_lock();
++		page = radix_tree_lookup(&mapping->page_tree, i);
++		rcu_read_unlock();
++		BUG_ON(!page);
++		BUG_ON(page_count(page) < 2);
++
++		pages[i] = page;
++	}
++
++	ret = vmap(pages, nr, VM_MAP, PAGE_KERNEL);
++	kfree(pages);
++	if (!ret)
++		return NULL;
++
++out:
++	return ret + offset;
++}
++
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end)
++{
++#ifndef CONFIG_HIGHMEM
++	pgoff_t first, last;
++	int nr;
++
++	BUG_ON(start >= end);
++
++	first = start / PAGE_SIZE;
++	last = DIV_ROUND_UP(end, PAGE_SIZE);
++	nr = last - first;
++	if (nr == 1)
++		return;
++#endif
++
++	vunmap((void *)((unsigned long)ptr & PAGE_CACHE_MASK));
++}
++
++#else
++
++pgobj_t *pageable_alloc_object(unsigned long size, int nid)
++{
++	void *ret;
++
++	ret = kmalloc(size, GFP_KERNEL);
++	if (!ret)
++		return ERR_PTR(-ENOMEM);
++
++	return ret;
++}
++
++void pageable_free_object(pgobj_t *object)
++{
++	kfree(object);
++}
++
++int pageable_pin_object(pgobj_t *object, unsigned long start, unsigned long end){
++	return 0;
++}
++
++void pageable_unpin_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++}
++
++void pageable_dirty_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++}
++
++struct page *pageable_get_page(pgobj_t *object, unsigned long off)
++{
++	void *ptr = object;
++	return virt_to_page(ptr + off);
++}
++
++void pageable_dirty_page(pgobj_t *object, struct page *page)
++{
++}
++
++void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end)
++{
++	void *ptr = object;
++	return ptr + start;
++}
++
++void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end)
++{
++}
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
