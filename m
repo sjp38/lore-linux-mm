@@ -1,130 +1,74 @@
-Date: Tue, 23 Sep 2008 11:50:54 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: PTE access rules & abstraction
-Message-ID: <20080923095054.GA29951@wotan.suse.de>
-References: <1221846139.8077.25.camel@pasglop> <48D739B2.1050202@goop.org> <1222117551.12085.39.camel@pasglop> <20080923031037.GA11907@wotan.suse.de> <1222147886.12085.93.camel@pasglop> <48D88904.4030909@goop.org> <1222152572.12085.129.camel@pasglop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1222152572.12085.129.camel@pasglop>
+Message-ID: <48D8C326.80909@tungstengraphics.com>
+Date: Tue, 23 Sep 2008 12:21:26 +0200
+From: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>
+MIME-Version: 1.0
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+References: <20080923091017.GB29718@wotan.suse.de>
+In-Reply-To: <20080923091017.GB29718@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 23, 2008 at 04:49:32PM +1000, Benjamin Herrenschmidt wrote:
-> 
-> > A good first step might be to define some conventions.  For example,
-> > define that set_pte*() *always* means setting a non-valid pte to either
-> > a new non-valid state (like a swap reference) or to a valid state. 
-> > modify_pte() would modify the flags of a valid
-> > pte, giving a new valid pte.  etc...
-> 
-> Yup. Or make it clear that ptep_set_access_flags() should only be used
-> to -relax- access (ie, set dirty, writeable, accessed, ... but not
-> remove any of them).
-> 
-> > It may be that a given architecture collapses some or all of these down
-> > to the same underlying functionality, but it would allow the core intent
-> > to be clearly expressed.
-> > 
-> > What is the complete set of primitives we need?  I also noticed that a
-> > number of the existing pagetable operations are used only once or twice
-> > in the core code; I wonder if we really need such special cases, or
-> > whether we can make each arch pte operation carry a bit more weight?
-> 
-> Yes, that was some of my concern. It's getting close to having one API
-> per call site :-)
+Nick Piggin wrote:
+> Hi,
+>
+> So I promised I would look at this again, because I (and others) have some
+> issues with exporting shmem_file_setup for DRM-GEM to go off and do things
+> with.
+>
+> The rationale for using shmem seems to be that pageable "objects" are needed,
+> and they can't be created by userspace because that would be ugly for some
+> reason, and/or they are required before userland is running.
+>
+> I particularly don't like the idea of exposing these vfs objects to random
+> drivers because they're likely to get things wrong or become out of synch
+> or unreviewed if things change. I suggested a simple pageable object allocator
+> that could live in mm and hide the exact details of how shmem / pagecache
+> works. So I've coded that up quickly.
+>
+> Upon actually looking at how "GEM" makes use of its shmem_file_setup filp, I
+> see something strange... it seems that userspace actually gets some kind of
+> descriptor, a descriptor to an object backed by this shmem file (let's call it
+> a "file descriptor"). Anyway, it turns out that userspace sometimes needs to
+> pread, pwrite, and mmap these objects, but unfortunately it has no direct way
+> to do that, due to not having open(2)ed the files directly. So what GEM does
+> is to add some ioctls which take the "file descriptor" things, and derives
+> the shmem file from them, and then calls into the vfs to perform the operation.
+>
+> If my cursory reading is correct, then my allocator won't work so well as a
+> drop in replacement because one isn't allowed to know about the filp behind
+> the pageable object. It would also indicate some serious crack smoking by
+> anyone who thinks open(2), pread(2), mmap(2), etc is ugly in comparison...
+>
+> So please, nobody who worked on that code is allowed to use ugly as an
+> argument. Technical arguments are fine, so let's try to cover them.
+>
+>   
+Nick,
+ From my point of view, this is exactly what's needed, although there 
+might be some different opinions among the
+DRM developers. A question:
 
-I don't think that is a huge problem as such... if there was lots of
-repeated uses of the API I'd also be concerned about mm/ code not being
-well factored :)
+Sometimes it's desirable to indicate that a page / object is "cleaned", 
+which would mean data has moved and is backed by device memory. In that 
+case one could either free the object or indicate to it that it can 
+release it's pages. Is freeing / recreating such an object an expensive 
+operation? Would it, in that case, be possible to add an object / page 
+"cleaned" function?
 
-My concern is that things aren't well documented, maybe not consistent
-enough, and are usually named according to what their implementation looks
-like on the favourite arch of the person who introduced them, rather than
-what the VM needs to get done :P
-
-Which leads some architectures (I'm looking at ia64 ;)) to reinvent things
-or just add new primitives rather than finding existing common code. Which
-makes the problem worse.
-
-And it makes generic VM developers not be able to follow what's going on
-with all the different architectures...
-
-
- 
-> > Also, rather than leaving all the rule enforcing to documentation and a
-> > maintainer, we should also consider having a debug mode which adds
-> > enough paranoid checks to each operation so that any rule breakage will
-> > fail obviously on all architectures.
-> 
-> We could do both.
-> 
-> Now, regarding operations, let's first find the major call sites, see
-> what I miss. I'm omitting free_* in memory.c as those are for freeing
-> pte pages, not accessing PTEs themselves. I'm also ignoring read-only
-> call sites and hugetlb for now.
-> 
-> * None-iterative accessors
-> 
->  - handle_pte_fault in memory.c, on "fixup" faults (pte is present and
-> it's not a COW), for fixing up DIRTY and ACCESSED (btw, could we make
-> that also fixup EXEC ? I would like this for some stuff I'm working on
-> at the moment, ie set it if the vma has VM_EXEC and it was lost from the
-> PTE as I might want to mask it out of PTEs under some circumstances).
-> Textbook usage of ptep_set_access_flags(), so that's fine.
-> 
->  - do_wp_page() in memory.c for COW or fixup of shared writeable mapping
-> writeable-ness. Doesn't overwrite existing PTE for COW anymore, it uses
-> clear_flush nowadays and fixup of shared writeable mapping uses
-> ptep_set_access_flags() as it should, so that's all good.
-
-This is one example of being too low level. It wouldn't be hard to have
-an arch where the SMC race does not apply, or even it is probably possible
-to avoid the flush in the case of single-threaded mm. Can't do that however,
-because the call asks for a flush so we must flush.
-
- 
->  - insert_pfn() and insert_page() still in memory.c for fancy page
-> faults. Just a trivial set_pte_at() of a !present one, no big deal here
-> 
->   - RMAP ones ? Some ad-hoc stuff due to _notify thingies.
-
-rmap ones should only do set_pte_at after a clear_flush I think.
+/Thomas
  
 
-> * Iterative accessors (some don't batch, maybe they could/should).
-> 
->  - zapping a mapping (zap_p*) in memory.c
->  - fork (copy_p*) in memory.c could batch better maybe ?
->  - setting linear user mappings (remap_p*) in memory.c, trivial
-> set_pte_at() on a range, pte's should be !present I think.
-
-Yes.
 
 
->  - mprotect (change_p*) in memory.c, which has the problem I mentioned
->  - moving page tables (move_p*), pretty trivial clear_flush + set_pte_at
->  - clear_regs_pte_range via walk_page_range in fs/proc/task_mmu.c, does
-> a test_and_clear_young, flushes mm afterward, could use some lazy stuff
-> so we can batch properly on ppc64.
->  - vmalloc, that's a bit special and kernel only, doesn't have nasty
-> races between creating/tearing down mappings vs. using them
->  - highmem I leave alone for now, it's mostly trivial set_pte_at &
-> flushing for normal kmap but kmap_atomic can be nasty, though it's arch
-> specific.
-
-It's also for kva rather than uva, so it's a bit different too...
 
 
->  - some stuff in fremap I'm not too familiar with and I need to run...
 
-fremap is only ever doing clear_flush on present ptes, or set_pte_at on
-pte_none_ptes (and in this case it is going from !present to !present,
-which is probably also unusual in some cases for arch code to deal with,
-although it is not restricted to fremap I guess)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
