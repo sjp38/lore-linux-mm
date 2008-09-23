@@ -1,47 +1,47 @@
-Date: Tue, 23 Sep 2008 11:56:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: Unified tracing buffer
-In-Reply-To: <48D93665.8030200@linux-foundation.org>
-Message-ID: <alpine.LFD.1.10.0809231154420.3265@nehalem.linux-foundation.org>
-References: <33307c790809191433w246c0283l55a57c196664ce77@mail.gmail.com> <1221869279.8359.31.camel@lappy.programming.kicks-ass.net> <20080922140740.GB5279@in.ibm.com> <1222094724.16700.11.camel@lappy.programming.kicks-ass.net> <1222147545.6875.135.camel@charm-linux>
- <1222162270.16700.57.camel@lappy.programming.kicks-ass.net> <20080923181313.GA4947@Krystal> <48D93665.8030200@linux-foundation.org>
+Date: Tue, 23 Sep 2008 20:46:56 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Message-ID: <20080923194655.GA25542@csn.ul.ie>
+References: <20080922162152.GB7716@csn.ul.ie> <1222102098.8533.62.camel@nimitz> <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mathieu Desnoyers <compudj@krystal.dyndns.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Tom Zanussi <zanussi@comcast.net>, prasad@linux.vnet.ibm.com, Martin Bligh <mbligh@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Steven Rostedt <rostedt@goodmis.org>, od@novell.com, "Frank Ch. Eigler" <fche@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, hch@lst.de, David Wilder <dwilder@us.ibm.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 23 Sep 2008, Christoph Lameter wrote:
-
-> Mathieu Desnoyers wrote:
+On (23/09/08 21:15), KOSAKI Motohiro didst pronounce:
+> > > The corollary is that someone running with a 64K base page kernel may be
+> > > surprised that the pagesize is always 4K. However I'll check if there is
+> > > a simple way of checking out if the MMU size differs from PAGE_SIZE.
 > > 
-> > I think we should instead try to figure out what is currently missing in
-> > the kernel vmap mechanism (probably the ability to vmap from large 4MB
-> > pages after boot), and fix _that_ instead (if possible), which would not
-> > only benefit to tracing, but also to module support.
+> > Sure.  If it isn't easy, the best thing to do is probably just to
+> > document the "interesting" behavior.
+> 
+> Dave, please let me know getpagesize() function return to 4k or 64k on ppc64.
+> I think the PageSize line of the /proc/pid/smap and getpagesize() result should be matched.
+> 
+> otherwise, enduser may be confused.
+> 
 
-No. Don't go there. Piece of absolute shit.
+To distinguish between the two, I now report the kernel pagesize and the
+mmu pagesize like so
 
-The problem with VMAP is that it's _limited_. We don't have reasonable 
-virtual address space holes for x86-32.
+KernelPageSize:       64 kB
+MMUPageSize:           4 kB
 
-The other is that physically contiguos buffers are hard to come by. 
-Certainly not an acceptable solution.
+This is running a kernel with a 64K base pagesize on a PPC970MP which
+does not support 64K hardware pagesizes.
 
-The third is that if you have multiple buffers, you need to look them up 
-in software anyway, so the whole notion of mis-using the TLB to avoid a 
-software lookup is TOTAL CRAP.
+Does this make sense?
 
-Don't do virtual mapping. IT IS BROKEN. IT IS A TOTAL AND UTTER PIECE OF 
-SHIT.
-
-I will absolutely not take any general-purpse tracing code if I'm aware of 
-it mis-using the TLB to play games.
-
-		Linus
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
