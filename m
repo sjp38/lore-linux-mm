@@ -1,30 +1,28 @@
-Date: Tue, 23 Sep 2008 21:15:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-In-Reply-To: <1222102098.8533.62.camel@nimitz>
-References: <20080922162152.GB7716@csn.ul.ie> <1222102098.8533.62.camel@nimitz>
-Message-Id: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <48D8ECB3.8070109@linux-foundation.org>
+Date: Tue, 23 Sep 2008 08:18:43 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+References: <20080923091017.GB29718@wotan.suse.de>	<48D8C326.80909@tungstengraphics.com> <20080923133137.c9e1f171.glisse@freedesktop.org>
+In-Reply-To: <20080923133137.c9e1f171.glisse@freedesktop.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Jerome Glisse <glisse@freedesktop.org>
+Cc: =?ISO-8859-1?Q?Thomas_Hellstr=F6m?= <thomas@tungstengraphics.com>, Nick Piggin <npiggin@suse.de>, keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > The corollary is that someone running with a 64K base page kernel may be
-> > surprised that the pagesize is always 4K. However I'll check if there is
-> > a simple way of checking out if the MMU size differs from PAGE_SIZE.
+Jerome Glisse wrote:
 > 
-> Sure.  If it isn't easy, the best thing to do is probably just to
-> document the "interesting" behavior.
+> Also what about a uncached page allocator ? As some drivers might need
+> them, there is no number but i think their was some concern that changing
+> PAT too often might be costly and that we would better have a poll of
+> such pages.
 
-Dave, please let me know getpagesize() function return to 4k or 64k on ppc64.
-I think the PageSize line of the /proc/pid/smap and getpagesize() result should be matched.
-
-otherwise, enduser may be confused.
-
+IA64 has an uncached allocator. See arch/ia64/include/asm/incached.h and
+arch/ia64/kernel/uncached.c. Probably not exactly what you want but its a
+starting point.
 
 
 --
