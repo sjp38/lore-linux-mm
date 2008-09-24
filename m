@@ -1,36 +1,58 @@
-Date: Wed, 24 Sep 2008 09:20:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mlock: Make the mlock system call interruptible by fatal
-Message-Id: <20080924092040.d8407311.akpm@linux-foundation.org>
-In-Reply-To: <20080924112255.64304a64@lxorguk.ukuu.org.uk>
-References: <20080923224751.GA2790@google.com>
-	<20080924112255.64304a64@lxorguk.ukuu.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Sep 2008 18:10:04 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Message-ID: <20080924171003.GD10837@csn.ul.ie>
+References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1222272395.15523.3.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Salman Qazi <sqazi@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, agl@us.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Sep 2008 11:22:55 +0100 Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-
-> > > Can we do
-> > >
-> > >        return i ? i : -EINTR;
-> > >
-> > > in the usual fashion?
-> > 
-> > Fixed.
+On (24/09/08 09:06), Dave Hansen didst pronounce:
+> On Wed, 2008-09-24 at 16:41 +0100, Mel Gorman wrote:
+> > I admit it's ppc64-specific. In the latest patch series, I made this a
+> > separate patch so that it could be readily dropped again for this reason.
+> > Maybe an alternative would be to display MMUPageSize *only* where it differs
+> > from KernelPageSize. Would that be better or similarly confusing?
 > 
-> If its only interruptible by fatal signals why do we care what the return
-> is ?
+> I would also think that any arch implementing fallback from large to
+> small pages in a hugetlbfs area (Adam needs to post his patches :) would
+> also use this.
 > 
 
-For the immediate in-kernel caller.  __get_user_pages() took a ref on a
-few pages which the caller needs to undo before doing anything else
-(like processing the signal).
+Fair point. Maybe the thing to do is backburner this patch for the moment and
+reintroduce it when/if an architecture supports demotion? The KernelPageSize
+reporting in smaps and what the hpagesize in maps is still useful though
+I believe. Any comment?
+
+(future stuff from here on)
+
+In the future if demotion does happen then the MMUPageSize information may
+be genuinely useful instead of just a curious oddity on ppc64. As you point
+out, Adam (added to cc) has worked on this area (starting with x86 demotion)
+in the past but it's a while before it'll be considered for merging I believe.
+
+That aside, more would need to be done with the page size reporting then
+anyway. For example, it maybe indicate how much of each pagesize is in a VMA
+or indicate that KernelPageSize is what is being requested but in reality
+it is mixed like;
+
+KernelPageSize:		2048 kB (mixed)
+
+or
+
+KernelPageSize:		2048 kB * 5, 4096 kB * 20
+
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
