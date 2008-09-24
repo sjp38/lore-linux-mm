@@ -1,55 +1,73 @@
-Subject: Re: PTE access rules & abstraction
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <48DAC285.80507@goop.org>
-References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
-	 <1222117551.12085.39.camel@pasglop>
-	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
-	 <1222291248.8277.90.camel@pasglop>  <48DAB7E2.5030009@goop.org>
-	 <1222294041.8277.104.camel@pasglop>  <48DAC285.80507@goop.org>
-Content-Type: text/plain
-Date: Thu, 25 Sep 2008 08:53:04 +1000
-Message-Id: <1222296784.8277.126.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Sep 2008 00:39:52 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Message-ID: <20080924233952.GB8598@csn.ul.ie>
+References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz> <20080924171003.GD10837@csn.ul.ie> <1222282749.15523.59.camel@nimitz> <20080924191107.GA31324@csn.ul.ie> <1222284190.15523.64.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1222284190.15523.64.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Chubb <peterc@gelato.unsw.edu.au>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, agl@us.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Yes, that sounds fine in principle, but the practise gets tricky.  The
-> trouble with that kind of interface is that it can be fairly heavyweight
-> unless you amortise the cost of the transaction setup/commit with
-> multiple operations.
+On (24/09/08 12:23), Dave Hansen didst pronounce:
+> On Wed, 2008-09-24 at 20:11 +0100, Mel Gorman wrote:
+> > I don't get what you mean by it being sprinkled in each smaps file. How
+> > would you present the data?
+> 
+> 1. figure out what the file path is from smaps
+> 2. look up the mount
+> 3. look up the page sizes from the mount's information
+> 
 
-I agree. Anyway, I'm sure if we get everybody around the same table, we
-can find something, maybe not that high level, but a better set of
-accessors that fits all needs with a more precise semantic. Anyway, I'll
-see if I can come up with ideas later that we can discuss.
+You should be able to do that today but it's not a particularly friendly
+task. I expect without decent knowledge of how hugepages work that you'll get
+it wrong. A userspace tool could do this of course and likely would use stat
+on the file to get teh blocksize if it was hugetlbfs instead of consulting
+mounts. It's just not as user-friendly. Consider "cat smaps" as opposed to
+download this tool, run it and it'll give you an smaps-like output.
 
-It's also all inline so it does give us flexibility in having things
-compile down to nothing on archs where they aren't needed.
+> > > We should be able to figure out which
+> > > mount the file is from and, from there, maybe we need some per-mount
+> > > information exported.  
+> > 
+> > Per-mount information is already exported and you can infer the data about
+> > huge pagesizes. For example, if you know the default huge pagesize (from
+> > /proc/meminfo), and the file is on hugetlbfs (read maps, then /proc/mounts)
+> > and there is no pagesize= mount option (mounts again), you could guess what the
+> > hugepage that is backing a VMA is. Shared memory segments are a little harder
+> > but again, you can infer the information if you look around for long enough.
+> > 
+> > However, this is awkward and not very user-friendly. With the patches (minus
+> > MMUPageSize as I think we've agreed to postpone that), it's easy to see what
+> > pagesize is being used at a glance. Without it, you need to know a fair bit
+> > about hugepages are implemented in Linux to infer the information correctly.
+> 
+> I agree completely.  But, if we consider this a user ABI thing, then
+> we're stuck with it for a long time, and we better make it flexible
+> enough to at least contain the gunk we're planning on adding in a small
+> number of years, like the fallback.  We don't want to be adding this
+> stuff if it isn't going to be stable.
+> 
 
-> Are you using the lazy_mmu hooks we put in, or something else?
+What's wrong with
 
-Yes. We used to do it differently but it was actually racy in a subtle
-way, and I switched it to use your lazy_mmu hooks a while ago.
+KernelPageSize: X kB 
 
-> Likely; it's one of those overused generic words.  The specific meaning
-> I'm using is "we can roll a bunch of updates into a single hypercall". 
-> Operations which do atomic RMW  or fetch-set are typically not batchable
-> because the caller wants the result *now* and can't wait for a deferred
-> result.
+now which a parser can easily handle and later
 
-Right. For us it's mostly about flushing the hash entries, though there
-is no fundamental difference I believe here, it's about updating a
-cache, whether it's the TLB, our hash table, hypervisor shadows, etc...
-and we -should- be able to find a more sensible common ground.
+KernelPageSize: X kb * nX Y kB * nY
 
-Cheers,
-Ben.
+where X is a pagesize, nX is the number of pages of that size in a VMA
+later? The second format should not break a naive parser.
 
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
