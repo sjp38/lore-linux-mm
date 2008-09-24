@@ -1,101 +1,111 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m8OCWTH6031138
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 24 Sep 2008 21:32:29 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A517240047
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:29 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 119582DC12F
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:29 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DD181DB803F
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:25 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB2AA1DB803B
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:24 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 24 Sep 2008 16:41:21 +0100
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-In-Reply-To: <20080923194655.GA25542@csn.ul.ie>
-References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie>
-Message-Id: <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <20080924154120.GA10837@csn.ul.ie>
+References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 24 Sep 2008 21:32:24 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Dave, please let me know getpagesize() function return to 4k or 64k on ppc64.
-> > I think the PageSize line of the /proc/pid/smap and getpagesize() result should be matched.
+On (24/09/08 21:32), KOSAKI Motohiro didst pronounce:
+> > > Dave, please let me know getpagesize() function return to 4k or 64k on ppc64.
+> > > I think the PageSize line of the /proc/pid/smap and getpagesize() result should be matched.
+> > > 
+> > > otherwise, enduser may be confused.
+> > > 
 > > 
-> > otherwise, enduser may be confused.
+> > To distinguish between the two, I now report the kernel pagesize and the
+> > mmu pagesize like so
 > > 
+> > KernelPageSize:       64 kB
+> > MMUPageSize:           4 kB
+> > 
+> > This is running a kernel with a 64K base pagesize on a PPC970MP which
+> > does not support 64K hardware pagesizes.
+> > 
+> > Does this make sense?
 > 
-> To distinguish between the two, I now report the kernel pagesize and the
-> mmu pagesize like so
+> Hmmm, Who want to this infomation?
 > 
-> KernelPageSize:       64 kB
-> MMUPageSize:           4 kB
+
+Someone doing performance analysis on POWER may want it. If they switched to
+a large base page size without using hugetlbfs at all and saw the same number
+of TLB misses, it could be explained by the lower MMU pagesize. Admittedly,
+they should have known the hardware didn't support that pagesize.
+
+> I agreed with
+>   - An administrator want to know these page are normal or huge.
+>   - An administrator want to know hugepage size.
+>     (e.g. x86_64 has two hugepage size (2M and 1G))
 > 
-> This is running a kernel with a 64K base pagesize on a PPC970MP which
-> does not support 64K hardware pagesizes.
+> but above ppc64 case seems deeply implementation depended infomation and
+> nobody want to know it.
 > 
-> Does this make sense?
 
-Hmmm, Who want to this infomation?
+I admit it's ppc64-specific. In the latest patch series, I made this a
+separate patch so that it could be readily dropped again for this reason.
+Maybe an alternative would be to display MMUPageSize *only* where it differs
+from KernelPageSize. Would that be better or similarly confusing?
 
-I agreed with
-  - An administrator want to know these page are normal or huge.
-  - An administrator want to know hugepage size.
-    (e.g. x86_64 has two hugepage size (2M and 1G))
+> it seems a bottleneck of future enhancement.
+> 
 
-but above ppc64 case seems deeply implementation depended infomation and
-nobody want to know it.
+I'm not sure what you mean by it being a bottleneck
 
-it seems a bottleneck of future enhancement.
+> then I disagreed with
+>   - show both KernelPageSize and MMUPageSize in normal page.
+> 
+> 
+> I like following two choice
+> 
+> 
+> 1) in normal page, show PAZE_SIZE
+> 
+> because, any userland application woks as pagesize==PAZE_SIZE 
+> on current powerpc architecture.
+> 
+> because
+> 
+> fs/binfmt_elf.c
+> ------------------------------
+> static int
+> create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
+>                 unsigned long load_addr, unsigned long interp_load_addr)
+> {
+> (snip)
+>         NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
+>         NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE); /* pass ELF_EXEC_PAGESIZE to libc */
+> 
+> include/asm-powerpc/elf.h
+> -----------------------------
+> #define ELF_EXEC_PAGESIZE       PAGE_SIZE 
+> 
 
-then I disagreed with
-  - show both KernelPageSize and MMUPageSize in normal page.
+I'm ok with this option and dropping the MMUPageSize patch as the user
+should already be able to identify that the hardware does not support 64K
+base pagesizes. I will leave the name as KernelPageSize so that it is still
+difficult to confuse it with MMU page size.
 
+> 
+> 2) in normal page, no display any page size.
+>    only hugepage case, display page size.
+> 
+> because, An administrator want to hugepage size only. (AFAICS)
+> 
 
-I like following two choice
+I prefer option 1 as it's easier to parse the presense of information
+than infer from the absense of it.
 
-
-1) in normal page, show PAZE_SIZE
-
-because, any userland application woks as pagesize==PAZE_SIZE 
-on current powerpc architecture.
-
-because
-
-fs/binfmt_elf.c
-------------------------------
-static int
-create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
-                unsigned long load_addr, unsigned long interp_load_addr)
-{
-(snip)
-        NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
-        NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE); /* pass ELF_EXEC_PAGESIZE to libc */
-
-include/asm-powerpc/elf.h
------------------------------
-#define ELF_EXEC_PAGESIZE       PAGE_SIZE 
-
-
-2) in normal page, no display any page size.
-   only hugepage case, display page size.
-
-because, An administrator want to hugepage size only. (AFAICS)
-
-
-
-Thought?
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
