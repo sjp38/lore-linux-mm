@@ -1,71 +1,101 @@
-Message-ID: <48DA333C.2050900@redhat.com>
-Date: Wed, 24 Sep 2008 15:31:56 +0300
-From: Avi Kivity <avi@redhat.com>
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m8OCWTH6031138
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 24 Sep 2008 21:32:29 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A517240047
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 119582DC12F
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DD181DB803F
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:25 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB2AA1DB803B
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 21:32:24 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+In-Reply-To: <20080923194655.GA25542@csn.ul.ie>
+References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie>
+Message-Id: <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Populating multiple ptes at fault time
-References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com> <48D2D3B2.10503@goop.org> <48D2E65A.6020004@redhat.com> <48D2EBBB.205@goop.org> <48D2F05C.4040000@redhat.com> <48D2F571.4010504@goop.org>
-In-Reply-To: <48D2F571.4010504@goop.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 24 Sep 2008 21:32:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Avi Kivity wrote:
->   
->>> The only direct use of pte_young() is in zap_pte_range, within a
->>> mmu_lazy region.  So syncing the A bit state on entering lazy mmu mode
->>> would work fine there.
->>>
->>>   
->>>       
->> Ugh, leaving lazy pte.a mode when entering lazy mmu mode?
->>     
->
-> Well, sort of but not quite.  The kernel's announcing its about to start
-> processing a batch of ptes, so the hypervisor can take the opportunity
-> to update their state before processing.  "Lazy-mode" is from the
-> perspective of the kernel lazily updating some state the hypervisor
-> might care about, and the sync happens when leaving mode.
->
-> The flip-side is when the hypervisor is lazily updating some state the
-> kernel cares about, so it makes sense that the sync when the kernel
-> enters its lazy mode.  But the analogy isn't very good because we don't
-> really have an explicit notion of "hypervisor lazy mode", or a formal
-> handoff of shared state between the kernel and hypervisor.  But in this
-> case the behaviour isn't too bad.
->
->   
+> > Dave, please let me know getpagesize() function return to 4k or 64k on ppc64.
+> > I think the PageSize line of the /proc/pid/smap and getpagesize() result should be matched.
+> > 
+> > otherwise, enduser may be confused.
+> > 
+> 
+> To distinguish between the two, I now report the kernel pagesize and the
+> mmu pagesize like so
+> 
+> KernelPageSize:       64 kB
+> MMUPageSize:           4 kB
+> 
+> This is running a kernel with a 64K base pagesize on a PPC970MP which
+> does not support 64K hardware pagesizes.
+> 
+> Does this make sense?
 
-Handwavy.  I think the two notions are separate <insert handwavy 
-counter-arguments>.
+Hmmm, Who want to this infomation?
 
->>> The call via page_referenced_one() doesn't seem to have a very
->>> convenient hook though.  Perhaps putting something in
->>> page_check_address() would do the job.
->>>
->>>   
->>>       
->> Why there?
->>
->> Why not explicitly in the callers?  We need more than to exit lazy
->> pte.a mode, we also need to enter it again later.
->>
->>     
->
-> Because that's the code that actually walks the pagetable and has the
-> address of the pte; it just returns a pte_t, not a pte_t *.  It depends
-> on whether you want fetch the A bit via ptep or vaddr (in general we
-> pass mm, ptep and vaddr to ops which operate on the current pagetable).
->   
+I agreed with
+  - An administrator want to know these page are normal or huge.
+  - An administrator want to know hugepage size.
+    (e.g. x86_64 has two hugepage size (2M and 1G))
 
-pte_clear_flush_young_notify_etc() seems even closer.
+but above ppc64 case seems deeply implementation depended infomation and
+nobody want to know it.
 
--- 
-error compiling committee.c: too many arguments to function
+it seems a bottleneck of future enhancement.
+
+then I disagreed with
+  - show both KernelPageSize and MMUPageSize in normal page.
+
+
+I like following two choice
+
+
+1) in normal page, show PAZE_SIZE
+
+because, any userland application woks as pagesize==PAZE_SIZE 
+on current powerpc architecture.
+
+because
+
+fs/binfmt_elf.c
+------------------------------
+static int
+create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
+                unsigned long load_addr, unsigned long interp_load_addr)
+{
+(snip)
+        NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
+        NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE); /* pass ELF_EXEC_PAGESIZE to libc */
+
+include/asm-powerpc/elf.h
+-----------------------------
+#define ELF_EXEC_PAGESIZE       PAGE_SIZE 
+
+
+2) in normal page, no display any page size.
+   only hugepage case, display page size.
+
+because, An administrator want to hugepage size only. (AFAICS)
+
+
+
+Thought?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
