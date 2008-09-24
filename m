@@ -1,7 +1,7 @@
-Date: Thu, 25 Sep 2008 00:39:52 +0100
+Date: Thu, 25 Sep 2008 00:42:13 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-Message-ID: <20080924233952.GB8598@csn.ul.ie>
+Message-ID: <20080924234213.GC8598@csn.ul.ie>
 References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz> <20080924171003.GD10837@csn.ul.ie> <1222282749.15523.59.camel@nimitz> <20080924191107.GA31324@csn.ul.ie> <1222284190.15523.64.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
@@ -22,14 +22,6 @@ On (24/09/08 12:23), Dave Hansen didst pronounce:
 > 2. look up the mount
 > 3. look up the page sizes from the mount's information
 > 
-
-You should be able to do that today but it's not a particularly friendly
-task. I expect without decent knowledge of how hugepages work that you'll get
-it wrong. A userspace tool could do this of course and likely would use stat
-on the file to get teh blocksize if it was hugetlbfs instead of consulting
-mounts. It's just not as user-friendly. Consider "cat smaps" as opposed to
-download this tool, run it and it'll give you an smaps-like output.
-
 > > > We should be able to figure out which
 > > > mount the file is from and, from there, maybe we need some per-mount
 > > > information exported.  
@@ -53,16 +45,13 @@ download this tool, run it and it'll give you an smaps-like output.
 > stuff if it isn't going to be stable.
 > 
 
-What's wrong with
+This could also be done as
 
-KernelPageSize: X kB 
+KernelPageSize == Kernel page size that is ideally used in this VMA
 
-now which a parser can easily handle and later
+and later
 
-KernelPageSize: X kb * nX Y kB * nY
-
-where X is a pagesize, nX is the number of pages of that size in a VMA
-later? The second format should not break a naive parser.
+MixedPageSize == Breakdown of the pagesizes that are used in the VMA
 
 -- 
 Mel Gorman
