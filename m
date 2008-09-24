@@ -1,62 +1,35 @@
-Date: Thu, 25 Sep 2008 00:42:13 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-Message-ID: <20080924234213.GC8598@csn.ul.ie>
-References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz> <20080924171003.GD10837@csn.ul.ie> <1222282749.15523.59.camel@nimitz> <20080924191107.GA31324@csn.ul.ie> <1222284190.15523.64.camel@nimitz>
+Date: Thu, 25 Sep 2008 00:55:36 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: PTE access rules & abstraction
+In-Reply-To: <1222291248.8277.90.camel@pasglop>
+Message-ID: <Pine.LNX.4.64.0809250049270.21674@blonde.site>
+References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
+  <1222117551.12085.39.camel@pasglop>  <Pine.LNX.4.64.0809241919520.575@blonde.site>
+ <1222291248.8277.90.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1222284190.15523.64.camel@nimitz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, agl@us.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On (24/09/08 12:23), Dave Hansen didst pronounce:
-> On Wed, 2008-09-24 at 20:11 +0100, Mel Gorman wrote:
-> > I don't get what you mean by it being sprinkled in each smaps file. How
-> > would you present the data?
+On Thu, 25 Sep 2008, Benjamin Herrenschmidt wrote:
 > 
-> 1. figure out what the file path is from smaps
-> 2. look up the mount
-> 3. look up the page sizes from the mount's information
-> 
-> > > We should be able to figure out which
-> > > mount the file is from and, from there, maybe we need some per-mount
-> > > information exported.  
-> > 
-> > Per-mount information is already exported and you can infer the data about
-> > huge pagesizes. For example, if you know the default huge pagesize (from
-> > /proc/meminfo), and the file is on hugetlbfs (read maps, then /proc/mounts)
-> > and there is no pagesize= mount option (mounts again), you could guess what the
-> > hugepage that is backing a VMA is. Shared memory segments are a little harder
-> > but again, you can infer the information if you look around for long enough.
-> > 
-> > However, this is awkward and not very user-friendly. With the patches (minus
-> > MMUPageSize as I think we've agreed to postpone that), it's easy to see what
-> > pagesize is being used at a glance. Without it, you need to know a fair bit
-> > about hugepages are implemented in Linux to infer the information correctly.
-> 
-> I agree completely.  But, if we consider this a user ABI thing, then
-> we're stuck with it for a long time, and we better make it flexible
-> enough to at least contain the gunk we're planning on adding in a small
-> number of years, like the fallback.  We don't want to be adding this
-> stuff if it isn't going to be stable.
-> 
+> Now, regarding the above bug, I'm afraid the only approaches I see that
+> would work would be to have either a ptep_get_and_clear_flush(), which I
+> suppose x86 virt. people will hate, or maybe to actually have a powerpc
+> specific variant of the new start/commit hooks that does the flush.
 
-This could also be done as
+Whyever not the latter?  Jeremy seems to have gifted that to you,
+for precisely such a purpose.
 
-KernelPageSize == Kernel page size that is ideally used in this VMA
+Hugh
 
-and later
-
-MixedPageSize == Breakdown of the pagesizes that are used in the VMA
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+p.s. I surely agree with you over the name ptep_get_and_clear_full():
+horrid, even more confusing than the tlb->fullmm from which it derives
+its name.  I expect I'd agree with you over a lot more too, but please,
+bugfixes first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
