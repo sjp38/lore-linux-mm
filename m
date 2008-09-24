@@ -1,64 +1,55 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8OJNQZ4008082
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 15:23:26 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8OJNE5s018898
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 13:23:14 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8OJNDDp008048
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 13:23:13 -0600
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in
-	/proc/pid/smaps
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20080924191107.GA31324@csn.ul.ie>
-References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080923194655.GA25542@csn.ul.ie>
-	 <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz>
-	 <20080924171003.GD10837@csn.ul.ie> <1222282749.15523.59.camel@nimitz>
-	 <20080924191107.GA31324@csn.ul.ie>
+Subject: Re: PTE access rules & abstraction
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <Pine.LNX.4.64.0809241919520.575@blonde.site>
+References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
+	 <1222117551.12085.39.camel@pasglop>
+	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
 Content-Type: text/plain
-Date: Wed, 24 Sep 2008 12:23:10 -0700
-Message-Id: <1222284190.15523.64.camel@nimitz>
+Date: Thu, 25 Sep 2008 07:20:48 +1000
+Message-Id: <1222291248.8277.90.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, agl@us.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-09-24 at 20:11 +0100, Mel Gorman wrote:
-> I don't get what you mean by it being sprinkled in each smaps file. How
-> would you present the data?
+On Wed, 2008-09-24 at 19:45 +0100, Hugh Dickins wrote:
 
-1. figure out what the file path is from smaps
-2. look up the mount
-3. look up the page sizes from the mount's information
-
-> > We should be able to figure out which
-> > mount the file is from and, from there, maybe we need some per-mount
-> > information exported.  
+> The powerpc bug whereof you write appears to have been there since ...
+> linux-2.4.0 or earlier:
+> 			entry = ptep_get_and_clear(pte);
+> 			set_pte(pte, pte_modify(entry, newprot));
 > 
-> Per-mount information is already exported and you can infer the data about
-> huge pagesizes. For example, if you know the default huge pagesize (from
-> /proc/meminfo), and the file is on hugetlbfs (read maps, then /proc/mounts)
-> and there is no pagesize= mount option (mounts again), you could guess what the
-> hugepage that is backing a VMA is. Shared memory segments are a little harder
-> but again, you can infer the information if you look around for long enough.
-> 
-> However, this is awkward and not very user-friendly. With the patches (minus
-> MMUPageSize as I think we've agreed to postpone that), it's easy to see what
-> pagesize is being used at a glance. Without it, you need to know a fair bit
-> about hugepages are implemented in Linux to infer the information correctly.
+> But perhaps powerpc was slightly different back in those days.
+> It sounds to me like a bug in your current ptep_get_and_clear(),
+> not checking if already hashed?
 
-I agree completely.  But, if we consider this a user ABI thing, then
-we're stuck with it for a long time, and we better make it flexible
-enough to at least contain the gunk we're planning on adding in a small
-number of years, like the fallback.  We don't want to be adding this
-stuff if it isn't going to be stable.
+Yes, I figured out the bug was already there. And no, it's not the
+right approach to have ptep_get_and_clear() flush because it would
+mean that call cannot batch flushes, and thus we would lose ability to
+batch in zap_pte_range().
 
--- Dave
+> Though what we already have falls somewhat short of perfection,
+> I've much more enthusiasm for fixing its bugs, than for any fancy
+> redesign introducing its own bugs.  Others have more stamina!
+
+Well, the current set accessor, as far as I'm concerned is a big pile of
+steaming shit that evolved from x86-specific gunk raped in different
+horrible ways to make it looks like it fits on other architectures and
+additionally mashed with goo to make it somewhat palatable by
+virtualization stuff. Yes, bugs can be fixed but it's still an horrible
+mess.
+
+Now, regarding the above bug, I'm afraid the only approaches I see that
+would work would be to have either a ptep_get_and_clear_flush(), which I
+suppose x86 virt. people will hate, or maybe to actually have a powerpc
+specific variant of the new start/commit hooks that does the flush.
+
+Ben.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
