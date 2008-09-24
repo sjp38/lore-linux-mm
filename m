@@ -1,53 +1,81 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id m8OMLSXe507848
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2008 22:21:28 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8OMLN0g4034566
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 00:21:27 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8OMLN1t018117
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 00:21:23 +0200
+Message-ID: <48DAC285.80507@goop.org>
+Date: Wed, 24 Sep 2008 15:43:17 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
 Subject: Re: PTE access rules & abstraction
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Reply-To: schwidefsky@de.ibm.com
-In-Reply-To: <Pine.LNX.4.64.0809241919520.575@blonde.site>
-References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
-	 <1222117551.12085.39.camel@pasglop>
-	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
-Content-Type: text/plain
-Date: Thu, 25 Sep 2008 00:17:00 +0200
-Message-Id: <1222294620.5968.4.camel@localhost>
-Mime-Version: 1.0
+References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>	 <1222117551.12085.39.camel@pasglop>	 <Pine.LNX.4.64.0809241919520.575@blonde.site>	 <1222291248.8277.90.camel@pasglop>  <48DAB7E2.5030009@goop.org> <1222294041.8277.104.camel@pasglop>
+In-Reply-To: <1222294041.8277.104.camel@pasglop>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: benh@kernel.crashing.org
+Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Chubb <peterc@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-09-24 at 19:45 +0100, Hugh Dickins wrote:
-> > I know s390 has different issues & constraints. Martin told me during
-> > Plumbers that mprotect was probably also broken for him.
-> 
-> Then I hope he will probably send Linus the fix.
-> 
-> Though what we already have falls somewhat short of perfection,
-> I've much more enthusiasm for fixing its bugs, than for any fancy
-> redesign introducing its own bugs.  Others have more stamina!
+Benjamin Herrenschmidt wrote:
+>> What do you propose then?  Ideally one would like to get something that
+>> works for powerpc, s390, all the wacky ia64 modes as well as x86.  The
+>> ia64 folks proposed something, but I've not looked at it closely.  From
+>> an x86 virtualization perspective, something that's basically x86 with
+>> as much scope for batching and deferring as possible would be fine.
+>>     
+>
+> That's where things get interesting. I liked Nick ideas of doing
+> something transactional that could encompass the lock, bach and flushing
+> but that may be too much at this stage...
+>   
 
-As far as I can tell the current code should work. It is not pretty
-though, in particular the nasty pairing of flush_tlb_mm() with
-ptep_set_wrprotect() and flush_tlb_range() with change_protection() is
-fragile. For me the question is if we can find a sensible set of basic
-primitives that work for all architectures in a performant way. This is
-really hard..
+Yes, that sounds fine in principle, but the practise gets tricky.  The
+trouble with that kind of interface is that it can be fairly heavyweight
+unless you amortise the cost of the transaction setup/commit with
+multiple operations.
 
--- 
-blue skies,
-  Martin.
+>> ptep_get_and_clear() is not batchable anyway, because the x86
+>> implementation requires an atomic xchg on the pte, which will likely
+>> result in some sort of trap (and if it doesn't then it doesn't need
+>> batching).
+>>     
+>
+> Well, ptep_get_and_clear() used to be used by zap_pte_range() which I
+> _HOPE_ was batchable on x86 :-)
+>
+> Nowadays, there's this new ptep_get_and_clear_full() (yet another
+> totally meaningless name for an ad-hoc API added for some random special
+> purpose) that zap_pte_range() uses. Maybe that one is now subtly
+> different such as it can be used to batch on x86 ?
+>   
 
-"Reality continues to ruin my life." - Calvin.
+Yeah.  zap_pte_range isn't great when doing a munmap, but the _full gunk
+lets it special-case process teardown and it ends up not being a
+performance problem (in the Xen case, we've already switch to another
+pagetable at that point, so it isn't really a pagetable any more and
+needs no hypercalls).
 
+> In any case, powerpc batches -everything- (unless it's called *_flush in
+> which case the flush is immediate) in a private per-cpu batch and
+> flushes the hash when leaving lazy mode.
+>   
+
+Are you using the lazy_mmu hooks we put in, or something else?
+
+>>   The start/commit API was specifically so that we can do the
+>> mprotect (and fork COW updates) in a batchable way (in Xen its
+>> implemented with a pte update hypercall which updates the pte without
+>> affecting the A/D bits).
+>>     
+>
+> I think we have different ideas of what batch means but yeah, we do
+> batch everything including these on powerpc without the new start/commit
+> interface.
+
+Likely; it's one of those overused generic words.  The specific meaning
+I'm using is "we can roll a bunch of updates into a single hypercall". 
+Operations which do atomic RMW  or fetch-set are typically not batchable
+because the caller wants the result *now* and can't wait for a deferred
+result.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
