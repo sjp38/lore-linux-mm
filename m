@@ -1,58 +1,52 @@
-Date: Wed, 24 Sep 2008 18:10:04 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-Message-ID: <20080924171003.GD10837@csn.ul.ie>
-References: <20080923211140.DC16.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080923194655.GA25542@csn.ul.ie> <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie> <1222272395.15523.3.camel@nimitz>
+Date: Wed, 24 Sep 2008 19:45:47 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: PTE access rules & abstraction
+In-Reply-To: <1222117551.12085.39.camel@pasglop>
+Message-ID: <Pine.LNX.4.64.0809241919520.575@blonde.site>
+References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
+ <1222117551.12085.39.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1222272395.15523.3.camel@nimitz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, agl@us.ibm.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On (24/09/08 09:06), Dave Hansen didst pronounce:
-> On Wed, 2008-09-24 at 16:41 +0100, Mel Gorman wrote:
-> > I admit it's ppc64-specific. In the latest patch series, I made this a
-> > separate patch so that it could be readily dropped again for this reason.
-> > Maybe an alternative would be to display MMUPageSize *only* where it differs
-> > from KernelPageSize. Would that be better or similarly confusing?
+On Tue, 23 Sep 2008, Benjamin Herrenschmidt wrote:
 > 
-> I would also think that any arch implementing fallback from large to
-> small pages in a hugetlbfs area (Adam needs to post his patches :) would
-> also use this.
+> The bug may have been there, as I said, lots of unwritten rules...
+> sometimes broken. I'm not necessarily blaming you, but there have been
+> lots of changes to the PTE accessors over the last 2 years and not
+> always under any control :-)
 > 
+> In our case, the consequence is that the entry can be re-hashed because
+> the fact that it was already hashed and where it was hashed, which is
+> encoded in the PTE, gets lost by the clear. That means a potential
+> duplicate entry in the hash. A hard to hit race, but possible. Such a
+> condition is architecturally illegal and can cause things ranging from
+> incorrect translation to machine checks or checkstops (generally, on
+> LPAR machines, what will happen is your partition will get killed).
 
-Fair point. Maybe the thing to do is backburner this patch for the moment and
-reintroduce it when/if an architecture supports demotion? The KernelPageSize
-reporting in smaps and what the hpagesize in maps is still useful though
-I believe. Any comment?
+The powerpc bug whereof you write appears to have been there since ...
+linux-2.4.0 or earlier:
+			entry = ptep_get_and_clear(pte);
+			set_pte(pte, pte_modify(entry, newprot));
 
-(future stuff from here on)
+But perhaps powerpc was slightly different back in those days.
+It sounds to me like a bug in your current ptep_get_and_clear(),
+not checking if already hashed?
 
-In the future if demotion does happen then the MMUPageSize information may
-be genuinely useful instead of just a curious oddity on ppc64. As you point
-out, Adam (added to cc) has worked on this area (starting with x86 demotion)
-in the past but it's a while before it'll be considered for merging I believe.
+> I know s390 has different issues & constraints. Martin told me during
+> Plumbers that mprotect was probably also broken for him.
 
-That aside, more would need to be done with the page size reporting then
-anyway. For example, it maybe indicate how much of each pagesize is in a VMA
-or indicate that KernelPageSize is what is being requested but in reality
-it is mixed like;
+Then I hope he will probably send Linus the fix.
 
-KernelPageSize:		2048 kB (mixed)
+Though what we already have falls somewhat short of perfection,
+I've much more enthusiasm for fixing its bugs, than for any fancy
+redesign introducing its own bugs.  Others have more stamina!
 
-or
-
-KernelPageSize:		2048 kB * 5, 4096 kB * 20
-
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
