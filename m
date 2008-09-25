@@ -1,63 +1,84 @@
-Message-ID: <48DBD532.80607@goop.org>
-Date: Thu, 25 Sep 2008 11:15:14 -0700
+Message-ID: <48DBD94A.50905@goop.org>
+Date: Thu, 25 Sep 2008 11:32:42 -0700
 From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: PTE access rules & abstraction
-References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>	 <1222117551.12085.39.camel@pasglop>	 <Pine.LNX.4.64.0809241919520.575@blonde.site>	 <1222291248.8277.90.camel@pasglop>	 <Pine.LNX.4.64.0809250049270.21674@blonde.site> <1222304686.8277.136.camel@pasglop>
-In-Reply-To: <1222304686.8277.136.camel@pasglop>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: Populating multiple ptes at fault time
+References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com> <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com> <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com> <48D2D3B2.10503@goop.org> <48D2E65A.6020004@redhat.com> <48D2EBBB.205@goop.org> <48D2F05C.4040000@redhat.com> <48D2F571.4010504@goop.org> <48DA333C.2050900@redhat.com>
+In-Reply-To: <48DA333C.2050900@redhat.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: benh@kernel.crashing.org
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Avi Kivity <avi@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> On Thu, 2008-09-25 at 00:55 +0100, Hugh Dickins wrote:
->   
->> Whyever not the latter?  Jeremy seems to have gifted that to you,
->> for precisely such a purpose.
->>     
+Avi Kivity wrote:
+> Jeremy Fitzhardinge wrote:
+>> Avi Kivity wrote:
+>>  
+>>>> The only direct use of pte_young() is in zap_pte_range, within a
+>>>> mmu_lazy region.  So syncing the A bit state on entering lazy mmu mode
+>>>> would work fine there.
+>>>>
+>>>>         
+>>> Ugh, leaving lazy pte.a mode when entering lazy mmu mode?
+>>>     
+>>
+>> Well, sort of but not quite.  The kernel's announcing its about to start
+>> processing a batch of ptes, so the hypervisor can take the opportunity
+>> to update their state before processing.  "Lazy-mode" is from the
+>> perspective of the kernel lazily updating some state the hypervisor
+>> might care about, and the sync happens when leaving mode.
+>>
+>> The flip-side is when the hypervisor is lazily updating some state the
+>> kernel cares about, so it makes sense that the sync when the kernel
+>> enters its lazy mode.  But the analogy isn't very good because we don't
+>> really have an explicit notion of "hypervisor lazy mode", or a formal
+>> handoff of shared state between the kernel and hypervisor.  But in this
+>> case the behaviour isn't too bad.
+>>
+>>   
 >
-> Yeah. Not that I don't quite understand what the point of the
-> start/modify/commit thing the way it's currently used in mprotect since
-> we are doing the whole transaction for a single PTE change, ie how does
-> that help with hypervisors vs. a single ptep_modify_protection() for
-> example is beyond me :-)
->
-> When I think about transactions, I think about starting a transaction,
-> changing a -bunch- of PTEs, then commiting... Essentially I see the PTE
-> lock thing as being a transaction.
+> Handwavy.  I think the two notions are separate <insert handwavy
+> counter-arguments>.
 
-I think we need to be a bit clearer about the terminology:
+Perhaps this helps:
 
-A batch is a bunch of things that can be optionally deferred so they can
-be done in chunks.
+Context switches between guest<->hypervisor are relatively expensive. 
+The more work we can make each context switch perform the better,
+because we can amortize the cost.  Rather than synchronously switching
+between the two every time one wants to express a state change to the
+other, we batch those changes up and only sync when its important. 
+While there are batched outstanding changes in one, the other will have
+a somewhat out of date view of the state.  At this level, the idea of
+batching is completely symmetrical.
 
-A transaction is something that must either complete successfully, or
-have no effect at all.  Doing multiple things in a transaction means
-that they must all complete or none.  (In general we assume there's
-nothing about these low-level pagetable operations which can fail, so we
-can ignore the failure part of transactions.)
+One of the ways we amortize the cost of guest->hypervisor transitions is
+by batching multiple pagetable updates together.  This works at two
+levels: within explicit arch_enter/leave_lazy_mmu lazy regions, and also
+because it is analogous to the architectural requirement that you must
+flush the tlb before updates "really" happen.
 
-In this case, a batch is not a transaction.  Doing things between
-arch_enter_lazy_mmu_mode/arch_leave_lazy_mmu_mode makes no guarantees
-about when operations are performed, other than guaranteeing that
-they'll all be done by the time arch_leave_lazy_mmu_mode returns.  
-Everything about how things are chunked into batches are up to the
-underlying architecture, and the calling code can't make any assumptions
-about it (the specific problem we've had to fix in a couple of places is
-things expecting to be able to read back their recent pagetable
-modifications immediately after issuing the call).
+KVM - and other shadow pagetable implementations - have the additional
+problem of transmitting A/D state updates from the shadow pagetable into
+the guest pagetable.  Doing this synchronously has the costs we've been
+discussing in this thread (namely, extra faults we would like to
+avoid).  Doing this in a deferred or batched way is awkward because
+there's no analogous architectural asynchrony in updating these pte
+flags, and we don't have any existing mechanisms or hooks to support
+this kind of deferred update.
 
-The ptep_modify_prot_start/commit pair specifies a single pte update in
-such a way to allow more implementation flexibility - ie, there's no
-naked requirement for an atomic fetch-and-clear operation.  I chose the
-transaction-like terminology to emphasize that the start/commit
-functions must be strictly paired; there's no way to fail or abort the
-"transaction".  A whole group of those start/commit pairs can be batched
-together without affecting their semantics.
+However, given that we're talking about cleaning up the pagetable api
+anyway, there's no reason we couldn't incorporate this kind of deferred
+update in a more formal way.  It definitely makes sense when you have
+shadow pagetables, and it probably makes sense on other architectures too.
+
+Very few places actually care about the state of the A/D bits; would it
+be expensive to make those places explicitly ask for synchronization
+before testing the bits (or alternatively, have an explicit query
+operation rather than just poking about in the ptes).  Martin, does this
+help with s390's per-page (vs per-pte) A/D state?
 
     J
 
