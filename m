@@ -1,110 +1,60 @@
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
-Date: Thu, 25 Sep 2008 17:45:13 +0900
-Message-ID: <20080925174513.fd44bc08.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080923091017.GB29718@wotan.suse.de>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Date: Thu, 25 Sep 2008 21:23:04 +0900 (JST)
+Message-ID: <20080925212025.58A3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1753340AbYIYIkD@vger.kernel.org>
-In-Reply-To: <20080923091017.GB29718@wotan.suse.de>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754594AbYIYMXU@vger.kernel.org>
+In-Reply-To: <20080924154120.GA10837@csn.ul.ie>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-On Tue, 23 Sep 2008 11:10:17 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+Hi!
 
-> +void *pageable_vmap_object(pgobj_t *object, unsigned long start, unsigned long end)
-> +{
-> +	struct file *filp = (struct file *)object;
-> +	struct address_space *mapping = filp->f_dentry->d_inode->i_mapping;
-> +	unsigned int offset = start & ~PAGE_CACHE_MASK;
-> +	pgoff_t first, last, i;
-> +	struct page **pages;
-> +	int nr;
-> +	void *ret;
-> +
-> +	BUG_ON(start >= end);
-> +
-> +	first = start / PAGE_SIZE;
-> +	last = DIV_ROUND_UP(end, PAGE_SIZE);
-> +	nr = last - first;
-> +
-> +#ifndef CONFIG_HIGHMEM
-> +	if (nr == 1) {
-> +		struct page *page;
-> +
-> +		rcu_read_lock();
-> +		page = radix_tree_lookup(&mapping->page_tree, first);
-> +		rcu_read_unlock();
-> +		BUG_ON(!page);
-> +		BUG_ON(page_count(page) < 2);
-> +
-> +		ret = page_address(page);
-> +
-> +		goto out;
-> +	}
-> +#endif
-> +
-> +	pages = kmalloc(sizeof(struct page *) * nr, GFP_KERNEL);
-> +	if (!pages)
-> +		return NULL;
-> +
-> +	for (i = first; i < last; i++) {
-> +		struct page *page;
-> +
-> +		rcu_read_lock();
-> +		page = radix_tree_lookup(&mapping->page_tree, i);
-> +		rcu_read_unlock();
-> +		BUG_ON(!page);
-> +		BUG_ON(page_count(page) < 2);
-> +
-> +		pages[i] = page;
-> +	}
-> +
-> +	ret = vmap(pages, nr, VM_MAP, PAGE_KERNEL);
-> +	kfree(pages);
-> +	if (!ret)
-> +		return NULL;
-> +
-> +out:
-> +	return ret + offset;
-> +}
-> +
-> +void pageable_vunmap_object(pgobj_t *object, void *ptr, unsigned long start, unsigned long end)
-> +{
-> +#ifndef CONFIG_HIGHMEM
-> +	pgoff_t first, last;
-> +	int nr;
-> +
-> +	BUG_ON(start >= end);
-> +
-> +	first = start / PAGE_SIZE;
-> +	last = DIV_ROUND_UP(end, PAGE_SIZE);
-> +	nr = last - first;
-> +	if (nr == 1)
-> +		return;
-> +#endif
-> +
-> +	vunmap((void *)((unsigned long)ptr & PAGE_CACHE_MASK));
-> +}
-> +
+> > 1) in normal page, show PAZE_SIZE
+> > 
+> > because, any userland application woks as pagesize==PAZE_SIZE 
+> > on current powerpc architecture.
+> > 
+> > because
+> > 
+> > fs/binfmt_elf.c
+> > ------------------------------
+> > static int
+> > create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
+> >                 unsigned long load_addr, unsigned long interp_load_addr)
+> > {
+> > (snip)
+> >         NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
+> >         NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE); /* pass ELF_EXEC_PAGESIZE to libc */
+> > 
+> > include/asm-powerpc/elf.h
+> > -----------------------------
+> > #define ELF_EXEC_PAGESIZE       PAGE_SIZE 
+> > 
+> 
+> I'm ok with this option and dropping the MMUPageSize patch as the user
+> should already be able to identify that the hardware does not support 64K
+> base pagesizes. I will leave the name as KernelPageSize so that it is still
+> difficult to confuse it with MMU page size.
+> 
+> > 
+> > 2) in normal page, no display any page size.
+> >    only hugepage case, display page size.
+> > 
+> > because, An administrator want to hugepage size only. (AFAICS)
+> > 
+> 
+> I prefer option 1 as it's easier to parse the presense of information
+> than infer from the absense of it.
 
-Some questions..
+OK.
 
- - could you use GFP_HIGHUSER rather than GFP_HIGHUSER_MOVABLE ?
-   I think setting mapping_gfp_mask() (address_space->flags) to appropriate
-   value is enough.
+I'll review and test your latest patch without MMUPageSize part.
+(maybe today's midnight or tommorow)
 
- - Can we mlock pages while it's vmapped ? (or Reserve and remove from LRU)
-   Then, new split-lru can ignore these pages while there are mapped. over-killing ?
-
- - Doesn't we need to increase page->mapcount ?
-
- - memory resource contorller should account these pages ?
-   (Maybe this is question to myself....)
-
-Thanks,
--Kame
+Thanks!
