@@ -1,60 +1,55 @@
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-Date: Thu, 25 Sep 2008 21:23:04 +0900 (JST)
-Message-ID: <20080925212025.58A3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20080924210309.8C3B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20080924154120.GA10837@csn.ul.ie>
+From: Brice Goglin <Brice.Goglin@inria.fr>
+Subject: Re: [PATCH] mm: make do_move_pages() complexity linear
+Date: Thu, 25 Sep 2008 14:58:59 +0200
+Message-ID: <48DB8B13.8080202@inria.fr>
+References: <48CA611A.8060706@inria.fr>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1754594AbYIYMXU@vger.kernel.org>
-In-Reply-To: <20080924154120.GA10837@csn.ul.ie>
+Return-path: <linux-kernel-owner+glk-linux-kernel-3=40m.gmane.org-S1755206AbYIYM55@vger.kernel.org>
+In-Reply-To: <48CA611A.8060706@inria.fr>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-Id: linux-mm.kvack.org
 
-Hi!
+Brice Goglin wrote:
+> Page migration is currently very slow because its overhead is quadratic
+> with the number of pages. This is caused by each single page migration
+> doing a linear lookup in the page array in new_page_node().
+>     
+> Since pages are stored in the array order in the pagelist and do_move_pages
+> process this list in order, new_page_node() can increase the "pm" pointer
+> to the page array so that the next iteration will find the next page in
+> 0 or few lookup steps.
+>     
+> [...]
+>  
+> +/*
+> + * Allocate a page on the node given as a page_to_node in private.
+> + * Increase private to point to the next page_to_node so that the
+> + * next iteration does not have to traverse the whole pm array.
+> + */
+>  static struct page *new_page_node(struct page *p, unsigned long private,
+>  		int **result)
+>  {
+> -	struct page_to_node *pm = (struct page_to_node *)private;
+> +	struct page_to_node **pmptr = (struct page_to_node **)private;
+> +	struct page_to_node *pm = *pmptr;
+>  
+>  	while (pm->node != MAX_NUMNODES && pm->page != p)
+>  		pm++;
+>  
+> +	/* prepare for the next iteration */
+> +	*pmptr = pm + 1;
+> +
+>   
 
-> > 1) in normal page, show PAZE_SIZE
-> > 
-> > because, any userland application woks as pagesize==PAZE_SIZE 
-> > on current powerpc architecture.
-> > 
-> > because
-> > 
-> > fs/binfmt_elf.c
-> > ------------------------------
-> > static int
-> > create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
-> >                 unsigned long load_addr, unsigned long interp_load_addr)
-> > {
-> > (snip)
-> >         NEW_AUX_ENT(AT_HWCAP, ELF_HWCAP);
-> >         NEW_AUX_ENT(AT_PAGESZ, ELF_EXEC_PAGESIZE); /* pass ELF_EXEC_PAGESIZE to libc */
-> > 
-> > include/asm-powerpc/elf.h
-> > -----------------------------
-> > #define ELF_EXEC_PAGESIZE       PAGE_SIZE 
-> > 
-> 
-> I'm ok with this option and dropping the MMUPageSize patch as the user
-> should already be able to identify that the hardware does not support 64K
-> base pagesizes. I will leave the name as KernelPageSize so that it is still
-> difficult to confuse it with MMU page size.
-> 
-> > 
-> > 2) in normal page, no display any page size.
-> >    only hugepage case, display page size.
-> > 
-> > because, An administrator want to hugepage size only. (AFAICS)
-> > 
-> 
-> I prefer option 1 as it's easier to parse the presense of information
-> than infer from the absense of it.
+Actually, this "pm+1" breaks the case where migrate_pages() calls
+unmap_and_move() multiple times on the same page. In this case, we need
+the while loop to look at pm instead of pm+1 first. So we can't cache
+pm+1 in private, but caching pm is ok. There will be 1 while loop
+instead of 0 in the regular case. Updated patch (with more comments)
+coming soon.
 
-OK.
-
-I'll review and test your latest patch without MMUPageSize part.
-(maybe today's midnight or tommorow)
-
-Thanks!
+Brice
