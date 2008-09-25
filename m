@@ -1,183 +1,116 @@
-Date: Thu, 25 Sep 2008 01:25:45 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH] mm owner: fix race between swapoff and exit
-Message-ID: <Pine.LNX.4.64.0809250117220.26422@blonde.site>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 25 Sep 2008 02:30:21 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+Message-ID: <20080925003021.GC23494@wotan.suse.de>
+References: <20080923091017.GB29718@wotan.suse.de> <1222185029.4873.157.camel@koto.keithp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1222185029.4873.157.camel@koto.keithp.com>
 Sender: owner-linux-mm@kvack.org
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Jiri Slaby <jirislaby@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, KAMEZAWA Hiroyuki <kamezawa.hiroyuki@jp.fujitsu.com>, Paul Menage <menage@google.com>, linux-mm@kvack.org
+To: Keith Packard <keithp@keithp.com>
+Cc: eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-There's a race between mm->owner assignment and swapoff, more easily
-seen when task slab poisoning is turned on.  The condition occurs when
-try_to_unuse() runs in parallel with an exiting task.  A similar race
-can occur with callers of get_task_mm(), such as /proc/<pid>/<mmstats>
-or ptrace or page migration.
+On Tue, Sep 23, 2008 at 08:50:29AM -0700, Keith Packard wrote:
+> On Tue, 2008-09-23 at 11:10 +0200, Nick Piggin wrote:
+> > I particularly don't like the idea of exposing these vfs objects to random
+> > drivers because they're likely to get things wrong or become out of synch
+> > or unreviewed if things change. I suggested a simple pageable object allocator
+> > that could live in mm and hide the exact details of how shmem / pagecache
+> > works. So I've coded that up quickly.
+> 
+> Thanks for trying another direction; let's see if that will work for us.
 
-CPU0                                    CPU1
-                                        try_to_unuse
-                                        looks at mm = task0->mm
-                                        increments mm->mm_users
-task 0 exits
-mm->owner needs to be updated, but no
-new owner is found (mm_users > 1, but
-no other task has task->mm = task0->mm)
-mm_update_next_owner() leaves
-                                        mmput(mm) decrements mm->mm_users
-task0 freed
-                                        dereferencing mm->owner fails
+Great!
 
-The fix is to notify the subsystem via mm_owner_changed callback(),
-if no new owner is found, by specifying the new task as NULL.
-
-Jiri Slaby:
-mm->owner was set to NULL prior to calling cgroup_mm_owner_callbacks(), but
-must be set after that, so as not to pass NULL as old owner causing oops.
-
-Daisuke Nishimura:
-mm_update_next_owner() may set mm->owner to NULL, but mem_cgroup_from_task()
-and its callers need to take account of this situation to avoid oops.
-
-Hugh Dickins:
-Lockdep warning and hang below exec_mmap() when testing these patches.
-exit_mm() up_reads mmap_sem before calling mm_update_next_owner(),
-so exec_mmap() now needs to do the same.  And with that repositioning,
-there's now no point in mm_need_new_owner() allowing for NULL mm.
-
-Reported-by: Hugh Dickins <hugh@veritas.com>
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-Signed-off-by: Jiri Slaby <jirislaby@gmail.com>
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Paul Menage <menage@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-Andrew, this patch folds together the following three from mmotm:
-mm-owner-fix-race-between-swap-and-exit.patch
-mm-owner-fix-race-between-swap-and-exit-fix.patch
-mm-owner-fix-race-between-swap-and-exit-fix-fix.patch
-which tests just before KS showed now to be needed in 2.6.27.
-
-Together with Hugh's already-folded-in contribution to:
-memrlimit-cgroup-mm-owner-callback-changes-to-add-task-info.patch
-which is now needed even without memrlimits, given the above changes.
-
-The regression fixed is actually a regression since 2.6.25;
-but let's take a breath before rushing an equivalent fix to stable.
-
- fs/exec.c       |    2 +-
- kernel/cgroup.c |    5 +++--
- kernel/exit.c   |   12 ++++++++++--
- mm/memcontrol.c |   17 +++++++++++++++++
- 4 files changed, 31 insertions(+), 5 deletions(-)
-
---- 2.6.27-rc7/fs/exec.c	2008-07-29 04:24:47.000000000 +0100
-+++ linux/fs/exec.c	2008-09-24 17:17:32.000000000 +0100
-@@ -752,11 +752,11 @@ static int exec_mmap(struct mm_struct *m
- 	tsk->active_mm = mm;
- 	activate_mm(active_mm, mm);
- 	task_unlock(tsk);
--	mm_update_next_owner(old_mm);
- 	arch_pick_mmap_layout(mm);
- 	if (old_mm) {
- 		up_read(&old_mm->mmap_sem);
- 		BUG_ON(active_mm != old_mm);
-+		mm_update_next_owner(old_mm);
- 		mmput(old_mm);
- 		return 0;
- 	}
---- 2.6.27-rc7/kernel/cgroup.c	2008-08-06 08:36:20.000000000 +0100
-+++ linux/kernel/cgroup.c	2008-09-24 17:17:32.000000000 +0100
-@@ -2738,14 +2738,15 @@ void cgroup_fork_callbacks(struct task_s
-  */
- void cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
- {
--	struct cgroup *oldcgrp, *newcgrp;
-+	struct cgroup *oldcgrp, *newcgrp = NULL;
  
- 	if (need_mm_owner_callback) {
- 		int i;
- 		for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
- 			struct cgroup_subsys *ss = subsys[i];
- 			oldcgrp = task_cgroup(old, ss->subsys_id);
--			newcgrp = task_cgroup(new, ss->subsys_id);
-+			if (new)
-+				newcgrp = task_cgroup(new, ss->subsys_id);
- 			if (oldcgrp == newcgrp)
- 				continue;
- 			if (ss->mm_owner_changed)
---- 2.6.27-rc7/kernel/exit.c	2008-09-10 07:37:25.000000000 +0100
-+++ linux/kernel/exit.c	2008-09-24 17:17:32.000000000 +0100
-@@ -583,8 +583,6 @@ mm_need_new_owner(struct mm_struct *mm, 
- 	 * If there are other users of the mm and the owner (us) is exiting
- 	 * we need to find a new owner to take on the responsibility.
- 	 */
--	if (!mm)
--		return 0;
- 	if (atomic_read(&mm->mm_users) <= 1)
- 		return 0;
- 	if (mm->owner != p)
-@@ -627,6 +625,16 @@ retry:
- 	} while_each_thread(g, c);
+> > Upon actually looking at how "GEM" makes use of its shmem_file_setup filp, I
+> > see something strange... it seems that userspace actually gets some kind of
+> > descriptor, a descriptor to an object backed by this shmem file (let's call it
+> > a "file descriptor"). Anyway, it turns out that userspace sometimes needs to
+> > pread, pwrite, and mmap these objects, but unfortunately it has no direct way
+> > to do that, due to not having open(2)ed the files directly. So what GEM does
+> > is to add some ioctls which take the "file descriptor" things, and derives
+> > the shmem file from them, and then calls into the vfs to perform the operation.
+> 
+> Sure, we've looked at using regular file descriptors for these objects
+> and it almost works, except for a few things:
+> 
+>  1) We create a lot of these objects. The X server itself may have tens
+>     of thousands of objects in use at any one time (my current session
+>     with gitk and firefox running is using 1565 objects). Right now, the
+>     maximum number of fds supported by 'normal' kernel configurations
+>     is somewhat smaller than this. Even when the kernel is fixed to
+>     support lifting this limit, we'll be at the mercy of existing user
+>     space configurations for normal applications.
+> 
+>  2) More annoyingly, applications which use these objects also use
+>     select(2) and depend on being able to represent the 'real' file
+>     descriptors in a compact space near zero. Sticking a few thousand
+>     of these new objects into the system would require some ability to
+>     relocate the descriptors up higher in fd space. This could also
+>     be done in user space using dup2, but that would require managing
+>     file descriptor allocation in user space.
+> 
+>  3) The pread/pwrite/mmap functions that we use need additional flags
+>     to indicate some level of application 'intent'. In particular, we
+>     need to know whether the data is being delivered only to the GPU
+>     or whether the CPU will need to look at it in the future. This
+>     drives the kind of memory access used within the kernel and has
+>     a significant performance impact.
+
+Pity. Anyway, I accept that, let's move on.
+
+[...]
+
+> Hiding the precise semantics of the object storage behind our
+> ioctl-based API means that we can completely replace in the future
+> without affecting user space.
+
+I guess so. A big problem of ioctls is just that they had been easier to
+add so they got less thought and review ;) If your ioctls are stable,
+correct, cross platform etc. then I guess that's the best you can do.
+
  
- 	read_unlock(&tasklist_lock);
-+	/*
-+	 * We found no owner yet mm_users > 1: this implies that we are
-+	 * most likely racing with swapoff (try_to_unuse()) or /proc or
-+	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL,
-+	 * so that subsystems can understand the callback and take action.
-+	 */
-+	down_write(&mm->mmap_sem);
-+	cgroup_mm_owner_callbacks(mm->owner, NULL);
-+	mm->owner = NULL;
-+	up_write(&mm->mmap_sem);
- 	return;
+> > BTW. without knowing much of either the GEM or the SPU subsystems, the
+> > GEM problem seems similar to SPU. Did anyone look at that code? Was it ever
+> > considered to make the object allocator be a filesystem? That way you could
+> > control the backing store to the objects yourself, those that want pageable
+> > memory could use the following allocator, the ioctls could go away,
+> > you could create your own objects if needed before userspace is up...
+> 
+> Yes, we've considered doing a separate file system, but as we'd start by
+> copying shmem directly, we're unsure how that would be received. It
+> seems like sharing the shmem code in some sensible way is a better plan.
+
+Well, no not a seperate filesystem to do the pageable backing store, but
+a filesystem to do your object management. If there was a need for pageable
+RAM backing store, then you would still go back to the pageable allocator. 
+
  
- assign_new_owner:
---- 2.6.27-rc7/mm/memcontrol.c	2008-08-13 04:14:51.000000000 +0100
-+++ linux/mm/memcontrol.c	2008-09-24 17:17:32.000000000 +0100
-@@ -250,6 +250,14 @@ static struct mem_cgroup *mem_cgroup_fro
- 
- struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- {
-+	/*
-+	 * mm_update_next_owner() may clear mm->owner to NULL
-+	 * if it races with swapoff, page migration, etc.
-+	 * So this can be called with p == NULL.
-+	 */
-+	if (unlikely(!p))
-+		return NULL;
-+
- 	return container_of(task_subsys_state(p, mem_cgroup_subsys_id),
- 				struct mem_cgroup, css);
- }
-@@ -549,6 +557,11 @@ static int mem_cgroup_charge_common(stru
- 	if (likely(!memcg)) {
- 		rcu_read_lock();
- 		mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-+		if (unlikely(!mem)) {
-+			rcu_read_unlock();
-+			kmem_cache_free(page_cgroup_cache, pc);
-+			return 0;
-+		}
- 		/*
- 		 * For every charge from the cgroup, increment reference count
- 		 */
-@@ -801,6 +814,10 @@ int mem_cgroup_shrink_usage(struct mm_st
- 
- 	rcu_read_lock();
- 	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
-+	if (unlikely(!mem)) {
-+		rcu_read_unlock();
-+		return 0;
-+	}
- 	css_get(&mem->css);
- 	rcu_read_unlock();
- 
+> We just need anonymous pages that we can read/write/map to kernel and
+> user space. Right now, shmem provides that functionality and is used by
+> two kernel subsystems (sysv IPC and tmpfs). It seems like any new API
+> should support all three uses rather than being specific to GEM.
+> 
+> > The API allows creation and deletion of memory objects, pinning and
+> > unpinning of address ranges within an object, mapping ranges of an object
+> > in KVA, dirtying ranges of an object, and operating on pages within the
+> > object.
+> 
+> The only question I have is whether we can map these objects to user
+> space; the other operations we need are fairly easily managed by just
+> looking at objects one page at a time. Of course, getting to the 'fast'
+> memcpy variants that the current vfs_write path finds may be a trick,
+> but we should be able to figure that out.
+
+You can map them to userspace if you just take a page at a time and insert
+them into the page tables at fault time (or mmap time if you prefer).
+Currently, this will mean that mmapped pages would not be swappable; is
+that a problem?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
