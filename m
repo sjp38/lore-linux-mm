@@ -1,55 +1,50 @@
-Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
-From: Keith Packard <keithp@keithp.com>
-In-Reply-To: <20080925030738.GD4401@wotan.suse.de>
-References: <20080923091017.GB29718@wotan.suse.de>
-	 <1222185029.4873.157.camel@koto.keithp.com>
-	 <20080925003021.GC23494@wotan.suse.de>
-	 <1222305622.4343.166.camel@koto.keithp.com>
-	 <20080925023014.GB4401@wotan.suse.de>
-	 <1222310606.4343.174.camel@koto.keithp.com>
-	 <20080925030738.GD4401@wotan.suse.de>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-XqQhbIny+mHNIFULP/vz"
-Date: Wed, 24 Sep 2008 23:16:59 -0700
-Message-Id: <1222323419.4343.201.camel@koto.keithp.com>
-Mime-Version: 1.0
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m8PEpc2X019097
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 25 Sep 2008 23:51:39 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EE1F2AC027
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 23:51:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6774A12C049
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 23:51:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 500C21DB8038
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 23:51:38 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D6551DB8037
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2008 23:51:38 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/3] Report the pagesize backing a VMA in /proc/pid/smaps
+In-Reply-To: <1222202736-13311-2-git-send-email-mel@csn.ul.ie>
+References: <1222202736-13311-1-git-send-email-mel@csn.ul.ie> <1222202736-13311-2-git-send-email-mel@csn.ul.ie>
+Message-Id: <20080925234913.58AE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Sep 2008 23:51:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: keithp@keithp.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---=-XqQhbIny+mHNIFULP/vz
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+> It is useful to verify a hugepage-aware application is using the expected
+> pagesizes for its memory regions. This patch creates an entry called
+> KernelPageSize in /proc/pid/smaps that is the size of page used by the kernel
+> to back a VMA. The entry is not called PageSize as it is possible the MMU
+> uses a different size. This extension should not break any sensible parser
+> that skips lines containing unrecognised information.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 
-On Thu, 2008-09-25 at 05:07 +0200, Nick Piggin wrote:
+looks good to me.
+and, I tested this patch on x86_64 mmotm 0923 and it works well.
 
-> That might be the cleanest logical way to do it actually. But for the mom=
-ent
-> I'm happy not to pull tmpfs apart :) Even if it seems like the wrong way
-> around, at least it is insulated to within mm/
 
-Sure; no sense changing that before we've gotten some experience with
-the new API anyway. Would we consider modifying sysv IPC as well? It
-currently uses the shmem_file_setup function although it lives a long
-ways from mm...
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
---=20
-keith.packard@intel.com
 
---=-XqQhbIny+mHNIFULP/vz
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iD8DBQBI2yzbQp8BWwlsTdMRArGsAJ0QtSqtxjAHmD0Vkw9Gi/pl1DS1wQCff+gK
-02jjeOhHWtzdb5ursF//qG4=
-=f9E+
------END PGP SIGNATURE-----
-
---=-XqQhbIny+mHNIFULP/vz--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
