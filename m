@@ -1,60 +1,89 @@
-Date: Thu, 25 Sep 2008 02:15:57 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] hugetlbfs: add llseek method
-Message-ID: <20080925011557.GA17155@csn.ul.ie>
-References: <20080908174634.GC19912@lst.de> <20080922185624.GA26551@csn.ul.ie> <20080924190043.GA2312@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20080924190043.GA2312@lst.de>
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+From: Keith Packard <keithp@keithp.com>
+In-Reply-To: <20080925003021.GC23494@wotan.suse.de>
+References: <20080923091017.GB29718@wotan.suse.de>
+	 <1222185029.4873.157.camel@koto.keithp.com>
+	 <20080925003021.GC23494@wotan.suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-qB69KT6kU4LYvg5BL+O+"
+Date: Wed, 24 Sep 2008 18:20:22 -0700
+Message-Id: <1222305622.4343.166.camel@koto.keithp.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernl.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: keithp@keithp.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On (24/09/08 21:00), Christoph Hellwig didst pronounce:
-> On Mon, Sep 22, 2008 at 07:56:25PM +0100, Mel Gorman wrote:
-> > On (08/09/08 19:46), Christoph Hellwig didst pronounce:
-> > > Hugetlbfs currently doesn't set a llseek method for regular files, which
-> > > means it will fall back to default_llseek.  This means no one can seek
-> > > beyond 2 Gigabytes.
-> > > 
-> > 
-> > I took another look at this as it was pointed out to me by apw that this
-> > might be a SEEK_CUR vs SEEK_SET thing and also whether lseek() was the
-> > key. To use lseek though, the large file defines had to be used or it failed
-> > whether your patch was applied or not. The error as you'd expect is lseek()
-> > complaining that the type was too small.
-> > 
-> > At the face of it, the patch seems sensible but it works whether it is set
-> > or not so clearly I'm still missing something. The second test I tried is
-> > below. In the unlikely event it makes a difference, I was testing on qemu
-> > for i386.
-> 
-> Sorry, my original description was complete bullsh*t ;-)  The problem
-> is the inverse of what I wrote.  With default_llseek you can seek
-> everywhere even if that's outside of the fs limit.  This should give you
-> quite interesting results if you seek outside of what we can represent
-> page->index on 32bit platforms.
-> 
+--=-qB69KT6kU4LYvg5BL+O+
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-Ahh right. To be honest, I can't even tell what the effect is for sure. In
-ordinary circumstances, I expect it either wraps or zeros are returned when
-real data should be there.
+On Thu, 2008-09-25 at 02:30 +0200, Nick Piggin wrote:
 
-ftruncate can create a file larger than 4GB of course. However, as hugetlbfs
-doesn't support write and mmap64 does not map beyond the 4GB boundary,
-I couldn't create a proper test file. It means I can't verify if the zeros
-returned after seek above the 4GB boundary are garbage zeros or real zeros
-(seek above 4GB is allowed with or without the patch, is that expected?).
-The patch may fix a problem in theory but I can't prove it.
+> Pity. Anyway, I accept that, let's move on.
 
-With your filesystem hat on, I'm happy to accept this is a problem in theory
-and should be applied in case someone adds write() support in the future
-and gets an unexpected kick in the pants due to lseek(). I'll ack a patch
-with a fixed-up description and will run the libhugetlbfs regression tests
-with the patch appliued just to make sure there are no side-effects.
+Well, the goal is to "eventually" get to use fds so that at least some
+of our common operations can use regular sys calls. But, not having
+those trapped in the shmem layer may end up being a feature as we'll get
+to watch more closely, although dealing with the actual pread/pwrite
+semantics doesn't look entirely like fun.
+
+> I guess so. A big problem of ioctls is just that they had been easier to
+> add so they got less thought and review ;) If your ioctls are stable,
+> correct, cross platform etc. then I guess that's the best you can do.
+
+One does what one can. Of course, in this case, 'cross platform' is just
+x86/x86_64 as we're talking Intel integrated graphics. When (if?) we
+figure out how to create a common interface across multiple cards for
+some of these operations, we'll probably discover mistakes. We have
+tried to be careful, but we cannot test in any other environment.
+
+> Well, no not a seperate filesystem to do the pageable backing store, but
+> a filesystem to do your object management. If there was a need for pageab=
+le
+> RAM backing store, then you would still go back to the pageable allocator=
+.=20
+
+Now that you've written one, we could go back and think about building a
+file system and using fds for our operations. It would be a whole lot
+easier than starting from scratch.
+
+> You can map them to userspace if you just take a page at a time and inser=
+t
+> them into the page tables at fault time (or mmap time if you prefer).
+> Currently, this will mean that mmapped pages would not be swappable; is
+> that a problem?
+
+Yes. We leave a lot of objects mapped to user space as mmap isn't
+exactly cheap. We're trying to use pread/pwrite for as much bulk I/O as
+we can, but at this point, we're still mapping most of the pages we
+allocate into user space and leaving them. Things like textures and
+render buffers will get mmapped if there are any software fallbacks.
+Other objects, like vertex buffers, will almost always end up mapped.
+
+One of our explicit design goals was to make sure user space couldn't
+ever pin arbitrary amounts of memory; I'd hate to go back on that as it
+seems like an important property for any subsystem designed to support
+regular user applications in a general purpose desktop environment. I
+don't want to trust user space to do the right thing, I want to enforce
+that from kernel space.
+
+--=20
+keith.packard@intel.com
+
+--=-qB69KT6kU4LYvg5BL+O+
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+
+iD8DBQBI2udWQp8BWwlsTdMRAqbzAJ4vNXC0Qsrl75bmWCZ2aJDpkULUIQCgkkKr
+UoFa/ki728jkSWvnzxg5Gik=
+=NF/g
+-----END PGP SIGNATURE-----
+
+--=-qB69KT6kU4LYvg5BL+O+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
