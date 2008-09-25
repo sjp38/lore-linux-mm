@@ -1,72 +1,49 @@
-Date: Thu, 25 Sep 2008 02:06:48 +0200
+Date: Thu, 25 Sep 2008 02:18:56 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: tiny-shmem nommu fix
-Message-ID: <20080925000648.GA23494@wotan.suse.de>
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+Message-ID: <20080925001856.GB23494@wotan.suse.de>
+References: <20080923091017.GB29718@wotan.suse.de> <48D8C326.80909@tungstengraphics.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <48D8C326.80909@tungstengraphics.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, Matt Mackall <mpm@selenic.com>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Thomas =?iso-8859-1?Q?Hellstr=F6m?= <thomas@tungstengraphics.com>
+Cc: keith.packard@intel.com, eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-The previous patch db203d53d474aa068984e409d807628f5841da1b to fix the LOR in
-tiny-shmem breaks shared anonymous and IPC memory on NOMMU architectures
-because it was using the expanding truncate to signal ramfs to allocate a
-physically contiguous RAM backing the inode (otherwise it is unusable for
-"memory mapping" it to userspace).
+On Tue, Sep 23, 2008 at 12:21:26PM +0200, Thomas Hellstrom wrote:
+> Nick,
+> From my point of view, this is exactly what's needed, although there 
+> might be some different opinions among the
+> DRM developers. A question:
+> 
+> Sometimes it's desirable to indicate that a page / object is "cleaned", 
+> which would mean data has moved and is backed by device memory. In that 
+> case one could either free the object or indicate to it that it can 
+> release it's pages. Is freeing / recreating such an object an expensive 
+> operation? Would it, in that case, be possible to add an object / page 
+> "cleaned" function?
 
-However do_truncate is what caused the LOR, due to it taking i_mutex. In
-this case, we can actually just call ramfs directly to allocate memory for
-the mapping, rather than go via truncate.
+Ah, interesting... freeing/recreating isn't _too_ expensive, but it is
+going to have to allocate a lot of pages (for a big object) and copy
+a lot of memory. It's strange to say "cleaned", in a sense, because the
+allocator itself doesn't know it is being used as a writeback cache ;)
+(and it might get confusing with the shmem implementation because your
+cleaned != shmem cleaned!).
 
-Acked-by: David Howells <dhowells@redhat.com>
-Acked-by: Hugh Dickins <hugh@veritas.com>
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
+I understand the operation you need, but it's tricky to make it work in
+the existing shmem / vm infrastructure I think. Let's call it "dontneed",
+and I'll add a hook in there we can play with later to see if it helps?
 
-Index: linux-2.6/include/linux/ramfs.h
-===================================================================
---- linux-2.6.orig/include/linux/ramfs.h
-+++ linux-2.6/include/linux/ramfs.h
-@@ -6,6 +6,7 @@ extern int ramfs_get_sb(struct file_syst
- 	 int flags, const char *dev_name, void *data, struct vfsmount *mnt);
- 
- #ifndef CONFIG_MMU
-+extern int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize);
- extern unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
- 						   unsigned long addr,
- 						   unsigned long len,
-Index: linux-2.6/mm/tiny-shmem.c
-===================================================================
---- linux-2.6.orig/mm/tiny-shmem.c
-+++ linux-2.6/mm/tiny-shmem.c
-@@ -80,6 +80,12 @@ struct file *shmem_file_setup(char *name
-         inode->i_nlink = 0;     /* It is unlinked */
-         init_file(file, shm_mnt, dentry, FMODE_WRITE | FMODE_READ,
-                         &ramfs_file_operations);
-+
-+#ifndef CONFIG_MMU
-+	error = ramfs_nommu_expand_for_mapping(inode, size);
-+	if (error)
-+		goto close_file;
-+#endif
- 	return file;
- 
- close_file:
-Index: linux-2.6/fs/ramfs/file-nommu.c
-===================================================================
---- linux-2.6.orig/fs/ramfs/file-nommu.c
-+++ linux-2.6/fs/ramfs/file-nommu.c
-@@ -58,7 +58,7 @@ const struct inode_operations ramfs_file
-  * size 0 on the assumption that it's going to be used for an mmap of shared
-  * memory
-  */
--static int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
-+int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
- {
- 	struct pagevec lru_pvec;
- 	unsigned long npages, xpages, loop, limit;
+What I could imagine is to have a second backing store (not shmem), which
+"dontneed" pages go onto, and they simply get discarded rather than swapped
+out (eg. via the ->shrinker() memory pressure indicator). You could then
+also register a callback to recreate these parts of memory if they have been
+discarded then become used again. It wouldn't be terribly difficult come to
+think of it... would that be useful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
