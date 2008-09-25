@@ -1,51 +1,60 @@
-Subject: Re: PTE access rules & abstraction
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <Pine.LNX.4.64.0809250049270.21674@blonde.site>
-References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
-	 <1222117551.12085.39.camel@pasglop>
-	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
-	 <1222291248.8277.90.camel@pasglop>
-	 <Pine.LNX.4.64.0809250049270.21674@blonde.site>
-Content-Type: text/plain
-Date: Thu, 25 Sep 2008 11:04:46 +1000
-Message-Id: <1222304686.8277.136.camel@pasglop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 25 Sep 2008 02:15:57 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] hugetlbfs: add llseek method
+Message-ID: <20080925011557.GA17155@csn.ul.ie>
+References: <20080908174634.GC19912@lst.de> <20080922185624.GA26551@csn.ul.ie> <20080924190043.GA2312@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20080924190043.GA2312@lst.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-09-25 at 00:55 +0100, Hugh Dickins wrote:
+On (24/09/08 21:00), Christoph Hellwig didst pronounce:
+> On Mon, Sep 22, 2008 at 07:56:25PM +0100, Mel Gorman wrote:
+> > On (08/09/08 19:46), Christoph Hellwig didst pronounce:
+> > > Hugetlbfs currently doesn't set a llseek method for regular files, which
+> > > means it will fall back to default_llseek.  This means no one can seek
+> > > beyond 2 Gigabytes.
+> > > 
+> > 
+> > I took another look at this as it was pointed out to me by apw that this
+> > might be a SEEK_CUR vs SEEK_SET thing and also whether lseek() was the
+> > key. To use lseek though, the large file defines had to be used or it failed
+> > whether your patch was applied or not. The error as you'd expect is lseek()
+> > complaining that the type was too small.
+> > 
+> > At the face of it, the patch seems sensible but it works whether it is set
+> > or not so clearly I'm still missing something. The second test I tried is
+> > below. In the unlikely event it makes a difference, I was testing on qemu
+> > for i386.
 > 
-> Whyever not the latter?  Jeremy seems to have gifted that to you,
-> for precisely such a purpose.
-
-Yeah. Not that I don't quite understand what the point of the
-start/modify/commit thing the way it's currently used in mprotect since
-we are doing the whole transaction for a single PTE change, ie how does
-that help with hypervisors vs. a single ptep_modify_protection() for
-example is beyond me :-)
-
-When I think about transactions, I think about starting a transaction,
-changing a -bunch- of PTEs, then commiting... Essentially I see the PTE
-lock thing as being a transaction.
-
-Cheers,
-Ben.
-
-> Hugh
+> Sorry, my original description was complete bullsh*t ;-)  The problem
+> is the inverse of what I wrote.  With default_llseek you can seek
+> everywhere even if that's outside of the fs limit.  This should give you
+> quite interesting results if you seek outside of what we can represent
+> page->index on 32bit platforms.
 > 
-> p.s. I surely agree with you over the name ptep_get_and_clear_full():
-> horrid, even more confusing than the tlb->fullmm from which it derives
-> its name.  I expect I'd agree with you over a lot more too, but
-> please, bugfixes first.
 
-Sure.
+Ahh right. To be honest, I can't even tell what the effect is for sure. In
+ordinary circumstances, I expect it either wraps or zeros are returned when
+real data should be there.
 
+ftruncate can create a file larger than 4GB of course. However, as hugetlbfs
+doesn't support write and mmap64 does not map beyond the 4GB boundary,
+I couldn't create a proper test file. It means I can't verify if the zeros
+returned after seek above the 4GB boundary are garbage zeros or real zeros
+(seek above 4GB is allowed with or without the patch, is that expected?).
+The patch may fix a problem in theory but I can't prove it.
 
+With your filesystem hat on, I'm happy to accept this is a problem in theory
+and should be applied in case someone adds write() support in the future
+and gets an unexpected kick in the pants due to lseek(). I'll ack a patch
+with a fixed-up description and will run the libhugetlbfs regression tests
+with the patch appliued just to make sure there are no side-effects.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
