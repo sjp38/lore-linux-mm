@@ -1,115 +1,50 @@
-Date: Thu, 25 Sep 2008 02:30:21 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
-Message-ID: <20080925003021.GC23494@wotan.suse.de>
-References: <20080923091017.GB29718@wotan.suse.de> <1222185029.4873.157.camel@koto.keithp.com>
+Subject: Re: PTE access rules & abstraction
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Reply-To: benh@kernel.crashing.org
+In-Reply-To: <Pine.LNX.4.64.0809250049270.21674@blonde.site>
+References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
+	 <1222117551.12085.39.camel@pasglop>
+	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
+	 <1222291248.8277.90.camel@pasglop>
+	 <Pine.LNX.4.64.0809250049270.21674@blonde.site>
+Content-Type: text/plain
+Date: Thu, 25 Sep 2008 11:04:46 +1000
+Message-Id: <1222304686.8277.136.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1222185029.4873.157.camel@koto.keithp.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Packard <keithp@keithp.com>
-Cc: eric@anholt.net, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 23, 2008 at 08:50:29AM -0700, Keith Packard wrote:
-> On Tue, 2008-09-23 at 11:10 +0200, Nick Piggin wrote:
-> > I particularly don't like the idea of exposing these vfs objects to random
-> > drivers because they're likely to get things wrong or become out of synch
-> > or unreviewed if things change. I suggested a simple pageable object allocator
-> > that could live in mm and hide the exact details of how shmem / pagecache
-> > works. So I've coded that up quickly.
+On Thu, 2008-09-25 at 00:55 +0100, Hugh Dickins wrote:
 > 
-> Thanks for trying another direction; let's see if that will work for us.
+> Whyever not the latter?  Jeremy seems to have gifted that to you,
+> for precisely such a purpose.
 
-Great!
+Yeah. Not that I don't quite understand what the point of the
+start/modify/commit thing the way it's currently used in mprotect since
+we are doing the whole transaction for a single PTE change, ie how does
+that help with hypervisors vs. a single ptep_modify_protection() for
+example is beyond me :-)
 
- 
-> > Upon actually looking at how "GEM" makes use of its shmem_file_setup filp, I
-> > see something strange... it seems that userspace actually gets some kind of
-> > descriptor, a descriptor to an object backed by this shmem file (let's call it
-> > a "file descriptor"). Anyway, it turns out that userspace sometimes needs to
-> > pread, pwrite, and mmap these objects, but unfortunately it has no direct way
-> > to do that, due to not having open(2)ed the files directly. So what GEM does
-> > is to add some ioctls which take the "file descriptor" things, and derives
-> > the shmem file from them, and then calls into the vfs to perform the operation.
+When I think about transactions, I think about starting a transaction,
+changing a -bunch- of PTEs, then commiting... Essentially I see the PTE
+lock thing as being a transaction.
+
+Cheers,
+Ben.
+
+> Hugh
 > 
-> Sure, we've looked at using regular file descriptors for these objects
-> and it almost works, except for a few things:
-> 
->  1) We create a lot of these objects. The X server itself may have tens
->     of thousands of objects in use at any one time (my current session
->     with gitk and firefox running is using 1565 objects). Right now, the
->     maximum number of fds supported by 'normal' kernel configurations
->     is somewhat smaller than this. Even when the kernel is fixed to
->     support lifting this limit, we'll be at the mercy of existing user
->     space configurations for normal applications.
-> 
->  2) More annoyingly, applications which use these objects also use
->     select(2) and depend on being able to represent the 'real' file
->     descriptors in a compact space near zero. Sticking a few thousand
->     of these new objects into the system would require some ability to
->     relocate the descriptors up higher in fd space. This could also
->     be done in user space using dup2, but that would require managing
->     file descriptor allocation in user space.
-> 
->  3) The pread/pwrite/mmap functions that we use need additional flags
->     to indicate some level of application 'intent'. In particular, we
->     need to know whether the data is being delivered only to the GPU
->     or whether the CPU will need to look at it in the future. This
->     drives the kind of memory access used within the kernel and has
->     a significant performance impact.
+> p.s. I surely agree with you over the name ptep_get_and_clear_full():
+> horrid, even more confusing than the tlb->fullmm from which it derives
+> its name.  I expect I'd agree with you over a lot more too, but
+> please, bugfixes first.
 
-Pity. Anyway, I accept that, let's move on.
+Sure.
 
-[...]
-
-> Hiding the precise semantics of the object storage behind our
-> ioctl-based API means that we can completely replace in the future
-> without affecting user space.
-
-I guess so. A big problem of ioctls is just that they had been easier to
-add so they got less thought and review ;) If your ioctls are stable,
-correct, cross platform etc. then I guess that's the best you can do.
-
- 
-> > BTW. without knowing much of either the GEM or the SPU subsystems, the
-> > GEM problem seems similar to SPU. Did anyone look at that code? Was it ever
-> > considered to make the object allocator be a filesystem? That way you could
-> > control the backing store to the objects yourself, those that want pageable
-> > memory could use the following allocator, the ioctls could go away,
-> > you could create your own objects if needed before userspace is up...
-> 
-> Yes, we've considered doing a separate file system, but as we'd start by
-> copying shmem directly, we're unsure how that would be received. It
-> seems like sharing the shmem code in some sensible way is a better plan.
-
-Well, no not a seperate filesystem to do the pageable backing store, but
-a filesystem to do your object management. If there was a need for pageable
-RAM backing store, then you would still go back to the pageable allocator. 
-
- 
-> We just need anonymous pages that we can read/write/map to kernel and
-> user space. Right now, shmem provides that functionality and is used by
-> two kernel subsystems (sysv IPC and tmpfs). It seems like any new API
-> should support all three uses rather than being specific to GEM.
-> 
-> > The API allows creation and deletion of memory objects, pinning and
-> > unpinning of address ranges within an object, mapping ranges of an object
-> > in KVA, dirtying ranges of an object, and operating on pages within the
-> > object.
-> 
-> The only question I have is whether we can map these objects to user
-> space; the other operations we need are fairly easily managed by just
-> looking at objects one page at a time. Of course, getting to the 'fast'
-> memcpy variants that the current vfs_write path finds may be a trick,
-> but we should be able to figure that out.
-
-You can map them to userspace if you just take a page at a time and insert
-them into the page tables at fault time (or mmap time if you prefer).
-Currently, this will mean that mmapped pages would not be swappable; is
-that a problem?
 
 
 --
