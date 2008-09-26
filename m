@@ -1,165 +1,53 @@
-Date: Fri, 26 Sep 2008 19:43:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/12] memcg updates v5
-Message-Id: <20080926194309.845d661b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926142455.5b0e239e.nishimura@mxp.nes.nec.co.jp>
-References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926113228.ee377330.nishimura@mxp.nes.nec.co.jp>
-	<20080926115810.b5fbae51.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926120408.39187294.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926120019.33d58ca4.nishimura@mxp.nes.nec.co.jp>
-	<20080926130534.e16c9317.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926142455.5b0e239e.nishimura@mxp.nes.nec.co.jp>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id m8QAhEWg083172
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 10:43:14 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8QAhE0l3387602
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 12:43:14 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8QAhEpd001799
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 12:43:14 +0200
+Subject: Re: Populating multiple ptes at fault time
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <48DBD94A.50905@goop.org>
+References: <48D142B2.3040607@goop.org> <48D17E75.80807@redhat.com>
+	 <48D1851B.70703@goop.org> <48D18919.9060808@redhat.com>
+	 <48D18C6B.5010407@goop.org> <48D2B970.7040903@redhat.com>
+	 <48D2D3B2.10503@goop.org> <48D2E65A.6020004@redhat.com>
+	 <48D2EBBB.205@goop.org> <48D2F05C.4040000@redhat.com>
+	 <48D2F571.4010504@goop.org> <48DA333C.2050900@redhat.com>
+	 <48DBD94A.50905@goop.org>
+Content-Type: text/plain
+Date: Fri, 26 Sep 2008 12:26:27 +0200
+Message-Id: <1222424787.22679.17.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Avi Kivity <avi@redhat.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickens <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Sep 2008 14:24:55 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> Unfortunately, there remains some bugs yet...
-> 
+On Thu, 2008-09-25 at 11:32 -0700, Jeremy Fitzhardinge wrote:
+> Very few places actually care about the state of the A/D bits; would it
+> be expensive to make those places explicitly ask for synchronization
+> before testing the bits (or alternatively, have an explicit query
+> operation rather than just poking about in the ptes).  Martin, does this
+> help with s390's per-page (vs per-pte) A/D state?
 
-Thank you for your patient good test!
+With the kvm support the situation on s390 recently has grown a tad more
+complicated. We now have dirty bits in the per-page storage key and in
+the pgste (page table entry extension) for the kvm guests. For the A/D
+bits in the storage key the new pte operations won't help, for the kvm
+related bits they could make a difference.
 
-I'm now testing following (and will do over-night test.)
-In this an hour, this seems to work good. 
-(under your test which usually panics in 10-20min on my box.)
+-- 
+blue skies,
+  Martin.
 
-==
-page_cgroup is not valid until pc->mem_cgroup is set to appropriate value.
-There is a small race between Set-Used-Bit and Set-Proper-pc->mem_cgroup.
-This patch tries to fix that by adding PCG_VALID bit
+"Reality continues to ruin my life." - Calvin.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
- include/linux/page_cgroup.h |    3 +++
- mm/memcontrol.c             |   22 ++++++++++++++--------
- 2 files changed, 17 insertions(+), 8 deletions(-)
-
-Index: mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-===================================================================
---- mmotm-2.6.27-rc7+.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-@@ -21,6 +21,7 @@ struct page_cgroup *lookup_page_cgroup(s
- 
- enum {
- 	/* flags for mem_cgroup */
-+	PCG_VALID, /* you can access this page cgroup */
- 	PCG_LOCK,  /* page cgroup is locked */
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
-@@ -50,6 +51,10 @@ static inline int TestSetPageCgroup##una
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- 
-+TESTPCGFLAG(Valid, VALID)
-+SETPCGFLAG(Valid, VALID)
-+CLEARPCGFLAG(Valid, VALID)
-+
- TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
- TESTSETPCGFLAG(Used, USED)
-Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
-+++ mmotm-2.6.27-rc7+/mm/memcontrol.c
-@@ -340,7 +340,7 @@ void mem_cgroup_move_lists(struct page *
- 	if (!trylock_page_cgroup(pc))
- 		return;
- 
--	if (PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
-+	if (PageCgroupValid(pc) && PageCgroupLRU(pc)) {
- 		mem = pc->mem_cgroup;
- 		mz = page_cgroup_zoneinfo(pc);
- 		spin_lock_irqsave(&mz->lru_lock, flags);
-@@ -434,7 +434,7 @@ unsigned long mem_cgroup_isolate_pages(u
- 	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
- 		if (scan >= nr_to_scan)
- 			break;
--		if (unlikely(!PageCgroupUsed(pc)))
-+		if (unlikely(!PageCgroupValid(pc)))
- 			continue;
- 		page = pc->page;
- 
-@@ -511,7 +511,7 @@ int mem_cgroup_move_account(struct page 
- 		return ret;
- 	}
- 
--	if (!PageCgroupUsed(pc)) {
-+	if (!PageCgroupValid(pc)) {
- 		res_counter_uncharge(&to->res, PAGE_SIZE);
- 		goto out;
- 	}
-@@ -580,6 +580,7 @@ __set_page_cgroup_lru(struct memcg_percp
- 	unsigned long flags;
- 	struct mem_cgroup_per_zone *mz, *prev_mz;
- 	struct page_cgroup *pc;
-+	struct mem_cgroup *mem;
- 	int i, nr;
- 
- 	local_irq_save(flags);
-@@ -589,6 +590,7 @@ __set_page_cgroup_lru(struct memcg_percp
- 
- 	for (i = nr - 1; i >= 0; i--) {
- 		pc = mpv->vec[i];
-+		mem = pc->mem_cgroup;
- 		mz = page_cgroup_zoneinfo(pc);
- 		if (prev_mz != mz) {
- 			if (prev_mz)
-@@ -596,9 +598,11 @@ __set_page_cgroup_lru(struct memcg_percp
- 			prev_mz = mz;
- 			spin_lock(&mz->lru_lock);
- 		}
--		if (PageCgroupUsed(pc) && !PageCgroupLRU(pc)) {
--			SetPageCgroupLRU(pc);
--			__mem_cgroup_add_list(mz, pc);
-+		if (PageCgroupValid(pc) && !PageCgroupLRU(pc)) {
-+			if (mem == pc->mem_cgroup) {
-+				SetPageCgroupLRU(pc);
-+				__mem_cgroup_add_list(mz, pc);
-+			}
- 		}
- 	}
- 
-@@ -790,6 +794,7 @@ void mem_cgroup_commit_charge(struct pag
- 	}
- 
- 	pc->mem_cgroup = mem;
-+	SetPageCgroupValid(pc);
- 	set_page_cgroup_lru(pc);
- 	css_put(&mem->css);
- 	preempt_enable();
-@@ -928,6 +933,7 @@ __mem_cgroup_uncharge_common(struct page
- 		return;
- 	preempt_disable();
- 	lock_page_cgroup(pc);
-+	ClearPageCgroupValid(pc);
- 	ClearPageCgroupUsed(pc);
- 	mem = pc->mem_cgroup;
- 	unlock_page_cgroup(pc);
-@@ -970,7 +976,7 @@ int mem_cgroup_prepare_migration(struct 
- 
- 	pc = lookup_page_cgroup(page);
- 	lock_page_cgroup(pc);
--	if (PageCgroupUsed(pc)) {
-+	if (PageCgroupValid(pc)) {
- 		mem = pc->mem_cgroup;
- 		css_get(&mem->css);
- 		if (PageCgroupCache(pc)) {
-@@ -1086,7 +1092,7 @@ static void mem_cgroup_force_empty_list(
- 	spin_lock_irqsave(&mz->lru_lock, flags);
- 	list_for_each_entry_safe(pc, tmp, list, lru) {
- 		page = pc->page;
--		if (!PageCgroupUsed(pc))
-+		if (!PageCgroupValid(pc))
- 			continue;
- 		/* For avoiding race with speculative page cache handling. */
- 		if (!PageLRU(page) || !get_page_unless_zero(page))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
