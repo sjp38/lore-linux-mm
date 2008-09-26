@@ -1,338 +1,293 @@
-Message-Id: <20080926173313.417047063@twins.programming.kicks-ass.net>
-Date: Fri, 26 Sep 2008 19:32:20 +0200
+Message-Id: <20080926173313.465757651@twins.programming.kicks-ass.net>
+Date: Fri, 26 Sep 2008 19:32:21 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 1/4] futex: rely on get_user_pages() for shared futexes
+Subject: [PATCH 2/4] futex: reduce mmap_sem usage
 References: <20080926173219.885155151@twins.programming.kicks-ass.net>
-Content-Disposition: inline; filename=futex-gup.patch
+Content-Disposition: inline; filename=futex-reduce-mmap_sem.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>, Eric Dumazet <dada1@cosmosbay.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On the way of getting rid of the mmap_sem requirement for shared futexes,
-start by relying on get_user_pages().
+now that we rely on get_user_pages() for the shared key handling
+move all the mmap_sem stuff closely around the slow paths.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/futex.h |    2 
- kernel/futex.c        |  162 ++++++++++++++++++++++++--------------------------
- 2 files changed, 82 insertions(+), 82 deletions(-)
+ kernel/futex.c |   83 ++-------------------------------------------------------
+ 1 file changed, 4 insertions(+), 79 deletions(-)
 
 Index: linux-2.6/kernel/futex.c
 ===================================================================
 --- linux-2.6.orig/kernel/futex.c
 +++ linux-2.6/kernel/futex.c
-@@ -161,6 +161,45 @@ static inline int match_futex(union fute
- 		&& key1->both.offset == key2->both.offset);
+@@ -123,24 +123,6 @@ struct futex_hash_bucket {
+ static struct futex_hash_bucket futex_queues[1<<FUTEX_HASHBITS];
+ 
+ /*
+- * Take mm->mmap_sem, when futex is shared
+- */
+-static inline void futex_lock_mm(struct rw_semaphore *fshared)
+-{
+-	if (fshared)
+-		down_read(fshared);
+-}
+-
+-/*
+- * Release mm->mmap_sem, when the futex is shared
+- */
+-static inline void futex_unlock_mm(struct rw_semaphore *fshared)
+-{
+-	if (fshared)
+-		up_read(fshared);
+-}
+-
+-/*
+  * We hash on the keys returned from get_futex_key (see below).
+  */
+ static struct futex_hash_bucket *hash_futex(union futex_key *key)
+@@ -250,7 +232,9 @@ static int get_futex_key(u32 __user *uad
+ 	}
+ 
+ again:
++	down_read(&mm->mmap_sem);
+ 	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
++	up_read(&mm->mmap_sem);
+ 	if (err < 0)
+ 		return err;
+ 
+@@ -327,8 +311,7 @@ static int futex_handle_fault(unsigned l
+ 	if (attempt > 2)
+ 		return ret;
+ 
+-	if (!fshared)
+-		down_read(&mm->mmap_sem);
++	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, address);
+ 	if (vma && address >= vma->vm_start &&
+ 	    (vma->vm_flags & VM_WRITE)) {
+@@ -348,8 +331,7 @@ static int futex_handle_fault(unsigned l
+ 				current->min_flt++;
+ 		}
+ 	}
+-	if (!fshared)
+-		up_read(&mm->mmap_sem);
++	up_read(&mm->mmap_sem);
+ 	return ret;
  }
  
-+/*
-+ * Take a reference to the resource addressed by a key.
-+ * Can be called while holding spinlocks.
-+ *
-+ */
-+static void get_futex_key_refs(union futex_key *key)
-+{
-+	if (!key->both.ptr)
-+		return;
-+
-+	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
-+	case FUT_OFF_INODE:
-+		atomic_inc(&key->shared.inode->i_count);
-+		break;
-+	case FUT_OFF_MMSHARED:
-+		atomic_inc(&key->private.mm->mm_count);
-+		break;
-+	}
-+}
-+
-+/*
-+ * Drop a reference to the resource addressed by a key.
-+ * The hash bucket spinlock must not be held.
-+ */
-+static void drop_futex_key_refs(union futex_key *key)
-+{
-+	if (!key->both.ptr)
-+		return;
-+
-+	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
-+	case FUT_OFF_INODE:
-+		iput(key->shared.inode);
-+		break;
-+	case FUT_OFF_MMSHARED:
-+		mmdrop(key->private.mm);
-+		break;
-+	}
-+}
-+
- /**
-  * get_futex_key - Get parameters which are the keys for a futex.
-  * @uaddr: virtual address of the futex
-@@ -184,7 +223,6 @@ static int get_futex_key(u32 __user *uad
- {
- 	unsigned long address = (unsigned long)uaddr;
- 	struct mm_struct *mm = current->mm;
--	struct vm_area_struct *vma;
- 	struct page *page;
- 	int err;
+@@ -719,8 +701,6 @@ static int futex_wake(u32 __user *uaddr,
+ 	if (!bitset)
+ 		return -EINVAL;
  
-@@ -210,98 +248,47 @@ static int get_futex_key(u32 __user *uad
- 		key->private.address = address;
- 		return 0;
- 	}
--	/*
--	 * The futex is hashed differently depending on whether
--	 * it's in a shared or private mapping.  So check vma first.
--	 */
--	vma = find_extend_vma(mm, address);
--	if (unlikely(!vma))
--		return -EFAULT;
+-	futex_lock_mm(fshared);
+-
+ 	ret = get_futex_key(uaddr, fshared, &key);
+ 	if (unlikely(ret != 0))
+ 		goto out;
+@@ -749,7 +729,6 @@ static int futex_wake(u32 __user *uaddr,
+ 	spin_unlock(&hb->lock);
+ out:
+ 	put_futex_key(fshared, &key);
+-	futex_unlock_mm(fshared);
+ 	return ret;
+ }
  
--	/*
--	 * Permissions.
--	 */
--	if (unlikely((vma->vm_flags & (VM_IO|VM_READ)) != VM_READ))
--		return (vma->vm_flags & VM_IO) ? -EPERM : -EACCES;
-+again:
-+	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
-+	if (err < 0)
-+		return err;
-+
-+	lock_page(page);
-+	if (!page->mapping) {
-+		unlock_page(page);
-+		put_page(page);
-+		goto again;
-+	}
+@@ -769,8 +748,6 @@ futex_wake_op(u32 __user *uaddr1, struct
+ 	int ret, op_ret, attempt = 0;
+ 
+ retryfull:
+-	futex_lock_mm(fshared);
+-
+ 	ret = get_futex_key(uaddr1, fshared, &key1);
+ 	if (unlikely(ret != 0))
+ 		goto out;
+@@ -821,12 +798,6 @@ retry:
+ 			goto retry;
+ 		}
+ 
+-		/*
+-		 * If we would have faulted, release mmap_sem,
+-		 * fault it in and start all over again.
+-		 */
+-		futex_unlock_mm(fshared);
+-
+ 		ret = get_user(dummy, uaddr2);
+ 		if (ret)
+ 			return ret;
+@@ -864,7 +835,6 @@ retry:
+ out:
+ 	put_futex_key(fshared, &key2);
+ 	put_futex_key(fshared, &key1);
+-	futex_unlock_mm(fshared);
+ 
+ 	return ret;
+ }
+@@ -884,8 +854,6 @@ static int futex_requeue(u32 __user *uad
+ 	int ret, drop_count = 0;
+ 
+  retry:
+-	futex_lock_mm(fshared);
+-
+ 	ret = get_futex_key(uaddr1, fshared, &key1);
+ 	if (unlikely(ret != 0))
+ 		goto out;
+@@ -908,12 +876,6 @@ static int futex_requeue(u32 __user *uad
+ 			if (hb1 != hb2)
+ 				spin_unlock(&hb2->lock);
+ 
+-			/*
+-			 * If we would have faulted, release mmap_sem, fault
+-			 * it in and start all over again.
+-			 */
+-			futex_unlock_mm(fshared);
+-
+ 			ret = get_user(curval, uaddr1);
+ 
+ 			if (!ret)
+@@ -967,7 +929,6 @@ out_unlock:
+ out:
+ 	put_futex_key(fshared, &key2);
+ 	put_futex_key(fshared, &key1);
+-	futex_unlock_mm(fshared);
+ 	return ret;
+ }
+ 
+@@ -1211,8 +1172,6 @@ static int futex_wait(u32 __user *uaddr,
+ 	q.pi_state = NULL;
+ 	q.bitset = bitset;
+  retry:
+-	futex_lock_mm(fshared);
+-
+ 	q.key = FUTEX_KEY_INIT;
+ 	ret = get_futex_key(uaddr, fshared, &q.key);
+ 	if (unlikely(ret != 0))
+@@ -1245,12 +1204,6 @@ static int futex_wait(u32 __user *uaddr,
+ 	if (unlikely(ret)) {
+ 		queue_unlock(&q, hb);
+ 
+-		/*
+-		 * If we would have faulted, release mmap_sem, fault it in and
+-		 * start all over again.
+-		 */
+-		futex_unlock_mm(fshared);
+-
+ 		ret = get_user(uval, uaddr);
+ 
+ 		if (!ret)
+@@ -1265,12 +1218,6 @@ static int futex_wait(u32 __user *uaddr,
+ 	queue_me(&q, hb);
  
  	/*
- 	 * Private mappings are handled in a simple way.
- 	 *
- 	 * NOTE: When userspace waits on a MAP_SHARED mapping, even if
- 	 * it's a read-only handle, it's expected that futexes attach to
--	 * the object not the particular process.  Therefore we use
--	 * VM_MAYSHARE here, not VM_SHARED which is restricted to shared
--	 * mappings of _writable_ handles.
-+	 * the object not the particular process.
- 	 */
--	if (likely(!(vma->vm_flags & VM_MAYSHARE))) {
--		key->both.offset |= FUT_OFF_MMSHARED; /* reference taken on mm */
-+	if (PageAnon(page)) {
-+		key->both.offset |= FUT_OFF_MMSHARED; /* ref taken on mm */
- 		key->private.mm = mm;
- 		key->private.address = address;
--		return 0;
--	}
+-	 * Now the futex is queued and we have checked the data, we
+-	 * don't want to hold mmap_sem while we sleep.
+-	 */
+-	futex_unlock_mm(fshared);
 -
 -	/*
--	 * Linear file mappings are also simple.
--	 */
--	key->shared.inode = vma->vm_file->f_path.dentry->d_inode;
--	key->both.offset |= FUT_OFF_INODE; /* inode-based key. */
--	if (likely(!(vma->vm_flags & VM_NONLINEAR))) {
--		key->shared.pgoff = (((address - vma->vm_start) >> PAGE_SHIFT)
--				     + vma->vm_pgoff);
--		return 0;
-+	} else {
-+		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
-+		key->shared.inode = page->mapping->host;
-+		key->shared.pgoff = page->index;
- 	}
+ 	 * There might have been scheduling since the queue_me(), as we
+ 	 * cannot hold a spinlock across the get_user() in case it
+ 	 * faults, and we cannot just set TASK_INTERRUPTIBLE state when
+@@ -1354,7 +1301,6 @@ static int futex_wait(u32 __user *uaddr,
+ 
+  out_release_sem:
+ 	put_futex_key(fshared, &q.key);
+-	futex_unlock_mm(fshared);
+ 	return ret;
+ }
+ 
+@@ -1403,8 +1349,6 @@ static int futex_lock_pi(u32 __user *uad
+ 
+ 	q.pi_state = NULL;
+  retry:
+-	futex_lock_mm(fshared);
+-
+ 	q.key = FUTEX_KEY_INIT;
+ 	ret = get_futex_key(uaddr, fshared, &q.key);
+ 	if (unlikely(ret != 0))
+@@ -1494,7 +1438,6 @@ static int futex_lock_pi(u32 __user *uad
+ 			 * exit to complete.
+ 			 */
+ 			queue_unlock(&q, hb);
+-			futex_unlock_mm(fshared);
+ 			cond_resched();
+ 			goto retry;
+ 
+@@ -1526,12 +1469,6 @@ static int futex_lock_pi(u32 __user *uad
+ 	 */
+ 	queue_me(&q, hb);
  
 -	/*
--	 * We could walk the page table to read the non-linear
--	 * pte, and get the page index without fetching the page
--	 * from swap.  But that's a lot of code to duplicate here
--	 * for a rare case, so we simply fetch the page.
+-	 * Now the futex is queued and we have checked the data, we
+-	 * don't want to hold mmap_sem while we sleep.
 -	 */
--	err = get_user_pages(current, mm, address, 1, 0, 0, &page, NULL);
--	if (err >= 0) {
--		key->shared.pgoff =
--			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
--		put_page(page);
--		return 0;
--	}
--	return err;
--}
-+	get_futex_key_refs(key);
+-	futex_unlock_mm(fshared);
+-
+ 	WARN_ON(!q.pi_state);
+ 	/*
+ 	 * Block on the PI mutex:
+@@ -1544,7 +1481,6 @@ static int futex_lock_pi(u32 __user *uad
+ 		ret = ret ? 0 : -EWOULDBLOCK;
+ 	}
  
--/*
-- * Take a reference to the resource addressed by a key.
-- * Can be called while holding spinlocks.
-- *
-- */
--static void get_futex_key_refs(union futex_key *key)
--{
--	if (key->both.ptr == NULL)
--		return;
--	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
--		case FUT_OFF_INODE:
--			atomic_inc(&key->shared.inode->i_count);
--			break;
--		case FUT_OFF_MMSHARED:
--			atomic_inc(&key->private.mm->mm_count);
--			break;
--	}
-+	unlock_page(page);
-+	put_page(page);
-+	return 0;
- }
+-	futex_lock_mm(fshared);
+ 	spin_lock(q.lock_ptr);
  
--/*
-- * Drop a reference to the resource addressed by a key.
-- * The hash bucket spinlock must not be held.
-- */
--static void drop_futex_key_refs(union futex_key *key)
-+static inline
-+void put_futex_key(struct rw_semaphore *fshared, union futex_key *key)
- {
--	if (!key->both.ptr)
--		return;
--	switch (key->both.offset & (FUT_OFF_INODE|FUT_OFF_MMSHARED)) {
--		case FUT_OFF_INODE:
--			iput(key->shared.inode);
--			break;
--		case FUT_OFF_MMSHARED:
--			mmdrop(key->private.mm);
--			break;
--	}
-+	drop_futex_key_refs(key);
- }
+ 	if (!ret) {
+@@ -1610,7 +1546,6 @@ static int futex_lock_pi(u32 __user *uad
  
- static u32 cmpxchg_futex_value_locked(u32 __user *uaddr, u32 uval, u32 newval)
-@@ -385,6 +372,7 @@ static int refill_pi_state_cache(void)
- 	/* pi_mutex gets initialized later */
- 	pi_state->owner = NULL;
- 	atomic_set(&pi_state->refcount, 1);
-+	pi_state->key = FUTEX_KEY_INIT;
+ 	/* Unqueue and drop the lock */
+ 	unqueue_me_pi(&q);
+-	futex_unlock_mm(fshared);
  
- 	current->pi_state_cache = pi_state;
- 
-@@ -462,7 +450,7 @@ void exit_pi_state_list(struct task_stru
- 	struct list_head *next, *head = &curr->pi_state_list;
- 	struct futex_pi_state *pi_state;
- 	struct futex_hash_bucket *hb;
--	union futex_key key;
-+	union futex_key key = FUTEX_KEY_INIT;
- 
- 	if (!futex_cmpxchg_enabled)
- 		return;
-@@ -725,7 +713,7 @@ static int futex_wake(u32 __user *uaddr,
- 	struct futex_hash_bucket *hb;
- 	struct futex_q *this, *next;
- 	struct plist_head *head;
--	union futex_key key;
-+	union futex_key key = FUTEX_KEY_INIT;
- 	int ret;
- 
- 	if (!bitset)
-@@ -760,6 +748,7 @@ static int futex_wake(u32 __user *uaddr,
- 
- 	spin_unlock(&hb->lock);
- out:
-+	put_futex_key(fshared, &key);
- 	futex_unlock_mm(fshared);
- 	return ret;
- }
-@@ -773,7 +762,7 @@ futex_wake_op(u32 __user *uaddr1, struct
- 	      u32 __user *uaddr2,
- 	      int nr_wake, int nr_wake2, int op)
- {
--	union futex_key key1, key2;
-+	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
- 	struct futex_hash_bucket *hb1, *hb2;
- 	struct plist_head *head;
- 	struct futex_q *this, *next;
-@@ -873,6 +862,8 @@ retry:
- 	if (hb1 != hb2)
- 		spin_unlock(&hb2->lock);
- out:
-+	put_futex_key(fshared, &key2);
-+	put_futex_key(fshared, &key1);
- 	futex_unlock_mm(fshared);
- 
- 	return ret;
-@@ -886,7 +877,7 @@ static int futex_requeue(u32 __user *uad
- 			 u32 __user *uaddr2,
- 			 int nr_wake, int nr_requeue, u32 *cmpval)
- {
--	union futex_key key1, key2;
-+	union futex_key key1 = FUTEX_KEY_INIT, key2 = FUTEX_KEY_INIT;
- 	struct futex_hash_bucket *hb1, *hb2;
- 	struct plist_head *head1;
- 	struct futex_q *this, *next;
-@@ -974,6 +965,8 @@ out_unlock:
- 		drop_futex_key_refs(&key1);
- 
- out:
-+	put_futex_key(fshared, &key2);
-+	put_futex_key(fshared, &key1);
- 	futex_unlock_mm(fshared);
- 	return ret;
- }
-@@ -1220,6 +1213,7 @@ static int futex_wait(u32 __user *uaddr,
-  retry:
- 	futex_lock_mm(fshared);
- 
-+	q.key = FUTEX_KEY_INIT;
- 	ret = get_futex_key(uaddr, fshared, &q.key);
- 	if (unlikely(ret != 0))
- 		goto out_release_sem;
-@@ -1359,6 +1353,7 @@ static int futex_wait(u32 __user *uaddr,
- 	queue_unlock(&q, hb);
- 
-  out_release_sem:
-+	put_futex_key(fshared, &q.key);
- 	futex_unlock_mm(fshared);
- 	return ret;
- }
-@@ -1410,6 +1405,7 @@ static int futex_lock_pi(u32 __user *uad
-  retry:
- 	futex_lock_mm(fshared);
- 
-+	q.key = FUTEX_KEY_INIT;
- 	ret = get_futex_key(uaddr, fshared, &q.key);
- 	if (unlikely(ret != 0))
- 		goto out_release_sem;
-@@ -1624,6 +1620,7 @@ static int futex_lock_pi(u32 __user *uad
- 	queue_unlock(&q, hb);
- 
-  out_release_sem:
-+	put_futex_key(fshared, &q.key);
- 	futex_unlock_mm(fshared);
  	if (to)
  		destroy_hrtimer_on_stack(&to->timer);
-@@ -1670,7 +1667,7 @@ static int futex_unlock_pi(u32 __user *u
- 	struct futex_q *this, *next;
- 	u32 uval;
- 	struct plist_head *head;
--	union futex_key key;
-+	union futex_key key = FUTEX_KEY_INIT;
- 	int ret, attempt = 0;
+@@ -1621,7 +1556,6 @@ static int futex_lock_pi(u32 __user *uad
  
- retry:
-@@ -1743,6 +1740,7 @@ retry_unlocked:
- out_unlock:
+  out_release_sem:
+ 	put_futex_key(fshared, &q.key);
+-	futex_unlock_mm(fshared);
+ 	if (to)
+ 		destroy_hrtimer_on_stack(&to->timer);
+ 	return ret;
+@@ -1645,8 +1579,6 @@ static int futex_lock_pi(u32 __user *uad
+ 		goto retry_unlocked;
+ 	}
+ 
+-	futex_unlock_mm(fshared);
+-
+ 	ret = get_user(uval, uaddr);
+ 	if (!ret && (uval != -EFAULT))
+ 		goto retry;
+@@ -1678,10 +1610,6 @@ retry:
+ 	 */
+ 	if ((uval & FUTEX_TID_MASK) != task_pid_vnr(current))
+ 		return -EPERM;
+-	/*
+-	 * First take all the futex related locks:
+-	 */
+-	futex_lock_mm(fshared);
+ 
+ 	ret = get_futex_key(uaddr, fshared, &key);
+ 	if (unlikely(ret != 0))
+@@ -1741,7 +1669,6 @@ out_unlock:
  	spin_unlock(&hb->lock);
  out:
-+	put_futex_key(fshared, &key);
- 	futex_unlock_mm(fshared);
+ 	put_futex_key(fshared, &key);
+-	futex_unlock_mm(fshared);
  
  	return ret;
-Index: linux-2.6/include/linux/futex.h
-===================================================================
---- linux-2.6.orig/include/linux/futex.h
-+++ linux-2.6/include/linux/futex.h
-@@ -164,6 +164,8 @@ union futex_key {
- 	} both;
- };
  
-+#define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
-+
- #ifdef CONFIG_FUTEX
- extern void exit_robust_list(struct task_struct *curr);
- extern void exit_pi_state_list(struct task_struct *curr);
+@@ -1765,8 +1692,6 @@ pi_faulted:
+ 		goto retry_unlocked;
+ 	}
+ 
+-	futex_unlock_mm(fshared);
+-
+ 	ret = get_user(uval, uaddr);
+ 	if (!ret && (uval != -EFAULT))
+ 		goto retry;
 
 
 --
