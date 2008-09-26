@@ -1,11 +1,12 @@
-Date: Fri, 26 Sep 2008 18:17:26 +0900
+Date: Fri, 26 Sep 2008 18:18:03 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/12] memcg avoid accounting special mappings not on LRU
-Message-Id: <20080926181726.359c77a8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48DC9C92.4000408@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/12] memcg move charege() call to swapped-in page under
+ lock_page()
+Message-Id: <20080926181803.351e94cf.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48DC9EF2.10004@linux.vnet.ibm.com>
 References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080925151307.f9cf352f.kamezawa.hiroyu@jp.fujitsu.com>
-	<48DC9C92.4000408@linux.vnet.ibm.com>
+	<20080925151457.0ad68293.kamezawa.hiroyu@jp.fujitsu.com>
+	<48DC9EF2.10004@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,36 +16,33 @@ To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Sep 2008 13:55:54 +0530
+On Fri, 26 Sep 2008 14:06:02 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
 > KAMEZAWA Hiroyuki wrote:
-> > There are not-on-LRU pages which can be mapped and they are not worth to
-> > be accounted. (becasue we can't shrink them and need dirty codes to handle
-> > specical case) We'd like to make use of usual objrmap/radix-tree's protcol
-> > and don't want to account out-of-vm's control pages.
+> > While page-cache's charge/uncharge is done under page_lock(), swap-cache
+> > isn't. (anonymous page is charged when it's newly allocated.)
 > > 
-> > When special_mapping_fault() is called, page->mapping is tend to be NULL 
-> > and it's charged as Anonymous page.
-> > insert_page() also handles some special pages from drivers.
+> > This patch moves do_swap_page()'s charge() call under lock. This helps
+> > us to avoid to charge already mapped one, unnecessary calls.
 > > 
-> > This patch is for avoiding to account special pages.
-> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Hmm... I am a little concerned that with these changes actual usage will much
-> more than what we report in memory.usage_in_bytes. Why not move them to
-> non-reclaimable LRU list as unevictable pages (once those patches go in, we can
-> push this as well). 
-
-Because they are not on LRU ...i.e. !PageLRU(page)
-
-> I suspect the size of special pages is too short to affect
-> anything or are you seeing something very different?
-
-I don't want put pages never goes to LRU onto memcgroup's LRU.
+> Seems reasonable to me
+> 
+> Just one quick comment though, as a result of this change, mark_page_accessed is
+> now called with PageLock held, I suspect you would want to move that call prior
+> to lock_page().
+> 
+Ok. I'll check it
 
 Thanks,
 -Kame
+> 
+> 
+> -- 
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
