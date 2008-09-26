@@ -1,31 +1,16 @@
-Message-ID: <48DD073D.9080109@linux-foundation.org>
-Date: Fri, 26 Sep 2008 11:01:01 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: A question about alloc_pages()
-References: <15178.1222381876@redhat.com>
-In-Reply-To: <15178.1222381876@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-Id: <20080926173219.885155151@twins.programming.kicks-ass.net>
+Date: Fri, 26 Sep 2008 19:32:19 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 0/4] futex: get_user_pages_fast() for shared futexes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>, Eric Dumazet <dada1@cosmosbay.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Howells wrote:
+Since get_user_pages_fast() made it in, I thought to give this another try.
+Lightly tested by disabling the private futexes and running some java proglets.
 
-> When alloc_pages() is asked to allocate a block of pages (order > 0), should I
-> be able to expect that page_count(pages[0]) will be 1, and page_count() for
-> all the other pages will be 0?
-
-Correct.
-
-> However, I have a report that sometimes this isn't true, and I'm wondering if
-> the allocator can't be relied on in this way, or whether there's a bug
-> somewhere keeping a reference to a released page.
-
-Must be a bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
