@@ -1,20 +1,20 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8Q9V5rH016752
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:31:05 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8Q9WIUS3375230
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:32:18 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8Q9WG3T007010
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:32:16 +1000
-Message-ID: <48DCAC1D.9020802@linux.vnet.ibm.com>
-Date: Fri, 26 Sep 2008 15:02:13 +0530
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8Q9bGKE021822
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:37:16 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8Q9U33e299726
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:30:23 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8Q9U2aG006549
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:30:02 +1000
+Message-ID: <48DCAB8C.5030405@linux.vnet.ibm.com>
+Date: Fri, 26 Sep 2008 14:59:48 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/12] memcg avoid accounting special mappings not on LRU
-References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925151307.f9cf352f.kamezawa.hiroyu@jp.fujitsu.com> <48DC9C92.4000408@linux.vnet.ibm.com> <20080926181726.359c77a8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926181726.359c77a8.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/12] memcg make root cgroup unlimited.
+References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925151543.ba307898.kamezawa.hiroyu@jp.fujitsu.com> <48DCA01C.9020701@linux.vnet.ibm.com> <20080926182122.c7c88a65.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080926182122.c7c88a65.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,31 +24,38 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <ni
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> On Fri, 26 Sep 2008 13:55:54 +0530
+> On Fri, 26 Sep 2008 14:11:00 +0530
 > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
 >> KAMEZAWA Hiroyuki wrote:
->>> There are not-on-LRU pages which can be mapped and they are not worth to
->>> be accounted. (becasue we can't shrink them and need dirty codes to handle
->>> specical case) We'd like to make use of usual objrmap/radix-tree's protcol
->>> and don't want to account out-of-vm's control pages.
+>>> Make root cgroup of memory resource controller to have no limit.
 >>>
->>> When special_mapping_fault() is called, page->mapping is tend to be NULL 
->>> and it's charged as Anonymous page.
->>> insert_page() also handles some special pages from drivers.
+>>> By this, users cannot set limit to root group. This is for making root cgroup
+>>> as a kind of trash-can.
 >>>
->>> This patch is for avoiding to account special pages.
+>>> For accounting pages which has no owner, which are created by force_empty,
+>>> we need some cgroup with no_limit. A patch for rewriting force_empty will
+>>> will follow this one.
 >>>
->> Hmm... I am a little concerned that with these changes actual usage will much
->> more than what we report in memory.usage_in_bytes. Why not move them to
->> non-reclaimable LRU list as unevictable pages (once those patches go in, we can
->> push this as well). 
-> 
-> Because they are not on LRU ...i.e. !PageLRU(page)
+>>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> This is an ABI change (although not too many people might be using it, I wonder
+>> if we should add memory.features (a set of flags and let users enable them and
+>> provide good defaults), like sched features.
+>>
+> I think "feature" flag is complicated, at this stage.
+> We'll add more features and not settled yet.
 > 
 
-I understand.. Thanks for clarifying.. my concern is w.r.t accounting, we
-account it in RSS (file RSS).
+I know.. but breaking ABI is a bad bad thing. We'll have to keep the feature
+flags extensible (add new things). If we all feel we don't have enough users
+affected by this change, I might agree with you and make that change.
+
+> Hmm, if you don't like this,
+> calling try_to_free_page() at force_empty() instead of move_account() ?
+> 
+
+Not sure I understand this.
+
 
 -- 
 	Balbir
