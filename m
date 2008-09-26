@@ -1,20 +1,20 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8Q9bGKE021822
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:37:16 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8Q9U33e299726
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:30:23 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8Q9U2aG006549
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:30:02 +1000
-Message-ID: <48DCAB8C.5030405@linux.vnet.ibm.com>
-Date: Fri, 26 Sep 2008 14:59:48 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28esmtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m8Q9lnKl024797
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 15:17:49 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8Q9lnqY1806350
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 15:17:49 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m8Q9lmt9005351
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2008 19:47:49 +1000
+Message-ID: <48DCAFC4.40009@linux.vnet.ibm.com>
+Date: Fri, 26 Sep 2008 15:17:48 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/12] memcg make root cgroup unlimited.
-References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925151543.ba307898.kamezawa.hiroyu@jp.fujitsu.com> <48DCA01C.9020701@linux.vnet.ibm.com> <20080926182122.c7c88a65.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926182122.c7c88a65.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/12] memcg make page->mapping NULL before calling uncharge
+References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925151639.5e2ddea4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080925151639.5e2ddea4.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,37 +24,42 @@ Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <ni
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> On Fri, 26 Sep 2008 14:11:00 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> This patch tries to make page->mapping to be NULL before
+> mem_cgroup_uncharge_cache_page() is called.
 > 
->> KAMEZAWA Hiroyuki wrote:
->>> Make root cgroup of memory resource controller to have no limit.
->>>
->>> By this, users cannot set limit to root group. This is for making root cgroup
->>> as a kind of trash-can.
->>>
->>> For accounting pages which has no owner, which are created by force_empty,
->>> we need some cgroup with no_limit. A patch for rewriting force_empty will
->>> will follow this one.
->>>
->>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> This is an ABI change (although not too many people might be using it, I wonder
->> if we should add memory.features (a set of flags and let users enable them and
->> provide good defaults), like sched features.
->>
-> I think "feature" flag is complicated, at this stage.
-> We'll add more features and not settled yet.
+> "page->mapping == NULL" is a good check for "whether the page is still
+> radix-tree or not".
+> This patch also adds BUG_ON() to mem_cgroup_uncharge_cache_page();
 > 
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I know.. but breaking ABI is a bad bad thing. We'll have to keep the feature
-flags extensible (add new things). If we all feel we don't have enough users
-affected by this change, I might agree with you and make that change.
+Looks good, small nit-pick below
 
-> Hmm, if you don't like this,
-> calling try_to_free_page() at force_empty() instead of move_account() ?
+>  #endif
+>  	ClearPagePrivate(page);
+>  	set_page_private(page, 0);
+> -	page->mapping = NULL;
+> +	/* page->mapping contains a flag for PageAnon() */
+> +	if (PageAnon(page)) {
+> +		/* This page is uncharged at try_to_unmap(). */
+> +		page->mapping = NULL;
+> +	} else {
+> +		/* Obsolete file cache should be uncharged */
+> +		page->mapping = NULL;
+> +		mem_cgroup_uncharge_cache_page(page);
+> +	}
 > 
 
-Not sure I understand this.
+Isn't it better and correct coding style to do
+
+	/*
+	 * Uncharge obsolete file cache
+	 */
+	if (!PageAnon(page))
+		mem_cgroup_uncharge_cache_page(page);
+	/* else - uncharged at try_to_unmap() */
+	page->mapping = NULL;
 
 
 -- 
