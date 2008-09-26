@@ -1,43 +1,45 @@
-Subject: Re: PTE access rules & abstraction
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <48DC106D.9010601@goop.org>
-References: <1221846139.8077.25.camel@pasglop>  <48D739B2.1050202@goop.org>
-	 <1222117551.12085.39.camel@pasglop>
-	 <Pine.LNX.4.64.0809241919520.575@blonde.site>
-	 <1222291248.8277.90.camel@pasglop>
-	 <Pine.LNX.4.64.0809250049270.21674@blonde.site>
-	 <1222304686.8277.136.camel@pasglop>  <48DBD532.80607@goop.org>
-	 <1222379063.8277.202.camel@pasglop>  <48DC106D.9010601@goop.org>
-Content-Type: text/plain
-Date: Fri, 26 Sep 2008 09:02:17 +1000
-Message-Id: <1222383737.8277.205.camel@pasglop>
+Date: Fri, 26 Sep 2008 10:17:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 9/12] memcg allocate all page_cgroup at boot
+Message-Id: <20080926101754.91e64254.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1222368047.15523.81.camel@nimitz>
+References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080925153206.281243dc.kamezawa.hiroyu@jp.fujitsu.com>
+	<1222368047.15523.81.camel@nimitz>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-09-25 at 15:27 -0700, Jeremy Fitzhardinge wrote:
-> Yeah, that would work too; that's pretty much how Xen implements it
-> anyway.  The main advantage of the start/commit pair is that the
-> resulting code was completely unchanged from the old code.  The mprotect
-> sequence using ptep_modify_protection would end up reading the pte twice
-> before writing it.
+On Thu, 25 Sep 2008 11:40:47 -0700
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-Not necessarily .. depends how you factor out the interface to it.
+> On Thu, 2008-09-25 at 15:32 +0900, KAMEZAWA Hiroyuki wrote:
+> > @@ -949,6 +953,11 @@ struct mem_section {
+> > 
+> >         /* See declaration of similar field in struct zone */
+> >         unsigned long *pageblock_flags;
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> > +       /* see page_cgroup.h */
+> > +       struct page_cgroup *page_cgroup;
+> > +       unsigned long pad;
+> > +#endif
+> >  };
+> 
+> I thought the use of this variable was under the
+> 
+> 	+#ifdef CONFIG_FLAT_NODE_MEM_MAP
+> 
+> options.  Otherwise, we unconditionally bloat mem_section, right?
+> 
+Hmmm......Oh, yes ! nice catch.
 
-Anyway, not a big deal now. I'll do a patch to fix the hole on powerpc,
-and if my brain clicks, over the next few weeks, I'll see if I can come
-up with an overall nicer API covering all usages. In many case might
-just be a matter of giving a saner name to existing calls and
-documenting them properly tho :-)
-
-Cheers,
-Ben.
-
+Thanks, I'll fix.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
