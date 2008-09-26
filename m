@@ -1,345 +1,128 @@
-Date: Fri, 26 Sep 2008 11:28:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH(fixed) 11/12] free page cgroup from LRU in add
-Message-Id: <20080926112841.04be3579.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926112544.26312246.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Fri, 26 Sep 2008 11:32:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 0/12] memcg updates v5
+Message-Id: <20080926113228.ee377330.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080925153206.281243dc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926112156.991c5dc4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926112544.26312246.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Fixed HUNK with 9/12(fixed)
-==
-Delaying add_to_lru() and do it in batched manner like page_vec.
-For doing that 2 flags PCG_USED and PCG_LRU.
+On Thu, 25 Sep 2008 15:11:24 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Hi, I updated the stack and reflected comments.
+> Against the latest mmotm. (rc7-mm1)
+> 
+> Major changes from previous one is 
+>   - page_cgroup allocation/lookup manner is changed.
+>     all FLATMEM/DISCONTIGMEM/SPARSEMEM and MEMORY_HOTPLUG is supported.
+>   - force_empty is totally rewritten. and a problem that "force_empty takes long time"
+>     in previous version is fixed (I think...)
+>   - reordered patches.
+>      - first half are easy ones.
+>      - second half are big ones.
+> 
+> I'm still testing with full debug option. No problem found yet.
+> (I'm afraid of race condition which have not been caught yet.)
+> 
+> [1/12]  avoid accounting special mappings not on LRU. (fix)
+> [2/12]  move charege() call to swapped-in page under lock_page() (clean up)
+> [3/12]  make root cgroup to be unlimited. (change semantics.)
+> [4/12]  make page->mapping NULL before calling uncharge (clean up)
+> [5/12]  make page->flags to use atomic ops. (changes in infrastructure)
+> [6/12]  optimize stat. (clean up)
+> [7/12]  add support function for moving account. (new function)
+> [8/12]  rewrite force_empty to use move_account. (change semantics.)
+> [9/12]  allocate all page_cgroup at boot. (changes in infrastructure)
+> [10/12] free page_cgroup from LRU in lazy way (optimize)
+> [11/12] add page_cgroup to LRU in lazy way (optimize)
+> [12/12] fix race at charging swap  (fix by new logic.)
+> 
+> *Any* comment is welcome.
+> 
+> Thanks,
+> -Kame
+> 
 
-If PCG_LRU is set, page is on LRU. It safe to access LRU via page_cgroup.
-(under some lock.)
+I got general protection fault.
 
-For avoiding race, this patch uses TestSetPageCgroupUsed().
-and checking PCG_USED bit and PCG_LRU bit in add/free vector.
-By this, lock_page_cgroup() in mem_cgroup_charge() is removed.
+(log from dump)
+general protection fault: 0000 [1] SMP
+last sysfs file: /sys/devices/system/cpu/cpu15/cache/index1/shared_cpu_map
+CPU 0
+Modules linked in: ipt_REJECT xt_tcpudp iptable_filter ip_tables x_tables bridge stp ipv6
+autofs4 hidp rfcomm l2cap bluetooth sunrpc microcode dm_mirror dm_log dm_multipath dm_mod
+rfkill input_polldev sbs sbshc battery ac lp sg e1000 ide_cd_mod cdrom button acpi_memhotp
+lug serio_raw rtc_cmos parport_pc rtc_core parport rtc_lib i2c_i801 i2c_core pcspkr shpchp
+ ata_piix libata megaraid_mbox megaraid_mm sd_mod scsi_mod ext3 jbd ehci_hcd ohci_hcd uhci
+_hcd
+Pid: 8001, comm: shmem_test_02 Tainted: G        W 2.6.27-rc7-mm1-7eacf5c9 #1
+RIP: 0010:[<ffffffff802a0ebb>]  [<ffffffff802a0ebb>] __mem_cgroup_move_lists+0x8b/0xa2
+RSP: 0018:ffff8800bb4ad888  EFLAGS: 00010046
+RAX: ffff88010b253080 RBX: ffff88010c67d618 RCX: dead000000100100
+RDX: dead000000200200 RSI: ffff88010b253088 RDI: ffff88010c67d630
+RBP: 0000000000000000 R08: ffff88010fc020a3 R09: 000000000000000f
+R10: ffffffff802a204a R11: 00000000fffffffa R12: ffff88010b253080
+R13: 0000000000000000 R14: ffff8800bb4ad9c8 R15: 0000000000000000
+FS:  00007f4600faa6f0(0000) GS:ffffffff80638900(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00000033af86c027 CR3: 00000000c1549000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process shmem_test_02 (pid: 8001, threadinfo ffff8800bb4ac000, task ffff880107d21470)
+Stack:  ffffe200028ef8b0 0000000000000082 ffff88010c67d618 ffffffff802a1cb9
+ ffff880000016f80 0000000000000000 ffff880000016f80 ffffe200028ef888
+ ffff8800bb4adb38 ffffffff8027dd09 ffffc20001859000 0000000000000000
+Call Trace:
+ [<ffffffff802a1cb9>] mem_cgroup_move_lists+0x50/0x74
+ [<ffffffff8027dd09>] shrink_list+0x443/0x4ff
+ [<ffffffff8027e04e>] shrink_zone+0x289/0x315
+ [<ffffffff802805d2>] congestion_wait+0x74/0x80
+ [<ffffffff8024c006>] autoremove_wake_function+0x0/0x2e
+ [<ffffffff8027e52a>] do_try_to_free_pages+0x259/0x3e3
+ [<ffffffff8027e734>] try_to_free_mem_cgroup_pages+0x80/0x85
+ [<ffffffff802a204a>] mem_cgroup_isolate_pages+0x0/0x1d2
+ [<ffffffff802a13a3>] mem_cgroup_shrink_usage+0x60/0xba
+ [<ffffffff802978a2>] shmem_getpage+0x455/0x7a0
+ [<ffffffff8022c4f9>] target_load+0x2a/0x58
+ [<ffffffff8022cf59>] place_entity+0x85/0xb3
+ [<ffffffff8022f6db>] enqueue_entity+0x16e/0x18f
+ [<ffffffff8022f781>] enqueue_task_fair+0x24/0x3a
+ [<ffffffff8022cc33>] enqueue_task+0x50/0x5b
+ [<ffffffff8023278e>] try_to_wake_up+0x241/0x253
+ [<ffffffff8024c00f>] autoremove_wake_function+0x9/0x2e
+ [<ffffffff8022c743>] __wake_up_common+0x41/0x74
+ [<ffffffff8022dae7>] __wake_up+0x38/0x4f
+ [<ffffffff80297c89>] shmem_fault+0x3b/0x68
+ [<ffffffff802819f9>] __do_fault+0x51/0x3fb
+ [<ffffffff80283592>] handle_mm_fault+0x1d6/0x791
+ [<ffffffff804a2115>] do_page_fault+0x39c/0x773
+ [<ffffffff804a2154>] do_page_fault+0x3db/0x773
+ [<ffffffff804a0039>] error_exit+0x0/0x51
+Code: 0b 10 eb 04 f0 80 23 ef f0 80 23 bf 89 e8 48 8d 7b 18 48 ff 44 c6 58 48 c1 e0 04 48
+8b 4b 18 48 8b 57 08 48 8d 04 06 48 8d 70 08 <48> 89 51 08 48 89 0a 48 8b 50 08 59 5b 5d e
+9 75 f4 09 00 58 5b
+RIP  [<ffffffff802a0ebb>] __mem_cgroup_move_lists+0x8b/0xa2
+ RSP <ffff8800bb4ad888>
+---[ end trace 4eaa2a86a8e2da22 ]---
 
-(I don't want to call lock_page_cgroup() under mz->lru_lock when 
- add/free vector core logic. So, TestSetPageCgroupUsed() logic is added.
- TestSet is an easy way to avoid unneccesary nest of locks.)
+I've not investigated deeply yet, but it seems that it is trying to
+handle an entry which has been already removed from list.
+(I can see some "dead" pointer in registers.)
+
+I was running some ltp tests (4 "page01" tests(8MB for each)
+and 1 "shmem_test02" test(16MB)) in a group with limit=32M.
 
 
-Changelog: v3 -> v5.
- - removed css_get/put per page_cgroup struct.
-   Now, *new* force_empty checks there is page_cgroup on the memcg.
-   We don't need to be afraid of leak.
+Anyway, I'll dig it more later.
 
-Changelog: v2 -> v3
- - added TRANSIT flag and removed lock from core logic.
-Changelog: v1 -> v2:
- - renamed function name from use_page_cgroup to set_page_cgroup_lru().
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
- include/linux/page_cgroup.h |   10 +++
- mm/memcontrol.c             |  121 +++++++++++++++++++++++++++++++-------------
- 2 files changed, 96 insertions(+), 35 deletions(-)
-
-Index: mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-===================================================================
---- mmotm-2.6.27-rc7+.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-@@ -24,6 +24,7 @@ enum {
- 	PCG_LOCK,  /* page cgroup is locked */
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
-+	PCG_LRU, /* this is on LRU */
- 	/* flags for LRU placement */
- 	PCG_ACTIVE, /* page is active in this cgroup */
- 	PCG_FILE, /* page is file system backed */
-@@ -42,11 +43,20 @@ static inline void SetPageCgroup##uname(
- static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ clear_bit(PCG_##lname, &pc->flags);  }
- 
-+#define TESTSETPCGFLAG(uname, lname)\
-+static inline int TestSetPageCgroup##uname(struct page_cgroup *pc)	\
-+	{ return test_and_set_bit(PCG_##lname, &pc->flags);  }
-+
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- 
- TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
-+TESTSETPCGFLAG(Used, USED)
-+
-+TESTPCGFLAG(LRU, LRU)
-+SETPCGFLAG(LRU, LRU)
-+CLEARPCGFLAG(LRU, LRU)
- 
- /* LRU management flags (from global-lru definition) */
- TESTPCGFLAG(File, FILE)
-Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
-+++ mmotm-2.6.27-rc7+/mm/memcontrol.c
-@@ -149,9 +149,9 @@ enum charge_type {
- 
- static const unsigned long
- pcg_default_flags[NR_CHARGE_TYPE] = {
--	(1 << PCG_CACHE) | (1 << PCG_FILE) | (1 << PCG_USED) | (1 << PCG_LOCK),
--	(1 << PCG_ACTIVE) | (1 << PCG_LOCK) | (1 << PCG_USED),
--	(1 << PCG_ACTIVE) | (1 << PCG_CACHE) | (1 << PCG_USED)|  (1 << PCG_LOCK),
-+	(1 << PCG_CACHE) | (1 << PCG_FILE) | (1 << PCG_USED),
-+	(1 << PCG_ACTIVE) | (1 << PCG_USED),
-+	(1 << PCG_ACTIVE) | (1 << PCG_CACHE) | (1 << PCG_USED),
- };
- 
- /*
-@@ -193,7 +193,6 @@ page_cgroup_zoneinfo(struct page_cgroup 
- 	struct mem_cgroup *mem = pc->mem_cgroup;
- 	int nid = page_cgroup_nid(pc);
- 	int zid = page_cgroup_zid(pc);
--
- 	return mem_cgroup_zoneinfo(mem, nid, zid);
- }
- 
-@@ -341,7 +340,7 @@ void mem_cgroup_move_lists(struct page *
- 	if (!trylock_page_cgroup(pc))
- 		return;
- 
--	if (PageCgroupUsed(pc)) {
-+	if (PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
- 		mem = pc->mem_cgroup;
- 		mz = page_cgroup_zoneinfo(pc);
- 		spin_lock_irqsave(&mz->lru_lock, flags);
-@@ -500,6 +499,9 @@ int mem_cgroup_move_account(struct page 
- 	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
- 	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
- 
-+	if (!PageCgroupLRU(pc))
-+		return ret;
-+
- 	if (res_counter_charge(&to->res, PAGE_SIZE)) {
- 		/* Now, we assume no_limit...no failure here. */
- 		return ret;
-@@ -516,10 +518,8 @@ int mem_cgroup_move_account(struct page 
- 
- 	if (spin_trylock(&to_mz->lru_lock)) {
- 		__mem_cgroup_remove_list(from_mz, pc);
--		css_put(&from->css);
- 		res_counter_uncharge(&from->res, PAGE_SIZE);
- 		pc->mem_cgroup = to;
--		css_get(&to->css);
- 		__mem_cgroup_add_list(to_mz, pc);
- 		ret = 0;
- 		spin_unlock(&to_mz->lru_lock);
-@@ -540,6 +540,7 @@ struct memcg_percpu_vec {
- 	struct page_cgroup *vec[MEMCG_PCPVEC_SIZE];
- };
- static DEFINE_PER_CPU(struct memcg_percpu_vec, memcg_free_vec);
-+static DEFINE_PER_CPU(struct memcg_percpu_vec, memcg_add_vec);
- 
- static void
- __release_page_cgroup(struct memcg_percpu_vec *mpv)
-@@ -555,7 +556,6 @@ __release_page_cgroup(struct memcg_percp
- 	prev_mz = NULL;
- 	for (i = nr - 1; i >= 0; i--) {
- 		pc = mpv->vec[i];
--		VM_BUG_ON(PageCgroupUsed(pc));
- 		mz = page_cgroup_zoneinfo(pc);
- 		if (prev_mz != mz) {
- 			if (prev_mz)
-@@ -563,9 +563,10 @@ __release_page_cgroup(struct memcg_percp
- 			prev_mz = mz;
- 			spin_lock(&mz->lru_lock);
- 		}
--		__mem_cgroup_remove_list(mz, pc);
--		css_put(&pc->mem_cgroup->css);
--		pc->mem_cgroup = NULL;
-+		if (!PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
-+			__mem_cgroup_remove_list(mz, pc);
-+			ClearPageCgroupLRU(pc);
-+		}
- 	}
- 	if (prev_mz)
- 		spin_unlock(&prev_mz->lru_lock);
-@@ -574,10 +575,43 @@ __release_page_cgroup(struct memcg_percp
- }
- 
- static void
-+__set_page_cgroup_lru(struct memcg_percpu_vec *mpv)
-+{
-+	unsigned long flags;
-+	struct mem_cgroup_per_zone *mz, *prev_mz;
-+	struct page_cgroup *pc;
-+	int i, nr;
-+
-+	local_irq_save(flags);
-+	nr = mpv->nr;
-+	mpv->nr = 0;
-+	prev_mz = NULL;
-+
-+	for (i = nr - 1; i >= 0; i--) {
-+		pc = mpv->vec[i];
-+		mz = page_cgroup_zoneinfo(pc);
-+		if (prev_mz != mz) {
-+			if (prev_mz)
-+				spin_unlock(&prev_mz->lru_lock);
-+			prev_mz = mz;
-+			spin_lock(&mz->lru_lock);
-+		}
-+		if (PageCgroupUsed(pc) && !PageCgroupLRU(pc)) {
-+			SetPageCgroupLRU(pc);
-+			__mem_cgroup_add_list(mz, pc);
-+		}
-+	}
-+
-+	if (prev_mz)
-+		spin_unlock(&prev_mz->lru_lock);
-+	local_irq_restore(flags);
-+
-+}
-+
-+static void
- release_page_cgroup(struct page_cgroup *pc)
- {
- 	struct memcg_percpu_vec *mpv;
--
- 	mpv = &get_cpu_var(memcg_free_vec);
- 	mpv->vec[mpv->nr++] = pc;
- 	if (mpv->nr >= mpv->limit)
-@@ -585,11 +619,25 @@ release_page_cgroup(struct page_cgroup *
- 	put_cpu_var(memcg_free_vec);
- }
- 
-+static void
-+set_page_cgroup_lru(struct page_cgroup *pc)
-+{
-+	struct memcg_percpu_vec *mpv;
-+
-+	mpv = &get_cpu_var(memcg_add_vec);
-+	mpv->vec[mpv->nr++] = pc;
-+	if (mpv->nr >= mpv->limit)
-+		__set_page_cgroup_lru(mpv);
-+	put_cpu_var(memcg_add_vec);
-+}
-+
- static void page_cgroup_start_cache_cpu(int cpu)
- {
- 	struct memcg_percpu_vec *mpv;
- 	mpv = &per_cpu(memcg_free_vec, cpu);
- 	mpv->limit = MEMCG_PCPVEC_SIZE;
-+	mpv = &per_cpu(memcg_add_vec, cpu);
-+	mpv->limit = MEMCG_PCPVEC_SIZE;
- }
- 
- #ifdef CONFIG_HOTPLUG_CPU
-@@ -598,6 +646,8 @@ static void page_cgroup_stop_cache_cpu(i
- 	struct memcg_percpu_vec *mpv;
- 	mpv = &per_cpu(memcg_free_vec, cpu);
- 	mpv->limit = 0;
-+	mpv = &per_cpu(memcg_add_vec, cpu);
-+	mpv->limit = 0;
- }
- #endif
- 
-@@ -611,6 +661,9 @@ static DEFINE_MUTEX(memcg_force_drain_mu
- static void drain_page_cgroup_local(struct work_struct *work)
- {
- 	struct memcg_percpu_vec *mpv;
-+	mpv = &get_cpu_var(memcg_add_vec);
-+	__set_page_cgroup_lru(mpv);
-+	put_cpu_var(mpv);
- 	mpv = &get_cpu_var(memcg_free_vec);
- 	__release_page_cgroup(mpv);
- 	put_cpu_var(mpv);
-@@ -677,14 +730,9 @@ static int mem_cgroup_charge_common(stru
- 			rcu_read_unlock();
- 			return 0;
- 		}
--		/*
--		 * For every charge from the cgroup, increment reference count
--		 */
--		css_get(&mem->css);
- 		rcu_read_unlock();
- 	} else {
- 		mem = memcg;
--		css_get(&memcg->css);
- 	}
- 
- 	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
-@@ -711,33 +759,36 @@ static int mem_cgroup_charge_common(stru
- 	}
- 
- 	preempt_disable();
--	lock_page_cgroup(pc);
--	if (unlikely(PageCgroupUsed(pc))) {
--		unlock_page_cgroup(pc);
-+	if (TestSetPageCgroupUsed(pc)) {
- 		res_counter_uncharge(&mem->res, PAGE_SIZE);
--		css_put(&mem->css);
- 		preempt_enable();
- 		goto done;
- 	}
--	pc->mem_cgroup = mem;
- 	/*
--	 * If a page is accounted as a page cache, insert to inactive list.
--	 * If anon, insert to active list.
--	 */
--	pc->flags = pcg_default_flags[ctype];
--
--	mz = page_cgroup_zoneinfo(pc);
-+ 	 *  page cgroup is *unused* now....but....
-+ 	 *  We can assume old mem_cgroup's metadata is still available
-+ 	 *  because pc is not on stale LRU after force_empty() is called.
-+ 	 */
-+	if (likely(!PageCgroupLRU(pc)))
-+		pc->flags = pcg_default_flags[ctype];
-+	else {
-+		mz = page_cgroup_zoneinfo(pc);
-+		spin_lock_irqsave(&mz->lru_lock, flags);
-+		if (PageCgroupLRU(pc)) {
-+			__mem_cgroup_remove_list(mz, pc);
-+			ClearPageCgroupLRU(pc);
-+		}
-+		pc->flags = pcg_default_flags[ctype];
-+		spin_unlock_irqrestore(&mz->lru_lock, flags);
-+	}
- 
--	spin_lock_irqsave(&mz->lru_lock, flags);
--	__mem_cgroup_add_list(mz, pc);
--	spin_unlock_irqrestore(&mz->lru_lock, flags);
--	unlock_page_cgroup(pc);
-+	pc->mem_cgroup = mem;
-+	set_page_cgroup_lru(pc);
- 	preempt_enable();
- 
- done:
- 	return 0;
- out:
--	css_put(&mem->css);
- 	return -ENOMEM;
- }
- 
-@@ -823,12 +874,12 @@ __mem_cgroup_uncharge_common(struct page
- 	preempt_disable();
- 	lock_page_cgroup(pc);
- 	ClearPageCgroupUsed(pc);
-+	mem = pc->mem_cgroup;
- 	unlock_page_cgroup(pc);
- 	preempt_enable();
-+	res_counter_uncharge(&mem->res, PAGE_SIZE);
- 
--	mem = pc->mem_cgroup;
- 	release_page_cgroup(pc);
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
- 
- 	return;
- }
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
