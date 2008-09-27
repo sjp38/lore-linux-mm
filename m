@@ -1,184 +1,94 @@
-Date: Sat, 27 Sep 2008 11:53:10 +0900
+Date: Sat, 27 Sep 2008 12:19:17 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH 0/12] memcg updates v5
-Message-Id: <20080927115310.df4283b9.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926194309.845d661b.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20080927121917.9058a41e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080926193602.6b397910.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926113228.ee377330.nishimura@mxp.nes.nec.co.jp>
-	<20080926115810.b5fbae51.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926120408.39187294.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926120019.33d58ca4.nishimura@mxp.nes.nec.co.jp>
-	<20080926130534.e16c9317.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926142455.5b0e239e.nishimura@mxp.nes.nec.co.jp>
-	<20080926194309.845d661b.kamezawa.hiroyu@jp.fujitsu.com>
+	<48DC9AF2.1050101@linux.vnet.ibm.com>
+	<20080926182253.a62cc2d0.kamezawa.hiroyu@jp.fujitsu.com>
+	<48DCAC02.5050108@linux.vnet.ibm.com>
+	<20080926193602.6b397910.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
+Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Sep 2008 19:43:09 +0900
+On Fri, 26 Sep 2008 19:36:02 +0900
 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> On Fri, 26 Sep 2008 14:24:55 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > Unfortunately, there remains some bugs yet...
+> > I think (1) might be OK, except for the accounting issues pointed out (change in
+> > behaviour visible to end user again, sigh! :( ).
+> But it was just a BUG from my point of view...
+> 
+> > Is (1) a serious issue? 
+> considering force_empty(), it's serious.
+> 
+> > (2) seems OK, except for the locking change for mark_page_accessed. I am looking at
+> > (4) and (6) currently.
 > > 
-> 
-> Thank you for your patient good test!
-> 
-> I'm now testing following (and will do over-night test.)
-> In this an hour, this seems to work good. 
-> (under your test which usually panics in 10-20min on my box.)
-> 
-This helps some, but causes other troubles. (But I know what it is.)
-I'll add lock_page_cgroup() to charge side and see what happens.
+
+I'll do in following way in the next Monday.
+Divide patches into 2 set
+
+in early fix/optimize set.
+  - push (2)
+  - push (4)
+  - push (6)
+  - push (1)
+
+drops (3).
+
+I don't want to remove all? pages-never-on-LRU before fixing force_empty.
+
+in updates
+  - introduce atomic flags. (5)
+  - add move_account() function (7)
+  - add memory.attribute to each memcg dir. (NEW)
+  - enhance force_empty (was (8))
+       - remove "forget all" logic. and add attribute to select following 2 behavior
+          - call try_to_free_page() until the usage goes down to 0.
+            This allows faiulre (if page is mlocked, we can't do.). (NEW)
+          - call move_account() to move all charges to its parent (as much as possible) (NEW)
+          In future, I'd liket to add trash-box cgroup for force_empty somewhere.
+  - allocate all page cgroup at boot (9)
+  - lazy lru free/add (10,11) with fixes.
+  - fix race at charging swap. (12)
+
+After (9), all page and page_cgroup has one-to-one releationship and we want to
+assume that "if page is alive and on LRU, it's accounted and has page_cgroup."
+(other team, bio cgroup want to use page_cgroup and I want to make it easy.)
+
+For this, fix to behavior of force_empty..."forget all" is necessary.
+SwapCache handling is also necessary but I'd like to postpone until next set
+because it's complicated.
+
+After above all.
+ - handle swap cache 
+ - Mem+Swap controller.
+ - add trashbox feature ?
+ - add memory.shrink_usage_to file.
+
+It's long way to what I really want to do....
+
 
 Thanks,
 -Kame
 
 
 
-> ==
-> page_cgroup is not valid until pc->mem_cgroup is set to appropriate value.
-> There is a small race between Set-Used-Bit and Set-Proper-pc->mem_cgroup.
-> This patch tries to fix that by adding PCG_VALID bit
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
->  include/linux/page_cgroup.h |    3 +++
->  mm/memcontrol.c             |   22 ++++++++++++++--------
->  2 files changed, 17 insertions(+), 8 deletions(-)
-> 
-> Index: mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-> ===================================================================
-> --- mmotm-2.6.27-rc7+.orig/include/linux/page_cgroup.h
-> +++ mmotm-2.6.27-rc7+/include/linux/page_cgroup.h
-> @@ -21,6 +21,7 @@ struct page_cgroup *lookup_page_cgroup(s
->  
->  enum {
->  	/* flags for mem_cgroup */
-> +	PCG_VALID, /* you can access this page cgroup */
->  	PCG_LOCK,  /* page cgroup is locked */
->  	PCG_CACHE, /* charged as cache */
->  	PCG_USED, /* this object is in use. */
-> @@ -50,6 +51,10 @@ static inline int TestSetPageCgroup##una
->  /* Cache flag is set only once (at allocation) */
->  TESTPCGFLAG(Cache, CACHE)
->  
-> +TESTPCGFLAG(Valid, VALID)
-> +SETPCGFLAG(Valid, VALID)
-> +CLEARPCGFLAG(Valid, VALID)
-> +
->  TESTPCGFLAG(Used, USED)
->  CLEARPCGFLAG(Used, USED)
->  TESTSETPCGFLAG(Used, USED)
-> Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
-> +++ mmotm-2.6.27-rc7+/mm/memcontrol.c
-> @@ -340,7 +340,7 @@ void mem_cgroup_move_lists(struct page *
->  	if (!trylock_page_cgroup(pc))
->  		return;
->  
-> -	if (PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
-> +	if (PageCgroupValid(pc) && PageCgroupLRU(pc)) {
->  		mem = pc->mem_cgroup;
->  		mz = page_cgroup_zoneinfo(pc);
->  		spin_lock_irqsave(&mz->lru_lock, flags);
-> @@ -434,7 +434,7 @@ unsigned long mem_cgroup_isolate_pages(u
->  	list_for_each_entry_safe_reverse(pc, tmp, src, lru) {
->  		if (scan >= nr_to_scan)
->  			break;
-> -		if (unlikely(!PageCgroupUsed(pc)))
-> +		if (unlikely(!PageCgroupValid(pc)))
->  			continue;
->  		page = pc->page;
->  
-> @@ -511,7 +511,7 @@ int mem_cgroup_move_account(struct page 
->  		return ret;
->  	}
->  
-> -	if (!PageCgroupUsed(pc)) {
-> +	if (!PageCgroupValid(pc)) {
->  		res_counter_uncharge(&to->res, PAGE_SIZE);
->  		goto out;
->  	}
-> @@ -580,6 +580,7 @@ __set_page_cgroup_lru(struct memcg_percp
->  	unsigned long flags;
->  	struct mem_cgroup_per_zone *mz, *prev_mz;
->  	struct page_cgroup *pc;
-> +	struct mem_cgroup *mem;
->  	int i, nr;
->  
->  	local_irq_save(flags);
-> @@ -589,6 +590,7 @@ __set_page_cgroup_lru(struct memcg_percp
->  
->  	for (i = nr - 1; i >= 0; i--) {
->  		pc = mpv->vec[i];
-> +		mem = pc->mem_cgroup;
->  		mz = page_cgroup_zoneinfo(pc);
->  		if (prev_mz != mz) {
->  			if (prev_mz)
-> @@ -596,9 +598,11 @@ __set_page_cgroup_lru(struct memcg_percp
->  			prev_mz = mz;
->  			spin_lock(&mz->lru_lock);
->  		}
-> -		if (PageCgroupUsed(pc) && !PageCgroupLRU(pc)) {
-> -			SetPageCgroupLRU(pc);
-> -			__mem_cgroup_add_list(mz, pc);
-> +		if (PageCgroupValid(pc) && !PageCgroupLRU(pc)) {
-> +			if (mem == pc->mem_cgroup) {
-> +				SetPageCgroupLRU(pc);
-> +				__mem_cgroup_add_list(mz, pc);
-> +			}
->  		}
->  	}
->  
-> @@ -790,6 +794,7 @@ void mem_cgroup_commit_charge(struct pag
->  	}
->  
->  	pc->mem_cgroup = mem;
-> +	SetPageCgroupValid(pc);
->  	set_page_cgroup_lru(pc);
->  	css_put(&mem->css);
->  	preempt_enable();
-> @@ -928,6 +933,7 @@ __mem_cgroup_uncharge_common(struct page
->  		return;
->  	preempt_disable();
->  	lock_page_cgroup(pc);
-> +	ClearPageCgroupValid(pc);
->  	ClearPageCgroupUsed(pc);
->  	mem = pc->mem_cgroup;
->  	unlock_page_cgroup(pc);
-> @@ -970,7 +976,7 @@ int mem_cgroup_prepare_migration(struct 
->  
->  	pc = lookup_page_cgroup(page);
->  	lock_page_cgroup(pc);
-> -	if (PageCgroupUsed(pc)) {
-> +	if (PageCgroupValid(pc)) {
->  		mem = pc->mem_cgroup;
->  		css_get(&mem->css);
->  		if (PageCgroupCache(pc)) {
-> @@ -1086,7 +1092,7 @@ static void mem_cgroup_force_empty_list(
->  	spin_lock_irqsave(&mz->lru_lock, flags);
->  	list_for_each_entry_safe(pc, tmp, list, lru) {
->  		page = pc->page;
-> -		if (!PageCgroupUsed(pc))
-> +		if (!PageCgroupValid(pc))
->  			continue;
->  		/* For avoiding race with speculative page cache handling. */
->  		if (!PageLRU(page) || !get_page_unless_zero(page))
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+
+
+
+
+  - 
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
