@@ -1,107 +1,44 @@
-Date: Sat, 27 Sep 2008 12:47:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 9/12] memcg allocate all page_cgroup at boot
-Message-Id: <20080927124745.2e216381.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080926145422.327fb53f.nishimura@mxp.nes.nec.co.jp>
-References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080925153206.281243dc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926100022.8bfb8d4d.nishimura@mxp.nes.nec.co.jp>
-	<20080926104336.d96ab5bd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926110550.2292287b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080926145422.327fb53f.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8R6vEYZ021894
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2008 16:57:14 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8R6wOm7226586
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2008 16:58:26 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8R6wO5Z022549
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2008 16:58:24 +1000
+Message-ID: <48DDD98D.3050303@linux.vnet.ibm.com>
+Date: Sat, 27 Sep 2008 12:28:21 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 5/12] memcg make page_cgroup->flags atomic
+References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925151734.5b24d494.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080925151734.5b24d494.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Sep 2008 14:54:22 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > Sorry, my brain seems to be sleeping.. above page_mapped() check doesn't
-> > help this situation. Maybe this page_mapped() check is not necessary
-> > because it's of no use.
-> > 
-> > I think this kind of problem will not be fixed until we handle SwapCache.
-> > 
-> I've not fully understood yet what [12/12] does, but if we handle
-> swapcache properly, [12/12] would become unnecessary?
+KAMEZAWA Hiroyuki wrote:
+> This patch makes page_cgroup->flags to be atomic_ops and define
+> functions (and macros) to access it.
+> 
+> This patch itself makes memcg slow but this patch's final purpose is 
+> to remove lock_page_cgroup() and allowing fast access to page_cgroup.
+> (And total performance will increase after all patches applied.)
 > 
 
-Try to illustrate what is trouble more precisely.
+Looks good to me
 
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+provided we push in the lockless ones too :)
 
-in do_swap_page(), page is charged when SwapCache lookup ends.
-
-Here, 
-     - charged when page is not mapped.
-     - not charged when page is mapped.
-set_pte() etc...are done under appropriate lock.
-
-On the other side, when a task exits, zap_pte_range() is called.
-It calls page_remove_rmap(). 
-
-Case A) Following is race.
-
-            Thread A                     Thread B
-
-     do_swap_page()                      zap_pte_range()
-	(1)try charge (mapcount=1)
-                                         (2) page_remove_rmap()
-					     (3) uncharge page. 
-	(4) map it
-
-
-Then,
- at (1),  mapcount=1 and this page is not charged.
- at (2),  page_remove_rmap() is called and mapcount goes down to Zero.
-          uncharge(3) is called.
- at (4),  at the end of do_swap_page(), page->mapcount=1 but not charged.
-
-Case B) In another scenario.
-
-            Thread A                     Thread B
-
-     do_swap_page()                      zap_pte_range()
-	(1)try charge (mapcount=1)
-                                         (2) page_remove_rmap()
-	(3) map it
-                                         (4) uncharge is called.
-
-In (4), uncharge is capped but mapcount can go up to 1.
-
-protocol 12/12 is for case (A).
-After 12/12, double-check page_mapped() under lock_page_cgroup() will be fix to
-case (B).
-
-Huu, I don't like swap-cache ;)
-Anyway, we'll have to handle swap cache later.
-
-Thanks,
--Kame
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
