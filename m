@@ -1,73 +1,112 @@
-Date: Mon, 29 Sep 2008 11:55:13 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH][RFC] memory.min_usage again
-Message-Id: <20080929115513.5db72cfd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080929004332.13B0083F2@siro.lan>
-References: <20080912184630.35773102.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080929004332.13B0083F2@siro.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id m8T31Dt4015275
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2008 13:01:13 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8T32Dj7226316
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2008 13:02:13 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8T32CSi024794
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2008 13:02:12 +1000
+Message-ID: <48E0452F.4080300@linux.vnet.ibm.com>
+Date: Mon, 29 Sep 2008 08:32:07 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/12] memcg updates v5
+References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <48DC9AF2.1050101@linux.vnet.ibm.com> <20080926182253.a62cc2d0.kamezawa.hiroyu@jp.fujitsu.com> <48DCAC02.5050108@linux.vnet.ibm.com> <20080926193602.6b397910.kamezawa.hiroyu@jp.fujitsu.com> <20080927121917.9058a41e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080927121917.9058a41e.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: YAMAMOTO Takashi <yamamoto@valinux.co.jp>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, containers@lists.osdl.org, xemul@openvz.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp, YAMAMOTO Takashi <yamamoto@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Sep 2008 09:43:32 +0900 (JST)
-yamamoto@valinux.co.jp (YAMAMOTO Takashi) wrote:
-> > > 
-> > > I would prefer to see some heuristics around such a feature, mostly around the
-> > > priority that do_try_to_free_pages() to determine how desperate we are for
-> > > reclaiming memory.
-> > > 
-> > Taking "priority" of memory reclaim path into account is good.
-> > 
-> > ==
-> > static unsigned long shrink_inactive_list(unsigned long max_scan,
-> >                         struct zone *zone, struct scan_control *sc,
-> >                         int priority, int file)
-> > ==
-> > How about ignore min_usage if "priority < DEF_PRIORITY - 2" ?
+KAMEZAWA Hiroyuki wrote:
+> On Fri, 26 Sep 2008 19:36:02 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > 
-> are you suggesting ignoring mlock etc as well in that case?
+>>> I think (1) might be OK, except for the accounting issues pointed out (change in
+>>> behaviour visible to end user again, sigh! :( ).
+>> But it was just a BUG from my point of view...
+>>
+>>> Is (1) a serious issue? 
+>> considering force_empty(), it's serious.
+>>
+>>> (2) seems OK, except for the locking change for mark_page_accessed. I am looking at
+>>> (4) and (6) currently.
+>>>
+> 
+> I'll do in following way in the next Monday.
+> Divide patches into 2 set
+> 
+> in early fix/optimize set.
+>   - push (2)
+>   - push (4)
+>   - push (6)
+>   - push (1)
 > 
 
-No. Just freeing pages, which are usually freed is good.
+Yes, sounds reasonable
 
-==
-int mem_cgroup_canreclaim(struct page *page, struct mem_cgroup *mem1,
-			  int priority)
-{
-	struct page_cgroup *pc;
-	int result = 1;
+> drops (3).
+> 
+> I don't want to remove all? pages-never-on-LRU before fixing force_empty.
+> 
+> in updates
+>   - introduce atomic flags. (5)
+>   - add move_account() function (7)
 
-	if (mem1 != NULL)
-		return 1;
-	/* global lru is busy ? */
-        if (priority < DEF_PEIORITY - 1)
-		return 1;
-        ....
-}
-==
-Maybe min_usage can works as *soft* mlock by this.
+without (3), don't we have a problem pushing (7)?
 
-Or another idea.
-Making memory.min_usage as memory.reclaim_priority_level and allows
+>   - add memory.attribute to each memcg dir. (NEW)
+>   - enhance force_empty (was (8))
+>        - remove "forget all" logic. and add attribute to select following 2 behavior
+>           - call try_to_free_page() until the usage goes down to 0.
+>             This allows faiulre (if page is mlocked, we can't do.). (NEW)
+>           - call move_account() to move all charges to its parent (as much as possible) (NEW)
+>           In future, I'd liket to add trash-box cgroup for force_empty somewhere.
+>   - allocate all page cgroup at boot (9)
+>   - lazy lru free/add (10,11) with fixes.
+>   - fix race at charging swap. (12)
+> 
 
-  priority_level == 0 => can_reclaim() returns 1 always.
-  priority_level == 1 => can_reclaim returns 1 if priority < DEF_PRIORITY-1.
-  priority_level == 2 => can_reclaim returns 1 if priority < DEF_PRIORITY-2.
+I think (9) is probably the most important. I'll review it today
 
-(and only 0,1,2 are allowed.)
+> After (9), all page and page_cgroup has one-to-one releationship and we want to
+> assume that "if page is alive and on LRU, it's accounted and has page_cgroup."
+> (other team, bio cgroup want to use page_cgroup and I want to make it easy.)
+> 
+> For this, fix to behavior of force_empty..."forget all" is necessary.
+> SwapCache handling is also necessary but I'd like to postpone until next set
+> because it's complicated.
+> 
+> After above all.
+>  - handle swap cache 
+>  - Mem+Swap controller.
+>  - add trashbox feature ?
+>  - add memory.shrink_usage_to file.
+> 
+> It's long way to what I really want to do....
+> 
 
-setting min_usage will not be prefered by lru management people.
-This can work as "advice" to global lru.
+Yes a long way to go, I want to add
 
-Hmm ?
+1) Multi-hierarchy support
+2) Support for soft-limits
+3) get swappiness working (there are patches posted for it by Yamamoto-San, but
+something is broken, I suspect even in global swappiness).
 
-Thanks,
--Kame
+
+
+> 
+> Thanks,
+> -Kame
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
