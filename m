@@ -1,10 +1,10 @@
-Date: Mon, 29 Sep 2008 20:39:12 +0900
+Date: Mon, 29 Sep 2008 20:44:36 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 2/4] memcg: set page->mapping NULL before uncharge
-Message-Id: <20080929203912.41327fd0.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20080929192240.ddd59d7f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] memcg: optimze cpustat
+Message-Id: <20080929204436.ee3fce0b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20080929192430.e93d4f21.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20080929191927.caabec89.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080929192240.ddd59d7f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20080929192430.e93d4f21.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,92 +14,88 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Sep 2008 19:22:40 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> This patch tries to make page->mapping to be NULL before
-> mem_cgroup_uncharge_cache_page() is called.
+On Mon, 29 Sep 2008 19:24:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Some obvious optimization to memcg.
 > 
-> "page->mapping == NULL" is a good check for "whether the page is still
-> radix-tree or not".
-> This patch also adds BUG_ON() to mem_cgroup_uncharge_cache_page();
+> I found mem_cgroup_charge_statistics() is a little big (in object) and
+> does unnecessary address calclation.
+> This patch is for optimization to reduce the size of this function.
 > 
+> And res_counter_charge() is 'likely' to success.
+> 
+> Changlog: v5->v6
+>  - patch series was reordered and needs some adjustment. no changes in logic.
+> Changelog v3->v4:
+>  - merged with an other leaf patch.
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-Looks good to me.
-
+> 
 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
->  mm/filemap.c    |    2 +-
->  mm/memcontrol.c |    1 +
->  mm/migrate.c    |    9 +++++++--
->  3 files changed, 9 insertions(+), 3 deletions(-)
+I'll test with all the patches applied tonight.
+
+
+Thanks,
+Daisuke Nishimura.
+
+>  mm/memcontrol.c |   18 ++++++++++--------
+>  1 file changed, 10 insertions(+), 8 deletions(-)
 > 
-> Index: mmotm-2.6.27-rc7+/mm/filemap.c
-> ===================================================================
-> --- mmotm-2.6.27-rc7+.orig/mm/filemap.c
-> +++ mmotm-2.6.27-rc7+/mm/filemap.c
-> @@ -116,12 +116,12 @@ void __remove_from_page_cache(struct pag
->  {
->  	struct address_space *mapping = page->mapping;
->  
-> -	mem_cgroup_uncharge_cache_page(page);
->  	radix_tree_delete(&mapping->page_tree, page->index);
->  	page->mapping = NULL;
->  	mapping->nrpages--;
->  	__dec_zone_page_state(page, NR_FILE_PAGES);
->  	BUG_ON(page_mapped(page));
-> +	mem_cgroup_uncharge_cache_page(page);
->  
->  	/*
->  	 * Some filesystems seem to re-dirty the page even after
 > Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
 > ===================================================================
 > --- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
 > +++ mmotm-2.6.27-rc7+/mm/memcontrol.c
-> @@ -734,6 +734,7 @@ void mem_cgroup_uncharge_page(struct pag
->  void mem_cgroup_uncharge_cache_page(struct page *page)
->  {
->  	VM_BUG_ON(page_mapped(page));
-> +	VM_BUG_ON(page->mapping);
->  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
->  }
->  
-> Index: mmotm-2.6.27-rc7+/mm/migrate.c
-> ===================================================================
-> --- mmotm-2.6.27-rc7+.orig/mm/migrate.c
-> +++ mmotm-2.6.27-rc7+/mm/migrate.c
-> @@ -330,8 +330,6 @@ static int migrate_page_move_mapping(str
->  	__inc_zone_page_state(newpage, NR_FILE_PAGES);
->  
->  	spin_unlock_irq(&mapping->tree_lock);
-> -	if (!PageSwapCache(newpage))
-> -		mem_cgroup_uncharge_cache_page(page);
->  
->  	return 0;
->  }
-> @@ -341,6 +339,8 @@ static int migrate_page_move_mapping(str
+> @@ -66,11 +66,10 @@ struct mem_cgroup_stat {
+>  /*
+>   * For accounting under irq disable, no need for increment preempt count.
 >   */
->  static void migrate_page_copy(struct page *newpage, struct page *page)
+> -static void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat *stat,
+> +static inline void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat_cpu *stat,
+>  		enum mem_cgroup_stat_index idx, int val)
 >  {
-> +	int anon;
-> +
->  	copy_highpage(newpage, page);
+> -	int cpu = smp_processor_id();
+> -	stat->cpustat[cpu].count[idx] += val;
+> +	stat->count[idx] += val;
+>  }
 >  
->  	if (PageError(page))
-> @@ -378,8 +378,13 @@ static void migrate_page_copy(struct pag
->  #endif
->  	ClearPagePrivate(page);
->  	set_page_private(page, 0);
-> +	/* page->mapping contains a flag for PageAnon() */
-> +	anon = PageAnon(page);
->  	page->mapping = NULL;
+>  static s64 mem_cgroup_read_stat(struct mem_cgroup_stat *stat,
+> @@ -190,18 +189,21 @@ static void mem_cgroup_charge_statistics
+>  {
+>  	int val = (charge)? 1 : -1;
+>  	struct mem_cgroup_stat *stat = &mem->stat;
+> +	struct mem_cgroup_stat_cpu *cpustat;
 >  
-> +	if (!anon) /* This page was removed from radix-tree. */
-> +		mem_cgroup_uncharge_cache_page(page);
+>  	VM_BUG_ON(!irqs_disabled());
 > +
->  	/*
->  	 * If any waiters have accumulated on the new page then
->  	 * wake them up.
+> +	cpustat = &stat->cpustat[smp_processor_id()];
+>  	if (flags & PAGE_CGROUP_FLAG_CACHE)
+> -		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_CACHE, val);
+> +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_CACHE, val);
+>  	else
+> -		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
+> +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_RSS, val);
+>  
+>  	if (charge)
+> -		__mem_cgroup_stat_add_safe(stat,
+> +		__mem_cgroup_stat_add_safe(cpustat,
+>  				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
+>  	else
+> -		__mem_cgroup_stat_add_safe(stat,
+> +		__mem_cgroup_stat_add_safe(cpustat,
+>  				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
+>  }
+>  
+> @@ -558,7 +560,7 @@ static int mem_cgroup_charge_common(stru
+>  		css_get(&memcg->css);
+>  	}
+>  
+> -	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
+> +	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto out;
+>  
 > 
 
 --
