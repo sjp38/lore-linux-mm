@@ -1,42 +1,113 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28esmtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id m8U8ELr9026511
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 13:44:21 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8U8ELje1708090
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 13:44:21 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id m8U8EK9L009853
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 18:14:20 +1000
-Message-ID: <48E1DFDC.4000706@linux.vnet.ibm.com>
-Date: Tue, 30 Sep 2008 13:44:20 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] memcg: avoid account not-on-LRU pages
-References: <20080929191927.caabec89.kamezawa.hiroyu@jp.fujitsu.com> <20080929192339.327ca142.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080929192339.327ca142.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/4] futex: get_user_pages_fast() for shared futexes
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+In-Reply-To: <200809301721.52148.nickpiggin@yahoo.com.au>
+References: <20080926173219.885155151@twins.programming.kicks-ass.net>
+	 <20080927161712.GA1525@elte.hu>
+	 <200809301721.52148.nickpiggin@yahoo.com.au>
+Content-Type: text/plain
+Date: Tue, 30 Sep 2008 10:51:09 +0200
+Message-Id: <1222764669.12646.26.camel@twins.programming.kicks-ass.net>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ingo Molnar <mingo@elte.hu>, Eric Dumazet <dada1@cosmosbay.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> +		if (charged)
-> +			mem_cgroup_uncharge_page(page);
-> +		if (anon) {
->  			page_cache_release(page);
-> -		else
-> +		} else
->  			anon = 1; /* no anon but release faulted_page */
->  	}
+On Tue, 2008-09-30 at 17:21 +1000, Nick Piggin wrote:
+> On Sunday 28 September 2008 02:17, Ingo Molnar wrote:
+> > * Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> > > Since get_user_pages_fast() made it in, I thought to give this another
+> > > try. Lightly tested by disabling the private futexes and running some
+> > > java proglets.
+> >
+> > hm, very interesting. Since this is an important futex usecase i started
+> > testing it in tip/core/futexes:
+> >
+> >  cd33272: futex: cleanup fshared
+> >  a135356: futex: use fast_gup()
+> >  39ce77b: futex: reduce mmap_sem usage
+> >  0d7a336: futex: rely on get_user_pages() for shared futexes
+> >
+> > Nick, it would be nice to get an Acked-by/Reviewed-by from you, before
+> > we think about whether it should go upstream.
+> 
+> Yeah, these all look pretty good. It's nice to get rid of mmap sem here.
+> 
+> Which reminds me, we need to put a might_lock mmap_sem into
+> get_user_pages_fast...
 
-Coding style braces for a single-line if-else, please recheck
+Yeah..
 
--- 
-	Balbir
+> But these patches look good to me (last time we discussed them I thought
+> there was a race with page truncate, but it looks like you've closed that
+> by holding page lock over the whole operation...)
+
+Just to be sure, I only hold the page lock over the get_futex_key() op,
+and drop it after getting a ref on the futex key.
+
+I then drop the futex key ref after the futex op is complete.
+
+This assumes the futex key ref is suffucient to guarantee whatever is
+needed - which is the point I'm still not quite sure about myself.
+
+The futex key ref was used between futex ops, with I assume the intent
+to ensure the futex backing stays valid. However, the key ref only takes
+a ref on either the inode or the mm, neither which avoid the specific
+address of the futex to get unmapped between ops.
+
+So in that respect we're not worse off than before, and any application
+doing: futex_wait(), munmap(), futex_wake() is going to suffer. And as
+far as I understand it get the waiting task stuck in D state for
+ever-more or somesuch.
+
+By now not holding the mmap_sem over the full futex op, but only over
+the get_futex_key(), that munmap() race gets larger and the actual futex
+could disappear while we're working on it, but in all cases I looked at
+that will make the futex op return -EFAULT, so we should be good there.
+
+Gah, now that I look at it, it looks like I made get_futex_key()
+asymetric wrt private futexes, they don't take a ref on the key, but
+then do drop one... ouch.. Patch below.
+
+> Nice work, Peter.
+
+Thanks!
+
+> BTW. what kinds of things use inter-process futexes as of now?
+
+On a regular modern Linux system, not much. But I've been told there are
+applications out there that do indeed make heavy use of them - as
+they're part of POSIX etc.. blah blah :-)
+
+Also some legacy stuff that's stuck on an ancient glibc (but somehow did
+manage to upgrade the kernel) might benefit.
+
+
+---
+Subject: futex: fixup get_futex_key() for private futexes
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+With the get_user_pages_fast() patches we made get_futex_key() obtain a
+reference on the returned key, but failed to do so for private futexes.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+---
+diff --git a/kernel/futex.c b/kernel/futex.c
+index 197fdab..beee9af 100644
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -227,6 +227,7 @@ static int get_futex_key(u32 __user *uaddr, int
+fshared, union futex_key *key)
+ 			return -EFAULT;
+ 		key->private.mm = mm;
+ 		key->private.address = address;
++		get_futex_key_refs(key);
+ 		return 0;
+ 	}
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
