@@ -1,74 +1,35 @@
-Subject: Re: [PATCH 0/4] futex: get_user_pages_fast() for shared futexes
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <48E205BE.8030908@cosmosbay.com>
-References: <20080926173219.885155151@twins.programming.kicks-ass.net>
-	 <20080927161712.GA1525@elte.hu>
-	 <200809301721.52148.nickpiggin@yahoo.com.au>
-	 <1222764669.12646.26.camel@twins.programming.kicks-ass.net>
-	 <48E205BE.8030908@cosmosbay.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 30 Sep 2008 13:16:19 +0200
-Message-Id: <1222773379.12646.33.camel@twins.programming.kicks-ass.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Message-ID: <48E20F98.4010106@linux-foundation.org>
+Date: Tue, 30 Sep 2008 06:38:00 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [patch 3/4] cpu alloc: The allocator
+References: <20080929193500.470295078@quilx.com>	 <20080929193516.278278446@quilx.com> <1222756559.10002.23.camel@penberg-laptop>
+In-Reply-To: <1222756559.10002.23.camel@penberg-laptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-09-30 at 12:55 +0200, Eric Dumazet wrote:
-> Peter Zijlstra a A(C)crit :
+Pekka Enberg wrote:
 
-> > On a regular modern Linux system, not much. But I've been told there are
-> > applications out there that do indeed make heavy use of them - as
-> > they're part of POSIX etc.. blah blah :-)
+>> +/*
+>> + * Basic allocation unit. A bit map is created to track the use of each
+>> + * UNIT_SIZE element in the cpu area.
+>> + */
+>> +#define UNIT_TYPE int
+>> +#define UNIT_SIZE sizeof(UNIT_TYPE)
+>> +
+>> +int units;	/* Actual available units */
 > 
-> inter-process futexes are still used for pthread creation/join 
-> (aka clear_child_tid / CLONE_CHILD_CLEARTID)
-> 
-> kernel/fork.c, functions mm_release() & sys_set_tid_address()
-> 
-> I am not sure how it could be converted to private futexes, since
-> old binaries (static glibc) will use FUTEX_WAKE like calls.
+> What is this thing? Otherwise looks good to me.
 
-Ah, thanks, didn't know that.
+This is the number of units available from the cpu allocator. Its determined
+on bootup and the bitmap is sized correspondingly.
 
-> > ---
-> > Subject: futex: fixup get_futex_key() for private futexes
-> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > 
-> > With the get_user_pages_fast() patches we made get_futex_key() obtain a
-> > reference on the returned key, but failed to do so for private futexes.
-> > 
-> 
-> Sorry I am lost...
-> private futexes dont need to get references at all...
 
-Ah, right - its a NOP, that's why it didn't show up in testing.
-
-The thing is, I changed the semantics of get_futex_key() to return a key
-with reference taken. And then noticed I didn't take one in the private
-futex path, and failed to notice the ref ops are nops for private
-futexes.
-
-So yeah, the below patch is basically a NOP, but we might consider
-retaining it to maintain the symmetry... dunno
-
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > ---
-> > diff --git a/kernel/futex.c b/kernel/futex.c
-> > index 197fdab..beee9af 100644
-> > --- a/kernel/futex.c
-> > +++ b/kernel/futex.c
-> > @@ -227,6 +227,7 @@ static int get_futex_key(u32 __user *uaddr, int
-> > fshared, union futex_key *key)
-> >  			return -EFAULT;
-> >  		key->private.mm = mm;
-> >  		key->private.address = address;
-> > +		get_futex_key_refs(key);
-> >  		return 0;
-> >  	}
 
 
 --
