@@ -1,58 +1,52 @@
-Message-ID: <48E2480A.9090003@linux-foundation.org>
-Date: Tue, 30 Sep 2008 10:38:50 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate2.uk.ibm.com (8.13.1/8.13.1) with ESMTP id m8UFkVaZ001711
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 15:46:32 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8UFkVhn3309820
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 16:46:31 +0100
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8UFkUaq016917
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 16:46:31 +0100
+Message-ID: <48E249D2.2060805@fr.ibm.com>
+Date: Tue, 30 Sep 2008 17:46:26 +0200
+From: Daniel Lezcano <dlezcano@fr.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slub: reduce total stack usage of slab_err & object_err
-References: <1222787736.2995.24.camel@castor.localdomain>
-In-Reply-To: <1222787736.2995.24.camel@castor.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 00/30] Swap over NFS -v18
+References: <20080724140042.408642539@chello.nl> <1222778476.9044.1.camel@twins>
+In-Reply-To: <1222778476.9044.1.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: penberg <penberg@cs.helsinki.fi>, mpm <mpm@selenic.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Richard Kennedy wrote:
-> reduce the total stack usage of slab_err & object_err.
+Peter Zijlstra wrote:
+> On Thu, 2008-07-24 at 16:00 +0200, Peter Zijlstra wrote:
+>> Latest version of the swap over nfs work.
+>>
+>> Patches are against: v2.6.26-rc8-mm1
+>>
+>> I still need to write some more comments in the reservation code.
+>>
+>> Pekka, it uses ksize(), please have a look.
+>>
+>> This version also deals with network namespaces.
+>> Two things where I could do with some suggestsion:
+>>
+>>   - currently the sysctl code uses current->nrproxy.net_ns to obtain
+>>     the current network namespace
+>>
+>>   - the ipv6 route cache code has some initialization order issues
 > 
-> Introduce a new function to display a simple slab bug message, and call
-> this when vprintk is not needed.
+> Daniel, have you ever found time to look at my namespace issues?
 
-You could simply get rid of the 100 byte buffer by using vprintk? Same method
-could be used elsewhere in the kernel and does not require additional
-functions. Compiles, untestted.
+Oops, no. I was busy and I forgot, sorry.
+Let me review the sysctl vs namespace part.
 
-
-
-
-Subject: Slub reduce slab_bug stack usage by using vprintk
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2008-09-30 10:34:40.000000000 -0500
-+++ linux-2.6/mm/slub.c	2008-09-30 10:36:10.000000000 -0500
-@@ -422,15 +422,14 @@
- static void slab_bug(struct kmem_cache *s, char *fmt, ...)
- {
- 	va_list args;
--	char buf[100];
-
- 	va_start(args, fmt);
--	vsnprintf(buf, sizeof(buf), fmt, args);
--	va_end(args);
- 	printk(KERN_ERR "========================================"
- 			"=====================================\n");
--	printk(KERN_ERR "BUG %s: %s\n", s->name, buf);
--	printk(KERN_ERR "----------------------------------------"
-+	printk(KERN_ERR "BUG %s: ", s->name);
-+	vprintk(fmt, args);
-+	va_end(args);
-+	printk(KERN_ERR "\n----------------------------------------"
- 			"-------------------------------------\n\n");
- }
+Thanks
+   -- Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
