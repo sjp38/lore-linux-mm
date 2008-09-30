@@ -1,49 +1,50 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 0/4] futex: get_user_pages_fast() for shared futexes
-Date: Tue, 30 Sep 2008 17:21:51 +1000
-References: <20080926173219.885155151@twins.programming.kicks-ass.net> <20080927161712.GA1525@elte.hu>
-In-Reply-To: <20080927161712.GA1525@elte.hu>
+Date: Tue, 30 Sep 2008 17:06:08 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: show node to memory section relationship with symlinks in sysfs
+In-Reply-To: <20080929200509.GC21255@us.ibm.com>
+References: <20080929200509.GC21255@us.ibm.com>
+Message-Id: <20080930163324.44A7.E1E9C6FF@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200809301721.52148.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Eric Dumazet <dada1@cosmosbay.com>, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gary Hade <garyhade@us.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 28 September 2008 02:17, Ingo Molnar wrote:
-> * Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> > Since get_user_pages_fast() made it in, I thought to give this another
-> > try. Lightly tested by disabling the private futexes and running some
-> > java proglets.
->
-> hm, very interesting. Since this is an important futex usecase i started
-> testing it in tip/core/futexes:
->
->  cd33272: futex: cleanup fshared
->  a135356: futex: use fast_gup()
->  39ce77b: futex: reduce mmap_sem usage
->  0d7a336: futex: rely on get_user_pages() for shared futexes
->
-> Nick, it would be nice to get an Acked-by/Reviewed-by from you, before
-> we think about whether it should go upstream.
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+> +int register_mem_sect_under_node(struct memory_block *mem_blk)
+        :
 
-Yeah, these all look pretty good. It's nice to get rid of mmap sem here.
+I think this patch is convenience even when memory hotplug is disabled.
+CONFIG_SPARSEMEM seems better than CONFIG_MEMORY_HOTPLUG_SPARSE.
 
-Which reminds me, we need to put a might_lock mmap_sem into
-get_user_pages_fast...
 
-But these patches look good to me (last time we discussed them I thought
-there was a race with page truncate, but it looks like you've closed that
-by holding page lock over the whole operation...)
+> +int register_mem_sect_under_node(struct memory_block *mem_blk)
+> +{
+> +	unsigned int nid;
+> +
+> +	if (!mem_blk)
+> +		return -EFAULT;
+> +	nid = section_nr_to_nid(mem_blk->phys_index);
 
-Nice work, Peter.
+(snip)
 
-BTW. what kinds of things use inter-process futexes as of now?
+> +#define section_nr_to_nid(section_nr) pfn_to_nid(section_nr_to_pfn(section_nr))
+>  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+
+If the first page of the section is not valid, then this section_nr_to_nid()
+doesn't return correct value.
+
+I tested this patch. In my box, the start_pfn of node 1 is 1200400, but 
+section_nr_to_pfn(mem_blk->phys_index) returns 1200000. As a result,
+the section is linked to node 0.
+
+Bye.
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
