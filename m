@@ -1,50 +1,48 @@
-Date: Tue, 30 Sep 2008 17:06:08 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: show node to memory section relationship with symlinks in sysfs
-In-Reply-To: <20080929200509.GC21255@us.ibm.com>
-References: <20080929200509.GC21255@us.ibm.com>
-Message-Id: <20080930163324.44A7.E1E9C6FF@jp.fujitsu.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id m8U8JETP080606
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 18:19:14 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8U85hYZ2515166
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 18:05:46 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8U85hao026890
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 18:05:43 +1000
+Message-ID: <48E1DDD5.9040304@linux.vnet.ibm.com>
+Date: Tue, 30 Sep 2008 13:35:41 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH 1/4] memcg: account swap cache under lock
+References: <20080929191927.caabec89.kamezawa.hiroyu@jp.fujitsu.com> <20080929192123.5ce60c24.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20080929192123.5ce60c24.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-> +int register_mem_sect_under_node(struct memory_block *mem_blk)
-        :
+KAMEZAWA Hiroyuki wrote:
+> While page-cache's charge/uncharge is done under page_lock(), swap-cache
+> isn't. (anonymous page is charged when it's newly allocated.)
+> 
+> This patch moves do_swap_page()'s charge() call under lock.
+> I don't see any bad problem *now* but this fix will be good for future
+> for avoiding unneccesary racy state.
+> 
+> 
+> Changelog: (v5) -> (v6)
+>  - mark_page_accessed() is moved before lock_page().
+>  - fixed missing unlock_page()
+> (no changes in previous version)
 
-I think this patch is convenience even when memory hotplug is disabled.
-CONFIG_SPARSEMEM seems better than CONFIG_MEMORY_HOTPLUG_SPARSE.
+Looks good to me
 
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-> +int register_mem_sect_under_node(struct memory_block *mem_blk)
-> +{
-> +	unsigned int nid;
-> +
-> +	if (!mem_blk)
-> +		return -EFAULT;
-> +	nid = section_nr_to_nid(mem_blk->phys_index);
-
-(snip)
-
-> +#define section_nr_to_nid(section_nr) pfn_to_nid(section_nr_to_pfn(section_nr))
->  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
-
-If the first page of the section is not valid, then this section_nr_to_nid()
-doesn't return correct value.
-
-I tested this patch. In my box, the start_pfn of node 1 is 1200400, but 
-section_nr_to_pfn(mem_blk->phys_index) returns 1200000. As a result,
-the section is linked to node 0.
-
-Bye.
 -- 
-Yasunori Goto 
-
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
