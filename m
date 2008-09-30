@@ -1,77 +1,49 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8UFlxTf014786
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:47:59 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8UFltNl274540
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:47:55 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8UFltlr021177
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:47:55 -0400
-Subject: Re: [PATCH] properly reserve in bootmem the lmb reserved regions
-	that cross numa nodes
-From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <48E23D6C.4030406@linux.vnet.ibm.com>
-References: <48E23D6C.4030406@linux.vnet.ibm.com>
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m8UFof4f019801
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:50:41 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m8UFoeDk134450
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:50:41 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m8UFoeMS004787
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2008 11:50:40 -0400
+Subject: Re: [PATCH] mm: show node to memory section relationship with
+	symlinks in sysfs
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20080930163324.44A7.E1E9C6FF@jp.fujitsu.com>
+References: <20080929200509.GC21255@us.ibm.com>
+	 <20080930163324.44A7.E1E9C6FF@jp.fujitsu.com>
 Content-Type: text/plain
-Date: Tue, 30 Sep 2008 10:47:55 -0500
-Message-Id: <1222789675.13978.14.camel@localhost.localdomain>
+Date: Tue, 30 Sep 2008 08:50:37 -0700
+Message-Id: <1222789837.17630.41.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Cc: linuxppc-dev <linuxppc-dev@ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Adam Litke <agl@linux.vnet.ibm.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-This seems like the right approach to me.  I have pointed out a few
-stylistic issues below.
+On Tue, 2008-09-30 at 17:06 +0900, Yasunori Goto wrote:
+> > +#define section_nr_to_nid(section_nr) pfn_to_nid(section_nr_to_pfn(section_nr))
+> >  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+> 
+> If the first page of the section is not valid, then this section_nr_to_nid()
+> doesn't return correct value.
+> 
+> I tested this patch. In my box, the start_pfn of node 1 is 1200400, but 
+> section_nr_to_pfn(mem_blk->phys_index) returns 1200000. As a result,
+> the section is linked to node 0.
 
-On Tue, 2008-09-30 at 09:53 -0500, Jon Tollefson wrote:
-<snip>
-> +	/* Mark reserved regions */
-> +	for (i = 0; i < lmb.reserved.cnt; i++) {
-> +		unsigned long physbase = lmb.reserved.region[i].base;
-> +		unsigned long size = lmb.reserved.region[i].size;
-> +		unsigned long start_pfn = physbase >> PAGE_SHIFT;
-> +		unsigned long end_pfn = ((physbase+size-1) >> PAGE_SHIFT);
+Crap, I was worried about that.
 
-CodingStyle dictates that this should be:
-unsigned long end_pfn = ((physbase + size - 1) >> PAGE_SHIFT);
+Gary, this means that we have a N:1 relationship between NUMA nodes and
+sections.  This normally isn't a problem because sections don't really
+care about nodes and they layer underneath them.
 
-<snip>
+We'll probably need multiple symlinks in each section directory.
 
-> +/**
-> + * get_node_active_region - Return active region containing start_pfn
-> + * @start_pfn The page to return the region for.
-> + *
-> + * It will return NULL if active region is not found.
-> + */
-> +struct node_active_region *get_node_active_region(
-> +							unsigned long start_pfn)
-
-Bad style.  I think the convention would be to write it like this:
-
-struct node_active_region *
-get_node_active_region(unsigned long start_pfn)
-
-> +{
-> +	int i;
-> +	for (i = 0; i < nr_nodemap_entries; i++) {
-> +		unsigned long node_start_pfn = early_node_map[i].start_pfn;
-> +		unsigned long node_end_pfn = early_node_map[i].end_pfn;
-> +
-> +		if (node_start_pfn <= start_pfn && node_end_pfn > start_pfn)
-> +			return &early_node_map[i];
-> +	}
-> +	return NULL;
-> +}
-
-Since this is using the early_node_map[], should we mark the function
-__mminit?  
-
--- 
-Adam Litke - (agl at us.ibm.com)
-IBM Linux Technology Center
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
