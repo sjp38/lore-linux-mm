@@ -1,56 +1,57 @@
-Date: Tue, 30 Sep 2008 10:53:41 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: setup_per_zone_pages_min(): zone->lock vs. zone->lru_lock
-In-Reply-To: <20080930094017.5ed2938a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1222723206.6791.2.camel@ubuntu> <20080930094017.5ed2938a.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20080930103748.44A3.E1E9C6FF@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [patch 3/4] cpu alloc: The allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20080929193516.278278446@quilx.com>
+References: <20080929193500.470295078@quilx.com>
+	 <20080929193516.278278446@quilx.com>
+Date: Tue, 30 Sep 2008 09:35:59 +0300
+Message-Id: <1222756559.10002.23.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: gerald.schaefer@de.ibm.com
-Cc: Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 29 Sep 2008 23:20:05 +0200
-> Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
-> 
-> > On Mon, 2008-09-29 at 18:36 +0100, Andy Whitcroft wrote:
-> > > The allocator protects it freelists using zone->lock (as we can see in
-> > > rmqueue_bulk), so anything which manipulates those should also be using
-> > > that lock.  move_freepages() is scanning the cmap and picking up free
-> > > pages directly off the free lists, it is expecting those lists to be
-> > > stable; it would appear to need zone->lock.  It does look like
-> > > setup_per_zone_pages_min() is holding the wrong thing at first look.
-> > 
-> > I just noticed that the spin_lock in that function is much older than the
-> > call to setup_zone_migrate_reserve(), which then calls move_freepages().
-> > So it seems that the zone->lru_lock there does (did?) have another purpose,
-> > maybe protecting zone->present_pages/pages_min/etc.
-> > 
-> Maybe.
+On Mon, 2008-09-29 at 12:35 -0700, Christoph Lameter wrote:
+> Index: linux-2.6/mm/cpu_alloc.c
+> ===================================================================
+> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> +++ linux-2.6/mm/cpu_alloc.c	2008-09-29 13:09:33.000000000 -0500
+> @@ -0,0 +1,185 @@
+> +/*
+> + * Cpu allocator - Manage objects allocated for each processor
+> + *
+> + * (C) 2008 SGI, Christoph Lameter <cl@linux-foundation.org>
+> + * 	Basic implementation with allocation and free from a dedicated per
+> + * 	cpu area.
+> + *
+> + * The per cpu allocator allows a dynamic allocation of a piece of memory on
+> + * every processor. A bitmap is used to track used areas.
+> + * The allocator implements tight packing to reduce the cache footprint
+> + * and increase speed since cacheline contention is typically not a concern
+> + * for memory mainly used by a single cpu. Small objects will fill up gaps
+> + * left by larger allocations that required alignments.
+> + */
+> +#include <linux/mm.h>
+> +#include <linux/mmzone.h>
+> +#include <linux/module.h>
+> +#include <linux/percpu.h>
+> +#include <linux/bitmap.h>
+> +#include <asm/sections.h>
+> +#include <linux/bootmem.h>
+> +
+> +/*
+> + * Basic allocation unit. A bit map is created to track the use of each
+> + * UNIT_SIZE element in the cpu area.
+> + */
+> +#define UNIT_TYPE int
+> +#define UNIT_SIZE sizeof(UNIT_TYPE)
+> +
+> +int units;	/* Actual available units */
 
-The zone->lru_lock() have been used before memory hotplug code was
-implemented. But I can't find any reason why it have been used.
-
-> 
-> > Looks like the need for a zone->lock (if any) was added later, but I'm not
-> > sure if makes sense to take both locks together, or if the lru_lock is still
-> > needed at all.
-> >
-> At first look, replacing zone->lru_lock with zone->lock is enough...
-> This function is an only one function which use zone->lru_lock in page_alloc.c
-> And zone_watermark_ok() which access zone->pages_min/low/high is not under any
-> locks. So, taking zone->lru_lock here doesn't seem to be necessary...
-
-I agree.
-
-
-Bye.
--- 
-Yasunori Goto 
-
+What is this thing? Otherwise looks good to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
