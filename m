@@ -1,171 +1,152 @@
-Date: Tue, 30 Sep 2008 10:17:05 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH/stylefix 3/4] memcg: avoid account not-on-LRU pages
-Message-Id: <20080930101705.aec0e59b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20080929192339.327ca142.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20080929191927.caabec89.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080929192339.327ca142.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
+From: Eric Anholt <eric@anholt.net>
+In-Reply-To: <20080923091017.GB29718@wotan.suse.de>
+References: <20080923091017.GB29718@wotan.suse.de>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-Kmgad1jb77/jvWd9ZI7N"
+Date: Mon, 29 Sep 2008 18:10:05 -0700
+Message-Id: <1222737005.21655.61.camel@vonnegut.anholt.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "xemul@openvz.org" <xemul@openvz.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: keith.packard@intel.com, hugh@veritas.com, hch@infradead.org, airlied@linux.ie, jbarnes@virtuousgeek.org, thomas@tungstengraphics.com, dri-devel@lists.sourceforge.net, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is conding-style fixed version. Thank you, Nishimura-san.
--Kmae
-==
-There are not-on-LRU pages which can be mapped and they are not worth to
-be accounted. (becasue we can't shrink them and need dirty codes to handle
-specical case) We'd like to make use of usual objrmap/radix-tree's protcol
-and don't want to account out-of-vm's control pages.
+--=-Kmgad1jb77/jvWd9ZI7N
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-When special_mapping_fault() is called, page->mapping is tend to be NULL 
-and it's charged as Anonymous page.
-insert_page() also handles some special pages from drivers.
+On Tue, 2008-09-23 at 11:10 +0200, Nick Piggin wrote:
+> Hi,
+>=20
+> So I promised I would look at this again, because I (and others) have som=
+e
+> issues with exporting shmem_file_setup for DRM-GEM to go off and do thing=
+s
+> with.
+>=20
+> The rationale for using shmem seems to be that pageable "objects" are nee=
+ded,
+> and they can't be created by userspace because that would be ugly for som=
+e
+> reason, and/or they are required before userland is running.
+>=20
+> I particularly don't like the idea of exposing these vfs objects to rando=
+m
+> drivers because they're likely to get things wrong or become out of synch
+> or unreviewed if things change. I suggested a simple pageable object allo=
+cator
+> that could live in mm and hide the exact details of how shmem / pagecache
+> works. So I've coded that up quickly.
 
-This patch is for avoiding to account special pages.
+Hiding the details of shmem and the pagecache sounds pretty good to me
+(since we've got it wrong at least twice so far).  Hopefully the result
+isn't even more fragile code on our part.
 
-Changlog: v5 -> v6
-  - modified Documentation.
-  - fixed to charge only when a page is newly allocated.
+> Upon actually looking at how "GEM" makes use of its shmem_file_setup filp=
+, I
+> see something strange... it seems that userspace actually gets some kind =
+of
+> descriptor, a descriptor to an object backed by this shmem file (let's ca=
+ll it
+> a "file descriptor"). Anyway, it turns out that userspace sometimes needs=
+ to
+> pread, pwrite, and mmap these objects, but unfortunately it has no direct=
+ way
+> to do that, due to not having open(2)ed the files directly. So what GEM d=
+oes
+> is to add some ioctls which take the "file descriptor" things, and derive=
+s
+> the shmem file from them, and then calls into the vfs to perform the oper=
+ation.
+>=20
+> If my cursory reading is correct, then my allocator won't work so well as=
+ a
+> drop in replacement because one isn't allowed to know about the filp behi=
+nd
+> the pageable object. It would also indicate some serious crack smoking by
+> anyone who thinks open(2), pread(2), mmap(2), etc is ugly in comparison..=
+.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I think the explanation for this got covered in other parts of the
+thread, but drm_gem.c comments at the top also cover it.
 
- Documentation/controllers/memory.txt |   24 ++++++++++++++++--------
- mm/memory.c                          |   25 +++++++++++--------------
- mm/rmap.c                            |    4 ++--
- 3 files changed, 29 insertions(+), 24 deletions(-)
+> So please, nobody who worked on that code is allowed to use ugly as an
+> argument. Technical arguments are fine, so let's try to cover them.
+>=20
+> BTW. without knowing much of either the GEM or the SPU subsystems, the
+> GEM problem seems similar to SPU. Did anyone look at that code? Was it ev=
+er
+> considered to make the object allocator be a filesystem? That way you cou=
+ld
+> control the backing store to the objects yourself, those that want pageab=
+le
+> memory could use the following allocator, the ioctls could go away,
+> you could create your own objects if needed before userspace is up...
 
-Index: mmotm-2.6.27-rc7+/mm/memory.c
-===================================================================
---- mmotm-2.6.27-rc7+.orig/mm/memory.c
-+++ mmotm-2.6.27-rc7+/mm/memory.c
-@@ -1323,18 +1323,14 @@ static int insert_page(struct vm_area_st
- 	pte_t *pte;
- 	spinlock_t *ptl;
- 
--	retval = mem_cgroup_charge(page, mm, GFP_KERNEL);
--	if (retval)
--		goto out;
--
- 	retval = -EINVAL;
- 	if (PageAnon(page))
--		goto out_uncharge;
-+		goto out;
- 	retval = -ENOMEM;
- 	flush_dcache_page(page);
- 	pte = get_locked_pte(mm, addr, &ptl);
- 	if (!pte)
--		goto out_uncharge;
-+		goto out;
- 	retval = -EBUSY;
- 	if (!pte_none(*pte))
- 		goto out_unlock;
-@@ -1350,8 +1346,6 @@ static int insert_page(struct vm_area_st
- 	return retval;
- out_unlock:
- 	pte_unmap_unlock(pte, ptl);
--out_uncharge:
--	mem_cgroup_uncharge_page(page);
- out:
- 	return retval;
- }
-@@ -2463,6 +2457,7 @@ static int __do_fault(struct mm_struct *
- 	struct page *page;
- 	pte_t entry;
- 	int anon = 0;
-+	int charged = 0;
- 	struct page *dirty_page = NULL;
- 	struct vm_fault vmf;
- 	int ret;
-@@ -2503,6 +2498,12 @@ static int __do_fault(struct mm_struct *
- 				ret = VM_FAULT_OOM;
- 				goto out;
- 			}
-+			if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
-+				ret = VM_FAULT_OOM;
-+				page_cache_release(page);
-+				goto out;
-+			}
-+			charged = 1;
- 			/*
- 			 * Don't let another task, with possibly unlocked vma,
- 			 * keep the mlocked page.
-@@ -2543,11 +2544,6 @@ static int __do_fault(struct mm_struct *
- 
- 	}
- 
--	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
--		ret = VM_FAULT_OOM;
--		goto out;
--	}
--
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 
- 	/*
-@@ -2585,7 +2581,8 @@ static int __do_fault(struct mm_struct *
- 		/* no need to invalidate: a not-present page won't be cached */
- 		update_mmu_cache(vma, address, entry);
- 	} else {
--		mem_cgroup_uncharge_page(page);
-+		if (charged)
-+			mem_cgroup_uncharge_page(page);
- 		if (anon)
- 			page_cache_release(page);
- 		else
-Index: mmotm-2.6.27-rc7+/mm/rmap.c
-===================================================================
---- mmotm-2.6.27-rc7+.orig/mm/rmap.c
-+++ mmotm-2.6.27-rc7+/mm/rmap.c
-@@ -725,8 +725,8 @@ void page_remove_rmap(struct page *page,
- 			page_clear_dirty(page);
- 			set_page_dirty(page);
- 		}
--
--		mem_cgroup_uncharge_page(page);
-+		if (PageAnon(page))
-+			mem_cgroup_uncharge_page(page);
- 		__dec_zone_page_state(page,
- 			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
- 		/*
-Index: mmotm-2.6.27-rc7+/Documentation/controllers/memory.txt
-===================================================================
---- mmotm-2.6.27-rc7+.orig/Documentation/controllers/memory.txt
-+++ mmotm-2.6.27-rc7+/Documentation/controllers/memory.txt
-@@ -112,14 +112,22 @@ the per cgroup LRU.
- 
- 2.2.1 Accounting details
- 
--All mapped pages (RSS) and unmapped user pages (Page Cache) are accounted.
--RSS pages are accounted at the time of page_add_*_rmap() unless they've already
--been accounted for earlier. A file page will be accounted for as Page Cache;
--it's mapped into the page tables of a process, duplicate accounting is carefully
--avoided. Page Cache pages are accounted at the time of add_to_page_cache().
--The corresponding routines that remove a page from the page tables or removes
--a page from Page Cache is used to decrement the accounting counters of the
--cgroup.
-+All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
-+(some pages which never be reclaimable and will not be on global LRU
-+ are not accounted. we just accounts pages under usual vm management.)
-+
-+RSS pages are accounted at page_fault unless they've already been accounted
-+for earlier. A file page will be accounted for as Page Cache when it's
-+inserted into inode (radix-tree). While it's mapped into the page tables of
-+processes, duplicate accounting is carefully avoided.
-+
-+A RSS page is unaccounted when it's fully unmapped. A PageCache page is
-+unaccounted when it's removed from radix-tree.
-+
-+At page migration, accounting information is kept.
-+
-+Note: we just account pages-on-lru because our purpose is to control amount
-+of used pages. not-on-lru pages are tend to be out-of-control from vm view.
- 
- 2.3 Shared Page Accounting
- 
+Yes, we definitely considered a filesystem (it would be nice for
+debugging to be able to look at object contents from a debugger process
+\easily).  However, once we realized that fds just wouldn't work (we're
+allocating objects in a library, so we couldn't just dup2 them up high,
+and we couldn't rely on being able to up the open file limit for the
+process), shmem seemed to already be exactly what we wanted, and we
+assumed that whatever future API changes in the couple of VFS and
+pagecache calls we made would be easier to track than duplicating all of
+shmem.c into our driver.
+
+I'm porting our stuff to test on your API now, and everything looks
+straightforward except for mmap.  For that I seem to have three options:
+
+1) Implement a range allocator on the DRM device and have a hashtable of
+ranges to objects, then have a GEM hook in the mmap handler of the drm
+device when we find we're in one of those ranges.
+
+This was the path that TTM took.  Since we have different paths to
+mmapping objects (direct backing store access, or aperture access,
+though the second isn't in my tree yet), it means we end up having
+multiple offsets to represent different mmap types, or multiplying the
+size of the range and having the top half of the range mean the other
+mmap type.
+
+2) Create a kernel-internal filesystem and get struct files for the
+objects.
+
+This is the method that seemed like the right thing to do in the linux
+style, so I've been trying to figure that part out.  I've been assured
+that libfs makes my job easy here, but as I look at it I'm less sure.
+The sticking point to me is how the page list I get from your API ends
+up getting used by simple_file_* and generic_file_*.  And, in the future
+where the pageable memory allocator is actually pageable while mmapped,
+what does the API I get to consume look like, roughly?
+
+3) Use shmem_file_setup()
+
+This was what we originally went with.  It got messy when we wanted a
+different mmap path, so that we had to do one of 1) or 2) anyway.
+
+Also, I'm looking at a bunch of spu*.c code, and I'm having a hard time
+finding something relevant for us, but maybe I'm not looking in the
+right place.  Can you elaborate on that comment?
+
+--=20
+Eric Anholt
+eric@anholt.net                         eric.anholt@intel.com
+
+
+
+--=-Kmgad1jb77/jvWd9ZI7N
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+
+iEUEABECAAYFAkjhfGwACgkQHUdvYGzw6vd9JACY5RR3xKpIbPINc3tqPzMNn2ey
+SwCeKFkw89FJ1xmlu1OCn4PooBl2LNw=
+=eof9
+-----END PGP SIGNATURE-----
+
+--=-Kmgad1jb77/jvWd9ZI7N--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
