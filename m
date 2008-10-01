@@ -1,271 +1,95 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id m91BcV9e053952
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 11:38:31 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m91BcV5i3555448
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 13:38:31 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m91BcOUn017778
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 13:38:26 +0200
-Message-ID: <48E3612E.1020607@fr.ibm.com>
-Date: Wed, 01 Oct 2008 13:38:22 +0200
-From: Daniel Lezcano <dlezcano@fr.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 18/30] netvm: INET reserves.
-References: <20080724140042.408642539@chello.nl> <20080724141530.573585429@chello.nl>
-In-Reply-To: <20080724141530.573585429@chello.nl>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 1/4] pull out the page pre-release and sanity check logic for reuse
+Date: Wed,  1 Oct 2008 13:30:58 +0100
+Message-Id: <1222864261-22570-2-git-send-email-apw@shadowen.org>
+In-Reply-To: <1222864261-22570-1-git-send-email-apw@shadowen.org>
+References: <1222864261-22570-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andy Whitcroft <apw@shadowen.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> Add reserves for INET.
-> 
-> The two big users seem to be the route cache and ip-fragment cache.
-> 
-> Reserve the route cache under generic RX reserve, its usage is bounded by
-> the high reclaim watermark, and thus does not need further accounting.
-> 
-> Reserve the ip-fragement caches under SKB data reserve, these add to the
-> SKB RX limit. By ensuring we can at least receive as much data as fits in
-> the reassmbly line we avoid fragment attack deadlocks.
-> 
-> Adds to the reserve tree:
-> 
->   total network reserve      
->     network TX reserve       
->       protocol TX pages      
->     network RX reserve       
-> +     IPv6 route cache       
-> +     IPv4 route cache       
->       SKB data reserve       
-> +       IPv6 fragment cache  
-> +       IPv4 fragment cache  
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  include/net/inet_frag.h  |    7 +++
->  include/net/netns/ipv6.h |    4 ++
->  net/ipv4/inet_fragment.c |    3 +
->  net/ipv4/ip_fragment.c   |   89 +++++++++++++++++++++++++++++++++++++++++++++--
->  net/ipv4/route.c         |   72 +++++++++++++++++++++++++++++++++++++-
->  net/ipv6/af_inet6.c      |   20 +++++++++-
->  net/ipv6/reassembly.c    |   88 +++++++++++++++++++++++++++++++++++++++++++++-
->  net/ipv6/route.c         |   66 ++++++++++++++++++++++++++++++++++
->  8 files changed, 341 insertions(+), 8 deletions(-)
-> 
+When we are about to release a page we perform a number of actions
+on that page.  We clear down any anonymous mappings, confirm that
+the page is safe to release, check for freeing locks, before mapping
+the page should that be required.  Pull this processing out into a
+helper function for reuse in a later patch.
 
-Sorry for the delay ...
+Note that we do not convert the similar cleardown in free_hot_cold_page()
+as the optimiser is unable to squash the loops during the inline.
 
-[ cut ]
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/page_alloc.c |   40 +++++++++++++++++++++++++++-------------
+ 1 files changed, 27 insertions(+), 13 deletions(-)
 
-I removed a big portion of code because the remarks below apply to the 
-rest of the code.
-
-> +static int sysctl_intvec_route(struct ctl_table *table,
-> +		int __user *name, int nlen,
-> +		void __user *oldval, size_t __user *oldlenp,
-> +		void __user *newval, size_t newlen)
-> +{
-> +	struct net *net = current->nsproxy->net_ns;
-
-I think you can use the container_of and get rid of using 
-current->nsproxy->net_ns.
-
-	struct net *net = container_of(table->data, struct net,
-				ipv6.sysctl.ip6_rt_max_size);
-
-Another solution could be to pass directly the sysctl structure pointer 
-in the table data instead of
-".data = &init_net.ipv6.sysctl.ip6_rt_max_size" when initializing the 
-sysctl table below. But you have to set the right field value yourself.
-
-> +	int write = (newval && newlen);
-> +	int new_size, ret;
-> +
-> +	mutex_lock(&net->ipv6.sysctl.ip6_rt_lock);
-> +
-> +	if (write)
-> +		table->data = &new_size;
-> +
-> +	ret = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
-> +
-> +	if (!ret && write) {
-> +		ret = mem_reserve_kmem_cache_set(&net->ipv6.ip6_rt_reserve,
-> +				net->ipv6.ip6_dst_ops.kmem_cachep, new_size);
-> +		if (!ret)
-> +			net->ipv6.sysctl.ip6_rt_max_size = new_size;
-> +	}
-> +
-> +	if (write)
-> +		table->data = &net->ipv6.sysctl.ip6_rt_max_size;
-> +
-> +	mutex_unlock(&net->ipv6.sysctl.ip6_rt_lock);
-> +
-> +	return ret;
-> +}
-
-Dancing with the table->data looks safe but it is not very nice.
-Isn't possible to use a temporary table like in the function 
-"ipv4_sysctl_local_port_range" ?
-
->  ctl_table ipv6_route_table_template[] = {
->  	{
->  		.procname	=	"flush",
-> @@ -2520,7 +2581,8 @@ ctl_table ipv6_route_table_template[] = 
->  		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
->  		.maxlen		=	sizeof(int),
->  		.mode		=	0644,
-> -		.proc_handler	=	&proc_dointvec,
-> +		.proc_handler	=	&proc_dointvec_route,
-> +		.strategy	= 	&sysctl_intvec_route,
->  	},
->  	{
->  		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
-> @@ -2608,6 +2670,8 @@ struct ctl_table *ipv6_route_sysctl_init
->  		table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
->  	}
-> 
-> +	mutex_init(&net->ipv6.sysctl.ip6_rt_lock);
-> +
->  	return table;
->  }
->  #endif
-> Index: linux-2.6/include/net/inet_frag.h
-> ===================================================================
-> --- linux-2.6.orig/include/net/inet_frag.h
-> +++ linux-2.6/include/net/inet_frag.h
-> @@ -1,6 +1,9 @@
->  #ifndef __NET_FRAG_H__
->  #define __NET_FRAG_H__
-> 
-> +#include <linux/reserve.h>
-> +#include <linux/mutex.h>
-> +
->  struct netns_frags {
->  	int			nqueues;
->  	atomic_t		mem;
-> @@ -10,6 +13,10 @@ struct netns_frags {
->  	int			timeout;
->  	int			high_thresh;
->  	int			low_thresh;
-> +
-> +	/* reserves */
-> +	struct mutex		lock;
-> +	struct mem_reserve	reserve;
->  };
-> 
->  struct inet_frag_queue {
-> Index: linux-2.6/net/ipv4/inet_fragment.c
-> ===================================================================
-> --- linux-2.6.orig/net/ipv4/inet_fragment.c
-> +++ linux-2.6/net/ipv4/inet_fragment.c
-> @@ -19,6 +19,7 @@
->  #include <linux/random.h>
->  #include <linux/skbuff.h>
->  #include <linux/rtnetlink.h>
-> +#include <linux/reserve.h>
-> 
->  #include <net/inet_frag.h>
-> 
-> @@ -74,6 +75,8 @@ void inet_frags_init_net(struct netns_fr
->  	nf->nqueues = 0;
->  	atomic_set(&nf->mem, 0);
->  	INIT_LIST_HEAD(&nf->lru_list);
-> +	mutex_init(&nf->lock);
-> +	mem_reserve_init(&nf->reserve, "IP fragement cache", NULL);
->  }
->  EXPORT_SYMBOL(inet_frags_init_net);
-> 
-> Index: linux-2.6/include/net/netns/ipv6.h
-> ===================================================================
-> --- linux-2.6.orig/include/net/netns/ipv6.h
-> +++ linux-2.6/include/net/netns/ipv6.h
-> @@ -24,6 +24,8 @@ struct netns_sysctl_ipv6 {
->  	int ip6_rt_mtu_expires;
->  	int ip6_rt_min_advmss;
->  	int icmpv6_time;
-> +
-> +	struct mutex ip6_rt_lock;
->  };
-> 
->  struct netns_ipv6 {
-> @@ -55,5 +57,7 @@ struct netns_ipv6 {
->  	struct sock             *ndisc_sk;
->  	struct sock             *tcp_sk;
->  	struct sock             *igmp_sk;
-> +
-> +	struct mem_reserve	ip6_rt_reserve;
->  };
->  #endif
-> Index: linux-2.6/net/ipv6/af_inet6.c
-> ===================================================================
-> --- linux-2.6.orig/net/ipv6/af_inet6.c
-> +++ linux-2.6/net/ipv6/af_inet6.c
-> @@ -851,6 +851,20 @@ static int inet6_net_init(struct net *ne
->  	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
->  	net->ipv6.sysctl.icmpv6_time = 1*HZ;
-> 
-> +	mem_reserve_init(&net->ipv6.ip6_rt_reserve, "IPv6 route cache",
-> +			 &net_rx_reserve);
-> +	/*
-> +	 * XXX: requires that net->ipv6.ip6_dst_ops is already set-up
-> +	 *      but afaikt its impossible to order the various
-> +	 *      pernet_subsys calls so that this one is done after
-> +	 *      ip6_route_net_init().
-> +	 */
-
-As this code seems related to the routes, is there a particular reason 
-to not put it at the end of "ip6_route_net_init" function ? You will be 
-sure "net->ipv6.ip6_dst_ops is already set-up", no ?
-
-> +	err = mem_reserve_kmem_cache_set(&net->ipv6.ip6_rt_reserve,
-> +			net->ipv6.ip6_dst_ops.kmem_cachep,
-> +			net->ipv6.sysctl.ip6_rt_max_size);
-> +	if (err)
-> +		goto reserve_fail;
-> +
->  #ifdef CONFIG_PROC_FS
->  	err = udp6_proc_init(net);
->  	if (err)
-> @@ -861,8 +875,8 @@ static int inet6_net_init(struct net *ne
->  	err = ac6_proc_init(net);
->  	if (err)
->  		goto proc_ac6_fail;
-> -out:
->  #endif
-> +out:
->  	return err;
-> 
->  #ifdef CONFIG_PROC_FS
-> @@ -870,8 +884,10 @@ proc_ac6_fail:
->  	tcp6_proc_exit(net);
->  proc_tcp6_fail:
->  	udp6_proc_exit(net);
-> -	goto out;
->  #endif
-> +reserve_fail:
-> +	mem_reserve_disconnect(&net->ipv6.ip6_rt_reserve);
-
-Idem.
-
-> +	goto out;
->  }
-> 
->  static void inet6_net_exit(struct net *net)
-
-Isn't "mem_reserve_disconnect" missing here ? (but going to 
-ip6_route_net_exit)
-
-
-I hope this review helped :)
-
-Thanks
-	--Daniel
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f52fcf1..55d8d9b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -489,6 +489,32 @@ static inline int free_pages_check(struct page *page)
+ }
+ 
+ /*
++ * Prepare this page for release to the buddy.  Sanity check the page.
++ * Returns 1 if the page is safe to free.
++ */
++static inline int free_page_prepare(struct page *page, int order)
++{
++	int i;
++	int reserved = 0;
++
++	for (i = 0 ; i < (1 << order) ; ++i)
++		reserved += free_pages_check(page + i);
++	if (reserved)
++		return 0;
++
++	if (!PageHighMem(page)) {
++		debug_check_no_locks_freed(page_address(page),
++							PAGE_SIZE << order);
++		debug_check_no_obj_freed(page_address(page),
++					   PAGE_SIZE << order);
++	}
++	arch_free_page(page, order);
++	kernel_map_pages(page, 1 << order, 0);
++
++	return 1;
++}
++
++/*
+  * Frees a list of pages. 
+  * Assumes all pages on list are in same zone, and of same order.
+  * count is the number of pages to free.
+@@ -529,22 +555,10 @@ static void free_one_page(struct zone *zone, struct page *page, int order)
+ static void __free_pages_ok(struct page *page, unsigned int order)
+ {
+ 	unsigned long flags;
+-	int i;
+-	int reserved = 0;
+ 
+-	for (i = 0 ; i < (1 << order) ; ++i)
+-		reserved += free_pages_check(page + i);
+-	if (reserved)
++	if (!free_page_prepare(page, order))
+ 		return;
+ 
+-	if (!PageHighMem(page)) {
+-		debug_check_no_locks_freed(page_address(page),PAGE_SIZE<<order);
+-		debug_check_no_obj_freed(page_address(page),
+-					   PAGE_SIZE << order);
+-	}
+-	arch_free_page(page, order);
+-	kernel_map_pages(page, 1 << order, 0);
+-
+ 	local_irq_save(flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+ 	free_one_page(page_zone(page), page, order);
+-- 
+1.6.0.1.451.gc8d31
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
