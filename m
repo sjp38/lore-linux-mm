@@ -1,43 +1,283 @@
-Date: Wed, 1 Oct 2008 16:52:33 +0900
+Date: Wed, 1 Oct 2008 16:55:13 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/6] memcg update v6 (for review and discuss)
-Message-Id: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/6] atomic page_cgroup flags
+Message-Id: <20081001165513.7633c132.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-This series is update from v5.
+This patch makes page_cgroup->flags to be atomic_ops and define
+functions (and macros) to access it.
 
-easy 4 patches are already posted as ready-to-go-series.
+Before trying to modify memory resource controller, this atomic operation
+on flags is necessary. Most of flags in this patch is for LRU and modfied
+under mz->lru_lock but we'll add another flags which is not for LRU soon.
+(lock_page_cgroup() will use LOCK bit on page_cgroup->flags)
+So we use atomic version here.
 
-This is need-more-discuss set.
+ 
+Changelog: (v5) -> (v6)
+ - no changes.
 
-Includes following 6 patches. (reduced from v5).
-The whole series are reordered.
+Changelog: (v4) -> (v5)
+ - removed unsued operations.
+ - adjusted to new ctype MEM_CGROUP_CHARGE_TYPE_SHMEM
 
-[1/6] make page_cgroup->flags to be atomic.
-[2/6] allocate all page_cgroup at boot.
-[3/6] rewrite charge path by charge/commit/cancel
-[4/6] new force_empty and move_account
-[5/6] lazy lru free
-[6/6] lazy lru add.
+Changelog: (v3) -> (v4)
+ - no changes.
 
-Patch [3/6] and [4/6] are totally rewritten.
-Races in Patch [6/6] is fixed....I think.
+Changelog:  (v2) -> (v3)
+ - renamed macros and flags to be longer name.
+ - added comments.
+ - added "default bit set" for File, Shmem, Anon.
 
-Patch [1-4] seems to be big but there is no complicated ops.
-Patch [5-6] is more racy. Check-by-regression-test is necessary.
-(Of course, I does some.)
+Changelog:  (preview) -> (v1):
+ - patch ordering is changed.
+ - Added macro for defining functions for Test/Set/Clear bit.
+ - made the names of flags shorter.
 
-If ready-to-go-series goes, next is patch 1 and 2.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks,
--Kame
+ mm/memcontrol.c |  122 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 82 insertions(+), 40 deletions(-)
+
+Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
++++ mmotm-2.6.27-rc7+/mm/memcontrol.c
+@@ -157,12 +157,46 @@ struct page_cgroup {
+ 	struct list_head lru;		/* per cgroup LRU list */
+ 	struct page *page;
+ 	struct mem_cgroup *mem_cgroup;
+-	int flags;
++	unsigned long flags;
+ };
+-#define PAGE_CGROUP_FLAG_CACHE	   (0x1)	/* charged as cache */
+-#define PAGE_CGROUP_FLAG_ACTIVE    (0x2)	/* page is active in this cgroup */
+-#define PAGE_CGROUP_FLAG_FILE	   (0x4)	/* page is file system backed */
+-#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x8)	/* page is unevictableable */
++
++enum {
++	/* flags for mem_cgroup */
++	PCG_CACHE, /* charged as cache */
++	/* flags for LRU placement */
++	PCG_ACTIVE, /* page is active in this cgroup */
++	PCG_FILE, /* page is file system backed */
++	PCG_UNEVICTABLE, /* page is unevictableable */
++};
++
++#define TESTPCGFLAG(uname, lname)			\
++static inline int PageCgroup##uname(struct page_cgroup *pc)	\
++	{ return test_bit(PCG_##lname, &pc->flags); }
++
++#define SETPCGFLAG(uname, lname)			\
++static inline void SetPageCgroup##uname(struct page_cgroup *pc)\
++	{ set_bit(PCG_##lname, &pc->flags);  }
++
++#define CLEARPCGFLAG(uname, lname)			\
++static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
++	{ clear_bit(PCG_##lname, &pc->flags);  }
++
++
++/* Cache flag is set only once (at allocation) */
++TESTPCGFLAG(Cache, CACHE)
++
++/* LRU management flags (from global-lru definition) */
++TESTPCGFLAG(File, FILE)
++SETPCGFLAG(File, FILE)
++CLEARPCGFLAG(File, FILE)
++
++TESTPCGFLAG(Active, ACTIVE)
++SETPCGFLAG(Active, ACTIVE)
++CLEARPCGFLAG(Active, ACTIVE)
++
++TESTPCGFLAG(Unevictable, UNEVICTABLE)
++SETPCGFLAG(Unevictable, UNEVICTABLE)
++CLEARPCGFLAG(Unevictable, UNEVICTABLE)
+ 
+ static int page_cgroup_nid(struct page_cgroup *pc)
+ {
+@@ -177,15 +211,25 @@ static enum zone_type page_cgroup_zid(st
+ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+ 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+-	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+ 	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
++	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
++	NR_CHARGE_TYPE,
++};
++
++static const unsigned long
++pcg_default_flags[NR_CHARGE_TYPE] = {
++	((1 << PCG_CACHE) | (1 << PCG_FILE)),
++	((1 << PCG_ACTIVE)),
++	((1 << PCG_ACTIVE) | (1 << PCG_CACHE)),
++	0,
+ };
+ 
+ /*
+  * Always modified under lru lock. Then, not necessary to preempt_disable()
+  */
+-static void mem_cgroup_charge_statistics(struct mem_cgroup *mem, int flags,
+-					bool charge)
++static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
++					 struct page_cgroup *pc,
++					 bool charge)
+ {
+ 	int val = (charge)? 1 : -1;
+ 	struct mem_cgroup_stat *stat = &mem->stat;
+@@ -194,7 +238,7 @@ static void mem_cgroup_charge_statistics
+ 	VM_BUG_ON(!irqs_disabled());
+ 
+ 	cpustat = &stat->cpustat[smp_processor_id()];
+-	if (flags & PAGE_CGROUP_FLAG_CACHE)
++	if (PageCgroupCache(pc))
+ 		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_CACHE, val);
+ 	else
+ 		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_RSS, val);
+@@ -295,18 +339,18 @@ static void __mem_cgroup_remove_list(str
+ {
+ 	int lru = LRU_BASE;
+ 
+-	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
++	if (PageCgroupUnevictable(pc))
+ 		lru = LRU_UNEVICTABLE;
+ 	else {
+-		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
++		if (PageCgroupActive(pc))
+ 			lru += LRU_ACTIVE;
+-		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
++		if (PageCgroupFile(pc))
+ 			lru += LRU_FILE;
+ 	}
+ 
+ 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+ 
+-	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, false);
++	mem_cgroup_charge_statistics(pc->mem_cgroup, pc, false);
+ 	list_del(&pc->lru);
+ }
+ 
+@@ -315,27 +359,27 @@ static void __mem_cgroup_add_list(struct
+ {
+ 	int lru = LRU_BASE;
+ 
+-	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
++	if (PageCgroupUnevictable(pc))
+ 		lru = LRU_UNEVICTABLE;
+ 	else {
+-		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
++		if (PageCgroupActive(pc))
+ 			lru += LRU_ACTIVE;
+-		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
++		if (PageCgroupFile(pc))
+ 			lru += LRU_FILE;
+ 	}
+ 
+ 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+ 	list_add(&pc->lru, &mz->lists[lru]);
+ 
+-	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, true);
++	mem_cgroup_charge_statistics(pc->mem_cgroup, pc, true);
+ }
+ 
+ static void __mem_cgroup_move_lists(struct page_cgroup *pc, enum lru_list lru)
+ {
+ 	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
+-	int active    = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+-	int file      = pc->flags & PAGE_CGROUP_FLAG_FILE;
+-	int unevictable = pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE;
++	int active    = PageCgroupActive(pc);
++	int file      = PageCgroupFile(pc);
++	int unevictable = PageCgroupUnevictable(pc);
+ 	enum lru_list from = unevictable ? LRU_UNEVICTABLE :
+ 				(LRU_FILE * !!file + !!active);
+ 
+@@ -343,16 +387,20 @@ static void __mem_cgroup_move_lists(stru
+ 		return;
+ 
+ 	MEM_CGROUP_ZSTAT(mz, from) -= 1;
+-
++	/*
++	 * However this is done under mz->lru_lock, another flags, which
++	 * are not related to LRU, will be modified from out-of-lock.
++	 * We have to use atomic set/clear flags.
++	 */
+ 	if (is_unevictable_lru(lru)) {
+-		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
+-		pc->flags |= PAGE_CGROUP_FLAG_UNEVICTABLE;
++		ClearPageCgroupActive(pc);
++		SetPageCgroupUnevictable(pc);
+ 	} else {
+ 		if (is_active_lru(lru))
+-			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
++			SetPageCgroupActive(pc);
+ 		else
+-			pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
+-		pc->flags &= ~PAGE_CGROUP_FLAG_UNEVICTABLE;
++			ClearPageCgroupActive(pc);
++		ClearPageCgroupUnevictable(pc);
+ 	}
+ 
+ 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+@@ -589,16 +637,7 @@ static int mem_cgroup_charge_common(stru
+ 	 * If a page is accounted as a page cache, insert to inactive list.
+ 	 * If anon, insert to active list.
+ 	 */
+-	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE) {
+-		pc->flags = PAGE_CGROUP_FLAG_CACHE;
+-		if (page_is_file_cache(page))
+-			pc->flags |= PAGE_CGROUP_FLAG_FILE;
+-		else
+-			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
+-	} else if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+-		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+-	else /* MEM_CGROUP_CHARGE_TYPE_SHMEM */
+-		pc->flags = PAGE_CGROUP_FLAG_CACHE | PAGE_CGROUP_FLAG_ACTIVE;
++	pc->flags = pcg_default_flags[ctype];
+ 
+ 	lock_page_cgroup(page);
+ 	if (unlikely(page_get_page_cgroup(page))) {
+@@ -677,8 +716,12 @@ int mem_cgroup_cache_charge(struct page 
+ 	if (unlikely(!mm))
+ 		mm = &init_mm;
+ 
+-	return mem_cgroup_charge_common(page, mm, gfp_mask,
++	if (page_is_file_cache(page))
++		return mem_cgroup_charge_common(page, mm, gfp_mask,
+ 				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
++	else
++		return mem_cgroup_charge_common(page, mm, gfp_mask,
++				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+ }
+ 
+ /*
+@@ -706,8 +749,7 @@ __mem_cgroup_uncharge_common(struct page
+ 	VM_BUG_ON(pc->page != page);
+ 
+ 	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
+-	    && ((pc->flags & PAGE_CGROUP_FLAG_CACHE)
+-		|| page_mapped(page)))
++	    && ((PageCgroupCache(pc) || page_mapped(page))))
+ 		goto unlock;
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+@@ -758,7 +800,7 @@ int mem_cgroup_prepare_migration(struct 
+ 	if (pc) {
+ 		mem = pc->mem_cgroup;
+ 		css_get(&mem->css);
+-		if (pc->flags & PAGE_CGROUP_FLAG_CACHE) {
++		if (PageCgroupCache(pc)) {
+ 			if (page_is_file_cache(page))
+ 				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+ 			else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
