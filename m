@@ -1,89 +1,78 @@
-Date: Wed, 1 Oct 2008 17:33:13 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 3/6] memcg: charge-commit-cancel protocl
-Message-Id: <20081001173313.69fb8c74.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20081001165734.e484cfe4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081001165734.e484cfe4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] slub: reduce total stack usage of slab_err & object_err
+From: Richard Kennedy <richard@rsk.demon.co.uk>
+In-Reply-To: <1222799586.23159.57.camel@calx>
+References: <1222787736.2995.24.camel@castor.localdomain>
+	 <48E2480A.9090003@linux-foundation.org>
+	 <1222791638.2995.41.camel@castor.localdomain>
+	 <1222796245.23159.38.camel@calx>  <1222799586.23159.57.camel@calx>
+Content-Type: text/plain
+Date: Wed, 01 Oct 2008 10:50:14 +0100
+Message-Id: <1222854614.3052.16.camel@castor.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, penberg <penberg@cs.helsinki.fi>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-> @@ -531,18 +529,33 @@ static int mem_cgroup_charge_common(stru
->  
->  		if (!nr_retries--) {
->  			mem_cgroup_out_of_memory(mem, gfp_mask);
-> -			goto out;
-> +			goto nomem;
->  		}
->  	}
-> +	return 0;
-> +nomem:
-> +	css_put(&mem->css);
-> +	return -ENOMEM;
-> +}
->  
-> +/*
-> + * commit a charge got by mem_cgroup_try_charge() and makes page_cgroup to be
-> + * USED state. If already USED, uncharge and return.
-> + */
-> +
-> +static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
-> +				     struct page_cgroup *pc,
-> +				     enum charge_type ctype)
-> +{
-> +	struct mem_cgroup_per_zone *mz;
-> +	unsigned long flags;
->  
->  	lock_page_cgroup(pc);
->  	if (unlikely(PageCgroupUsed(pc))) {
->  		unlock_page_cgroup(pc);
->  		res_counter_uncharge(&mem->res, PAGE_SIZE);
->  		css_put(&mem->css);
-> -
-> -		goto done;
-> +		return;
->  	}
->  	pc->mem_cgroup = mem;
->  	/*
+On Tue, 2008-09-30 at 13:33 -0500, Matt Mackall wrote:
+> On Tue, 2008-09-30 at 12:37 -0500, Matt Mackall wrote:
+> > On Tue, 2008-09-30 at 17:20 +0100, Richard Kennedy wrote:
+> > > Yes, using vprintk is better but you still have this path :
+> > > ( with your patch applied)
+> > > 
+> > > 	object_err -> slab_bug(208) -> printk(216)
+> > > instead of 
+> > > 	object_err -> slab_bug_message(8) -> printk(216)
+> > > 
+> > > unfortunately the overhead for having var_args is pretty big, at least
+> > > on x86_64. I haven't measured it on 32 bit yet.
+> > 
+> > That's fascinating. I tried a simple test case in userspace:
+> > 
+> > #include <stdarg.h>
+> > #include <stdio.h>
+> > 
+> > void p(char *fmt, ...)
+> > {
+> > 	va_list args;
+> > 
+> > 	va_start(args, fmt);
+> > 	vprintf(fmt, args);
+> > 	va_end(args);
+> > }
+> > 
+> > On 32-bit, I'm seeing 32 bytes of stack vs 216 on 64-bit. Disassembly
+> > suggests it's connected to va_list fiddling with XMM registers, which
+> > seems quite odd.
+> 
+> Ok, on closer inspection, this is part of the x86_64 calling convention.
+> When calling a varargs function, the caller passes the number of
+> floating point SSE regs used in rax. The callee then has to save these
+> away for va_list use. The GCC prologue apparently sets aside space for
+> xmm0-xmm7 (16 bytes each) all the time (plus rdi, rsi, rdx, rcx, r8, and
+> r9).
+> 
+> Obviously, we're never passing floating point args in the kernel, so
+> we're taking about a 40+ byte hit in code size and 128 byte hit in stack
+> size for every varargs call.
+> 
+> Looks like the gcc people have a patch in progress:
+> 
+> http://gcc.gnu.org/ml/gcc-patches/2008-08/msg02165.html
+> 
+> So I think we should assume that x86_64 will sort this out eventually.
+> 
+thanks for the info. 
 
-Hmm, this patch cannot be applied because of this part.
+so vprintk _is_ the best solution. I did think it a bit strange to have
+to add code to remove varargs to save stack space, but I didn't even
+consider that it might be a gcc issue. 
 
-After [2/6], mem_cgroup_charge_common looks like:
-
----
-                if (!nr_retries--) {
-                        mem_cgroup_out_of_memory(mem, gfp_mask);
-                        goto out;
-                }
-        }
-
-
-        lock_page_cgroup(pc);
-
-        if (unlikely(PageCgroupUsed(pc))) {
-                unlock_page_cgroup(pc);
-                res_counter_uncharge(&mem->res, PAGE_SIZE);
-                css_put(&mem->css);
-
-                goto done;
-        }
-        pc->mem_cgroup = mem;
-        /*
----
-
-There is an empty line after lock_page_cgroup.
-
-After removing this line, I can appliy this patch(and [4-6/6]).
+ 
 
 
-Thanks,
-Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
