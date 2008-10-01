@@ -1,46 +1,43 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp05.au.ibm.com (8.13.8/8.13.8) with ESMTP id m916Z3SC6148316
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 16:35:03 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m916QjHB219924
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 16:26:46 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m916Qjwv000588
-	for <linux-mm@kvack.org>; Wed, 1 Oct 2008 16:26:45 +1000
-Message-ID: <48E31821.6070004@linux.vnet.ibm.com>
-Date: Wed, 01 Oct 2008 11:56:41 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [PATCH 9/12] memcg allocate all page_cgroup at boot
-References: <20080925151124.25898d22.kamezawa.hiroyu@jp.fujitsu.com> <20080925153206.281243dc.kamezawa.hiroyu@jp.fujitsu.com> <48E2F6A9.9010607@linux.vnet.ibm.com> <20081001140748.637b9831.kamezawa.hiroyu@jp.fujitsu.com> <48E30B02.3030506@linux.vnet.ibm.com> <20081001144150.3faa92ea.kamezawa.hiroyu@jp.fujitsu.com> <20081001151249.b6d697a5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081001151249.b6d697a5.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 1 Oct 2008 16:52:33 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/6] memcg update v6 (for review and discuss)
+Message-Id: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <haveblue@us.ibm.com>, ryov@valinux.co.jp
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Wed, 1 Oct 2008 14:41:50 +0900
-> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
->>> It will be easier to test/debug as well, we'll know if the problem is because of
->>> new page_cgroup being outside struct page rather then guessing if it was the
->>> atomic ops that caused the problem.
->>>
->> atomic_ops patch just rewrite exisiting behavior.
->>
-> please forgive me to post v6 today, which passed 24h+ tests.
-> v5 is a week old.
-> Discussion about patch order is welcome. But please give me hint.
+This series is update from v5.
 
-That sounds impressive. I'll test and review v6.
+easy 4 patches are already posted as ready-to-go-series.
 
--- 
-	Balbir
+This is need-more-discuss set.
+
+Includes following 6 patches. (reduced from v5).
+The whole series are reordered.
+
+[1/6] make page_cgroup->flags to be atomic.
+[2/6] allocate all page_cgroup at boot.
+[3/6] rewrite charge path by charge/commit/cancel
+[4/6] new force_empty and move_account
+[5/6] lazy lru free
+[6/6] lazy lru add.
+
+Patch [3/6] and [4/6] are totally rewritten.
+Races in Patch [6/6] is fixed....I think.
+
+Patch [1-4] seems to be big but there is no complicated ops.
+Patch [5-6] is more racy. Check-by-regression-test is necessary.
+(Of course, I does some.)
+
+If ready-to-go-series goes, next is patch 1 and 2.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
