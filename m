@@ -1,62 +1,65 @@
-Message-Id: <20081002131608.441353522@chello.nl>
+Message-Id: <20081002131607.731557157@chello.nl>
 References: <20081002130504.927878499@chello.nl>
-Date: Thu, 02 Oct 2008 15:05:17 +0200
+Date: Thu, 02 Oct 2008 15:05:07 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 13/32] mm: __GFP_MEMALLOC
-Content-Disposition: inline; filename=mm-page_alloc-GFP_EMERGENCY.patch
+Subject: [PATCH 03/32] net: ipv6: clean up ip6_route_net_init() error handling
+Content-Disposition: inline; filename=net-ipv6-route-cleanup.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-__GFP_MEMALLOC will allow the allocation to disregard the watermarks, 
-much like PF_MEMALLOC.
-
-It allows one to pass along the memalloc state in object related allocation
-flags as opposed to task related flags, such as sk->sk_allocation.
+ip6_route_net_init() error handling looked less than solid, fix 'er up.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/gfp.h |    3 ++-
- mm/page_alloc.c     |    4 +++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ net/ipv6/route.c |   19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
 
-Index: linux-2.6/include/linux/gfp.h
+Index: linux-2.6/net/ipv6/route.c
 ===================================================================
---- linux-2.6.orig/include/linux/gfp.h
-+++ linux-2.6/include/linux/gfp.h
-@@ -43,6 +43,7 @@ struct vm_area_struct;
- #define __GFP_REPEAT	((__force gfp_t)0x400u)	/* See above */
- #define __GFP_NOFAIL	((__force gfp_t)0x800u)	/* See above */
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
-+#define __GFP_MEMALLOC  ((__force gfp_t)0x2000u)/* Use emergency reserves */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
- #define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-@@ -88,7 +89,7 @@ struct vm_area_struct;
- /* Control page allocator reclaim behavior */
- #define GFP_RECLAIM_MASK (__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_FS|\
- 			__GFP_NOWARN|__GFP_REPEAT|__GFP_NOFAIL|\
--			__GFP_NORETRY|__GFP_NOMEMALLOC)
-+			__GFP_NORETRY|__GFP_MEMALLOC|__GFP_NOMEMALLOC)
+--- linux-2.6.orig/net/ipv6/route.c
++++ linux-2.6/net/ipv6/route.c
+@@ -2611,10 +2611,8 @@ static int ip6_route_net_init(struct net
+ 	net->ipv6.ip6_prohibit_entry = kmemdup(&ip6_prohibit_entry_template,
+ 					       sizeof(*net->ipv6.ip6_prohibit_entry),
+ 					       GFP_KERNEL);
+-	if (!net->ipv6.ip6_prohibit_entry) {
+-		kfree(net->ipv6.ip6_null_entry);
+-		goto out;
+-	}
++	if (!net->ipv6.ip6_prohibit_entry)
++		goto out_ip6_null_entry;
+ 	net->ipv6.ip6_prohibit_entry->u.dst.path =
+ 		(struct dst_entry *)net->ipv6.ip6_prohibit_entry;
+ 	net->ipv6.ip6_prohibit_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
+@@ -2622,11 +2620,8 @@ static int ip6_route_net_init(struct net
+ 	net->ipv6.ip6_blk_hole_entry = kmemdup(&ip6_blk_hole_entry_template,
+ 					       sizeof(*net->ipv6.ip6_blk_hole_entry),
+ 					       GFP_KERNEL);
+-	if (!net->ipv6.ip6_blk_hole_entry) {
+-		kfree(net->ipv6.ip6_null_entry);
+-		kfree(net->ipv6.ip6_prohibit_entry);
+-		goto out;
+-	}
++	if (!net->ipv6.ip6_blk_hole_entry)
++		goto out_ip6_prohibit_entry;
+ 	net->ipv6.ip6_blk_hole_entry->u.dst.path =
+ 		(struct dst_entry *)net->ipv6.ip6_blk_hole_entry;
+ 	net->ipv6.ip6_blk_hole_entry->u.dst.ops = net->ipv6.ip6_dst_ops;
+@@ -2642,6 +2637,12 @@ static int ip6_route_net_init(struct net
+ out:
+ 	return ret;
  
- /* Control allocation constraints */
- #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1452,7 +1452,9 @@ int gfp_to_alloc_flags(gfp_t gfp_mask)
- 		alloc_flags |= ALLOC_HARDER;
- 
- 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
--		if (!in_irq() && (p->flags & PF_MEMALLOC))
-+		if (gfp_mask & __GFP_MEMALLOC)
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+		else if (!in_irq() && (p->flags & PF_MEMALLOC))
- 			alloc_flags |= ALLOC_NO_WATERMARKS;
- 		else if (!in_interrupt() &&
- 				unlikely(test_thread_flag(TIF_MEMDIE)))
++#ifdef CONFIG_IPV6_MULTIPLE_TABLES
++out_ip6_prohibit_entry:
++	kfree(net->ipv6.ip6_prohibit_entry);
++out_ip6_null_entry:
++	kfree(net->ipv6.ip6_null_entry);
++#endif
+ out_ip6_dst_ops:
+ 	release_net(net->ipv6.ip6_dst_ops->dst_net);
+ 	kfree(net->ipv6.ip6_dst_ops);
 
 -- 
 
