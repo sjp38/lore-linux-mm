@@ -1,64 +1,78 @@
-Date: Thu, 02 Oct 2008 19:00:38 +0900
-From: Yasunori Goto <y-goto@jp.fujitsu.com>
-Subject: Re: [PATCH] setup_per_zone_pages_min(): take zone->lock instead of zone->lru_lock
-In-Reply-To: <1222882772.4846.40.camel@localhost.localdomain>
-References: <20080930103748.44A3.E1E9C6FF@jp.fujitsu.com> <1222882772.4846.40.camel@localhost.localdomain>
-Message-Id: <20081002185250.5767.E1E9C6FF@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Message-Id: <20081002131607.662164064@chello.nl>
+References: <20081002130504.927878499@chello.nl>
+Date: Thu, 02 Oct 2008 15:05:06 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Subject: [PATCH 02/32] mm: serialize access to min_free_kbytes
+Content-Disposition: inline; filename=mm-setup_per_zone_pages_min.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Thanks!
+There is a small race between the procfs caller and the memory hotplug caller
+of setup_per_zone_pages_min(). Not a big deal, but the next patch will add yet
+another caller. Time to close the gap.
 
-Tested-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
+ mm/page_alloc.c |   16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
 
-
-> From: Gerald Schaefer <gerald.schaefer@de.ibm.com> 
-> 
-> This replaces zone->lru_lock in setup_per_zone_pages_min() with zone->lock.
-> There seems to be no need for the lru_lock anymore, but there is a need for
-> zone->lock instead, because that function may call move_freepages() via
-> setup_zone_migrate_reserve().
-> 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> 
-> ---
->  mm/page_alloc.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -4207,7 +4207,7 @@ void setup_per_zone_pages_min(void)
->  	for_each_zone(zone) {
->  		u64 tmp;
->  
-> -		spin_lock_irqsave(&zone->lru_lock, flags);
-> +		spin_lock_irqsave(&zone->lock, flags);
->  		tmp = (u64)pages_min * zone->present_pages;
->  		do_div(tmp, lowmem_pages);
->  		if (is_highmem(zone)) {
-> @@ -4239,7 +4239,7 @@ void setup_per_zone_pages_min(void)
->  		zone->pages_low   = zone->pages_min + (tmp >> 2);
->  		zone->pages_high  = zone->pages_min + (tmp >> 1);
->  		setup_zone_migrate_reserve(zone);
-> -		spin_unlock_irqrestore(&zone->lru_lock, flags);
-> +		spin_unlock_irqrestore(&zone->lock, flags);
->  	}
->  
->  	/* update totalreserve_pages */
-> 
-> 
+Index: linux-2.6/mm/page_alloc.c
+===================================================================
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -118,6 +118,7 @@ static char * const zone_names[MAX_NR_ZO
+ 	 "Movable",
+ };
+ 
++static DEFINE_SPINLOCK(min_free_lock);
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __meminitdata nr_kernel_pages;
+@@ -4333,12 +4334,12 @@ static void setup_per_zone_lowmem_reserv
+ }
+ 
+ /**
+- * setup_per_zone_pages_min - called when min_free_kbytes changes.
++ * __setup_per_zone_pages_min - called when min_free_kbytes changes.
+  *
+  * Ensures that the pages_{min,low,high} values for each zone are set correctly
+  * with respect to min_free_kbytes.
+  */
+-void setup_per_zone_pages_min(void)
++static void __setup_per_zone_pages_min(void)
+ {
+ 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+@@ -4433,6 +4434,15 @@ void setup_per_zone_inactive_ratio(void)
+ 	}
+ }
+ 
++void setup_per_zone_pages_min(void)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&min_free_lock, flags);
++	__setup_per_zone_pages_min();
++	spin_unlock_irqrestore(&min_free_lock, flags);
++}
++
+ /*
+  * Initialise min_free_kbytes.
+  *
+@@ -4468,7 +4478,7 @@ static int __init init_per_zone_pages_mi
+ 		min_free_kbytes = 128;
+ 	if (min_free_kbytes > 65536)
+ 		min_free_kbytes = 65536;
+-	setup_per_zone_pages_min();
++	__setup_per_zone_pages_min();
+ 	setup_per_zone_lowmem_reserve();
+ 	setup_per_zone_inactive_ratio();
+ 	return 0;
 
 -- 
-Yasunori Goto 
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
