@@ -1,35 +1,33 @@
-Message-ID: <48E4F4EE.90608@linux-foundation.org>
-Date: Thu, 02 Oct 2008 11:21:02 -0500
+Message-ID: <48E4F6EC.7010500@linux-foundation.org>
+Date: Thu, 02 Oct 2008 11:29:32 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [patch 2/3] cpu alloc: Remove slub fields
-References: <20080919203703.312007962@quilx.com> <20080919203724.240858174@quilx.com> <48E3B904.7020206@cs.helsinki.fi>
-In-Reply-To: <48E3B904.7020206@cs.helsinki.fi>
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for	allocation
+ by the reclaimer
+References: <1222864261-22570-1-git-send-email-apw@shadowen.org> <1222864261-22570-5-git-send-email-apw@shadowen.org> <48E390DA.9060109@linux-foundation.org> <20081002143508.GE11089@brain>
+In-Reply-To: <20081002143508.GE11089@brain>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Pekka Enberg wrote:
-> Hi Christoph,
-> 
-> Christoph Lameter wrote:
->> @@ -2196,8 +2163,11 @@
->>      if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
->>          goto error;
->>  
->> -    if (alloc_kmem_cache_cpus(s, gfpflags & ~SLUB_DMA))
->> +    s->cpu_slab = CPU_ALLOC(struct kmem_cache_cpu,
->> +                (flags & ~SLUB_DMA) | __GFP_ZERO);
->> +    if (!s->cpu_slab)
->>          return 1;
-> 
-> This should be s->cpu_slab, no?
+Andy Whitcroft wrote:
 
-Correct. Newer rev that will be based on cpu_alloc V6 will have that.
+>> At the beginning of reclaim just flush all pcp pages and then do not allow pcp
+>> refills again until reclaim is finished?
+> 
+> Not entirely, some pages could get trapped there for sure.  But it is
+> parallel allocations we are trying to guard against.  Plus we already flush
+> the pcp during reclaim for higher orders.
+
+So we just would need to forbid refilling the pcp.
+
+Parallel allocations are less a problem if the freed order 0 pages get merged
+immediately into the order 1 freelist. Of course that will only work 50% of
+the time but it will have a similar effect to this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
