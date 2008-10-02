@@ -1,236 +1,98 @@
-Message-Id: <20081002131608.303997092@chello.nl>
+Message-Id: <20081002131608.260230952@chello.nl>
 References: <20081002130504.927878499@chello.nl>
-Date: Thu, 02 Oct 2008 15:05:15 +0200
+Date: Thu, 02 Oct 2008 15:05:14 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 11/32] mm: emergency pool
-Content-Disposition: inline; filename=mm-page_alloc-emerg.patch
+Subject: [PATCH 10/32] mm: allow PF_MEMALLOC from softirq context
+Content-Disposition: inline; filename=mm-PF_MEMALLOC-softirq.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Provide means to reserve a specific amount of pages.
+This is needed to allow network softirq packet processing to make use of
+PF_MEMALLOC.
 
-The emergency pool is separated from the min watermark because ALLOC_HARDER
-and ALLOC_HIGH modify the watermark in a relative way and thus do not ensure
-a strict minimum.
+Currently softirq context cannot use PF_MEMALLOC due to it not being associated
+with a task, and therefore not having task flags to fiddle with - thus the gfp
+to alloc flag mapping ignores the task flags when in interrupts (hard or soft)
+context.
+
+Allowing softirqs to make use of PF_MEMALLOC therefore requires some trickery.
+We basically borrow the task flags from whatever process happens to be
+preempted by the softirq.
+
+So we modify the gfp to alloc flags mapping to not exclude task flags in
+softirq context, and modify the softirq code to save, clear and restore the
+PF_MEMALLOC flag.
+
+The save and clear, ensures the preempted task's PF_MEMALLOC flag doesn't
+leak into the softirq. The restore ensures a softirq's PF_MEMALLOC flag cannot
+leak back into the preempted process.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/mmzone.h |    6 ++-
- mm/page_alloc.c        |   84 +++++++++++++++++++++++++++++++++++++++++++------
- mm/vmstat.c            |    6 +--
- 3 files changed, 82 insertions(+), 14 deletions(-)
+ include/linux/sched.h |    7 +++++++
+ kernel/softirq.c      |    3 +++
+ mm/page_alloc.c       |    7 ++++---
+ 3 files changed, 14 insertions(+), 3 deletions(-)
 
-Index: linux-2.6/include/linux/mmzone.h
-===================================================================
---- linux-2.6.orig/include/linux/mmzone.h
-+++ linux-2.6/include/linux/mmzone.h
-@@ -265,7 +265,10 @@ enum zone_type {
- 
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
--	unsigned long		pages_min, pages_low, pages_high;
-+	unsigned long		pages_high;	/* we stop kswapd */
-+	unsigned long		pages_low;	/* we wake up kswapd */
-+	unsigned long		pages_min;	/* we enter direct reclaim */
-+	unsigned long		pages_emerg;	/* emergency pool */
- 	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
-@@ -751,6 +754,7 @@ int sysctl_min_unmapped_ratio_sysctl_han
- 			struct file *, void __user *, size_t *, loff_t *);
- int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
- 			struct file *, void __user *, size_t *, loff_t *);
-+int adjust_memalloc_reserve(int pages);
- 
- extern int numa_zonelist_order_handler(struct ctl_table *, int,
- 			struct file *, void __user *, size_t *, loff_t *);
 Index: linux-2.6/mm/page_alloc.c
 ===================================================================
 --- linux-2.6.orig/mm/page_alloc.c
 +++ linux-2.6/mm/page_alloc.c
-@@ -120,6 +120,8 @@ static char * const zone_names[MAX_NR_ZO
+@@ -1449,9 +1449,10 @@ int gfp_to_alloc_flags(gfp_t gfp_mask)
+ 		alloc_flags |= ALLOC_HARDER;
  
- static DEFINE_SPINLOCK(min_free_lock);
- int min_free_kbytes = 1024;
-+static DEFINE_MUTEX(var_free_mutex);
-+int var_free_kbytes;
- 
- unsigned long __meminitdata nr_kernel_pages;
- unsigned long __meminitdata nr_all_pages;
-@@ -1235,7 +1237,7 @@ int zone_watermark_ok(struct zone *z, in
- 	if (alloc_flags & ALLOC_HARDER)
- 		min -= min / 4;
- 
--	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
-+	if (free_pages <= min+z->lowmem_reserve[classzone_idx]+z->pages_emerg)
- 		return 0;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
-@@ -1558,7 +1560,7 @@ __alloc_pages_internal(gfp_t gfp_mask, u
- 	struct reclaim_state reclaim_state;
- 	struct task_struct *p = current;
- 	int do_retry;
--	int alloc_flags;
-+	int alloc_flags = 0;
- 	unsigned long did_some_progress;
- 	unsigned long pages_reclaimed = 0;
- 
-@@ -1724,8 +1726,8 @@ nofail_alloc:
- nopage:
- 	if (!(gfp_mask & __GFP_NOWARN) && printk_ratelimit()) {
- 		printk(KERN_WARNING "%s: page allocation failure."
--			" order:%d, mode:0x%x\n",
--			p->comm, order, gfp_mask);
-+			" order:%d, mode:0x%x, alloc_flags:0x%x, pflags:0x%x\n",
-+			p->comm, order, gfp_mask, alloc_flags, p->flags);
- 		dump_stack();
- 		show_mem();
- 	}
-@@ -2008,9 +2010,9 @@ void show_free_areas(void)
- 			"\n",
- 			zone->name,
- 			K(zone_page_state(zone, NR_FREE_PAGES)),
--			K(zone->pages_min),
--			K(zone->pages_low),
--			K(zone->pages_high),
-+			K(zone->pages_emerg + zone->pages_min),
-+			K(zone->pages_emerg + zone->pages_low),
-+			K(zone->pages_emerg + zone->pages_high),
- 			K(zone_page_state(zone, NR_ACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_INACTIVE_ANON)),
- 			K(zone_page_state(zone, NR_ACTIVE_FILE)),
-@@ -4284,7 +4286,7 @@ static void calculate_totalreserve_pages
- 			}
- 
- 			/* we treat pages_high as reserved pages. */
--			max += zone->pages_high;
-+			max += zone->pages_high + zone->pages_emerg;
- 
- 			if (max > zone->present_pages)
- 				max = zone->present_pages;
-@@ -4341,7 +4343,8 @@ static void setup_per_zone_lowmem_reserv
-  */
- static void __setup_per_zone_pages_min(void)
- {
--	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned pages_emerg = var_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -4353,11 +4356,13 @@ static void __setup_per_zone_pages_min(v
+ 	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+-		if (!in_interrupt() &&
+-		    ((p->flags & PF_MEMALLOC) ||
+-		     unlikely(test_thread_flag(TIF_MEMDIE))))
++		if (!in_irq() && (p->flags & PF_MEMALLOC))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
++		else if (!in_interrupt() &&
++				unlikely(test_thread_flag(TIF_MEMDIE)))
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
  	}
  
- 	for_each_zone(zone) {
--		u64 tmp;
-+		u64 tmp, tmp_emerg;
+Index: linux-2.6/kernel/softirq.c
+===================================================================
+--- linux-2.6.orig/kernel/softirq.c
++++ linux-2.6/kernel/softirq.c
+@@ -213,6 +213,8 @@ asmlinkage void __do_softirq(void)
+ 	__u32 pending;
+ 	int max_restart = MAX_SOFTIRQ_RESTART;
+ 	int cpu;
++	unsigned long pflags = current->flags;
++	current->flags &= ~PF_MEMALLOC;
  
- 		spin_lock_irqsave(&zone->lru_lock, flags);
- 		tmp = (u64)pages_min * zone->present_pages;
- 		do_div(tmp, lowmem_pages);
-+		tmp_emerg = (u64)pages_emerg * zone->present_pages;
-+		do_div(tmp_emerg, lowmem_pages);
- 		if (is_highmem(zone)) {
- 			/*
- 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-@@ -4376,12 +4381,14 @@ static void __setup_per_zone_pages_min(v
- 			if (min_pages > 128)
- 				min_pages = 128;
- 			zone->pages_min = min_pages;
-+			zone->pages_emerg = 0;
- 		} else {
- 			/*
- 			 * If it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
- 			zone->pages_min = tmp;
-+			zone->pages_emerg = tmp_emerg;
- 		}
+ 	pending = local_softirq_pending();
+ 	account_system_vtime(current);
+@@ -251,6 +253,7 @@ restart:
  
- 		zone->pages_low   = zone->pages_min + (tmp >> 2);
-@@ -4443,6 +4450,63 @@ void setup_per_zone_pages_min(void)
- 	spin_unlock_irqrestore(&min_free_lock, flags);
+ 	account_system_vtime(current);
+ 	_local_bh_enable();
++	tsk_restore_flags(current, pflags, PF_MEMALLOC);
  }
  
-+static void __adjust_memalloc_reserve(int pages)
-+{
-+	var_free_kbytes += pages << (PAGE_SHIFT - 10);
-+	BUG_ON(var_free_kbytes < 0);
-+	setup_per_zone_pages_min();
-+}
-+
-+static int test_reserve_limits(void)
-+{
-+	struct zone *zone;
-+	int node;
-+
-+	for_each_zone(zone)
-+		wakeup_kswapd(zone, 0);
-+
-+	for_each_online_node(node) {
-+		struct page *page = alloc_pages_node(node, GFP_KERNEL, 0);
-+		if (!page)
-+			return -ENOMEM;
-+
-+		__free_page(page);
-+	}
-+
-+	return 0;
-+}
-+
-+/**
-+ *	adjust_memalloc_reserve - adjust the memalloc reserve
-+ *	@pages: number of pages to add
-+ *
-+ *	It adds a number of pages to the memalloc reserve; if
-+ *	the number was positive it kicks reclaim into action to
-+ *	satisfy the higher watermarks.
-+ *
-+ *	returns -ENOMEM when it failed to satisfy the watermarks.
-+ */
-+int adjust_memalloc_reserve(int pages)
-+{
-+	int err = 0;
-+
-+	mutex_lock(&var_free_mutex);
-+	__adjust_memalloc_reserve(pages);
-+	if (pages > 0) {
-+		err = test_reserve_limits();
-+		if (err) {
-+			__adjust_memalloc_reserve(-pages);
-+			goto unlock;
-+		}
-+	}
-+	printk(KERN_DEBUG "Emergency reserve: %d\n", var_free_kbytes);
-+
-+unlock:
-+	mutex_unlock(&var_free_mutex);
-+	return err;
-+}
-+EXPORT_SYMBOL_GPL(adjust_memalloc_reserve);
-+
- /*
-  * Initialise min_free_kbytes.
-  *
-Index: linux-2.6/mm/vmstat.c
+ #ifndef __ARCH_HAS_DO_SOFTIRQ
+Index: linux-2.6/include/linux/sched.h
 ===================================================================
---- linux-2.6.orig/mm/vmstat.c
-+++ linux-2.6/mm/vmstat.c
-@@ -785,9 +785,9 @@ static void zoneinfo_show_print(struct s
- 		   "\n        spanned  %lu"
- 		   "\n        present  %lu",
- 		   zone_page_state(zone, NR_FREE_PAGES),
--		   zone->pages_min,
--		   zone->pages_low,
--		   zone->pages_high,
-+		   zone->pages_emerg + zone->pages_min,
-+		   zone->pages_emerg + zone->pages_low,
-+		   zone->pages_emerg + zone->pages_high,
- 		   zone->pages_scanned,
- 		   zone->lru[LRU_ACTIVE_ANON].nr_scan,
- 		   zone->lru[LRU_INACTIVE_ANON].nr_scan,
+--- linux-2.6.orig/include/linux/sched.h
++++ linux-2.6/include/linux/sched.h
+@@ -1533,6 +1533,13 @@ static inline void put_task_struct(struc
+ #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
+ #define used_math() tsk_used_math(current)
+ 
++static inline void tsk_restore_flags(struct task_struct *p,
++				     unsigned long pflags, unsigned long mask)
++{
++	p->flags &= ~mask;
++	p->flags |= pflags & mask;
++}
++
+ #ifdef CONFIG_SMP
+ extern int set_cpus_allowed_ptr(struct task_struct *p,
+ 				const cpumask_t *new_mask);
 
 -- 
 
