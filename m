@@ -1,352 +1,269 @@
-Message-Id: <20081002131609.779481067@chello.nl>
+Message-Id: <20081002131608.904521153@chello.nl>
 References: <20081002130504.927878499@chello.nl>
-Date: Thu, 02 Oct 2008 15:05:33 +0200
+Date: Thu, 02 Oct 2008 15:05:23 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 29/32] nfs: teach the NFS client how to treat PG_swapcache pages
-Content-Disposition: inline; filename=nfs-swapcache.patch
+Subject: [PATCH 19/32] netvm: network reserve infrastructure
+Content-Disposition: inline; filename=netvm-reserve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Replace all relevant occurences of page->index and page->mapping in the NFS
-client with the new page_file_index() and page_file_mapping() functions.
+Provide the basic infrastructure to reserve and charge/account network memory.
+
+We provide the following reserve tree:
+
+1)  total network reserve
+2)    network TX reserve
+3)      protocol TX pages
+4)    network RX reserve
+5)      SKB data reserve
+
+[1] is used to make all the network reserves a single subtree, for easy
+manipulation.
+
+[2] and [4] are merely for eastetic reasons.
+
+The TX pages reserve [3] is assumed bounded by it being the upper bound of
+memory that can be used for sending pages (not quite true, but good enough)
+
+The SKB reserve [5] is an aggregate reserve, which is used to charge SKB data
+against in the fallback path.
+
+The consumers for these reserves are sockets marked with:
+  SOCK_MEMALLOC
+
+Such sockets are to be used to service the VM (iow. to swap over). They
+must be handled kernel side, exposing such a socket to user-space is a BUG.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- fs/nfs/file.c     |    6 +++---
- fs/nfs/internal.h |    7 ++++---
- fs/nfs/pagelist.c |    6 +++---
- fs/nfs/read.c     |    6 +++---
- fs/nfs/write.c    |   53 +++++++++++++++++++++++++++--------------------------
- 5 files changed, 40 insertions(+), 38 deletions(-)
+ include/net/sock.h |   43 ++++++++++++++++++++-
+ net/Kconfig        |    3 +
+ net/core/sock.c    |  107 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 152 insertions(+), 1 deletion(-)
 
-Index: linux-2.6/fs/nfs/file.c
+Index: linux-2.6/include/net/sock.h
 ===================================================================
---- linux-2.6.orig/fs/nfs/file.c
-+++ linux-2.6/fs/nfs/file.c
-@@ -413,7 +413,7 @@ static void nfs_invalidate_page(struct p
- 	if (offset != 0)
- 		return;
- 	/* Cancel any unstarted writes on this page */
--	nfs_wb_page_cancel(page->mapping->host, page);
-+	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
+--- linux-2.6.orig/include/net/sock.h
++++ linux-2.6/include/net/sock.h
+@@ -50,6 +50,7 @@
+ #include <linux/skbuff.h>	/* struct sk_buff */
+ #include <linux/mm.h>
+ #include <linux/security.h>
++#include <linux/reserve.h>
+ 
+ #include <linux/filter.h>
+ 
+@@ -413,6 +414,7 @@ enum sock_flags {
+ 	SOCK_RCVTSTAMPNS, /* %SO_TIMESTAMPNS setting */
+ 	SOCK_LOCALROUTE, /* route locally only, %SO_DONTROUTE setting */
+ 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
++	SOCK_MEMALLOC, /* the VM depends on us - make sure we're serviced */
+ };
+ 
+ static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+@@ -435,9 +437,48 @@ static inline int sock_flag(struct sock 
+ 	return test_bit(flag, &sk->sk_flags);
  }
  
- static int nfs_release_page(struct page *page, gfp_t gfp)
-@@ -426,7 +426,7 @@ static int nfs_release_page(struct page 
- 
- static int nfs_launder_page(struct page *page)
++static inline int sk_has_memalloc(struct sock *sk)
++{
++	return sock_flag(sk, SOCK_MEMALLOC);
++}
++
++extern struct mem_reserve net_rx_reserve;
++extern struct mem_reserve net_skb_reserve;
++
++#ifdef CONFIG_NETVM
++/*
++ * Guestimate the per request queue TX upper bound.
++ *
++ * Max packet size is 64k, and we need to reserve that much since the data
++ * might need to bounce it. Double it to be on the safe side.
++ */
++#define TX_RESERVE_PAGES DIV_ROUND_UP(2*65536, PAGE_SIZE)
++
++extern int memalloc_socks;
++
++static inline int sk_memalloc_socks(void)
++{
++	return memalloc_socks;
++}
++
++extern int sk_adjust_memalloc(int socks, long tx_reserve_pages);
++extern int sk_set_memalloc(struct sock *sk);
++extern int sk_clear_memalloc(struct sock *sk);
++#else
++static inline int sk_memalloc_socks(void)
++{
++	return 0;
++}
++
++static inline int sk_clear_memalloc(struct sock *sk)
++{
++	return 0;
++}
++#endif
++
+ static inline gfp_t sk_allocation(struct sock *sk, gfp_t gfp_mask)
  {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
+-	return gfp_mask;
++	return gfp_mask | (sk->sk_allocation & __GFP_MEMALLOC);
+ }
  
- 	dfprintk(PAGECACHE, "NFS: launder_page(%ld, %llu)\n",
- 		inode->i_ino, (long long)page_offset(page));
-@@ -462,7 +462,7 @@ static int nfs_vm_page_mkwrite(struct vm
- 		(long long)page_offset(page));
- 
- 	lock_page(page);
--	mapping = page->mapping;
-+	mapping = page_file_mapping(page);
- 	if (mapping != dentry->d_inode->i_mapping)
- 		goto out_unlock;
- 
-Index: linux-2.6/fs/nfs/pagelist.c
+ static inline void sk_acceptq_removed(struct sock *sk)
+Index: linux-2.6/net/core/sock.c
 ===================================================================
---- linux-2.6.orig/fs/nfs/pagelist.c
-+++ linux-2.6/fs/nfs/pagelist.c
-@@ -76,11 +76,11 @@ nfs_create_request(struct nfs_open_conte
- 	 * update_nfs_request below if the region is not locked. */
- 	req->wb_page    = page;
- 	atomic_set(&req->wb_complete, 0);
--	req->wb_index	= page->index;
-+	req->wb_index	= page_file_index(page);
- 	page_cache_get(page);
- 	BUG_ON(PagePrivate(page));
- 	BUG_ON(!PageLocked(page));
--	BUG_ON(page->mapping->host != inode);
-+	BUG_ON(page_file_mapping(page)->host != inode);
- 	req->wb_offset  = offset;
- 	req->wb_pgbase	= offset;
- 	req->wb_bytes   = count;
-@@ -376,7 +376,7 @@ void nfs_pageio_cond_complete(struct nfs
-  * nfs_scan_list - Scan a list for matching requests
-  * @nfsi: NFS inode
-  * @dst: Destination list
-- * @idx_start: lower bound of page->index to scan
-+ * @idx_start: lower bound of page_file_index(page) to scan
-  * @npages: idx_start + npages sets the upper bound to scan.
-  * @tag: tag to scan for
-  *
-Index: linux-2.6/fs/nfs/read.c
+--- linux-2.6.orig/net/core/sock.c
++++ linux-2.6/net/core/sock.c
+@@ -110,6 +110,7 @@
+ #include <linux/tcp.h>
+ #include <linux/init.h>
+ #include <linux/highmem.h>
++#include <linux/reserve.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/system.h>
+@@ -211,6 +212,105 @@ __u32 sysctl_rmem_default __read_mostly 
+ /* Maximal space eaten by iovec or ancilliary data plus some space */
+ int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
+ 
++static struct mem_reserve net_reserve;
++struct mem_reserve net_rx_reserve;
++EXPORT_SYMBOL_GPL(net_rx_reserve); /* modular ipv6 only */
++struct mem_reserve net_skb_reserve;
++EXPORT_SYMBOL_GPL(net_skb_reserve); /* modular ipv6 only */
++static struct mem_reserve net_tx_reserve;
++static struct mem_reserve net_tx_pages;
++
++#ifdef CONFIG_NETVM
++static DEFINE_MUTEX(memalloc_socks_lock);
++int memalloc_socks;
++
++/**
++ *	sk_adjust_memalloc - adjust the global memalloc reserve for critical RX
++ *	@socks: number of new %SOCK_MEMALLOC sockets
++ *	@tx_resserve_pages: number of pages to (un)reserve for TX
++ *
++ *	This function adjusts the memalloc reserve based on system demand.
++ *	The RX reserve is a limit, and only added once, not for each socket.
++ *
++ *	NOTE:
++ *	   @tx_reserve_pages is an upper-bound of memory used for TX hence
++ *	   we need not account the pages like we do for RX pages.
++ */
++int sk_adjust_memalloc(int socks, long tx_reserve_pages)
++{
++	int err;
++
++	mutex_lock(&memalloc_socks_lock);
++	err = mem_reserve_pages_add(&net_tx_pages, tx_reserve_pages);
++	if (err)
++		goto unlock;
++
++	/*
++	 * either socks is positive and we need to check for 0 -> !0
++	 * transition and connect the reserve tree when we observe it.
++	 */
++	if (!memalloc_socks && socks > 0) {
++		err = mem_reserve_connect(&net_reserve, &mem_reserve_root);
++		if (err) {
++			/*
++			 * if we failed to connect the tree, undo the tx
++			 * reserve so that failure has no side effects.
++			 */
++			mem_reserve_pages_add(&net_tx_pages, -tx_reserve_pages);
++			goto unlock;
++		}
++	}
++	memalloc_socks += socks;
++	/*
++	 * or socks is negative and we must observe the !0 -> 0 transition
++	 * and disconnect the reserve tree.
++	 */
++	if (!memalloc_socks && socks)
++		mem_reserve_disconnect(&net_reserve);
++
++unlock:
++	mutex_unlock(&memalloc_socks_lock);
++
++	return err;
++}
++EXPORT_SYMBOL_GPL(sk_adjust_memalloc);
++
++/**
++ *	sk_set_memalloc - sets %SOCK_MEMALLOC
++ *	@sk: socket to set it on
++ *
++ *	Set %SOCK_MEMALLOC on a socket and increase the memalloc reserve
++ *	accordingly.
++ */
++int sk_set_memalloc(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_MEMALLOC);
++
++	if (!set) {
++		int err = sk_adjust_memalloc(1, 0);
++		if (err)
++			return err;
++
++		sock_set_flag(sk, SOCK_MEMALLOC);
++		sk->sk_allocation |= __GFP_MEMALLOC;
++	}
++	return !set;
++}
++EXPORT_SYMBOL_GPL(sk_set_memalloc);
++
++int sk_clear_memalloc(struct sock *sk)
++{
++	int set = sock_flag(sk, SOCK_MEMALLOC);
++	if (set) {
++		sk_adjust_memalloc(-1, 0);
++		sock_reset_flag(sk, SOCK_MEMALLOC);
++		sk->sk_allocation &= ~__GFP_MEMALLOC;
++	}
++	return set;
++}
++EXPORT_SYMBOL_GPL(sk_clear_memalloc);
++#endif
++
+ static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
+ {
+ 	struct timeval tv;
+@@ -957,6 +1057,7 @@ void sk_free(struct sock *sk)
+ {
+ 	struct sk_filter *filter;
+ 
++	sk_clear_memalloc(sk);
+ 	if (sk->sk_destruct)
+ 		sk->sk_destruct(sk);
+ 
+@@ -1106,6 +1207,12 @@ void __init sk_init(void)
+ 		sysctl_wmem_max = 131071;
+ 		sysctl_rmem_max = 131071;
+ 	}
++
++	mem_reserve_init(&net_reserve, "total network reserve", NULL);
++	mem_reserve_init(&net_rx_reserve, "network RX reserve", &net_reserve);
++	mem_reserve_init(&net_skb_reserve, "SKB data reserve", &net_rx_reserve);
++	mem_reserve_init(&net_tx_reserve, "network TX reserve", &net_reserve);
++	mem_reserve_init(&net_tx_pages, "protocol TX pages", &net_tx_reserve);
+ }
+ 
+ /*
+Index: linux-2.6/net/Kconfig
 ===================================================================
---- linux-2.6.orig/fs/nfs/read.c
-+++ linux-2.6/fs/nfs/read.c
-@@ -474,11 +474,11 @@ static const struct rpc_call_ops nfs_rea
- int nfs_readpage(struct file *file, struct page *page)
- {
- 	struct nfs_open_context *ctx;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	int		error;
+--- linux-2.6.orig/net/Kconfig
++++ linux-2.6/net/Kconfig
+@@ -248,4 +248,7 @@ endmenu
+ source "net/rfkill/Kconfig"
+ source "net/9p/Kconfig"
  
- 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
--		page, PAGE_CACHE_SIZE, page->index);
-+		page, PAGE_CACHE_SIZE, page_file_index(page));
- 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
- 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
- 
-@@ -525,7 +525,7 @@ static int
- readpage_async_filler(void *data, struct page *page)
- {
- 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *new;
- 	unsigned int len;
- 	int error;
-Index: linux-2.6/fs/nfs/write.c
-===================================================================
---- linux-2.6.orig/fs/nfs/write.c
-+++ linux-2.6/fs/nfs/write.c
-@@ -115,7 +115,7 @@ static struct nfs_page *nfs_page_find_re
- 
- static struct nfs_page *nfs_page_find_request(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req = NULL;
- 
- 	spin_lock(&inode->i_lock);
-@@ -127,16 +127,16 @@ static struct nfs_page *nfs_page_find_re
- /* Adjust the file length if we're writing beyond the end */
- static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	loff_t end, i_size;
- 	pgoff_t end_index;
- 
- 	spin_lock(&inode->i_lock);
- 	i_size = i_size_read(inode);
- 	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
--	if (i_size > 0 && page->index < end_index)
-+	if (i_size > 0 && page_file_index(page) < end_index)
- 		goto out;
--	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
-+	end = page_file_offset(page) + ((loff_t)offset+count);
- 	if (i_size >= end)
- 		goto out;
- 	i_size_write(inode, end);
-@@ -149,7 +149,7 @@ out:
- static void nfs_set_pageerror(struct page *page)
- {
- 	SetPageError(page);
--	nfs_zap_mapping(page->mapping->host, page->mapping);
-+	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
- }
- 
- /* We can set the PG_uptodate flag if we see that a write request
-@@ -190,7 +190,7 @@ static int nfs_set_page_writeback(struct
- 	int ret = test_set_page_writeback(page);
- 
- 	if (!ret) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 		struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 		if (atomic_long_inc_return(&nfss->writeback) >
-@@ -202,7 +202,7 @@ static int nfs_set_page_writeback(struct
- 
- static void nfs_end_page_writeback(struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_server *nfss = NFS_SERVER(inode);
- 
- 	end_page_writeback(page);
-@@ -217,7 +217,7 @@ static void nfs_end_page_writeback(struc
- static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
- 				struct page *page)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page *req;
- 	int ret;
- 
-@@ -260,12 +260,12 @@ static int nfs_page_async_flush(struct n
- 
- static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
- 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
- 
--	nfs_pageio_cond_complete(pgio, page->index);
-+	nfs_pageio_cond_complete(pgio, page_file_index(page));
- 	return nfs_page_async_flush(pgio, page);
- }
- 
-@@ -277,7 +277,7 @@ static int nfs_writepage_locked(struct p
- 	struct nfs_pageio_descriptor pgio;
- 	int err;
- 
--	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
-+	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host, wb_priority(wbc));
- 	err = nfs_do_writepage(page, wbc, &pgio);
- 	nfs_pageio_complete(&pgio);
- 	if (err < 0)
-@@ -406,7 +406,8 @@ nfs_mark_request_commit(struct nfs_page 
- 			NFS_PAGE_TAG_COMMIT);
- 	spin_unlock(&inode->i_lock);
- 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-+	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
-+			BDI_RECLAIMABLE);
- 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
- }
- 
-@@ -417,7 +418,7 @@ nfs_clear_request_commit(struct nfs_page
- 
- 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
- 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-+		dec_bdi_stat(page_file_mapping(page)->backing_dev_info, BDI_RECLAIMABLE);
- 		return 1;
- 	}
- 	return 0;
-@@ -523,7 +524,7 @@ static void nfs_cancel_commit_list(struc
-  * nfs_scan_commit - Scan an inode for commit requests
-  * @inode: NFS inode to scan
-  * @dst: destination list
-- * @idx_start: lower bound of page->index to scan.
-+ * @idx_start: lower bound of page_file_index(page) to scan.
-  * @npages: idx_start + npages sets the upper bound to scan.
-  *
-  * Moves requests from the inode's 'commit' request list.
-@@ -634,7 +635,7 @@ out_err:
- static struct nfs_page * nfs_setup_write_request(struct nfs_open_context* ctx,
- 		struct page *page, unsigned int offset, unsigned int bytes)
- {
--	struct inode *inode = page->mapping->host;
-+	struct inode *inode = page_file_mapping(page)->host;
- 	struct nfs_page	*req;
- 	int error;
- 
-@@ -689,7 +690,7 @@ int nfs_flush_incompatible(struct file *
- 		nfs_release_request(req);
- 		if (!do_flush)
- 			return 0;
--		status = nfs_wb_page(page->mapping->host, page);
-+		status = nfs_wb_page(page_file_mapping(page)->host, page);
- 	} while (status == 0);
- 	return status;
- }
-@@ -715,7 +716,7 @@ int nfs_updatepage(struct file *file, st
- 		unsigned int offset, unsigned int count)
- {
- 	struct nfs_open_context *ctx = nfs_file_open_context(file);
--	struct inode	*inode = page->mapping->host;
-+	struct inode	*inode = page_file_mapping(page)->host;
- 	int		status = 0;
- 
- 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
-@@ -723,7 +724,7 @@ int nfs_updatepage(struct file *file, st
- 	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
- 		file->f_path.dentry->d_parent->d_name.name,
- 		file->f_path.dentry->d_name.name, count,
--		(long long)(page_offset(page) + offset));
-+		(long long)(page_file_offset(page) + offset));
- 
- 	/* If we're not using byte range locks, and we know the page
- 	 * is up to date, it may be more efficient to extend the write
-@@ -998,7 +999,7 @@ static void nfs_writeback_release_partia
- 	}
- 
- 	if (nfs_write_need_commit(data)) {
--		struct inode *inode = page->mapping->host;
-+		struct inode *inode = page_file_mapping(page)->host;
- 
- 		spin_lock(&inode->i_lock);
- 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
-@@ -1259,7 +1260,7 @@ nfs_commit_list(struct inode *inode, str
- 		nfs_list_remove_request(req);
- 		nfs_mark_request_commit(req);
- 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
--		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-+		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
- 				BDI_RECLAIMABLE);
- 		nfs_clear_page_tag_locked(req);
- 	}
-@@ -1450,10 +1451,10 @@ int nfs_wb_nocommit(struct inode *inode)
- int nfs_wb_page_cancel(struct inode *inode, struct page *page)
- {
- 	struct nfs_page *req;
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1486,7 +1487,7 @@ int nfs_wb_page_cancel(struct inode *ino
- 	}
- 	if (!PagePrivate(page))
- 		return 0;
--	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
-+	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
- out:
- 	return ret;
- }
-@@ -1494,10 +1495,10 @@ out:
- static int nfs_wb_page_priority(struct inode *inode, struct page *page,
- 				int how)
- {
--	loff_t range_start = page_offset(page);
-+	loff_t range_start = page_file_offset(page);
- 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
- 	struct writeback_control wbc = {
--		.bdi = page->mapping->backing_dev_info,
-+		.bdi = page_file_mapping(page)->backing_dev_info,
- 		.sync_mode = WB_SYNC_ALL,
- 		.nr_to_write = LONG_MAX,
- 		.range_start = range_start,
-@@ -1512,7 +1513,7 @@ static int nfs_wb_page_priority(struct i
- 				goto out_error;
- 		} else if (!PagePrivate(page))
- 			break;
--		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
-+		ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
- 		if (ret < 0)
- 			goto out_error;
- 	} while (PagePrivate(page));
-Index: linux-2.6/fs/nfs/internal.h
-===================================================================
---- linux-2.6.orig/fs/nfs/internal.h
-+++ linux-2.6/fs/nfs/internal.h
-@@ -253,13 +253,14 @@ void nfs_super_set_maxbytes(struct super
- static inline
- unsigned int nfs_page_length(struct page *page)
- {
--	loff_t i_size = i_size_read(page->mapping->host);
-+	loff_t i_size = i_size_read(page_file_mapping(page)->host);
- 
- 	if (i_size > 0) {
-+		pgoff_t page_index = page_file_index(page);
- 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
--		if (page->index < end_index)
-+		if (page_index < end_index)
- 			return PAGE_CACHE_SIZE;
--		if (page->index == end_index)
-+		if (page_index == end_index)
- 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
- 	}
- 	return 0;
++config NETVM
++	def_bool n
++
+ endif   # if NET
 
 -- 
 
