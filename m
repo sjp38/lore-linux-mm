@@ -1,39 +1,56 @@
-Subject: Re: [PATCH 00/32] Swap over NFS - v19
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20081002124748.638c95ff.akpm@linux-foundation.org>
-References: <20081002130504.927878499@chello.nl>
-	 <20081002124748.638c95ff.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Thu, 02 Oct 2008 16:59:09 -0400
-Message-Id: <1222981149.6129.136.camel@lts-notebook>
+Date: Thu, 2 Oct 2008 14:30:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] handle initialising compound pages at orders
+ greater than MAX_ORDER
+Message-Id: <20081002143004.5fec3952.akpm@linux-foundation.org>
+In-Reply-To: <1222964396-25031-1-git-send-email-apw@shadowen.org>
+References: <1222964396-25031-1-git-send-email-apw@shadowen.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kniht@linux.vnet.ibm.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-10-02 at 12:47 -0700, Andrew Morton wrote:
-> On Thu, 02 Oct 2008 15:05:04 +0200 Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-> 
-> > Let's get this ball rolling...
-> 
-> I don't think we're really able to get any MM balls rolling until we
-> get all the split-LRU stuff landed.  Is anyone testing it?  Is it good?
+On Thu,  2 Oct 2008 17:19:56 +0100
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-Andrew:
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -268,13 +268,14 @@ void prep_compound_page(struct page *page, unsigned long order)
+>  {
+>  	int i;
+>  	int nr_pages = 1 << order;
+> +	struct page *p = page + 1;
+>  
+>  	set_compound_page_dtor(page, free_compound_page);
+>  	set_compound_order(page, order);
+>  	__SetPageHead(page);
+> -	for (i = 1; i < nr_pages; i++) {
+> -		struct page *p = page + i;
+> -
+> +	for (i = 1; i < nr_pages; i++, p++) {
+> +		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
+> +			p = pfn_to_page(page_to_pfn(page) + i);
+>  		__SetPageTail(p);
+>  		p->first_page = page;
+>  	}
 
-Up until the mailing list traffic and patches slowed down, I was testing
-it continuously with a heavy stress load that would bring the system to
-its knees before the splitlru and unevictable changes.  When it would
-run for days without error [96 hours was my max run] and no further
-patches came, I've concentrated on other things.
+gad.  Wouldn't it be clearer to do
 
-Rik and Kosaki-san have run some performance oriented tests, reported
-here a while back.  Maybe they have more info.
+	for (i = 1; i < nr_pages; i++) {
+		struct page *p = pfn_to_page(i);
+		__SetPageTail(p);
+		p->first_page = page;
+	}
 
-Lee
+Oh well, I guess we can go with the obfuscated, uncommented version for
+now :(
+
+This patch applies to 2.6.26 (and possibly earlier) but I don't think
+those kernels can trigger the bug?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
