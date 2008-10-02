@@ -1,73 +1,70 @@
-Date: Thu, 2 Oct 2008 14:49:44 +0900
+Date: Thu, 2 Oct 2008 15:44:46 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] setup_per_zone_pages_min(): take zone->lock instead of
- zone->lru_lock
-Message-Id: <20081002144944.2ddaf350.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1222882772.4846.40.camel@localhost.localdomain>
-References: <1222723206.6791.2.camel@ubuntu>
-	<20080930094017.5ed2938a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20080930103748.44A3.E1E9C6FF@jp.fujitsu.com>
-	<1222882772.4846.40.camel@localhost.localdomain>
+Subject: Re: [PATCH 0/4] Reclaim page capture v4
+Message-Id: <20081002154446.3695a3b0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1222864261-22570-1-git-send-email-apw@shadowen.org>
+References: <1222864261-22570-1-git-send-email-apw@shadowen.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Andy Whitcroft <apw@shadowen.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, Mel Gorman <mel@csn.ul.ie>
+To: Andy Whitcroft <apw@shadowen.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 01 Oct 2008 19:39:32 +0200
-Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
+On Wed,  1 Oct 2008 13:30:57 +0100
+Andy Whitcroft <apw@shadowen.org> wrote:
 
-> From: Gerald Schaefer <gerald.schaefer@de.ibm.com> 
+> For sometime we have been looking at mechanisms for improving the availability
+> of larger allocations under load.  One of the options we have explored is
+> the capturing of pages freed under direct reclaim in order to increase the
+> chances of free pages coelescing before they are subject to reallocation
+> by racing allocators.
 > 
-> This replaces zone->lru_lock in setup_per_zone_pages_min() with zone->lock.
-> There seems to be no need for the lru_lock anymore, but there is a need for
-> zone->lock instead, because that function may call move_freepages() via
-> setup_zone_migrate_reserve().
+> Following this email is a patch stack implementing page capture during
+> direct reclaim.  It consits of four patches.  The first two simply pull
+> out existing code into helpers for reuse.  The third makes buddy's use
+> of struct page explicit.  The fourth contains the meat of the changes,
+> and its leader contains a much fuller description of the feature.
 > 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> This update represents a rebase to -mm and incorporates feedback from
+> KOSAKI Motohiro.  It also incorporates an accounting fix which was
+> preventing some captures.
 > 
-Thank you!.
+> I have done a lot of comparitive testing with and without this patch
+> set and in broad brush I am seeing improvements in hugepage allocations
+> (worst case size) success on all of my test systems.  These tests consist
+> of placing a constant stream of high order allocations on the system,
+> at varying rates.  The results for these various runs are then averaged
+> to give an overall improvement.
+> 
+> 		Absolute	Effective
+> x86-64		2.48%		 4.58%
+> powerpc		5.55%		25.22%
+> 
+> x86-64 has a relatively small huge page size and so is always much more
+> effective at allocating huge pages.  Even there we get a measurable
+> improvement.  On powerpc the huge pages are much larger and much harder
+> to recover.  Here we see a full 25% increase in page recovery.
+> 
+> It should be noted that these are worst case testing, and very agressive
+> taking every possible page in the system.  It would be helpful to get
+> wider testing in -mm.
+> 
+> Against: 2.6.27-rc1-mm1
+> 
+> Andrew, please consider for -mm.
+> 
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hmm, can't we use "MIGRATE_ISOLATE" pageblock type for this purpose ?
+The page allocater skips pageblock marked as MIGRATE_ISOLATE at allocation.
+(pageblock-size is equal to HUGEPAGE size in general.)
 
+Of course, "where should be isolated" is a problem.
 
-> ---
->  mm/page_alloc.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -4207,7 +4207,7 @@ void setup_per_zone_pages_min(void)
->  	for_each_zone(zone) {
->  		u64 tmp;
->  
-> -		spin_lock_irqsave(&zone->lru_lock, flags);
-> +		spin_lock_irqsave(&zone->lock, flags);
->  		tmp = (u64)pages_min * zone->present_pages;
->  		do_div(tmp, lowmem_pages);
->  		if (is_highmem(zone)) {
-> @@ -4239,7 +4239,7 @@ void setup_per_zone_pages_min(void)
->  		zone->pages_low   = zone->pages_min + (tmp >> 2);
->  		zone->pages_high  = zone->pages_min + (tmp >> 1);
->  		setup_zone_migrate_reserve(zone);
-> -		spin_unlock_irqrestore(&zone->lru_lock, flags);
-> +		spin_unlock_irqrestore(&zone->lock, flags);
->  	}
->  
->  	/* update totalreserve_pages */
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
