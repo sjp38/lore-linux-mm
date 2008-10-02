@@ -1,11 +1,11 @@
-Date: Thu, 2 Oct 2008 16:06:17 +0900
+Date: Thu, 2 Oct 2008 16:24:14 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] buddy: explicitly identify buddy field use in
- struct page
-Message-Id: <20081002160617.03dcfba7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1222864261-22570-4-git-send-email-apw@shadowen.org>
+Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for
+ allocation by the reclaimer
+Message-Id: <20081002162414.03470f46.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1222864261-22570-5-git-send-email-apw@shadowen.org>
 References: <1222864261-22570-1-git-send-email-apw@shadowen.org>
-	<1222864261-22570-4-git-send-email-apw@shadowen.org>
+	<1222864261-22570-5-git-send-email-apw@shadowen.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,20 +15,41 @@ To: Andy Whitcroft <apw@shadowen.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  1 Oct 2008 13:31:00 +0100
+On Wed,  1 Oct 2008 13:31:01 +0100
 Andy Whitcroft <apw@shadowen.org> wrote:
 
-> Explicitly define the struct page fields which buddy uses when it owns
-> pages.  Defines a new anonymous struct to allow additional fields to
-> be defined in a later patch.
+> When a process enters direct reclaim it will expend effort identifying
+> and releasing pages in the hope of obtaining a page.  However as these
+> pages are released asynchronously there is every possibility that the
+> pages will have been consumed by other allocators before the reclaimer
+> gets a look in.  This is particularly problematic where the reclaimer is
+> attempting to allocate a higher order page.  It is highly likely that
+> a parallel allocation will consume lower order constituent pages as we
+> release them preventing them coelescing into the higher order page the
+> reclaimer desires.
 > 
-> Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
-> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> This patch set attempts to address this for allocations above
+> ALLOC_COSTLY_ORDER by temporarily collecting the pages we are releasing
+> onto a local free list.  Instead of freeing them to the main buddy lists,
+> pages are collected and coelesced on this per direct reclaimer free list.
+> Pages which are freed by other processes are also considered, where they
+> coelesce with a page already under capture they will be moved to the
+> capture list.  When pressure has been applied to a zone we then consult
+> the capture list and if there is an appropriatly sized page available
+> it is taken immediatly and the remainder returned to the free pool.
+> Capture is only enabled when the reclaimer's allocation order exceeds
+> ALLOC_COSTLY_ORDER as free pages below this order should naturally occur
+> in large numbers following regular reclaim.
+> 
+> Thanks go to Mel Gorman for numerous discussions during the development
+> of this patch and for his repeated reviews.
+> 
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hmm.. is this routine better than
+  mm/memory_hotplug.c::do_migrate_range(start_pfn, end_pfn) ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
