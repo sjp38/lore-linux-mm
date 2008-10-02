@@ -1,317 +1,352 @@
-Message-Id: <20081002131608.162932309@chello.nl>
+Message-Id: <20081002131609.779481067@chello.nl>
 References: <20081002130504.927878499@chello.nl>
-Date: Thu, 02 Oct 2008 15:05:13 +0200
+Date: Thu, 02 Oct 2008 15:05:33 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/32] mm: kmem_alloc_estimate()
-Content-Disposition: inline; filename=mm-kmem_estimate_pages.patch
+Subject: [PATCH 29/32] nfs: teach the NFS client how to treat PG_swapcache pages
+Content-Disposition: inline; filename=nfs-swapcache.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-Provide a method to get the upper bound on the pages needed to allocate
-a given number of objects from a given kmem_cache.
-
-This lays the foundation for a generic reserve framework as presented in
-a later patch in this series. This framework needs to convert object demand
-(kmalloc() bytes, kmem_cache_alloc() objects) to pages.
+Replace all relevant occurences of page->index and page->mapping in the NFS
+client with the new page_file_index() and page_file_mapping() functions.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/slab.h |    4 ++
- mm/slab.c            |   75 +++++++++++++++++++++++++++++++++++++++++++
- mm/slob.c            |   67 +++++++++++++++++++++++++++++++++++++++
- mm/slub.c            |   87 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 233 insertions(+)
+ fs/nfs/file.c     |    6 +++---
+ fs/nfs/internal.h |    7 ++++---
+ fs/nfs/pagelist.c |    6 +++---
+ fs/nfs/read.c     |    6 +++---
+ fs/nfs/write.c    |   53 +++++++++++++++++++++++++++--------------------------
+ 5 files changed, 40 insertions(+), 38 deletions(-)
 
-Index: linux-2.6/include/linux/slab.h
+Index: linux-2.6/fs/nfs/file.c
 ===================================================================
---- linux-2.6.orig/include/linux/slab.h
-+++ linux-2.6/include/linux/slab.h
-@@ -72,6 +72,8 @@ void kmem_cache_free(struct kmem_cache *
- unsigned int kmem_cache_size(struct kmem_cache *);
- const char *kmem_cache_name(struct kmem_cache *);
- int kmem_ptr_validate(struct kmem_cache *cachep, const void *ptr);
-+unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
-+			gfp_t flags, int objects);
- 
- /*
-  * Please use this macro to create slab caches. Simply specify the
-@@ -107,6 +109,8 @@ void * __must_check __krealloc(const voi
- void * __must_check krealloc(const void *, size_t, gfp_t);
- void kfree(const void *);
- size_t ksize(const void *);
-+unsigned kmalloc_estimate_objs(size_t, gfp_t, int);
-+unsigned kmalloc_estimate_bytes(gfp_t, size_t);
- 
- /*
-  * Function prototypes passed to kmem_cache_defrag() to enable defragmentation
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -2452,6 +2452,42 @@ const char *kmem_cache_name(struct kmem_
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -413,7 +413,7 @@ static void nfs_invalidate_page(struct p
+ 	if (offset != 0)
+ 		return;
+ 	/* Cancel any unstarted writes on this page */
+-	nfs_wb_page_cancel(page->mapping->host, page);
++	nfs_wb_page_cancel(page_file_mapping(page)->host, page);
  }
- EXPORT_SYMBOL(kmem_cache_name);
  
-+/*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @objects objects from @cachep.
-+ *
-+ * We should use s->min_objects because those are the least efficient.
-+ */
-+unsigned kmem_alloc_estimate(struct kmem_cache *s, gfp_t flags, int objects)
-+{
-+	unsigned long pages;
-+	struct kmem_cache_order_objects x;
-+
-+	if (WARN_ON(!s) || WARN_ON(!oo_objects(s->min)))
-+		return 0;
-+
-+	x = s->min;
-+	pages = DIV_ROUND_UP(objects, oo_objects(x)) << oo_order(x);
-+
-+	/*
-+	 * Account the possible additional overhead if the slab holds more that
-+	 * one object. Use s->max_objects because that's the worst case.
-+	 */
-+	x = s->oo;
-+	if (oo_objects(x) > 1) {
-+		/*
-+		 * Account the possible additional overhead if per cpu slabs
-+		 * are currently empty and have to be allocated. This is very
-+		 * unlikely but a possible scenario immediately after
-+		 * kmem_cache_shrink.
-+		 */
-+		pages += num_possible_cpus() << oo_order(x);
-+	}
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kmem_alloc_estimate);
-+
- static void list_slab_objects(struct kmem_cache *s, struct page *page,
- 							const char *text)
+ static int nfs_release_page(struct page *page, gfp_t gfp)
+@@ -426,7 +426,7 @@ static int nfs_release_page(struct page 
+ 
+ static int nfs_launder_page(struct page *page)
  {
-@@ -2852,6 +2888,57 @@ void kfree(const void *x)
- EXPORT_SYMBOL(kfree);
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
  
- /*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @count objects of @size bytes from kmalloc given @flags.
-+ */
-+unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
-+{
-+	struct kmem_cache *s = get_slab(size, flags);
-+	if (!s)
-+		return 0;
-+
-+	return kmem_alloc_estimate(s, flags, count);
-+
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
-+
-+/*
-+ * Calculate the upper bound of pages requires to sequentially allocate @bytes
-+ * from kmalloc in an unspecified number of allocations of nonuniform size.
-+ */
-+unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
-+{
-+	int i;
-+	unsigned long pages;
-+
-+	/*
-+	 * multiply by two, in order to account the worst case slack space
-+	 * due to the power-of-two allocation sizes.
-+	 */
-+	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
-+
-+	/*
-+	 * add the kmem_cache overhead of each possible kmalloc cache
-+	 */
-+	for (i = 1; i < PAGE_SHIFT; i++) {
-+		struct kmem_cache *s;
-+
-+#ifdef CONFIG_ZONE_DMA
-+		if (unlikely(flags & SLUB_DMA))
-+			s = dma_kmalloc_cache(i, flags);
-+		else
-+#endif
-+			s = &kmalloc_caches[i];
-+
-+		if (s)
-+			pages += kmem_alloc_estimate(s, flags, 0);
-+	}
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
-+
-+/*
-  * Allocate a slab scratch space that is sufficient to keep at least
-  * max_defrag_slab_objects pointers to individual objects and also a bitmap
-  * for max_defrag_slab_objects.
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c
-+++ linux-2.6/mm/slab.c
-@@ -3849,6 +3849,81 @@ const char *kmem_cache_name(struct kmem_
- EXPORT_SYMBOL_GPL(kmem_cache_name);
+ 	dfprintk(PAGECACHE, "NFS: launder_page(%ld, %llu)\n",
+ 		inode->i_ino, (long long)page_offset(page));
+@@ -462,7 +462,7 @@ static int nfs_vm_page_mkwrite(struct vm
+ 		(long long)page_offset(page));
  
- /*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @objects objects from @cachep.
-+ */
-+unsigned kmem_alloc_estimate(struct kmem_cache *cachep,
-+		gfp_t flags, int objects)
-+{
-+	/*
-+	 * (1) memory for objects,
-+	 */
-+	unsigned nr_slabs = DIV_ROUND_UP(objects, cachep->num);
-+	unsigned nr_pages = nr_slabs << cachep->gfporder;
-+
-+	/*
-+	 * (2) memory for each per-cpu queue (nr_cpu_ids),
-+	 * (3) memory for each per-node alien queues (nr_cpu_ids), and
-+	 * (4) some amount of memory for the slab management structures
-+	 *
-+	 * XXX: truely account these
-+	 */
-+	nr_pages += 1 + ilog2(nr_pages);
-+
-+	return nr_pages;
-+}
-+
-+/*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @count objects of @size bytes from kmalloc given @flags.
-+ */
-+unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
-+{
-+	struct kmem_cache *s = kmem_find_general_cachep(size, flags);
-+	if (!s)
-+		return 0;
-+
-+	return kmem_alloc_estimate(s, flags, count);
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
-+
-+/*
-+ * Calculate the upper bound of pages requires to sequentially allocate @bytes
-+ * from kmalloc in an unspecified number of allocations of nonuniform size.
-+ */
-+unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
-+{
-+	unsigned long pages;
-+	struct cache_sizes *csizep = malloc_sizes;
-+
-+	/*
-+	 * multiply by two, in order to account the worst case slack space
-+	 * due to the power-of-two allocation sizes.
-+	 */
-+	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
-+
-+	/*
-+	 * add the kmem_cache overhead of each possible kmalloc cache
-+	 */
-+	for (csizep = malloc_sizes; csizep->cs_cachep; csizep++) {
-+		struct kmem_cache *s;
-+
-+#ifdef CONFIG_ZONE_DMA
-+		if (unlikely(flags & __GFP_DMA))
-+			s = csizep->cs_dmacachep;
-+		else
-+#endif
-+			s = csizep->cs_cachep;
-+
-+		if (s)
-+			pages += kmem_alloc_estimate(s, flags, 0);
-+	}
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
-+
-+/*
-  * This initializes kmem_list3 or resizes various caches for all nodes.
-  */
- static int alloc_kmemlist(struct kmem_cache *cachep)
-Index: linux-2.6/mm/slob.c
+ 	lock_page(page);
+-	mapping = page->mapping;
++	mapping = page_file_mapping(page);
+ 	if (mapping != dentry->d_inode->i_mapping)
+ 		goto out_unlock;
+ 
+Index: linux-2.6/fs/nfs/pagelist.c
 ===================================================================
---- linux-2.6.orig/mm/slob.c
-+++ linux-2.6/mm/slob.c
-@@ -682,3 +682,70 @@ void __init kmem_cache_init(void)
+--- linux-2.6.orig/fs/nfs/pagelist.c
++++ linux-2.6/fs/nfs/pagelist.c
+@@ -76,11 +76,11 @@ nfs_create_request(struct nfs_open_conte
+ 	 * update_nfs_request below if the region is not locked. */
+ 	req->wb_page    = page;
+ 	atomic_set(&req->wb_complete, 0);
+-	req->wb_index	= page->index;
++	req->wb_index	= page_file_index(page);
+ 	page_cache_get(page);
+ 	BUG_ON(PagePrivate(page));
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(page->mapping->host != inode);
++	BUG_ON(page_file_mapping(page)->host != inode);
+ 	req->wb_offset  = offset;
+ 	req->wb_pgbase	= offset;
+ 	req->wb_bytes   = count;
+@@ -376,7 +376,7 @@ void nfs_pageio_cond_complete(struct nfs
+  * nfs_scan_list - Scan a list for matching requests
+  * @nfsi: NFS inode
+  * @dst: Destination list
+- * @idx_start: lower bound of page->index to scan
++ * @idx_start: lower bound of page_file_index(page) to scan
+  * @npages: idx_start + npages sets the upper bound to scan.
+  * @tag: tag to scan for
+  *
+Index: linux-2.6/fs/nfs/read.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/read.c
++++ linux-2.6/fs/nfs/read.c
+@@ -474,11 +474,11 @@ static const struct rpc_call_ops nfs_rea
+ int nfs_readpage(struct file *file, struct page *page)
  {
- 	slob_ready = 1;
+ 	struct nfs_open_context *ctx;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	int		error;
+ 
+ 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
+-		page, PAGE_CACHE_SIZE, page->index);
++		page, PAGE_CACHE_SIZE, page_file_index(page));
+ 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
+ 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+ 
+@@ -525,7 +525,7 @@ static int
+ readpage_async_filler(void *data, struct page *page)
+ {
+ 	struct nfs_readdesc *desc = (struct nfs_readdesc *)data;
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *new;
+ 	unsigned int len;
+ 	int error;
+Index: linux-2.6/fs/nfs/write.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/write.c
++++ linux-2.6/fs/nfs/write.c
+@@ -115,7 +115,7 @@ static struct nfs_page *nfs_page_find_re
+ 
+ static struct nfs_page *nfs_page_find_request(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req = NULL;
+ 
+ 	spin_lock(&inode->i_lock);
+@@ -127,16 +127,16 @@ static struct nfs_page *nfs_page_find_re
+ /* Adjust the file length if we're writing beyond the end */
+ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int count)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	loff_t end, i_size;
+ 	pgoff_t end_index;
+ 
+ 	spin_lock(&inode->i_lock);
+ 	i_size = i_size_read(inode);
+ 	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-	if (i_size > 0 && page->index < end_index)
++	if (i_size > 0 && page_file_index(page) < end_index)
+ 		goto out;
+-	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
++	end = page_file_offset(page) + ((loff_t)offset+count);
+ 	if (i_size >= end)
+ 		goto out;
+ 	i_size_write(inode, end);
+@@ -149,7 +149,7 @@ out:
+ static void nfs_set_pageerror(struct page *page)
+ {
+ 	SetPageError(page);
+-	nfs_zap_mapping(page->mapping->host, page->mapping);
++	nfs_zap_mapping(page_file_mapping(page)->host, page_file_mapping(page));
  }
-+
-+static __slob_estimate(unsigned size, unsigned align, unsigned objects)
-+{
-+	unsigned nr_pages;
-+
-+	size = SLOB_UNIT * SLOB_UNITS(size + align - 1);
-+
-+	if (size <= PAGE_SIZE) {
-+		nr_pages = DIV_ROUND_UP(objects, PAGE_SIZE / size);
-+	} else {
-+		nr_pages = objects << get_order(size);
-+	}
-+
-+	return nr_pages;
-+}
-+
-+/*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @objects objects from @cachep.
-+ */
-+unsigned kmem_alloc_estimate(struct kmem_cache *c, gfp_t flags, int objects)
-+{
-+	unsigned size = c->size;
-+
-+	if (c->flags & SLAB_DESTROY_BY_RCU)
-+		size += sizeof(struct slob_rcu);
-+
-+	return __slob_estimate(size, c->align, objects);
-+}
-+
-+/*
-+ * Calculate the upper bound of pages required to sequentially allocate
-+ * @count objects of @size bytes from kmalloc given @flags.
-+ */
-+unsigned kmalloc_estimate_objs(size_t size, gfp_t flags, int count)
-+{
-+	unsigned align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-+
-+	return __slob_estimate(size, align, count);
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_objs);
-+
-+/*
-+ * Calculate the upper bound of pages requires to sequentially allocate @bytes
-+ * from kmalloc in an unspecified number of allocations of nonuniform size.
-+ */
-+unsigned kmalloc_estimate_bytes(gfp_t flags, size_t bytes)
-+{
-+	unsigned long pages;
-+
-+	/*
-+	 * Multiply by two, in order to account the worst case slack space
-+	 * due to the power-of-two allocation sizes.
-+	 *
-+	 * While not true for slob, it cannot do worse than that for sequential
-+	 * allocations.
-+	 */
-+	pages = DIV_ROUND_UP(2 * bytes, PAGE_SIZE);
-+
-+	/*
-+	 * Our power of two series starts at PAGE_SIZE, so add one page.
-+	 */
-+	pages++;
-+
-+	return pages;
-+}
-+EXPORT_SYMBOL_GPL(kmalloc_estimate_bytes);
+ 
+ /* We can set the PG_uptodate flag if we see that a write request
+@@ -190,7 +190,7 @@ static int nfs_set_page_writeback(struct
+ 	int ret = test_set_page_writeback(page);
+ 
+ 	if (!ret) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 		struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 		if (atomic_long_inc_return(&nfss->writeback) >
+@@ -202,7 +202,7 @@ static int nfs_set_page_writeback(struct
+ 
+ static void nfs_end_page_writeback(struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_server *nfss = NFS_SERVER(inode);
+ 
+ 	end_page_writeback(page);
+@@ -217,7 +217,7 @@ static void nfs_end_page_writeback(struc
+ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
+ 				struct page *page)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page *req;
+ 	int ret;
+ 
+@@ -260,12 +260,12 @@ static int nfs_page_async_flush(struct n
+ 
+ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, struct nfs_pageio_descriptor *pgio)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 
+ 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+ 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
+ 
+-	nfs_pageio_cond_complete(pgio, page->index);
++	nfs_pageio_cond_complete(pgio, page_file_index(page));
+ 	return nfs_page_async_flush(pgio, page);
+ }
+ 
+@@ -277,7 +277,7 @@ static int nfs_writepage_locked(struct p
+ 	struct nfs_pageio_descriptor pgio;
+ 	int err;
+ 
+-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
++	nfs_pageio_init_write(&pgio, page_file_mapping(page)->host, wb_priority(wbc));
+ 	err = nfs_do_writepage(page, wbc, &pgio);
+ 	nfs_pageio_complete(&pgio);
+ 	if (err < 0)
+@@ -406,7 +406,8 @@ nfs_mark_request_commit(struct nfs_page 
+ 			NFS_PAGE_TAG_COMMIT);
+ 	spin_unlock(&inode->i_lock);
+ 	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
++	inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
++			BDI_RECLAIMABLE);
+ 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+ }
+ 
+@@ -417,7 +418,7 @@ nfs_clear_request_commit(struct nfs_page
+ 
+ 	if (test_and_clear_bit(PG_CLEAN, &(req)->wb_flags)) {
+ 		dec_zone_page_state(page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(page->mapping->backing_dev_info, BDI_RECLAIMABLE);
++		dec_bdi_stat(page_file_mapping(page)->backing_dev_info, BDI_RECLAIMABLE);
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -523,7 +524,7 @@ static void nfs_cancel_commit_list(struc
+  * nfs_scan_commit - Scan an inode for commit requests
+  * @inode: NFS inode to scan
+  * @dst: destination list
+- * @idx_start: lower bound of page->index to scan.
++ * @idx_start: lower bound of page_file_index(page) to scan.
+  * @npages: idx_start + npages sets the upper bound to scan.
+  *
+  * Moves requests from the inode's 'commit' request list.
+@@ -634,7 +635,7 @@ out_err:
+ static struct nfs_page * nfs_setup_write_request(struct nfs_open_context* ctx,
+ 		struct page *page, unsigned int offset, unsigned int bytes)
+ {
+-	struct inode *inode = page->mapping->host;
++	struct inode *inode = page_file_mapping(page)->host;
+ 	struct nfs_page	*req;
+ 	int error;
+ 
+@@ -689,7 +690,7 @@ int nfs_flush_incompatible(struct file *
+ 		nfs_release_request(req);
+ 		if (!do_flush)
+ 			return 0;
+-		status = nfs_wb_page(page->mapping->host, page);
++		status = nfs_wb_page(page_file_mapping(page)->host, page);
+ 	} while (status == 0);
+ 	return status;
+ }
+@@ -715,7 +716,7 @@ int nfs_updatepage(struct file *file, st
+ 		unsigned int offset, unsigned int count)
+ {
+ 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+-	struct inode	*inode = page->mapping->host;
++	struct inode	*inode = page_file_mapping(page)->host;
+ 	int		status = 0;
+ 
+ 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
+@@ -723,7 +724,7 @@ int nfs_updatepage(struct file *file, st
+ 	dprintk("NFS:       nfs_updatepage(%s/%s %d@%lld)\n",
+ 		file->f_path.dentry->d_parent->d_name.name,
+ 		file->f_path.dentry->d_name.name, count,
+-		(long long)(page_offset(page) + offset));
++		(long long)(page_file_offset(page) + offset));
+ 
+ 	/* If we're not using byte range locks, and we know the page
+ 	 * is up to date, it may be more efficient to extend the write
+@@ -998,7 +999,7 @@ static void nfs_writeback_release_partia
+ 	}
+ 
+ 	if (nfs_write_need_commit(data)) {
+-		struct inode *inode = page->mapping->host;
++		struct inode *inode = page_file_mapping(page)->host;
+ 
+ 		spin_lock(&inode->i_lock);
+ 		if (test_bit(PG_NEED_RESCHED, &req->wb_flags)) {
+@@ -1259,7 +1260,7 @@ nfs_commit_list(struct inode *inode, str
+ 		nfs_list_remove_request(req);
+ 		nfs_mark_request_commit(req);
+ 		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
++		dec_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+ 				BDI_RECLAIMABLE);
+ 		nfs_clear_page_tag_locked(req);
+ 	}
+@@ -1450,10 +1451,10 @@ int nfs_wb_nocommit(struct inode *inode)
+ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
+ {
+ 	struct nfs_page *req;
+-	loff_t range_start = page_offset(page);
++	loff_t range_start = page_file_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+-		.bdi = page->mapping->backing_dev_info,
++		.bdi = page_file_mapping(page)->backing_dev_info,
+ 		.sync_mode = WB_SYNC_ALL,
+ 		.nr_to_write = LONG_MAX,
+ 		.range_start = range_start,
+@@ -1486,7 +1487,7 @@ int nfs_wb_page_cancel(struct inode *ino
+ 	}
+ 	if (!PagePrivate(page))
+ 		return 0;
+-	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
++	ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, FLUSH_INVALIDATE);
+ out:
+ 	return ret;
+ }
+@@ -1494,10 +1495,10 @@ out:
+ static int nfs_wb_page_priority(struct inode *inode, struct page *page,
+ 				int how)
+ {
+-	loff_t range_start = page_offset(page);
++	loff_t range_start = page_file_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+-		.bdi = page->mapping->backing_dev_info,
++		.bdi = page_file_mapping(page)->backing_dev_info,
+ 		.sync_mode = WB_SYNC_ALL,
+ 		.nr_to_write = LONG_MAX,
+ 		.range_start = range_start,
+@@ -1512,7 +1513,7 @@ static int nfs_wb_page_priority(struct i
+ 				goto out_error;
+ 		} else if (!PagePrivate(page))
+ 			break;
+-		ret = nfs_sync_mapping_wait(page->mapping, &wbc, how);
++		ret = nfs_sync_mapping_wait(page_file_mapping(page), &wbc, how);
+ 		if (ret < 0)
+ 			goto out_error;
+ 	} while (PagePrivate(page));
+Index: linux-2.6/fs/nfs/internal.h
+===================================================================
+--- linux-2.6.orig/fs/nfs/internal.h
++++ linux-2.6/fs/nfs/internal.h
+@@ -253,13 +253,14 @@ void nfs_super_set_maxbytes(struct super
+ static inline
+ unsigned int nfs_page_length(struct page *page)
+ {
+-	loff_t i_size = i_size_read(page->mapping->host);
++	loff_t i_size = i_size_read(page_file_mapping(page)->host);
+ 
+ 	if (i_size > 0) {
++		pgoff_t page_index = page_file_index(page);
+ 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-		if (page->index < end_index)
++		if (page_index < end_index)
+ 			return PAGE_CACHE_SIZE;
+-		if (page->index == end_index)
++		if (page_index == end_index)
+ 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+ 	}
+ 	return 0;
 
 -- 
 
