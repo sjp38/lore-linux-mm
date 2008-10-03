@@ -1,105 +1,44 @@
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-Date: Fri,  3 Oct 2008 17:46:54 +0100
-Message-Id: <1223052415-18956-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
-References: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 0/2] Report the size of pages backing VMAs in /proc V3
+Date: Fri,  3 Oct 2008 17:46:53 +0100
+Message-Id: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: Mel Gorman <mel@csn.ul.ie>, kosaki.motohiro@jp.fujitsu.com, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-It is useful to verify a hugepage-aware application is using the expected
-pagesizes for its memory regions. This patch creates an entry called
-KernelPageSize in /proc/pid/smaps that is the size of page used by the
-kernel to back a VMA. The entry is not called PageSize as it is possible
-the MMU uses a different size. This extension should not break any sensible
-parser that skips lines containing unrecognised information.
+The following two patches add support for printing the size of pages used
+by the kernel to back VMAs in maps and smaps. This can be used by a user
+to verify that a hugepage-aware application is using the expected page sizes.
+In one case the pagesize used by the MMU differs from the size used by the
+kernel. This is on PPC64 using 64K as a base page size running on a processor
+that does not support 64K in the MMU. In this case, the kernel uses 64K pages
+but the MMU is still using 4K.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- fs/proc/task_mmu.c      |    6 ++++--
+The first patch prints the size of page used by the kernel when allocating
+pages for a VMA in /proc/pid/smaps and should not be considered too
+contentious as it is highly unlikely to break any parsers.  The second patch
+reports the size of page used by hugetlbfs regions in /proc/pid/maps. There is
+a possibility that the final patch will break parsers but they are arguably
+already broken. More details are in the patches themselves.
+
+Thanks to KOSAKI Motohiro for rebasing the patches onto mmotm, reviewing
+and testing.
+
+Changelog since V2
+  o Drop printing of MMUPageSize (mel)
+  o Rebase onto mmotm (KOSAKI Motohiro)
+
+Changelog since V1
+  o Fix build failure on !CONFIG_HUGETLB_PAGE
+  o Uninline helper functions
+  o Distinguish between base pagesize and MMU pagesize
+
+ fs/proc/task_mmu.c      |   27 ++++++++++++++++++---------
  include/linux/hugetlb.h |    3 +++
  mm/hugetlb.c            |   17 +++++++++++++++++
- 3 files changed, 24 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index f6add87..beb884d 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -402,7 +402,8 @@ static int show_smap(struct seq_file *m, void *v)
- 		   "Private_Clean:  %8lu kB\n"
- 		   "Private_Dirty:  %8lu kB\n"
- 		   "Referenced:     %8lu kB\n"
--		   "Swap:           %8lu kB\n",
-+		   "Swap:           %8lu kB\n"
-+		   "KernelPageSize: %8lu kB\n",
- 		   (vma->vm_end - vma->vm_start) >> 10,
- 		   mss.resident >> 10,
- 		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
-@@ -411,7 +412,8 @@ static int show_smap(struct seq_file *m, void *v)
- 		   mss.private_clean >> 10,
- 		   mss.private_dirty >> 10,
- 		   mss.referenced >> 10,
--		   mss.swap >> 10);
-+		   mss.swap >> 10,
-+		   vma_kernel_pagesize(vma) >> 10);
- 
- 	if (m->count < m->size)  /* vma is copied successfully */
- 		m->version = (vma != get_gate_vma(task)) ? vma->vm_start : 0;
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 32e0ef0..ace04a7 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -231,6 +231,8 @@ static inline unsigned long huge_page_size(struct hstate *h)
- 	return (unsigned long)PAGE_SIZE << h->order;
- }
- 
-+extern unsigned long vma_kernel_pagesize(struct vm_area_struct *vma);
-+
- static inline unsigned long huge_page_mask(struct hstate *h)
- {
- 	return h->mask;
-@@ -271,6 +273,7 @@ struct hstate {};
- #define hstate_inode(i) NULL
- #define huge_page_size(h) PAGE_SIZE
- #define huge_page_mask(h) PAGE_MASK
-+#define vma_kernel_pagesize(v) PAGE_SIZE
- #define huge_page_order(h) 0
- #define huge_page_shift(h) PAGE_SHIFT
- static inline unsigned int pages_per_huge_page(struct hstate *h)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index adf3568..856949c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -219,6 +219,23 @@ static pgoff_t vma_hugecache_offset(struct hstate *h,
- }
- 
- /*
-+ * Return the size of the pages allocated when backing a VMA. In the majority
-+ * cases this will be same size as used by the page table entries. 
-+ */
-+unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
-+{
-+	struct hstate *hstate;
-+
-+	if (!is_vm_hugetlb_page(vma))
-+		return PAGE_SIZE;
-+
-+	hstate = hstate_vma(vma);
-+	VM_BUG_ON(!hstate);
-+
-+	return 1UL << (hstate->order + PAGE_SHIFT);
-+}
-+
-+/*
-  * Flags for MAP_PRIVATE reservations.  These are stored in the bottom
-  * bits of the reservation map pointer, which are always clear due to
-  * alignment.
--- 
-1.5.6.5
+ 3 files changed, 38 insertions(+), 9 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
