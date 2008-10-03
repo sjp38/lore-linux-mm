@@ -1,60 +1,34 @@
-Date: Fri, 3 Oct 2008 05:44:31 -0700
-From: Arjan van de Ven <arjan@infradead.org>
-Subject: Re: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
-Message-ID: <20081003054431.33e19339@infradead.org>
-In-Reply-To: <20081003092550.GA8669@localhost.localdomain>
-References: <1223017469-5158-1-git-send-email-kirill@shutemov.name>
-	<20081003080244.GC25408@elte.hu>
-	<20081003092550.GA8669@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48E614A0.60209@linux-foundation.org>
+Date: Fri, 03 Oct 2008 07:48:32 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [patch 3/4] cpu alloc: The allocator
+References: <20080929193500.470295078@quilx.com>	<20080929193516.278278446@quilx.com> <20081003003342.4d592c1f.akpm@linux-foundation.org>
+In-Reply-To: <20081003003342.4d592c1f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Oct 2008 12:25:52 +0300
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+Andrew Morton wrote:
 
-> On Fri, Oct 03, 2008 at 10:02:44AM +0200, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > > -	/* for MAP_32BIT mappings we force the legact mmap base
-> > > */
-> > > -	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT))
-> > > +	/* for MAP_32BIT mappings and ADDR_LIMIT_32BIT
-> > > personality we force the
-> > > +	 * legact mmap base
-> > > +	 */
-> > 
-> > please use the customary multi-line comment style:
-> > 
-> >   /*
-> >    * Comment .....
-> >    * ...... goes here:
-> >    */
-> > 
-> > and you might use the opportunity to fix the s/legact/legacy typo
-> > as well.
-> 
-> Ok, I'll fix it.
-> 
-> > 
-> > but more generally, we already have ADDR_LIMIT_3GB support on x86.
-> 
-> Does ADDR_LIMIT_3GB really work?
+> And bitmap_etc().  We have a pretty complete suite there.
 
-if it's broken we should fix it.... not invent a new one.
-Also, traditionally often personalities only start at exec() time iirc.
-(but I could be wrong on that)
+ok will use bitops here.
 
--- 
-Arjan van de Ven 	Intel Open Source Technology Centre
-For development, discussion and tips for power savings, 
-visit http://www.lesswatts.org
+ > Apart from that the interface, intent and implementation seem reasonable.
+> 
+> But I'd have though that it would be possible to only allocate the
+> storage for online CPUs.  That would be a pretty significant win for
+> some system configurations?
+
+We  have tried that but currently the kernel (core and in particular arch
+code) keeps state for all possible cpus in percpu segments. Would require more
+extensive cleanup of numerous arches to do.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
