@@ -1,35 +1,105 @@
-Message-ID: <48E642CA.2050405@linux-foundation.org>
-Date: Fri, 03 Oct 2008 11:05:30 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [patch 2/3] cpu alloc: Use in slub
-References: <20081003152436.089811999@quilx.com> <20081003152500.102106878@quilx.com> <48E63E76.1010702@cosmosbay.com>
-In-Reply-To: <48E63E76.1010702@cosmosbay.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Date: Fri,  3 Oct 2008 17:46:54 +0100
+Message-Id: <1223052415-18956-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
+References: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+To: akpm@linux-foundation.org
+Cc: Mel Gorman <mel@csn.ul.ie>, kosaki.motohiro@jp.fujitsu.com, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Eric Dumazet wrote:
->
-> Then maybe change MAX_NUMNODES to 0 or 1 to reflect
-> node[] is dynamically sized ?
+It is useful to verify a hugepage-aware application is using the expected
+pagesizes for its memory regions. This patch creates an entry called
+KernelPageSize in /proc/pid/smaps that is the size of page used by the
+kernel to back a VMA. The entry is not called PageSize as it is possible
+the MMU uses a different size. This extension should not break any sensible
+parser that skips lines containing unrecognised information.
 
-See kmem_cache_init(). It only allocates the used bytes. If you only have a
-single nodes then only 1 pointer will be allocated.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ fs/proc/task_mmu.c      |    6 ++++--
+ include/linux/hugetlb.h |    3 +++
+ mm/hugetlb.c            |   17 +++++++++++++++++
+ 3 files changed, 24 insertions(+), 2 deletions(-)
 
-#ifdef CONFIG_NUMA
-        kmem_size = offsetof(struct kmem_cache, node) +
-                                nr_node_ids * sizeof(struct kmem_cache_node *);
-#else
-
-
-That does not work for the statically allocated kmalloc array though.
-
-
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index f6add87..beb884d 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -402,7 +402,8 @@ static int show_smap(struct seq_file *m, void *v)
+ 		   "Private_Clean:  %8lu kB\n"
+ 		   "Private_Dirty:  %8lu kB\n"
+ 		   "Referenced:     %8lu kB\n"
+-		   "Swap:           %8lu kB\n",
++		   "Swap:           %8lu kB\n"
++		   "KernelPageSize: %8lu kB\n",
+ 		   (vma->vm_end - vma->vm_start) >> 10,
+ 		   mss.resident >> 10,
+ 		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+@@ -411,7 +412,8 @@ static int show_smap(struct seq_file *m, void *v)
+ 		   mss.private_clean >> 10,
+ 		   mss.private_dirty >> 10,
+ 		   mss.referenced >> 10,
+-		   mss.swap >> 10);
++		   mss.swap >> 10,
++		   vma_kernel_pagesize(vma) >> 10);
+ 
+ 	if (m->count < m->size)  /* vma is copied successfully */
+ 		m->version = (vma != get_gate_vma(task)) ? vma->vm_start : 0;
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 32e0ef0..ace04a7 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -231,6 +231,8 @@ static inline unsigned long huge_page_size(struct hstate *h)
+ 	return (unsigned long)PAGE_SIZE << h->order;
+ }
+ 
++extern unsigned long vma_kernel_pagesize(struct vm_area_struct *vma);
++
+ static inline unsigned long huge_page_mask(struct hstate *h)
+ {
+ 	return h->mask;
+@@ -271,6 +273,7 @@ struct hstate {};
+ #define hstate_inode(i) NULL
+ #define huge_page_size(h) PAGE_SIZE
+ #define huge_page_mask(h) PAGE_MASK
++#define vma_kernel_pagesize(v) PAGE_SIZE
+ #define huge_page_order(h) 0
+ #define huge_page_shift(h) PAGE_SHIFT
+ static inline unsigned int pages_per_huge_page(struct hstate *h)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index adf3568..856949c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -219,6 +219,23 @@ static pgoff_t vma_hugecache_offset(struct hstate *h,
+ }
+ 
+ /*
++ * Return the size of the pages allocated when backing a VMA. In the majority
++ * cases this will be same size as used by the page table entries. 
++ */
++unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
++{
++	struct hstate *hstate;
++
++	if (!is_vm_hugetlb_page(vma))
++		return PAGE_SIZE;
++
++	hstate = hstate_vma(vma);
++	VM_BUG_ON(!hstate);
++
++	return 1UL << (hstate->order + PAGE_SHIFT);
++}
++
++/*
+  * Flags for MAP_PRIVATE reservations.  These are stored in the bottom
+  * bits of the reservation map pointer, which are always clear due to
+  * alignment.
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
