@@ -1,55 +1,62 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch] mm: pageable memory allocator (for DRM-GEM?)
-Date: Fri, 3 Oct 2008 16:40:23 +1000
-References: <20080923091017.GB29718@wotan.suse.de> <200810021015.55880.jbarnes@virtuousgeek.org> <1223011071.21240.64.camel@koto.keithp.com>
-In-Reply-To: <1223011071.21240.64.camel@koto.keithp.com>
+Subject: Re: [PATCH 1/1] handle initialising compound pages at orders greater than MAX_ORDER
+Date: Fri, 3 Oct 2008 16:43:28 +1000
+References: <1222964396-25031-1-git-send-email-apw@shadowen.org> <20081002143004.5fec3952.akpm@linux-foundation.org>
+In-Reply-To: <20081002143004.5fec3952.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="utf-8"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200810031640.24158.nickpiggin@yahoo.com.au>
+Message-Id: <200810031643.28731.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Packard <keithp@keithp.com>
-Cc: Jesse Barnes <jbarnes@virtuousgeek.org>, Eric Anholt <eric@anholt.net>, Nick Piggin <npiggin@suse.de>, "hugh@veritas.com" <hugh@veritas.com>, "hch@infradead.org" <hch@infradead.org>, "airlied@linux.ie" <airlied@linux.ie>, "thomas@tungstengraphics.com" <thomas@tungstengraphics.com>, "dri-devel@lists.sourceforge.net" <dri-devel@lists.sourceforge.net>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kniht@linux.vnet.ibm.com, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Friday 03 October 2008 15:17, Keith Packard wrote:
-> On Thu, 2008-10-02 at 10:15 -0700, Jesse Barnes wrote:
-> > At this point I think we should go ahead and include Eric's earlier
-> > patchset into drm-next, and continue to refine the internals along the
-> > lines of what you've posted here in the post-2.6.28 timeframe.
+On Friday 03 October 2008 07:30, Andrew Morton wrote:
+> On Thu,  2 Oct 2008 17:19:56 +0100
 >
-> Nick, in case you missed the plea here, we're asking if you have any
-> objection to shipping the mm changes present in Eric's patch in 2.6.28.
-> When your new pageable allocator becomes available, we'll switch over to
-> using that instead and revert Eric's mm changes.
+> Andy Whitcroft <apw@shadowen.org> wrote:
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -268,13 +268,14 @@ void prep_compound_page(struct page *page, unsigned
+> > long order) {
+> >  	int i;
+> >  	int nr_pages = 1 << order;
+> > +	struct page *p = page + 1;
+> >
+> >  	set_compound_page_dtor(page, free_compound_page);
+> >  	set_compound_order(page, order);
+> >  	__SetPageHead(page);
+> > -	for (i = 1; i < nr_pages; i++) {
+> > -		struct page *p = page + i;
+> > -
+> > +	for (i = 1; i < nr_pages; i++, p++) {
+> > +		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
+> > +			p = pfn_to_page(page_to_pfn(page) + i);
+> >  		__SetPageTail(p);
+> >  		p->first_page = page;
+> >  	}
+>
+> gad.  Wouldn't it be clearer to do
+>
+> 	for (i = 1; i < nr_pages; i++) {
+> 		struct page *p = pfn_to_page(i);
+> 		__SetPageTail(p);
+> 		p->first_page = page;
+> 	}
+>
+> Oh well, I guess we can go with the obfuscated, uncommented version for
+> now :(
+>
+> This patch applies to 2.6.26 (and possibly earlier) but I don't think
+> those kernels can trigger the bug?
 
-So long as we don't have to support the shmem exports for too long,
-I'm OK with that. The pageable allocator probably is probably not a
-2.6.28 merge candidate at this point, so I don't want to hold things
-up if we have a definite way forward.
-
-
-> We're ready to promise to support the user-land DRM interface going
-> forward, and we've got lots of additional work queued up behind this
-> merge. We'd prefer to push stuff a bit at a time rather than shipping a
-> lot of new code in a single kernel release.
-
-I would have liked to see more effort going towards building the user
-API starting with a pseudo filesystem rather than ioctls, but that's
-just my opinion after squinting at the problem from 100 metres away..
-So I don't have a strong standing to demand a change here ;)
-
-So, I'm OK with it for 2.6.28.
-
-I think Christoph had some concerns with the patches, and I'd like to
-hear that he's happy now. Christoph? Does the pageable allocator API
-satisfy your concerns, or did you have other issues with it?
-
-Thanks,
-Nick
+I think the problem is that pfn_to_page isn't always trivial. I would
+prefer to have seen a new function for hugetlb to use, and keep the
+branch-less version for the page allocator itself.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
