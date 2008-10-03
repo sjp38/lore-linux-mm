@@ -1,58 +1,74 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m933fjN8030169
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 3 Oct 2008 12:41:45 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CA8C2AC026
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2008 12:41:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 453DA12C045
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2008 12:41:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 290551DB803A
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2008 12:41:45 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D288A1DB803B
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2008 12:41:41 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] capture pages freed during direct reclaim for	allocation by the reclaimer
-In-Reply-To: <48E4F6EC.7010500@linux-foundation.org>
-References: <20081002143508.GE11089@brain> <48E4F6EC.7010500@linux-foundation.org>
-Message-Id: <20081003123545.EF5B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id m935A2UT004057
+	for <linux-mm@kvack.org>; Fri, 3 Oct 2008 15:10:02 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m935AaI2296106
+	for <linux-mm@kvack.org>; Fri, 3 Oct 2008 15:10:38 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m935AZaG001367
+	for <linux-mm@kvack.org>; Fri, 3 Oct 2008 15:10:35 +1000
+Message-ID: <48E5A938.9090703@linux.vnet.ibm.com>
+Date: Fri, 03 Oct 2008 10:40:16 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] mm owner: fix race between swapoff and exit
+References: <Pine.LNX.4.64.0809250117220.26422@blonde.site> <48DCC068.30706@gmail.com> <Pine.LNX.4.64.0809261344190.27666@blonde.site> <20081002161159.735cbb85.akpm@linux-foundation.org>
+In-Reply-To: <20081002161159.735cbb85.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Fri,  3 Oct 2008 12:41:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, jirislaby@gmail.com, torvalds@linux-foundation.org, nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyuki@jp.fujitsu.com, lizf@cn.fujitsu.com, menage@google.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Cristoph,
-
-> >> At the beginning of reclaim just flush all pcp pages and then do not allow pcp
-> >> refills again until reclaim is finished?
-> > 
-> > Not entirely, some pages could get trapped there for sure.  But it is
-> > parallel allocations we are trying to guard against.  Plus we already flush
-> > the pcp during reclaim for higher orders.
+Andrew Morton wrote:
+> On Fri, 26 Sep 2008 14:36:55 +0100 (BST)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> So we just would need to forbid refilling the pcp.
+>>> BTW there is also mm->owner = NULL; movement in the patch to the line before
+>>> the callbacks are invoked which I don't understand much (why to inform
+>>> anybody about NULL->NULL change?), but the first hunk seems reasonable to me.
+>> You draw attention to the second hunk of
+>> memrlimit-setup-the-memrlimit-controller-mm_owner-fix
+>> (shown below).  It's just nonsense, isn't it, reverting the fix you
+>> already made?  Perhaps it's not the patch Balbir and Zefan actually
+>> submitted, but a mismerge of that with the fluctuating state of
+>> all these accumulated fixes in the mm tree, and nobody properly
+>> tested the issue in question on the resulting tree.
+>>
+>> Or is the whole patch pointless, the first hunk just an attempt
+>> to handle the nonsense of the second hunk?
+>>
+>> I wish there were a lot more care and a lot less churn in this area.
 > 
-> Parallel allocations are less a problem if the freed order 0 pages get merged
-> immediately into the order 1 freelist. Of course that will only work 50% of
-> the time but it will have a similar effect to this patch.
+> I really don't see those patches going anywhere and they are, to some
+> extent, getting in the way of real work.
+> 
+> I'm thinking lets-drop-them-all thoughts.
 
-Ah, Right.
-Could we hear why you like pcp disabling than Andy's patch?
+Andrew,
 
-Honestly, I think pcp has some problem.
-But I avoid to change pcp because I don't understand its design.
+There has been some discussion around memrlimits, the main argument against
+those patches by Dave Hansen and Paul Menage has been that no application can
+deal with mmap()/malloc() failures. My argument has been that applications that
+can deal with them should not be penalized and we have no overcommit support for
+cgroups (I don't mind the back port that Andrea did for overcommit support).
+I've listed the pros and cons in a separate set of emails to lkml. The
+discussion can be found at
+http://kerneltrap.org/mailarchive/linux-kernel/2008/8/19/2988814
 
-Maybe, we should discuss currect pcp behavior?
+Although, I find it to be useful and non-users can decide not to enable any
+limits, if we are not going to build consensus on this feature, we might as well
+drop it :(
 
+-- 
+	Balbir
 
+PS: When we do the mlock controller, we'll probably redo some of the
+infrastructure that we have memrlimits, but at the moment other things are
+keeping me occupied.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
