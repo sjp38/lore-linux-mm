@@ -1,63 +1,52 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9VHpRHQ011904
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:51:27 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9VHqBPK141916
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:52:11 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9VHqBMm025300
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:52:11 -0600
-Date: Fri, 31 Oct 2008 10:52:03 -0700
-From: Gary Hade <garyhade@us.ibm.com>
-Subject: [PATCH] [RESEND] x86: add memory hotremove config option
-Message-ID: <20081031175203.GA7483@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: [patch 1/3] Increase default reserve percpu area
+Date: Fri, 03 Oct 2008 08:24:37 -0700
+Message-ID: <20081003152459.747408808@quilx.com>
+References: <20081003152436.089811999@quilx.com>
+Return-path: <owner-linux-mm@kvack.org>
+Content-Disposition: inline; filename=cpu_alloc_increase_percpu_default
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org
-List-ID: <linux-mm.kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+List-Id: linux-mm.kvack.org
 
-I am resending this patch (originally posted by Badari Pulavarty)
-since the "mm: cleanup to make remove_memory() arch-neutral" patch
-on which it depends is now in Linus' 2.6.git tree (commit
-71088785c6bc68fddb450063d57b1bd1c78e0ea1) and 2.6.28-rc2.
+SLUB now requires a portion of the per cpu reserve. There are on average
+about 70 real slabs on a system (aliases do not count) and each needs 12 bytes
+of per cpu space. Thats 840 bytes. In debug mode all slabs will be real slabs
+which will make us end up with 150 -> 1800.
 
-Thanks,
-Gary
+Things work fine without this patch but then slub will reduce the percpu reserve
+for modules.
 
----
-Add memory hotremove config option to x86
+Percpu data must be available regardless if modules are in use or not. So get
+rid of the #ifdef CONFIG_MODULES.
 
-Memory hotremove functionality can currently be configured into
-the ia64, powerpc, and s390 kernels.  This patch makes it possible
-to configure the memory hotremove functionality into the x86
-kernel as well.
+Make the size of the percpu area dependant on the size of a machine word. That
+way we have larger sizes for 64 bit machines. 64 bit machines need more percpu
+memory since the pointer and counters may have double the size. Plus there is
+lots of memory available on 64 bit.
 
-Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-Signed-off-by: Gary Hade <garyhade@us.ibm.com>
+Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
 
----
- arch/x86/Kconfig |    4 ++++
- 1 file changed, 4 insertions(+)
-
-Index: linux-2.6.28-rc2/arch/x86/Kconfig
+Index: linux-2.6/include/linux/percpu.h
 ===================================================================
---- linux-2.6.28-rc2.orig/arch/x86/Kconfig	2008-10-31 10:34:14.000000000 -0700
-+++ linux-2.6.28-rc2/arch/x86/Kconfig	2008-10-31 10:34:27.000000000 -0700
-@@ -1486,6 +1486,10 @@
- 	def_bool y
- 	depends on X86_64 || (X86_32 && HIGHMEM)
+--- linux-2.6.orig/include/linux/percpu.h	2008-09-29 13:10:33.000000000 -0500
++++ linux-2.6/include/linux/percpu.h	2008-09-29 13:13:21.000000000 -0500
+@@ -37,11 +37,7 @@
+ extern unsigned int percpu_reserve;
+ /* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
+ #ifndef PERCPU_AREA_SIZE
+-#ifdef CONFIG_MODULES
+-#define PERCPU_RESERVE_SIZE	8192
+-#else
+-#define PERCPU_RESERVE_SIZE	0
+-#endif
++#define PERCPU_RESERVE_SIZE	(sizeof(unsigned long) * 2500)
  
-+config ARCH_ENABLE_MEMORY_HOTREMOVE
-+	def_bool y
-+	depends on MEMORY_HOTPLUG
-+
- config HAVE_ARCH_EARLY_PFN_TO_NID
- 	def_bool X86_64
- 	depends on NUMA
+ #define PERCPU_AREA_SIZE						\
+ 	(__per_cpu_end - __per_cpu_start + percpu_reserve)
+
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
