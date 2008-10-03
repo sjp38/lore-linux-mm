@@ -1,102 +1,143 @@
-Received: by qb-out-0506.google.com with SMTP id e12so2290933qba.0
-        for <linux-mm@kvack.org>; Fri, 03 Oct 2008 00:03:28 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
-Date: Fri,  3 Oct 2008 10:04:29 +0300
-Message-Id: <1223017469-5158-1-git-send-email-kirill@shutemov.name>
+Date: Fri, 3 Oct 2008 00:33:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 3/4] cpu alloc: The allocator
+Message-Id: <20081003003342.4d592c1f.akpm@linux-foundation.org>
+In-Reply-To: <20080929193516.278278446@quilx.com>
+References: <20080929193500.470295078@quilx.com>
+	<20080929193516.278278446@quilx.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>Thomas Gleixner <tglx@linutronix.de>Ingo Molnar <mingo@redhat.com>"H. Peter Anvin" <hpa@zytor.com>Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
----
- arch/x86/kernel/sys_x86_64.c |   15 +++++++++++----
- include/asm-x86/elf.h        |    4 +++-
- include/asm-x86/processor.h  |    6 ++++--
- 3 files changed, 18 insertions(+), 7 deletions(-)
+On Mon, 29 Sep 2008 12:35:03 -0700 Christoph Lameter <cl@linux-foundation.org> wrote:
 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 3b360ef..d6ac928 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -48,7 +48,9 @@ out:
- static void find_start_end(unsigned long flags, unsigned long *begin,
- 			   unsigned long *end)
- {
--	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT)) {
-+	if (!test_thread_flag(TIF_IA32) &&
-+	    ((flags & MAP_32BIT) ||
-+	     (current->personality & ADDR_LIMIT_32BIT))) {
- 		unsigned long new_begin;
- 		/* This is usually used needed to map code in small
- 		   model, so it needs to be in the first 31bit. Limit
-@@ -94,7 +96,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 		    (!vma || addr + len <= vma->vm_start))
- 			return addr;
- 	}
--	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32))
-+	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32) ||
-+	     (current->personality & ADDR_LIMIT_32BIT))
- 	    && len <= mm->cached_hole_size) {
- 	        mm->cached_hole_size = 0;
- 		mm->free_area_cache = begin;
-@@ -150,8 +153,12 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	if (flags & MAP_FIXED)
- 		return addr;
- 
--	/* for MAP_32BIT mappings we force the legact mmap base */
--	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT))
-+	/* for MAP_32BIT mappings and ADDR_LIMIT_32BIT personality we force the
-+	 * legact mmap base
-+	 */
-+	if (!test_thread_flag(TIF_IA32) &&
-+	    ((flags & MAP_32BIT) ||
-+	     (current->personality & ADDR_LIMIT_32BIT)))
- 		goto bottomup;
- 
- 	/* requesting a specific address */
-diff --git a/include/asm-x86/elf.h b/include/asm-x86/elf.h
-index 7be4733..fa39e10 100644
---- a/include/asm-x86/elf.h
-+++ b/include/asm-x86/elf.h
-@@ -298,7 +298,9 @@ do {									\
- #define VDSO_HIGH_BASE		0xffffe000U /* CONFIG_COMPAT_VDSO address */
- 
- /* 1GB for 64bit, 8MB for 32bit */
--#define STACK_RND_MASK (test_thread_flag(TIF_IA32) ? 0x7ff : 0x3fffff)
-+#define STACK_RND_MASK ((test_thread_flag(TIF_IA32) || \
-+			 current->personality & ADDR_LIMIT_32BIT ) ? \
-+			0x7ff : 0x3fffff)
- 
- #define ARCH_DLINFO							\
- do {									\
-diff --git a/include/asm-x86/processor.h b/include/asm-x86/processor.h
-index 4df3e2f..6d7f2f9 100644
---- a/include/asm-x86/processor.h
-+++ b/include/asm-x86/processor.h
-@@ -904,7 +904,8 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
- #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_IA32)) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE64)
- 
--#define STACK_TOP		TASK_SIZE
-+#define STACK_TOP		(current->personality & ADDR_LIMIT_32BIT ? \
-+					 0x80000000 : TASK_SIZE)
- #define STACK_TOP_MAX		TASK_SIZE64
- 
- #define INIT_THREAD  { \
-@@ -932,7 +933,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
-  * This decides where the kernel will search for a free chunk of vm
-  * space during mmap's.
-  */
--#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
-+#define TASK_UNMAPPED_BASE	(current->personality & ADDR_LIMIT_32BIT ? \
-+					0x40000000 : PAGE_ALIGN(TASK_SIZE / 3))
- 
- #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
- 
--- 
-1.5.6.5.GIT
+> The per cpu allocator allows dynamic allocation of memory on all
+> processors simultaneously. A bitmap is used to track used areas.
+> The allocator implements tight packing to reduce the cache footprint
+> and increase speed since cacheline contention is typically not a concern
+> for memory mainly used by a single cpu. Small objects will fill up gaps
+> left by larger allocations that required alignments.
+> 
+> The size of the cpu_alloc area can be changed via the percpu=xxx
+> kernel parameter.
+> 
+>
+> ...
+>
+> +static void set_map(int start, int length)
+> +{
+> +	while (length-- > 0)
+> +		__set_bit(start++, cpu_alloc_map);
+> +}
+
+Can we use bitmap_fill() here?
+
+> +/*
+> + * Mark an area as freed.
+> + *
+> + * Must hold cpu_alloc_map_lock
+> + */
+> +static void clear_map(int start, int length)
+> +{
+> +	while (length-- > 0)
+> +		__clear_bit(start++, cpu_alloc_map);
+> +}
+
+And bitmap_etc().  We have a pretty complete suite there.
+
+> +/*
+> + * Allocate an object of a certain size
+> + *
+> + * Returns a special pointer that can be used with CPU_PTR to find the
+> + * address of the object for a certain cpu.
+> + */
+> +void *cpu_alloc(unsigned long size, gfp_t gfpflags, unsigned long align)
+> +{
+> +	unsigned long start;
+> +	int units = size_to_units(size);
+> +	void *ptr;
+> +	int first;
+> +	unsigned long flags;
+> +
+> +	if (!size)
+> +		return ZERO_SIZE_PTR;
+> +
+> +	WARN_ON(align > PAGE_SIZE);
+> +
+> +	if (align < UNIT_SIZE)
+> +		align = UNIT_SIZE;
+> +
+> +	spin_lock_irqsave(&cpu_alloc_map_lock, flags);
+> +
+> +	first = 1;
+> +	start = first_free;
+> +
+> +	for ( ; ; ) {
+> +
+> +		start = find_next_zero_bit(cpu_alloc_map, nr_units, start);
+> +		if (start >= nr_units)
+> +			goto out_of_memory;
+> +
+> +		if (first)
+> +			first_free = start;
+> +
+> +		/*
+> +		 * Check alignment and that there is enough space after
+> +		 * the starting unit.
+> +		 */
+> +		if (start % (align / UNIT_SIZE) == 0 &&
+> +			find_next_bit(cpu_alloc_map, nr_units, start + 1)
+> +					>= start + units)
+> +				break;
+> +		start++;
+> +		first = 0;
+> +	}
+
+Might be able to use bitmap_find_free_region() here, if we try hard enough.
+
+But as a general thing, it would be better to add any missing
+functionality to the bitmap API and then to use the bitmap API
+consistently, rather than partly using it, or ignoring it altogether.
+
+> +	if (first)
+> +		first_free = start + units;
+> +
+> +	if (start + units > nr_units)
+> +		goto out_of_memory;
+> +
+> +	set_map(start, units);
+> +	__count_vm_events(CPU_BYTES, units * UNIT_SIZE);
+> +
+> +	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
+> +
+> +	ptr = (int *)__per_cpu_end + start;
+> +
+> +	if (gfpflags & __GFP_ZERO) {
+> +		int cpu;
+> +
+> +		for_each_possible_cpu(cpu)
+> +			memset(CPU_PTR(ptr, cpu), 0, size);
+> +	}
+> +
+> +	return ptr;
+> +
+> +out_of_memory:
+> +	spin_unlock_irqrestore(&cpu_alloc_map_lock, flags);
+> +	return NULL;
+> +}
+> +EXPORT_SYMBOL(cpu_alloc);
+> +
+
+Apart from that the interface, intent and implementation seem reasonable.
+
+But I'd have though that it would be possible to only allocate the
+storage for online CPUs.  That would be a pretty significant win for
+some system configurations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
