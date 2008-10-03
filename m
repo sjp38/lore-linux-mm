@@ -1,37 +1,47 @@
-Message-ID: <48E62906.3030506@linux-foundation.org>
-Date: Fri, 03 Oct 2008 09:15:34 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [patch 3/4] cpu alloc: The allocator
-References: <20080929193500.470295078@quilx.com>	<20080929193516.278278446@quilx.com>	<20081003003342.4d592c1f.akpm@linux-foundation.org>	<1223019811.30285.12.camel@penberg-laptop> <20081003012003.f1f84937.akpm@linux-foundation.org>
-In-Reply-To: <20081003012003.f1f84937.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+From: kamezawa.hiroyu@jp.fujitsu.com
+Message-ID: <2964081.1223046917168.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Sat, 4 Oct 2008 00:15:17 +0900 (JST)
+Subject: Re: Re: [PATCH 3/6] memcg: charge-commit-cancel protocl
+In-Reply-To: <20081003190509.e33a3843.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
+References: <20081003190509.e33a3843.nishimura@mxp.nes.nec.co.jp>
+ <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081001165734.e484cfe4.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+----- Original Message -----
+>> precharge/commit/cancel can be used for other places,
+>>  - shmem, (and other places need precharge.)
+>>  - move_account(force_empty) etc...
+>> we'll revisit later.
+>> 
+>> Changelog v5 -> v6:
+>>  - added newpage_charge() and migrate_fixup().
+>>  - renamed  functions for swap-in from "swap" to "swapin"
+>>  - add more precise description.
+>> 
 >
-> umm, yeah, the whole bitmap interface is busted from that POV.
+>I don't have any objection to this direction now, but I have one quiestion.
+>
+>Does mem_cgroup_charge_migrate_fixup need to charge a newpage,
+>while mem_cgroup_prepare_migration has charged it already?
+In migration-is-failed case, we have to charge *old page* here.
 
+>
+>I agree adding I/F would be good for future, but I think
+>mem_cgroup_charge_migration_fixup can be no-op function for now.
+>
+Hmm, handling failure case in explicit way may be better. Ok,
+I'll try some.
 
-Yup cannot find equivalent bitmap operations for cpu_alloc.
-
-Also the search operations already use find_next_zero_bit() and
-find_next_bit(). So this should be okay.
-
-We could define new bitops:
-
-bitmap_set_range(dst, start, end)
-bitmap_clear_range(dst, start, end)
-
-int find_zero_bits(dst, start, end, nr_of_zero_bits)
-
-but then there are additional alignment requirements that such a generic
-function would not be able to check for.
+Thanks,
+-Kame
 
 
 --
