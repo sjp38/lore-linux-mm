@@ -1,106 +1,105 @@
-Received: by ik-out-1112.google.com with SMTP id c21so1137079ika.6
-        for <linux-mm@kvack.org>; Fri, 03 Oct 2008 02:24:51 -0700 (PDT)
-Date: Fri, 3 Oct 2008 12:25:52 +0300
+Received: by ug-out-1314.google.com with SMTP id p35so1101430ugc.19
+        for <linux-mm@kvack.org>; Fri, 03 Oct 2008 02:32:34 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
-Message-ID: <20081003092550.GA8669@localhost.localdomain>
-References: <1223017469-5158-1-git-send-email-kirill@shutemov.name> <20081003080244.GC25408@elte.hu>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="X1bOJ3K7DJ5YkBrT"
-Content-Disposition: inline
+Subject: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
+Date: Fri,  3 Oct 2008 12:33:34 +0300
+Message-Id: <1223026414-9500-1-git-send-email-kirill@shutemov.name>
 In-Reply-To: <20081003080244.GC25408@elte.hu>
+References: <20081003080244.GC25408@elte.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>Thomas Gleixner <tglx@linutronix.de>Ingo Molnar <mingo@redhat.com>"H. Peter Anvin" <hpa@zytor.com>Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---X1bOJ3K7DJ5YkBrT
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+---
+ arch/x86/kernel/sys_x86_64.c |   16 ++++++++++++----
+ include/asm-x86/elf.h        |    4 +++-
+ include/asm-x86/processor.h  |    6 ++++--
+ 3 files changed, 19 insertions(+), 7 deletions(-)
 
-On Fri, Oct 03, 2008 at 10:02:44AM +0200, Ingo Molnar wrote:
->=20
-> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
->=20
-> > -	/* for MAP_32BIT mappings we force the legact mmap base */
-> > -	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT))
-> > +	/* for MAP_32BIT mappings and ADDR_LIMIT_32BIT personality we force t=
-he
-> > +	 * legact mmap base
-> > +	 */
->=20
-> please use the customary multi-line comment style:
->=20
->   /*
->    * Comment .....
->    * ...... goes here:
->    */
->=20
-> and you might use the opportunity to fix the s/legact/legacy typo as=20
-> well.
-
-Ok, I'll fix it.
-
->=20
-> but more generally, we already have ADDR_LIMIT_3GB support on x86.
-
-Does ADDR_LIMIT_3GB really work?
-
-$ cat 1.c
-#include <stdio.h>
-#include <sys/personality.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-#define ADDR_LIMIT_3GB 0x8000000
-
-int main(void)
-{
-        int id;
-        void *shm;
-
-        personality(ADDR_LIMIT_3GB);
-
-        id =3D shmget(0x123456, 1, IPC_CREAT | 0600);
-        shm =3D shmat(id, NULL, 0);
-        printf("shm: %p\n", shm);
-        shmdt(shm);
-
-        return 0;
-}
-$ gcc -Wall 1.c
-$ sudo ./a.out=20
-shm: 0x7f4fca755000
-
-> Why=20
-> should support for ADDR_LIMIT_32BIT be added?
-
-It's useful for user mode qemu when you try emulate 32-bit target on=20
-x86_64. For example, if shmat(2) return addres above 32-bit, target will
-get SIGSEGV on access to it.
-
---=20
-Regards,  Kirill A. Shutemov
- + Belarus, Minsk
- + ALT Linux Team, http://www.altlinux.com/
-
---X1bOJ3K7DJ5YkBrT
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAkjl5R4ACgkQbWYnhzC5v6phHgCfUVMJE9tqR47xaAQXaw1z4W9R
-jZkAn1y1ty3SgfLEgaG+E0h2+SPUEdAZ
-=vsUG
------END PGP SIGNATURE-----
-
---X1bOJ3K7DJ5YkBrT--
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index 3b360ef..7f8672d 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -48,7 +48,9 @@ out:
+ static void find_start_end(unsigned long flags, unsigned long *begin,
+ 			   unsigned long *end)
+ {
+-	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT)) {
++	if (!test_thread_flag(TIF_IA32) &&
++	    ((flags & MAP_32BIT) ||
++	     (current->personality & ADDR_LIMIT_32BIT))) {
+ 		unsigned long new_begin;
+ 		/* This is usually used needed to map code in small
+ 		   model, so it needs to be in the first 31bit. Limit
+@@ -94,7 +96,8 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 		    (!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
+-	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32))
++	if (((flags & MAP_32BIT) || test_thread_flag(TIF_IA32) ||
++	     (current->personality & ADDR_LIMIT_32BIT))
+ 	    && len <= mm->cached_hole_size) {
+ 	        mm->cached_hole_size = 0;
+ 		mm->free_area_cache = begin;
+@@ -150,8 +153,13 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	if (flags & MAP_FIXED)
+ 		return addr;
+ 
+-	/* for MAP_32BIT mappings we force the legact mmap base */
+-	if (!test_thread_flag(TIF_IA32) && (flags & MAP_32BIT))
++	/*
++	 * for MAP_32BIT mappings and ADDR_LIMIT_32BIT personality we force the
++	 * legacy mmap base
++	 */
++	if (!test_thread_flag(TIF_IA32) &&
++	    ((flags & MAP_32BIT) ||
++	     (current->personality & ADDR_LIMIT_32BIT)))
+ 		goto bottomup;
+ 
+ 	/* requesting a specific address */
+diff --git a/include/asm-x86/elf.h b/include/asm-x86/elf.h
+index 7be4733..fa39e10 100644
+--- a/include/asm-x86/elf.h
++++ b/include/asm-x86/elf.h
+@@ -298,7 +298,9 @@ do {									\
+ #define VDSO_HIGH_BASE		0xffffe000U /* CONFIG_COMPAT_VDSO address */
+ 
+ /* 1GB for 64bit, 8MB for 32bit */
+-#define STACK_RND_MASK (test_thread_flag(TIF_IA32) ? 0x7ff : 0x3fffff)
++#define STACK_RND_MASK ((test_thread_flag(TIF_IA32) || \
++			 current->personality & ADDR_LIMIT_32BIT ) ? \
++			0x7ff : 0x3fffff)
+ 
+ #define ARCH_DLINFO							\
+ do {									\
+diff --git a/include/asm-x86/processor.h b/include/asm-x86/processor.h
+index 4df3e2f..6d7f2f9 100644
+--- a/include/asm-x86/processor.h
++++ b/include/asm-x86/processor.h
+@@ -904,7 +904,8 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
+ #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_IA32)) ? \
+ 					IA32_PAGE_OFFSET : TASK_SIZE64)
+ 
+-#define STACK_TOP		TASK_SIZE
++#define STACK_TOP		(current->personality & ADDR_LIMIT_32BIT ? \
++					 0x80000000 : TASK_SIZE)
+ #define STACK_TOP_MAX		TASK_SIZE64
+ 
+ #define INIT_THREAD  { \
+@@ -932,7 +933,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
+  * This decides where the kernel will search for a free chunk of vm
+  * space during mmap's.
+  */
+-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
++#define TASK_UNMAPPED_BASE	(current->personality & ADDR_LIMIT_32BIT ? \
++					0x40000000 : PAGE_ALIGN(TASK_SIZE / 3))
+ 
+ #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
+ 
+-- 
+1.5.6.5.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
