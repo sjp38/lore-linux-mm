@@ -1,44 +1,70 @@
-Date: Thu, 2 Oct 2008 16:11:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm owner: fix race between swapoff and exit
-Message-Id: <20081002161159.735cbb85.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0809261344190.27666@blonde.site>
-References: <Pine.LNX.4.64.0809250117220.26422@blonde.site>
-	<48DCC068.30706@gmail.com>
-	<Pine.LNX.4.64.0809261344190.27666@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Fri, 03 Oct 2008 12:15:57 +0900
+From: Yasunori Goto <y-goto@jp.fujitsu.com>
+Subject: Re: 2.6.27-rc8 hot memory remove panic
+In-Reply-To: <1222985880.3419.20.camel@badari-desktop>
+References: <1222968181.3419.12.camel@badari-desktop> <1222985880.3419.20.camel@badari-desktop>
+Message-Id: <20081003115721.38C0.E1E9C6FF@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: jirislaby@gmail.com, torvalds@linux-foundation.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, kamezawa.hiroyuki@jp.fujitsu.com, lizf@cn.fujitsu.com, menage@google.com, linux-mm@kvack.org
+To: Badari Pulavarty <pbadari@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 Sep 2008 14:36:55 +0100 (BST)
-Hugh Dickins <hugh@veritas.com> wrote:
-
-> > BTW there is also mm->owner = NULL; movement in the patch to the line before
-> > the callbacks are invoked which I don't understand much (why to inform
-> > anybody about NULL->NULL change?), but the first hunk seems reasonable to me.
+> On Thu, 2008-10-02 at 10:23 -0700, Badari Pulavarty wrote:
+> > Hi,
+> > 
+> > Ran into this while testing hotplug memory remove on 2.6.27-rc8.
+> > Never saw this earlier.
+> > 
+> > Any ideas on whats happening.
+> > 
+> > put_page_bootmem():
+> >         BUG_ON(type >= -1);
 > 
-> You draw attention to the second hunk of
-> memrlimit-setup-the-memrlimit-controller-mm_owner-fix
-> (shown below).  It's just nonsense, isn't it, reverting the fix you
-> already made?  Perhaps it's not the patch Balbir and Zefan actually
-> submitted, but a mismerge of that with the fluctuating state of
-> all these accumulated fixes in the mm tree, and nobody properly
-> tested the issue in question on the resulting tree.
 > 
-> Or is the whole patch pointless, the first hunk just an attempt
-> to handle the nonsense of the second hunk?
+> It looks like we have undocumented dependency on CONFIG_NUMA=y to get
+> hotplug memory remove working.
 > 
-> I wish there were a lot more care and a lot less churn in this area.
+> register_page_bootmem_info_node() gets called only if 
+> CONFIG_NEED_MULTIPLE_NODES=y which gets selected only if CONFIG_NUMA=y.
 
-I really don't see those patches going anywhere and they are, to some
-extent, getting in the way of real work.
+Oops. My bad....
 
-I'm thinking lets-drop-them-all thoughts.
+I remember its dependency is removed from Kconfig some month ago.
+Then, register_page_bootmem_info_node() should be called when CONFIG_NUMA
+is off.
+Is this patch enough?
+
+---
+
+register_page_bootmem_info_node() should be called for memory hot-remove
+even when CONFIG_NUMA is off.
+
+Signed-off-by: Yasunori Goto <y-goto@jp.fujitsu.com>
+
+---
+ mm/bootmem.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+Index: current/mm/bootmem.c
+===================================================================
+--- current.orig/mm/bootmem.c	2008-10-03 09:58:58.000000000 +0900
++++ current/mm/bootmem.c	2008-10-03 11:57:21.000000000 +0900
+@@ -222,6 +222,7 @@ unsigned long __init free_all_bootmem_no
+  */
+ unsigned long __init free_all_bootmem(void)
+ {
++	register_page_bootmem_info_node(NODE_DATA(0));
+ 	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+ }
+ 
+
+-- 
+Yasunori Goto 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
