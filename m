@@ -1,46 +1,43 @@
-Date: Sun, 5 Oct 2008 03:28:34 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH next 3/3] slub defrag: slabinfo help trivia
-In-Reply-To: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
-Message-ID: <Pine.LNX.4.64.0810050327110.22004@blonde.site>
-References: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
+Received: by rv-out-0708.google.com with SMTP id f25so1926456rvb.26
+        for <linux-mm@kvack.org>; Sat, 04 Oct 2008 22:48:39 -0700 (PDT)
+Message-ID: <2f11576a0810042248v209cae42m3ed280f0489b8a0@mail.gmail.com>
+Date: Sun, 5 Oct 2008 14:48:39 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC PATCH] Report the shmid backing a VMA in maps
+In-Reply-To: <20081004215228.GA20048@x200.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1223052415-18956-1-git-send-email-mel@csn.ul.ie>
+	 <1223052415-18956-3-git-send-email-mel@csn.ul.ie>
+	 <20081004205650.CE47.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081004215228.GA20048@x200.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Adam Litke <agl@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Fix typo on --display-defrag line of slabinfo's help message;
-fix misaligning tabs to spaces on two other lines of that message.
+2008/10/5 Alexey Dobriyan <adobriyan@gmail.com>:
+> On Sat, Oct 04, 2008 at 09:04:03PM +0900, KOSAKI Motohiro wrote:
+>> In the other hand, huge page is often used via ipc shm, not mmap.
+>> So, administrator often want to know relationship of memory region and shmid.
+>>
+>> Then, To add shmid attribute in /proc/{pid}/maps is useful.
+>>
+>>
+>> In addition, shmid information is not only useful for huge page, but also for normal shm.
+>> Then, this patch works well on normal shm.
+>
+>> 2000000000500000-2000000000900000 rw-s 00000000 00:09 0                  /SYSV00000000 (deleted) (shmid=0)
+>> 2000000000900000-2000000000d00000 rw-s 00000000 00:09 32769              /SYSV00000000 (deleted) (shmid=32769)
+>                                                        ^^^^^                                             ^^^^^
+>
+> shmid is already in place, and no, it's not a coincidence ;-)
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
----
-
- Documentation/vm/slabinfo.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
---- 2.6.27-rc7-mmotm/Documentation/vm/slabinfo.c	2008-09-26 13:18:44.000000000 +0100
-+++ linux/Documentation/vm/slabinfo.c	2008-10-04 19:47:40.000000000 +0100
-@@ -117,14 +117,14 @@ void usage(void)
- 		"-e|--empty             Show empty slabs\n"
- 		"-f|--first-alias       Show first alias\n"
- 		"-F|--defrag            Show defragmentable caches\n"
--		"-G:--display-defrag    Display defrag counters\n"
-+		"-G|--display-defrag    Display defrag counters\n"
- 		"-h|--help              Show usage information\n"
- 		"-i|--inverted          Inverted list\n"
- 		"-l|--slabs             Show slabs\n"
- 		"-n|--numa              Show NUMA information\n"
--		"-o|--ops		Show kmem_cache_ops\n"
-+		"-o|--ops               Show kmem_cache_ops\n"
- 		"-s|--shrink            Shrink slabs\n"
--		"-r|--report		Detailed report on single slabs\n"
-+		"-r|--report            Detailed report on single slabs\n"
- 		"-S|--Size              Sort by size\n"
- 		"-t|--tracking          Show alloc/free information\n"
- 		"-T|--Totals            Show summary information\n"
+Oops, Thanks very good information.
+I'll drop this patch :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
