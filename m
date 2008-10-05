@@ -1,91 +1,84 @@
-Received: by ug-out-1314.google.com with SMTP id p35so1336070ugc.19
-        for <linux-mm@kvack.org>; Sat, 04 Oct 2008 15:11:03 -0700 (PDT)
-Date: Sun, 5 Oct 2008 02:13:39 +0400
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: [PATCH 2/2] Report the pagesize backing a VMA in /proc/pid/maps
-Message-ID: <20081004221339.GA20175@x200.localdomain>
-References: <1223052415-18956-1-git-send-email-mel@csn.ul.ie> <1223052415-18956-3-git-send-email-mel@csn.ul.ie>
+Date: Sun, 5 Oct 2008 03:25:28 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH next 1/3] slub defrag: unpin writeback pages
+Message-ID: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1223052415-18956-3-git-send-email-mel@csn.ul.ie>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 03, 2008 at 05:46:55PM +0100, Mel Gorman wrote:
-> This patch adds a new field for hugepage-backed memory regions to show the
-> pagesize in /proc/pid/maps.  While the information is available in smaps,
-> maps is more human-readable and does not incur the cost of calculating Pss. An
-> example of a /proc/self/maps output for an application using hugepages with
-> this patch applied is;
-> 
-> 08048000-0804c000 r-xp 00000000 03:01 49135      /bin/cat
-> 0804c000-0804d000 rw-p 00003000 03:01 49135      /bin/cat
-> 08400000-08800000 rw-p 00000000 00:10 4055       /mnt/libhugetlbfs.tmp.QzPPTJ (deleted) (hpagesize=4096kB)
+A repetitive swapping load on powerpc G5 went progressively slower after
+nine hours: Inactive(file) was rising, as if inactive file pages pinned.
+Yes, slub defrag's kick_buffers() was forgetting to put_page() whenever
+it met a page already under writeback.
 
-> To be predictable for parsers, the patch adds the notion of reporting on VMA
-> attributes by appending one or more fields that look like "(attribute)". This
-> already happens when a file is deleted and the user sees (deleted) after the
-> filename. The expectation is that existing parsers will not break as those
-> that read the filename should be reading forward after the inode number
-> and stopping when it sees something that is not part of the filename.
-> Parsers that assume everything after / is a filename will get confused by
-> (hpagesize=XkB) but are already broken due to (deleted).
+That PageWriteback test should be made while PageLocked in trigger_write(),
+just as it is in try_to_free_buffers() - if there are complex reasons why
+that's not actually necessary, I'd rather not have to think through them.
+A preliminary check before taking the lock?  No, it's not that important.
 
-Looks like procps will start showing hpagesize tag as a mapping name
-(apologies for pasting crappy code):
+And trigger_write() must remember to unlock_page() in each of the cases
+where it doesn't reach the writepage().
 
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+Andrew, I mentioned at KS that I'd just completed a slow -mm bisection,
+which had mysteriously converged on one of your patches: that was your
+vm-dont-run-touch_buffer-during-buffercache-lookups.patch
+In fact that turned out just to speed up the rate at which writebacks
+were pinning these pages: I've nothing against (nor for!) your patch.
 
+I'm wondering whether kick_buffers() ought to check PageLRU: I've no
+evidence it's needed, but coming to writepage() or try_to_free_buffers()
+from this direction (by virtue of having a buffer_head in a partial slab
+page) is new, and I worry it might cause some ordering problem; whereas
+if the page is PageLRU, then it is already fair game for such reclaim.
 
-static const char *mapping_name(proc_t *p, unsigned KLONG addr, unsigned KLONG len, const char *mapbuf, unsigned showpath, unsigned dev_major, unsigned dev_minor, unsigned long long inode){
-  const char *cp;
+ fs/buffer.c |   11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
 
-  if(!dev_major && dev_minor==shm_minor && strstr(mapbuf,"/SYSV")){
-    static char shmbuf[64];
-    snprintf(shmbuf, sizeof shmbuf, "  [ shmid=0x%Lx ]", inode);
-    return shmbuf;
-  }
-
-  cp = strrchr(mapbuf,'/');
-  if(cp){
-    if(showpath) return strchr(mapbuf,'/');
-    return cp[1] ? cp+1 : cp;
-  }
-
-  cp = strchr(mapbuf,'/');
-  if(cp){
-    if(showpath) return cp;
-    return strrchr(cp,'/') + 1;  // it WILL succeed
-  }
-
-  cp = "  [ anon ]";
-  if( (p->start_stack >= addr) && (p->start_stack <= addr+len) )  cp = "  [ stack ]";
-  return cp;
-}
-
-static int one_proc(proc_t *p){
-
-	...
-
-  while(fgets(mapbuf,sizeof mapbuf,stdin)){
-
-	...
-
-    if(x_option){
-      const char *cp = mapping_name(p, start, diff, mapbuf, 0, dev_major, dev_minor, inode);
-      printf(
-        (sizeof(KLONG)==8)
-          ? "%016"KLF"x %7lu       -       -       - %s  %s\n"
-          :      "%08lx %7lu       -       -       - %s  %s\n",
-        start,
-        (unsigned long)(diff>>10),
-        flags,
-        cp
-      );
-    }
+--- 2.6.27-rc7-mmotm/fs/buffer.c	2008-09-26 13:18:50.000000000 +0100
++++ linux/fs/buffer.c	2008-10-03 19:43:44.000000000 +0100
+@@ -3354,13 +3354,16 @@ static void trigger_write(struct page *p
+ 		.for_reclaim = 0
+ 	};
+ 
++	if (PageWriteback(page))
++		goto unlock;
++
+ 	if (!mapping->a_ops->writepage)
+ 		/* No write method for the address space */
+-		return;
++		goto unlock;
+ 
+ 	if (!clear_page_dirty_for_io(page))
+ 		/* Someone else already triggered a write */
+-		return;
++		goto unlock;
+ 
+ 	rc = mapping->a_ops->writepage(page, &wbc);
+ 	if (rc < 0)
+@@ -3368,7 +3371,7 @@ static void trigger_write(struct page *p
+ 		return;
+ 
+ 	if (rc == AOP_WRITEPAGE_ACTIVATE)
+-		unlock_page(page);
++unlock:		unlock_page(page);
+ }
+ 
+ /*
+@@ -3420,7 +3423,7 @@ static void kick_buffers(struct kmem_cac
+ 	for (i = 0; i < nr; i++) {
+ 		page = v[i];
+ 
+-		if (!page || PageWriteback(page))
++		if (!page)
+ 			continue;
+ 
+ 		if (trylock_page(page)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
