@@ -1,7 +1,9 @@
-Date: Sun, 5 Oct 2008 03:25:28 +0100 (BST)
+Date: Sun, 5 Oct 2008 03:27:00 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH next 1/3] slub defrag: unpin writeback pages
-Message-ID: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
+Subject: [PATCH next 2/3] slub defrag: dma_kmalloc_cache add_tail
+In-Reply-To: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
+Message-ID: <Pine.LNX.4.64.0810050325440.22004@blonde.site>
+References: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,75 +12,33 @@ To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A repetitive swapping load on powerpc G5 went progressively slower after
-nine hours: Inactive(file) was rising, as if inactive file pages pinned.
-Yes, slub defrag's kick_buffers() was forgetting to put_page() whenever
-it met a page already under writeback.
+Why did that slowdown from mispinned pages manifest only on the G5?
 
-That PageWriteback test should be made while PageLocked in trigger_write(),
-just as it is in try_to_free_buffers() - if there are complex reasons why
-that's not actually necessary, I'd rather not have to think through them.
-A preliminary check before taking the lock?  No, it's not that important.
+Because something in my x86_32 and x86_64 configs (CONFIG_BLK_DEV_SR
+I believe) is giving me a kmalloc_dma-512 cache, and dma_kmalloc_cache()
+had not been updated to satisfy the assumption in kmem_cache_defrag(),
+that defragmentable caches come first in the list.
 
-And trigger_write() must remember to unlock_page() in each of the cases
-where it doesn't reach the writepage().
+So, any DMAable cache was preventing all slub defragmentation: which
+looks like it's not been getting the testing exposure it deserves.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
-Andrew, I mentioned at KS that I'd just completed a slow -mm bisection,
-which had mysteriously converged on one of your patches: that was your
-vm-dont-run-touch_buffer-during-buffercache-lookups.patch
-In fact that turned out just to speed up the rate at which writebacks
-were pinning these pages: I've nothing against (nor for!) your patch.
 
-I'm wondering whether kick_buffers() ought to check PageLRU: I've no
-evidence it's needed, but coming to writepage() or try_to_free_buffers()
-from this direction (by virtue of having a buffer_head in a partial slab
-page) is new, and I worry it might cause some ordering problem; whereas
-if the page is PageLRU, then it is already fair game for such reclaim.
+ mm/slub.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- fs/buffer.c |   11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
-
---- 2.6.27-rc7-mmotm/fs/buffer.c	2008-09-26 13:18:50.000000000 +0100
-+++ linux/fs/buffer.c	2008-10-03 19:43:44.000000000 +0100
-@@ -3354,13 +3354,16 @@ static void trigger_write(struct page *p
- 		.for_reclaim = 0
- 	};
+--- 2.6.27-rc7-mmotm/mm/slub.c	2008-09-26 13:18:53.000000000 +0100
++++ linux/mm/slub.c	2008-10-04 20:10:46.000000000 +0100
+@@ -2636,7 +2636,7 @@ static noinline struct kmem_cache *dma_k
+ 		goto unlock_out;
+ 	}
  
-+	if (PageWriteback(page))
-+		goto unlock;
-+
- 	if (!mapping->a_ops->writepage)
- 		/* No write method for the address space */
--		return;
-+		goto unlock;
+-	list_add(&s->list, &slab_caches);
++	list_add_tail(&s->list, &slab_caches);
+ 	kmalloc_caches_dma[index] = s;
  
- 	if (!clear_page_dirty_for_io(page))
- 		/* Someone else already triggered a write */
--		return;
-+		goto unlock;
- 
- 	rc = mapping->a_ops->writepage(page, &wbc);
- 	if (rc < 0)
-@@ -3368,7 +3371,7 @@ static void trigger_write(struct page *p
- 		return;
- 
- 	if (rc == AOP_WRITEPAGE_ACTIVATE)
--		unlock_page(page);
-+unlock:		unlock_page(page);
- }
- 
- /*
-@@ -3420,7 +3423,7 @@ static void kick_buffers(struct kmem_cac
- 	for (i = 0; i < nr; i++) {
- 		page = v[i];
- 
--		if (!page || PageWriteback(page))
-+		if (!page)
- 			continue;
- 
- 		if (trylock_page(page)) {
+ 	schedule_work(&sysfs_add_work);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
