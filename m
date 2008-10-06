@@ -1,58 +1,66 @@
-Message-ID: <48E9AA6E.3080608@suse.de>
-Date: Mon, 06 Oct 2008 11:34:30 +0530
-From: Suresh Jayaraman <sjayaraman@suse.de>
+Subject: Re: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
+From: Andi Kleen <andi@firstfloor.org>
+References: <1223017469-5158-1-git-send-email-kirill@shutemov.name>
+	<20081003080244.GC25408@elte.hu>
+	<20081003092550.GA8669@localhost.localdomain>
+Date: Mon, 06 Oct 2008 08:13:19 +0200
+In-Reply-To: <20081003092550.GA8669@localhost.localdomain> (Kirill A. Shutemov's message of "Fri, 3 Oct 2008 12:25:52 +0300")
+Message-ID: <87abdintds.fsf@basil.nowhere.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/32] Swap over NFS - v19
-References: <20081002130504.927878499@chello.nl>
-In-Reply-To: <20081002130504.927878499@chello.nl>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> Patches are against: v2.6.27-rc5-mm1
-> 
-> This release features more comments and (hopefully) better Changelogs.
-> Also the netns stuff got sorted and ipv6 will now build 
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+>
+>> 
+>> but more generally, we already have ADDR_LIMIT_3GB support on x86.
+>
+> Does ADDR_LIMIT_3GB really work?
 
-Except for this one I think ;-)
+As Arjan pointed out it only takes effect on exec()
 
-net/netfilter/core.c: In function a??nf_hook_slowa??:
-net/netfilter/core.c:191: error: a??pskba?? undeclared (first use in this
-function)
+andi@basil:~/tsrc> cat tstack2.c
+#include <stdio.h>
+int main(void)
+{
+        void *p = &p;
+        printf("%p\n", &p);
+        return 0;
+}
+andi@basil:~/tsrc> gcc -m32 tstack2.c  -o tstack2
+andi@basil:~/tsrc> ./tstack2 
+0xff807d70
+andi@basil:~/tsrc> linux32 --3gb ./tstack2 
+0xbfae2840
 
-> and not oops on boot ;-)
+>> Why 
+>> should support for ADDR_LIMIT_32BIT be added?
+>
+> It's useful for user mode qemu when you try emulate 32-bit target on 
+> x86_64. For example, if shmat(2) return addres above 32-bit, target will
+> get SIGSEGV on access to it.
 
-The culprit is emergency-nf_queue.patch. The following change fixes the
-build error for me.
+The traditional way in mmap() to handle this is to give it a search
+hint < 4GB and then free the memory again/fail if the result was >4GB.
 
-Index: linux-2.6.26/net/netfilter/core.c
-===================================================================
---- linux-2.6.26.orig/net/netfilter/core.c
-+++ linux-2.6.26/net/netfilter/core.c
-@@ -184,9 +184,12 @@ next_hook:
-                ret = 1;
-                goto unlock;
-        } else if (verdict == NF_DROP) {
-+drop:
-                kfree_skb(skb);
-                ret = -EPERM;
-        } else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-+               if (skb_emergency(skb))
-+                       goto drop;
-                if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-                              verdict >> NF_VERDICT_BITS))
-                        goto next_hook;
+Unfortunately that doesn't work for shmat() because the address argument
+is not a search hint, but a fixed address. 
 
+I presume you need this for the qemu syscall emulation. For a standard
+application I would just recommend to use mmap with tmpfs instead
+(sysv shm is kind of obsolete). For shmat() emulation the cleanest way
+would be probably to add a new flag to shmat() that says that address
+is a search hint, not a fixed address. Then implement it the way recommended
+above.
 
-Thanks,
+-Andi
 
 -- 
-Suresh Jayaraman
+ak@linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
