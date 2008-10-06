@@ -1,35 +1,65 @@
-Date: Mon, 6 Oct 2008 15:26:51 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] x86_64: Implement personality ADDR_LIMIT_32BIT
-Message-ID: <20081006132651.GG3180@one.firstfloor.org>
-References: <1223017469-5158-1-git-send-email-kirill@shutemov.name> <20081003080244.GC25408@elte.hu> <20081003092550.GA8669@localhost.localdomain> <87abdintds.fsf@basil.nowhere.org> <20081006081717.GA20072@localhost.localdomain> <20081006084246.GC3180@one.firstfloor.org> <20081006091709.GB20852@localhost.localdomain> <20081006095628.GE3180@one.firstfloor.org> <20081006101221.GA21183@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081006101221.GA21183@localhost.localdomain>
+Received: by nf-out-0910.google.com with SMTP id c10so1339393nfd.6
+        for <linux-mm@kvack.org>; Mon, 06 Oct 2008 07:36:53 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: [PATCH, RFC] shmat: introduce flag SHM_MAP_HINT
+Date: Mon,  6 Oct 2008 17:37:59 +0300
+Message-Id: <1223303879-5555-1-git-send-email-kirill@shutemov.name>
+In-Reply-To: <20081006132651.GG3180@one.firstfloor.org>
+References: <20081006132651.GG3180@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Linux interfaces are not supposed to be "interfaces for qemu" but generally
-> > applicable interfaces.
-> 
-> I know. What about adding both personality() and flag for shmat()? I can
-> prepare patch that implement flag for shmat().
+It allows interpret attach address as a hint, not as exact address.
 
-It would be better to just fix all calls in qemu than
-to add a new personality. There aren't that many anyways.
+Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Arjan van de Ven <arjan@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ include/linux/shm.h |    1 +
+ ipc/shm.c           |    4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
-personality is really more a kludge for bug-to-bug compatibility
-with old binaries (that is where the 3GB personality came from
-to work around bugs in some old JVMs that could not deal with a full 4GB
-address space), it shouldn't be really used for anything new. 
-
--Andi
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index eca6235..2a637b8 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -55,6 +55,7 @@ struct shmid_ds {
+ #define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
+ #define	SHM_REMAP	040000	/* take-over region on attach */
+ #define	SHM_EXEC	0100000	/* execution access */
++#define	SHM_MAP_HINT	0200000	/* interpret attach address as a hint */
+ 
+ /* super user shmctl commands */
+ #define SHM_LOCK 	11
+diff --git a/ipc/shm.c b/ipc/shm.c
+index e77ec69..19462bb 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -819,7 +819,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
+ 	if (shmid < 0)
+ 		goto out;
+ 	else if ((addr = (ulong)shmaddr)) {
+-		if (addr & (SHMLBA-1)) {
++		if (!(shmflg & SHM_MAP_HINT) && (addr & (SHMLBA-1))) {
+ 			if (shmflg & SHM_RND)
+ 				addr &= ~(SHMLBA-1);	   /* round down */
+ 			else
+@@ -828,7 +828,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
+ #endif
+ 					goto out;
+ 		}
+-		flags = MAP_SHARED | MAP_FIXED;
++		flags = (shmflg & SHM_MAP_HINT ? 0 : MAP_FIXED) | MAP_SHARED;
+ 	} else {
+ 		if ((shmflg & SHM_REMAP))
+ 			goto out;
 -- 
-ak@linux.intel.com
+1.5.6.5.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
