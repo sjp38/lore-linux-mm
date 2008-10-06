@@ -1,35 +1,58 @@
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [patch 3/4] cpu alloc: The allocator
-Date: Mon, 6 Oct 2008 07:10:43 +1000
-References: <20080929193500.470295078@quilx.com> <20081003003342.4d592c1f.akpm@linux-foundation.org> <48E614A0.60209@linux-foundation.org>
-In-Reply-To: <48E614A0.60209@linux-foundation.org>
+Message-ID: <48E9AA6E.3080608@suse.de>
+Date: Mon, 06 Oct 2008 11:34:30 +0530
+From: Suresh Jayaraman <sjayaraman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200810060810.43511.rusty@rustcorp.com.au>
+Subject: Re: [PATCH 00/32] Swap over NFS - v19
+References: <20081002130504.927878499@chello.nl>
+In-Reply-To: <20081002130504.927878499@chello.nl>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 03 October 2008 22:48:32 Christoph Lameter wrote:
-> Andrew Morton wrote:
-> > But I'd have though that it would be possible to only allocate the
-> > storage for online CPUs.  That would be a pretty significant win for
-> > some system configurations?
->
-> We  have tried that but currently the kernel (core and in particular arch
-> code) keeps state for all possible cpus in percpu segments. Would require
-> more extensive cleanup of numerous arches to do.
+Peter Zijlstra wrote:
+> Patches are against: v2.6.27-rc5-mm1
+> 
+> This release features more comments and (hopefully) better Changelogs.
+> Also the netns stuff got sorted and ipv6 will now build 
 
-It shouldn't be a big win, since possible ~= online for most systems.  And 
-having all the per-cpu users register online and offline cpu callbacks is 
-error prone and a PITA.
+Except for this one I think ;-)
 
-Rusty.
+net/netfilter/core.c: In function a??nf_hook_slowa??:
+net/netfilter/core.c:191: error: a??pskba?? undeclared (first use in this
+function)
+
+> and not oops on boot ;-)
+
+The culprit is emergency-nf_queue.patch. The following change fixes the
+build error for me.
+
+Index: linux-2.6.26/net/netfilter/core.c
+===================================================================
+--- linux-2.6.26.orig/net/netfilter/core.c
++++ linux-2.6.26/net/netfilter/core.c
+@@ -184,9 +184,12 @@ next_hook:
+                ret = 1;
+                goto unlock;
+        } else if (verdict == NF_DROP) {
++drop:
+                kfree_skb(skb);
+                ret = -EPERM;
+        } else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
++               if (skb_emergency(skb))
++                       goto drop;
+                if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
+                              verdict >> NF_VERDICT_BITS))
+                        goto next_hook;
+
+
+Thanks,
+
+-- 
+Suresh Jayaraman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
