@@ -1,46 +1,58 @@
-Received: from rtp-core-2.cisco.com (rtp-core-2.cisco.com [64.102.124.13])
-	by rtp-dkim-2.cisco.com (8.12.11/8.12.11) with ESMTP id m96KFsAB027071
-	for <linux-mm@kvack.org>; Mon, 6 Oct 2008 16:15:54 -0400
-Received: from sausatlsmtp1.sciatl.com (sausatlsmtp1.cisco.com [192.133.217.33])
-	by rtp-core-2.cisco.com (8.13.8/8.13.8) with ESMTP id m96KFrbN020511
-	for <linux-mm@kvack.org>; Mon, 6 Oct 2008 20:15:53 GMT
-Message-ID: <48EA71F5.1040200@sciatl.com>
-Date: Mon, 06 Oct 2008 13:15:49 -0700
-From: C Michael Sundius <Michael.sundius@sciatl.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m96KmMM4009170
+	for <linux-mm@kvack.org>; Mon, 6 Oct 2008 16:48:22 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m96KmMAK233432
+	for <linux-mm@kvack.org>; Mon, 6 Oct 2008 16:48:22 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m96KmCcK018240
+	for <linux-mm@kvack.org>; Mon, 6 Oct 2008 16:48:12 -0400
+Message-ID: <48EA79AC.8090705@linux.vnet.ibm.com>
+Date: Mon, 06 Oct 2008 15:48:44 -0500
+From: Jon Tollefson <kniht@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Have ever checked in your mips sparsemem code into mips-linux
- tree?
-Content-Type: multipart/mixed;
- boundary="------------060208040407070002090605"
+Subject: Re: [PATCH] properly reserve in bootmem the lmb reserved regions
+ that cross numa nodes
+References: <48E23D6C.4030406@linux.vnet.ibm.com> <1222789675.13978.14.camel@localhost.localdomain> <7E5B6DFB-F9DE-4929-8A4F-8011BF817017@kernel.crashing.org> <48EA31D5.70609@linux.vnet.ibm.com> <1DA7FAFA-0708-4CFC-B721-B09A29F45B3F@kernel.crashing.org>
+In-Reply-To: <1DA7FAFA-0708-4CFC-B721-B09A29F45B3F@kernel.crashing.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andy Whitcroft <apw@shadowen.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-mips@linux-mips.org, "VomLehn, David" <dvomlehn@cisco.com>, me94043@yahoo.com
+To: Kumar Gala <galak@kernel.crashing.org>
+Cc: Adam Litke <agl@us.ibm.com>, linuxppc-dev <linuxppc-dev@ozlabs.org>, Adam Litke <agl@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------060208040407070002090605
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Kumar Gala wrote:
+>
+> On Oct 6, 2008, at 10:42 AM, Jon Tollefson wrote:
+>
+>> Kumar Gala wrote:
+>>> Out of interest how to do you guys represent NUMA regions of memory in
+>>> the device tree?
+>>>
+>>> - k
+>> Looking at the source code in numa.c I see at the start of
+>> do_init_bootmem() that parse_numa_properties() is called.  It appears to
+>> be looking at memory nodes and getting the node id from it.  It gets an
+>> associativity property for the memory node and indexes that array with a
+>> 'min_common_depth' value to get the node id.
+>>
+>> This node id is then used to setup the active ranges in the
+>> early_node_map[].
+>>
+>> Is this what you are asking about?  There are others I am sure who know
+>> more about it then I though.
+>
+> I was wondering if this was documented anywhere (like in sPAPR)?
+>
+> - k
+I see some information on it in section "C.6.6".
 
-adding patch 2  containing Documentation:
+Jon
 
-
-
-
-     - - - - -                              Cisco                            - - - - -         
-This e-mail and any attachments may contain information which is confidential, 
-proprietary, privileged or otherwise protected by law. The information is solely 
-intended for the named addressee (or a person responsible for delivering it to 
-the addressee). If you are not the intended recipient of this message, you are 
-not authorized to read, print, retain, copy or disseminate this message or any 
-part of it. If you have received this e-mail in error, please notify the sender 
-immediately by return e-mail and delete it from your computer.
---------------060208040407070002090605
-Content-Type: text/x-patch;
- name="0002-mips-sparsemem-howto.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="0002-mips-sparsemem-howto.patch"
-
-
---------------060208040407070002090605--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
