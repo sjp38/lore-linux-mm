@@ -1,78 +1,56 @@
-Received: by ey-out-1920.google.com with SMTP id 21so1294138eyc.44
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 04:23:14 -0700 (PDT)
-Date: Tue, 7 Oct 2008 14:24:19 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m97BQ5Ru017774
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 7 Oct 2008 20:26:05 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CB82E2AC02B
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2008 20:26:04 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D3B712C045
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2008 20:26:04 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BCE01DB803F
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2008 20:26:04 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EC531DB8038
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2008 20:26:04 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH, RFC] shmat: introduce flag SHM_MAP_HINT
-Message-ID: <20081007112418.GC5126@localhost.localdomain>
-References: <20081006132651.GG3180@one.firstfloor.org> <1223303879-5555-1-git-send-email-kirill@shutemov.name> <20081007195837.5A6B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081007112119.GG20740@one.firstfloor.org>
+References: <20081007195837.5A6B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081007112119.GG20740@one.firstfloor.org>
+Message-Id: <20081007202127.5A74.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="B4IIlcmfBL/1gGOG"
-Content-Disposition: inline
-In-Reply-To: <20081007195837.5A6B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  7 Oct 2008 20:26:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---B4IIlcmfBL/1gGOG
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> > Honestly, I don't like that qemu specific feature insert into shmem core.
+> 
+> I wouldn't say it's a qemu specific interface.  While qemu would 
+> be the first user I would expect more in the future. It's a pretty
+> obvious extension. In fact it nearly should be default, if the
+> risk of breaking old applications wasn't too high.
 
-On Tue, Oct 07, 2008 at 08:08:19PM +0900, KOSAKI Motohiro wrote:
-> > It allows interpret attach address as a hint, not as exact address.
-> >=20
-> > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
-> > Cc: Andi Kleen <andi@firstfloor.org>
-> > Cc: Ingo Molnar <mingo@redhat.com>
-> > Cc: Arjan van de Ven <arjan@infradead.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > ---
-> >  include/linux/shm.h |    1 +
-> >  ipc/shm.c           |    4 ++--
-> >  2 files changed, 3 insertions(+), 2 deletions(-)
-> >=20
-> > diff --git a/include/linux/shm.h b/include/linux/shm.h
-> > index eca6235..2a637b8 100644
-> > --- a/include/linux/shm.h
-> > +++ b/include/linux/shm.h
-> > @@ -55,6 +55,7 @@ struct shmid_ds {
-> >  #define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
-> >  #define	SHM_REMAP	040000	/* take-over region on attach */
-> >  #define	SHM_EXEC	0100000	/* execution access */
-> > +#define	SHM_MAP_HINT	0200000	/* interpret attach address as a hint */
->=20
-> hmm..
-> Honestly, I don't like that qemu specific feature insert into shmem core.
-> At least, this patch is too few comments.
-> Therefore, an develpper can't understand why SHM_MAP_HINT exist.
->=20
-> I think this patch description is too short and too poor.
-> I don't like increasing mysterious interface.
+hm, ok, i understand your intension.
+however, I think following code isn't self describing.
 
-Sorry for it. I'll fix it in next patch version.
+	addr = shmat(shmid, addr, SHM_MAP_HINT);
 
---=20
-Regards,  Kirill A. Shutemov
- + Belarus, Minsk
- + ALT Linux Team, http://www.altlinux.com/
+because HINT is too generic word.
+I think we should find better word.
 
---B4IIlcmfBL/1gGOG
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
+SHM_MAP_NO_FIXED ?
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
 
-iEYEARECAAYFAkjrRuIACgkQbWYnhzC5v6qZ1QCgkS8pVZ30bgW169woJ1ah74bV
-DCgAoIw/oVmYpqCFChklzZIs7q79GPAy
-=YCjq
------END PGP SIGNATURE-----
+In addision, I still think current patch has too poor description and too 
+few comments.
 
---B4IIlcmfBL/1gGOG--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
