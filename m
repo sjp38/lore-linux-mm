@@ -1,45 +1,40 @@
-Date: Tue, 7 Oct 2008 10:20:30 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH, RFC, v2] shmat: introduce flag SHM_MAP_HINT
-Message-ID: <20081007082030.GD20740@one.firstfloor.org>
-References: <20081006192923.GJ3180@one.firstfloor.org> <1223362670-5187-1-git-send-email-kirill@shutemov.name>
+Date: Tue, 7 Oct 2008 19:01:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] memcg: update patch set v7
+Message-Id: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1223362670-5187-1-git-send-email-kirill@shutemov.name>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 07, 2008 at 09:57:50AM +0300, Kirill A. Shutemov wrote:
-> It allows interpret attach address as a hint, not as exact address.
+Hi, Andrew. please allow me to test under -mm if ok.
 
-Please expand the description a bit. Rationale. etc.
+This series is against the newest -mmotm(stamp-2008-10-02-16-17)
+and I think ready-to-go.
 
-> @@ -55,6 +55,7 @@ struct shmid_ds {
->  #define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
->  #define	SHM_REMAP	040000	/* take-over region on attach */
->  #define	SHM_EXEC	0100000	/* execution access */
-> +#define	SHM_MAP_HINT	0200000	/* interpret attach address as a hint */
+All comments are reflected.
+(and CONFIG_CGROUP_MEM_RES_CTLR=n case is fixed.)
 
-search hint
+Including following patches.
 
-> @@ -892,7 +892,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
->  	sfd->vm_ops = NULL;
->  
->  	down_write(&current->mm->mmap_sem);
-> -	if (addr && !(shmflg & SHM_REMAP)) {
-> +	if (addr && !(shmflg & (SHM_REMAP|SHM_MAP_HINT))) {
+[1/6] ... account swap cache under lock
+[2/6] ... set page->mapping to be NULL before uncharge
+[3/6] ... avoid to account not-on-LRU pages.
+[4/6] ... optimize per cpu statistics on memcg.
+[5/6] ... make page_cgroup->flags atomic.
+[6/6] ... allocate page_cgroup at boot.
 
-I think you were right earlier that it can be just deleted, so why don't
-you just do that?
+I did tests I can. But I think patch 6/6 needs wider testers.
+It has some dependency to configs/archs.
 
--Andi
+(*) the newest mmotm needs some patches to be driven.
 
--- 
-ak@linux.intel.com
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
