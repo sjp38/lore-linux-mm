@@ -1,43 +1,42 @@
-Received: by nf-out-0910.google.com with SMTP id c10so1590680nfd.6
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 04:20:52 -0700 (PDT)
-Date: Tue, 7 Oct 2008 14:21:58 +0300
+Received: by ug-out-1314.google.com with SMTP id p35so177868ugc.19
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 04:22:17 -0700 (PDT)
+Date: Tue, 7 Oct 2008 14:23:23 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, RFC] shmat: introduce flag SHM_MAP_HINT
-Message-ID: <20081007112157.GA5126@localhost.localdomain>
-References: <20081006132651.GG3180@one.firstfloor.org> <1223303879-5555-1-git-send-email-kirill@shutemov.name> <20081007195837.5A6B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081007112119.GG20740@one.firstfloor.org>
+Subject: Re: [PATCH, RFC, v2] shmat: introduce flag SHM_MAP_HINT
+Message-ID: <20081007112322.GB5126@localhost.localdomain>
+References: <20081006192923.GJ3180@one.firstfloor.org> <1223362670-5187-1-git-send-email-kirill@shutemov.name> <20081007082030.GD20740@one.firstfloor.org> <20081007100854.GA5039@localhost.localdomain> <20081007112631.GH20740@one.firstfloor.org>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="zYM0uCDKw75PZbzx"
+	protocol="application/pgp-signature"; boundary="p4qYPpj5QlsIQJ0K"
 Content-Disposition: inline
-In-Reply-To: <20081007112119.GG20740@one.firstfloor.org>
+In-Reply-To: <20081007112631.GH20740@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
---zYM0uCDKw75PZbzx
+--p4qYPpj5QlsIQJ0K
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-On Tue, Oct 07, 2008 at 01:21:19PM +0200, Andi Kleen wrote:
-> > Honestly, I don't like that qemu specific feature insert into shmem cor=
-e.
+On Tue, Oct 07, 2008 at 01:26:31PM +0200, Andi Kleen wrote:
+> > I want say that we shouldn't do this check if shmaddr is a search hint.
+> > I'm not sure that check is unneeded if shmadd is the exact address.
 >=20
-> I wouldn't say it's a qemu specific interface.  While qemu would=20
-> be the first user I would expect more in the future. It's a pretty
-> obvious extension. In fact it nearly should be default, if the
-> risk of breaking old applications wasn't too high.
+> mmap should fail in this case because it does the same check for=20
+> MAP_FIXED. Obviously it cannot succeed when there is already something
+> else there.
 
-It's bad idea. It will break POSIX compatible.
+We can do it in separate patch, I think.
 
 --=20
 Regards,  Kirill A. Shutemov
  + Belarus, Minsk
  + ALT Linux Team, http://www.altlinux.com/
 
---zYM0uCDKw75PZbzx
+--p4qYPpj5QlsIQJ0K
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: Digital signature
 Content-Disposition: inline
@@ -45,12 +44,12 @@ Content-Disposition: inline
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.9 (GNU/Linux)
 
-iEYEARECAAYFAkjrRlUACgkQbWYnhzC5v6o9ZQCfdXw0/6+rOfTVNOdznzH0YGg6
-2j0An1LTSY9Db6LJchJe2avOxbzuFcSH
-=BigC
+iEYEARECAAYFAkjrRqoACgkQbWYnhzC5v6q8ggCfXxRCGEVKzNzwBmGkgyXivVPf
+8VIAn1GVBWH3QRPfIzEF3MIV5s1I1BOV
+=mdMV
 -----END PGP SIGNATURE-----
 
---zYM0uCDKw75PZbzx--
+--p4qYPpj5QlsIQJ0K--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
