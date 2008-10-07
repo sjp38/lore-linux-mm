@@ -1,41 +1,61 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm, for adaptive dcache hash table sizing (resend)
-Date: Wed, 8 Oct 2008 03:39:39 +1100
-References: <20081007064834.GA5959@wotan.suse.de> <20081007071827.GB5010@infradead.org> <18667.33351.854693.368568@harpo.it.uu.se>
-In-Reply-To: <18667.33351.854693.368568@harpo.it.uu.se>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [BUG] SLOB's krealloc() seems bust
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <1223395846.26330.55.camel@lappy.programming.kicks-ass.net>
+References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>
+	 <48EB6D2C.30806@linux-foundation.org>  <1223391655.13453.344.camel@calx>
+	 <1223395846.26330.55.camel@lappy.programming.kicks-ass.net>
+Content-Type: text/plain
+Date: Tue, 07 Oct 2008 11:37:35 -0500
+Message-Id: <1223397455.13453.385.camel@calx>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200810080339.40300.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mikael Pettersson <mikpe@it.uu.se>
-Cc: Christoph Hellwig <hch@infradead.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, netdev@vger.kernel.org, Paul McKenney <paulmck@us.ibm.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@linuxfoundation.org>, Pekka J Enberg <penberg@cs.helsinki.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 08 October 2008 02:37, Mikael Pettersson wrote:
+On Tue, 2008-10-07 at 18:10 +0200, Peter Zijlstra wrote:
+> On Tue, 2008-10-07 at 10:00 -0500, Matt Mackall wrote:
+> > Give this a try, please:
+...
+> That seems to make it work again! (4 reboots, 0 crashes)
 
-> I missed the first post, but loooking at the patch it seems
-> somewhat complex.
-
-It is complex, but relatively self-contained, ie. it doesn't affect
-the actual code that performs hash lookups very much (although there
-can be some impact on atomicity if we have to consider something like
-a full table traversal like the rt hash).
+Thanks, Peter. I know we're way late in the 2.6.27 cycle, so I'll leave
+it to Linus and Andrew to decide how to queue this up. I'm obligated to
+mention it's theoretically possible that there's a path where this is
+exploitable, but of course only on systems where SLOB is in use.
 
 
-> How does this relate to traditional incremental hash tables
-> like extensible hashing or linear hashing (not to be confused
-> with linear probing)? In linear hashing a resize only affects
-> a single collision chain at a time, and reads from other chains
-> than the one being resized are unaffected.
+SLOB: fix bogus ksize calculation
 
-I haven't actually seen any real implementations of those things.
-AFAICS they don't exactly deal with concurrency. They are also likely
-to be more costly to operate on, versus a well sized simple hash
-table.
+SLOB's ksize calculation was braindamaged and generally harmlessly
+underreported the allocation size. But for very small buffers, it could
+in fact overreport them, leading code depending on krealloc to overrun
+the allocation and trample other data.
+
+Signed-off-by: Matt Mackall <mpm@selenic.com>
+Tested-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+
+diff -r 5e32b09a1b2b mm/slob.c
+--- a/mm/slob.c	Fri Oct 03 14:04:43 2008 -0500
++++ b/mm/slob.c	Tue Oct 07 11:27:47 2008 -0500
+@@ -515,7 +515,7 @@
+ 
+ 	sp = (struct slob_page *)virt_to_page(block);
+ 	if (slob_page(sp))
+-		return ((slob_t *)block - 1)->units + SLOB_UNIT;
++		return (((slob_t *)block - 1)->units - 1) * SLOB_UNIT;
+ 	else
+ 		return sp->page.private;
+ }
+
+
+
+
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
