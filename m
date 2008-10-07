@@ -1,37 +1,24 @@
-Received: by wf-out-1314.google.com with SMTP id 28so3642751wfc.11
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 09:31:06 -0700 (PDT)
-Message-ID: <2f11576a0810070931k79eb72dfr838a96650563b93a@mail.gmail.com>
-Date: Wed, 8 Oct 2008 01:31:05 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
-In-Reply-To: <1223396117-8118-1-git-send-email-kirill@shutemov.name>
+Date: Tue, 7 Oct 2008 09:37:27 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [BUG] SLOB's krealloc() seems bust
+In-Reply-To: <1223395846.26330.55.camel@lappy.programming.kicks-ass.net>
+Message-ID: <alpine.LFD.2.00.0810070924130.3208@nehalem.linux-foundation.org>
+References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>  <48EB6D2C.30806@linux-foundation.org>  <1223391655.13453.344.camel@calx> <1223395846.26330.55.camel@lappy.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1223396117-8118-1-git-send-email-kirill@shutemov.name>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> If SHM_MAP_NOT_FIXED specified and shmaddr is not NULL, then the kernel takes
-> shmaddr as a hint about where to place the mapping. The address of the mapping
-> is returned as the result of the call.
->
-> It's similar to mmap() without MAP_FIXED.
+On Tue, 7 Oct 2008, Peter Zijlstra wrote:
+> 
+> Tested-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-ummm
+Heh. Can we get a sign-off and a nice commit message?
 
-Sorry, no.
-This description still doesn't explain why this interface is needed.
-
-The one of the points is this interface is used by another person or not.
-You should explain how large this interface benefit has.
-
-Andi kleen explained this interface _can_  be used another one.
-but nobody explain who use it actually.
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
