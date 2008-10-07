@@ -1,39 +1,38 @@
-Message-ID: <48EBD469.6090409@redhat.com>
-Date: Tue, 07 Oct 2008 17:28:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: by wf-out-1314.google.com with SMTP id 28so3793094wfc.11
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 14:38:07 -0700 (PDT)
+Message-ID: <2f11576a0810071438x59e51b74rc8c1919c14739395@mail.gmail.com>
+Date: Wed, 8 Oct 2008 06:38:07 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
+In-Reply-To: <20081007211038.GQ20740@one.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: split-lru performance mesurement part2
-References: <20081003153810.5dd0a33e@bree.surriel.com>	<20081004232549.CE53.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<20081007231851.3B88.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081007131719.8bb24698.akpm@linux-foundation.org>
-In-Reply-To: <20081007131719.8bb24698.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1223396117-8118-1-git-send-email-kirill@shutemov.name>
+	 <2f11576a0810070931k79eb72dfr838a96650563b93a@mail.gmail.com>
+	 <20081007211038.GQ20740@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee.Schermerhorn@hp.com, a.p.zijlstra@chello.nl, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, dlezcano@fr.ibm.com, penberg@cs.helsinki.fi, neilb@suse.de, davem@davemloft.net
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+>> Sorry, no.
+>> This description still doesn't explain why this interface is needed.
+>>
+>> The one of the points is this interface is used by another person or not.
+>> You should explain how large this interface benefit has.
+>>
+>> Andi kleen explained this interface _can_  be used another one.
+>> but nobody explain who use it actually.
+>
+> Anyone who doesn't want to use fixed addresses.
 
-> dbench is pretty chaotic and it could be that a good change causes
-> dbench to get worse.  That's happened plenty of times in the past.
-> 
-> 
->> Do you have any suggestion?
-> 
-> 
-> One of these:
-> 
-> vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
-> vm-dont-run-touch_buffer-during-buffercache-lookups.patch
-> 
-> perhaps?
-
-Worth a try, but it could just as well be a CPU scheduler change
-that happens to indirectly impact locking :)
-
--- 
-All rights reversed.
+yup.
+however, almost application doesn't use new flag because almost
+application want to works on cross platform. (or merely lazy)
+then, this explain isn't enough, imo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
