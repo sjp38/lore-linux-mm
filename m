@@ -1,31 +1,27 @@
-Date: Tue, 07 Oct 2008 14:08:25 -0700 (PDT)
-Message-Id: <20081007.140825.40261432.davem@davemloft.net>
-Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm,
- for adaptive dcache hash table sizing
+Date: Tue, 07 Oct 2008 14:12:57 -0700 (PDT)
+Message-Id: <20081007.141257.167511509.davem@davemloft.net>
+Subject: Re: [PATCH 03/32] net: ipv6: clean up ip6_route_net_init() error
+ handling
 From: David Miller <davem@davemloft.net>
-In-Reply-To: <20081007064834.GA5959@wotan.suse.de>
-References: <20081007064834.GA5959@wotan.suse.de>
+In-Reply-To: <20081002131607.731557157@chello.nl>
+References: <20081002130504.927878499@chello.nl>
+	<20081002131607.731557157@chello.nl>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
-Date: Tue, 7 Oct 2008 08:48:34 +0200
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Thu, 02 Oct 2008 15:05:07 +0200
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-netdev@vger.kernel.org, paulmck@us.ibm.com
+To: a.p.zijlstra@chello.nl
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, dlezcano@fr.ibm.com, penberg@cs.helsinki.fi, neilb@suse.de
 List-ID: <linux-mm.kvack.org>
 
-> I'm cc'ing netdev because Dave did express some interest in using this for
-> some networking hashes, and network guys in general are pretty cluey when it
-> comes to hashes and such ;)
+> ip6_route_net_init() error handling looked less than solid, fix 'er up.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Interesting stuff.
-
-Paul, many months ago, forwarded to me a some work done by Josh
-Triplett called "rcuhashbash" which had similar objectives.  He did
-post it to linux-kernel, and perhaps even your ideas are inspired by
-his work, I don't know. :-)
+Looks good, applied to net-next-2.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
