@@ -1,34 +1,70 @@
-Date: Tue, 7 Oct 2008 15:14:20 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH, RFC] shmat: introduce flag SHM_MAP_HINT
-Message-ID: <20081007131420.GK20740@one.firstfloor.org>
-References: <20081006132651.GG3180@one.firstfloor.org> <1223303879-5555-1-git-send-email-kirill@shutemov.name> <20081007195837.5A6B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081007112418.GC5126@localhost.localdomain> <20081007133132.69f69cc0@lxorguk.ukuu.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081007133132.69f69cc0@lxorguk.ukuu.org.uk>
+Message-ID: <48EB62F9.9040409@linux-foundation.org>
+Date: Tue, 07 Oct 2008 08:24:09 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH next 1/3] slub defrag: unpin writeback pages
+References: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0810050319001.22004@blonde.site>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> I also don't see the point of this interface. We have POSIX shared memory
-> objects in Linux which are much cleaner and neater. They support mmap()
-> and mmap supports address hints.
-> 
-> There seems to be no reason at all to add further hacks to the historical
-> ugly SYS5 interface.
+Hugh Dickins wrote:
+> A repetitive swapping load on powerpc G5 went progressively slower after
+> nine hours: Inactive(file) was rising, as if inactive file pages pinned.
+> Yes, slub defrag's kick_buffers() was forgetting to put_page() whenever
+> it met a page already under writeback.
 
-Typically it's because some other parts of the interfaces that
-cannot be easily changed (X shm would come to mind) need it.
+Thanks for finding that.
 
-He also needs it for the qemu syscall emulation. Even when he uses the compat
-entry point shmat() will still only follow the personality.
+> That PageWriteback test should be made while PageLocked in trigger_write(),
+> just as it is in try_to_free_buffers() - if there are complex reasons why
+> that's not actually necessary, I'd rather not have to think through them.
+> A preliminary check before taking the lock?  No, it's not that important.
 
--Andi
--- 
-ak@linux.intel.com
+The writeback check in kick_buffers() is a performance optimization. If the
+page is under writeback then there is no point in trying to kick out the page.
+That will only succeed after writeback is complete.
+
+If a page is under writeback then try_to_free_buffers() will fail immediately.
+So no need to check under pagelock.
+
+
+> And trigger_write() must remember to unlock_page() in each of the cases
+> where it doesn't reach the writepage().
+
+Ack.
+
+
+> --- 2.6.27-rc7-mmotm/fs/buffer.c	2008-09-26 13:18:50.000000000 +0100
+> +++ linux/fs/buffer.c	2008-10-03 19:43:44.000000000 +0100
+> @@ -3354,13 +3354,16 @@ static void trigger_write(struct page *p
+>  		.for_reclaim = 0
+>  	};
+>  
+> +	if (PageWriteback(page))
+> +		goto unlock;
+> +
+
+Is that necessary? Wont writepage do the appropriate thing?
+
+
+  >  /*
+> @@ -3420,7 +3423,7 @@ static void kick_buffers(struct kmem_cac
+>  	for (i = 0; i < nr; i++) {
+>  		page = v[i];
+>  
+> -		if (!page || PageWriteback(page))
+> +		if (!page)
+>  			continue;
+
+Thats just an optimization. No need to lock a page if its under writeback
+which would make try_to_free_buffers() fail.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
