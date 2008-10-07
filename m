@@ -1,96 +1,97 @@
-Date: Tue, 7 Oct 2008 10:22:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/6] memcg update v6 (for review and discuss)
-Message-Id: <20081007102248.0f1694b8.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48EA4A3C.3030106@linux.vnet.ibm.com>
-References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081002180229.5bb94727.kamezawa.hiroyu@jp.fujitsu.com>
-	<48EA4A3C.3030106@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: by yx-out-1718.google.com with SMTP id 36so487188yxh.26
+        for <linux-mm@kvack.org>; Mon, 06 Oct 2008 21:29:10 -0700 (PDT)
+Message-ID: <28c262360810062129h184f15cv5a31e1d598d28a@mail.gmail.com>
+Date: Tue, 7 Oct 2008 13:29:10 +0900
+From: "MinChan Kim" <minchan.kim@gmail.com>
+Subject: Re: [PATCH 0/4] Reclaim page capture v4
+In-Reply-To: <20081003154616.EF74.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <1222864261-22570-1-git-send-email-apw@shadowen.org>
+	 <28c262360810011946p443350d3hcb271720892e7b85@mail.gmail.com>
+	 <20081003154616.EF74.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andy Whitcroft <apw@shadowen.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 06 Oct 2008 22:56:20 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Fri, Oct 3, 2008 at 3:48 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> Hi, Andy.
+>>
+>> I tested your patch in my desktop.
+>> The test is just kernel compile with single thread.
+>> My system environment is as follows.
+>>
+>> model name    : Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
+>> MemTotal:        2065856 kB
+>>
+>> When I tested vanilla, compile time is as follows.
+>>
+>> 2433.53user 187.96system 42:05.99elapsed 103%CPU (0avgtext+0avgdata
+>> 0maxresident)k
+>> 588752inputs+4503408outputs (127major+55456246minor)pagefaults 0swaps
+>>
+>> When I tested your patch, as follows.
+>>
+>> 2489.63user 202.41system 44:47.71elapsed 100%CPU (0avgtext+0avgdata
+>> 0maxresident)k
+>> 538608inputs+4503928outputs (130major+55531561minor)pagefaults 0swaps
+>>
+>> Regresstion almost is above 2 minutes.
+>> Do you think It is a trivial?
+>
+> Ooops.
+> this is definitly significant regression.
+>
+>
+>> I know your patch is good to allocate hugepage.
+>> But, I think many users don't need it, including embedded system and
+>> desktop users yet.
+>>
+>> So I suggest you made it enable optionally.
+>
+> No.
+> if the patch has this significant regression,
+> nobody turn on its option.
+>
+> We should fix that.
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Wed, 1 Oct 2008 16:52:33 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > 
-> >> This series is update from v5.
-> >>
-> >> easy 4 patches are already posted as ready-to-go-series.
-> >>
-> >> This is need-more-discuss set.
-> >>
-> >> Includes following 6 patches. (reduced from v5).
-> >> The whole series are reordered.
-> >>
-> >> [1/6] make page_cgroup->flags to be atomic.
-> >> [2/6] allocate all page_cgroup at boot.
-> >> [3/6] rewrite charge path by charge/commit/cancel
-> >> [4/6] new force_empty and move_account
-> >> [5/6] lazy lru free
-> >> [6/6] lazy lru add.
-> >>
-> >> Patch [3/6] and [4/6] are totally rewritten.
-> >> Races in Patch [6/6] is fixed....I think.
-> >>
-> >> Patch [1-4] seems to be big but there is no complicated ops.
-> >> Patch [5-6] is more racy. Check-by-regression-test is necessary.
-> >> (Of course, I does some.)
-> >>
-> >> If ready-to-go-series goes, next is patch 1 and 2.
-> >>
-> > 
-> > No terrible bugs until now on my test.
-> > 
-> > My current idea for next week is following.
-> > (I may have to wait until the end of next merge window. If so, 
-> >  I'll wait and maintain this set.)
-> > 
-> >  - post ready-to-go set again.
-> >  - post 1/6 and 2/6 as may-ready-to-go set. I don't chagnge order of these.
-> >  - reflects comments for 3/6. 
-> >    patch 3/6 adds new functions. So, please tell me if you have better idea
-> >    about new functions.
-> >  - check logic for 4/6.
-> >  - 5/6 and 6/6 may need some more comments in codes.
-> >  - no new additional ones.
-> 
-> Kamezawa-San, Andrew,
-> 
-> I think patches 1 and 2 are ready to go. Andrew they remove the cgroup member
-> from struct page and will help reduce the overhead for distros that care about
-> 32 bit systems and also help with performance (in my runs so far).
-> 
-> I would recommend pushing 1 and 2 right away to -mm followed by the other
-> performance improvements. Comments?
-> 
-> 
+I have been tested it.
+But I can't reproduce such as regression.
+I don't know why such regression happed at that time.
 
-I'll rebase ready-to-go 4 patches and this 1 and 2 onto the latest mmotm
-and send again.
+Sorry for confusing.
+Please ignore my test result at that time.
 
-Thank you for review.
+This is new test result.
 
-Regards,
--Kame
+before
+
+2346.24user 191.44system 42:07.28elapsed 100%CPU (0avgtext+0avgdata
+0maxresident)k
+458624inputs+4262728outputs (183major+52299730minor)pagefaults 0swaps
 
 
+after
 
-> -- 
-> 	Balbir
-> 
+2349.75user 195.72system 42:16.36elapsed 100%CPU (0avgtext+0avgdata
+0maxresident)k
+475632inputs+4265208outputs (183major+52308969minor)pagefaults 0swaps
 
+I think we can ignore some time gap.
+Sometime, after is faster than before.
+
+I could conclude it doesn't have any regressions in my desktop machine.
+
+Tested-by: MinChan Kim <minchan.kim@gmail.com>
 
 -- 
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
