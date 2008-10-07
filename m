@@ -1,92 +1,96 @@
-Subject: Re: [PATCH v2] properly reserve in bootmem the lmb reserved
-	regions that cross NUMA nodes
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Reply-To: benh@kernel.crashing.org
-In-Reply-To: <48EA86B8.7010405@linux.vnet.ibm.com>
-References: <48EA86B8.7010405@linux.vnet.ibm.com>
-Content-Type: text/plain
-Date: Tue, 07 Oct 2008 12:03:51 +1100
-Message-Id: <1223341431.8157.33.camel@pasglop>
+Date: Tue, 7 Oct 2008 10:22:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/6] memcg update v6 (for review and discuss)
+Message-Id: <20081007102248.0f1694b8.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48EA4A3C.3030106@linux.vnet.ibm.com>
+References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081002180229.5bb94727.kamezawa.hiroyu@jp.fujitsu.com>
+	<48EA4A3C.3030106@linux.vnet.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jon Tollefson <kniht@linux.vnet.ibm.com>
-Cc: linuxppc-dev <linuxppc-dev@ozlabs.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Adam Litke <agl@us.ibm.com>, Kumar Gala <galak@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Minor nits ...
+On Mon, 06 Oct 2008 22:56:20 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-One is, you add this helper to mm/page_alloc.c, which means that I'll
-need some ack from Hugh or Andrew before I can merge that via the
-powerpc tree... Unless there's another user, I'd rather keep the
-helper function in powerpc code for now, it can be moved to common
-code later if somebody needs something similar.
+> KAMEZAWA Hiroyuki wrote:
+> > On Wed, 1 Oct 2008 16:52:33 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > 
+> >> This series is update from v5.
+> >>
+> >> easy 4 patches are already posted as ready-to-go-series.
+> >>
+> >> This is need-more-discuss set.
+> >>
+> >> Includes following 6 patches. (reduced from v5).
+> >> The whole series are reordered.
+> >>
+> >> [1/6] make page_cgroup->flags to be atomic.
+> >> [2/6] allocate all page_cgroup at boot.
+> >> [3/6] rewrite charge path by charge/commit/cancel
+> >> [4/6] new force_empty and move_account
+> >> [5/6] lazy lru free
+> >> [6/6] lazy lru add.
+> >>
+> >> Patch [3/6] and [4/6] are totally rewritten.
+> >> Races in Patch [6/6] is fixed....I think.
+> >>
+> >> Patch [1-4] seems to be big but there is no complicated ops.
+> >> Patch [5-6] is more racy. Check-by-regression-test is necessary.
+> >> (Of course, I does some.)
+> >>
+> >> If ready-to-go-series goes, next is patch 1 and 2.
+> >>
+> > 
+> > No terrible bugs until now on my test.
+> > 
+> > My current idea for next week is following.
+> > (I may have to wait until the end of next merge window. If so, 
+> >  I'll wait and maintain this set.)
+> > 
+> >  - post ready-to-go set again.
+> >  - post 1/6 and 2/6 as may-ready-to-go set. I don't chagnge order of these.
+> >  - reflects comments for 3/6. 
+> >    patch 3/6 adds new functions. So, please tell me if you have better idea
+> >    about new functions.
+> >  - check logic for 4/6.
+> >  - 5/6 and 6/6 may need some more comments in codes.
+> >  - no new additional ones.
+> 
+> Kamezawa-San, Andrew,
+> 
+> I think patches 1 and 2 are ready to go. Andrew they remove the cgroup member
+> from struct page and will help reduce the overhead for distros that care about
+> 32 bit systems and also help with performance (in my runs so far).
+> 
+> I would recommend pushing 1 and 2 right away to -mm followed by the other
+> performance improvements. Comments?
+> 
+> 
 
-> +	/* Mark reserved regions */
-> +	for (i = 0; i < lmb.reserved.cnt; i++) {
-> +		unsigned long physbase = lmb.reserved.region[i].base;
-> +		unsigned long size = lmb.reserved.region[i].size;
-> +		unsigned long start_pfn = physbase >> PAGE_SHIFT;
-> +		unsigned long end_pfn = ((physbase + size - 1) >> PAGE_SHIFT);
-> +		struct node_active_region *node_ar;
+I'll rebase ready-to-go 4 patches and this 1 and 2 onto the latest mmotm
+and send again.
 
-I'm not too happy wit the fact that something called "end_pfn" is
-sometimes inclusive and sometime exclusive.
+Thank you for review.
 
-IE. From your implementation of get_node_active_region() it looks like
-early_node_map[i].end_pfn isn't part of the range (exclusive) while
-in your loop, the way you define end_pfn to be base + size - 1 means
-it's part of the range (inclusive). That subtle distinction makes it
-harder to understand the logic and is bug prone.
+Regards,
+-Kame
 
-> +		node_ar = get_node_active_region(start_pfn);
-> +		while (start_pfn < end_pfn && node_ar != NULL) {
-> +			/*
-> +			 * if reserved region extends past active region
-> +			 * then trim size to active region
-> +			 */
-> +			if (end_pfn >= node_ar->end_pfn)
 
-So the above test is correct, but it took me two more brain cells to
-figure it out than necessary :-)
 
-> +				size = (node_ar->end_pfn << PAGE_SHIFT)
-> +					- (start_pfn << PAGE_SHIFT);
-> +			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase, size,
-> +				node_ar->nid);
-> +			reserve_bootmem_node(NODE_DATA(node_ar->nid), physbase,
-> +						size, BOOTMEM_DEFAULT);
-> +			/*
-> +			 * if reserved region extends past the active region
-> +			 * then get next active region that contains
-> +			 *        this reserved region
-> +			 */
-> +			if (end_pfn >= node_ar->end_pfn) {
-> +				start_pfn = node_ar->end_pfn;
-> +				physbase = start_pfn << PAGE_SHIFT;
-> +				node_ar = get_node_active_region(start_pfn);
-> +			} else
-> +				break;
->  		}
-Minor nit but the above would look nicer if you wrote instead
+> -- 
+> 	Balbir
+> 
 
-			if (end_pfn < node_ar->end_pfn)
-				break;
-			start_pfn = ...
- 
-> +	}
-> +
-> +	for_each_online_node(nid) {
->  		sparse_memory_present_with_active_regions(nid);
->  	}
->  }
 
-And you can remove the { and } above.
-
-Cheers,
-Ben.
-
+-- 
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
