@@ -1,27 +1,46 @@
-Date: Tue, 7 Oct 2008 16:34:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/4] Cpu alloc V6: Replace percpu allocator in modules.c
-Message-Id: <20081007163449.0716be54.akpm@linux-foundation.org>
-In-Reply-To: <20080929193500.470295078@quilx.com>
-References: <20080929193500.470295078@quilx.com>
+Date: Wed, 8 Oct 2008 00:40:30 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
+Message-ID: <20081008004030.7a0e9915@lxorguk.ukuu.org.uk>
+In-Reply-To: <20081007232059.GU20740@one.firstfloor.org>
+References: <1223396117-8118-1-git-send-email-kirill@shutemov.name>
+	<2f11576a0810070931k79eb72dfr838a96650563b93a@mail.gmail.com>
+	<20081007211038.GQ20740@one.firstfloor.org>
+	<20081008000518.13f48462@lxorguk.ukuu.org.uk>
+	<20081007232059.GU20740@one.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
+To: Andi Kleen <andi@firstfloor.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Sep 2008 12:35:00 -0700
-Christoph Lameter <cl@linux-foundation.org> wrote:
+> > Can use shm_open and mmap to get POSIX standard shm behaviour via a sane
+> 
+> I don't think shm_open can attach to SYSV shared segments. Or are you
+> proposing to add "sysvshmfs" to make that possible? 
 
-> Just do the bare mininum to establish a per cpu allocator. Later patchsets
-> will gradually build out the functionality.
+Actually you can do so. As it stands today the SYS3 SHM interface code
+does the following
 
-I need to drop these - the dynalloc thing (I don't think I even know
-what it does) in Ingo's trees make changes all over the place and
-nothing much applies any more.
+	create a char array in the form SYS%08ld, key
+	open it on shmfs
+
+> - There are legacy interfaces that cannot be really changed who use sysv shm
+> (e.g. X shm and others -- just do a ipcs on your system) 
+
+They can be changed and nobody is wanting to map those at fixed addresses.
+
+> - An system call emulation as in qemu obviously has to implement the
+> existing system call semantics.
+
+Which it can do perfectly well using shm_open to create its SYS3
+SHM objects. In fact theoertically we could bin the whole of SYS3 shm and
+push it into glibc emulation if we wanted.
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
