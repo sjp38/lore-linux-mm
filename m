@@ -1,53 +1,53 @@
-Subject: [BUG] SLOB's krealloc() seems bust
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Content-Type: text/plain
-Date: Tue, 07 Oct 2008 15:57:20 +0200
-Message-Id: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>
-Mime-Version: 1.0
+Message-ID: <48EB6D2C.30806@linux-foundation.org>
+Date: Tue, 07 Oct 2008 09:07:40 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [BUG] SLOB's krealloc() seems bust
+References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>
+In-Reply-To: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Matt Mackall <mpm@selenic.com>, linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-My test box would crash 50% of the bootups like so:
+> Which basically shows us that the content of the pcpu_size[] array got
+> corrupted after the krealloc() call in split_block().
+> 
+> Which made me look at which slab allocator I had selected, which turned
+> out to be SLOB (from testing the network swap stuff).
 
-[   12.002323] BUG: unable to handle kernel paging request at ffff88047bdd513c              
-[   12.003310] IP: [<ffffffff80261f17>] load_module+0x6c8/0x1b2a                            
-[   12.003310] PGD 202063 PUD 0                                                             
-[   12.003310] Oops: 0000 [1] PREEMPT SMP
-[   12.003310] CPU 0
-[   12.003310] Modules linked in: kvm_amd kvm sg sr_mod serio_raw k8temp floppy pcspkr button cdrom shpchp
-[   12.003310] Pid: 1219, comm: modprobe Not tainted 2.6.27-rc9 #452
+krealloc() is in generic core code (mm/util.c) and is the same for all allocators.
 
-Which points us to the percpu_modalloc() code.
+krealloc uses ksize() which is somewhat dicey for SLOB because it only works
+on kmalloc'ed memory. Is the krealloc used on memory allocated with kmalloc()?
+Slob's ksize could use a BUG_ON for the case in which ksize() is used on
+kmem_cache_alloc'd memory.
 
-After adding some printk's to get some insight into the matter I got the
-following:
+/* can't use ksize for kmem_cache_alloc memory, only kmalloc */
+size_t ksize(const void *block)
+{
+        struct slob_page *sp;
 
-[   10.058055] percpu_modalloc: pcpu_size: ffff88007d82c0e8 size: 8 align: 8 name: kvm_amd  
-[   10.066042] percpu_modalloc: pcpu_size[0] = -37536 ptr: ffffffff80757000 extra: 0        
-[   10.073505] percpu_modalloc: pcpu_size[1] = 8192 ptr: ffffffff807602a0 extra: 0          
-[   10.080795] split_block: pcpu_size: ffff88007d82c0e8 i: 1 size: 8                        
-[   10.086875] split_block: pcpu_size: ffff88007bdd5140                                     
-[   10.091828] split_block: pcpu_size[0] = 2078109024                                       
-[   10.096607] split_block: pcpu_size[1] = -30720                                           
-[   10.101039] split_block: pcpu_size[0] = 2078109024                                       
-[   10.105817] split_block: pcpu_size[1] = -30720                                           
-[   10.110249] split_block: pcpu_size[2] = -30720                                           
-[   10.114682] split_block: pcpu_size[1] = 8 pcpu_size[2] = -30728   
+        BUG_ON(!block);
+        if (unlikely(block == ZERO_SIZE_PTR))
+                return 0;
 
-Which basically shows us that the content of the pcpu_size[] array got
-corrupted after the krealloc() call in split_block().
+        sp = (struct slob_page *)virt_to_page(block);
 
-Which made me look at which slab allocator I had selected, which turned
-out to be SLOB (from testing the network swap stuff).
 
-Flipping it back to SLUB seems to cure the issue...
+Add a BUG_ON(!kmalloc_cache(sp))?
 
-Will put poking at SLOB on the todo list somewhere, feel free to beat me
-to it ;-)
+
+        if (slob_page(sp))
+                return ((slob_t *)block - 1)->units + SLOB_UNIT;
+			^^^^^^^ Is this correct?
+			
+        else
+                return sp->page.private;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
