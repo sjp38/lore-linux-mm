@@ -1,20 +1,20 @@
-Date: Tue, 7 Oct 2008 03:18:27 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm,
-	for adaptive dcache hash table sizing (resend)
-Message-ID: <20081007071827.GB5010@infradead.org>
-References: <20081007064834.GA5959@wotan.suse.de> <20081007070225.GB5959@wotan.suse.de>
+Message-ID: <48EB11BB.2060704@cosmosbay.com>
+Date: Tue, 07 Oct 2008 09:37:31 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm,
+ for adaptive dcache hash table sizing (resend)
+References: <20081007064834.GA5959@wotan.suse.de> <20081007070225.GB5959@wotan.suse.de>
 In-Reply-To: <20081007070225.GB5959@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, netdev@vger.kernel.org, Paul McKenney <paulmck@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 07, 2008 at 09:02:25AM +0200, Nick Piggin wrote:
+Nick Piggin a ecrit :
 > (resending with correct netdev address)
 > 
 > Hi,
@@ -44,12 +44,53 @@ On Tue, Oct 07, 2008 at 09:02:25AM +0200, Nick Piggin wrote:
 > I'm cc'ing netdev because Dave did express some interest in using this for
 > some networking hashes, and network guys in general are pretty cluey when it
 > comes to hashes and such ;)
+>
 
-Without even looking at the code I'd say geeting the dcache lookup data
-structure as a hash is the main problem here.  Dcache lookup is
-fundamentally a tree lookup, with some very nice domain splits
-(superblocks or directories).  Mapping these back to a global hash is
-a rather bad idea, not just for scalability purposes.
+Thanks for reminding us this interesting stuff. And yes, IP route cache could use
+same algo. That is particularly interesting because it has a /proc/net/rt_cache
+accessor that needs to sequentially scan this hash table (potentialy with
+many empty slots), while dcache doesnt have such killer.
+ 
+>
+> +static struct dcache_hash *alloc_dhash(int size)
+> +{
+> +	struct dcache_hash *dh;
+> +	unsigned long bytes;
+> +	unsigned int shift;
+> +	int i;
+> +
+> +	shift = ilog2(size);
+> +	BUG_ON(size != 1UL << shift);
+> +	bytes = size * sizeof(struct hlist_head *);
+> +
+> +	dh = kmalloc(sizeof(struct dcache_hash), GFP_KERNEL);
+> +	if (!dh)
+> +		return NULL;
+> +
+> +	if (bytes <= PAGE_SIZE) {
+> +		dh->table = kmalloc(bytes, GFP_KERNEL);
+> +	} else {
+> +		dh->table = vmalloc(bytes);
+> +	}
+
+Here we probably want to use a hashdist/NUMA enabled vmalloc().
+
+That is, regardless of current numa policy of *this* thread,
+we want to spread hash table on all nodes.
+
+Also, struct dcache_hash being very small, you want to force it to
+use an exclusive cache line, to be sure it wont share it with some 
+higly modified data...
+
+struct dcache_hash {
+	struct hlist_head *table;
+	unsigned int shift;
+	unsigned int mask;
+} __cacheline_aligned_in_smp;
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
