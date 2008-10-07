@@ -1,91 +1,75 @@
-Date: Tue, 7 Oct 2008 19:06:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/6] memcg: optimize per-cpu statistics
-Message-Id: <20081007190609.7e4fa45a.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by ik-out-1112.google.com with SMTP id c21so2336146ika.6
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2008 03:07:55 -0700 (PDT)
+Date: Tue, 7 Oct 2008 13:09:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH, RFC, v2] shmat: introduce flag SHM_MAP_HINT
+Message-ID: <20081007100854.GA5039@localhost.localdomain>
+References: <20081006192923.GJ3180@one.firstfloor.org> <1223362670-5187-1-git-send-email-kirill@shutemov.name> <20081007082030.GD20740@one.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="pf9I7BMVVzbSWLtt"
+Content-Disposition: inline
+In-Reply-To: <20081007082030.GD20740@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Some obvious optimization to memcg.
+--pf9I7BMVVzbSWLtt
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I found mem_cgroup_charge_statistics() is a little big (in object) and
-does unnecessary address calclation.
-This patch is for optimization to reduce the size of this function.
+On Tue, Oct 07, 2008 at 10:20:30AM +0200, Andi Kleen wrote:
+> On Tue, Oct 07, 2008 at 09:57:50AM +0300, Kirill A. Shutemov wrote:
+> > It allows interpret attach address as a hint, not as exact address.
+>=20
+> Please expand the description a bit. Rationale. etc.
+>=20
+> > @@ -55,6 +55,7 @@ struct shmid_ds {
+> >  #define	SHM_RND		020000	/* round attach address to SHMLBA boundary */
+> >  #define	SHM_REMAP	040000	/* take-over region on attach */
+> >  #define	SHM_EXEC	0100000	/* execution access */
+> > +#define	SHM_MAP_HINT	0200000	/* interpret attach address as a hint */
+>=20
+> search hint
 
-And res_counter_charge() is 'likely' to success.
+Ok.
 
-Changlog: v5->v6
- - patch series was reordered and needs some adjustment. no changes in logic.
-Changelog v3->v4:
- - merged with an other leaf patch.
+> > @@ -892,7 +892,7 @@ long do_shmat(int shmid, char __user *shmaddr, int =
+shmflg, ulong *raddr)
+> >  	sfd->vm_ops =3D NULL;
+> > =20
+> >  	down_write(&current->mm->mmap_sem);
+> > -	if (addr && !(shmflg & SHM_REMAP)) {
+> > +	if (addr && !(shmflg & (SHM_REMAP|SHM_MAP_HINT))) {
+>=20
+> I think you were right earlier that it can be just deleted, so why don't
+> you just do that?
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+I want say that we shouldn't do this check if shmaddr is a search hint.
+I'm not sure that check is unneeded if shmadd is the exact address.
 
+--=20
+Regards,  Kirill A. Shutemov
+ + Belarus, Minsk
+ + ALT Linux Team, http://www.altlinux.com/
 
- mm/memcontrol.c |   18 ++++++++++--------
- 1 file changed, 10 insertions(+), 8 deletions(-)
+--pf9I7BMVVzbSWLtt
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+Content-Disposition: inline
 
-Index: mmotm-2.6.27-rc7+/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.27-rc7+.orig/mm/memcontrol.c
-+++ mmotm-2.6.27-rc7+/mm/memcontrol.c
-@@ -66,11 +66,10 @@ struct mem_cgroup_stat {
- /*
-  * For accounting under irq disable, no need for increment preempt count.
-  */
--static void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat *stat,
-+static inline void __mem_cgroup_stat_add_safe(struct mem_cgroup_stat_cpu *stat,
- 		enum mem_cgroup_stat_index idx, int val)
- {
--	int cpu = smp_processor_id();
--	stat->cpustat[cpu].count[idx] += val;
-+	stat->count[idx] += val;
- }
- 
- static s64 mem_cgroup_read_stat(struct mem_cgroup_stat *stat,
-@@ -190,18 +189,21 @@ static void mem_cgroup_charge_statistics
- {
- 	int val = (charge)? 1 : -1;
- 	struct mem_cgroup_stat *stat = &mem->stat;
-+	struct mem_cgroup_stat_cpu *cpustat;
- 
- 	VM_BUG_ON(!irqs_disabled());
-+
-+	cpustat = &stat->cpustat[smp_processor_id()];
- 	if (flags & PAGE_CGROUP_FLAG_CACHE)
--		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_CACHE, val);
-+		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_CACHE, val);
- 	else
--		__mem_cgroup_stat_add_safe(stat, MEM_CGROUP_STAT_RSS, val);
-+		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_RSS, val);
- 
- 	if (charge)
--		__mem_cgroup_stat_add_safe(stat,
-+		__mem_cgroup_stat_add_safe(cpustat,
- 				MEM_CGROUP_STAT_PGPGIN_COUNT, 1);
- 	else
--		__mem_cgroup_stat_add_safe(stat,
-+		__mem_cgroup_stat_add_safe(cpustat,
- 				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
- }
- 
-@@ -558,7 +560,7 @@ static int mem_cgroup_charge_common(stru
- 		css_get(&memcg->css);
- 	}
- 
--	while (res_counter_charge(&mem->res, PAGE_SIZE)) {
-+	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
- 		if (!(gfp_mask & __GFP_WAIT))
- 			goto out;
- 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+
+iEYEARECAAYFAkjrNTYACgkQbWYnhzC5v6r75QCeJ+U4G2XEohKAT+a2U48TwnBn
+oOwAn127G3sfy14CewOOtjqnlyUHJ+HX
+=kT7t
+-----END PGP SIGNATURE-----
+
+--pf9I7BMVVzbSWLtt--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
