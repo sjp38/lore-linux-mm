@@ -1,34 +1,29 @@
-Date: Tue, 7 Oct 2008 17:10:49 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH, RFC, v2] shmat: introduce flag SHM_MAP_HINT
-Message-ID: <20081007151049.GL20740@one.firstfloor.org>
-References: <20081006192923.GJ3180@one.firstfloor.org> <1223362670-5187-1-git-send-email-kirill@shutemov.name> <20081007082030.GD20740@one.firstfloor.org> <20081007100854.GA5039@localhost.localdomain> <20081007112631.GH20740@one.firstfloor.org> <Pine.LNX.4.64.0810071532280.29910@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0810071532280.29910@blonde.site>
+Message-ID: <48EB7E59.7070308@linux-foundation.org>
+Date: Tue, 07 Oct 2008 10:20:57 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
+MIME-Version: 1.0
+Subject: Re: [BUG] SLOB's krealloc() seems bust
+References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>	 <48EB6D2C.30806@linux-foundation.org> <1223391655.13453.344.camel@calx>
+In-Reply-To: <1223391655.13453.344.camel@calx>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm <linux-mm@kvack.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 07, 2008 at 03:38:44PM +0100, Hugh Dickins wrote:
-> On Tue, 7 Oct 2008, Andi Kleen wrote:
-> > > I want say that we shouldn't do this check if shmaddr is a search hint.
-> > > I'm not sure that check is unneeded if shmadd is the exact address.
-> > 
-> > mmap should fail in this case because it does the same check for 
-> > MAP_FIXED. Obviously it cannot succeed when there is already something
-> > else there.
-> 
-> I'm not really following this, so forgive me if I'm reading you
-> out of context, but I think you're wrong on that...
+Matt Mackall wrote:
 
-You're right, Hugh, I was confused here. The earlier check
-is indeed needed and cannot be dropped. Thanks for the reality check.
+> We can't dynamically determine whether a pointer points to a kmalloced
+> object or not. kmem_cache_alloc objects have no header and live on the
+> same pages as kmalloced ones.
 
--Andi
+Could you do a heuristic check? Assume that this is a kmalloc object and then
+verify the values in the small control block? If the values are out of line
+then this cannot be a kmalloc'ed object.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
