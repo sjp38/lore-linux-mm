@@ -1,45 +1,27 @@
-Date: Wed, 8 Oct 2008 01:23:22 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
-Message-ID: <20081007232322.GV20740@one.firstfloor.org>
-References: <1223396117-8118-1-git-send-email-kirill@shutemov.name> <2f11576a0810070931k79eb72dfr838a96650563b93a@mail.gmail.com> <20081007211038.GQ20740@one.firstfloor.org> <2f11576a0810071438x59e51b74rc8c1919c14739395@mail.gmail.com>
+Date: Tue, 7 Oct 2008 16:34:49 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 0/4] Cpu alloc V6: Replace percpu allocator in modules.c
+Message-Id: <20081007163449.0716be54.akpm@linux-foundation.org>
+In-Reply-To: <20080929193500.470295078@quilx.com>
+References: <20080929193500.470295078@quilx.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2f11576a0810071438x59e51b74rc8c1919c14739395@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, rusty@rustcorp.com.au, jeremy@goop.org, ebiederm@xmission.com, travis@sgi.com, herbert@gondor.apana.org.au, xemul@openvz.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 08, 2008 at 06:38:07AM +0900, KOSAKI Motohiro wrote:
-> >> Sorry, no.
-> >> This description still doesn't explain why this interface is needed.
-> >>
-> >> The one of the points is this interface is used by another person or not.
-> >> You should explain how large this interface benefit has.
-> >>
-> >> Andi kleen explained this interface _can_  be used another one.
-> >> but nobody explain who use it actually.
-> >
-> > Anyone who doesn't want to use fixed addresses.
-> 
-> yup.
-> however, almost application doesn't use new flag because almost
-> application want to works on cross platform. (or merely lazy)
-> then, this explain isn't enough, imo.
+On Mon, 29 Sep 2008 12:35:00 -0700
+Christoph Lameter <cl@linux-foundation.org> wrote:
 
-You're arguing that there shouldn't be any Linux extensions
-to system calls ever because it would break compatibility? 
+> Just do the bare mininum to establish a per cpu allocator. Later patchsets
+> will gradually build out the functionality.
 
-You're at least 15 years too late with that. Linux extensions
-are there all over.
-
--Andi
-
--- 
-ak@linux.intel.com
+I need to drop these - the dynalloc thing (I don't think I even know
+what it does) in Ingo's trees make changes all over the place and
+nothing much applies any more.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
