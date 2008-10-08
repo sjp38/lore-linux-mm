@@ -1,62 +1,133 @@
-Date: Wed, 8 Oct 2008 05:27:15 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm, for adaptive dcache hash table sizing
-Message-ID: <20081008032714.GD6499@wotan.suse.de>
-References: <20081007064834.GA5959@wotan.suse.de> <20081007.140825.40261432.davem@davemloft.net> <20081008024813.GC6499@wotan.suse.de> <20081008031245.GC7101@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [BUG] SLOB's krealloc() seems bust
+Date: Wed, 8 Oct 2008 15:22:30 +1100
+References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net> <84144f020810071031n39c27966ubfafd86e5542ea75@mail.gmail.com> <1223420896.13453.427.camel@calx>
+In-Reply-To: <1223420896.13453.427.camel@calx>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20081008031245.GC7101@linux.vnet.ibm.com>
+Message-Id: <200810081522.31739.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: David Miller <davem@davemloft.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-netdev@vger.kernel.org, josh@freedesktop.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@linuxfoundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 07, 2008 at 08:12:45PM -0700, Paul E. McKenney wrote:
-> On Wed, Oct 08, 2008 at 04:48:13AM +0200, Nick Piggin wrote:
-> > On Tue, Oct 07, 2008 at 02:08:25PM -0700, David Miller wrote:
-> > > From: Nick Piggin <npiggin@suse.de>
-> > > Date: Tue, 7 Oct 2008 08:48:34 +0200
-> > > 
-> > > > I'm cc'ing netdev because Dave did express some interest in using this for
-> > > > some networking hashes, and network guys in general are pretty cluey when it
-> > > > comes to hashes and such ;)
-> > > 
-> > > Interesting stuff.
-> > > 
-> > > Paul, many months ago, forwarded to me a some work done by Josh
-> > > Triplett called "rcuhashbash" which had similar objectives.  He did
-> > > post it to linux-kernel, and perhaps even your ideas are inspired by
-> > > his work, I don't know. :-)
-> > 
-> > Hmm yes I did see that. It's not too similar, as it focuses on re-keying
-> > an existing element into the same hash table. ddds can't do that kind of
-> > thing (the underlying data structure isn't visible to the algorithm, so
-> > it can't exactly modify data structures in-place), although in another
-> > sense it is more general because the transfer function could transfer
-> > items into another hash table and re-key them as it goes (if it did that,
-> > it could probably use Josh's "atomic" re-keying algorithm too).
-> > 
-> > But largely it does seem like they are orthogonal (if I'm reading
-> > rcuhashbash correctly).
-> 
-> IIRC, one of the weaknesses of rcuhashbash was that the elements had
-> to be copied in some cases.
+On Wednesday 08 October 2008 10:08, Matt Mackall wrote:
+> On Tue, 2008-10-07 at 20:31 +0300, Pekka Enberg wrote:
+> > Hi Matt,
+> >
+> > On Tue, Oct 7, 2008 at 8:13 PM, Matt Mackall <mpm@selenic.com> wrote:
+> > >> > @@ -515,7 +515,7 @@
+> > >> >
+> > >> >        sp = (struct slob_page *)virt_to_page(block);
+> > >> >        if (slob_page(sp))
+> > >> > -               return ((slob_t *)block - 1)->units + SLOB_UNIT;
+> > >> > +               return (((slob_t *)block - 1)->units - 1) *
+> > >> > SLOB_UNIT;
+> > >>
+> > >> Hmm. I don't understand why we do the "minus one" thing here. Aren't
+> > >> we underestimating the size now?
+> > >
+> > > The first -1 takes us to the object header in front of the object
+> > > pointer. The second -1 subtracts out the size of the header.
+> > >
+> > > But it's entirely possible I'm off by one, so I'll double-check. Nick?
+> >
+> > Yeah, I was referring to the second subtraction. Looking at
+> > slob_page_alloc(), for example, we compare the return value of
+> > slob_units() to SLOB_UNITS(size), so I don't think we count the header
+> > in ->units. I mean, we ought to be seeing the subtraction elsewhere in
+> > the code as well, no?
+>
+> Ok, I've looked a bit closer at it and I think we need a different fix.
+>
+> The underlying allocator, slob_alloc, takes a size in bytes and returns
+> an object of that size, with the first word containing the number of
+> slob_t units.
+>
+> kmalloc calls slob_alloc after adding on some space for header and
+> architecture padding. This space is not necessarily 1 slob unit:
+>
+>         unsigned int *m;
+>         int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> ...
+>                 m = slob_alloc(size + align, gfp, align, node);
+>                 *m = size;
+>  	        return (void *)m + align;
+>
+> Note that we overwrite the header with our own size -in bytes-.
+> kfree does the reverse:
 
-Yes, I noticed that.
+Right.
+
+>                 int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> 		unsigned int *m = (unsigned int *)(block - align);
+>                 slob_free(m, *m + align);
+>
+> That second line is locating the kmalloc header. All looks good.
+>
+> The MINALIGN business was introduced by Nick with:
+>
+>  slob: improved alignment handling
+>
+> but seems to have missed ksize, which should now be doing the following
+> to match:
+>
+> diff -r 5e32b09a1b2b mm/slob.c
+> --- a/mm/slob.c	Fri Oct 03 14:04:43 2008 -0500
+> +++ b/mm/slob.c	Tue Oct 07 18:05:15 2008 -0500
+> @@ -514,9 +514,11 @@
+>  		return 0;
+>
+>  	sp = (struct slob_page *)virt_to_page(block);
+> -	if (slob_page(sp))
+> -		return ((slob_t *)block - 1)->units + SLOB_UNIT;
+> -	else
+> +	if (slob_page(sp)) {
+> +		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+> +		unsigned int *m = (unsigned int *)(block - align);
+> +		return SLOB_UNITS(*m); /* round up */
+> +	} else
+>  		return sp->page.private;
+>  }
+
+Yes, I came up with nearly the same patch before reading this
+
+--- linux-2.6/mm/slob.c 2008-10-08 14:43:17.000000000 +1100
++++ suth/mm/slob.c      2008-10-08 15:11:06.000000000 +1100
+@@ -514,9 +514,11 @@ size_t ksize(const void *block)
+                return 0;
+
+        sp = (struct slob_page *)virt_to_page(block);
+-       if (slob_page(sp))
+-               return (((slob_t *)block - 1)->units - 1) * SLOB_UNIT;
+-       else
++       if (slob_page(sp)) {
++               int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++               unsigned int *m = (unsigned int *)(block - align);
++               return *m + align;
++       } else
+                return sp->page.private;
+ }
+
+However, mine is lifted directly from kfree, wheras you do something a
+bit different. Hmm, ksize arguably could be used to find the underlying
+allocated slab size in order to use a little bit more than we'd asked
+for. So probably we should really just `return *m` (don't round up or
+add any padding).
 
 
->  Josh has been working on a variant that
-> (hopefully) allows elements to be moved without copying, as is required
-> by dcache.
+> That leaves the question of why this morning's patch worked at all,
+> given that it was based on how SLOB worked before Nick's patch. But I
+> haven't finished working through that. Peter, can I get you to test the
+> above?
 
-So is it able to actually resize the hash table? If so, I couldn't quite see
-how it works; if not, I'd be interested to know what is the application to
-dcache. Josh?
-
-Thanks,
-Nick
+I didn't have ksize in my slob user test harness, but added a couple of
+tests in there, and indeed ksize was returning complete garbage both
+before and after the latest patch to slob. I'd say it was simply luck.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
