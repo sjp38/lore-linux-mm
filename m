@@ -1,120 +1,90 @@
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: [PATCH 1/1] hugetlb: pull gigantic page initialisation out of the default path
-Date: Wed,  8 Oct 2008 10:34:59 +0100
-Message-Id: <1223458499-12752-1-git-send-email-apw@shadowen.org>
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m98A3BOe012838
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 8 Oct 2008 19:03:11 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9DC54240047
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2008 19:03:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 761632DC132
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2008 19:03:11 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2049E1DB8038
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2008 19:03:11 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BB67B1DB803C
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2008 19:03:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+In-Reply-To: <200810081655.06698.nickpiggin@yahoo.com.au>
+References: <200810081655.06698.nickpiggin@yahoo.com.au>
+Message-Id: <20081008185401.D958.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed,  8 Oct 2008 19:03:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jon Tollefson <kniht@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andy Whitcroft <apw@shadowen.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: kosaki.motohiro@jp.fujitsu.com, "Morton, Andrew" <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As we can determine exactly when a gigantic page is in use we can optimise
-the common regular page cases by pulling out gigantic page initialisation
-into its own function.  As gigantic pages are never released to buddy we
-do not need a destructor.  This effectivly reverts the previous change
-to the main buddy allocator.  It also adds a paranoid check to ensure we
-never release gigantic pages from hugetlbfs to the main buddy.
+Hi
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>
----
- mm/hugetlb.c    |    4 +++-
- mm/internal.h   |    1 +
- mm/page_alloc.c |   26 +++++++++++++++++++-------
- 3 files changed, 23 insertions(+), 8 deletions(-)
+Nick, Andrew, very thanks for good advice.
+your helpful increase my investigate speed.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bb5cf81..716b151 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -460,6 +460,8 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- {
- 	int i;
- 
-+	BUG_ON(h->order >= MAX_ORDER);
-+
- 	h->nr_huge_pages--;
- 	h->nr_huge_pages_node[page_to_nid(page)]--;
- 	for (i = 0; i < pages_per_huge_page(h); i++) {
-@@ -984,7 +986,7 @@ static void __init gather_bootmem_prealloc(void)
- 		struct hstate *h = m->hstate;
- 		__ClearPageReserved(page);
- 		WARN_ON(page_count(page) != 1);
--		prep_compound_page(page, h->order);
-+		prep_compound_gigantic_page(page, h->order);
- 		prep_new_huge_page(h, page, page_to_nid(page));
- 	}
- }
-diff --git a/mm/internal.h b/mm/internal.h
-index 08b8dea..92729ea 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -17,6 +17,7 @@ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long floor, unsigned long ceiling);
- 
- extern void prep_compound_page(struct page *page, unsigned long order);
-+extern void prep_compound_gigantic_page(struct page *page, unsigned long order);
- 
- static inline void set_page_count(struct page *page, int v)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 27b8681..dbeb3f8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -268,14 +268,28 @@ void prep_compound_page(struct page *page, unsigned long order)
- {
- 	int i;
- 	int nr_pages = 1 << order;
-+
-+	set_compound_page_dtor(page, free_compound_page);
-+	set_compound_order(page, order);
-+	__SetPageHead(page);
-+	for (i = 1; i < nr_pages; i++) {
-+		struct page *p = page + i;
-+
-+		__SetPageTail(p);
-+		p->first_page = page;
-+	}
-+}
-+
-+void prep_compound_gigantic_page(struct page *page, unsigned long order)
-+{
-+	int i;
-+	int nr_pages = 1 << order;
- 	struct page *p = page + 1;
- 
- 	set_compound_page_dtor(page, free_compound_page);
- 	set_compound_order(page, order);
- 	__SetPageHead(page);
--	for (i = 1; i < nr_pages; i++, p++) {
--		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
--			p = pfn_to_page(page_to_pfn(page) + i);
-+	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
- 		__SetPageTail(p);
- 		p->first_page = page;
- 	}
-@@ -285,7 +299,6 @@ static void destroy_compound_page(struct page *page, unsigned long order)
- {
- 	int i;
- 	int nr_pages = 1 << order;
--	struct page *p = page + 1;
- 
- 	if (unlikely(compound_order(page) != order))
- 		bad_page(page);
-@@ -293,9 +306,8 @@ static void destroy_compound_page(struct page *page, unsigned long order)
- 	if (unlikely(!PageHead(page)))
- 			bad_page(page);
- 	__ClearPageHead(page);
--	for (i = 1; i < nr_pages; i++, p++) {
--		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
--			p = pfn_to_page(page_to_pfn(page) + i);
-+	for (i = 1; i < nr_pages; i++) {
-+		struct page *p = page + i;
- 
- 		if (unlikely(!PageTail(p) |
- 				(p->first_page != page)))
--- 
-1.6.0.1.451.gc8d31
+
+> This patch, like I said when it was first merged, has the problem that
+> it can cause large stalls when reclaiming pages.
+> 
+> I actually myself tried a similar thing a long time ago. The problem is
+> that after a long period of no reclaiming, your file pages can all end
+> up being active and referenced. When the first guy wants to reclaim a
+> page, it might have to scan through gigabytes of file pages before being
+> able to reclaim a single one.
+
+I perfectly agree this opinion.
+all pages stay on active list is awful.
+
+In addition, my mesurement tell me this patch cause latency degression on really heavy io workload.
+
+2.6.27-rc8: Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
+ + patch  : Throughput 12.0953 MB/sec  4000 clients  4000 procs  max_latency=1731244.847 ms
+
+
+> While it would be really nice to be able to just lazily set PageReferenced
+> and nothing else in mark_page_accessed, and then do file page aging based
+> on the referenced bit, the fact is that we virtually have O(1) reclaim
+> for file pages now, and this can make it much more like O(n) (in worst case,
+> especially).
+> 
+> I don't think it is right to say "we broke aging and this patch fixes it".
+> It's all a big crazy heuristic. Who's to say that the previous behaviour
+> wasn't better and this patch breaks it? :)
+> 
+> Anyway, I don't think it is exactly productive to keep patches like this in
+> the tree (that doesn't seem ever intended to be merged) while there are
+> other big changes to reclaim there.
+> 
+> Same for vm-dont-run-touch_buffer-during-buffercache-lookups.patch
+
+I mesured it too,
+
+2.6.27-rc8: Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
+ + patch  : Throughput 11.8494 MB/sec  4000 clients  4000 procs  max_latency=3463217.227 ms
+
+dbench latency increased about x2.5
+
+So, the patch desctiption already descibe this risk. 
+metadata dropping can decrease performance largely.
+that just appeared, imho.
+
+
+I'll investigate more tommorow.
+Thanks!
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
