@@ -1,37 +1,43 @@
-Date: Wed, 8 Oct 2008 04:38:20 +0200
+Date: Wed, 8 Oct 2008 04:48:13 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm, for adaptive dcache hash table sizing (resend)
-Message-ID: <20081008023820.GB6499@wotan.suse.de>
-References: <20081007070225.GB5959@wotan.suse.de> <48EB11BB.2060704@cosmosbay.com> <20081007080656.GB16143@wotan.suse.de> <20081007.140509.48442086.davem@davemloft.net>
+Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm, for adaptive dcache hash table sizing
+Message-ID: <20081008024813.GC6499@wotan.suse.de>
+References: <20081007064834.GA5959@wotan.suse.de> <20081007.140825.40261432.davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081007.140509.48442086.davem@davemloft.net>
+In-Reply-To: <20081007.140825.40261432.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Miller <davem@davemloft.net>
-Cc: dada1@cosmosbay.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, paulmck@us.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-netdev@vger.kernel.org, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 07, 2008 at 02:05:09PM -0700, David Miller wrote:
+On Tue, Oct 07, 2008 at 02:08:25PM -0700, David Miller wrote:
 > From: Nick Piggin <npiggin@suse.de>
-> Date: Tue, 7 Oct 2008 10:06:56 +0200
+> Date: Tue, 7 Oct 2008 08:48:34 +0200
 > 
-> > Hmm, that is interesting. What are the exact semantics of this rt_cache
-> > file?
+> > I'm cc'ing netdev because Dave did express some interest in using this for
+> > some networking hashes, and network guys in general are pretty cluey when it
+> > comes to hashes and such ;)
 > 
-> It dumps the whole set of elements in the routing cache hash table.
+> Interesting stuff.
+> 
+> Paul, many months ago, forwarded to me a some work done by Josh
+> Triplett called "rcuhashbash" which had similar objectives.  He did
+> post it to linux-kernel, and perhaps even your ideas are inspired by
+> his work, I don't know. :-)
 
-Right, so I guess importantly, it must not miss a route that remains in
-the cache for the duration of the read(2)s. Obviously routes concurrently
-entering and leaving the cache will not have any guarantees, including
-causality (if we dump route A, we may still miss route B added before A).
+Hmm yes I did see that. It's not too similar, as it focuses on re-keying
+an existing element into the same hash table. ddds can't do that kind of
+thing (the underlying data structure isn't visible to the algorithm, so
+it can't exactly modify data structures in-place), although in another
+sense it is more general because the transfer function could transfer
+items into another hash table and re-key them as it goes (if it did that,
+it could probably use Josh's "atomic" re-keying algorithm too).
 
-Duplicates? I guess in a sense it could be possible to read route A, then
-it gets deleted and reinserted? Oh, looking at the code it seems like
-actually it is possible to miss entries anyway if they get moved to the
-front of the chain while we're traversing it. Hmm, so if it just has "best
-effort" kind of semantics, then we don't have to be too worried.
+But largely it does seem like they are orthogonal (if I'm reading
+rcuhashbash correctly).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
