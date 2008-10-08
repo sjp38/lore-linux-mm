@@ -1,55 +1,37 @@
-Date: Wed, 8 Oct 2008 01:57:37 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
-Message-ID: <20081007235737.GD7971@one.firstfloor.org>
-References: <1223396117-8118-1-git-send-email-kirill@shutemov.name> <2f11576a0810070931k79eb72dfr838a96650563b93a@mail.gmail.com> <20081007211038.GQ20740@one.firstfloor.org> <20081008000518.13f48462@lxorguk.ukuu.org.uk> <20081007232059.GU20740@one.firstfloor.org> <20081008004030.7a0e9915@lxorguk.ukuu.org.uk>
+Date: Wed, 8 Oct 2008 04:38:20 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch][rfc] ddds: "dynamic dynamic data structure" algorithm, for adaptive dcache hash table sizing (resend)
+Message-ID: <20081008023820.GB6499@wotan.suse.de>
+References: <20081007070225.GB5959@wotan.suse.de> <48EB11BB.2060704@cosmosbay.com> <20081007080656.GB16143@wotan.suse.de> <20081007.140509.48442086.davem@davemloft.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081008004030.7a0e9915@lxorguk.ukuu.org.uk>
+In-Reply-To: <20081007.140509.48442086.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Miller <davem@davemloft.net>
+Cc: dada1@cosmosbay.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, paulmck@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 08, 2008 at 12:40:30AM +0100, Alan Cox wrote:
-> > > Can use shm_open and mmap to get POSIX standard shm behaviour via a sane
-> > 
-> > I don't think shm_open can attach to SYSV shared segments. Or are you
-> > proposing to add "sysvshmfs" to make that possible? 
+On Tue, Oct 07, 2008 at 02:05:09PM -0700, David Miller wrote:
+> From: Nick Piggin <npiggin@suse.de>
+> Date: Tue, 7 Oct 2008 10:06:56 +0200
 > 
-> Actually you can do so. As it stands today the SYS3 SHM interface code
-> does the following
+> > Hmm, that is interesting. What are the exact semantics of this rt_cache
+> > file?
 > 
-> 	create a char array in the form SYS%08ld, key
-> 	open it on shmfs
+> It dumps the whole set of elements in the routing cache hash table.
 
-Perhaps I'm confused but my /dev/shm doesn't have any such files,
-but I see a variety of shm segments in ipcs.
+Right, so I guess importantly, it must not miss a route that remains in
+the cache for the duration of the read(2)s. Obviously routes concurrently
+entering and leaving the cache will not have any guarantees, including
+causality (if we dump route A, we may still miss route B added before A).
 
-What would the path passed to shm_open look like?
-
-> 
-> > - There are legacy interfaces that cannot be really changed who use sysv shm
-> > (e.g. X shm and others -- just do a ipcs on your system) 
-> 
-> They can be changed 
-
-You want to break the X interface? And who knows who else
-is using it.
-
-> and nobody is wanting to map those at fixed addresses.
-
-You're saying it should always use the address as a search hint?
-
-Just changing the semantics unconditionally would seem risky to me. After 
-all as you point out they are primarily for compatibility and for that keeping
-old semantics would seem better to me.
-
--Andi
--- 
-ak@linux.intel.com
+Duplicates? I guess in a sense it could be possible to read route A, then
+it gets deleted and reinserted? Oh, looking at the code it seems like
+actually it is possible to miss entries anyway if they get moved to the
+front of the chain while we're traversing it. Hmm, so if it just has "best
+effort" kind of semantics, then we don't have to be too worried.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
