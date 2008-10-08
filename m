@@ -1,61 +1,39 @@
-Received: by mu-out-0910.google.com with SMTP id i2so3400414mue.6
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2008 03:52:32 -0700 (PDT)
-Message-ID: <48EC90EC.8060306@gmail.com>
-Date: Wed, 08 Oct 2008 12:52:28 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
-MIME-Version: 1.0
-Subject: [PATCH] documentation: clarify dirty_ratio and dirty_background_ratio
- description
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Wed, 8 Oct 2008 13:02:43 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
+Message-ID: <20081008110243.GN7971@one.firstfloor.org>
+References: <20081007211038.GQ20740@one.firstfloor.org> <20081008000518.13f48462@lxorguk.ukuu.org.uk> <20081007232059.GU20740@one.firstfloor.org> <20081008004030.7a0e9915@lxorguk.ukuu.org.uk> <20081007235737.GD7971@one.firstfloor.org> <20081008093424.4e88a3c2@lxorguk.ukuu.org.uk> <20081008084350.GI7971@one.firstfloor.org> <20081008095851.01790b6a@lxorguk.ukuu.org.uk> <20081008091112.GK7971@one.firstfloor.org> <20081008112037.6fa37c0b@lxorguk.ukuu.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20081008112037.6fa37c0b@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-The current documentation of dirty_ratio and dirty_background_ratio is a
-bit misleading.
+On Wed, Oct 08, 2008 at 11:20:37AM +0100, Alan Cox wrote:
+> > That is racy when multi threaded because shmat() doesn't replace, so you 
+> > would need to munmap() inbetween and someone else could steal the area
+> > then. Yes you could stick a loop around it. It could livelock.
+> > No, it's not a good interface I would advocate.
+> 
+> You could just use pthread mutexes in your application. The role of the
 
-In the documentation we say that they are "a percentage of total system
-memory", but the current page writeback policy, intead, is to apply the
-percentages to the dirtyable memory, that means free pages + reclaimable
-pages.
+malloc() can call mmap, so that would require putting a mutex around
+each malloc(). Good luck finding them all.
 
-Better to be more explicit to clarify this concept.
+> kernel is not to provide nappies for people who think programming is too
+> hard but to provide services that can be used to build applications.
 
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
----
- Documentation/filesystems/proc.txt |   11 ++++++-----
- 1 files changed, 6 insertions(+), 5 deletions(-)
+Outsourcing kernel locking to user space is not the way to go.
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index f566ad9..be69c8b 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1380,15 +1380,16 @@ causes the kernel to prefer to reclaim dentries and inodes.
- dirty_background_ratio
- ----------------------
- 
--Contains, as a percentage of total system memory, the number of pages at which
--the pdflush background writeback daemon will start writing out dirty data.
-+Contains, as a percentage of the dirtyable system memory (free pages +
-+reclaimable pages), the number of pages at which the pdflush background
-+writeback daemon will start writing out dirty data.
- 
- dirty_ratio
- -----------------
- 
--Contains, as a percentage of total system memory, the number of pages at which
--a process which is generating disk writes will itself start writing out dirty
--data.
-+Contains, as a percentage of the dirtyable system memory (free pages +
-+reclaimable pages), the number of pages at which a process which is generating
-+disk writes will itself start writing out dirty data.
- 
- dirty_writeback_centisecs
- -------------------------
+-Andi
+
+-- 
+ak@linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
