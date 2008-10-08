@@ -1,87 +1,41 @@
-Subject: Re: [BUG] SLOB's krealloc() seems bust
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <200810081611.30897.nickpiggin@yahoo.com.au>
-References: <1223387841.26330.36.camel@lappy.programming.kicks-ass.net>
-	 <1223441190.13453.459.camel@calx>
-	 <200810081554.33651.nickpiggin@yahoo.com.au>
-	 <200810081611.30897.nickpiggin@yahoo.com.au>
-Content-Type: text/plain
-Date: Wed, 08 Oct 2008 00:15:47 -0500
-Message-Id: <1223442947.13453.462.camel@calx>
-Mime-Version: 1.0
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+Date: Wed, 8 Oct 2008 16:55:06 +1100
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810081655.06698.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@linuxfoundation.org>
+To: "Morton, Andrew" <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-10-08 at 16:11 +1100, Nick Piggin wrote:
-> On Wednesday 08 October 2008 15:54, Nick Piggin wrote:
-> > On Wednesday 08 October 2008 15:46, Matt Mackall wrote:
-> > > On Wed, 2008-10-08 at 15:22 +1100, Nick Piggin wrote:
-> > > > On Wednesday 08 October 2008 10:08, Matt Mackall wrote:
-> 
-> > > > > diff -r 5e32b09a1b2b mm/slob.c
-> > > > > --- a/mm/slob.c	Fri Oct 03 14:04:43 2008 -0500
-> > > > > +++ b/mm/slob.c	Tue Oct 07 18:05:15 2008 -0500
-> > > > > @@ -514,9 +514,11 @@
-> > > > >  		return 0;
-> > > > >
-> > > > >  	sp = (struct slob_page *)virt_to_page(block);
-> > > > > -	if (slob_page(sp))
-> > > > > -		return ((slob_t *)block - 1)->units + SLOB_UNIT;
-> > > > > -	else
-> > > > > +	if (slob_page(sp)) {
-> > > > > +		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-> > > > > +		unsigned int *m = (unsigned int *)(block - align);
-> > > > > +		return SLOB_UNITS(*m); /* round up */
-> > > > > +	} else
-> > > > >  		return sp->page.private;
-> > > > >  }
-> > > >
-> > > > Yes, I came up with nearly the same patch before reading this
-> > > >
-> > > > --- linux-2.6/mm/slob.c 2008-10-08 14:43:17.000000000 +1100
-> > > > +++ suth/mm/slob.c      2008-10-08 15:11:06.000000000 +1100
-> > > > @@ -514,9 +514,11 @@ size_t ksize(const void *block)
-> > > >                 return 0;
-> > > >
-> > > >         sp = (struct slob_page *)virt_to_page(block);
-> > > > -       if (slob_page(sp))
-> > > > -               return (((slob_t *)block - 1)->units - 1) * SLOB_UNIT;
-> > > > -       else
-> > > > +       if (slob_page(sp)) {
-> > > > +               int align = max(ARCH_KMALLOC_MINALIGN,
-> > > > ARCH_SLAB_MINALIGN); +               unsigned int *m = (unsigned int
-> > > > *)(block - align); +               return *m + align;
-> > > > +       } else
-> > > >                 return sp->page.private;
-> > > >  }
-> > > >
-> > > > However, mine is lifted directly from kfree, wheras you do something a
-> > > > bit different. Hmm, ksize arguably could be used to find the underlying
-> > > > allocated slab size in order to use a little bit more than we'd asked
-> > > > for. So probably we should really just `return *m` (don't round up or
-> > > > add any padding).
-> > >
-> > > Huh? ksize should report how much space is available in the buffer. If
-> > > we request 33 bytes from SLUB and it gives us 64, ksize reports 64. If
-> > > we request 33 bytes from SLOB and it gives us 34, we should report 34.
-> >
-> > Oh.. hmm yeah right, I didn't realise what you were doing there.
-> > OK, so your patch looks good to me then (provided it is diffed against
-> > the previous one, for Linus).
-> 
-> OK, no, that's why I got confused. SLOB_UNITS will round you up to the
-> next SLOB_UNIT. You'd then have to multiply by SLOB_UNIT to get back to
-> bytes.
+This patch, like I said when it was first merged, has the problem that
+it can cause large stalls when reclaiming pages.
 
-Damnit, how many ways can we get confused by these little details? I'll
-spin a final version and run it against the test harness shortly.
+I actually myself tried a similar thing a long time ago. The problem is
+that after a long period of no reclaiming, your file pages can all end
+up being active and referenced. When the first guy wants to reclaim a
+page, it might have to scan through gigabytes of file pages before being
+able to reclaim a single one.
 
--- 
-Mathematics is the supreme nostalgia of our time.
+While it would be really nice to be able to just lazily set PageReferenced
+and nothing else in mark_page_accessed, and then do file page aging based
+on the referenced bit, the fact is that we virtually have O(1) reclaim
+for file pages now, and this can make it much more like O(n) (in worst case,
+especially).
+
+I don't think it is right to say "we broke aging and this patch fixes it".
+It's all a big crazy heuristic. Who's to say that the previous behaviour
+wasn't better and this patch breaks it? :)
+
+Anyway, I don't think it is exactly productive to keep patches like this in
+the tree (that doesn't seem ever intended to be merged) while there are
+other big changes to reclaim there.
+
+Same for vm-dont-run-touch_buffer-during-buffercache-lookups.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
