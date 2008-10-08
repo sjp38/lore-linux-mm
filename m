@@ -1,63 +1,120 @@
-Received: by ug-out-1314.google.com with SMTP id p35so464625ugc.19
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2008 02:34:21 -0700 (PDT)
-Date: Wed, 8 Oct 2008 12:35:27 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, v3] shmat: introduce flag SHM_MAP_NOT_FIXED
-Message-ID: <20081008093526.GA4986@localhost.localdomain>
-References: <1223396117-8118-1-git-send-email-kirill@shutemov.name> <517f3f820810080157j3994ff10j8518178af02e5b22@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="pWyiEgJYm5f9v55/"
-Content-Disposition: inline
-In-Reply-To: <517f3f820810080157j3994ff10j8518178af02e5b22@mail.gmail.com>
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: [PATCH 1/1] hugetlb: pull gigantic page initialisation out of the default path
+Date: Wed,  8 Oct 2008 10:34:59 +0100
+Message-Id: <1223458499-12752-1-git-send-email-apw@shadowen.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Ingo Molnar <mingo@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ulrich Drepper <drepper@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Jon Tollefson <kniht@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
---pWyiEgJYm5f9v55/
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+As we can determine exactly when a gigantic page is in use we can optimise
+the common regular page cases by pulling out gigantic page initialisation
+into its own function.  As gigantic pages are never released to buddy we
+do not need a destructor.  This effectivly reverts the previous change
+to the main buddy allocator.  It also adds a paranoid check to ensure we
+never release gigantic pages from hugetlbfs to the main buddy.
 
-On Wed, Oct 08, 2008 at 10:57:21AM +0200, Michael Kerrisk wrote:
-> Kirill,
->=20
-> On Tue, Oct 7, 2008 at 6:15 PM, Kirill A. Shutemov <kirill@shutemov.name>=
- wrote:
-> > If SHM_MAP_NOT_FIXED specified and shmaddr is not NULL, then the kernel=
- takes
-> > shmaddr as a hint about where to place the mapping. The address of the =
-mapping
-> > is returned as the result of the call.
-> >
-> > It's similar to mmap() without MAP_FIXED.
->=20
-> Please CC linux-api@vger.kernel.org on patches that change the
-> kernel-userspace interface.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+---
+ mm/hugetlb.c    |    4 +++-
+ mm/internal.h   |    1 +
+ mm/page_alloc.c |   26 +++++++++++++++++++-------
+ 3 files changed, 23 insertions(+), 8 deletions(-)
 
-Ok, I will.
-
---=20
-Regards,  Kirill A. Shutemov
- + Belarus, Minsk
- + ALT Linux Team, http://www.altlinux.com/
-
---pWyiEgJYm5f9v55/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAkjsft4ACgkQbWYnhzC5v6ojnACaA+yTJZGysNqJF+gPGEsWJJwR
-FU4AniTGA7SoT/IUJoim7mXpb0xHICly
-=x+Pb
------END PGP SIGNATURE-----
-
---pWyiEgJYm5f9v55/--
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bb5cf81..716b151 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -460,6 +460,8 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+ {
+ 	int i;
+ 
++	BUG_ON(h->order >= MAX_ORDER);
++
+ 	h->nr_huge_pages--;
+ 	h->nr_huge_pages_node[page_to_nid(page)]--;
+ 	for (i = 0; i < pages_per_huge_page(h); i++) {
+@@ -984,7 +986,7 @@ static void __init gather_bootmem_prealloc(void)
+ 		struct hstate *h = m->hstate;
+ 		__ClearPageReserved(page);
+ 		WARN_ON(page_count(page) != 1);
+-		prep_compound_page(page, h->order);
++		prep_compound_gigantic_page(page, h->order);
+ 		prep_new_huge_page(h, page, page_to_nid(page));
+ 	}
+ }
+diff --git a/mm/internal.h b/mm/internal.h
+index 08b8dea..92729ea 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -17,6 +17,7 @@ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+ extern void prep_compound_page(struct page *page, unsigned long order);
++extern void prep_compound_gigantic_page(struct page *page, unsigned long order);
+ 
+ static inline void set_page_count(struct page *page, int v)
+ {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 27b8681..dbeb3f8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -268,14 +268,28 @@ void prep_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
++
++	set_compound_page_dtor(page, free_compound_page);
++	set_compound_order(page, order);
++	__SetPageHead(page);
++	for (i = 1; i < nr_pages; i++) {
++		struct page *p = page + i;
++
++		__SetPageTail(p);
++		p->first_page = page;
++	}
++}
++
++void prep_compound_gigantic_page(struct page *page, unsigned long order)
++{
++	int i;
++	int nr_pages = 1 << order;
+ 	struct page *p = page + 1;
+ 
+ 	set_compound_page_dtor(page, free_compound_page);
+ 	set_compound_order(page, order);
+ 	__SetPageHead(page);
+-	for (i = 1; i < nr_pages; i++, p++) {
+-		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
+-			p = pfn_to_page(page_to_pfn(page) + i);
++	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
+ 		__SetPageTail(p);
+ 		p->first_page = page;
+ 	}
+@@ -285,7 +299,6 @@ static void destroy_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
+-	struct page *p = page + 1;
+ 
+ 	if (unlikely(compound_order(page) != order))
+ 		bad_page(page);
+@@ -293,9 +306,8 @@ static void destroy_compound_page(struct page *page, unsigned long order)
+ 	if (unlikely(!PageHead(page)))
+ 			bad_page(page);
+ 	__ClearPageHead(page);
+-	for (i = 1; i < nr_pages; i++, p++) {
+-		if (unlikely((i & (MAX_ORDER_NR_PAGES - 1)) == 0))
+-			p = pfn_to_page(page_to_pfn(page) + i);
++	for (i = 1; i < nr_pages; i++) {
++		struct page *p = page + i;
+ 
+ 		if (unlikely(!PageTail(p) |
+ 				(p->first_page != page)))
+-- 
+1.6.0.1.451.gc8d31
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
