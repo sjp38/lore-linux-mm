@@ -1,55 +1,47 @@
-Date: Thu, 9 Oct 2008 14:46:58 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
-Message-ID: <20081009124658.GE2952@elte.hu>
-References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
+Subject: Re: [patch 5/8] mm: write_cache_pages integrity fix
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <20081009174822.621353840@suse.de>
+References: <20081009155039.139856823@suse.de>
+	 <20081009174822.621353840@suse.de>
+Content-Type: text/plain
+Date: Thu, 09 Oct 2008 08:52:45 -0400
+Message-Id: <1223556765.14090.2.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
+To: npiggin@suse.de
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* Oren Laadan <orenl@cs.columbia.edu> wrote:
+On Fri, 2008-10-10 at 02:50 +1100, npiggin@suse.de wrote:
+> plain text document attachment (mm-wcp-integrity-fix.patch)
+> In write_cache_pages, nr_to_write is heeded even for data-integrity syncs, so
+> the function will return success after writing out nr_to_write pages, even if
+> that was not sufficient to guarantee data integrity.
+> 
+> The callers tend to set it to values that could break data interity semantics
+> easily in practice. For example, nr_to_write can be set to mapping->nr_pages *
+> 2, however if a file has a single, dirty page, then fsync is called, subsequent
+> pages might be concurrently added and dirtied, then write_cache_pages might
+> writeout two of these newly dirty pages, while not writing out the old page
+> that should have been written out.
+> 
+> Fix this by ignoring nr_to_write if it is a data integrity sync.
+> 
 
-> These patches implement basic checkpoint-restart [CR]. This version 
-> (v6) supports basic tasks with simple private memory, and open files 
-> (regular files and directories only). Changes mainly cleanups. See 
-> original announcements below.
+Thanks for working on these.
 
-i'm wondering about the following productization aspect: it would be 
-very useful to applications and users if they knew whether it is safe to 
-checkpoint a given app. I.e. whether that app has any state that cannot 
-be stored/restored yet.
+We should have a wbc->integrity flag because WB_SYNC_NONE is somewhat
+over used, and it is often used in data integrity syncs.
 
-Once we can do that, if the kernel can reliably tell whether it can 
-safely checkpoint an application, we could start adding a kernel driven 
-self-test of sorts: a self-propelled kernel feature that would 
-transparently try to checkpoint various applications as it goes, and 
-restore them immediately.
+See fs/sync.c:do_sync_mapping_range()
 
-When such a test-kernel is booted then all that should be visible is an 
-occasional slowdown due to the random save/restore cycles of various 
-processes - but no actual application breakage should ever occur, and 
-the kernel must not crash either. This would work a bit like 
-CONFIG_RCUTORTURE: a constant test that should be transparent in terms 
-of functionality.
+There are many valid uses where we don't want to wait on pages that are
+already writeback but we do want to write everything else.
 
-Also, the ability to tell whether a process can be safely checkpointed 
-would allow apps to rely on it - they cannot accidentally use some 
-kernel feature that is not saved/restored and then lose state across a 
-CR cycle.
+-chris
 
-Plus, as a bonus, the inability to CR a given application would sure 
-spur the development of proper checkpointing of that given kernel state. 
-We could print some once-per-boot debug warning about exactly what bit 
-cannot be checkpointed yet. This would create proper pressure from 
-actual users of CR.
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
