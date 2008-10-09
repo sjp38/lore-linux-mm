@@ -1,38 +1,80 @@
-Message-ID: <48EE6D4C.7080901@linux-foundation.org>
-Date: Thu, 09 Oct 2008 15:45:00 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [rfc] approach to pull writepage out of reclaim
-References: <20081009144103.GE9941@wotan.suse.de> <48EE3A07.9060205@linux-foundation.org> <20081009194434.GB25780@parisc-linux.org>
-In-Reply-To: <20081009194434.GB25780@parisc-linux.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate4.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m99LxkOu309812
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 21:59:46 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m99LxcT72838596
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 22:59:46 +0100
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m99LxbFI013117
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 22:59:38 +0100
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+From: Greg Kurz <gkurz@fr.ibm.com>
+In-Reply-To: <20081009131701.GA21112@elte.hu>
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
+	 <20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>
+	 <20081009131701.GA21112@elte.hu>
+Content-Type: text/plain
+Date: Thu, 09 Oct 2008 23:59:33 +0200
+Message-Id: <1223589573.6117.66.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-Matthew Wilcox wrote:
-> On Thu, Oct 09, 2008 at 12:06:15PM -0500, Christoph Lameter wrote:
->> Nick Piggin wrote:
->>
->>> So. Firstly, what I'm looking at is doing swap writeout from pdflush. This
->>> patch does that (working in concept, but pdflush and background writeout
->>> from dirty inode list isn't really up to the task, might scrap it and do the
->>> writeout from kswap). But writeout from radix-tree should actually be able to
->>> give better swapout pattern than LRU writepage as well.
->> Patch is missing from the message.
+On Thu, 2008-10-09 at 15:17 +0200, Ingo Molnar wrote:
+> yeah, something like that. A key aspect of it is that is has to be very 
+> low-key on the source code level - we dont want to sprinkle the kernel 
+> with anything ugly. Perhaps something pretty explicit:
 > 
-> It's no longer acceptable to post descriptions of what you're about to
-> do?  You have to invest lots of time into creating a patch and testing that
-> it works before posting it (only to have it shot down because someone
-> disagrees with the design of your solution)?  Really?
+>   current->flags |= PF_NOCR;
+> 
+> as we do the same thing today for certain facilities:
+> 
+>   current->flags |= PF_NOFREEZE;
+> 
+> you probably want to hide it behind:
+> 
+>   set_current_nocr();
+> 
 
-The text says that a patch was included.... So I was expecting it....
+Being uncheckpointable is a transient and hopefully reversible state.
+A set_current_cr() function is also needed and should be called at some
+time to avoid abusive denials of checkpoint (DoC ?).
 
-But the problem you mention is real. Tried numerous times to get a conceptual
-discussion going without a patch. Usually that does not lead to anything.
+With the sys_remap_file_pages() example, set_current_cr() should be
+called somewhere in sys_munmap() or even sys_remap_file_pages(). Some
+code should be added to detect the mapping that lead the nocr state is
+removed (a flag on the affected vma?) or fixed (checking the linearity
+of mapping?). Would this code be low-key enough ?
+
+> and have a set_task_nocr() as well, in case there's some proxy state 
+> installed by another task.
+> 
+> Via such wrappers there's no overhead at all in the 
+> !CONFIG_CHECKPOINT_RESTART case.
+> 
+> Plus you could drive the debug mechanism via it as well, by using a 
+> trivial extension of the facility:
+> 
+>   set_current_nocr("CR: sys_remap_file_pages not supported yet.");
+>   ...
+>   set_task_nocr(t, "CR: PI futexes not supported yet.");
+> 
+> 	Ingo
+> _______________________________________________
+> Containers mailing list
+> Containers@lists.linux-foundation.org
+> https://lists.linux-foundation.org/mailman/listinfo/containers
+-- 
+Gregory Kurz                                     gkurz@fr.ibm.com
+Software Engineer @ IBM/Meiosys                  http://www.ibm.com
+Tel +33 (0)534 638 479                           Fax +33 (0)561 400 420
+
+"Anarchy is about taking complete responsibility for yourself."
+        Alan Moore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
