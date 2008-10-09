@@ -1,61 +1,84 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m997EdxY006751
-	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:14:39 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m997Fp1k232348
-	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:15:53 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m997FoUA008292
-	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:15:50 +1100
-Message-ID: <48EDAFA0.1090808@linux.vnet.ibm.com>
-Date: Thu, 09 Oct 2008 12:45:44 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: by ey-out-1920.google.com with SMTP id 21so1755247eyc.44
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2008 00:31:51 -0700 (PDT)
+Message-ID: <48EDB373.2050704@gmail.com>
+Date: Thu, 09 Oct 2008 09:32:03 +0200
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: update patch set v7
-References: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] documentation: clarify dirty_ratio and dirty_background_ratio
+ description
+References: <48EC90EC.8060306@gmail.com> <20081009105157.dd47d109.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081009105157.dd47d109.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>
+Cc: Randy Dunlap <randy.dunlap@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> Hi, Andrew. please allow me to test under -mm if ok.
+> On Wed, 08 Oct 2008 12:52:28 +0200
+> Andrea Righi <righi.andrea@gmail.com> wrote:
 > 
-> This series is against the newest -mmotm(stamp-2008-10-02-16-17)
-> and I think ready-to-go.
+>> The current documentation of dirty_ratio and dirty_background_ratio is a
+>> bit misleading.
+>>
+>> In the documentation we say that they are "a percentage of total system
+>> memory", but the current page writeback policy, intead, is to apply the
+>> percentages to the dirtyable memory, that means free pages + reclaimable
+>> pages.
+>>
+> Right.
 > 
-> All comments are reflected.
-> (and CONFIG_CGROUP_MEM_RES_CTLR=n case is fixed.)
+>> Better to be more explicit to clarify this concept.
+>>
+>> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
 > 
-> Including following patches.
+> But I wonder "reclaimable memory" seems to be a difficult word for users....
 > 
-> [1/6] ... account swap cache under lock
-> [2/6] ... set page->mapping to be NULL before uncharge
-> [3/6] ... avoid to account not-on-LRU pages.
-> [4/6] ... optimize per cpu statistics on memcg.
-> [5/6] ... make page_cgroup->flags atomic.
-> [6/6] ... allocate page_cgroup at boot.
-> 
-> I did tests I can. But I think patch 6/6 needs wider testers.
-> It has some dependency to configs/archs.
-> 
-> (*) the newest mmotm needs some patches to be driven.
+> "free pages + mapped pages + file cache, not including locked page and HugePage"
+> ?
+> Anyway,
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Kamezawa-San,
+Sounds better. I'll add these details and post a new patch.
 
-Thanks for the patchset. I would like to see these tested in -mm as well. The
-complaint that I am hearing from Fedora is that for them to enable the memory
-controller, they would like to see the struct page overhead go (for 32 bit
-systems that have 32 byte cachelines). This series helps us address that issue
-and helps with performance.
+Thanks,
+-Andrea
 
--- 
-	Balbir
+> 
+>> ---
+>>  Documentation/filesystems/proc.txt |   11 ++++++-----
+>>  1 files changed, 6 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+>> index f566ad9..be69c8b 100644
+>> --- a/Documentation/filesystems/proc.txt
+>> +++ b/Documentation/filesystems/proc.txt
+>> @@ -1380,15 +1380,16 @@ causes the kernel to prefer to reclaim dentries and inodes.
+>>  dirty_background_ratio
+>>  ----------------------
+>>  
+>> -Contains, as a percentage of total system memory, the number of pages at which
+>> -the pdflush background writeback daemon will start writing out dirty data.
+>> +Contains, as a percentage of the dirtyable system memory (free pages +
+>> +reclaimable pages), the number of pages at which the pdflush background
+>> +writeback daemon will start writing out dirty data.
+>>  
+>>  dirty_ratio
+>>  -----------------
+>>  
+>> -Contains, as a percentage of total system memory, the number of pages at which
+>> -a process which is generating disk writes will itself start writing out dirty
+>> -data.
+>> +Contains, as a percentage of the dirtyable system memory (free pages +
+>> +reclaimable pages), the number of pages at which a process which is generating
+>> +disk writes will itself start writing out dirty data.
+>>  
+>>  dirty_writeback_centisecs
+>>  -------------------------
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
