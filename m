@@ -1,32 +1,76 @@
-Date: Thu, 9 Oct 2008 10:33:58 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 4/8] mm: write_cache_pages type overflow fix
-Message-ID: <20081009083358.GA30639@wotan.suse.de>
-References: <20081009155039.139856823@suse.de> <20081009174822.516911376@suse.de> <20081009082336.GB6637@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Thu, 9 Oct 2008 11:24:36 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+Message-ID: <20081009102436.GD24962@csn.ul.ie>
+References: <1223052415-18956-1-git-send-email-mel@csn.ul.ie> <1223052415-18956-2-git-send-email-mel@csn.ul.ie> <20081008213831.GA23729@x200.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20081009082336.GB6637@infradead.org>
+In-Reply-To: <20081008213831.GA23729@x200.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 09, 2008 at 04:23:36AM -0400, Christoph Hellwig wrote:
-> On Fri, Oct 10, 2008 at 02:50:43AM +1100, npiggin@suse.de wrote:
-> > In the range_cont case, range_start is set to index << PAGE_CACHE_SHIFT, but
-> > index is a pgoff_t and range_start is loff_t, so we can get truncation of the
-> > value on 32-bit platforms. Fix this by adding the standard loff_t cast.
-> > 
-> > This is a data interity bug (depending on how range_cont is used).
+On (09/10/08 01:38), Alexey Dobriyan didst pronounce:
+> On Fri, Oct 03, 2008 at 05:46:54PM +0100, Mel Gorman wrote:
+> > It is useful to verify a hugepage-aware application is using the expected
+> > pagesizes for its memory regions. This patch creates an entry called
+> > KernelPageSize in /proc/pid/smaps that is the size of page used by the
+> > kernel to back a VMA. The entry is not called PageSize as it is possible
+> > the MMU uses a different size. This extension should not break any sensible
+> > parser that skips lines containing unrecognised information.
 > 
-> Aneesh has a patch to kill the range_cont flag, which is queued up for
-> 2.6.28.
+> > +		   "KernelPageSize: %8lu kB\n",
+> 
+> > +unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+> > +{
+> > +	struct hstate *hstate;
+> > +
+> > +	if (!is_vm_hugetlb_page(vma))
+> > +		return PAGE_SIZE;
+> > +
+> > +	hstate = hstate_vma(vma);
+> > +	VM_BUG_ON(!hstate);
+> > +
+> > +	return 1UL << (hstate->order + PAGE_SHIFT);
+> 			    ^^^^
+> VM_BUG_ON is unneeded because kernel will oops here if hstate is NULL.
+> 
 
-OK, great. I guess actually this patch out of all of them could go into
-2.6.27 and previous stable kernels because it is obviously correct and
-could not really cause a regression.
+Ok, will drop it. I used the VM_BUG_ON so if the situation was triggered,
+it would come with line numbers but it'll be an obvious oops so I guess it
+is redundant.
+
+> Also, in /proc/*/maps it's printed only for hugetlb vmas and called
+> hpagesize,
+
+Well yes... because it's a huge pagesize for that VMA. The name reflects
+what is being described there.
+
+> in smaps it's printed for every vma and called
+> KernelPageSize. All of this is inconsistent.
+> 
+
+In smaps, we are printing for every VMA because it's easier for parsers to
+deal with the presense of information than its absense. The name KernelPageSize
+there is an accurate description.
+
+I don't feel it is inconsistent.
+
+> And app will verify once that hugepages are of right size, so Pss cost
+> argument for changing /proc/*/maps seems weak to me.
+> 
+
+Lets say someone wanted to monitor an application to see what its use of
+hugepages were over time, they would have to constantly incur the PSS
+cost to do that which seems a bit unfair.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
