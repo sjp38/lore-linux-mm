@@ -1,27 +1,39 @@
-Message-ID: <48EE3A07.9060205@linux-foundation.org>
-Date: Thu, 09 Oct 2008 12:06:15 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m99JL6Z0030599
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 15:21:07 -0400
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m99JL6JF194804
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 13:21:06 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m99JL54n027775
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 13:21:06 -0600
+Date: Thu, 9 Oct 2008 12:20:57 -0700
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: [PATCH 0/2] memory section sysfs enhancements
+Message-ID: <20081009192057.GA8793@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [rfc] approach to pull writepage out of reclaim
-References: <20081009144103.GE9941@wotan.suse.de>
-In-Reply-To: <20081009144103.GE9941@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Badari Pulavarty <pbadari@us.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, Gary Hade <garyhade@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+The following two patches are in response to comments received from 
+Yasunori Goto on 30 Sept, 2008 with respect to the "mm: show node to memory
+section relationship with symlinks in sysfs" patch posted on 29 Sept, 2008.
+  http://marc.info/?l=linux-kernel&m=122276241810881&w=2
 
-> So. Firstly, what I'm looking at is doing swap writeout from pdflush. This
-> patch does that (working in concept, but pdflush and background writeout
-> from dirty inode list isn't really up to the task, might scrap it and do the
-> writeout from kswap). But writeout from radix-tree should actually be able to
-> give better swapout pattern than LRU writepage as well.
+Gary
 
-Patch is missing from the message.
+-- 
+Gary Hade
+System x Enablement
+IBM Linux Technology Center
+503-578-4503  IBM T/L: 775-4503
+garyhade@us.ibm.com
+http://www.ibm.com/linux/ltc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
