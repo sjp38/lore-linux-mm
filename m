@@ -1,82 +1,79 @@
-Subject: Re: [patch 5/8] mm: write_cache_pages integrity fix
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <20081009132711.GB9941@wotan.suse.de>
-References: <20081009155039.139856823@suse.de>
-	 <20081009174822.621353840@suse.de>
-	 <1223556765.14090.2.camel@think.oraclecorp.com>
-	 <20081009132711.GB9941@wotan.suse.de>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m99DbKKm029488
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 09:37:20 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m99DbKi0150154
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 09:37:20 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m99DbItk011844
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 09:37:20 -0400
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081009131701.GA21112@elte.hu>
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
+	 <20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>
+	 <20081009131701.GA21112@elte.hu>
 Content-Type: text/plain
-Date: Thu, 09 Oct 2008 09:35:58 -0400
-Message-Id: <1223559358.14090.11.camel@think.oraclecorp.com>
+Date: Thu, 09 Oct 2008 06:34:06 -0700
+Message-Id: <1223559246.11830.23.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-10-09 at 15:27 +0200, Nick Piggin wrote:
-> On Thu, Oct 09, 2008 at 08:52:45AM -0400, Chris Mason wrote:
-> > On Fri, 2008-10-10 at 02:50 +1100, npiggin@suse.de wrote:
-> > > plain text document attachment (mm-wcp-integrity-fix.patch)
-> > > In write_cache_pages, nr_to_write is heeded even for data-integrity syncs, so
-> > > the function will return success after writing out nr_to_write pages, even if
-> > > that was not sufficient to guarantee data integrity.
-> > > 
-> > > The callers tend to set it to values that could break data interity semantics
-> > > easily in practice. For example, nr_to_write can be set to mapping->nr_pages *
-> > > 2, however if a file has a single, dirty page, then fsync is called, subsequent
-> > > pages might be concurrently added and dirtied, then write_cache_pages might
-> > > writeout two of these newly dirty pages, while not writing out the old page
-> > > that should have been written out.
-> > > 
-> > > Fix this by ignoring nr_to_write if it is a data integrity sync.
-> > > 
+On Thu, 2008-10-09 at 15:17 +0200, Ingo Molnar wrote:
+> * Dave Hansen <dave@linux.vnet.ibm.com> wrote
+> > On Thu, 2008-10-09 at 14:46 +0200, Ingo Molnar wrote:
+> > > i'm wondering about the following productization aspect: it would be 
+> > > very useful to applications and users if they knew whether it is safe to 
+> > > checkpoint a given app. I.e. whether that app has any state that cannot 
+> > > be stored/restored yet.
 > > 
-> > Thanks for working on these.
-> 
-> No problem. Actually I feel I would be negligent for knowingly shipping
-> a kernel with these bugs :( So I don't have much choice...
-> 
-> 
-> > We should have a wbc->integrity flag because WB_SYNC_NONE is somewhat
-> > over used, and it is often used in data integrity syncs.
+> > Absolutely!
 > > 
-> > See fs/sync.c:do_sync_mapping_range()
+> > My first inclination was to do this at checkpoint time: detect and 
+> > tell users why an app or container can't actually be checkpointed.  
+> > But, if I get you right, you're talking about something that happens 
+> > more during the runtime of the app than during the checkpoint.  This 
+> > sounds like a wonderful approach to me, and much better than what I 
+> > was thinking of.
+> > 
+> > What kind of mechanism do you have in mind?
+> > 
+> > int sys_remap_file_pages(...)
+> > {
+> >       ...
+> >       oh_crap_we_dont_support_this_yet(current);
+> > }
+> > 
+> > Then the oh_crap..() function sets a task flag or something?
 > 
-> Oh great, more data integrity bugs.
+> yeah, something like that. A key aspect of it is that is has to be very 
+> low-key on the source code level - we dont want to sprinkle the kernel 
+> with anything ugly. Perhaps something pretty explicit:
 > 
-> I've always disliked the sync_file_range API ;) it seems over complex and
-> introduces the concept of writeout to userspace that seems questionable to
-> me. I should add SYNC_FILE_RANGE_ASYNC and SYNC_FILE_RANGE_SYNC for people
-> who already know POSIX and just want to convert existing fsync or msync to
-> a file and range based API, and also get a proper async operation that
-> isn't bound to kick off writeback for every page but could hand off page
-> cleaning to another thread...
+>   current->flags |= PF_NOCR;
+
+Am I miscounting, or are we out of these suckers on 32-bit platforms?
+
+> as we do the same thing today for certain facilities:
 > 
-> Anyway, quick fix says we have to change that WB_SYNC_NONE into WB_SYNC_ALL.
-> WB_SYNC_NONE is all over the kernel. So do_sync_mapping_range is
-> broken as-is. 
+>   current->flags |= PF_NOFREEZE;
 > 
+> you probably want to hide it behind:
+> 
+>   set_current_nocr();
 
-I don't think do_sync_mapping_range is broken as is.  It simply splits
-the operations into different parts.  The caller can request that we
-wait for pending IO first.
+Yeah, that all looks reasonable.  Letting this be a dynamic thing where
+you can move back and forth between the two states would make a lot of
+sense too.  But, for now, I guess it can be a one-way trip.
 
-WB_SYNC_NONE none just means don't wait for IO in flight, and there are
-valid uses for it that will slow down if you switch them all to
-WB_SYNC_ALL.
+I'll cook something up real fast.
 
-The problem is that we have a few flags and callers that mean almost but
-not quite the same thing.  Some people confuse WB_SYNC_NONE with
-wbc->nonblocking.
-
-I'd leave WB_SYNC_NONE alone and set wbc->nr_to_write to the max int, or
-just make a new flag that says write every dirty page in this range.
-
--chris
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
