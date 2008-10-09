@@ -1,66 +1,57 @@
-Received: by nf-out-0910.google.com with SMTP id c10so2189619nfd.6
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2008 00:36:20 -0700 (PDT)
-Message-ID: <48EDB47E.60604@gmail.com>
-Date: Thu, 09 Oct 2008 09:36:30 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
-MIME-Version: 1.0
-Subject: [PATCH] documentation: clarify dirty_ratio and dirty_background_ratio
- description (v2)
-References: <48EC90EC.8060306@gmail.com> <20081009105157.dd47d109.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081009105157.dd47d109.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <20081009174822.847294148@suse.de>
+References: <20081009155039.139856823@suse.de>
+Date: Fri, 10 Oct 2008 02:50:46 +1100
+From: npiggin@suse.de
+Subject: [patch 7/8] mm: write_cache_pages optimise page cleaning
+Content-Disposition: inline; filename=mm-wcp-writeback-clean-opt.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The current documentation of dirty_ratio and dirty_background_ratio is a
-bit misleading.
+In write_cache_pages, if we get stuck behind another process that is cleaning
+pages, we will be forced to wait for them to finish, then perform our own
+writeout (if it was redirtied during the long wait), then wait for that.
 
-In the documentation we say that they are "a percentage of total system
-memory", but the current page writeback policy, intead, is to apply the
-percentages to the dirtyable memory, that means free pages + reclaimable
-pages.
+If a page under writeout is still clean, we can skip waiting for it (if we're
+part of a data integrity sync, we'll be waiting for all writeout pages
+afterwards, so we'll still be waiting for the other guy's write that's cleaned
+the page).
 
-Better to be more explicit to clarify this concept.
-
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- Documentation/filesystems/proc.txt |   13 ++++++++-----
- 1 files changed, 8 insertions(+), 5 deletions(-)
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -942,11 +942,20 @@ continue_unlock:
+ 				goto continue_unlock;
+ 			}
+ 
+-			if (wbc->sync_mode != WB_SYNC_NONE)
+-				wait_on_page_writeback(page);
++			if (!PageDirty(page)) {
++				/* someone wrote it for us */
++				goto continue_unlock;
++			}
++
++			if (PageWriteback(page)) {
++				if (wbc->sync_mode != WB_SYNC_NONE)
++					wait_on_page_writeback(page);
++				else
++					goto continue_unlock;
++			}
+ 
+-			if (PageWriteback(page) ||
+-			    !clear_page_dirty_for_io(page))
++			BUG_ON(PageWriteback(page));
++			if (!clear_page_dirty_for_io(page))
+ 				goto continue_unlock;
+ 
+ 			ret = (*writepage)(page, wbc, data);
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 394eb2c..474bf8b 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -1380,15 +1380,18 @@ causes the kernel to prefer to reclaim dentries and inodes.
- dirty_background_ratio
- ----------------------
- 
--Contains, as a percentage of total system memory, the number of pages at which
--the pdflush background writeback daemon will start writing out dirty data.
-+Contains, as a percentage of the dirtyable system memory (free pages + mapped
-+pages + file cache, not including locked pages and HugePages), the number of
-+pages at which the pdflush background writeback daemon will start writing out
-+dirty data.
- 
- dirty_ratio
- -----------------
- 
--Contains, as a percentage of total system memory, the number of pages at which
--a process which is generating disk writes will itself start writing out dirty
--data.
-+Contains, as a percentage of the dirtyable system memory (free pages + mapped
-+pages + file cache, not including locked pages and HugePages), the number of
-+pages at which a process which is generating disk writes will itself start
-+writing out dirty data.
- 
- dirty_writeback_centisecs
- -------------------------
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
