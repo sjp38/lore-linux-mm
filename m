@@ -1,47 +1,60 @@
-Subject: Re: [patch 5/8] mm: write_cache_pages integrity fix
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <20081009174822.621353840@suse.de>
-References: <20081009155039.139856823@suse.de>
-	 <20081009174822.621353840@suse.de>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m99CwESw030517
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 06:58:14 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m99CwjAA183424
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 06:58:45 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m99CwivQ005383
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 06:58:45 -0600
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081009124658.GE2952@elte.hu>
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
+	 <20081009124658.GE2952@elte.hu>
 Content-Type: text/plain
-Date: Thu, 09 Oct 2008 08:52:45 -0400
-Message-Id: <1223556765.14090.2.camel@think.oraclecorp.com>
+Date: Thu, 09 Oct 2008 05:58:42 -0700
+Message-Id: <1223557122.11830.14.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-10-10 at 02:50 +1100, npiggin@suse.de wrote:
-> plain text document attachment (mm-wcp-integrity-fix.patch)
-> In write_cache_pages, nr_to_write is heeded even for data-integrity syncs, so
-> the function will return success after writing out nr_to_write pages, even if
-> that was not sufficient to guarantee data integrity.
+On Thu, 2008-10-09 at 14:46 +0200, Ingo Molnar wrote:
+> * Oren Laadan <orenl@cs.columbia.edu> wrote:
 > 
-> The callers tend to set it to values that could break data interity semantics
-> easily in practice. For example, nr_to_write can be set to mapping->nr_pages *
-> 2, however if a file has a single, dirty page, then fsync is called, subsequent
-> pages might be concurrently added and dirtied, then write_cache_pages might
-> writeout two of these newly dirty pages, while not writing out the old page
-> that should have been written out.
+> > These patches implement basic checkpoint-restart [CR]. This version 
+> > (v6) supports basic tasks with simple private memory, and open files 
+> > (regular files and directories only). Changes mainly cleanups. See 
+> > original announcements below.
 > 
-> Fix this by ignoring nr_to_write if it is a data integrity sync.
-> 
+> i'm wondering about the following productization aspect: it would be 
+> very useful to applications and users if they knew whether it is safe to 
+> checkpoint a given app. I.e. whether that app has any state that cannot 
+> be stored/restored yet.
 
-Thanks for working on these.
+Absolutely!
 
-We should have a wbc->integrity flag because WB_SYNC_NONE is somewhat
-over used, and it is often used in data integrity syncs.
+My first inclination was to do this at checkpoint time: detect and tell
+users why an app or container can't actually be checkpointed.  But, if I
+get you right, you're talking about something that happens more during
+the runtime of the app than during the checkpoint.  This sounds like a
+wonderful approach to me, and much better than what I was thinking of.
 
-See fs/sync.c:do_sync_mapping_range()
+What kind of mechanism do you have in mind?
 
-There are many valid uses where we don't want to wait on pages that are
-already writeback but we do want to write everything else.
+int sys_remap_file_pages(...)
+{
+	...
+	oh_crap_we_dont_support_this_yet(current);
+}
 
--chris
+Then the oh_crap..() function sets a task flag or something?
 
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
