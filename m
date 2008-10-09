@@ -1,82 +1,103 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m992GxOa017421
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 9 Oct 2008 11:17:00 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E7AA2AC026
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 683EA12C046
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53D771DB803B
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DF841DB803C
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
-In-Reply-To: <20081008213831.GA23729@x200.localdomain>
-References: <1223052415-18956-2-git-send-email-mel@csn.ul.ie> <20081008213831.GA23729@x200.localdomain>
-Message-Id: <20081009104014.DEBD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Thu, 9 Oct 2008 14:39:49 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 5/6] memcg: lazy lru freeing
+Message-Id: <20081009143949.b3cf91b7.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081001170005.1997d7c8.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081001170005.1997d7c8.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu,  9 Oct 2008 11:16:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-> > It is useful to verify a hugepage-aware application is using the expected
-> > pagesizes for its memory regions. This patch creates an entry called
-> > KernelPageSize in /proc/pid/smaps that is the size of page used by the
-> > kernel to back a VMA. The entry is not called PageSize as it is possible
-> > the MMU uses a different size. This extension should not break any sensible
-> > parser that skips lines containing unrecognised information.
+On Wed, 1 Oct 2008 17:00:05 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Free page_cgroup from its LRU in batched manner.
 > 
-> > +		   "KernelPageSize: %8lu kB\n",
+> When uncharge() is called, page is pushed onto per-cpu vector and
+> removed from LRU, later.. This routine resembles to global LRU's pagevec.
+> This patch is half of the whole patch and a set with following lazy LRU add
+> patch.
 > 
-> > +unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
-> > +{
-> > +	struct hstate *hstate;
-> > +
-> > +	if (!is_vm_hugetlb_page(vma))
-> > +		return PAGE_SIZE;
-> > +
-> > +	hstate = hstate_vma(vma);
-> > +	VM_BUG_ON(!hstate);
-> > +
-> > +	return 1UL << (hstate->order + PAGE_SHIFT);
-> 			    ^^^^
-> VM_BUG_ON is unneeded because kernel will oops here if hstate is NULL.
+> After this, a pc, which is PageCgroupLRU(pc)==true, is on LRU.
+> This LRU bit is guarded by lru_lock().
+> 
+>  PageCgroupUsed(pc) && PageCgroupLRU(pc) means "pc" is used and on LRU.
+>  This check makes sense only when both 2 locks, lock_page_cgroup()/lru_lock(),
+>  are aquired.
+> 
+>  PageCgroupUsed(pc) && !PageCgroupLRU(pc) means "pc" is used but not on LRU.
+>  !PageCgroupUsed(pc) && PageCgroupLRU(pc) means "pc" is unused but still on
+>  LRU. lru walk routine should avoid touching this.
+> 
+> Changelog (v5) => (v6):
+>  - Fixing race and added PCG_LRU bit
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 
-yup.
+(snip)
+
+> +static void
+> +__release_page_cgroup(struct memcg_percpu_vec *mpv)
+> +{
+> +	unsigned long flags;
+> +	struct mem_cgroup_per_zone *mz, *prev_mz;
+> +	struct page_cgroup *pc;
+> +	int i, nr;
+> +
+> +	local_irq_save(flags);
+> +	nr = mpv->nr;
+> +	mpv->nr = 0;
+> +	prev_mz = NULL;
+> +	for (i = nr - 1; i >= 0; i--) {
+> +		pc = mpv->vec[i];
+> +		mz = page_cgroup_zoneinfo(pc);
+> +		if (prev_mz != mz) {
+> +			if (prev_mz)
+> +				spin_unlock(&prev_mz->lru_lock);
+> +			prev_mz = mz;
+> +			spin_lock(&mz->lru_lock);
+> +		}
+> +		/*
+> +		 * this "pc" may be charge()->uncharge() while we are waiting
+> +		 * for this. But charge() path check LRU bit and remove this
+> +		 * from LRU if necessary.
+> +		 */
+> +		if (!PageCgroupUsed(pc) && PageCgroupLRU(pc)) {
+> +			ClearPageCgroupLRU(pc);
+> +			__mem_cgroup_remove_list(mz, pc);
+> +			css_put(&pc->mem_cgroup->css);
+> +		}
+> +	}
+> +	if (prev_mz)
+> +		spin_unlock(&prev_mz->lru_lock);
+> +	local_irq_restore(flags);
+> +
+> +}
+> +
+I'm wondering if page_cgroup_zoneinfo is safe without lock_page_cgroup
+because it dereferences pc->mem_cgroup.
+I'm worring if the pc has been moved to another lru by re-charge(and re-uncharge),
+and __mem_cgroup_remove_list toches a wrong(old) group.
+
+Hmm, there are many things to be done for re-charge and re-uncharge,
+so "if (!PageCgroupUsed(pc) && PageCgroupLRU(pc))" would be enough.
+(it can avoid race between re-charge.)
+
+Another user of page_cgroup_zoneinfo without lock_page_cgroup is
+__mem_cgroup_move_lists called by mem_cgroup_isolate_pages,
+but mem_cgroup_isolate_pages handles pc which is actually on the mz->lru
+so it would be ok.
+(I think adding VM_BUG_ON(mz != page_cgroup_zoneifno(pc)) would make sense,
+or add new arg *mz to __mem_cgroup_move_lists?)
 
 
-> Also, in /proc/*/maps it's printed only for hugetlb vmas and called
-> hpagesize, in smaps it's printed for every vma and called
-> KernelPageSize. All of this is inconsistent.
-
-Is this a problem?
-/proc/*/maps and /proc/*/smaps are different purpose file.
-
-/proc/*/maps:  summary & suppressed information & easy readable
-/proc/*/smaps: verbose output
-
-Already some information output only smaps.
-
-
-> And app will verify once that hugepages are of right size, so Pss cost
-> argument for changing /proc/*/maps seems weak to me.
-
-sorry, I don't understand yet.
-Why pss cost changed?
-
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
