@@ -1,84 +1,78 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m996hCR7020933
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 9 Oct 2008 15:43:13 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C7832AC02B
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:43:12 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 61B5812C049
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:43:12 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B0001DB8044
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:43:12 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ECF161DB803F
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:43:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm 02/Oct PATCH 3/3] fix style issue of get_scan_ratio()
-In-Reply-To: <20081009153432.DEC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081009153432.DEC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081009154146.DED0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Thu, 9 Oct 2008 15:21:32 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH 6/6] memcg: lazy lru addition
+Message-Id: <20081009152132.df6e54c4.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081001170119.80a617b7.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081001170119.80a617b7.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu,  9 Oct 2008 15:43:11 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-vmscan-split-lru-lists-into-anon-file-sets.patch introduce two style issue.
-this patch fix it.
+On Wed, 1 Oct 2008 17:01:19 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Delaying add_to_lru() and do it in batched manner like page_vec.
+> For doing that 2 flags PCG_USED and PCG_LRU.
+> 
+> Because __set_page_cgroup_lru() itself doesn't take lock_page_cgroup(),
+> we need a sanity check inside lru_lock().
+> 
+> And this delaying make css_put()/get() complicated. 
+> To make it clear,
+>  * css_get() is called from mem_cgroup_add_list().
+>  * css_put() is called from mem_cgroup_remove_list().
+>  * css_get()->css_put() is called while try_charge()->commit/cancel sequence.
+> is newly added.
+> 
+
+I like this new policy, but
+
+> @@ -710,17 +774,18 @@ static void __mem_cgroup_commit_charge(s
+
+===
+                if (PageCgroupLRU(pc)) {
+                        ClearPageCgroupLRU(pc);
+                        __mem_cgroup_remove_list(mz, pc);
+                        css_put(&pc->mem_cgroup->css);
+                }
+                spin_unlock_irqrestore(&mz->lru_lock, flags);
+        }
+===
+
+Is this css_put needed yet?
+
+>  	/* Here, PCG_LRU bit is cleared */
+>  	pc->mem_cgroup = mem;
+>  	/*
+> +	 * We have to set pc->mem_cgroup before set USED bit for avoiding
+> +	 * race with (delayed) __set_page_cgroup_lru() in other cpu.
+> +	 */
+> +	smp_wmb();
+> +	/*
+>  	 * below pcg_default_flags includes PCG_LOCK bit.
+>  	 */
+>  	pc->flags = pcg_default_flags[ctype];
+>  	unlock_page_cgroup(pc);
+>  
+> -	mz = page_cgroup_zoneinfo(pc);
+> -
+> -	spin_lock_irqsave(&mz->lru_lock, flags);
+> -	__mem_cgroup_add_list(mz, pc, true);
+> -	SetPageCgroupLRU(pc);
+> -	spin_unlock_irqrestore(&mz->lru_lock, flags);
+> +	set_page_cgroup_lru(pc);
+> +	css_put(&mem->css);
+>  }
+>  
+>  /**
 
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |   22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1420,7 +1420,7 @@ static unsigned long shrink_list(enum lr
-  * percent[0] specifies how much pressure to put on ram/swap backed
-  * memory, while percent[1] determines pressure on the file LRUs.
-  */
--static void get_scan_ratio(struct zone *zone, struct scan_control * sc,
-+static void get_scan_ratio(struct zone *zone, struct scan_control *sc,
- 					unsigned long *percent)
- {
- 	unsigned long anon, file, free;
-@@ -1448,16 +1448,16 @@ static void get_scan_ratio(struct zone *
- 	}
- 
- 	/*
--         * OK, so we have swap space and a fair amount of page cache
--         * pages.  We use the recently rotated / recently scanned
--         * ratios to determine how valuable each cache is.
--         *
--         * Because workloads change over time (and to avoid overflow)
--         * we keep these statistics as a floating average, which ends
--         * up weighing recent references more than old ones.
--         *
--         * anon in [0], file in [1]
--         */
-+	 * OK, so we have swap space and a fair amount of page cache
-+	 * pages.  We use the recently rotated / recently scanned
-+	 * ratios to determine how valuable each cache is.
-+	 *
-+	 * Because workloads change over time (and to avoid overflow)
-+	 * we keep these statistics as a floating average, which ends
-+	 * up weighing recent references more than old ones.
-+	 *
-+	 * anon in [0], file in [1]
-+	 */
- 	if (unlikely(zone->recent_scanned[0] > anon / 4)) {
- 		spin_lock_irq(&zone->lru_lock);
- 		zone->recent_scanned[0] /= 2;
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
