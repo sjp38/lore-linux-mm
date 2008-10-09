@@ -1,74 +1,82 @@
-Date: Thu, 9 Oct 2008 10:51:57 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] documentation: clarify dirty_ratio and
- dirty_background_ratio description
-Message-Id: <20081009105157.dd47d109.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48EC90EC.8060306@gmail.com>
-References: <48EC90EC.8060306@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m992GxOa017421
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 9 Oct 2008 11:17:00 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E7AA2AC026
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 683EA12C046
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53D771DB803B
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DF841DB803C
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 11:16:59 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 1/2] Report the pagesize backing a VMA in /proc/pid/smaps
+In-Reply-To: <20081008213831.GA23729@x200.localdomain>
+References: <1223052415-18956-2-git-send-email-mel@csn.ul.ie> <20081008213831.GA23729@x200.localdomain>
+Message-Id: <20081009104014.DEBD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  9 Oct 2008 11:16:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: righi.andrea@gmail.com
-Cc: Randy Dunlap <randy.dunlap@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Rubin <mrubin@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, dave@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 08 Oct 2008 12:52:28 +0200
-Andrea Righi <righi.andrea@gmail.com> wrote:
+Hi
 
-> The current documentation of dirty_ratio and dirty_background_ratio is a
-> bit misleading.
+> > It is useful to verify a hugepage-aware application is using the expected
+> > pagesizes for its memory regions. This patch creates an entry called
+> > KernelPageSize in /proc/pid/smaps that is the size of page used by the
+> > kernel to back a VMA. The entry is not called PageSize as it is possible
+> > the MMU uses a different size. This extension should not break any sensible
+> > parser that skips lines containing unrecognised information.
 > 
-> In the documentation we say that they are "a percentage of total system
-> memory", but the current page writeback policy, intead, is to apply the
-> percentages to the dirtyable memory, that means free pages + reclaimable
-> pages.
+> > +		   "KernelPageSize: %8lu kB\n",
 > 
-Right.
+> > +unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+> > +{
+> > +	struct hstate *hstate;
+> > +
+> > +	if (!is_vm_hugetlb_page(vma))
+> > +		return PAGE_SIZE;
+> > +
+> > +	hstate = hstate_vma(vma);
+> > +	VM_BUG_ON(!hstate);
+> > +
+> > +	return 1UL << (hstate->order + PAGE_SHIFT);
+> 			    ^^^^
+> VM_BUG_ON is unneeded because kernel will oops here if hstate is NULL.
 
-> Better to be more explicit to clarify this concept.
-> 
-> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+yup.
 
-But I wonder "reclaimable memory" seems to be a difficult word for users....
 
-"free pages + mapped pages + file cache, not including locked page and HugePage"
-?
-Anyway,
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Also, in /proc/*/maps it's printed only for hugetlb vmas and called
+> hpagesize, in smaps it's printed for every vma and called
+> KernelPageSize. All of this is inconsistent.
 
-> ---
->  Documentation/filesystems/proc.txt |   11 ++++++-----
->  1 files changed, 6 insertions(+), 5 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index f566ad9..be69c8b 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -1380,15 +1380,16 @@ causes the kernel to prefer to reclaim dentries and inodes.
->  dirty_background_ratio
->  ----------------------
->  
-> -Contains, as a percentage of total system memory, the number of pages at which
-> -the pdflush background writeback daemon will start writing out dirty data.
-> +Contains, as a percentage of the dirtyable system memory (free pages +
-> +reclaimable pages), the number of pages at which the pdflush background
-> +writeback daemon will start writing out dirty data.
->  
->  dirty_ratio
->  -----------------
->  
-> -Contains, as a percentage of total system memory, the number of pages at which
-> -a process which is generating disk writes will itself start writing out dirty
-> -data.
-> +Contains, as a percentage of the dirtyable system memory (free pages +
-> +reclaimable pages), the number of pages at which a process which is generating
-> +disk writes will itself start writing out dirty data.
->  
->  dirty_writeback_centisecs
->  -------------------------
-> 
+Is this a problem?
+/proc/*/maps and /proc/*/smaps are different purpose file.
+
+/proc/*/maps:  summary & suppressed information & easy readable
+/proc/*/smaps: verbose output
+
+Already some information output only smaps.
+
+
+> And app will verify once that hugepages are of right size, so Pss cost
+> argument for changing /proc/*/maps seems weak to me.
+
+sorry, I don't understand yet.
+Why pss cost changed?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
