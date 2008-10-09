@@ -1,93 +1,382 @@
-Subject: Re: [patch 5/8] mm: write_cache_pages integrity fix
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <20081009145024.GF9941@wotan.suse.de>
-References: <20081009155039.139856823@suse.de>
-	 <20081009174822.621353840@suse.de>
-	 <1223556765.14090.2.camel@think.oraclecorp.com>
-	 <20081009132711.GB9941@wotan.suse.de>
-	 <1223559358.14090.11.camel@think.oraclecorp.com>
-	 <20081009135538.GC9941@wotan.suse.de>
-	 <1223561575.14090.14.camel@think.oraclecorp.com>
-	 <20081009142124.GD9941@wotan.suse.de>
-	 <1223563163.14090.18.camel@think.oraclecorp.com>
-	 <20081009145024.GF9941@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 09 Oct 2008 11:16:34 -0400
-Message-Id: <1223565394.14090.34.camel@think.oraclecorp.com>
-Mime-Version: 1.0
+Received: by gxk8 with SMTP id 8so75333gxk.14
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2008 08:29:49 -0700 (PDT)
+Message-ID: <48EE236A.90007@gmail.com>
+Date: Thu, 09 Oct 2008 17:29:46 +0200
+From: Andrea Righi <righi.andrea@gmail.com>
+Reply-To: righi.andrea@gmail.com
+MIME-Version: 1.0
+Subject: [PATCH -mm] page-writeback: fine-grained dirty_ratio and dirty_background_ratio
+References: <1221232192-13553-1-git-send-email-righi.andrea@gmail.com> <20080912131816.e0cfac7a.akpm@linux-foundation.org> <532480950809221641y3471267esff82a14be8056586@mail.gmail.com> <48EB4236.1060100@linux.vnet.ibm.com> <48EB851D.2030300@gmail.com> <20081008101642.fcfb9186.kamezawa.hiroyu@jp.fujitsu.com> <48ECB215.4040409@linux.vnet.ibm.com>
+In-Reply-To: <48ECB215.4040409@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michael Rubin <mrubin@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, menage@google.com, dave@linux.vnet.ibm.com, chlunde@ping.uio.no, dpshah@google.com, eric.rannaud@gmail.com, fernando@oss.ntt.co.jp, agk@sourceware.org, m.innocenti@cineca.it, s-uchida@ap.jp.nec.com, ryov@valinux.co.jp, matt@bluehost.com, dradford@bluehost.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-10-09 at 16:50 +0200, Nick Piggin wrote:
-> On Thu, Oct 09, 2008 at 10:39:23AM -0400, Chris Mason wrote:
-> > On Thu, 2008-10-09 at 16:21 +0200, Nick Piggin wrote:
-> > > On Thu, Oct 09, 2008 at 10:12:55AM -0400, Chris Mason wrote:
-> > > > On Thu, 2008-10-09 at 15:55 +0200, Nick Piggin wrote:
-> > > > > On Thu, Oct 09, 2008 at 09:35:58AM -0400, Chris Mason wrote:
-> > > > > > On Thu, 2008-10-09 at 15:27 +0200, Nick Piggin wrote:
-> > > > > > 
-> > > > > > I don't think do_sync_mapping_range is broken as is.  It simply splits
-> > > > > > the operations into different parts.  The caller can request that we
-> > > > > > wait for pending IO first.
-> > > > > 
-> > > > > It is. Not because of it's whacky API, but because it uses WB_SYNC_NONE. 
-> > > > > 
-> > > > > 
-> > > > > > WB_SYNC_NONE none just means don't wait for IO in flight, and there are
-> > > > > > valid uses for it that will slow down if you switch them all to
-> > > > > > WB_SYNC_ALL.
-> > > > > 
-> > > > > To write_cache_pages it means that, but further down the chain (eg.
-> > > > > block_write_full_page) it also means not to wait on other stuff.
-> > > > > 
-> > > > > It has broadly meant "don't worry about data integirty" for a long time
-> > > > > AFAIKS.
-> > > > 
-> > > > Sadly it has broadly meant different things to different people ;)
-> > > > You're right, block_write_full_page is broken.
-> > > 
-> > > Well, I really just think it is do_sync_mapping_range that is broken.
-> > > Because __sync_single_inode treats WB_SYNC_NONE as a general "nowait",
-> > > so does __writeback_single_inode. Weakest semantics define the API :)
-> > 
-> > Unfortunately these things are using the flag differently
-> > __sync_single_inode and __writeback_single_inode do different things
-> > with the flag than people that end up directly calling the writepages
-> > methods.
-> 
-> Sure, but it's the "nowait" semantics that they want, right? And *they*
-> eventually call into writepages. So they want similar semantics from
-> writepages, presumably. 
-> 
-> The comment in WB_SYNC_NONE definition kind of suggests it meant don't
-> wait for anything when it was written...
+The current granularity of 5% of dirtyable memory for dirty pages writeback is
+too coarse for large memory machines and this will get worse as
+memory-size/disk-speed ratio continues to increase.
 
-That seems to have turned into wbc->nonblocking.  WB_SYNC_NONE doesn't
-stop other blocking inside the FS (delalloc and other fun).
+These large writebacks can be unpleasant for desktop or latency-sensitive
+environments, where the time to complete a writeback can be perceived as a
+lack of responsiveness by the whole system.
 
-> 
-> 
-> > At the write_cache_pages level, WB_SYNC_NONE should only change the
-> > waiting for IO in flight.
-> 
-> Aside from do_sync_mapping_range, what are other reasons to enforce
-> the same thing all up and down the writeout stack? If there are good
-> reasons, let's add WB_SYNC_WRITEBACK?
+So, something to define fine grained settings is needed.
 
-Your change to skip writeback pages that aren't dirty makes WB_SYNC_ALL
-almost the same as WB_SYNC_WRITEBACK.  With that in place we're pretty
-deep into grey areas where people may not want to go around rewriting
-pages that were dirtied after their sync began.
+Following there's a similar solution as discussed in [1], but I tried to
+simplify the things a little bit, in order to provide the same functionality
+(in particular try to avoid backward compatibility problems) and reduce the
+amount of code needed to implement an in-kernel parser to handle percentages
+with decimals digits.
 
-At least that's what I think the idea behind do_sync_mapping_range using
-WB_SYNC_NONE was.
+The kernel provides the following parameters:
+ - dirty_ratio, dirty_background_ratio in percentage
+   (1 ... 100)
+ - dirty_ratio_pcm, dirty_background_ratio_pcm in units of percent mille
+   (1 ... 100,000)
 
--chris
+Both dirty_ratio and dirty_ratio_pcm refer to the same vm_dirty_ratio variable,
+only the interface to read/write this value is different. The same is valid for
+dirty_background_ratio and dirty_background_ratio_pcm.
 
+In this way it's possible to provide a fine grained interface to configure the
+writeback policy and at the same time preserve the compatibility with the old
+coarse grained dirty_ratio / dirty_background_ratio users.
+
+Examples:
+ # echo 5 > /proc/sys/vm/dirty_ratio
+ # cat /proc/sys/vm/dirty_ratio
+ 5
+ # cat /proc/sys/vm/dirty_ratio_pcm
+ 5000
+
+ # echo 500 > /proc/sys/vm/dirty_ratio_pcm
+ # cat /proc/sys/vm/dirty_ratio
+ 0
+ # cat /proc/sys/vm/dirty_ratio_pcm
+ 500
+
+ # echo 5500 > /proc/sys/vm/dirty_ratio_pcm
+ # cat /proc/sys/vm/dirty_ratio
+ 5
+ # cat /proc/sys/vm/dirty_ratio_pcm
+ 5500
+
+[1] http://lkml.org/lkml/2008/10/7/230
+
+Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+---
+ Documentation/filesystems/proc.txt |   20 +++++++++
+ include/linux/sysctl.h             |    7 +++
+ kernel/sysctl.c                    |   80 +++++++++++++++++++++++++++++++++--
+ kernel/sysctl_check.c              |    3 +
+ mm/page-writeback.c                |   29 ++++++++++---
+ 5 files changed, 128 insertions(+), 11 deletions(-)
+
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 394eb2c..95f31f5 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -1383,6 +1383,16 @@ dirty_background_ratio
+ Contains, as a percentage of total system memory, the number of pages at which
+ the pdflush background writeback daemon will start writing out dirty data.
+ 
++dirty_background_ratio_pcm
++--------------------------
++
++A fine-grained interface to configure dirty_background_ratio.
++
++Contains, as a percentage in units of pcm (percent mille) of the dirtyable
++system memory (free pages + mapped pages + file cache, not including locked
++pages and HugePages), the number of pages at which the pdflush background
++writeback daemon will start writing out dirty data.
++
+ dirty_ratio
+ -----------------
+ 
+@@ -1390,6 +1400,16 @@ Contains, as a percentage of total system memory, the number of pages at which
+ a process which is generating disk writes will itself start writing out dirty
+ data.
+ 
++dirty_ratio_pcm
++---------------
++
++A fine-grained interface to configure dirty_ratio.
++
++Contains, as a percentage in units of pcm (percent mille) of the dirtyable
++system memory (free pages + mapped pages + file cache, not including locked
++pages and HugePages), the number of pages at which a process which is
++generating disk writes will itself start writing out dirty data.
++
+ dirty_writeback_centisecs
+ -------------------------
+ 
+diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h
+index 39d471d..799594b 100644
+--- a/include/linux/sysctl.h
++++ b/include/linux/sysctl.h
+@@ -32,6 +32,9 @@
+ struct file;
+ struct completion;
+ 
++#define PERCENT_PCM	1000
++#define ONE_HUNDRED_PCM (100 * PERCENT_PCM)
++
+ #define CTL_MAXNAME 10		/* how many path components do we allow in a
+ 				   call to sysctl?   In other words, what is
+ 				   the largest acceptable value for the nlen
+@@ -205,6 +208,8 @@ enum
+ 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
+ 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
+ 	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
++	VM_DIRTY_BACKGROUND_PCM = 36, /* fine-grained dirty_background_ratio */
++	VM_DIRTY_RATIO_PCM = 37, /* fine-grained dirty_ratio */
+ };
+ 
+ 
+@@ -991,6 +996,8 @@ extern int proc_dointvec_userhz_jiffies(struct ctl_table *, int, struct file *,
+ 					void __user *, size_t *, loff_t *);
+ extern int proc_dointvec_ms_jiffies(struct ctl_table *, int, struct file *,
+ 				    void __user *, size_t *, loff_t *);
++extern int proc_dointvec_pcm_minmax(struct ctl_table *, int, struct file *,
++				    void __user *, size_t *, loff_t *);
+ extern int proc_doulongvec_minmax(struct ctl_table *, int, struct file *,
+ 				  void __user *, size_t *, loff_t *);
+ extern int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int,
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index fcd66f1..e22ab48 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -89,9 +89,7 @@ extern int rcutorture_runnable;
+ #endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
+ 
+ /* Constants used for minimum and  maximum */
+-#if defined(CONFIG_HIGHMEM) || defined(CONFIG_DETECT_SOFTLOCKUP)
+ static int one = 1;
+-#endif
+ 
+ #ifdef CONFIG_DETECT_SOFTLOCKUP
+ static int sixty = 60;
+@@ -104,6 +102,7 @@ static int two = 2;
+ 
+ static int zero;
+ static int one_hundred = 100;
++static int one_hundred_pcm = ONE_HUNDRED_PCM;
+ 
+ /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+ static int maxolduid = 65535;
+@@ -910,12 +909,23 @@ static struct ctl_table vm_table[] = {
+ 		.data		= &dirty_background_ratio,
+ 		.maxlen		= sizeof(dirty_background_ratio),
+ 		.mode		= 0644,
+-		.proc_handler	= &proc_dointvec_minmax,
++		.proc_handler	= &proc_dointvec_pcm_minmax,
+ 		.strategy	= &sysctl_intvec,
+-		.extra1		= &zero,
++		.extra1		= &one,
+ 		.extra2		= &one_hundred,
+ 	},
+ 	{
++		.ctl_name	= VM_DIRTY_BACKGROUND_PCM,
++		.procname	= "dirty_background_ratio_pcm",
++		.data		= &dirty_background_ratio,
++		.maxlen		= sizeof(dirty_background_ratio),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec_minmax,
++		.strategy	= &sysctl_intvec,
++		.extra1		= &one,
++		.extra2		= &one_hundred_pcm,
++	},
++	{
+ 		.ctl_name	= VM_DIRTY_RATIO,
+ 		.procname	= "dirty_ratio",
+ 		.data		= &vm_dirty_ratio,
+@@ -923,10 +933,21 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= &dirty_ratio_handler,
+ 		.strategy	= &sysctl_intvec,
+-		.extra1		= &zero,
++		.extra1		= &one,
+ 		.extra2		= &one_hundred,
+ 	},
+ 	{
++		.ctl_name	= VM_DIRTY_RATIO_PCM,
++		.procname	= "dirty_ratio_pcm",
++		.data		= &vm_dirty_ratio,
++		.maxlen		= sizeof(vm_dirty_ratio),
++		.mode		= 0644,
++		.proc_handler	= &dirty_ratio_handler,
++		.strategy	= &sysctl_intvec,
++		.extra1		= &one,
++		.extra2		= &one_hundred_pcm,
++	},
++	{
+ 		.procname	= "dirty_writeback_centisecs",
+ 		.data		= &dirty_writeback_interval,
+ 		.maxlen		= sizeof(dirty_writeback_interval),
+@@ -2539,6 +2560,35 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
+ 				     lenp, ppos, HZ, 1000l);
+ }
+ 
++static int do_proc_dointvec_pcm_minmax_conv(int *negp, unsigned long *lvalp,
++					 int *valp, int write, void *data)
++{
++	struct do_proc_dointvec_minmax_conv_param *param = data;
++	int val;
++
++	if (write) {
++		if (*lvalp > LONG_MAX / PERCENT_PCM)
++			return -EINVAL;
++		val = *negp ? -*lvalp : *lvalp;
++		if ((param->min && *param->min > val) ||
++		    (param->max && *param->max < val))
++			return -EINVAL;
++		*valp = val * PERCENT_PCM;
++	} else {
++		unsigned long lval;
++
++		val = *valp;
++		if (val < 0) {
++			*negp = -1;
++			lval = (unsigned long)-val;
++		} else {
++			*negp = 0;
++			lval = (unsigned long)val;
++		}
++		*lvalp = lval / PERCENT_PCM;
++	}
++	return 0;
++}
+ 
+ static int do_proc_dointvec_jiffies_conv(int *negp, unsigned long *lvalp,
+ 					 int *valp,
+@@ -2677,6 +2727,19 @@ int proc_dointvec_ms_jiffies(struct ctl_table *table, int write, struct file *fi
+ 				do_proc_dointvec_ms_jiffies_conv, NULL);
+ }
+ 
++int proc_dointvec_pcm_minmax(struct ctl_table *table, int write,
++			struct file *filp, void __user *buffer, size_t *lenp,
++			loff_t *ppos)
++{
++	struct do_proc_dointvec_minmax_conv_param param = {
++		.min = (int *)table->extra1,
++		.max = (int *)table->extra2,
++	};
++
++	return do_proc_dointvec(table, write, filp, buffer, lenp, ppos,
++				do_proc_dointvec_pcm_minmax_conv, &param);
++}
++
+ static int proc_do_cad_pid(struct ctl_table *table, int write, struct file *filp,
+ 			   void __user *buffer, size_t *lenp, loff_t *ppos)
+ {
+@@ -2725,6 +2788,13 @@ int proc_dointvec_jiffies(struct ctl_table *table, int write, struct file *filp,
+ 	return -ENOSYS;
+ }
+ 
++int proc_dointvec_pcm_minmax(struct ctl_table *table, int write,
++			struct file *filp, void __user *buffer, size_t *lenp,
++			loff_t *ppos)
++{
++	return -ENOSYS;
++}
++
+ int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write, struct file *filp,
+ 		    void __user *buffer, size_t *lenp, loff_t *ppos)
+ {
+diff --git a/kernel/sysctl_check.c b/kernel/sysctl_check.c
+index c35da23..83934a8 100644
+--- a/kernel/sysctl_check.c
++++ b/kernel/sysctl_check.c
+@@ -111,7 +111,9 @@ static const struct trans_ctl_table trans_vm_table[] = {
+ 	{ VM_OVERCOMMIT_MEMORY,		"overcommit_memory" },
+ 	{ VM_PAGE_CLUSTER,		"page-cluster" },
+ 	{ VM_DIRTY_BACKGROUND,		"dirty_background_ratio" },
++	{ VM_DIRTY_BACKGROUND_PCM,	"dirty_background_ratio_pcm" },
+ 	{ VM_DIRTY_RATIO,		"dirty_ratio" },
++	{ VM_DIRTY_RATIO_PCM,		"dirty_ratio_pcm" },
+ 	{ VM_DIRTY_WB_CS,		"dirty_writeback_centisecs" },
+ 	{ VM_DIRTY_EXPIRE_CS,		"dirty_expire_centisecs" },
+ 	{ VM_NR_PDFLUSH_THREADS,	"nr_pdflush_threads" },
+@@ -1494,6 +1496,7 @@ int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
+ 			    (table->proc_handler == proc_dostring) ||
+ 			    (table->proc_handler == proc_dointvec) ||
+ 			    (table->proc_handler == proc_dointvec_minmax) ||
++			    (table->proc_handler == proc_dointvec_pcm_minmax) ||
+ 			    (table->proc_handler == proc_dointvec_jiffies) ||
+ 			    (table->proc_handler == proc_dointvec_userhz_jiffies) ||
+ 			    (table->proc_handler == proc_dointvec_ms_jiffies) ||
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index c6d6088..6bc8c9b 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -66,7 +66,7 @@ static inline long sync_writeback_pages(void)
+ /*
+  * Start background writeback (via pdflush) at this percentage
+  */
+-int dirty_background_ratio = 5;
++int dirty_background_ratio = 5 * PERCENT_PCM;
+ 
+ /*
+  * free highmem will not be subtracted from the total free memory
+@@ -77,7 +77,7 @@ int vm_highmem_is_dirtyable;
+ /*
+  * The generator of dirty data starts writeback at this percentage
+  */
+-int vm_dirty_ratio = 10;
++int vm_dirty_ratio = 10 * PERCENT_PCM;
+ 
+ /*
+  * The interval between `kupdate'-style writebacks, in jiffies
+@@ -135,7 +135,8 @@ static int calc_period_shift(void)
+ {
+ 	unsigned long dirty_total;
+ 
+-	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) / 100;
++	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory())
++			/ ONE_HUNDRED_PCM;
+ 	return 2 + ilog2(dirty_total - 1);
+ }
+ 
+@@ -147,7 +148,23 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
+ 		loff_t *ppos)
+ {
+ 	int old_ratio = vm_dirty_ratio;
+-	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
++	int ret;
++
++	switch (table->ctl_name) {
++	case VM_DIRTY_RATIO:
++		ret = proc_dointvec_pcm_minmax(table, write, filp, buffer,
++					lenp, ppos);
++		break;
++	case VM_DIRTY_RATIO_PCM:
++		ret = proc_dointvec_minmax(table, write, filp, buffer,
++					lenp, ppos);
++		break;
++	default:
++		ret = -EINVAL;
++		WARN_ON(1);
++		break;
++	}
++
+ 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
+ 		int shift = calc_period_shift();
+ 		prop_change_shift(&vm_completions, shift);
+@@ -380,8 +397,8 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
+ 	if (background_ratio >= dirty_ratio)
+ 		background_ratio = dirty_ratio / 2;
+ 
+-	background = (background_ratio * available_memory) / 100;
+-	dirty = (dirty_ratio * available_memory) / 100;
++	background = (background_ratio * available_memory) / ONE_HUNDRED_PCM;
++	dirty = (dirty_ratio * available_memory) / ONE_HUNDRED_PCM;
+ 	tsk = current;
+ 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+ 		background += background / 4;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
