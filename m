@@ -1,23 +1,26 @@
-Message-Id: <20081009174822.847294148@suse.de>
+Message-Id: <20081009174822.406363946@suse.de>
 References: <20081009155039.139856823@suse.de>
-Date: Fri, 10 Oct 2008 02:50:46 +1100
+Date: Fri, 10 Oct 2008 02:50:42 +1100
 From: npiggin@suse.de
-Subject: [patch 7/8] mm: write_cache_pages optimise page cleaning
-Content-Disposition: inline; filename=mm-wcp-writeback-clean-opt.patch
+Subject: [patch 3/8] mm: write_cache_pages writepage error fix
+Content-Disposition: inline; filename=mm-wcp-writepage-error-fix.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-In write_cache_pages, if we get stuck behind another process that is cleaning
-pages, we will be forced to wait for them to finish, then perform our own
-writeout (if it was redirtied during the long wait), then wait for that.
+In write_cache_pages, if ret signals a real error, but we still have some pages
+left in the pagevec, done would be set to 1, but the remaining pages would
+continue to be processed and ret will be overwritten in the process. It could
+easily be overwritten with success, and thus success will be returned even if
+there is an error. Thus the caller is told all writes succeeded, wheras in
+reality some did not.
 
-If a page under writeout is still clean, we can skip waiting for it (if we're
-part of a data integrity sync, we'll be waiting for all writeout pages
-afterwards, so we'll still be waiting for the other guy's write that's cleaned
-the page).
+Fix this by bailing immediately if there is an error, and retaining the first
+error code.
+
+This is a data interity bug.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
@@ -25,31 +28,30 @@ Index: linux-2.6/mm/page-writeback.c
 ===================================================================
 --- linux-2.6.orig/mm/page-writeback.c
 +++ linux-2.6/mm/page-writeback.c
-@@ -942,11 +942,20 @@ continue_unlock:
- 				goto continue_unlock;
+@@ -941,13 +941,17 @@ again:
  			}
  
--			if (wbc->sync_mode != WB_SYNC_NONE)
--				wait_on_page_writeback(page);
-+			if (!PageDirty(page)) {
-+				/* someone wrote it for us */
-+				goto continue_unlock;
-+			}
-+
-+			if (PageWriteback(page)) {
-+				if (wbc->sync_mode != WB_SYNC_NONE)
-+					wait_on_page_writeback(page);
-+				else
-+					goto continue_unlock;
-+			}
- 
--			if (PageWriteback(page) ||
--			    !clear_page_dirty_for_io(page))
-+			BUG_ON(PageWriteback(page));
-+			if (!clear_page_dirty_for_io(page))
- 				goto continue_unlock;
- 
  			ret = (*writepage)(page, wbc, data);
+-			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE)) {
+-				/* Must retry the write */
+-				unlock_page(page);
+-				ret = 0;
+-				goto again;
++			if (unlikely(ret)) {
++				if (ret == AOP_WRITEPAGE_ACTIVATE) {
++					/* Must retry the write */
++					unlock_page(page);
++					ret = 0;
++					goto again;
++				}
++				done = 1;
++				break;
+ 			}
+-			if (ret || (--(wbc->nr_to_write) <= 0))
++			if (--(wbc->nr_to_write) <= 0)
+ 				done = 1;
+ 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
+ 				wbc->encountered_congestion = 1;
 
 -- 
 
