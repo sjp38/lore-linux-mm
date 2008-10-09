@@ -1,95 +1,27 @@
-Message-Id: <20081009174822.740252331@suse.de>
-References: <20081009155039.139856823@suse.de>
-Date: Fri, 10 Oct 2008 02:50:45 +1100
-From: npiggin@suse.de
-Subject: [patch 6/8] mm: write_cache_pages cleanups
-Content-Disposition: inline; filename=mm-wcp-cleanup.patch
+Date: Thu, 9 Oct 2008 04:23:36 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch 4/8] mm: write_cache_pages type overflow fix
+Message-ID: <20081009082336.GB6637@infradead.org>
+References: <20081009155039.139856823@suse.de> <20081009174822.516911376@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081009174822.516911376@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: npiggin@suse.de
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Get rid of some complex expressions from flow control statements, add a
-comment, remove some duplicate code.
+On Fri, Oct 10, 2008 at 02:50:43AM +1100, npiggin@suse.de wrote:
+> In the range_cont case, range_start is set to index << PAGE_CACHE_SHIFT, but
+> index is a pgoff_t and range_start is loff_t, so we can get truncation of the
+> value on 32-bit platforms. Fix this by adding the standard loff_t cast.
+> 
+> This is a data interity bug (depending on how range_cont is used).
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -900,11 +900,14 @@ int write_cache_pages(struct address_spa
- 		cycled = 1; /* ignore range_cyclic tests */
- 	}
- retry:
--	while (!done && (index <= end) &&
--	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
--					      PAGECACHE_TAG_DIRTY,
--					      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
--		unsigned i;
-+	while (!done && (index <= end)) {
-+		int i;
-+
-+		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-+			      PAGECACHE_TAG_DIRTY,
-+			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
-+		if (nr_pages == 0)
-+			break;
- 
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
-@@ -919,7 +922,16 @@ retry:
- again:
- 			lock_page(page);
- 
-+			/*
-+			 * Page truncated or invalidated. We can freely skip it
-+			 * then, even for data integrity operations: the page
-+			 * has disappeared concurrently, so there could be no
-+			 * real expectation of this data interity operation
-+			 * even if there is now a new, dirty page at the same
-+			 * pagecache address.
-+			 */
- 			if (unlikely(page->mapping != mapping)) {
-+continue_unlock:
- 				unlock_page(page);
- 				continue;
- 			}
-@@ -927,18 +939,15 @@ again:
- 			if (page->index > end) {
- 				/* Can't be range_cyclic: end == -1 there */
- 				done = 1;
--				unlock_page(page);
--				continue;
-+				goto continue_unlock;
- 			}
- 
- 			if (wbc->sync_mode != WB_SYNC_NONE)
- 				wait_on_page_writeback(page);
- 
- 			if (PageWriteback(page) ||
--			    !clear_page_dirty_for_io(page)) {
--				unlock_page(page);
--				continue;
--			}
-+			    !clear_page_dirty_for_io(page))
-+				goto continue_unlock;
- 
- 			ret = (*writepage)(page, wbc, data);
- 			if (unlikely(ret)) {
-@@ -952,7 +961,8 @@ again:
- 				break;
- 			}
- 			if (wbc->sync_mode == WB_SYNC_NONE) {
--				if (--(wbc->nr_to_write) <= 0)
-+				wbc->nr_to_write--;
-+				if (wbc->nr_to_write <= 0)
- 					done = 1;
- 			}
- 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
-
--- 
+Aneesh has a patch to kill the range_cont flag, which is queued up for
+2.6.28.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
