@@ -1,73 +1,93 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m996dBxb017308
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m996g89m018593
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 9 Oct 2008 15:39:11 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B5122AC028
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:39:11 +0900 (JST)
+	Thu, 9 Oct 2008 15:42:08 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 866242AC025
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:42:08 +0900 (JST)
 Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E470E12C048
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:39:10 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 61D0712C046
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:42:08 +0900 (JST)
 Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id C6AFC1DB803B
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:39:10 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 8776D1DB803E
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:39:07 +0900 (JST)
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 48A731DB803C
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:42:08 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 002C41DB8037
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:42:08 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [mmotm 02/Oct PATCH 1/3] adjust Quicklists field of /proc/meminfo
-Message-Id: <20081009153432.DEC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [mmotm 02/Oct PATCH 2/3] adjust hugepage related field of /proc/meminfo
+In-Reply-To: <20081009153432.DEC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20081009153432.DEC7.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20081009153854.DECD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu,  9 Oct 2008 15:39:06 +0900 (JST)
+Date: Thu,  9 Oct 2008 15:42:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
+To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-vmscan-split-lru-lists-into-anon-file-sets.patch changed /proc/meminfo output length,
-but only Quicklists: field doesn't.
-(because quicklists field added after than split-lru)
+adjust hugepage related field in /proc/meminfo.
+(because vmscan-split-lru-lists-into-anon-file-sets.patch changed
+length of other field)
 
 
-example: 
+before:
 
-$ cat /proc/meminfo
+CommitLimit:     6028800 kB
+Committed_AS:    8685888 kB
+VmallocTotal:   17592177655808 kB
+VmallocUsed:       28544 kB
+VmallocChunk:   17592177626816 kB
+HugePages_Total:     0
+HugePages_Free:      0
+HugePages_Rsvd:      0
+HugePages_Surp:      0
+Hugepagesize:    262144 kB
 
-  MemTotal:        7994624 kB
-  MemFree:           21376 kB
-(snip)
-  SUnreclaim:        78912 kB
-  PageTables:      1233472 kB
-  Quicklists:       7808 kB
-  NFS_Unstable:          0 kB
+after:
 
-
-this patch fix it.
+CommitLimit:     6028800 kB
+Committed_AS:    8685888 kB
+VmallocTotal:   17592177655808 kB
+VmallocUsed:       28544 kB
+VmallocChunk:   17592177626816 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:     262144 kB
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 ---
- fs/proc/proc_misc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/hugetlb.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-Index: b/fs/proc/proc_misc.c
+Index: b/mm/hugetlb.c
 ===================================================================
---- a/fs/proc/proc_misc.c
-+++ b/fs/proc/proc_misc.c
-@@ -195,7 +195,7 @@ static int meminfo_read_proc(char *page,
- 		"SUnreclaim:     %8lu kB\n"
- 		"PageTables:     %8lu kB\n"
- #ifdef CONFIG_QUICKLIST
--		"Quicklists:   %8lu kB\n"
-+		"Quicklists:     %8lu kB\n"
- #endif
- 		"NFS_Unstable:   %8lu kB\n"
- 		"Bounce:         %8lu kB\n"
-
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1459,11 +1459,11 @@ int hugetlb_report_meminfo(char *buf)
+ {
+ 	struct hstate *h = &default_hstate;
+ 	return sprintf(buf,
+-			"HugePages_Total: %5lu\n"
+-			"HugePages_Free:  %5lu\n"
+-			"HugePages_Rsvd:  %5lu\n"
+-			"HugePages_Surp:  %5lu\n"
+-			"Hugepagesize:    %5lu kB\n",
++			"HugePages_Total:   %5lu\n"
++			"HugePages_Free:    %5lu\n"
++			"HugePages_Rsvd:    %5lu\n"
++			"HugePages_Surp:    %5lu\n"
++			"Hugepagesize:   %8lu kB\n",
+ 			h->nr_huge_pages,
+ 			h->free_huge_pages,
+ 			h->resv_huge_pages,
 
 
 --
