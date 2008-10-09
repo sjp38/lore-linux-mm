@@ -1,86 +1,61 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m996pXqB003234
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 9 Oct 2008 15:51:33 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1949224004A
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:51:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C54BD2DC136
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:51:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD4781DB8037
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:51:32 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 59EA11DB803B
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2008 15:51:32 +0900 (JST)
-Date: Thu, 9 Oct 2008 15:51:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 6/6] memcg: lazy lru addition
-Message-Id: <20081009155116.ccf0833d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081009152132.df6e54c4.nishimura@mxp.nes.nec.co.jp>
-References: <20081001165233.404c8b9c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081001170119.80a617b7.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081009152132.df6e54c4.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id m997EdxY006751
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:14:39 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m997Fp1k232348
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:15:53 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m997FoUA008292
+	for <linux-mm@kvack.org>; Thu, 9 Oct 2008 18:15:50 +1100
+Message-ID: <48EDAFA0.1090808@linux.vnet.ibm.com>
+Date: Thu, 09 Oct 2008 12:45:44 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: update patch set v7
+References: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081007190121.d96e58a6.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Oct 2008 15:21:32 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Wed, 1 Oct 2008 17:01:19 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > Delaying add_to_lru() and do it in batched manner like page_vec.
-> > For doing that 2 flags PCG_USED and PCG_LRU.
-> > 
-> > Because __set_page_cgroup_lru() itself doesn't take lock_page_cgroup(),
-> > we need a sanity check inside lru_lock().
-> > 
-> > And this delaying make css_put()/get() complicated. 
-> > To make it clear,
-> >  * css_get() is called from mem_cgroup_add_list().
-> >  * css_put() is called from mem_cgroup_remove_list().
-> >  * css_get()->css_put() is called while try_charge()->commit/cancel sequence.
-> > is newly added.
-> > 
+KAMEZAWA Hiroyuki wrote:
+> Hi, Andrew. please allow me to test under -mm if ok.
 > 
-> I like this new policy, but
+> This series is against the newest -mmotm(stamp-2008-10-02-16-17)
+> and I think ready-to-go.
 > 
-> > @@ -710,17 +774,18 @@ static void __mem_cgroup_commit_charge(s
+> All comments are reflected.
+> (and CONFIG_CGROUP_MEM_RES_CTLR=n case is fixed.)
 > 
-> ===
->                 if (PageCgroupLRU(pc)) {
->                         ClearPageCgroupLRU(pc);
->                         __mem_cgroup_remove_list(mz, pc);
->                         css_put(&pc->mem_cgroup->css);
->                 }
->                 spin_unlock_irqrestore(&mz->lru_lock, flags);
->         }
-> ===
+> Including following patches.
 > 
-> Is this css_put needed yet?
+> [1/6] ... account swap cache under lock
+> [2/6] ... set page->mapping to be NULL before uncharge
+> [3/6] ... avoid to account not-on-LRU pages.
+> [4/6] ... optimize per cpu statistics on memcg.
+> [5/6] ... make page_cgroup->flags atomic.
+> [6/6] ... allocate page_cgroup at boot.
 > 
-Oh, nice catch. it's unnecessary.
-I'll fix this in the next. Thank you for review.
+> I did tests I can. But I think patch 6/6 needs wider testers.
+> It has some dependency to configs/archs.
+> 
+> (*) the newest mmotm needs some patches to be driven.
 
+Kamezawa-San,
 
-I'll post still-under-discuss set (v7), tomorrow.
-includes
-  - charge/commit/cancel
-  - move account & force_empty
-  - lazy lru free
-  - lazy lru add
-Currently works well under my test..
+Thanks for the patchset. I would like to see these tested in -mm as well. The
+complaint that I am hearing from Fedora is that for them to enable the memory
+controller, they would like to see the struct page overhead go (for 32 bit
+systems that have 32 byte cachelines). This series helps us address that issue
+and helps with performance.
 
-In the next week, I'd like to restart Mem+Swap series.
-
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
