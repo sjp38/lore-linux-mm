@@ -1,22 +1,63 @@
-Message-Id: <20081009155039.139856823@suse.de>
-Date: Fri, 10 Oct 2008 02:50:39 +1100
+Message-Id: <20081009174822.952978460@suse.de>
+References: <20081009155039.139856823@suse.de>
+Date: Fri, 10 Oct 2008 02:50:47 +1100
 From: npiggin@suse.de
-Subject: [patch 0/8] write_cache_pages fixes
+Subject: [patch 8/8] mm: write_cache_pages terminate quickly
+Content-Disposition: inline; filename=mm-wcp-terminate-quickly.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-OK, here is a submission for the bugs and small improvements I saw for
-write_cache_pages. This does not include any work on the "livelock" issue
-(which Mikulas and myself have different approaches to fix), but I think
-these patches should go in first because they're fixing actual hard bugs
-(and just a couple of minor improvements).  
+Terminate the write_cache_pages loop upon encountering the first page past
+end, without locking the page. Pages cannot have their index change when we
+have a reference on them (truncate, eg truncate_inode_pages_range performs
+the same check without the page lock).
 
-I've given it some testing, but there are so many combinations of behaviours
-here, that I'd like some fsdevel people to look over it (eg. I didn't test
-with an AOP_WRITEPAGE_TRUNCATE filesystem, or a range_cyclic one).
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/page-writeback.c
+===================================================================
+--- linux-2.6.orig/mm/page-writeback.c
++++ linux-2.6/mm/page-writeback.c
+@@ -913,12 +913,18 @@ retry:
+ 			struct page *page = pvec.pages[i];
+ 
+ 			/*
+-			 * At this point we hold neither mapping->tree_lock nor
+-			 * lock on the page itself: the page may be truncated or
+-			 * invalidated (changing page->mapping to NULL), or even
+-			 * swizzled back from swapper_space to tmpfs file
+-			 * mapping
++			 * At this point, the page may be truncated or
++			 * invalidated (changing page->mapping to NULL), or
++			 * even swizzled back from swapper_space to tmpfs file
++			 * mapping. However, page->index will not change
++			 * because we have a reference on the page.
+ 			 */
++			if (page->index > end) {
++				/* Can't be range_cyclic: end == -1 there */
++				done = 1;
++				break;
++			}
++
+ again:
+ 			lock_page(page);
+ 
+@@ -936,12 +942,6 @@ continue_unlock:
+ 				continue;
+ 			}
+ 
+-			if (page->index > end) {
+-				/* Can't be range_cyclic: end == -1 there */
+-				done = 1;
+-				goto continue_unlock;
+-			}
+-
+ 			if (!PageDirty(page)) {
+ 				/* someone wrote it for us */
+ 				goto continue_unlock;
 
 -- 
 
