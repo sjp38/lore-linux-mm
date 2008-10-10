@@ -1,40 +1,39 @@
-Date: Fri, 10 Oct 2008 19:29:00 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 2/8] mm: write_cache_pages AOP_WRITEPAGE_ACTIVATE fix
-In-Reply-To: <E1KoKPp-0000IW-6m@pomaz-ex.szeredi.hu>
-Message-ID: <Pine.LNX.4.64.0810101919530.17254@blonde.site>
-References: <20081009155039.139856823@suse.de> <20081009174822.298327659@suse.de>
- <E1KoKPp-0000IW-6m@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH updated] ext4: Fix file fragmentation during large file
+	write.
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain
+Date: Fri, 10 Oct 2008 15:15:18 -0400
+Message-Id: <1223666118.8209.23.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, mpatocka@redhat.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: cmm@us.ibm.com, tytso@mit.edu, sandeen@redhat.com, akpm@linux-foundation.org, hch@infradead.org, steve@chygwyn.com, npiggin@suse.de, mpatocka@redhat.com, linux-mm@kvack.org, inux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Oct 2008, Miklos Szeredi wrote:
-> On Fri, 10 Oct 2008, npiggin@suse.de wrote:
-> > In write_cache_pages, if AOP_WRITEPAGE_ACTIVATE is returned, the
-> > filesystem is calling on us to drop the page lock and retry,
+On Fri, 2008-10-10 at 23:32 +0530, Aneesh Kumar K.V wrote:
+> The range_cyclic writeback mode use the address_space
+> writeback_index as the start index for writeback. With
+> delayed allocation we were updating writeback_index
+> wrongly resulting in highly fragmented file. Number of
+> extents reduced from 4000 to 27 for a 3GB file with
+> the below patch.
 > 
-> Are you sure?  It's not what fs.h says.  I think this return value is
-> related to reclaim (and only used by shmfs), and retrying is not the
-> right thing in that case.
+> The patch also removes the range_cont writeback mode
+> added for ext4 delayed allocation. Instead we add
+> two new flags in writeback_control which control
+> the behaviour of write_cache_pages.
+> 
 
-Only used by shmfs nowadays, yes; it means go away for now,
-don't keep on spamming me with this, but try it again later on.
+I'm sorry, but I won't be able to test this until next wednesday.  In
+general, I like the structure of it, and I can see this being useful for
+other filesystems too.
 
-Though I didn't invent it, it's very much my fault that it
-still exists: I've had a patch to remove it (setting PageActive
-instead, ending that horrid "but in this case, return with the
-page still locked") for about a year, but still hadn't got around
-to verifying that it really does what's intended, before the more
-interesting split-lru changes reached -mm, and I thought it polite
-to hold off for now (though in fact there's almost no conflict).
-I'll get there...
+-chris
 
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
