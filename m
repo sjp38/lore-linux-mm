@@ -1,85 +1,63 @@
-Message-ID: <48EFC243.7040505@inria.fr>
-Date: Fri, 10 Oct 2008 22:59:47 +0200
-From: Brice Goglin <Brice.Goglin@inria.fr>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9ALasQo018544
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 17:36:54 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9ALY2mb219054
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 17:34:02 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9ALY1GN031754
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 17:34:02 -0400
+Date: Fri, 10 Oct 2008 14:33:57 -0700
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: Re: [PATCH 1/2] [REPOST] mm: show node to memory section
+	relationship with symlinks in sysfs
+Message-ID: <20081010213357.GD7369@us.ibm.com>
+References: <20081009192115.GB8793@us.ibm.com> <20081010124239.f92b5568.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: use a radix-tree to make do_move_pages() complexity
- linear
-References: <48EDF9DA.7000508@inria.fr> <20081010125010.164bcbb8.akpm@linux-foundation.org> <48EFB6E6.4080708@inria.fr>
-In-Reply-To: <48EFB6E6.4080708@inria.fr>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081010124239.f92b5568.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, cl@linux-foundation.org, linux-mm@kvack.org, nathalie.furmento@labri.fr
+Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, pbadari@us.ibm.com, mel@csn.ul.ie, lcm@us.ibm.com, mingo@elte.hu, greg@kroah.com, dave@linux.vnet.ibm.com, nish.aravamudan@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Brice Goglin wrote:
-> Andrew Morton wrote:
->   
->> On Thu, 09 Oct 2008 14:32:26 +0200
->> Brice Goglin <Brice.Goglin@inria.fr> wrote:
->>
->>   
->>     
->>> Add a radix-tree in do_move_pages() to associate each page with
->>> the struct page_to_node that describes its migration.
->>> new_page_node() can now easily find out the page_to_node of the
->>> given page instead of traversing the whole page_to_node array.
->>> So the overall complexity is linear instead of quadratic.
->>>
->>> We still need the page_to_node array since it is allocated by the
->>> caller (sys_move_page()) and used by do_pages_stat() when no target
->>> nodes are given by the application. And we need room to store all
->>> these page_to_node entries for do_move_pages() as well anyway.
->>>
->>> If a page is given twice by the application, the old code would
->>> return -EBUSY (failure from the second isolate_lru_page()). Now,
->>> radix_tree_insert() will return -EEXIST, and we convert it back
->>> to -EBUSY to keep the user-space ABI.
->>>
->>> The radix-tree is emptied at the end of do_move_pages() since
->>> new_page_node() doesn't know when an entry is used for the last
->>> time (unmap_and_move() could try another pass later).
->>> Marking pp->page as ZERO_PAGE(0) was actually never used. We now
->>> set it to NULL when pp is not in the radix-tree. It is faster
->>> than doing a loop of radix_tree_lookup_gang()+delete().
->>>     
->>>       
->> Any O(n*n) code always catches up with us in the end.  But I do think
->> that to merge this code we'd need some description of the problem which
->> we fixed.
->>
->> Please send a description of the situation under which the current code
->> performs unacceptably.  Some before-and-after quantitative measurements
->> would be good.
->>
->> Because it could be (as far as I know) that the problem is purely
->> theoretical, in which case we might not want the patch at all.
->>   
->>     
->
-> Just try sys_move_pages() on a 10-100MB buffer, you'll get something
-> like 50MB/s on a recent Opteron machine. This throughput decreases
-> significantly with the number of pages. With this patch, we get about
-> 350MB/s and the throughput is stable when the migrated buffer gets
-> larger. I don't have detailled numbers at hand, I'll send them by monday.
->   
+On Fri, Oct 10, 2008 at 12:42:39PM -0700, Andrew Morton wrote:
+> On Thu, 9 Oct 2008 12:21:15 -0700
+> Gary Hade <garyhade@us.ibm.com> wrote:
+> 
+> > Show node to memory section relationship with symlinks in sysfs
+> > 
+> > Add /sys/devices/system/node/nodeX/memoryY symlinks for all
+> > the memory sections located on nodeX.  For example:
+> > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
+> > indicates that memory section 135 resides on node1.
+> 
+> I'm not seeing here a description of why the kernel needs this feature.
+> Why is it useful?  How will it be used?  What value does it have to
+> our users?
 
-Here's some quickyl-gathered numbers for the duration of move_pages().
-It's between nodes #2 and #3 of a quad-quad-core opteron 2347HE with
-2.6.27-rc5 + perfmon2:
+Sorry, I should have included that.  In our case, it is another
+small step towards eventual total node removal.  We will need to
+know which memory sections to offline for whatever node is targeted
+for removal.  However, I suspect that exposing the node to section
+information to user-level could be useful for other purposes.
+For example, I have been thinking that using memory hotremove
+functionality to modify the amount of available memory on specific
+nodes without having to physically add/remove DIMMs might be useful
+to those that test application or benchmark performance on a
+multi-node system in various memory configurations.
 
-buffer (kB)	move_pages (us)		move_pages with patch (us)
-4000		12351			12580
-40000		223975			123024
+Gary
 
-As you can see, with the patch applied, the migration time for 10x more
-pages is 10x more. Without the patch, it's 18x.
-
-I'll see if I can implement what Christoph's ideas.
-
-Brice
+-- 
+Gary Hade
+System x Enablement
+IBM Linux Technology Center
+503-578-4503  IBM T/L: 775-4503
+garyhade@us.ibm.com
+http://www.ibm.com/linux/ltc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
