@@ -1,87 +1,56 @@
-Received: by nf-out-0910.google.com with SMTP id c10so270097nfd.6
-        for <linux-mm@kvack.org>; Fri, 10 Oct 2008 02:32:27 -0700 (PDT)
-Message-ID: <48EF2138.9050307@gmail.com>
-Date: Fri, 10 Oct 2008 11:32:40 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Reply-To: righi.andrea@gmail.com
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m9AALs3x179066
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 10:21:54 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9AALr432801700
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 11:21:53 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9AALk0F002792
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 11:21:47 +0100
+Message-ID: <48EF2CB3.9040900@fr.ibm.com>
+Date: Fri, 10 Oct 2008 12:21:39 +0200
+From: Cedric Le Goater <clg@fr.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] page-writeback: fine-grained dirty_ratio and dirty_background_ratio
-References: <1221232192-13553-1-git-send-email-righi.andrea@gmail.com>	<20080912131816.e0cfac7a.akpm@linux-foundation.org>	<532480950809221641y3471267esff82a14be8056586@mail.gmail.com>	<48EB4236.1060100@linux.vnet.ibm.com>	<48EB851D.2030300@gmail.com>	<20081008101642.fcfb9186.kamezawa.hiroyu@jp.fujitsu.com>	<48ECB215.4040409@linux.vnet.ibm.com>	<48EE236A.90007@gmail.com> <20081010094139.e7f8653d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081010094139.e7f8653d.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [RFC v6][PATCH 3/9] x86 support for checkpoint/restart
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu> <1223461197-11513-4-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1223461197-11513-4-git-send-email-orenl@cs.columbia.edu>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, Michael Rubin <mrubin@google.com>, Andrew Morton <akpm@linux-foundation.org>, menage@google.com, dave@linux.vnet.ibm.com, chlunde@ping.uio.no, dpshah@google.com, eric.rannaud@gmail.com, fernando@oss.ntt.co.jp, agk@sourceware.org, m.innocenti@cineca.it, s-uchida@ap.jp.nec.com, ryov@valinux.co.jp, matt@bluehost.com, dradford@bluehost.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> <snip>
-> 
->> -int dirty_background_ratio = 5;
->> +int dirty_background_ratio = 5 * PERCENT_PCM;
->>  
->>  /*
->>   * free highmem will not be subtracted from the total free memory
->> @@ -77,7 +77,7 @@ int vm_highmem_is_dirtyable;
->>  /*
->>   * The generator of dirty data starts writeback at this percentage
->>   */
->> -int vm_dirty_ratio = 10;
->> +int vm_dirty_ratio = 10 * PERCENT_PCM;
->>  
->>  /*
->>   * The interval between `kupdate'-style writebacks, in jiffies
->> @@ -135,7 +135,8 @@ static int calc_period_shift(void)
->>  {
->>  	unsigned long dirty_total;
->>  
->> -	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory()) / 100;
->> +	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory())
->> +			/ ONE_HUNDRED_PCM;
->>  	return 2 + ilog2(dirty_total - 1);
->>  }
->>  
-> I wonder...isn't this overflow in 32bit system ?
+> +int cr_read_cpu_fpu(struct cr_hdr_cpu *hh, struct task_struct *t)
+> +{
+> +	struct thread_struct *thread = &t->thread;
+> +
+> +	/* i387 + MMU + SSE */
+> +
+> +	preempt_disable();
+> +
+> +	__clear_fpu(t);		/* in case we used FPU in user mode */
+> +
+> +	if (!hh->used_math)
+> +		clear_used_math();
+> +	else {
+> +		if (hh->has_fxsr != cpu_has_fxsr) {
+> +			force_sig(SIGFPE, t);
+> +			return -EINVAL;
+> +		}
 
-Correct! the worst case is (in pages):
+don't you need an init_fpu() around here ? because the task you restart might 
+not have used FPU yet.
 
-4GB = 100,000 * determine_dirtyable_memory()
+> +		memcpy(&thread->xstate, &hh->xstate, sizeof(thread->xstate));
 
-that means 42950 pages (~168MB) of dirtyable memory is enough to overflow :(.
-Using an u64 for dirty_total should resolve.
+also i'd used 'xstate_size' instead of sizeof(thread->xstate)
 
-Delta patch is below.
 
-Unfortunately I have all 64-bit machines right now. Maybe tomorrow I'll
-be able to get a 32-bit box, if someone doesn't test this before.
+thanks,
 
-Thanks!
--Andrea
-
----
-Subject: fix overflow in 32-bit systems using fine-grained dirty_ratio
-
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/page-writeback.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6bc8c9b..29913e5 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -133,7 +133,7 @@ static struct prop_descriptor vm_dirties;
-  */
- static int calc_period_shift(void)
- {
--	unsigned long dirty_total;
-+	u64 dirty_total;
- 
- 	dirty_total = (vm_dirty_ratio * determine_dirtyable_memory())
- 			/ ONE_HUNDRED_PCM;
+C.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
