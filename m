@@ -1,56 +1,79 @@
-Date: Fri, 10 Oct 2008 14:59:50 -0700
+Date: Fri, 10 Oct 2008 15:17:01 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] [REPOST] mm: show node to memory section
- relationship with symlinks in sysfs
-Message-Id: <20081010145950.f51def29.akpm@linux-foundation.org>
-In-Reply-To: <20081010213357.GD7369@us.ibm.com>
-References: <20081009192115.GB8793@us.ibm.com>
-	<20081010124239.f92b5568.akpm@linux-foundation.org>
-	<20081010213357.GD7369@us.ibm.com>
+Subject: Re:
+ vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+Message-Id: <20081010151701.e9e50bdb.akpm@linux-foundation.org>
+In-Reply-To: <20081008185401.D958.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <200810081655.06698.nickpiggin@yahoo.com.au>
+	<20081008185401.D958.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, pbadari@us.ibm.com, mel@csn.ul.ie, lcm@us.ibm.com, mingo@elte.hu, greg@kroah.com, dave@linux.vnet.ibm.com, nish.aravamudan@gmail.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Oct 2008 14:33:57 -0700
-Gary Hade <garyhade@us.ibm.com> wrote:
+On Wed,  8 Oct 2008 19:03:07 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> On Fri, Oct 10, 2008 at 12:42:39PM -0700, Andrew Morton wrote:
-> > On Thu, 9 Oct 2008 12:21:15 -0700
-> > Gary Hade <garyhade@us.ibm.com> wrote:
-> > 
-> > > Show node to memory section relationship with symlinks in sysfs
-> > > 
-> > > Add /sys/devices/system/node/nodeX/memoryY symlinks for all
-> > > the memory sections located on nodeX.  For example:
-> > > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> > > indicates that memory section 135 resides on node1.
-> > 
-> > I'm not seeing here a description of why the kernel needs this feature.
-> > Why is it useful?  How will it be used?  What value does it have to
-> > our users?
+> Hi
 > 
-> Sorry, I should have included that.  In our case, it is another
-> small step towards eventual total node removal.  We will need to
-> know which memory sections to offline for whatever node is targeted
-> for removal.  However, I suspect that exposing the node to section
-> information to user-level could be useful for other purposes.
-> For example, I have been thinking that using memory hotremove
-> functionality to modify the amount of available memory on specific
-> nodes without having to physically add/remove DIMMs might be useful
-> to those that test application or benchmark performance on a
-> multi-node system in various memory configurations.
+> Nick, Andrew, very thanks for good advice.
+> your helpful increase my investigate speed.
 > 
+> 
+> > This patch, like I said when it was first merged, has the problem that
+> > it can cause large stalls when reclaiming pages.
+> > 
+> > I actually myself tried a similar thing a long time ago. The problem is
+> > that after a long period of no reclaiming, your file pages can all end
+> > up being active and referenced. When the first guy wants to reclaim a
+> > page, it might have to scan through gigabytes of file pages before being
+> > able to reclaim a single one.
+> 
+> I perfectly agree this opinion.
+> all pages stay on active list is awful.
+> 
+> In addition, my mesurement tell me this patch cause latency degression on really heavy io workload.
+> 
+> 2.6.27-rc8: Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
+>  + patch  : Throughput 12.0953 MB/sec  4000 clients  4000 procs  max_latency=1731244.847 ms
+> 
+> 
+> > While it would be really nice to be able to just lazily set PageReferenced
+> > and nothing else in mark_page_accessed, and then do file page aging based
+> > on the referenced bit, the fact is that we virtually have O(1) reclaim
+> > for file pages now, and this can make it much more like O(n) (in worst case,
+> > especially).
+> > 
+> > I don't think it is right to say "we broke aging and this patch fixes it".
+> > It's all a big crazy heuristic. Who's to say that the previous behaviour
+> > wasn't better and this patch breaks it? :)
+> > 
+> > Anyway, I don't think it is exactly productive to keep patches like this in
+> > the tree (that doesn't seem ever intended to be merged) while there are
+> > other big changes to reclaim there.
 
-hm, OK, thanks.  It does sound a bit thin, and if we merge this then
-not only do we get a porkier kernel, we also get a new userspace
-interface which we're then locked into.
+Well yes.  I've been hanging onto these in the hope that someone would
+work out whether they are changes which we should make.
 
-So I'm inclined to skip this change until we have a stronger need?
+
+> > Same for vm-dont-run-touch_buffer-during-buffercache-lookups.patch
+> 
+> I mesured it too,
+> 
+> 2.6.27-rc8: Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
+>  + patch  : Throughput 11.8494 MB/sec  4000 clients  4000 procs  max_latency=3463217.227 ms
+> 
+> dbench latency increased about x2.5
+> 
+> So, the patch desctiption already descibe this risk. 
+> metadata dropping can decrease performance largely.
+> that just appeared, imho.
+
+Oh well, that'll suffice, thanks - I'll drop them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
