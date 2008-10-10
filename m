@@ -1,24 +1,37 @@
-Date: Fri, 10 Oct 2008 10:08:29 -0400
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch 4/8] mm: write_cache_pages type overflow fix
-Message-ID: <20081010140829.GA7983@infradead.org>
-References: <20081009155039.139856823@suse.de> <20081009174822.516911376@suse.de> <20081009082336.GB6637@infradead.org> <20081010131030.GB16353@mit.edu> <20081010131325.GA16246@infradead.org> <20081010133719.GC16353@mit.edu> <1223646482.25004.13.camel@quoit> <20081010140535.GD16353@mit.edu>
+Date: Fri, 10 Oct 2008 17:39:51 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+Message-ID: <20081010153951.GD28977@elte.hu>
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu> <20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz> <20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz> <20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081010140535.GD16353@mit.edu>
+In-Reply-To: <1223571036.11830.32.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Theodore Tso <tytso@mit.edu>
-Cc: Steven Whitehouse <steve@chygwyn.com>, Christoph Hellwig <hch@infradead.org>, npiggin@suse.de, Andrew Morton <akpm@linux-foundation.org>, Mikulas Patocka <mpatocka@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 10, 2008 at 10:05:35AM -0400, Theodore Tso wrote:
-> 3) A version which (optionally via a flag in the wbc structure)
-> instructs write_cache_pages() to not pursue those updates.  This has
-> not been written yet.
+* Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-This one sounds best to me (although we'd have to actualy see it..)
+> On Thu, 2008-10-09 at 15:44 +0200, Ingo Molnar wrote:
+> > there might be races as well, especially with proxy state - and 
+> > current->flags updates are not serialized.
+> > 
+> > So maybe it should be a completely separate flag after all? Stick it 
+> > into the end of task_struct perhaps.
+> 
+> What do you mean by proxy state?  nsproxy?
+
+it's a concept: one task installing some state into another task (which 
+state must be restored after a checkpoint event), while that other task 
+is running. Such as a pi-futex state for example.
+
+So a task can acquire state not just by its own doing, but via some 
+other task too.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
