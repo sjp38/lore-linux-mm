@@ -1,53 +1,68 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9A7LOBK002007
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Oct 2008 16:21:24 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 77FD01B801E
-	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 16:21:24 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 511512DC01D
-	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 16:21:24 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BB901DB8043
-	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 16:21:21 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id CA0841DB8040
-	for <linux-mm@kvack.org>; Fri, 10 Oct 2008 16:21:20 +0900 (JST)
-Date: Fri, 10 Oct 2008 16:21:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [rfc] approach to pull writepage out of reclaim
-Message-Id: <20081010162103.7c8b61c0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081009144103.GE9941@wotan.suse.de>
-References: <20081009144103.GE9941@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 10 Oct 2008 09:23:34 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: git-slab plus git-tip breaks i386 allnoconfig
+Message-ID: <20081010072334.GA15715@elte.hu>
+References: <20081009164700.c9042902.akpm@linux-foundation.org> <20081009170349.35e0df12.akpm@linux-foundation.org> <1223621125.8959.9.camel@penberg-laptop> <20081010071815.GA23247@Krystal>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081010071815.GA23247@Krystal>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Oct 2008 16:41:03 +0200
-Nick Piggin <npiggin@suse.de> wrote:
+* Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> wrote:
 
-> Hi,
+> * Pekka Enberg (penberg@cs.helsinki.fi) wrote:
+> > Hi,
+> > 
+> > On Thu, 2008-10-09 at 17:03 -0700, Andrew Morton wrote:
+> > > OK, i386 allmodconfig is suffering something similar.
+> > > 
+> > > In file included from include/linux/slub_def.h:13,
+> > >                  from include/linux/slab.h:184,
+> > >                  from include/linux/percpu.h:5,
+> > >                  from include/linux/rcupdate.h:39,
+> > >                  from include/linux/marker.h:16,
+> > >                  from include/linux/module.h:18,
+> > >                  from include/linux/crypto.h:21,
+> > >                  from arch/x86/kernel/asm-offsets_32.c:7,
+> > >                  from arch/x86/kernel/asm-offsets.c:2:
+> > > include/linux/kmemtrace.h: In function 'kmemtrace_mark_alloc_node':
+> > > include/linux/kmemtrace.h:33: error: implicit declaration of function 'trace_mark'
+> > > include/linux/kmemtrace.h:33: error: 'kmemtrace_alloc' undeclared (first use in this function)
+> > > include/linux/kmemtrace.h:33: error: (Each undeclared identifier is reported only once
+> > > include/linux/kmemtrace.h:33: error: for each function it appears in.)
+> > > include/linux/kmemtrace.h: In function 'kmemtrace_mark_free':
+> > > include/linux/kmemtrace.h:44: error: 'kmemtrace_free' undeclared (first use in this function)
+> > > 
+> > > I'll drop the slab tree.
+> > 
+> > Oh, marker.h includes kmemtrace.h through dependencies... I'd argue
+> > that's a marker.h bug; otherwise I don't see how we can use it in slab.
+> > Mathieu?
+> > 
+> > 		Pekka
+> > 
 > 
-> Just got bored of looking at other things, and started coding up the first
-> step to remove writepage from vmscan.
+> (already sent privately to Ingo and Andrew)
 > 
-Can I make a question ? Is this "vmscan" here means
+> Ingo, can you simply revert commits
+> 44c2a8c1cdf0f3374ef2f4f91db551527a336fb2
+> "markers: turn marker_synchronize_unregister() into an inline"
+> and
+> "Tracepoints synchronize unregister static inline"
+> (this last one does not seem to have hit -tip yet, but may be in -ftrace
+> staging)
+> 
+> That should fix the issue.
 
-  - direct memory reclaim triggered by memory allocation failure (alloc_pages())
-and not
-  - kswapd
-  - memory resource controller hits its limit
+hm, could you please send a fix instead? I can revert from integration 
+branches temporarily but this needs a real fix.
 
-or including all memory reclaim path ?
-
-Thanks
--Kame
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
