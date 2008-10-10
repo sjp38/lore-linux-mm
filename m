@@ -1,78 +1,48 @@
-Date: Fri, 10 Oct 2008 16:32:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] [REPOST] mm: show node to memory section
- relationship with symlinks in sysfs
-Message-Id: <20081010163230.ae9d964d.akpm@linux-foundation.org>
-In-Reply-To: <20081010231844.GA1718@us.ibm.com>
-References: <20081009192115.GB8793@us.ibm.com>
-	<20081010124239.f92b5568.akpm@linux-foundation.org>
-	<20081010213357.GD7369@us.ibm.com>
-	<20081010145950.f51def29.akpm@linux-foundation.org>
-	<20081010231844.GA1718@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48EFEB9D.3080100@redhat.com>
+Date: Fri, 10 Oct 2008 19:56:13 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
+References: <200810081655.06698.nickpiggin@yahoo.com.au>	<20081008185401.D958.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<20081010151701.e9e50bdb.akpm@linux-foundation.org> <20081010152540.79ed64cb.akpm@linux-foundation.org>
+In-Reply-To: <20081010152540.79ed64cb.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, y-goto@jp.fujitsu.com, pbadari@us.ibm.com, mel@csn.ul.ie, lcm@us.ibm.com, mingo@elte.hu, greg@kroah.com, dave@linux.vnet.ibm.com, nish.aravamudan@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Oct 2008 16:18:44 -0700
-Gary Hade <garyhade@us.ibm.com> wrote:
+Andrew Morton wrote:
 
-> On Fri, Oct 10, 2008 at 02:59:50PM -0700, Andrew Morton wrote:
-> > On Fri, 10 Oct 2008 14:33:57 -0700
-> > Gary Hade <garyhade@us.ibm.com> wrote:
-> > 
-> > > On Fri, Oct 10, 2008 at 12:42:39PM -0700, Andrew Morton wrote:
-> > > > On Thu, 9 Oct 2008 12:21:15 -0700
-> > > > Gary Hade <garyhade@us.ibm.com> wrote:
-> > > > 
-> > > > > Show node to memory section relationship with symlinks in sysfs
-> > > > > 
-> > > > > Add /sys/devices/system/node/nodeX/memoryY symlinks for all
-> > > > > the memory sections located on nodeX.  For example:
-> > > > > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> > > > > indicates that memory section 135 resides on node1.
-> > > > 
-> > > > I'm not seeing here a description of why the kernel needs this feature.
-> > > > Why is it useful?  How will it be used?  What value does it have to
-> > > > our users?
-> > > 
-> > > Sorry, I should have included that.  In our case, it is another
-> > > small step towards eventual total node removal.  We will need to
-> > > know which memory sections to offline for whatever node is targeted
-> > > for removal.  However, I suspect that exposing the node to section
-> > > information to user-level could be useful for other purposes.
-> > > For example, I have been thinking that using memory hotremove
-> > > functionality to modify the amount of available memory on specific
-> > > nodes without having to physically add/remove DIMMs might be useful
-> > > to those that test application or benchmark performance on a
-> > > multi-node system in various memory configurations.
-> > > 
-> > 
-> > hm, OK, thanks.  It does sound a bit thin, and if we merge this then
-> > not only do we get a porkier kernel,
+> Which means that after vmscan-split-lru-lists-into-anon-file-sets.patch,
+> shrink_active_list() simply does
 > 
-> Would you feel the same about the size increase if patch 2/2 (include
-> memory section subtree in sysfs with only sparsemem enabled) was
-> withdrawn?
+> 	while (!list_empty(&l_hold)) {
+> 		cond_resched();
+> 		page = lru_to_page(&l_hold);
+> 		list_add(&page->lru, &l_inactive);
+> 	}
 > 
-> Without patch 2/2 the size increase for non-Sparsemem or Sparsemem
-> wo/memory hotplug kernels is extremely small.  Even for memory hotplug
-> enabled kernels there is only a little extra code in ./drivers/base/node.o
-> which only gets linked into NUMA enabled kernels.  I can gather some numbers
-> if necessary.
-
-Size is probably a minor issue on memory-hotpluggable machines.
-
-> > we also get a new userspace interface which we're then locked into.
+> yes?
 > 
-> True.
+> We might even be able to list_splice those pages..
 
-That's a bigger issue.  The later we leave this sort of thing, the more
-information we have.
+Not quite.  We still need to clear the referenced bits.
+
+In order to better balance the pressure between the file
+and anon lists, we may also want to count the number of
+referenced mapped file pages.
+
+That would be roughly a 3-line change, which I could
+either send against a recent mmotm (is the one on your
+site recent enough?) or directly to Linus if you are
+sending the split LRU code upstream.
+
+Just let me know which you prefer.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
