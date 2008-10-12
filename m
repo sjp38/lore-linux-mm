@@ -1,62 +1,48 @@
-Message-ID: <48F110AA.50609@redhat.com>
-Date: Sat, 11 Oct 2008 16:46:34 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9CDWAvD003640
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Sun, 12 Oct 2008 22:32:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9D331B801E
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2F3D2DC015
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 386AD1DB8047
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4D21DB8045
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:31:48 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
-References: <200810081655.06698.nickpiggin@yahoo.com.au>	<20081008185401.D958.KOSAKI.MOTOHIRO@jp.fujitsu.com>	<20081010151701.e9e50bdb.akpm@linux-foundation.org>	<20081010152540.79ed64cb.akpm@linux-foundation.org>	<20081010153346.e25b90f7.akpm@linux-foundation.org>	<48EFEC68.6000705@redhat.com>	<20081010184217.f689f493.akpm@linux-foundation.org>	<48F00737.1080707@redhat.com> <20081010192125.9a54cc22.akpm@linux-foundation.org>
-In-Reply-To: <20081010192125.9a54cc22.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+In-Reply-To: <48F110AA.50609@redhat.com>
+References: <20081010192125.9a54cc22.akpm@linux-foundation.org> <48F110AA.50609@redhat.com>
+Message-Id: <20081012222727.1815.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Sun, 12 Oct 2008 22:31:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, nickpiggin@yahoo.com.au, linux-mm@kvack.org, lee.schermerhorn@hp.com
+To: Rik van Riel <riel@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au, linux-mm@kvack.org, lee.schermerhorn@hp.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+Hi,
 
-> then I get the below.  Can we think of a plausible-sounding changelog for ?
+I mesured mmotm-10-10 today.
+So, it seems very good result.
 
-Does this sound reasonable?
 
-Moving referenced pages back to the head of the active list
-creates a huge scalability problem, because by the time a
-large memory system finally runs out of free memory, every
-single page in the system will have been referenced.
+mainline:     Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
+mmotm-10-02:  Throughput  7.0354 MB/sec  4000 clients  4000 procs  max_latency=2369213.380 ms
+mmotm-10-10:  Throughput 14.2802 MB/sec  4000 clients  4000 procs  max_latency=1564716.557 ms
 
-Not only do we not have the time to scan every single page
-on the active list, but since they have will all have the
-referenced bit set, that bit conveys no useful information.
 
-A more scalable solution is to just move every page that
-hits the end of the active list to the inactive list.
+Thanks!
 
-We clear the referenced bit off of mapped pages, which
-need just one reference to be moved back onto the active
-list.
 
-Unmapped pages will be moved back to the active list after
-two references (see mark_page_accessed).  We preserve the
-PG_referenced flag on unmapped pages to preserve accesses
-that were made while the page was on the active list.
-
-> @@ -1103,13 +1107,20 @@ static void shrink_active_list(unsigned 
->  	 * to the inactive list.  This helps balance scan pressure between
->  	 * file and anonymous pages in get_scan_ratio.
->   	 */
-> +
-> +	/*
-> +	 * Count referenced pages from currently used mappings as
-> +	 * rotated, even though they are moved to the inactive list.
-> +	 * This helps balance scan pressure between file and anonymous
-> +	 * pages in get_scan_ratio.
-> +	 */
->  	zone->recent_rotated[!!file] += pgmoved;
-
-You might want to remove the obsoleted comment :)
-
--- 
-All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
