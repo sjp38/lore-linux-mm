@@ -1,64 +1,27 @@
-From: Jiri Slaby <jirislaby@gmail.com>
-Subject: Re: GIT head no longer boots on x86-64
-Date: Mon, 13 Oct 2008 17:11:33 +0200
-Message-Id: <1223910693-28693-1-git-send-email-jirislaby@gmail.com>
-In-Reply-To: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org>
-References: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org>
+In-reply-to: <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu> (message from Miklos
+	Szeredi on Mon, 13 Oct 2008 16:49:19 +0200)
+Subject: Re: SLUB defrag pull request?
+References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site> <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu> <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org> <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu>
+Message-Id: <E1KpPFv-0003ol-NV@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Mon, 13 Oct 2008 17:22:47 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jiri Slaby <jirislaby@gmail.com>
+To: cl@linux-foundation.org
+Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On 10/13/2008 05:03 PM, Linus Torvalds wrote:
-> 
-> On Mon, 13 Oct 2008, Alan Cox wrote:
-> 
->> On Mon, 13 Oct 2008 12:56:54 +0200
->> Jiri Slaby <jirislaby@gmail.com> wrote:
->>
->>> Could you try the debug patch below to see what address is text_poke trying
->>> to translate?
->> BUG? vmalloc_to_page (from text_poke+0x30/0x14a): ffffffffa01e40b1
-> 
-> Hmm. Last page of code being fixed up, perhaps?
-> 
-> Does this fix it?
+And BTW the whole thing seems to be broken WRT umount.  Getting a
+reference to a dentry or an inode without also getting reference to a
+vfsmount is going to result in "VFS: Busy inodes after unmount of
+%s. Self-destruct in 5 seconds.  Have a nice day...\n".  And getting a
+reference to the vfsmount will result in EBUSY when trying to umount,
+which is also not what we want.
 
-I don't think so. The patch below should.
+So it seemst that this two pass method will not work with dentries or
+inodes at all :(
 
-More background:
-I guess SMP kernel running on UP? In such a case the module .text
-is patched to use UP locks before the module is added to the modules
-list and it thinks there are no valid data at that place while
-patching.
-
-Could you test it? The bug disappeared here in qemu. I've checked
-callers of the function, and it should not matter for them.
-
-Also the !is_module_address(addr) test is useless now.
-
----
- include/linux/mm.h |    4 ++++
- 1 files changed, 4 insertions(+), 0 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c61ba10..45772fd 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -267,6 +267,10 @@ static inline int is_vmalloc_addr(const void *x)
- #ifdef CONFIG_MMU
- 	unsigned long addr = (unsigned long)x;
- 
-+#ifdef CONFIG_X86_64
-+	if (addr >= MODULES_VADDR && addr < MODULES_END)
-+		return 1;
-+#endif
- 	return addr >= VMALLOC_START && addr < VMALLOC_END;
- #else
- 	return 0;
--- 
-1.6.0.2
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
