@@ -1,45 +1,64 @@
-In-reply-to: <48F378C6.7030206@linux-foundation.org> (message from Christoph
-	Lameter on Mon, 13 Oct 2008 09:35:18 -0700)
-Subject: Re: SLUB defrag pull request?
-References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site> <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu> <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org>
-Message-Id: <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 13 Oct 2008 16:49:19 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
+Subject: Re: GIT head no longer boots on x86-64
+Date: Mon, 13 Oct 2008 17:11:33 +0200
+Message-Id: <1223910693-28693-1-git-send-email-jirislaby@gmail.com>
+In-Reply-To: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org>
+References: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cl@linux-foundation.org
-Cc: miklos@szeredi.hu, penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jiri Slaby <jirislaby@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Oct 2008, Christoph Lameter wrote:
-> Miklos Szeredi wrote:
-> > And the things kick_inodes() does without any sort of locking look
-> > even more dangerous.
-> >
-> > It should be the other way round: first make sure nothing is
-> > referencing the inode, and _then_ start cleaning it up with
-> > appropriate locks held.  See prune_icache().
-> >
-> >   
-> kick_inodes() only works on inodes that first have undergone 
-> get_inodes() where we establish a refcount under inode_lock(). The final 
-> cleanup in kick_inodes() is done under iprune_mutex. You are looking at 
-> the loop that does writeback and invalidates attached dentries. This can 
-> fail for various reasons.
+On 10/13/2008 05:03 PM, Linus Torvalds wrote:
+> 
+> On Mon, 13 Oct 2008, Alan Cox wrote:
+> 
+>> On Mon, 13 Oct 2008 12:56:54 +0200
+>> Jiri Slaby <jirislaby@gmail.com> wrote:
+>>
+>>> Could you try the debug patch below to see what address is text_poke trying
+>>> to translate?
+>> BUG? vmalloc_to_page (from text_poke+0x30/0x14a): ffffffffa01e40b1
+> 
+> Hmm. Last page of code being fixed up, perhaps?
+> 
+> Does this fix it?
 
-Yes, but I'm not at all sure that calling remove_inode_buffers() or
-invalidate_mapping_pages() is OK on a live inode.  They should be done
-after checking the refcount, just like prune_icache() does.
+I don't think so. The patch below should.
 
-Also, while d_invalidate() is not actually wrong here, because you
-check S_ISDIR(), but it's still the wrong function to use.  You really
-just want to shrink the children.  Invalidation means: the filesystem
-found out that the cached inode is invalid, so we want to throw it
-away.  In the future it might actually be able to do it for
-directories as well, but currently it cannot because of possible
-mounts on the dentry.
+More background:
+I guess SMP kernel running on UP? In such a case the module .text
+is patched to use UP locks before the module is added to the modules
+list and it thinks there are no valid data at that place while
+patching.
 
-Miklos
+Could you test it? The bug disappeared here in qemu. I've checked
+callers of the function, and it should not matter for them.
+
+Also the !is_module_address(addr) test is useless now.
+
+---
+ include/linux/mm.h |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c61ba10..45772fd 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -267,6 +267,10 @@ static inline int is_vmalloc_addr(const void *x)
+ #ifdef CONFIG_MMU
+ 	unsigned long addr = (unsigned long)x;
+ 
++#ifdef CONFIG_X86_64
++	if (addr >= MODULES_VADDR && addr < MODULES_END)
++		return 1;
++#endif
+ 	return addr >= VMALLOC_START && addr < VMALLOC_END;
+ #else
+ 	return 0;
+-- 
+1.6.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
