@@ -1,47 +1,45 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9DGhlX0002245
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 12:43:47 -0400
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9DGhlpC202236
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 12:43:47 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9DGhkbf025321
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 12:43:47 -0400
-Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <48F30315.1070909@fr.ibm.com>
-References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
-	 <20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>
-	 <20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz>
-	 <20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz>
-	 <20081010153951.GD28977@elte.hu>  <48F30315.1070909@fr.ibm.com>
-Content-Type: text/plain
-Date: Mon, 13 Oct 2008 09:43:43 -0700
-Message-Id: <1223916223.29877.14.camel@nimitz>
-Mime-Version: 1.0
+Message-ID: <48F3AD47.1050301@inria.fr>
+Date: Mon, 13 Oct 2008 22:19:19 +0200
+From: Brice Goglin <Brice.Goglin@inria.fr>
+MIME-Version: 1.0
+Subject: [PATCH 0/5] mm: rework sys_move_pages() to avoid vmalloc and reduce
+ the overhead
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cedric Le Goater <clg@fr.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-10-13 at 10:13 +0200, Cedric Le Goater wrote:
-> hmm, that's rather complex, because we have to take into account the 
-> kernel stack, no ? This is what Andrey was trying to solve in his patchset 
-> back in September :
-> 
->         http://lkml.org/lkml/2008/9/3/96
-> 
-> the restart phase simulates a clone and switch_to to (not) restore the kernel 
-> stack. right ? 
+Hello,
 
-Do we ever have to worry about the kernel stack if we simply say that
-tasks have to be *in* userspace when we checkpoint them.  If a task is
-in an uninterruptable wait state, I'm not sure it's safe to checkpoint
-it anyway.
+Here's the first patchset reworking sys_move_pages() as discussed earlier.
+It removes the possibly large vmalloc by using multiple chunks when migrating
+large buffers. It also dramatically increases the throughput for large buffers
+since the lookup in new_page_node() is now limited to a single chunk, causing
+the quadratic complexity to have a much slower impact. There is no need to use
+any radix-tree-like structure to improve this lookup.
 
--- Dave
+sys_move_pages() duration on a 4-quadcore-opteron 2347HE (1.9Gz), migrating
+between nodes #2 and #3:
+	length		move_pages (us)		move_pages+patch (us)
+	4kB		126			98
+	40kB		198			168
+	400kB		963			937
+	4MB		12503			11930
+	40MB		246867			11848
+
+Patches #1 and #4 are the important ones:
+1) stop returning -ENOENT from sys_move_pages() if nothing got migrated
+2) don't vmalloc a huge page_to_node array for do_pages_stat()
+3) extract do_pages_move() out of sys_move_pages()
+4) rework do_pages_move() to work on page_sized chunks
+5) move_pages: no need to set pp->page to ZERO_PAGE(0) by default
+
+thanks,
+Brice
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
