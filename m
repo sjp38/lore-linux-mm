@@ -1,8 +1,8 @@
-Message-ID: <48F3ADD4.60307@inria.fr>
-Date: Mon, 13 Oct 2008 22:21:40 +0200
+Message-ID: <48F3ADF5.1060609@inria.fr>
+Date: Mon, 13 Oct 2008 22:22:13 +0200
 From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Subject: [PATCH 2/5] mm: don't vmalloc a huge page_to_node array for do_pages_stat()
+Subject: [PATCH 3/5] mm: extract do_pages_move() out of sys_move_pages()
 References: <48F3AD47.1050301@inria.fr>
 In-Reply-To: <48F3AD47.1050301@inria.fr>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -13,102 +13,211 @@ To: Christoph Lameter <cl@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
-do_pages_stat() does not need any page_to_node entry for real.
-Just pass the pointers to the user-space page address array and to
-the user-space status array, and have do_pages_stat() traverse the
-former and fill the latter directly.
+To prepare the chunking, move the sys_move_pages() code that
+is used when nodes!=NULL into do_pages_move().
+And rename do_move_pages() into do_move_page_to_node_array().
 
 Signed-off-by: Brice Goglin <Brice.Goglin@inria.fr>
 ---
- mm/migrate.c |   40 +++++++++++++++++++++++++---------------
- 1 files changed, 25 insertions(+), 15 deletions(-)
+ mm/migrate.c |  152 +++++++++++++++++++++++++++++++++-------------------------
+ 1 files changed, 86 insertions(+), 66 deletions(-)
 
 diff --git a/mm/migrate.c b/mm/migrate.c
-index e505b2f..e92e4f1 100644
+index e92e4f1..dffc98b 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -936,25 +936,33 @@ set_status:
+@@ -858,9 +858,11 @@ static struct page *new_page_node(struct page *p, unsigned long private,
+  * Move a set of pages as indicated in the pm array. The addr
+  * field must be set to the virtual address of the page to be moved
+  * and the node number must contain a valid target node.
++ * The pm array ends with node = MAX_NUMNODES.
+  */
+-static int do_move_pages(struct mm_struct *mm, struct page_to_node *pm,
+-				int migrate_all)
++static int do_move_page_to_node_array(struct mm_struct *mm,
++				      struct page_to_node *pm,
++				      int migrate_all)
+ {
+ 	int err;
+ 	struct page_to_node *pp;
+@@ -936,6 +938,81 @@ set_status:
  }
  
  /*
-- * Determine the nodes of a list of pages. The addr in the pm array
-- * must have been set to the virtual address of which we want to determine
-- * the node number.
-+ * Determine the nodes of an array of pages and store it in an array of status.
-  */
--static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
-+static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
++ * Migrate an array of page address onto an array of nodes and fill
++ * the corresponding array of status.
++ */
++static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
++			 unsigned long nr_pages,
 +			 const void __user * __user *pages,
-+			 int __user *status)
- {
-+	unsigned long i;
-+	int err;
++			 const int __user *nodes,
++			 int __user *status, int flags)
++{
++	struct page_to_node *pm = NULL;
++	nodemask_t task_nodes;
++	int err = 0;
++	int i;
 +
- 	down_read(&mm->mmap_sem);
- 
--	for ( ; pm->node != MAX_NUMNODES; pm++) {
++	task_nodes = cpuset_mems_allowed(task);
++
++	/* Limit nr_pages so that the multiplication may not overflow */
++	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
++		err = -E2BIG;
++		goto out;
++	}
++
++	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
++	if (!pm) {
++		err = -ENOMEM;
++		goto out;
++	}
++
++	/*
++	 * Get parameters from user space and initialize the pm
++	 * array. Return various errors if the user did something wrong.
++	 */
 +	for (i = 0; i < nr_pages; i++) {
 +		const void __user *p;
-+		unsigned long addr;
- 		struct vm_area_struct *vma;
- 		struct page *page;
--		int err;
- 
- 		err = -EFAULT;
--		vma = find_vma(mm, pm->addr);
-+		if (get_user(p, pages+i))
-+			goto out;
-+		addr = (unsigned long) p;
 +
-+		vma = find_vma(mm, addr);
- 		if (!vma)
- 			goto set_status;
- 
--		page = follow_page(vma, pm->addr, 0);
-+		page = follow_page(vma, addr, 0);
- 
- 		err = PTR_ERR(page);
- 		if (IS_ERR(page))
-@@ -967,11 +975,13 @@ static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
- 
- 		err = page_to_nid(page);
- set_status:
--		pm->status = err;
-+		put_user(err, status+i);
- 	}
-+	err = 0;
- 
-+out:
- 	up_read(&mm->mmap_sem);
--	return 0;
-+	return err;
- }
- 
- /*
-@@ -1027,6 +1037,10 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
-  	if (err)
-  		goto out2;
- 
-+	if (!nodes) {
-+		err = do_pages_stat(mm, nr_pages, pages, status);
-+		goto out2;
++		err = -EFAULT;
++		if (get_user(p, pages + i))
++			goto out_pm;
++
++		pm[i].addr = (unsigned long)p;
++		if (nodes) {
++			int node;
++
++			if (get_user(node, nodes + i))
++				goto out_pm;
++
++			err = -ENODEV;
++			if (!node_state(node, N_HIGH_MEMORY))
++				goto out_pm;
++
++			err = -EACCES;
++			if (!node_isset(node, task_nodes))
++				goto out_pm;
++
++			pm[i].node = node;
++		} else
++			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
 +	}
++	/* End marker */
++	pm[nr_pages].node = MAX_NUMNODES;
++
++	err = do_move_page_to_node_array(mm, pm, flags & MPOL_MF_MOVE_ALL);
++	if (err >= 0)
++		/* Return status information */
++		for (i = 0; i < nr_pages; i++)
++			if (put_user(pm[i].status, status + i))
++				err = -EFAULT;
++
++out_pm:
++	vfree(pm);
++out:
++	return err;
++}
++
++/*
+  * Determine the nodes of an array of pages and store it in an array of status.
+  */
+ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
+@@ -993,12 +1070,9 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
+ 			const int __user *nodes,
+ 			int __user *status, int flags)
+ {
+-	int err = 0;
+-	int i;
+ 	struct task_struct *task;
+-	nodemask_t task_nodes;
+ 	struct mm_struct *mm;
+-	struct page_to_node *pm = NULL;
++	int err;
  
- 	task_nodes = cpuset_mems_allowed(task);
+ 	/* Check flags */
+ 	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
+@@ -1030,75 +1104,21 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
+ 	    (current->uid != task->suid) && (current->uid != task->uid) &&
+ 	    !capable(CAP_SYS_NICE)) {
+ 		err = -EPERM;
+-		goto out2;
++		goto out;
+ 	}
  
-@@ -1075,11 +1089,7 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
- 	/* End marker */
- 	pm[nr_pages].node = MAX_NUMNODES;
+  	err = security_task_movememory(task);
+  	if (err)
+- 		goto out2;
++		goto out;
  
--	if (nodes)
--		err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
--	else
--		err = do_pages_stat(mm, pm);
+-	if (!nodes) {
++	if (nodes) {
++		err = do_pages_move(mm, task, nr_pages, pages, nodes, status,
++				    flags);
++	} else {
+ 		err = do_pages_stat(mm, nr_pages, pages, status);
+-		goto out2;
+-	}
 -
-+	err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
- 	if (err >= 0)
- 		/* Return status information */
- 		for (i = 0; i < nr_pages; i++)
+-	task_nodes = cpuset_mems_allowed(task);
+-
+-	/* Limit nr_pages so that the multiplication may not overflow */
+-	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
+-		err = -E2BIG;
+-		goto out2;
+ 	}
+ 
+-	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
+-	if (!pm) {
+-		err = -ENOMEM;
+-		goto out2;
+-	}
+-
+-	/*
+-	 * Get parameters from user space and initialize the pm
+-	 * array. Return various errors if the user did something wrong.
+-	 */
+-	for (i = 0; i < nr_pages; i++) {
+-		const void __user *p;
+-
+-		err = -EFAULT;
+-		if (get_user(p, pages + i))
+-			goto out;
+-
+-		pm[i].addr = (unsigned long)p;
+-		if (nodes) {
+-			int node;
+-
+-			if (get_user(node, nodes + i))
+-				goto out;
+-
+-			err = -ENODEV;
+-			if (!node_state(node, N_HIGH_MEMORY))
+-				goto out;
+-
+-			err = -EACCES;
+-			if (!node_isset(node, task_nodes))
+-				goto out;
+-
+-			pm[i].node = node;
+-		} else
+-			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
+-	}
+-	/* End marker */
+-	pm[nr_pages].node = MAX_NUMNODES;
+-
+-	err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
+-	if (err >= 0)
+-		/* Return status information */
+-		for (i = 0; i < nr_pages; i++)
+-			if (put_user(pm[i].status, status + i))
+-				err = -EFAULT;
+-
+ out:
+-	vfree(pm);
+-out2:
+ 	mmput(mm);
+ 	return err;
+ }
 -- 
 1.5.6.5
 
