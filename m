@@ -1,48 +1,66 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9CDWAvD003640
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 12 Oct 2008 22:32:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9D331B801E
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2F3D2DC015
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 386AD1DB8047
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:32:09 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4D21DB8045
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2008 22:31:48 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: vmscan-give-referenced-active-and-unmapped-pages-a-second-trip-around-the-lru.patch
-In-Reply-To: <48F110AA.50609@redhat.com>
-References: <20081010192125.9a54cc22.akpm@linux-foundation.org> <48F110AA.50609@redhat.com>
-Message-Id: <20081012222727.1815.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.13.8/8.13.8) with ESMTP id m9D8DCtb407240
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 08:13:13 GMT
+Received: from d12av03.megacenter.de.ibm.com (d12av03.megacenter.de.ibm.com [9.149.165.213])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9D8DCIU1884340
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 10:13:12 +0200
+Received: from d12av03.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av03.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9D8DBfS002664
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2008 10:13:12 +0200
+Message-ID: <48F30315.1070909@fr.ibm.com>
+Date: Mon, 13 Oct 2008 10:13:09 +0200
+From: Cedric Le Goater <clg@fr.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>	<20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>	<20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz>	<20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz> <20081010153951.GD28977@elte.hu>
+In-Reply-To: <20081010153951.GD28977@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Sun, 12 Oct 2008 22:31:42 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, nickpiggin@yahoo.com.au, linux-mm@kvack.org, lee.schermerhorn@hp.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Oren Laadan <orenl@cs.columbia.edu>, Andrey Mirkin <major@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Ingo Molnar wrote:
+> * Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> 
+>> On Thu, 2008-10-09 at 15:44 +0200, Ingo Molnar wrote:
+>>> there might be races as well, especially with proxy state - and 
+>>> current->flags updates are not serialized.
+>>>
+>>> So maybe it should be a completely separate flag after all? Stick it 
+>>> into the end of task_struct perhaps.
+>> What do you mean by proxy state?  nsproxy?
+> 
+> it's a concept: one task installing some state into another task (which 
+> state must be restored after a checkpoint event), while that other task 
+> is running. Such as a pi-futex state for example.
+> 
+> So a task can acquire state not just by its own doing, but via some 
+> other task too.
 
-I mesured mmotm-10-10 today.
-So, it seems very good result.
+thinking aloud,
 
+hmm, that's rather complex, because we have to take into account the 
+kernel stack, no ? This is what Andrey was trying to solve in his patchset 
+back in September :
 
-mainline:     Throughput 13.4231 MB/sec  4000 clients  4000 procs  max_latency=1421988.159 ms
-mmotm-10-02:  Throughput  7.0354 MB/sec  4000 clients  4000 procs  max_latency=2369213.380 ms
-mmotm-10-10:  Throughput 14.2802 MB/sec  4000 clients  4000 procs  max_latency=1564716.557 ms
+	http://lkml.org/lkml/2008/9/3/96
 
+the restart phase simulates a clone and switch_to to (not) restore the kernel 
+stack. right ? 
 
-Thanks!
+the self checkpoint and self restore syscalls, like Oren is proposing, are 
+simpler but they require the process cooperation to be triggered. we could
+image doing that in a special signal handler which would allow us to jump
+in the right task context. 
 
+I don't have any preference but looking at the code of the different patchsets
+there are some tricky areas and I'm wondering which path is easier, safer, 
+and portable. 
 
+C.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
