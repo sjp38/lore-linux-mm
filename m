@@ -1,8 +1,9 @@
-Message-ID: <48F3AE1D.3060208@inria.fr>
-Date: Mon, 13 Oct 2008 22:22:53 +0200
+Message-ID: <48F3AE45.90104@inria.fr>
+Date: Mon, 13 Oct 2008 22:23:33 +0200
 From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Subject: [PATCH 4/5] mm: rework do_pages_move() to work on page_sized chunks
+Subject: [PATCH 5/5] mm: move_pages: no need to set pp->page to ZERO_PAGE(0)
+ by default
 References: <48F3AD47.1050301@inria.fr>
 In-Reply-To: <48F3AD47.1050301@inria.fr>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -13,133 +14,31 @@ To: Christoph Lameter <cl@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
-Rework do_pages_move() to work by page-sized chunks of struct page_to_node
-that are passed to do_move_page_to_node_array(). We now only have to
-allocate a single page instead a possibly very large vmalloc area to store
-all page_to_node entries.
-
-As a result, new_page_node() will now have a very small lookup, hidding
-much of the overall sys_move_pages() overhead.
+pp->page is never used when not set to the right page, so there is
+no need to set it to ZERO_PAGE(0) by default.
 
 Signed-off-by: Brice Goglin <Brice.Goglin@inria.fr>
-Signed-off-by: Nathalie Furmento <Nathalie.Furmento@labri.fr>
 ---
- mm/migrate.c |   79 ++++++++++++++++++++++++++++++++-------------------------
- 1 files changed, 44 insertions(+), 35 deletions(-)
+ mm/migrate.c |    6 ------
+ 1 files changed, 0 insertions(+), 6 deletions(-)
 
 diff --git a/mm/migrate.c b/mm/migrate.c
-index dffc98b..175e242 100644
+index 175e242..2453444 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -947,41 +947,43 @@ static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
- 			 const int __user *nodes,
- 			 int __user *status, int flags)
- {
--	struct page_to_node *pm = NULL;
-+	struct page_to_node *pm;
- 	nodemask_t task_nodes;
--	int err = 0;
--	int i;
-+	unsigned long chunk_nr_pages;
-+	unsigned long chunk_start;
-+	int err;
+@@ -878,12 +878,6 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+ 		struct vm_area_struct *vma;
+ 		struct page *page;
  
- 	task_nodes = cpuset_mems_allowed(task);
- 
--	/* Limit nr_pages so that the multiplication may not overflow */
--	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
--		err = -E2BIG;
--		goto out;
--	}
+-		/*
+-		 * A valid page pointer that will not match any of the
+-		 * pages that will be moved.
+-		 */
+-		pp->page = ZERO_PAGE(0);
 -
--	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
--	if (!pm) {
--		err = -ENOMEM;
-+	err = -ENOMEM;
-+	pm = kmalloc(PAGE_SIZE, GFP_KERNEL);
-+	if (!pm)
- 		goto out;
--	}
--
- 	/*
--	 * Get parameters from user space and initialize the pm
--	 * array. Return various errors if the user did something wrong.
-+	 * Store a chunk of page_to_node array in a page,
-+	 * but keep the last one as a marker
- 	 */
--	for (i = 0; i < nr_pages; i++) {
--		const void __user *p;
-+	chunk_nr_pages = PAGE_SIZE/sizeof(struct page_to_node) - 1;
- 
--		err = -EFAULT;
--		if (get_user(p, pages + i))
--			goto out_pm;
-+	for (chunk_start = 0;
-+	     chunk_start < nr_pages;
-+	     chunk_start += chunk_nr_pages) {
-+		int j;
-+
-+		if (chunk_start + chunk_nr_pages > nr_pages)
-+			chunk_nr_pages = nr_pages - chunk_start;
- 
--		pm[i].addr = (unsigned long)p;
--		if (nodes) {
-+		/* fill the chunk pm with addrs and nodes from user-space */
-+		for (j = 0; j < chunk_nr_pages; j++) {
-+			const void __user *p;
- 			int node;
- 
--			if (get_user(node, nodes + i))
-+			err = -EFAULT;
-+			if (get_user(p, pages + j + chunk_start))
-+				goto out_pm;
-+			pm[j].addr = (unsigned long) p;
-+
-+			if (get_user(node, nodes + j + chunk_start))
- 				goto out_pm;
- 
- 			err = -ENODEV;
-@@ -992,22 +994,29 @@ static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
- 			if (!node_isset(node, task_nodes))
- 				goto out_pm;
- 
--			pm[i].node = node;
--		} else
--			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
--	}
--	/* End marker */
--	pm[nr_pages].node = MAX_NUMNODES;
-+			pm[j].node = node;
-+		}
-+
-+		/* End marker for this chunk */
-+		pm[chunk_nr_pages].node = MAX_NUMNODES;
-+
-+		/* Migrate this chunk */
-+		err = do_move_page_to_node_array(mm, pm,
-+						 flags & MPOL_MF_MOVE_ALL);
-+		if (err < 0)
-+			goto out_pm;
- 
--	err = do_move_page_to_node_array(mm, pm, flags & MPOL_MF_MOVE_ALL);
--	if (err >= 0)
- 		/* Return status information */
--		for (i = 0; i < nr_pages; i++)
--			if (put_user(pm[i].status, status + i))
-+		for (j = 0; j < chunk_nr_pages; j++)
-+			if (put_user(pm[j].status, status + j + chunk_start)) {
- 				err = -EFAULT;
-+				goto out_pm;
-+			}
-+	}
-+	err = 0;
- 
- out_pm:
--	vfree(pm);
-+	kfree(pm);
- out:
- 	return err;
- }
+ 		err = -EFAULT;
+ 		vma = find_vma(mm, pp->addr);
+ 		if (!vma || !vma_migratable(vma))
 -- 
 1.5.6.5
 
