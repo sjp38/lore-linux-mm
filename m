@@ -1,121 +1,186 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: SLUB defrag pull request?
-Date: Mon, 13 Oct 2008 23:54:30 +1100
-References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site>
-In-Reply-To: <Pine.LNX.4.64.0810131227120.20511@blonde.site>
+Date: Mon, 13 Oct 2008 14:34:04 +0100
+From: Andy Whitcroft <apw@shadowen.org>
+Subject: Re: [PATCH 1/1] hugetlbfs: handle pages higher order than MAX_ORDER
+Message-ID: <20081013133404.GC15657@brain>
+References: <1223458431-12640-1-git-send-email-apw@shadowen.org> <1223458431-12640-2-git-send-email-apw@shadowen.org> <48ECDD37.8050506@linux-foundation.org> <20081008185532.GA13304@brain> <48ED0B68.2060001@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200810132354.30789.nickpiggin@yahoo.com.au>
+In-Reply-To: <48ED0B68.2060001@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, cl@linux-foundation.org, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jon Tollefson <kniht@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 13 October 2008 22:42, Hugh Dickins wrote:
-> On Mon, 13 Oct 2008, Pekka Enberg wrote:
-> > On Mon, 2008-10-13 at 10:30 +0300, Pekka Enberg wrote:
-> > > Hi Christoph,
-> > >
-> > > (I'm ccing Andrew and Hugh as well in case they want to chip in.)
->
-> Thanks for the headsup: and I've taken the liberty of adding Nick too,
-> it would be good to have his input.
+On Wed, Oct 08, 2008 at 02:35:04PM -0500, Christoph Lameter wrote:
+> Andy Whitcroft wrote:
+> 
+> > With SPARSEMEM turned on and VMEMMAP turned off a valid combination,
+> > we will end up scribbling all over memory which is pretty serious so for
+> > that reason we should handle this case.  There are cirtain combinations
+> > of features which require SPARSMEM but preclude VMEMMAP which trigger this.
+> 
+> Which configurations are we talking about? 64 bit configs may generally be
+> able to use VMEMMAP since they have lots of virtual address space.
 
-Thanks. I get too easily bored with picking nits, and high level design
-review is not very highly valued, but I'll throw in my 2c anyway since
-I've been asked :) May as well cc some lists.
+Currently memory hot remove is not supported with VMEMMAP.  Obviously
+that should be fixed overall and I am assuming it will.  But the fact
+remains that the buddy guarentee is that the mem_map is contigious out
+to MAX_ORDER-1 order pages only beyond that we may not assume
+contiguity.  This code is broken under the guarentees that are set out
+by buddy.  Yes it is true that we do only have one memory model combination
+currently where a greater guarentee of contigious within a node is
+violated, but right now this code violates the current guarentees.
 
-I think it's a pretty reasonable thing to do. I was always slightly
-irritated by the design, maybe due to the topsy turvy issue... you
-almost want the subsystems to be able to use the struct pages to
-queue into their own LRU algorithms, and then queue the unreferenced
-objects off those struct pages, turning it back around the right way.
+I assume the objection here is the injection of the additional branch
+into these loops.  The later rejig patch removes this for the non-giant
+cases for the non-huge use cases.  Are we worried about these same
+branches in the huge cases?  If so we could make this support dependant
+on a new configuration option, or perhaps only have two loop chosen
+based on the order of the page.
 
+Something like the patch below?  This patch is not tested as yet, but if
+this form is acceptable we can get the pair of patches (this plus the
+prep compound update) tested together and I can repost them once that is
+done.  This against 2.6.27.
 
-> > > I'm planning to send a pull request of SLUB defrag today. Is there
-> > > anything in particular you would like to be mentioned in the email to
-> > > Linus?
->
-> I do fear that it'll introduce some hard-to-track-down bugs, either
-> in itself or in the subsystems it's defragging, because it's coming
-> at them from a new angle (isn't it?).
+-apw
 
-In many cases, yes it seems to. And some of the approaches even if
-they work now seem like they *might* cause problematic constraints
-in the design... Have Al and Christoph reviewed the dentry and inode
-patches?
+Author: Andy Whitcroft <apw@shadowen.org>
+Date:   Mon Oct 13 14:28:44 2008 +0100
 
+    hugetlbfs: handle pages higher order than MAX_ORDER
+    
+    When working with hugepages, hugetlbfs assumes that those hugepages
+    are smaller than MAX_ORDER.  Specifically it assumes that the mem_map
+    is contigious and uses that to optimise access to the elements of the
+    mem_map that represent the hugepage.  Gigantic pages (such as 16GB pages
+    on powerpc) by definition are of greater order than MAX_ORDER (larger
+    than MAX_ORDER_NR_PAGES in size).  This means that we can no longer make
+    use of the buddy alloctor guarentees for the contiguity of the mem_map,
+    which ensures that the mem_map is at least contigious for maximmally
+    aligned areas of MAX_ORDER_NR_PAGES pages.
+    
+    This patch adds new mem_map accessors and iterator helpers which handle
+    any discontiguity at MAX_ORDER_NR_PAGES boundaries.  It then uses these
+    to implement gigantic page versions of copy_huge_page and clear_huge_page,
+    and to allow follow_hugetlb_page handle gigantic pages.
+    
+    Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-> But I've no evidence for that, it's just my usual personal FUD, and
-> I'm really rather impressed with how well it appears to be working.
-> Just allow me to say "I told you so" when the first bug appears ;)
-
-I've only looked closely at the buffer_head defrag part of the patch so
-far, and it looks like there is a real problem there. The problem is that
-pages are not always pinned until after buffer heads are freed. So it is
-possible to "get" a page that has since been freed and reallocated for
-something else. Boom? In the comments, I see assertions that "this is OK",
-but not much analysis of what concurrency is possible and why it is safe.
-
-A nasty, conceptual problem unfortunately that I'm worried about is that
-now there is a lot more potential for concurrency from the moment the
-data structure is allocated. Obviously this is why the ctor is needed,
-but there are a lot of codepaths leading to allocations of these objects.
-Have they all been audited for concurrency issues? For example, I see
-there is buffer head defragmenting, and I see there is ext3 defragmenting,
-but alloc_buffer_head calls from various filesystems don't seem to have
-been touched. Presumably they have been looked at, but there is no
-indication of why they are OK?
-
-As a broad question, is such an additional concurrency constraint reasonable?
-
-Another high level kind of issue is the efficiency of this thing. It can
-take locks very frequently in some cases.
-
-
-> May I repeat that question overlooked from when I sent my 1/3 fix?
-> I'm wondering whether kick_buffers() ought to check PageLRU: I've no
-> evidence it's needed, but coming to writepage() or try_to_free_buffers()
-> from this direction (by virtue of having a buffer_head in a partial slab
-> page) is new, and I worry it might cause some ordering problem; whereas
-> if the page is PageLRU, then it is already fair game for such reclaim.
-
-Hmm, I don't see an immediate problem there, but it could be an issue.
-Have filesystem developers been made aware of the change and OKed it?
-
-
-> I believe (not necessarily correctly!) that Andrew is tied up with the
-> Linux Foundation's End User conference in NY today and tomorrow.  I'd
-> be happier if you waited for his goahead before asking Linus to pull.
-> As I recall, he was unhappy with Christoph adding such a feature to
-> SLUB and not SLAB while it's still undecided which way we go.
-
-The problem with this approach is that it relies on being able to lock
-out access from freeing an object purely from the slab layer. SLAB
-cannot do this because it has a per-cpu frontend queue that cannot be
-blocked by another CPU. It would involve adding atomic operations in
-the SLAB fastpath, or somehow IPIing all CPUs during defrag operations.
-
-AFAIKS, all my concerns, including SLAB, would be addressed if we would
-be able to instead group reclaimable objects into pages, and reclaim them
-by managing lists of pages.
-
-
-> I cannot remember where we stand in relation to the odd test where
-> SLUB performs or performed worse.  I think it is true to say that the
-> vast majority of developers would prefer to go forward with SLUB than
-> SLAB.  There was a time when I was very perturbed by SLUB's reliance
-> on higher order allocations, but have noticed nothing to protest
-> about since it became less profligate and more adaptive.  And I do
-> think it's a bit unfair to ask Christoph to enhance his competition!
-
-SLAB unfortunately is still significantly faster than SLUB in some
-important workloads. I am also a little worried about SLUB's higher
-order allocations, but won't harp on about that.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 67a7119..793f52e 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -353,11 +353,26 @@ static int vma_has_reserves(struct vm_area_struct *vma)
+ 	return 0;
+ }
+ 
++static void clear_gigantic_page(struct page *page,
++			unsigned long addr, unsigned long sz)
++{
++	int i;
++	struct page *p = page;
++
++	might_sleep();
++	for (i = 0; i < sz/PAGE_SIZE; i++, p = mem_map_next(p, page, i)) {
++		cond_resched();
++		clear_user_highpage(p, addr + i * PAGE_SIZE);
++	}
++}
+ static void clear_huge_page(struct page *page,
+ 			unsigned long addr, unsigned long sz)
+ {
+ 	int i;
+ 
++	if (unlikely(sz > MAX_ORDER_NR_PAGES))
++		return clear_gigantic_page(page, addr, sz);
++
+ 	might_sleep();
+ 	for (i = 0; i < sz/PAGE_SIZE; i++) {
+ 		cond_resched();
+@@ -365,12 +380,32 @@ static void clear_huge_page(struct page *page,
+ 	}
+ }
+ 
++static void copy_gigantic_page(struct page *dst, struct page *src,
++			   unsigned long addr, struct vm_area_struct *vma)
++{
++	int i;
++	struct hstate *h = hstate_vma(vma);
++	struct page *dst_base = dst;
++	struct page *src_base = src;
++	might_sleep();
++	for (i = 0; i < pages_per_huge_page(h); ) {
++		cond_resched();
++		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
++
++		i++;
++		dst = mem_map_next(dst, dst_base, i);
++		src = mem_map_next(src, src_base, i);
++	}
++}
+ static void copy_huge_page(struct page *dst, struct page *src,
+ 			   unsigned long addr, struct vm_area_struct *vma)
+ {
+ 	int i;
+ 	struct hstate *h = hstate_vma(vma);
+ 
++	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES))
++		return copy_gigantic_page(dst, src, addr, vma);
++
+ 	might_sleep();
+ 	for (i = 0; i < pages_per_huge_page(h); i++) {
+ 		cond_resched();
+@@ -2103,7 +2138,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ same_page:
+ 		if (pages) {
+ 			get_page(page);
+-			pages[i] = page + pfn_offset;
++			pages[i] = mem_map_offset(page, pfn_offset);
+ 		}
+ 
+ 		if (vmas)
+diff --git a/mm/internal.h b/mm/internal.h
+index 1f43f74..08b8dea 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -53,6 +53,34 @@ static inline unsigned long page_order(struct page *page)
+ }
+ 
+ /*
++ * Return the mem_map entry representing the 'offset' subpage within
++ * the maximally aligned gigantic page 'base'.  Handle any discontiguity
++ * in the mem_map at MAX_ORDER_NR_PAGES boundaries.
++ */
++static inline struct page *mem_map_offset(struct page *base, int offset)
++{
++	if (unlikely(offset >= MAX_ORDER_NR_PAGES))
++		return pfn_to_page(page_to_pfn(base) + offset);
++	return base + offset;
++}
++
++/*
++ * Iterator over all subpages withing the maximally aligned gigantic
++ * page 'base'.  Handle any discontiguity in the mem_map.
++ */
++static inline struct page *mem_map_next(struct page *iter,
++						struct page *base, int offset)
++{
++	if (unlikely((offset & (MAX_ORDER_NR_PAGES - 1)) == 0)) {
++		unsigned long pfn = page_to_pfn(base) + offset;
++		if (!pfn_valid(pfn))
++			return NULL;
++		return pfn_to_page(pfn);
++	}
++	return iter + 1;
++}
++
++/*
+  * FLATMEM and DISCONTIGMEM configurations use alloc_bootmem_node,
+  * so all functions starting at paging_init should be marked __init
+  * in those cases. SPARSEMEM, however, allows for memory hotplug,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
