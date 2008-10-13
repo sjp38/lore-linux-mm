@@ -1,27 +1,35 @@
-In-reply-to: <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu> (message from Miklos
-	Szeredi on Mon, 13 Oct 2008 16:49:19 +0200)
-Subject: Re: SLUB defrag pull request?
-References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site> <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu> <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org> <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu>
-Message-Id: <E1KpPFv-0003ol-NV@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 13 Oct 2008 17:22:47 +0200
+Date: Mon, 13 Oct 2008 16:47:17 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: GIT head no longer boots on x86-64
+Message-ID: <20081013164717.7a21084a@lxorguk.ukuu.org.uk>
+In-Reply-To: <1223910693-28693-1-git-send-email-jirislaby@gmail.com>
+References: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org>
+	<1223910693-28693-1-git-send-email-jirislaby@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cl@linux-foundation.org
-Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Jiri Slaby <jirislaby@gmail.com>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-And BTW the whole thing seems to be broken WRT umount.  Getting a
-reference to a dentry or an inode without also getting reference to a
-vfsmount is going to result in "VFS: Busy inodes after unmount of
-%s. Self-destruct in 5 seconds.  Have a nice day...\n".  And getting a
-reference to the vfsmount will result in EBUSY when trying to umount,
-which is also not what we want.
+> I guess SMP kernel running on UP? In such a case the module .text
 
-So it seemst that this two pass method will not work with dentries or
-inodes at all :(
+Yep
 
-Miklos
+> is patched to use UP locks before the module is added to the modules
+> list and it thinks there are no valid data at that place while
+> patching.
+> 
+> Could you test it? The bug disappeared here in qemu. I've checked
+> callers of the function, and it should not matter for them.
+
+Seems to do the job.
+
+Jiri 1 Linus 0
+
+;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
