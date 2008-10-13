@@ -1,35 +1,28 @@
-Message-ID: <48F372BA.7020505@linux-foundation.org>
-Date: Mon, 13 Oct 2008 09:09:30 -0700
+Message-ID: <48F3765A.2010301@linux-foundation.org>
+Date: Mon, 13 Oct 2008 09:24:58 -0700
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: use a radix-tree to make do_move_pages() complexity
- linear
-References: <48EDF9DA.7000508@inria.fr> <20081010125010.164bcbb8.akpm@linux-foundation.org> <48EFB6E6.4080708@inria.fr> <48EFBBE9.5000703@linux-foundation.org> <48F069B8.6050709@inria.fr>
-In-Reply-To: <48F069B8.6050709@inria.fr>
+Subject: Re: SLUB defrag pull request?
+References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site> <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu>
+In-Reply-To: <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brice Goglin <Brice.Goglin@inria.fr>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, nathalie.furmento@labri.fr
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, penberg@cs.helsinki.fi, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Brice Goglin wrote:
-> * One thing that bothers me is move_pages() returning -ENOENT when no
-> page are given to migrate_pages(). I don't see why having 100/100 pages
-> not migrated would return a different error than having only 99/100
-> pages not migrated. We have the status array to place -ENOENT for all
-> these pages. If the user doesn't know where his pages are allocated, he
-> shouldn't get a different return value depending on how many pages were
-> already on the right node. And actually, this convention makes
-> user-space application harder to write since you need to treat -ENOENT
-> as a success unless you already knew for sure where your pages were
-> allocated. And the big thing is that this convention makes the chunking
-> painfully/uselessly more complex. Breaking user-ABI is bad, but fixing
-> crazy ABI...
+Miklos Szeredi wrote:
+> I think it's wrong to unhash dentries while they are possibly still
+> being used.  You can do the shrink_dcache_parent() here, but should
+> leave the unhashing to be done by prune_one_dentry(), after it's been
+> checked that there are no other users of the dentry.
+>
 >   
-I do not think that move_pages() is used that frequently. Changing the 
-API slightly as you suggest would not be that big of a deal.
+d_invalidate() calls shrink_dcache_parent() as needed and will fail if 
+there are other users of the dentry.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
