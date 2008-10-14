@@ -1,78 +1,189 @@
-Date: Tue, 14 Oct 2008 08:00:35 +0100
-From: Andy Whitcroft <apw@shadowen.org>
-Subject: Re: [PATCH 1/1] hugetlbfs: handle pages higher order than MAX_ORDER
-Message-ID: <20081014070035.GE15657@brain>
-References: <1223458431-12640-1-git-send-email-apw@shadowen.org> <1223458431-12640-2-git-send-email-apw@shadowen.org> <48ECDD37.8050506@linux-foundation.org> <20081008185532.GA13304@brain> <48ED0B68.2060001@linux-foundation.org> <20081013133404.GC15657@brain> <48F37190.2020801@linux-foundation.org>
-MIME-Version: 1.0
+Received: from DELTA2001.deltacomputer.de (delta2001.delnet [194.175.217.229])
+	by exchange.deltacomputer.de (Postfix) with SMTP id 247C77B78C
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2008 11:43:02 +0200 (CEST)
+Received: from [194.175.217.230] (helo=exchange.deltacomputer.de)
+	by DELTA2001.deltacomputer.de with AVK MailGateway;
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2008 11:43:01 +0200
+Received: from exchange.deltacomputer.de (localhost [127.0.0.1])
+	by exchange.deltacomputer.de (Postfix) with ESMTP id 2A2157B299
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2008 11:43:00 +0200 (CEST)
+Message-ID: <2793369.1223977380170.SLOX.WebMail.wwwrun@exchange.deltacomputer.de>
+Date: Tue, 14 Oct 2008 11:43:00 +0200 (CEST)
+From: Oliver Weihe <o.weihe@deltacomputer.de>
+Subject: NUMA allocator on Opteron systems does non-local allocation on node0
+In-Reply-To: <1449471.1223892929572.SLOX.WebMail.wwwrun@exchange.deltacomputer.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <48F37190.2020801@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
+References: <1449471.1223892929572.SLOX.WebMail.wwwrun@exchange.deltacomputer.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jon Tollefson <kniht@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 13, 2008 at 09:04:32AM -0700, Christoph Lameter wrote:
-> Andy Whitcroft wrote:
->> Currently memory hot remove is not supported with VMEMMAP.  Obviously
->> that should be fixed overall and I am assuming it will.  But the fact
->> remains that the buddy guarentee is that the mem_map is contigious out
->> to MAX_ORDER-1 order pages only beyond that we may not assume
->> contiguity.  This code is broken under the guarentees that are set out
->> by buddy.  Yes it is true that we do only have one memory model combination
->> currently where a greater guarentee of contigious within a node is
->> violated, but right now this code violates the current guarentees.
->>   I assume the objection here is the injection of the additional branch
->> into these loops.  The later rejig patch removes this for the non-giant
->> cases for the non-huge use cases.  Are we worried about these same
->> branches in the huge cases?  If so we could make this support dependant
->> on a new configuration option, or perhaps only have two loop chosen
->> based on the order of the page.
->>   
-> I think we are worried about these additional checks spreading further  
-> because there may be assumptions of contiguity elsewhere (in particular  
-> when new code is added) since the traditional nature of the memmap is to  
-> be linear and not spread out over memory.
+Hello,
 
-Yes, but it is guarenteed to be contigious in all models out to order
-MAX_ORDER-1, and only gigantic pages are larger than this.  We already
-have to cope with discontiguity at the MAX_ORDER boundaries in paths
-which scan over the mem_map in more general terms as SPARSEMEM introduced
-that long long ago, and only gained a contigious mode when we added your
-VMEMMAP mode to that.
+I've sent this to Andi Kleen and posted this on lkml. Andi suggested to
+sent it to this mailing list.
 
-I thought that the approach recommended by Nick, which led to the other
-patch in this series which pulled out compound page preparation to a
-specific gigantic initialiser, helped a lot with this worry as it removed
-any change from the regular case and helped limit gigantic page support
-to hugetlb only.  The only reason that initialiser was placed with the
-normal form was to ensure they were maintained together.
 
-Would it help if I posted these two together, or perhaps even merged as
-a single patch?
+--- cut here (part 1) ---
 
-> A fix for this particular situation may be as simple as making gigantic  
-> pages depend on SPARSE_VMEMMAP? For x86_64 this is certainly sufficient.
+> Hi Andi,
+> 
+> I'm not sure if you're the right person for this but I hope you are!
+> 
+> I've notived that the memory allocation on NUMA systems (Opterons)
+> does
+> memory allocation on non-local nodes for processes running node0 even
+> if
+> local memory is available. (Kernel 2.6.25 and above)
+> 
+> Currently I'm playing around with a quadsocket quadcore Opteron but
+> I've
+> observed this behavior on other Opteron systems aswell.
+> 
+> Hardware specs:
+> 1x Supermicro H8QM3-2
+> 4x Quadcore Opteron
+> 16x 2GiB (8 GiB memory per node)
+> 
+> OS:
+> currently openSUSE 10.3 but I've observed this on other distros aswell
+> Kernel: 2.6.22.* (openSUSE) / 2.6.25.4 / 2.6.25.5 / 2.6.27 (vanilla
+> config)
+> 
+> Steps to reproduce:
+> Start an application which needs alot of memory and watch the memory
+> usage per node (I'm using "watch -n 1 numastat --hardware" to watch
+> the
+> memory usage per node)
+> A quick&dirty code which allocates a big array and writes data into
+> the
+> array is enough!
+> 
+> In my setup I'm allocating an array of ~7GiB memory size in a
+> singlethreaded application.
+> Startup: numactl --cpunodebind=X ./app
+> For X=1,2,3 it works as expected, all memory is allocated on the local
+> node.
+> For X=0 I can see the memory beeing allocated on node0 as long as
+> ~3GiB
+> are "free" on node0. At this point the kernel starts using memory from
+> node1 for the app!
+> 
+> For parallel realworld apps I've seen a performance penalty of 30%
+> compared to older kernels!
+> 
+> numactl --cpunodebind=0 --membind=0 ./app "solves" the problem in this
+> case but thats not the point!
+> 
+> -- 
+> 
+> Regards,
+> Oliver Weihe
 
-Well that is only true if it doesn't support memory hotplug.
+--- cut here (part 2) ---
 
->> Something like the patch below?  This patch is not tested as yet, but if
->> this form is acceptable we can get the pair of patches (this plus the
->> prep compound update) tested together and I can repost them once that is
->> done.  This against 2.6.27.
->>   
-> What is the difference here to the earlier versions?
+> Hello,
+> 
+> it seems that my reproducer is not very good. :(
+> It "works" much better when you start several processes at once.
+> 
+> for i in `seq 0 3`
+> do
+>   numactl --cpunodebind=${i} ./app &
+> done
+> wait
+> 
+> "app" still allocates some memory (7GiB per process) and fills the
+> array
+> with data.
+> 
+> 
+> I've noticed this behaviour during some HPL (Linpack benchmark
+> from/for
+> top500.org) runs. For small data sets there's no difference in speed
+> between the kernels while for big data sets (allmost the whole memory)
+> 2.6.23 and newer kernels are slower than 2.6.22.
+> I'm using OpenMPI with the runtime option "--mca mpi_paffinity_alone
+> 1"
+> to pin each process on a specific CPU.
+> 
+> The bad news is: I can crash allmost every Quadcore Opteron system
+> with
+> kernels 2.6.21.x to 2.6.24.x with "parallel memory allocation and
+> filling the memory with data" (parallel means: there is one process
+> per
+> core doing this). While it takes some time on dualsocket machines it
+> takes often less than 1 minute on quadsocket quadcores until the
+> system
+> freezes.
+> Yust for the case it is some vendor specific BIOS bug: we're using
+> supermicro mainboards.
+> 
+> > [Another copy of the reply with linux-kernel added this time]
+> > 
+> > > In my setup I'm allocating an array of ~7GiB memory size in a
+> > > singlethreaded application.
+> > > Startup: numactl --cpunodebind=X ./app
+> > > For X=1,2,3 it works as expected, all memory is allocated on the
+> > > local
+> > > node.
+> > > For X=0 I can see the memory beeing allocated on node0 as long as
+> > > ~3GiB
+> > > are "free" on node0. At this point the kernel starts using memory
+> > > from
+> > > node1 for the app!
+> > 
+> > Hmm, that sounds like it doesn't want to use the 4GB DMA zone.
+> > 
+> > Normally there should be no protection on it, but perhaps something 
+> > broke.
+> > 
+> > What does cat /proc/sys/owmem_reserve_ratio say?
+> 
+> 2.6.22.x:
+> # cat /proc/sys/vm/lowmem_reserve_ratio
+> 256     256
+> 
+> 2.6.23.8 (and above)
+> # cat /proc/sys/vm/lowmem_reserve_ratio
+> 256     256     32
+> 
+> 
+> > > For parallel realworld apps I've seen a performance penalty of 30%
+> > > compared to older kernels!
+> > 
+> > Compared to what older kernels? When did it start?
+> 
+> I've tested some kernel Versions that I've laying around here...
+> working fine: 2.6.22.18-0.2-default (openSUSE) / 2.6.22.9 (kernel.org)
+> showing the described behaviour: 2.6.23.8; 2.6.24.4; 2.6.25.4;
+> 2.6.26.5;
+> 2.6.27
+> 
+> 
+> > 
+> > -Andi
+> > 
+> > -- 
+> > ak@linux.intel.com
+> > 
+> 
+> 
+> -- 
+> 
+> Regards,
+> Oliver Weihe
 
-This was a move to following the model I felt Nick preferred in the
-prep_compound_page where the gigantic support is pulled out of line and
-made very explicit.  Minimising the normal case impacts.  Which I felt
-was part of the objections to these changes.
+--- cut here ---
 
-The plan here is to only fix up gigantic pages within the context of
-hugetlbfs.
 
--apw
+Regards,
+ Oliver Weihe
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
