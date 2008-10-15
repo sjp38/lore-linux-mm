@@ -1,63 +1,101 @@
-Subject: Re: [PATCH updated] ext4: Fix file fragmentation during large file
-	write.
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <1224103260.6938.45.camel@think.oraclecorp.com>
-References: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <1224103260.6938.45.camel@think.oraclecorp.com>
-Content-Type: text/plain
-Date: Wed, 15 Oct 2008 19:51:32 -0400
-Message-Id: <1224114692.6938.48.camel@think.oraclecorp.com>
-Mime-Version: 1.0
+Message-ID: <48F683EB.2030003@cs.columbia.edu>
+Date: Wed, 15 Oct 2008 19:59:39 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>	<20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>	<20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz>	<20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz> <20081010153951.GD28977@elte.hu> <48F30315.1070909@fr.ibm.com> <48F3737B.6070904@cs.columbia.edu> <48F60891.1070807@fr.ibm.com>
+In-Reply-To: <48F60891.1070807@fr.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: cmm@us.ibm.com, tytso@mit.edu, sandeen@redhat.com, akpm@linux-foundation.org, hch@infradead.org, steve@chygwyn.com, npiggin@suse.de, mpatocka@redhat.com, linux-mm@kvack.org, inux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Cedric Le Goater <clg@fr.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Dave Hansen <dave@linux.vnet.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-10-15 at 16:41 -0400, Chris Mason wrote:
-> On Fri, 2008-10-10 at 23:32 +0530, Aneesh Kumar K.V wrote:
-> > The range_cyclic writeback mode use the address_space
-> > writeback_index as the start index for writeback. With
-> > delayed allocation we were updating writeback_index
-> > wrongly resulting in highly fragmented file. Number of
-> > extents reduced from 4000 to 27 for a 3GB file with
-> > the below patch.
-> > 
+
+Cedric Le Goater wrote:
+>>> the self checkpoint and self restore syscalls, like Oren is proposing, are 
+>>> simpler but they require the process cooperation to be triggered. we could
+>>> image doing that in a special signal handler which would allow us to jump
+>>> in the right task context. 
+>> This description is not accurate:
+>>
+>> For checkpoint, both implementations use an "external" task to read the state
+>> from other tasks. (In my implementation that "other" task can be self).
 > 
-> I tested the ext4 patch queue from today on top of 2.6.27, and this
-> includes Aneesh's latest patches.
+> which is good, since some applications want to checkpoint themselves and that's
+> a way to provide them a generic service.
+>  
+>> For restart, both implementation expect the restarting process to restore its
+>> own state. They differ in that Andrew's patchset also creates that process
+>> while mine (at the moment) relies on the existing (self) task.
 > 
-> Things are going at disk speed for streaming writes, with the number of
-> extents generated for a 32GB file down to 27.  So, this is definitely an
-> improvement for ext4.
+> hmm, 
+> 
+> It seems that your patchset relies on the fact that the tasks are checkpointed 
+> and restarted at a syscall boundary. right ? I'm might be completely wrong
+> on that :)
+> 
 
-Just FYI, I ran this with compilebench -i 20 --makej and my log is full
-of these:
+Yes. I believe openvz too. And probably everyone else as well. I don't
+know of a sane way to do it otherwise :o
 
-ext4_da_writepages: jbd2_start: 1024 pages, ino 520417; err -30
-Pid: 4072, comm: pdflush Not tainted 2.6.27 #2
+To be precise, either syscall boundary, or the task was in user space
+before being frozen, or (not yet in this implementation) in some special
+frozen state like ptrace or vfork.
 
-Call Trace:
- [<ffffffffa0048493>] ext4_da_writepages+0x171/0x2d3 [ext4]
- [<ffffffff802336be>] ? pick_next_task_fair+0x80/0x91
- [<ffffffff80228fa8>] ? source_load+0x2a/0x58
- [<ffffffff8038e499>] ? __next_cpu+0x19/0x26
- [<ffffffff8026748f>] do_writepages+0x28/0x37
- [<ffffffff802a6b39>] __writeback_single_inode+0x14f/0x26d
- [<ffffffff802a6fb7>] generic_sync_sb_inodes+0x1c1/0x2a2
- [<ffffffff802a70a1>] sync_sb_inodes+0x9/0xb
- [<ffffffff802a73dc>] writeback_inodes+0x64/0xad
- [<ffffffff802675db>] wb_kupdate+0x9a/0x10c
- [<ffffffff80267fd1>] ? pdflush+0x0/0x1e9
- [<ffffffff80267fd1>] ? pdflush+0x0/0x1e9
- [<ffffffff8026810e>] pdflush+0x13d/0x1e9
- [<ffffffff80267541>] ? wb_kupdate+0x0/0x10c
- [<ffffffff80248222>] kthread+0x49/0x77
- [<ffffffff8020c5e9>] child_rip+0xa/0x11
- [<ffffffff802481d9>] ? kthread+0x0/0x77
- [<ffffffff8020c5df>] ? child_rip+0x0/0x11
+>> In other words, none of them will require any cooperation on part of the
+>> checkpointed tasks, and both will require cooperation on part of the restarting
+>> tasks (the latter is easy since we create and fully control these tasks).
+> 
+> yes.
+> 
+>>> I don't have any preference but looking at the code of the different patchsets
+>>> there are some tricky areas and I'm wondering which path is easier, safer, 
+>>> and portable. 
+>> I am thinking which path is preferred: create the processes in kernel space
+>> (like Andrew's patch does) or in user space (like Zap does). In the mini-summit
+>> we agreed in favor of kernel space, but I can still see arguments why user space
+>> may be better.
+> 
+> I'm more familiar with the second algorithm, restarting the process tree in
+> user space and let each task restart itself with the sys_restart syscall. But
+> that's because I've been working on a C/R framework which freezes tasks on 
+> a syscall boundary, which makes a developer's life easy for restart. 
+> 
+> But as you know, a restarted process resumes its execution where it was 
+> checkpointed. So i'm wondering what are the hidden issues with a in-kernel 
+> checkpoint and in-kernel restart. To be more precise, why Andrey needs a 
+> i386_ret_from_resume  trampoline in : 
+> 
+> 	http://lkml.org/lkml/2008/9/3/181
+> 
+> and why don't you ? 
+> 
 
+Usually fork() at the child task returns to user space. IIRC, he needs
+the child task to return in kernel and invoke his function, which
+eventually will invoke the equivalent of do_restart().
+
+So the end result is the same: all restarting tasks restore their own
+state in their own contexts by eventually calling do_restart(). If you
+create  processes in userspace, then they get there via sys_restart(),
+if you create them in the kernel, then they get there directly after
+the trampoline.
+
+Oren.
+
+>> (note: I refer strictly to the creation of the processes during restart, not 
+>>  how their state is restored).
+> 
+> OK 
+> 
+>> any thoughts ?
+> 
+> thanks Oren,
+> 
+> C.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
