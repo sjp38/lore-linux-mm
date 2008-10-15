@@ -1,106 +1,63 @@
-Date: Wed, 15 Oct 2008 16:22:32 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-more-likely-reclaim-madv_sequential-mappings.patch
-Message-Id: <20081015162232.f673fa59.akpm@linux-foundation.org>
+Subject: Re: [PATCH updated] ext4: Fix file fragmentation during large file
+	write.
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <1224103260.6938.45.camel@think.oraclecorp.com>
+References: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+	 <1224103260.6938.45.camel@think.oraclecorp.com>
+Content-Type: text/plain
+Date: Wed, 15 Oct 2008 19:51:32 -0400
+Message-Id: <1224114692.6938.48.camel@think.oraclecorp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@saeurebad.de>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: cmm@us.ibm.com, tytso@mit.edu, sandeen@redhat.com, akpm@linux-foundation.org, hch@infradead.org, steve@chygwyn.com, npiggin@suse.de, mpatocka@redhat.com, linux-mm@kvack.org, inux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I have a note here that this patch needs better justification.  But the
-changelog looks good and there are pretty graphs, so maybe my note is stale.
+On Wed, 2008-10-15 at 16:41 -0400, Chris Mason wrote:
+> On Fri, 2008-10-10 at 23:32 +0530, Aneesh Kumar K.V wrote:
+> > The range_cyclic writeback mode use the address_space
+> > writeback_index as the start index for writeback. With
+> > delayed allocation we were updating writeback_index
+> > wrongly resulting in highly fragmented file. Number of
+> > extents reduced from 4000 to 27 for a 3GB file with
+> > the below patch.
+> > 
+> 
+> I tested the ext4 patch queue from today on top of 2.6.27, and this
+> includes Aneesh's latest patches.
+> 
+> Things are going at disk speed for streaming writes, with the number of
+> extents generated for a 32GB file down to 27.  So, this is definitely an
+> improvement for ext4.
 
-Can people please check it?
+Just FYI, I ran this with compilebench -i 20 --makej and my log is full
+of these:
 
-Thanks.
+ext4_da_writepages: jbd2_start: 1024 pages, ino 520417; err -30
+Pid: 4072, comm: pdflush Not tainted 2.6.27 #2
 
+Call Trace:
+ [<ffffffffa0048493>] ext4_da_writepages+0x171/0x2d3 [ext4]
+ [<ffffffff802336be>] ? pick_next_task_fair+0x80/0x91
+ [<ffffffff80228fa8>] ? source_load+0x2a/0x58
+ [<ffffffff8038e499>] ? __next_cpu+0x19/0x26
+ [<ffffffff8026748f>] do_writepages+0x28/0x37
+ [<ffffffff802a6b39>] __writeback_single_inode+0x14f/0x26d
+ [<ffffffff802a6fb7>] generic_sync_sb_inodes+0x1c1/0x2a2
+ [<ffffffff802a70a1>] sync_sb_inodes+0x9/0xb
+ [<ffffffff802a73dc>] writeback_inodes+0x64/0xad
+ [<ffffffff802675db>] wb_kupdate+0x9a/0x10c
+ [<ffffffff80267fd1>] ? pdflush+0x0/0x1e9
+ [<ffffffff80267fd1>] ? pdflush+0x0/0x1e9
+ [<ffffffff8026810e>] pdflush+0x13d/0x1e9
+ [<ffffffff80267541>] ? wb_kupdate+0x0/0x10c
+ [<ffffffff80248222>] kthread+0x49/0x77
+ [<ffffffff8020c5e9>] child_rip+0xa/0x11
+ [<ffffffff802481d9>] ? kthread+0x0/0x77
+ [<ffffffff8020c5df>] ? child_rip+0x0/0x11
 
-
-
-From: Johannes Weiner <hannes@saeurebad.de>
-
-File pages accessed only once through sequential-read mappings between
-fault and scan time are perfect candidates for reclaim.
-
-This patch makes page_referenced() ignore these singular references and
-the pages stay on the inactive list where they likely fall victim to the
-next reclaim phase.
-
-Already activated pages are still treated normally.  If they were accessed
-multiple times and therefor promoted to the active list, we probably want
-to keep them.
-
-Benchmarks show that big (relative to the system's memory) MADV_SEQUENTIAL
-mappings read sequentially cause much less kernel activity.  Especially
-less LRU moving-around because we never activate read-once pages in the
-first place just to demote them again.
-
-And leaving these perfect reclaim candidates on the inactive list makes
-it more likely for the real working set to survive the next reclaim
-scan.
-
-Benchmark graphs and the test-application can be found here:
-
-	http://hannes.saeurebad.de/madvseq/
-
-Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/rmap.c |   20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
-
-diff -puN mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings mm/rmap.c
---- a/mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings
-+++ a/mm/rmap.c
-@@ -327,8 +327,18 @@ static int page_referenced_one(struct pa
- 		goto out_unmap;
- 	}
- 
--	if (ptep_clear_flush_young_notify(vma, address, pte))
--		referenced++;
-+	if (ptep_clear_flush_young_notify(vma, address, pte)) {
-+		/*
-+		 * If there was just one sequential access to the
-+		 * page, ignore it.  Otherwise, mark_page_accessed()
-+		 * will have promoted the page to the active list and
-+		 * it should be kept.
-+		 */
-+		if (VM_SequentialReadHint(vma) && !PageActive(page))
-+			ClearPageReferenced(page);
-+		else
-+			referenced++;
-+	}
- 
- 	/* Pretend the page is referenced if the task has the
- 	   swap token and is in the middle of a page fault. */
-@@ -449,9 +459,6 @@ int page_referenced(struct page *page, i
- {
- 	int referenced = 0;
- 
--	if (TestClearPageReferenced(page))
--		referenced++;
--
- 	if (page_mapped(page) && page->mapping) {
- 		if (PageAnon(page))
- 			referenced += page_referenced_anon(page, mem_cont);
-@@ -467,6 +474,9 @@ int page_referenced(struct page *page, i
- 		}
- 	}
- 
-+	if (TestClearPageReferenced(page))
-+		referenced++;
-+
- 	if (page_test_and_clear_young(page))
- 		referenced++;
- 
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
