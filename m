@@ -1,46 +1,38 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [rfc] SLOB memory ordering issue
-Date: Thu, 16 Oct 2008 03:46:58 +1100
-References: <200810160334.13082.nickpiggin@yahoo.com.au>
+From: Matt Mackall <mpm@selenic.com>
 In-Reply-To: <200810160334.13082.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+References: <200810160334.13082.nickpiggin@yahoo.com.au>
+Content-Type: text/plain
+Date: Wed, 15 Oct 2008 11:54:18 -0500
+Message-Id: <1224089658.3316.218.camel@calx>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200810160346.59166.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@linux-foundation.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: torvalds@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 16 October 2008 03:34, Nick Piggin wrote:
+On Thu, 2008-10-16 at 03:34 +1100, Nick Piggin wrote:
 > I think I see a possible memory ordering problem with SLOB:
 > In slab caches with constructors, the constructor is run
 > before returning the object to caller, with no memory barrier
 > afterwards.
->
+> 
 > Now there is nothing that indicates the _exact_ behaviour
 > required here. Is it at all reasonable to expect ->ctor() to
 > be visible to all CPUs and not just the allocating CPU?
->
-> SLAB and SLUB don't appear to have this problem. Of course,
-> they have per-CPU fastpath queues, so _can_ have effectively
-> exactly the same ordering issue if the object was brought
-> back into the "initialized" state before being freed, rather
-> than by ->ctor(). However in that case, it is at least
-> kind of visible to the caller.
 
-Although I guess it's just as much of a SLAB implementation
-detail as the lack of ->ctor() barrier... And I really doubt
-_any_ of the callers would have ever thought about either
-possible problem.
+Do you have a failure scenario in mind?
 
-I'd really hate to add a branch to the slab fastpath for this
-though. Maybe we just have to document it, assume there are
-no problems, and maybe take a look at some of the core users
-of this.
+First, it's a categorical mistake for another CPU to be looking at the
+contents of an object unless it knows that it's in an allocated state.
+
+For another CPU to receive that knowledge (by reading a causally-valid
+pointer to it in memory), a memory barrier has to occur, no?
+
+-- 
+Mathematics is the supreme nostalgia of our time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
