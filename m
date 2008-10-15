@@ -1,95 +1,106 @@
-Date: Wed, 15 Oct 2008 15:36:41 -0700
+Date: Wed, 15 Oct 2008 16:22:32 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: set try_to_release_page's gfp_mask to 0
-Message-Id: <20081015153641.afcc94e5.akpm@linux-foundation.org>
-In-Reply-To: <6.0.0.20.2.20080813150454.03b13e30@172.19.0.2>
-References: <6.0.0.20.2.20080813111835.03d345b0@172.19.0.2>
-	<20080812202127.b88e8250.akpm@linux-foundation.org>
-	<6.0.0.20.2.20080813150454.03b13e30@172.19.0.2>
+Subject: mm-more-likely-reclaim-madv_sequential-mappings.patch
+Message-Id: <20081015162232.f673fa59.akpm@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, cmm@us.ibm.com
+To: linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Aug 2008 15:24:40 +0900
-Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp> wrote:
+I have a note here that this patch needs better justification.  But the
+changelog looks good and there are pretty graphs, so maybe my note is stale.
 
-> At 12:21 08/08/13, Andrew Morton wrote:
-> >On Wed, 13 Aug 2008 11:21:16 +0900 Hisashi Hifumi 
-> ><hifumi.hisashi@oss.ntt.co.jp> wrote:
-> >
-> >> Hi.
-> >> 
-> >> shrink_page_list passes gfp_mask to try_to_release_page.
-> >> When shrink_page_list is called from kswapd or buddy system, gfp_mask is set
-> >> and (gfp_mask & __GFP_WAIT) and (gfp_mask & __GFP_FS) check is positive.
-> >> releasepage of jbd/jbd2(ext3/4, ocfs2) and XFS use this parameter. 
-> >> If try_to_free_page fails due to bh busy in jbd/jbd2, jbd/jbd2 lets a 
-> >thread wait for 
-> >> committing transaction. I think this has big performance impacts for vmscan.
-> >> So I modified shrink_page_list not to pass gfp_mask to try_to_release_page
-> >> in ordered to improve vmscan performance.
-> >> 
-> >> Thanks.
-> >> 
-> >> Signed-off-by: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-> >> 
-> >> diff -Nrup linux-2.6.27-rc2.org/mm/vmscan.c linux-2.6.27-rc2.vmscan/mm/vmscan.c
-> >> --- linux-2.6.27-rc2.org/mm/vmscan.c	2008-08-11 14:33:24.000000000 +0900
-> >> +++ linux-2.6.27-rc2.vmscan/mm/vmscan.c	2008-08-12 18:57:05.000000000 +0900
-> >> @@ -614,7 +614,7 @@ static unsigned long shrink_page_list(st
-> >>  		* Otherwise, leave the page on the LRU so it is swappable.
-> >>  		*/
-> >>  		if (PagePrivate(page)) {
-> >> -			if (!try_to_release_page(page, sc->gfp_mask))
-> >> +			if (!try_to_release_page(page, 0))
-> >>  				goto activate_locked;
-> >>  			if (!mapping && page_count(page) == 1) {
-> >>  				unlock_page(page);
-> >
-> >I think the change makes sense.
-> >
-> >Has this change been shown to improve any workloads?  If so, please
-> >provide full information for the changelog.  If not, please mention
-> >this and explain why benefits were not demonstrable.  This information
-> >should _always_ be present in a "performance" patch's changelog!
-> 
-> Sorry, I do not have performance number yet. I'll try this.
-> 
+Can people please check it?
 
-This patch remains in a stalled state...
+Thanks.
 
-And then there's this:
 
-: Probably a better fix would be to explicitly tell
-: journal_try_to_free_buffers() when it need to block on journal commit,
-: rather than (mis)interpreting the gfp_t in this fashion.  I assume the
-: only caller who really cares is direct-io.  That would be quite a bit
-: of churn, and the asynchronous behaviour perhaps makes sense _anyway_
-: when called from page reclaim.
-: 
-: otoh, there is a risk that this change will cause page reclaim to sit
-: there burning huge amounts of CPU time and not achieving anything,
-: because all it is doing is scanning over busy pages.  In that case,
-: blocking behind a commit which would make those pages reclaimable is
-: correct behaviour.  But given that the offending code in
-: journal_try_to_free_buffers() has only been there for a few weeks, I
-: guess this isn't a concern.
-: 
-: 
-: Really, I think what this patch tells us is that 3f31fddf ("jbd: fix
-: race between free buffer and commit transaction") was an unpleasant
-: hack which had undesirable and unexpected side-effects.  I think - that
-: depends upon your as-yet-undisclosed testing results?
-: 
-: Perhaps we should revert 3f31fddf and have another think about how to
-: fix the direct-io -EIO problem.  One option would be to hold our noses
-: and add a new gfp_t flag for this specific purpose?
-:
+
+
+From: Johannes Weiner <hannes@saeurebad.de>
+
+File pages accessed only once through sequential-read mappings between
+fault and scan time are perfect candidates for reclaim.
+
+This patch makes page_referenced() ignore these singular references and
+the pages stay on the inactive list where they likely fall victim to the
+next reclaim phase.
+
+Already activated pages are still treated normally.  If they were accessed
+multiple times and therefor promoted to the active list, we probably want
+to keep them.
+
+Benchmarks show that big (relative to the system's memory) MADV_SEQUENTIAL
+mappings read sequentially cause much less kernel activity.  Especially
+less LRU moving-around because we never activate read-once pages in the
+first place just to demote them again.
+
+And leaving these perfect reclaim candidates on the inactive list makes
+it more likely for the real working set to survive the next reclaim
+scan.
+
+Benchmark graphs and the test-application can be found here:
+
+	http://hannes.saeurebad.de/madvseq/
+
+Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Cc: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/rmap.c |   20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff -puN mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings mm/rmap.c
+--- a/mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings
++++ a/mm/rmap.c
+@@ -327,8 +327,18 @@ static int page_referenced_one(struct pa
+ 		goto out_unmap;
+ 	}
+ 
+-	if (ptep_clear_flush_young_notify(vma, address, pte))
+-		referenced++;
++	if (ptep_clear_flush_young_notify(vma, address, pte)) {
++		/*
++		 * If there was just one sequential access to the
++		 * page, ignore it.  Otherwise, mark_page_accessed()
++		 * will have promoted the page to the active list and
++		 * it should be kept.
++		 */
++		if (VM_SequentialReadHint(vma) && !PageActive(page))
++			ClearPageReferenced(page);
++		else
++			referenced++;
++	}
+ 
+ 	/* Pretend the page is referenced if the task has the
+ 	   swap token and is in the middle of a page fault. */
+@@ -449,9 +459,6 @@ int page_referenced(struct page *page, i
+ {
+ 	int referenced = 0;
+ 
+-	if (TestClearPageReferenced(page))
+-		referenced++;
+-
+ 	if (page_mapped(page) && page->mapping) {
+ 		if (PageAnon(page))
+ 			referenced += page_referenced_anon(page, mem_cont);
+@@ -467,6 +474,9 @@ int page_referenced(struct page *page, i
+ 		}
+ 	}
+ 
++	if (TestClearPageReferenced(page))
++		referenced++;
++
+ 	if (page_test_and_clear_young(page))
+ 		referenced++;
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
