@@ -1,38 +1,35 @@
-Date: Wed, 15 Oct 2008 09:01:30 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: GIT head no longer boots on x86-64
-In-Reply-To: <48F60D56.6040209@gmail.com>
-Message-ID: <alpine.LFD.2.00.0810150859410.3288@nehalem.linux-foundation.org>
-References: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org> <1223910693-28693-1-git-send-email-jirislaby@gmail.com> <20081013164717.7a21084a@lxorguk.ukuu.org.uk> <20081015115153.GA16413@elte.hu> <alpine.LFD.2.00.0810150758310.3288@nehalem.linux-foundation.org>
- <48F60D56.6040209@gmail.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: [rfc] SLOB memory ordering issue
+Date: Thu, 16 Oct 2008 03:34:12 +1100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810160334.13082.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jiri Slaby <jirislaby@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: torvalds@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+I think I see a possible memory ordering problem with SLOB:
+In slab caches with constructors, the constructor is run
+before returning the object to caller, with no memory barrier
+afterwards.
 
-On Wed, 15 Oct 2008, Jiri Slaby wrote:
-> 
-> Users usually do
-> is_vmalloc_addr(a) ? vfree(a) : kfree(a);
-> Even there it makes more sense to me.
+Now there is nothing that indicates the _exact_ behaviour
+required here. Is it at all reasonable to expect ->ctor() to
+be visible to all CPUs and not just the allocating CPU?
 
-Umm. No it doesn't.
+SLAB and SLUB don't appear to have this problem. Of course,
+they have per-CPU fastpath queues, so _can_ have effectively
+exactly the same ordering issue if the object was brought
+back into the "initialized" state before being freed, rather
+than by ->ctor(). However in that case, it is at least
+kind of visible to the caller.
 
-That is exactly _wh7y_ "is_vmalloc_addr()" exists. But we sure as hell 
-don't ever want to trigger on modules for that.
-
-If you think that "is_vmalloc_addr()" should trigger for any kernel 
-virtual address, why not just make it do so, then? And _name_ it so.
-
-Names are important. In fact, naming is often _more_ important than the 
-implementation is. And that means that the implementation should follow 
-the naming, or the implementation is wrong.
-
-			Linus
+Anyone care or think it is a problem? Should we just document
+that ->ctor doesn't imply any barriers? Better ideas?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
