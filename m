@@ -1,49 +1,45 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id m9FFG2X1519538
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2008 15:16:02 GMT
-Received: from d12av03.megacenter.de.ibm.com (d12av03.megacenter.de.ibm.com [9.149.165.213])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9FFG2qH3862694
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2008 17:16:02 +0200
-Received: from d12av03.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av03.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9FFG1EF006110
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2008 17:16:02 +0200
-Message-ID: <48F6092D.6050400@fr.ibm.com>
-Date: Wed, 15 Oct 2008 17:15:57 +0200
-From: Cedric Le Goater <clg@fr.ibm.com>
+Received: by gxk8 with SMTP id 8so5938840gxk.14
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2008 08:33:47 -0700 (PDT)
+Message-ID: <48F60D56.6040209@gmail.com>
+Date: Wed, 15 Oct 2008 17:33:42 +0200
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
-References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu> <20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz> <20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz> <20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz> <20081010153951.GD28977@elte.hu>  <48F30315.1070909@fr.ibm.com> <1223916223.29877.14.camel@nimitz>
-In-Reply-To: <1223916223.29877.14.camel@nimitz>
+Subject: Re: GIT head no longer boots on x86-64
+References: <alpine.LFD.2.00.0810130752020.3288@nehalem.linux-foundation.org> <1223910693-28693-1-git-send-email-jirislaby@gmail.com> <20081013164717.7a21084a@lxorguk.ukuu.org.uk> <20081015115153.GA16413@elte.hu> <alpine.LFD.2.00.0810150758310.3288@nehalem.linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.0810150758310.3288@nehalem.linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Mon, 2008-10-13 at 10:13 +0200, Cedric Le Goater wrote:
->> hmm, that's rather complex, because we have to take into account the 
->> kernel stack, no ? This is what Andrey was trying to solve in his patchset 
->> back in September :
->>
->>         http://lkml.org/lkml/2008/9/3/96
->>
->> the restart phase simulates a clone and switch_to to (not) restore the kernel 
->> stack. right ? 
+On 10/15/2008 05:06 PM, Linus Torvalds wrote:
+> On Wed, 15 Oct 2008, Ingo Molnar wrote:
+>> Queued the fix below up in tip/x86/urgent for a merge to Linus later 
+>> today. Thanks!
 > 
-> Do we ever have to worry about the kernel stack if we simply say that
-> tasks have to be *in* userspace when we checkpoint them. 
+> Please don't send this crap to me.
+> 
+> Guys, _look_ at the patch for one second. And then tell me it isn't crap. 
 
-at a syscall boundary for example. that would make our life easier 
-definitely. 
+Not in my eyes.
 
-C.
+> The question is: "Is this a vmalloc'ed area?". That's the name of the 
+> function. AND YOU JUST BROKE IT!
 
-> If a task is
-> in an uninterruptable wait state, I'm not sure it's safe to checkpoint
-> it anyway.
+Modules area is vmalloc'ed on x86; on x86_64 only in different virtual address
+space area. So returning true from is_vmalloc_addr() for this space looks very
+sane to me, as it was on x86_32 for years.
+
+Users usually do
+is_vmalloc_addr(a) ? vfree(a) : kfree(a);
+Even there it makes more sense to me.
+
+However I'm fine with introducing is_module_addr() alike function for x86 to
+check the general modules space bounds on x86_64 and return is_vmalloc_addr() on
+x86_32. Does this look better?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
