@@ -1,72 +1,83 @@
-Message-Id: <6.0.0.20.2.20081016120032.046ec3a0@172.19.0.2>
-Date: Thu, 16 Oct 2008 12:06:09 +0900
-From: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
-Subject: Re: [PATCH] vmscan: set try_to_release_page's gfp_mask to 0
-In-Reply-To: <20081015195458.cc203dd5.akpm@linux-foundation.org>
-References: <6.0.0.20.2.20080813111835.03d345b0@172.19.0.2>
- <20080812202127.b88e8250.akpm@linux-foundation.org>
- <6.0.0.20.2.20080813150454.03b13e30@172.19.0.2>
- <20081015153641.afcc94e5.akpm@linux-foundation.org>
- <6.0.0.20.2.20081016112735.04a68e70@172.19.0.2>
- <20081015195458.cc203dd5.akpm@linux-foundation.org>
+Date: Thu, 16 Oct 2008 06:10:33 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: fix anon_vma races
+Message-ID: <20081016041033.GB10371@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ext4@vger.kernel.org, cmm@us.ibm.com
+To: Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-At 11:54 08/10/16, Andrew Morton wrote:
->On Thu, 16 Oct 2008 11:44:39 +0900 Hisashi Hifumi 
-><hifumi.hisashi@oss.ntt.co.jp> wrote:
->
->> 
->> Unfortunately, I did not succeed to get good performance number that
->> prove this patch had some benefit.
->
->OK, thanks, I dropped it.
->
->> >This patch remains in a stalled state...
->> >
->> >And then there's this:
->> >
->> 
->> >: 
->> >: Really, I think what this patch tells us is that 3f31fddf ("jbd: fix
->> >: race between free buffer and commit transaction") was an unpleasant
->> >: hack which had undesirable and unexpected side-effects.  I think - that
->> >: depends upon your as-yet-undisclosed testing results?
->> >: 
->> >: Perhaps we should revert 3f31fddf and have another think about how to
->> >: fix the direct-io -EIO problem.  One option would be to hold our noses
->> >: and add a new gfp_t flag for this specific purpose?
->> >:
->> 
->> direct-io -EIO problem was already fixed by following patch.
->> 
->> commit 6ccfa806a9cfbbf1cd43d5b6aa47ef2c0eb518fd
->> Author: Hisashi Hifumi <hifumi.hisashi@oss.ntt.co.jp>
->> Date:   Tue Sep 2 14:35:40 2008 -0700
->> 
->>     VFS: fix dio write returning EIO when try_to_release_page fails
->> 
->> Dio falls back to buffered write when dio write gets EIO due to failure 
->of try_to_release_page
->> by above patch. So I think just reverting the patch 3f31fddf ("jbd: fix 
->race between 
->> free buffer and commit transaction") is good approach.
->
->Fair enough.  Could I ask that you (or someone) send a suitable patch
->sometime?
+Hi,
 
-Yes, sometimes I send you some bug fixing or performance improvement
-patch.
+Still would like independent confirmation of these problems and the fix, but
+it still looks buggy to me...
 
->
->I could generate the patch, but I'd never get around to testing it. 
->Too busy fixing rejects and compile errors :(
+---
+
+There are some races in the anon_vma code.
+
+The race comes about because adding our vma to the tail of anon_vma->head comes
+after the assignment of vma->anon_vma to a new anon_vma pointer. In the case
+where this is a new anon_vma, this is done without holding any locks.  So a
+parallel anon_vma_prepare might see the vma already has an anon_vma, so it
+won't serialise on the page_table_lock. It may proceed and the anon_vma to a
+page in the page fault path. Another thread may then pick up the page from the
+LRU list, find its mapcount incremented, and attempt to iterate over the
+anon_vma's list concurrently with the first thread (because the first one is
+not holding the anon_vma lock). This is a fairly subtle race, and only likely
+to be hit in kernels where the spinlock is preemptible and the first thread is
+preempted at the right time... but OTOH it is _possible_ to hit here; on bigger
+SMP systems cacheline transfer latencies could be very large, or we could take
+an NMI inside the lock or something. Fix this by initialising the list before
+adding the anon_vma to vma.
+
+After that, there is a similar data-race with memory ordering where the store
+to make the anon_vma visible passes previous stores to initialize the anon_vma.
+This race also includes stores to initialize the anon_vma spinlock by the
+slab constructor. Add and comment appropriate barriers to solve this.
+
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/rmap.c
+===================================================================
+--- linux-2.6.orig/mm/rmap.c
++++ linux-2.6/mm/rmap.c
+@@ -81,8 +81,15 @@ int anon_vma_prepare(struct vm_area_stru
+ 		/* page_table_lock to protect against threads */
+ 		spin_lock(&mm->page_table_lock);
+ 		if (likely(!vma->anon_vma)) {
+-			vma->anon_vma = anon_vma;
+ 			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
++			/*
++			 * This smp_wmb() is required to order all previous
++			 * stores to initialize the anon_vma (by the slab
++			 * ctor) and add this vma, with the store to make it
++			 * visible to other CPUs via vma->anon_vma.
++			 */
++			smp_wmb();
++			vma->anon_vma = anon_vma;
+ 			allocated = NULL;
+ 		}
+ 		spin_unlock(&mm->page_table_lock);
+@@ -91,6 +98,15 @@ int anon_vma_prepare(struct vm_area_stru
+ 			spin_unlock(&locked->lock);
+ 		if (unlikely(allocated))
+ 			anon_vma_free(allocated);
++	} else {
++		/*
++		 * This smp_read_barrier_depends is required to order the data
++		 * dependent loads of fields in anon_vma, with the load of the
++		 * anon_vma pointer vma->anon_vma. This complements the above
++		 * smp_wmb, and prevents a CPU from loading uninitialized
++		 * contents of anon_vma.
++		 */
++		smp_read_barrier_depends();
+ 	}
+ 	return 0;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
