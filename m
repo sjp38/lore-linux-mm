@@ -1,47 +1,59 @@
-Message-ID: <48F7AFA0.1080100@inria.fr>
-Date: Thu, 16 Oct 2008 23:18:24 +0200
-From: Brice Goglin <Brice.Goglin@inria.fr>
+Date: Thu, 16 Oct 2008 23:38:09 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: no way to swapoff a deleted swap file?
+In-Reply-To: <1224145684.28131.25.camel@twins>
+Message-ID: <Pine.LNX.4.64.0810162313570.26758@blonde.site>
+References: <20081015202141.GX26067@cordes.ca> <1224145684.28131.25.camel@twins>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm: rework do_pages_move() to work on page_sized
- chunks
-References: <48F3AD47.1050301@inria.fr> <48F3AE1D.3060208@inria.fr> <48F79B42.3070106@linux-foundation.org>
-In-Reply-To: <48F79B42.3070106@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Peter Cordes <peter@cordes.ca>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
->> +	err = -ENOMEM;
->> +	pm = kmalloc(PAGE_SIZE, GFP_KERNEL);
->> +	if (!pm)
->>     
->
-> ok.... But if you need a page sized chunk then you can also do
-> 	get_zeroed_page(GFP_KERNEL). Why bother the slab allocator for page 		sized
-> allocations?
->   
+On Thu, 16 Oct 2008, Peter Zijlstra wrote:
+> On Wed, 2008-10-15 at 17:21 -0300, Peter Cordes wrote:
+> > I unlinked a swapfile without realizing I was still swapping on it.
+> > Now my /proc/swaps looks like this:
+> > Filename                                Type            Size    Used	Priority
+> > /var/tmp/EXP/cache/swap/1\040(deleted)  file            1288644 1448	-1
+> > /var/tmp/EXP/cache/swap/2\040(deleted)  file            1433368 0	-2
+> > 
+> >  AFAICT, there's nothing I can pass to swapoff(2) that will make the
+> > kernel let go of them.  If that's the case, please consider this a
+> > feature request for a way to do this.  Now I'm going to have to reboot
+> > before I can mkfs that partition.
+> > 
+> >  If kswapd0 had a fd open on the swap files, swapoff /proc/$PID/fd/3
+> > could possibly work.  But it looks like the files are open but with no
+> > user-space accessable file descriptors to them.  Which makes sense,
+> > except for this case.
+> 
+> Right, except that kswapd is per node, so we'd either have to add it to
+> all kswapd instances or a random one. Also, kthreads don't seem to have
+> a files table afaict.
+> 
+> But yes, I see your problem and it makes sense to look for a nice
+> solution.
 
-Right. But why get_zeroed_page()? I don't think I need anything zeroed
-(and I needed so, I would have to zero again between each chunk).
+No immediate answer springs to my mind.
 
-alloc_pages(order=0)+__free_pages() is probably good.
+It's not something I'd want to add a new system call for.
+I guess we could put a magic file for each swap area
+somewhere down in /sys, and allow swapoff to act upon that.
 
->> +		/* fill the chunk pm with addrs and nodes from user-space */
->> +		for (j = 0; j < chunk_nr_pages; j++) {
->>     
->
-> j? So the chunk_start used to be i?
->   
+If there were other good reasons to add such files, that
+could make sense.  But although I'll willingly admit it's a
+lacuna, I don't think it's one worth bloating the kernel for.
 
-The original "i" is somehow "chunk_start+j" now.
+(I would suggest that Peter keep a second link to his swapfiles
+somewhere safer; but that's then open to the converse complaint,
+that when he unlinks intentionally but forgets the safe link,
+the disk space remains mysteriously in use.)
 
-Thanks Christoph, I'll send an updated "4/5" patch in the next days.
-
-Brice
+Sorry for being unhelpful!
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
