@@ -1,50 +1,127 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9G6cTmC022763
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Oct 2008 15:38:30 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C12532AC028
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 91F2E12C044
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 687AF1DB803B
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CC021DB8040
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-In-Reply-To: <20081015233126.27885bb9.akpm@linux-foundation.org>
-References: <20081016151030.5832.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081015233126.27885bb9.akpm@linux-foundation.org>
-Message-Id: <20081016153750.4E22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Thu, 16 Oct 2008 09:43:19 +0200
+From: Kurt Garloff <garloff@suse.de>
+Subject: [garloff@suse.de: [PATCH 1/1] default mlock limit 32k->64k]
+Message-ID: <20081016074319.GD5286@tpkurt2.garloff.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Oct 2008 15:38:27 +0900 (JST)
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="S8hWgp6Wl+RBuNna"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
+To: linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <NPiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-> > mmotm mode,
-> > 
-> > 1, shrink_inactive_list() free copy's page.
-> > 2. end!
-> 
-> OK.  But my concern is that perhaps the above latency improvement was
-> caused by one of the many other MM patches in mmotm.
-> 
-> Reverting mm-more-likely-reclaim-madv_sequential-mappings.patch from
-> mmotm and rerunning the tests would be the way to determine this. 
-> (hint :) - thanks).
+--S8hWgp6Wl+RBuNna
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-fair enough.
-OK, please wait half hour.
+Hi,
+
+this patch does increase the default mlock()able memory from 32k to 64k
+on PAGE_SIZE=3D4k systems. However, on systems with page sizes larger than
+8k, the patch actually decreases the default down to 64k (or one page
+in case that's larger).
+
+Please speak up if you foresee problems on those platforms.
+It would be simple to do=20
+#define MLOCK_LIMIT  ((PAGE_SIZE > 4096) ? 8*PAGE_SIZE : 64*1024)
+in that case -- but doing min(64k,PAGE_SIZE) seems cleaner to me.
+
+----- Forwarded message from Kurt Garloff <garloff@suse.de> -----
+
+Date: Wed, 15 Oct 2008 11:27:36 +0200
+=46rom: Kurt Garloff <garloff@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: Nick Piggin <NPiggin@suse.de>
+Subject: [PATCH 1/1] default mlock limit 32k->64k
+X-Operating-System: Linux 2.6.25.16-0.1-default x86_64
+X-PGP-Info: on http://www.garloff.de/kurt/mykeys.pgp
+X-PGP-Key: 1024D/1C98774E
+Organization: SUSE Linux Products GmbH (a Novell company), Nuernberg, GF:
+	Markus Rex, HRB 16746 (AG Nuernberg)
+User-Agent: Mutt/1.5.17 (2007-11-01)
+Precedence: bulk
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+
+Hi,
+
+normal users can mlock memory up to the value defined in RLIMIT_MLOCK.
+The number used to 0 for a long time and has been changed to 8 pages
+(32k on 4k page systems) a number of years ago to accommodate the needs
+of gpg, which is one of the few programs that a normal user runs and
+which needs mlock (to prevent passphrase and key from leaking into
+swap).=20
+
+Nowadays, we have gpg2, and the need has increased to 64k.
+Attached patch does change the default to 64k, independent of the
+PAGE_SIZE. (Unless PAGE_SIZE is larger than 64k, then we allow one
+page.)
+
+Please apply.
+--=20
+Kurt Garloff, VP Business Development -- OPS, Novell Inc.
+
+=46rom: Kurt Garloff <garloff@suse.de>
+Subject: Increase default RLIMIT_MEMLOCK to 64k
+References: bnc#329675
+Patch-Mainline: no (should be submitted)
+
+By default, non-privileged tasks can only mlock() a small amount of
+memory to avoid a DoS attack by ordinary users. The Linux kernel
+defaulted to 32k (on a 4k page size system) to accommodate the
+needs of gpg.
+However, newer gpg2 needs 64k in various circumstances and otherwise
+fails miserably, see bnc#329675.
+
+Change the default to 64k, and make it more agnostic to PAGE_SIZE.
+
+Signed-off-by: Kurt Garloff <garloff@suse.de>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6.27/include/linux/resource.h
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+--- linux-2.6.27.orig/include/linux/resource.h
++++ linux-2.6.27/include/linux/resource.h
+@@ -59,10 +59,10 @@ struct rlimit {
+ #define _STK_LIM	(8*1024*1024)
+=20
+ /*
+- * GPG wants 32kB of mlocked memory, to make sure pass phrases
++ * GPG2 wants 64kB of mlocked memory, to make sure pass phrases
+  * and other sensitive information are never written to disk.
+  */
+-#define MLOCK_LIMIT	(8 * PAGE_SIZE)
++#define MLOCK_LIMIT	((PAGE_SIZE > 64*1024) ? PAGE_SIZE : 64*1024)
+=20
+ /*
+  * Due to binary compatibility, the actual resource numbers
 
 
+
+
+----- End forwarded message -----
+
+--=20
+Kurt Garloff, VP Business Development -- OPS, Novell Inc.
+
+--S8hWgp6Wl+RBuNna
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.4-svn0 (GNU/Linux)
+
+iD8DBQFI9vCXxmLh6hyYd04RApTlAJ98br+ffFTABav4jRWvyq3IHXjXlQCeMZX/
+38Cf2L53ORnNqcGwNuc44Uw=
+=GVzC
+-----END PGP SIGNATURE-----
+
+--S8hWgp6Wl+RBuNna--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
