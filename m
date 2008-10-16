@@ -1,18 +1,18 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9GIERjc015105
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9GIBT3n000327
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:11:29 -0400
 Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIER4C167110
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIEUFW054962
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:30 -0400
 Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIEQaX003422
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
-Subject: [PATCH 7/9] Infrastructure for shared objects
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIET35003723
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:30 -0400
+Subject: [PATCH 9/9] Restore open file descriprtors
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 16 Oct 2008 11:14:24 -0700
+Date: Thu, 16 Oct 2008 11:14:27 -0700
 References: <20081016181414.934C4FCC@kernel>
 In-Reply-To: <20081016181414.934C4FCC@kernel>
-Message-Id: <20081016181424.1658AAA3@kernel>
+Message-Id: <20081016181427.1E5C5472@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
@@ -21,49 +21,54 @@ List-ID: <linux-mm.kvack.org>
 
 From: Oren Laadan <orenl@cs.columbia.edu>
 
-Infrastructure to handle objects that may be shared and referenced by
-multiple tasks or other objects, e..g open files, memory address space
-etc.
+Restore open file descriptors: for each FD read 'struct cr_hdr_fd_ent'
+and lookup objref in the hash table; if not found (first occurence), read
+in 'struct cr_hdr_fd_data', create a new FD and register in the hash.
+Otherwise attach the file pointer from the hash as an FD.
 
-The state of shared objects is saved once. On the first encounter, the
-state is dumped and the object is assigned a unique identifier (objref)
-and also stored in a hash table (indexed by its physical kenrel address).
->From then on the object will be found in the hash and only its identifier
-is saved.
-
-On restart the identifier is looked up in the hash table; if not found
-then the state is read, the object is created, and added to the hash
-table (this time indexed by its identifier). Otherwise, the object in
-the hash table is used.
+This patch only handles basic FDs - regular files, directories and also
+symbolic links.
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge Hallyn <serue@us.ibm.com>
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/Documentation/checkpoint.txt |   46 ++++
- linux-2.6.git-dave/checkpoint/Makefile          |    2 
- linux-2.6.git-dave/checkpoint/objhash.c         |  268 ++++++++++++++++++++++++
- linux-2.6.git-dave/checkpoint/sys.c             |    6 
- linux-2.6.git-dave/include/linux/checkpoint.h   |   20 +
- 5 files changed, 341 insertions(+), 1 deletion(-)
+ linux-2.6.git-dave/checkpoint/Makefile        |    2 
+ linux-2.6.git-dave/checkpoint/restart.c       |    4 
+ linux-2.6.git-dave/checkpoint/rstr_file.c     |  246 ++++++++++++++++++++++++++
+ linux-2.6.git-dave/include/linux/checkpoint.h |    1 
+ 4 files changed, 252 insertions(+), 1 deletion(-)
 
-diff -puN checkpoint/Makefile~v6_PATCH_7_9_Infrastructure_for_shared_objects checkpoint/Makefile
---- linux-2.6.git/checkpoint/Makefile~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/Makefile	2008-10-16 10:53:38.000000000 -0700
-@@ -2,5 +2,5 @@
- # Makefile for linux checkpoint/restart.
+diff -puN checkpoint/Makefile~v6_PATCH_9_9_Restore_open_file_descriprtors checkpoint/Makefile
+--- linux-2.6.git/checkpoint/Makefile~v6_PATCH_9_9_Restore_open_file_descriprtors	2008-10-16 10:53:39.000000000 -0700
++++ linux-2.6.git-dave/checkpoint/Makefile	2008-10-16 10:53:39.000000000 -0700
+@@ -3,4 +3,4 @@
  #
  
--obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o \
-+obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
- 		ckpt_mem.o rstr_mem.o
-diff -puN /dev/null checkpoint/objhash.c
+ obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+-		ckpt_mem.o rstr_mem.o ckpt_file.o
++		ckpt_mem.o rstr_mem.o ckpt_file.o rstr_file.o
+diff -puN checkpoint/restart.c~v6_PATCH_9_9_Restore_open_file_descriprtors checkpoint/restart.c
+--- linux-2.6.git/checkpoint/restart.c~v6_PATCH_9_9_Restore_open_file_descriprtors	2008-10-16 10:53:39.000000000 -0700
++++ linux-2.6.git-dave/checkpoint/restart.c	2008-10-16 10:53:39.000000000 -0700
+@@ -219,6 +219,10 @@ static int cr_read_task(struct cr_ctx *c
+ 	cr_debug("memory: ret %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = cr_read_files(ctx);
++	cr_debug("files: ret %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = cr_read_thread(ctx);
+ 	cr_debug("thread: ret %d\n", ret);
+ 	if (ret < 0)
+diff -puN /dev/null checkpoint/rstr_file.c
 --- /dev/null	2008-09-02 09:40:19.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/objhash.c	2008-10-16 10:53:38.000000000 -0700
-@@ -0,0 +1,268 @@
++++ linux-2.6.git-dave/checkpoint/rstr_file.c	2008-10-16 10:53:39.000000000 -0700
+@@ -0,0 +1,246 @@
 +/*
-+ *  Checkpoint-restart - object hash infrastructure to manage shared objects
++ *  Checkpoint file descriptors
 + *
 + *  Copyright (C) 2008 Oren Laadan
 + *
@@ -73,379 +78,252 @@ diff -puN /dev/null checkpoint/objhash.c
 + */
 +
 +#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/fs.h>
 +#include <linux/file.h>
-+#include <linux/hash.h>
++#include <linux/fdtable.h>
++#include <linux/fsnotify.h>
++#include <linux/syscalls.h>
 +#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
 +
-+struct cr_objref {
-+	int objref;
-+	void *ptr;
-+	unsigned short type;
-+	unsigned short flags;
-+	struct hlist_node hash;
-+};
++#include "checkpoint_file.h"
 +
-+struct cr_objhash {
-+	struct hlist_head *head;
-+	int next_free_objref;
-+};
-+
-+#define CR_OBJHASH_NBITS  10
-+#define CR_OBJHASH_TOTAL  (1UL << CR_OBJHASH_NBITS)
-+
-+static void cr_obj_ref_drop(struct cr_objref *obj)
++static int cr_close_all_fds(struct files_struct *files)
 +{
-+	switch (obj->type) {
-+	case CR_OBJ_FILE:
-+		fput((struct file *) obj->ptr);
-+		break;
-+	default:
-+		BUG();
-+	}
-+}
++	int *fdtable;
++	int nfds;
 +
-+static void cr_obj_ref_grab(struct cr_objref *obj)
-+{
-+	switch (obj->type) {
-+	case CR_OBJ_FILE:
-+		get_file((struct file *) obj->ptr);
-+		break;
-+	default:
-+		BUG();
-+	}
-+}
-+
-+static void cr_objhash_clear(struct cr_objhash *objhash)
-+{
-+	struct hlist_head *h = objhash->head;
-+	struct hlist_node *n, *t;
-+	struct cr_objref *obj;
-+	int i;
-+
-+	for (i = 0; i < CR_OBJHASH_TOTAL; i++) {
-+		hlist_for_each_entry_safe(obj, n, t, &h[i], hash) {
-+			cr_obj_ref_drop(obj);
-+			kfree(obj);
-+		}
-+	}
-+}
-+
-+void cr_objhash_free(struct cr_ctx *ctx)
-+{
-+	struct cr_objhash *objhash = ctx->objhash;
-+
-+	if (objhash) {
-+		cr_objhash_clear(objhash);
-+		kfree(objhash->head);
-+		kfree(ctx->objhash);
-+		ctx->objhash = NULL;
-+	}
-+}
-+
-+int cr_objhash_alloc(struct cr_ctx *ctx)
-+{
-+	struct cr_objhash *objhash;
-+	struct hlist_head *head;
-+
-+	objhash = kzalloc(sizeof(*objhash), GFP_KERNEL);
-+	if (!objhash)
-+		return -ENOMEM;
-+	head = kzalloc(CR_OBJHASH_TOTAL * sizeof(*head), GFP_KERNEL);
-+	if (!head) {
-+		kfree(objhash);
-+		return -ENOMEM;
-+	}
-+
-+	objhash->head = head;
-+	objhash->next_free_objref = 1;
-+
-+	ctx->objhash = objhash;
++	nfds = cr_scan_fds(files, &fdtable);
++	if (nfds < 0)
++		return nfds;
++	while (nfds--)
++		sys_close(fdtable[nfds]);
++	kfree(fdtable);
 +	return 0;
 +}
 +
-+static struct cr_objref *cr_obj_find_by_ptr(struct cr_ctx *ctx, void *ptr)
++/**
++ * cr_attach_file - attach a lonely file ptr to a file descriptor
++ * @file: lonely file pointer
++ */
++static int cr_attach_file(struct file *file)
 +{
-+	struct hlist_head *h;
-+	struct hlist_node *n;
-+	struct cr_objref *obj;
++	int fd = get_unused_fd_flags(0);
 +
-+	h = &ctx->objhash->head[hash_ptr(ptr, CR_OBJHASH_NBITS)];
-+	hlist_for_each_entry(obj, n, h, hash)
-+		if (obj->ptr == ptr)
-+			return obj;
-+	return NULL;
-+}
-+
-+static struct cr_objref *cr_obj_find_by_objref(struct cr_ctx *ctx, int objref)
-+{
-+	struct hlist_head *h;
-+	struct hlist_node *n;
-+	struct cr_objref *obj;
-+
-+	h = &ctx->objhash->head[hash_ptr((void *) objref, CR_OBJHASH_NBITS)];
-+	hlist_for_each_entry(obj, n, h, hash)
-+		if (obj->objref == objref)
-+			return obj;
-+	return NULL;
++	if (fd >= 0) {
++		fsnotify_open(file->f_path.dentry);
++		fd_install(fd, file);
++	}
++	return fd;
 +}
 +
 +/**
-+ * cr_obj_new - allocate an object and add to the hash table
-+ * @ctx: checkpoint context
-+ * @ptr: pointer to object
-+ * @objref: unique object reference
-+ * @type: object type
-+ * @flags: object flags
-+ *
-+ * Allocate an object referring to @ptr and add to the hash table.
-+ * If @objref is zero, assign a unique object reference and use @ptr
-+ * as a hash key [checkpoint]. Else use @objref as a key [restart].
++ * cr_attach_get_file - attach (and get) lonely file ptr to a file descriptor
++ * @file: lonely file pointer
 + */
-+static struct cr_objref *cr_obj_new(struct cr_ctx *ctx, void *ptr, int objref,
-+				    unsigned short type, unsigned short flags)
++static int cr_attach_get_file(struct file *file)
 +{
-+	struct cr_objref *obj;
-+	int i;
++	int fd = get_unused_fd_flags(0);
 +
-+	obj = kmalloc(sizeof(*obj), GFP_KERNEL);
-+	if (!obj)
-+		return NULL;
++	if (fd >= 0) {
++		fsnotify_open(file->f_path.dentry);
++		fd_install(fd, file);
++		get_file(file);
++	}
++	return fd;
++}
 +
-+	obj->ptr = ptr;
-+	obj->type = type;
-+	obj->flags = flags;
++#define CR_SETFL_MASK (O_APPEND|O_NONBLOCK|O_NDELAY|FASYNC|O_DIRECT|O_NOATIME)
 +
-+	if (objref) {
-+		/* use @objref to index (restart) */
-+		obj->objref = objref;
-+		i = hash_ptr((void *) objref, CR_OBJHASH_NBITS);
-+	} else {
-+		/* use @ptr to index, assign objref (checkpoint) */
-+		obj->objref = ctx->objhash->next_free_objref++;;
-+		i = hash_ptr(ptr, CR_OBJHASH_NBITS);
++/* cr_read_fd_data - restore the state of a given file pointer */
++static int
++cr_read_fd_data(struct cr_ctx *ctx, struct files_struct *files, int parent)
++{
++	struct cr_hdr_fd_data *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct file *file;
++	int rparent, ret;
++	int fd = 0;	/* pacify gcc warning */
++
++	rparent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FD_DATA);
++	cr_debug("rparent %d parent %d flags %#x mode %#x how %d\n",
++		 rparent, parent, hh->f_flags, hh->f_mode, hh->fd_type);
++	if (rparent < 0) {
++		ret = parent;
++		goto out;
 +	}
 +
-+	hlist_add_head(&obj->hash, &ctx->objhash->head[i]);
-+	cr_obj_ref_grab(obj);
-+	return obj;
++	ret = -EINVAL;
++
++	if (rparent != parent)
++		goto out;
++
++	/* FIX: more sanity checks on f_flags, f_mode etc */
++
++	switch (hh->fd_type) {
++	case CR_FD_FILE:
++	case CR_FD_DIR:
++	case CR_FD_LINK:
++		file = cr_read_open_fname(ctx, hh->f_flags, hh->f_mode);
++		break;
++	default:
++		goto out;
++	}
++
++	if (IS_ERR(file)) {
++		ret = PTR_ERR(file);
++		goto out;
++	}
++
++	/* FIX: need to restore uid, gid, owner etc */
++
++	fd = cr_attach_file(file);	/* no need to cleanup 'file' below */
++	if (fd < 0) {
++		filp_close(file, NULL);
++		ret = fd;
++		goto out;
++	}
++
++	/* register new <objref, file> tuple in hash table */
++	ret = cr_obj_add_ref(ctx, (void *) file, parent, CR_OBJ_FILE, 0);
++	if (ret < 0)
++		goto out;
++	ret = sys_fcntl(fd, F_SETFL, hh->f_flags & CR_SETFL_MASK);
++	if (ret < 0)
++		goto out;
++	ret = vfs_llseek(file, hh->f_pos, SEEK_SET);
++	if (ret == -ESPIPE)	/* ignore error on non-seekable files */
++		ret = 0;
++
++	ret = 0;
++ out:
++	cr_hbuf_put(ctx, sizeof(*hh));
++	return ret < 0 ? ret : fd;
 +}
 +
 +/**
-+ * cr_obj_add_ptr - add an object to the hash table if not already there
++ * cr_read_fd_ent - restore the state of a given file descriptor
 + * @ctx: checkpoint context
-+ * @ptr: pointer to object
-+ * @objref: unique object reference [output]
-+ * @type: object type
-+ * @flags: object flags
++ * @files: files_struct pointer
++ * @parent: parent objref
 + *
-+ * Look up the object pointed to by @ptr in the hash table. If it isn't
-+ * already found there, then add the object to the table, and allocate a
-+ * fresh unique object reference (objref). Fills the unique objref of
-+ * the object into @objref.
-+ * [This is used during checkpoint].
-+ *
-+ * Returns 0 if found, 1 if added, < 0 on error
++ * Restores the state of a file descriptor; looks up the objref (in the
++ * header) in the hash table, and if found picks the matching file and
++ * use it; otherwise calls cr_read_fd_data to restore the file too.
 + */
-+int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
-+		   unsigned short type, unsigned short flags)
++static int
++cr_read_fd_ent(struct cr_ctx *ctx, struct files_struct *files, int parent)
 +{
-+	struct cr_objref *obj;
-+	int ret = 0;
++	struct cr_hdr_fd_ent *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct file *file;
++	int newfd, rparent, ret;
 +
-+	obj = cr_obj_find_by_ptr(ctx, ptr);
-+	if (!obj) {
-+		obj = cr_obj_new(ctx, ptr, 0, type, flags);
-+		if (!obj)
-+			return -ENOMEM;
-+		else
-+			ret = 1;
-+	} else if (obj->type != type)	/* sanity check */
-+		return -EINVAL;
-+	*objref = obj->objref;
++	rparent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FD_ENT);
++	cr_debug("rparent %d parent %d ref %d fd %d c.o.e %d\n",
++		 rparent, parent, hh->objref, hh->fd, hh->close_on_exec);
++	if (rparent < 0) {
++		ret = rparent;
++		goto out;
++	}
++
++	ret = -EINVAL;
++
++	if (rparent != parent)
++		goto out;
++	if (hh->objref <= 0)
++		goto out;
++
++	file = cr_obj_get_by_ref(ctx, hh->objref, CR_OBJ_FILE);
++	if (IS_ERR(file)) {
++		ret = PTR_ERR(file);
++		goto out;
++	}
++
++	if (file) {
++		/* reuse file descriptor found in the hash table */
++		newfd = cr_attach_get_file(file);
++	} else {
++		/* create new file pointer (and register in hash table) */
++		newfd = cr_read_fd_data(ctx, files, hh->objref);
++	}
++
++	if (newfd < 0) {
++		ret = newfd;
++		goto out;
++	}
++
++	cr_debug("newfd got %d wanted %d\n", newfd, hh->fd);
++
++	/* if newfd isn't desired fd then reposition it */
++	if (newfd != hh->fd) {
++		ret = sys_dup2(newfd, hh->fd);
++		if (ret < 0)
++			goto out;
++		sys_close(newfd);
++	}
++
++	if (hh->close_on_exec)
++		set_close_on_exec(hh->fd, 1);
++
++	ret = 0;
++ out:
++	cr_hbuf_put(ctx, sizeof(*hh));
 +	return ret;
 +}
 +
-+/**
-+ * cr_obj_add_ref - add an object with unique objref to the hash table
-+ * @ctx: checkpoint context
-+ * @ptr: pointer to object
-+ * @objref: unique identifier - object reference
-+ * @type: object type
-+ * @flags: object flags
-+ *
-+ * Add the object pointer to by @ptr and identified by unique object
-+ * reference given by @objref to the hash table (indexed by @objref).
-+ * [This is used during restart].
-+ */
-+int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
-+		   unsigned short type, unsigned short flags)
++int cr_read_files(struct cr_ctx *ctx)
 +{
-+	struct cr_objref *obj;
++	struct cr_hdr_files *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct files_struct *files = current->files;
++	int i, parent, ret;
 +
-+	obj = cr_obj_new(ctx, ptr, objref, type, flags);
-+	return obj ? 0 : -ENOMEM;
-+}
-+
-+/**
-+ * cr_obj_get_by_ptr - find the unique object reference of an object
-+ * @ctx: checkpoint context
-+ * @ptr: pointer to object
-+ * @type: object type
-+ *
-+ * Look up the unique object reference (objref) of the object pointed
-+ * to by @ptr, and return that number, or 0 if not found.
-+ * [This is used during checkpoint].
-+ */
-+int cr_obj_get_by_ptr(struct cr_ctx *ctx, void *ptr, unsigned short type)
-+{
-+	struct cr_objref *obj;
-+
-+	obj = cr_obj_find_by_ptr(ctx, ptr);
-+	if (!obj)
-+		return -ESRCH;
-+	if (obj->type != type)
-+		return -EINVAL;
-+	return obj->objref;
-+}
-+
-+/**
-+ * cr_obj_get_by_ref - find an object given its unique object reference
-+ * @ctx: checkpoint context
-+ * @objref: unique identifier - object reference
-+ * @type: object type
-+ *
-+ * Look up the object who is identified by unique object reference that
-+ * is specified by @objref, and return a pointer to that matching object,
-+ * or NULL if not found.
-+ * [This is used during restart].
-+ */
-+void *cr_obj_get_by_ref(struct cr_ctx *ctx, int objref, unsigned short type)
-+{
-+	struct cr_objref *obj;
-+
-+	obj = cr_obj_find_by_objref(ctx, objref);
-+	if (!obj)
-+		return NULL;
-+	if (obj->type != type)
-+		return ERR_PTR(-EINVAL);
-+	return obj->ptr;
-+}
-diff -puN checkpoint/sys.c~v6_PATCH_7_9_Infrastructure_for_shared_objects checkpoint/sys.c
---- linux-2.6.git/checkpoint/sys.c~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/sys.c	2008-10-16 10:53:38.000000000 -0700
-@@ -167,6 +167,7 @@ void cr_ctx_free(struct cr_ctx *ctx)
- 		path_put(ctx->vfsroot);
- 
- 	cr_pgarr_free(ctx);
-+	cr_objhash_free(ctx);
- 
- 	kfree(ctx);
- }
-@@ -191,6 +192,11 @@ struct cr_ctx *cr_ctx_alloc(pid_t pid, i
- 		return ERR_PTR(-ENOMEM);
- 	}
- 
-+	if (cr_objhash_alloc(ctx) < 0) {
-+		cr_ctx_free(ctx);
-+		return ERR_PTR(-ENOMEM);
++	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FILES);
++	if (parent < 0) {
++		ret = parent;
++		goto out;
 +	}
 +
- 	/*
- 	 * assume checkpointer is in container's root vfs
- 	 * FIXME: this works for now, but will change with real containers
-diff -puN Documentation/checkpoint.txt~v6_PATCH_7_9_Infrastructure_for_shared_objects Documentation/checkpoint.txt
---- linux-2.6.git/Documentation/checkpoint.txt~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
-+++ linux-2.6.git-dave/Documentation/checkpoint.txt	2008-10-16 10:53:38.000000000 -0700
-@@ -189,6 +189,52 @@ cr_hdr + cr_hdr_task
- cr_hdr + cr_hdr_tail
++	ret = -EINVAL;
++#if 0	/* activate when containers are used */
++	if (parent != task_pid_vnr(current))
++		goto out;
++#endif
++	cr_debug("objref %d nfds %d\n", hh->objref, hh->nfds);
++	if (hh->objref < 0 || hh->nfds < 0)
++		goto out;
++
++	if (hh->nfds > sysctl_nr_open) {
++		ret = -EMFILE;
++		goto out;
++	}
++
++	/* point of no return -- close all file descriptors */
++	ret = cr_close_all_fds(files);
++	if (ret < 0)
++		goto out;
++
++	for (i = 0; i < hh->nfds; i++) {
++		ret = cr_read_fd_ent(ctx, files, hh->objref);
++		if (ret < 0)
++			break;
++	}
++
++	ret = 0;
++ out:
++	cr_hbuf_put(ctx, sizeof(*hh));
++	return ret;
++}
+diff -puN include/linux/checkpoint.h~v6_PATCH_9_9_Restore_open_file_descriprtors include/linux/checkpoint.h
+--- linux-2.6.git/include/linux/checkpoint.h~v6_PATCH_9_9_Restore_open_file_descriprtors	2008-10-16 10:53:39.000000000 -0700
++++ linux-2.6.git-dave/include/linux/checkpoint.h	2008-10-16 10:53:39.000000000 -0700
+@@ -85,6 +85,7 @@ extern int cr_write_files(struct cr_ctx 
  
+ extern int do_restart(struct cr_ctx *ctx);
+ extern int cr_read_mm(struct cr_ctx *ctx);
++extern int cr_read_files(struct cr_ctx *ctx);
  
-+=== Shared resources (objects)
-+
-+Many resources used by tasks may be shared by more than one task (e.g.
-+file descriptors, memory address space, etc), or even have multiple
-+references from other resources (e.g. a single inode that represents
-+two ends of a pipe).
-+
-+Clearly, the state of shared objects need only be saved once, even if
-+they occur multiple times. We use a hash table (ctx->objhash) to keep
-+track of shared objects and whether they were already saved.  Shared
-+objects are stored in a hash table as they appear, indexed by their
-+kernel address. (The hash table itself is not saved as part of the
-+checkpoint image: it is constructed dynamically during both checkpoint
-+and restart, and discarded at the end of the operation).
-+
-+Each shared object that is found is first looked up in the hash table.
-+On the first encounter, the object will not be found, so its state is
-+dumped, and the object is assigned a unique identifier and also stored
-+in the hash table. Subsequent lookups of that object in the hash table
-+will yield that entry, and then only the unique identifier is saved,
-+as opposed the entire state of the object.
-+
-+During restart, shared objects are seen by their unique identifiers as
-+assigned during the checkpoint. Each shared object that it read in is
-+first looked up in the hash table. On the first encounter it will not
-+be found, meaning that the object needs to be created and its state
-+read in and restored. Then the object is added to the hash table, this
-+time indexed by its unique identifier. Subsequent lookups of the same
-+unique identifier in the hash table will yield that entry, and then
-+the existing object instance is reused instead of creating another one.
-+
-+The interface for the hash table is the following:
-+
-+cr_obj_get_by_ptr() - find the unique object reference (objref)
-+  of the object that is pointer to by ptr [checkpoint]
-+
-+cr_obj_add_ptr() - add the object pointed to by ptr to the hash table
-+  if not already there, and fill its unique object reference (objref)
-+
-+cr_obj_get_by_ref() - return the pointer to the object whose unique
-+  object reference is equal to objref [restart]
-+
-+cr_obj_add_ref() - add the object with given unique object reference
-+  (objref), pointed to by ptr to the hash table. [restart]
-+
-+
- === Current Implementation
- 
- [2008-Oct-07]
-diff -puN include/linux/checkpoint.h~v6_PATCH_7_9_Infrastructure_for_shared_objects include/linux/checkpoint.h
---- linux-2.6.git/include/linux/checkpoint.h~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
-+++ linux-2.6.git-dave/include/linux/checkpoint.h	2008-10-16 10:53:38.000000000 -0700
-@@ -28,6 +28,8 @@ struct cr_ctx {
- 	void *hbuf;		/* temporary buffer for headers */
- 	int hpos;		/* position in headers buffer */
- 
-+	struct cr_objhash *objhash;	/* hash for shared objects */
-+
- 	struct list_head pgarr_list;	/* page array to dump VMA contents */
- 
- 	struct path *vfsroot;	/* container root (FIXME) */
-@@ -45,6 +47,24 @@ extern int cr_kread(struct cr_ctx *ctx, 
- extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
- extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
- 
-+/* shared objects handling */
-+
-+enum {
-+	CR_OBJ_FILE = 1,
-+	CR_OBJ_MAX
-+};
-+
-+extern void cr_objhash_free(struct cr_ctx *ctx);
-+extern int cr_objhash_alloc(struct cr_ctx *ctx);
-+extern void *cr_obj_get_by_ref(struct cr_ctx *ctx,
-+			       int objref, unsigned short type);
-+extern int cr_obj_get_by_ptr(struct cr_ctx *ctx,
-+			     void *ptr, unsigned short type);
-+extern int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
-+			  unsigned short type, unsigned short flags);
-+extern int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
-+			  unsigned short type, unsigned short flags);
-+
- struct cr_hdr;
- 
- extern int cr_write_obj(struct cr_ctx *ctx, struct cr_hdr *h, void *buf);
+ /* there are from fs/read_write.c, not exported otherwise in a header */
+ extern loff_t file_pos_read(struct file *file);
 _
 
 --
