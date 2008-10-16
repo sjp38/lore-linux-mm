@@ -1,78 +1,63 @@
-Received: by rv-out-0708.google.com with SMTP id f25so2732367rvb.26
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2008 04:14:05 -0700 (PDT)
-Date: Thu, 16 Oct 2008 16:43:53 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@gmail.com>
-Subject: Re: [PATCH updated] ext4: Fix file fragmentation during large file
-	write.
-Message-ID: <20081016111353.GB3354@skywalker>
-References: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1224103260.6938.45.camel@think.oraclecorp.com> <1224114692.6938.48.camel@think.oraclecorp.com> <20081016091015.GA3354@skywalker>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate1.uk.ibm.com (8.13.1/8.13.1) with ESMTP id m9GCaSe6010429
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 12:36:30 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GCaRTI4137020
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 13:36:27 +0100
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GCaQwB029256
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 13:36:27 +0100
+Message-ID: <48F7352F.3020700@fr.ibm.com>
+Date: Thu, 16 Oct 2008 14:35:59 +0200
+From: Daniel Lezcano <dlezcano@fr.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081016091015.GA3354@skywalker>
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>	<20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>	<20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz>	<20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz>	<20081010153951.GD28977@elte.hu> <48F30315.1070909@fr.ibm.com>	<1223916223.29877.14.camel@nimitz> <48F6092D.6050400@fr.ibm.com> <48F685A3.1060804@cs.columbia.edu>
+In-Reply-To: <48F685A3.1060804@cs.columbia.edu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <chris.mason@oracle.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, cmm@us.ibm.com, tytso@mit.edu, sandeen@redhat.com, akpm@linux-foundation.org, hch@infradead.org, steve@chygwyn.com, npiggin@suse.de, mpatocka@redhat.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Cedric Le Goater <clg@fr.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 16, 2008 at 02:40:15PM +0530, Aneesh Kumar K.V wrote:
-> On Wed, Oct 15, 2008 at 07:51:32PM -0400, Chris Mason wrote:
-> > On Wed, 2008-10-15 at 16:41 -0400, Chris Mason wrote:
-> > > On Fri, 2008-10-10 at 23:32 +0530, Aneesh Kumar K.V wrote:
-> > > > The range_cyclic writeback mode use the address_space
-> > > > writeback_index as the start index for writeback. With
-> > > > delayed allocation we were updating writeback_index
-> > > > wrongly resulting in highly fragmented file. Number of
-> > > > extents reduced from 4000 to 27 for a 3GB file with
-> > > > the below patch.
-> > > > 
-> > > 
-> > > I tested the ext4 patch queue from today on top of 2.6.27, and this
-> > > includes Aneesh's latest patches.
-> > > 
-> > > Things are going at disk speed for streaming writes, with the number of
-> > > extents generated for a 32GB file down to 27.  So, this is definitely an
-> > > improvement for ext4.
-> > 
-> > Just FYI, I ran this with compilebench -i 20 --makej and my log is full
-> > of these:
-> > 
-> > ext4_da_writepages: jbd2_start: 1024 pages, ino 520417; err -30
-> > Pid: 4072, comm: pdflush Not tainted 2.6.27 #2
-> > 
+Oren Laadan wrote:
+> Cedric Le Goater wrote:
+>> Dave Hansen wrote:
+>>> On Mon, 2008-10-13 at 10:13 +0200, Cedric Le Goater wrote:
+>>>> hmm, that's rather complex, because we have to take into account the 
+>>>> kernel stack, no ? This is what Andrey was trying to solve in his patchset 
+>>>> back in September :
+>>>>
+>>>>         http://lkml.org/lkml/2008/9/3/96
+>>>>
+>>>> the restart phase simulates a clone and switch_to to (not) restore the kernel 
+>>>> stack. right ? 
+>>> Do we ever have to worry about the kernel stack if we simply say that
+>>> tasks have to be *in* userspace when we checkpoint them. 
+>> at a syscall boundary for example. that would make our life easier 
+>> definitely. 
+>>
 > 
+> The ideal situation is never worry about kernel stack: either we catch
+> the task in user space or at a syscall boundary. This is taken care of
+> by freezing the tasks prior to checkpoint.
+> 
+> The one exception (and it is a tedious one !) are states in which the
+> task is already frozen by definition: any ptrace blocking point where
+> the tracee waits for the tracer to grant permission to proceed with
+> its execution. Another example is in vfork(), waiting for completion.
 
-compilebench numbers
+I would say these are perfect places for "may be non-checkpointable" :)
 
-ext4
-==========================================================================
-intial create total runs 20 avg 30.25 MB/s (user 0.74s sys 2.40s)
-no runs for create
-no runs for patch
-compile total runs 20 avg 39.79 MB/s (user 0.17s sys 2.55s)
-no runs for clean
-no runs for read tree
-read compiled tree total runs 3 avg 19.83 MB/s (user 0.97s sys 4.08s)
-no runs for delete tree
-delete compiled tree total runs 20 avg 4.42 seconds (user 0.58s sys 1.79s)
-no runs for stat tree
-
-ext3
-======================
-intial create total runs 20 avg 27.96 MB/s (user 0.73s sys 2.57s)
-no runs for create
-no runs for patch
-compile total runs 20 avg 28.84 MB/s (user 0.17s sys 4.03s)
-no runs for clean
-no runs for read tree
-read compiled tree total runs 3 avg 19.46 MB/s (user 0.97s sys 4.13s)
-no runs for delete tree
-delete compiled tree total runs 20 avg 18.09 seconds (user 0.58s sys 1.61s)
-no runs for stat tree
-no runs for stat compiled tree
-
--aneesh
+> In both cases, there will be a kernel stack and we cannot avoid it.
+> The bad news is that it may be a bit tedious to restart these cases.
+> The good news, however, is that they are very well defined locations
+> with well defined semantics. So upon restart all that is needed is
+> to emulate the expected behavior had we not been checkpointed. This,
+> luckily, does not require rebuilding the kernel stack, but instead
+> some smart glue code for a finite set of special cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
