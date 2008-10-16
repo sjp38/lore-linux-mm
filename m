@@ -1,58 +1,52 @@
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH updated] ext4: Fix file fragmentation during large file
-	write.
-Date: Fri, 10 Oct 2008 23:42:53 +0530
-Message-ID: <20081010181253.GA20796__15609.6192230054$1223662609$gmane$org@skywalker>
-References: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+From: Bodo Eggert <7eggert@gmx.de>
+Subject: Re: no way to swapoff a deleted swap file?
+Date: Fri, 17 Oct 2008 01:43:15 +0200
+Message-ID: <E1KqcUt-0003vU-ES__26862.2541487732$1224200062$gmane$org@be1.7eggert.dyndns.org>
+References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it> <bnJFK-3bu-7@gated-at.bofh.it>
+Reply-To: 7eggert@gmx.de
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7Bit
 Return-path: <owner-linux-mm@kvack.org>
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id m9AICJb2024831
-	for <linux-mm@kvack.org>; Sat, 11 Oct 2008 05:12:19 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9AIDJPg4309014
-	for <linux-mm@kvack.org>; Sat, 11 Oct 2008 05:13:36 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9AIDJaO019795
-	for <linux-mm@kvack.org>; Sat, 11 Oct 2008 05:13:19 +1100
-Content-Disposition: inline
-In-Reply-To: <1223661776-20098-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: cmm@us.ibm.com, tytso@mit.edu, sandeen@redhat.com, chris.mason@oracle.com, akpm@linux-foundation.org, hch@infradead.org, steve@chygwyn.com, npiggin@suse.de, mpatocka@redhat.com
-Cc: linux-ext4@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <peterz@infradead.org>, Peter Cordes <peter@cordes.ca>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm
 List-Id: linux-mm.kvack.org
 
-On Fri, Oct 10, 2008 at 11:32:56PM +0530, Aneesh Kumar K.V wrote:
-> The range_cyclic writeback mode use the address_space
-> writeback_index as the start index for writeback. With
-> delayed allocation we were updating writeback_index
-> wrongly resulting in highly fragmented file. Number of
-> extents reduced from 4000 to 27 for a 3GB file with
-> the below patch.
-> 
-> The patch also removes the range_cont writeback mode
-> added for ext4 delayed allocation. Instead we add
-> two new flags in writeback_control which control
-> the behaviour of write_cache_pages.
-> 
+Hugh Dickins <hugh@veritas.com> wrote:
+> On Thu, 16 Oct 2008, Peter Zijlstra wrote:
+>> On Wed, 2008-10-15 at 17:21 -0300, Peter Cordes wrote:
 
-Need the below update. Will send the updated patch to ext4 list.
+>> > I unlinked a swapfile without realizing I was still swapping on it.
+>> > Now my /proc/swaps looks like this:
+>> > Filename                                Type            Size    Used
+>> > Priority
+>> > /var/tmp/EXP/cache/swap/1\040(deleted)  file            1288644 1448       -1
+>> > /var/tmp/EXP/cache/swap/2\040(deleted)  file            1433368 0  -2
 
-[2.6.27-rc9-1-working@linux-review-ext]$ git diff
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index a85930c..4f359f4 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -960,7 +960,7 @@ int write_cache_pages(struct address_space *mapping,
-                goto retry;
-        }
-        if (!wbc->no_index_update &&
--               (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))) {
-+               (wbc->range_cyclic || (range_whole && nr_to_write > 0))) {
-                mapping->writeback_index = index;
-        }
-        if (!wbc->no_nrwrite_update)
+>> >  If kswapd0 had a fd open on the swap files, swapoff /proc/$PID/fd/3
+>> > could possibly work.  But it looks like the files are open but with no
+>> > user-space accessable file descriptors to them.  Which makes sense,
+>> > except for this case.
+>> 
+>> Right, except that kswapd is per node, so we'd either have to add it to
+>> all kswapd instances or a random one. Also, kthreads don't seem to have
+>> a files table afaict.
+>> 
+>> But yes, I see your problem and it makes sense to look for a nice
+>> solution.
+> 
+> No immediate answer springs to my mind.
+> 
+> It's not something I'd want to add a new system call for.
+> I guess we could put a magic file for each swap area
+> somewhere down in /sys, and allow swapoff to act upon that.
+
+I think the original idea of something like /proc/$PID/fd/ is not too bad.
+I don't know if it's possible to have the same mechanism in sysfs. I guess
+not, but with the rest of the vm knobs being in /proc, I would not be too sad.
+
+Maybe it's possible to clone(CLONE_FILES) the kswapds. This would allow to
+have /proc/sys/vm/swapfiles point to one of the correct /proc/$kwapd/fd/.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
