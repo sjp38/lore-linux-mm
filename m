@@ -1,11 +1,10 @@
-Message-ID: <48F79734.4070501@linux-foundation.org>
-Date: Thu, 16 Oct 2008 14:34:12 -0500
+Message-ID: <48F79856.30609@linux-foundation.org>
+Date: Thu, 16 Oct 2008 14:39:02 -0500
 From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] mm: stop returning -ENOENT from sys_move_pages()
- if nothing got migrated
-References: <48F3AD47.1050301@inria.fr> <48F3ADAF.2080200@inria.fr>
-In-Reply-To: <48F3ADAF.2080200@inria.fr>
+Subject: Re: [PATCH 2/5] mm: don't vmalloc a huge page_to_node array for do_pages_stat()
+References: <48F3AD47.1050301@inria.fr> <48F3ADD4.60307@inria.fr>
+In-Reply-To: <48F3ADD4.60307@inria.fr>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
