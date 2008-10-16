@@ -1,34 +1,39 @@
-Received: by wf-out-1314.google.com with SMTP id 28so76319wfc.11
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2008 09:25:49 -0700 (PDT)
-Message-ID: <2f11576a0810160925u3fa9c206k58226eebfe096113@mail.gmail.com>
-Date: Fri, 17 Oct 2008 01:25:49 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] Subject: [PATCH] Report the pagesize backing a VMA in /proc/pid/smaps
-In-Reply-To: <1224172715-17667-2-git-send-email-mel@csn.ul.ie>
+Message-ID: <48F77430.80001@redhat.com>
+Date: Thu, 16 Oct 2008 13:04:48 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
+References: <20081015162232.f673fa59.akpm@linux-foundation.org> <200810170043.26922.nickpiggin@yahoo.com.au>
+In-Reply-To: <200810170043.26922.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1224172715-17667-1-git-send-email-mel@csn.ul.ie>
-	 <1224172715-17667-2-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Nick Piggin wrote:
 
-> It is useful to verify a hugepage-aware application is using the expected
-> pagesizes for its memory regions. This patch creates an entry called
-> KernelPageSize in /proc/pid/smaps that is the size of page used by the
-> kernel to back a VMA. The entry is not called PageSize as it is possible
-> the MMU uses a different size. This extension should not break any sensible
-> parser that skips lines containing unrecognised information.
->
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> ClearPageReferenced I don't know if it should be cleared like this.
+> PageReferenced is more of a bit for the mark_page_accessed state machine,
+> rather than the pte_young stuff. Although when unmapping, the latter
+> somewhat collapses back to the former, but I don't know if there is a
+> very good reason to fiddle with it here.
+> 
+> Ignoring the young bit in the pte for sequential hint maybe is OK (and
+> seems to be effective as per the benchmarks). But I would prefer not to
+> merge the PageReferenced parts unless they get their own justification.
 
-ack.
+Unless we clear the PageReferenced bit, we will still activate
+the page - even if its only access came through a sequential
+mapping.
+
+Faulting the page into the sequential mapping ends up setting
+PageReferenced, IIRC.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
