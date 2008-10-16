@@ -1,40 +1,47 @@
-Received: from shark.he.net ([66.160.160.2]) by xenotime.net for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:01:48 -0700
-Date: Thu, 16 Oct 2008 14:01:48 -0700 (PDT)
-From: "Randy.Dunlap" <rdunlap@xenotime.net>
-Subject: Re: mmotm 2008-10-16-00-52 uploaded (cgroup + mm)
-In-Reply-To: <200810160758.m9G7wZmt018529@imap1.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0810161400230.14604@shark.he.net>
-References: <200810160758.m9G7wZmt018529@imap1.linux-foundation.org>
+Message-ID: <48F7AFA0.1080100@inria.fr>
+Date: Thu, 16 Oct 2008 23:18:24 +0200
+From: Brice Goglin <Brice.Goglin@inria.fr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 4/5] mm: rework do_pages_move() to work on page_sized
+ chunks
+References: <48F3AD47.1050301@inria.fr> <48F3AE1D.3060208@inria.fr> <48F79B42.3070106@linux-foundation.org>
+In-Reply-To: <48F79B42.3070106@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nathalie Furmento <nathalie.furmento@labri.fr>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Oct 2008, akpm@linux-foundation.org wrote:
+Christoph Lameter wrote:
+>> +	err = -ENOMEM;
+>> +	pm = kmalloc(PAGE_SIZE, GFP_KERNEL);
+>> +	if (!pm)
+>>     
+>
+> ok.... But if you need a page sized chunk then you can also do
+> 	get_zeroed_page(GFP_KERNEL). Why bother the slab allocator for page 		sized
+> allocations?
+>   
 
-> The mm-of-the-moment snapshot 2008-10-16-00-52 has been uploaded to
-> 
->    http://userweb.kernel.org/~akpm/mmotm/
-> 
-> It contains the following patches against 2.6.27:
+Right. But why get_zeroed_page()? I don't think I need anything zeroed
+(and I needed so, I would have to zero again between each chunk).
 
+alloc_pages(order=0)+__free_pages() is probably good.
 
-build-r9168.out:(.text+0x261e6): undefined reference to `lookup_page_cgroup'
-build-r9168.out:memcontrol.c:(.text+0x2629f): undefined reference to `lookup_page_cgroup'
-build-r9168.out:memcontrol.c:(.text+0x2671a): undefined reference to `lookup_page_cgroup'
-build-r9168.out:(.text+0x268f9): undefined reference to `lookup_page_cgroup'
-build-r9168.out:memcontrol.c:(.text+0x26e52): undefined reference to `page_cgroup_init'
-build-r9168.out:(.text+0x26f44): undefined reference to `lookup_page_cgroup'
-build-r9168.out:(.init.text+0xe42): undefined reference to `pgdat_page_cgroup_init'
+>> +		/* fill the chunk pm with addrs and nodes from user-space */
+>> +		for (j = 0; j < chunk_nr_pages; j++) {
+>>     
+>
+> j? So the chunk_start used to be i?
+>   
 
+The original "i" is somehow "chunk_start+j" now.
 
-.config is at http://oss.oracle.com/~rdunlap/kerneltest/configs/config-r9168
+Thanks Christoph, I'll send an updated "4/5" patch in the next days.
 
--- 
-~Randy
+Brice
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
