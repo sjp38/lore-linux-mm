@@ -1,63 +1,114 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate1.uk.ibm.com (8.13.1/8.13.1) with ESMTP id m9GCaSe6010429
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 12:36:30 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GCaRTI4137020
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 13:36:27 +0100
-Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GCaQwB029256
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 13:36:27 +0100
-Message-ID: <48F7352F.3020700@fr.ibm.com>
-Date: Thu, 16 Oct 2008 14:35:59 +0200
-From: Daniel Lezcano <dlezcano@fr.ibm.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
+Date: Fri, 17 Oct 2008 00:43:26 +1100
+References: <20081015162232.f673fa59.akpm@linux-foundation.org>
+In-Reply-To: <20081015162232.f673fa59.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
-References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>	<20081009124658.GE2952@elte.hu> <1223557122.11830.14.camel@nimitz>	<20081009131701.GA21112@elte.hu> <1223559246.11830.23.camel@nimitz>	<20081009134415.GA12135@elte.hu> <1223571036.11830.32.camel@nimitz>	<20081010153951.GD28977@elte.hu> <48F30315.1070909@fr.ibm.com>	<1223916223.29877.14.camel@nimitz> <48F6092D.6050400@fr.ibm.com> <48F685A3.1060804@cs.columbia.edu>
-In-Reply-To: <48F685A3.1060804@cs.columbia.edu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810170043.26922.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Cedric Le Goater <clg@fr.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-Oren Laadan wrote:
-> Cedric Le Goater wrote:
->> Dave Hansen wrote:
->>> On Mon, 2008-10-13 at 10:13 +0200, Cedric Le Goater wrote:
->>>> hmm, that's rather complex, because we have to take into account the 
->>>> kernel stack, no ? This is what Andrey was trying to solve in his patchset 
->>>> back in September :
->>>>
->>>>         http://lkml.org/lkml/2008/9/3/96
->>>>
->>>> the restart phase simulates a clone and switch_to to (not) restore the kernel 
->>>> stack. right ? 
->>> Do we ever have to worry about the kernel stack if we simply say that
->>> tasks have to be *in* userspace when we checkpoint them. 
->> at a syscall boundary for example. that would make our life easier 
->> definitely. 
->>
-> 
-> The ideal situation is never worry about kernel stack: either we catch
-> the task in user space or at a syscall boundary. This is taken care of
-> by freezing the tasks prior to checkpoint.
-> 
-> The one exception (and it is a tedious one !) are states in which the
-> task is already frozen by definition: any ptrace blocking point where
-> the tracee waits for the tracer to grant permission to proceed with
-> its execution. Another example is in vfork(), waiting for completion.
+On Thursday 16 October 2008 10:22, Andrew Morton wrote:
+> I have a note here that this patch needs better justification.  But the
+> changelog looks good and there are pretty graphs, so maybe my note is
+> stale.
 
-I would say these are perfect places for "may be non-checkpointable" :)
+I think I was hoping for our VM to generically not be quite so stupid about
+use-once access patterns and not behave so badly without this. But easier
+said than done, and now I see the graphs show this is a fairly reasonable
+change. One thing...
 
-> In both cases, there will be a kernel stack and we cannot avoid it.
-> The bad news is that it may be a bit tedious to restart these cases.
-> The good news, however, is that they are very well defined locations
-> with well defined semantics. So upon restart all that is needed is
-> to emulate the expected behavior had we not been checkpointed. This,
-> luckily, does not require rebuilding the kernel stack, but instead
-> some smart glue code for a finite set of special cases.
+>
+> Can people please check it?
+>
+> Thanks.
+>
+>
+>
+>
+> From: Johannes Weiner <hannes@saeurebad.de>
+>
+> File pages accessed only once through sequential-read mappings between
+> fault and scan time are perfect candidates for reclaim.
+>
+> This patch makes page_referenced() ignore these singular references and
+> the pages stay on the inactive list where they likely fall victim to the
+> next reclaim phase.
+>
+> Already activated pages are still treated normally.  If they were accessed
+> multiple times and therefor promoted to the active list, we probably want
+> to keep them.
+>
+> Benchmarks show that big (relative to the system's memory) MADV_SEQUENTIAL
+> mappings read sequentially cause much less kernel activity.  Especially
+> less LRU moving-around because we never activate read-once pages in the
+> first place just to demote them again.
+>
+> And leaving these perfect reclaim candidates on the inactive list makes
+> it more likely for the real working set to survive the next reclaim
+> scan.
+>
+> Benchmark graphs and the test-application can be found here:
+>
+> 	http://hannes.saeurebad.de/madvseq/
+>
+> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Cc: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>  mm/rmap.c |   20 +++++++++++++++-----
+>  1 file changed, 15 insertions(+), 5 deletions(-)
+>
+> diff -puN mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings
+> mm/rmap.c --- a/mm/rmap.c~mm-more-likely-reclaim-madv_sequential-mappings
+> +++ a/mm/rmap.c
+> @@ -327,8 +327,18 @@ static int page_referenced_one(struct pa
+>  		goto out_unmap;
+>  	}
+>
+> -	if (ptep_clear_flush_young_notify(vma, address, pte))
+> -		referenced++;
+> +	if (ptep_clear_flush_young_notify(vma, address, pte)) {
+> +		/*
+> +		 * If there was just one sequential access to the
+> +		 * page, ignore it.  Otherwise, mark_page_accessed()
+> +		 * will have promoted the page to the active list and
+> +		 * it should be kept.
+> +		 */
+> +		if (VM_SequentialReadHint(vma) && !PageActive(page))
+> +			ClearPageReferenced(page);
+> +		else
+> +			referenced++;
+> +	}
+
+ClearPageReferenced I don't know if it should be cleared like this.
+PageReferenced is more of a bit for the mark_page_accessed state machine,
+rather than the pte_young stuff. Although when unmapping, the latter
+somewhat collapses back to the former, but I don't know if there is a
+very good reason to fiddle with it here.
+
+Ignoring the young bit in the pte for sequential hint maybe is OK (and
+seems to be effective as per the benchmarks). But I would prefer not to
+merge the PageReferenced parts unless they get their own justification.
+
+So I'm happy with the ignoring pte_young part of the patch.
+
+
+BTW. it seems like zap_pte_range should do a mark_page_accessed(), because
+setting PG_accessed alone is quite a weak hint to reclaim... I don't think
+it makes sense for mmap(), touch, munmap() access to arbitrarily be worth
+less than a read(2).
+
+I guess I should test and submit the patch...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
