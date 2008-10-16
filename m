@@ -1,67 +1,49 @@
-Date: Wed, 15 Oct 2008 23:31:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9G6cTmC022763
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 16 Oct 2008 15:38:30 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C12532AC028
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 91F2E12C044
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 687AF1DB803B
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CC021DB8040
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 15:38:29 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-Message-Id: <20081015233126.27885bb9.akpm@linux-foundation.org>
-In-Reply-To: <20081016151030.5832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081016143830.582C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081015230659.a717d0b6.akpm@linux-foundation.org>
-	<20081016151030.5832.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20081015233126.27885bb9.akpm@linux-foundation.org>
+References: <20081016151030.5832.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081015233126.27885bb9.akpm@linux-foundation.org>
+Message-Id: <20081016153750.4E22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 16 Oct 2008 15:38:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Oct 2008 15:22:15 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> > >                          2.6.27    mmotm-1010
-> > >    ==============================================================
-> > >    mm_sync_madv_cp       6:14      6:02         (min:sec)
-> > >    dbench throughput     12.1507   14.6273      (MB/s)
-> > >    dbench latency        33046     21779        (ms)
-> > > 
-> > > 
-> > >    So, throughput improvement is relativily a bit, but latency improvement is much.
-> > >    Then, I think the patch can improve "larege file copy (e.g. backup operation)
-> > >    attacks desktop latency" problem.
-> > > 
-> > > Any comments?
-> > > 
+> > mmotm mode,
 > > 
-> > Sounds good.
-> > 
-> > But how do we know that it was this particular patch which improved the
-> > latency performance?
+> > 1, shrink_inactive_list() free copy's page.
+> > 2. end!
 > 
-> In my concern,
+> OK.  But my concern is that perhaps the above latency improvement was
+> caused by one of the many other MM patches in mmotm.
 > 
-> dbench's pages are touched multiple times, but copy's pages are touched only twice.
-> Then, on 2.6.27, copy's page transit to inactive -> active -> inactive -> free.
-> it decrease latency meaninglessly.
-> 
-> IOW, 2.6.27 model
-> 
-> 1. shrink_inactive_lsit() promote copy's page to active (it touched twice (readahead + memcpy))
-> 2. shrink_active_list() demote dbench's page
-> 3. shrink_inactive_list() promote dbench's page (because it is touched multiple times)
-> 4. shrink_active_list() demote copy's page
-> 5. shrink_inactive_list() free copy's page
-> 
-> 
-> mmotm mode,
-> 
-> 1, shrink_inactive_list() free copy's page.
-> 2. end!
+> Reverting mm-more-likely-reclaim-madv_sequential-mappings.patch from
+> mmotm and rerunning the tests would be the way to determine this. 
+> (hint :) - thanks).
 
-OK.  But my concern is that perhaps the above latency improvement was
-caused by one of the many other MM patches in mmotm.
+fair enough.
+OK, please wait half hour.
 
-Reverting mm-more-likely-reclaim-madv_sequential-mappings.patch from
-mmotm and rerunning the tests would be the way to determine this. 
-(hint :) - thanks).
 
 
 --
