@@ -1,317 +1,452 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9GIDpd7022915
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 12:13:51 -0600
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIEHMH149844
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 12:14:17 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIEGMV009206
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 12:14:16 -0600
-Subject: [PATCH 0/9] Kernel-based checkpoint/restart
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9GIERjc015105
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIER4C167110
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIEQaX003422
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:27 -0400
+Subject: [PATCH 7/9] Infrastructure for shared objects
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 16 Oct 2008 11:14:14 -0700
-Message-Id: <20081016181414.934C4FCC@kernel>
+Date: Thu, 16 Oct 2008 11:14:24 -0700
+References: <20081016181414.934C4FCC@kernel>
+In-Reply-To: <20081016181414.934C4FCC@kernel>
+Message-Id: <20081016181424.1658AAA3@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
 Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>, containers <containers@lists.linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Serge E. Hallyn" <serue@us.ibm.com>, Oren Laadan <orenl@cs.columbia.edu>, Dave Hansen <dave@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I'd like to see these merged into -mm and on the way to mainline.  The
-entire freakin' world is cc'd.  So sue me. :)
+From: Oren Laadan <orenl@cs.columbia.edu>
 
-Why do we want it?  It allows containers to be moved between physical
-machines' kernels in the same way that VMWare can move VMs between
-physical machines' hypervisors.  There are currently at least two
-out-of-tree implementations of this in the commercial world (IBM's
-Metacluster and Parallels' OpenVZ/Virtuozzo) and several in the academic
-world like Zap.
+Infrastructure to handle objects that may be shared and referenced by
+multiple tasks or other objects, e..g open files, memory address space
+etc.
 
-Why do we need it in mainline now?  Because we already have plenty of
-out-of-tree ones, and  want to know what an in-tree one will be like. :)
-What *I* want right now is the extra review and scrutiny that comes with
-a mainline submission to make sure we're not going in a direction
-contrary to the community.
+The state of shared objects is saved once. On the first encounter, the
+state is dumped and the object is assigned a unique identifier (objref)
+and also stored in a hash table (indexed by its physical kenrel address).
+>From then on the object will be found in the hash and only its identifier
+is saved.
 
-This only supports pretty simple apps.  But, I trust Ingo when he says:
-> Generally, if something works for simple apps already (in a robust, 
-> compatible and supportable way) and users find it "very cool", then 
-> support for more complex apps is not far in the future.  but if you
-> want to support more complex apps straight away, it takes forever and
-> gets ugly.
+On restart the identifier is looked up in the hash table; if not found
+then the state is read, the object is created, and added to the hash
+table (this time indexed by its identifier). Otherwise, the object in
+the hash table is used.
 
-We're *certainly* going to be changing the ABI (which is the format of
-the checkpoint).  I'd like to follow the model that we used for
-ext4-dev, which is to make it very clear that this is a development-only
-feature for now.  Perhaps we do that by making the interface only
-available through debugfs or something similar for now.  Or, reserving
-the syscall numbers but require some runtime switch to be thrown before
-they can be used.  I'm open to suggestions here.
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
 
-These patches are Oren Laadan's baby.  Virtually all this code is his,
-but he's a bit busy at the moment finishing up his PhD.  
+ linux-2.6.git-dave/Documentation/checkpoint.txt |   46 ++++
+ linux-2.6.git-dave/checkpoint/Makefile          |    2 
+ linux-2.6.git-dave/checkpoint/objhash.c         |  268 ++++++++++++++++++++++++
+ linux-2.6.git-dave/checkpoint/sys.c             |    6 
+ linux-2.6.git-dave/include/linux/checkpoint.h   |   20 +
+ 5 files changed, 341 insertions(+), 1 deletion(-)
 
-There's a plethora of old history and some userspace tools below if you
-want some more detail, but please ignore them and look at the kernel
-code. :)
-
---
-
-These patches implement basic checkpoint-restart [CR]. This version
-(v6) supports basic tasks with simple private memory, and open files
-(regular files and directories only). Changes mainly cleanups. See
-original announcements below.
-
---
-Todo:
-- Add support for x86-64 and improve ABI
-- Refine or change syscall interface
-- Extend to handle (multiple) tasks in a container
-- Handle multiple namespaces in a container (e.g. save the filesystem
-  namespaces state with the file descriptors)
-- Security (without CAPS_SYS_ADMIN files restore may fail)
-
-Changelog:
-
-[2008-Oct-07] v6:
-  - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
-    (even though it's not really needed)
-  - Add assumptions and what's-missing to documentation
-  - Misc fixes and cleanups
-
-[2008-Sep-11] v5:
-  - Config is now 'def_bool n' by default
-  - Improve memory dump/restore code (following Dave Hansen's comments)
-  - Change dump format (and code) to allow chunks of <vaddrs, pages>
-    instead of one long list of each
-  - Fix use of follow_page() to avoid faulting in non-present pages
-  - Memory restore now maps user pages explicitly to copy data into them,
-    instead of reading directly to user space; got rid of mprotect_fixup()
-  - Remove preempt_disable() when restoring debug registers
-  - Rename headers files s/ckpt/checkpoint/
-  - Fix misc bugs in files dump/restore
-  - Fixes and cleanups on some error paths
-  - Fix misc coding style
-
-[2008-Sep-09] v4:
-  - Various fixes and clean-ups
-  - Fix calculation of hash table size
-  - Fix header structure alignment
-  - Use stand list_... for cr_pgarr
-
-[2008-Aug-29] v3:
-  - Various fixes and clean-ups
-  - Use standard hlist_... for hash table
-  - Better use of standard kmalloc/kfree
-
-[2008-Aug-20] v2:
-  - Added Dump and restore of open files (regular and directories)
-  - Added basic handling of shared objects, and improve handling of
-    'parent tag' concept
-  - Added documentation
-  - Improved ABI, 64bit padding for image data
-  - Improved locking when saving/restoring memory
-  - Added UTS information to header (release, version, machine)
-  - Cleanup extraction of filename from a file pointer
-  - Refactor to allow easier reviewing
-  - Remove requirement for CAPS_SYS_ADMIN until we come up with a
-    security policy (this means that file restore may fail)
-  - Other cleanup and response to comments for v1
-
-[2008-Jul-29] v1:
-  - Initial version: support a single task with address space of only
-    private anonymous or file-mapped VMAs; syscalls ignore pid/crid
-    argument and act on current process.
-
---
-
-At the containers mini-conference before OLS, the consensus among
-all the stakeholders was that doing checkpoint/restart in the kernel
-as much as possible was the best approach.  With this approach, the
-kernel will export a relatively opaque 'blob' of data to userspace
-which can then be handed to the new kernel at restore time.
-
-This is different than what had been proposed before, which was
-that a userspace application would be responsible for collecting
-all of this data.  We were also planning on adding lots of new,
-little kernel interfaces for all of the things that needed
-checkpointing.  This unites those into a single, grand interface.
-
-The 'blob' will contain copies of select portions of kernel
-structures such as vmas and mm_structs.  It will also contain
-copies of the actual memory that the process uses.  Any changes
-in this blob's format between kernel revisions can be handled by
-an in-userspace conversion program.
-
-This is a similar approach to virtually all of the commercial
-checkpoint/restart products out there, as well as the research
-project Zap.
-
-These patches basically serialize internel kernel state and write
-it out to a file descriptor.  The checkpoint and restore are done
-with two new system calls: sys_checkpoint and sys_restart.
-
-In this incarnation, they can only work checkpoint and restore a
-single task. The task's address space may consist of only private,
-simple vma's - anonymous or file-mapped. The open files may consist
-of only simple files and directories.
-
---
-
-In the recent mini-summit at OLS 2008 and the following days it was
-agreed to tackle the checkpoint/restart (CR) by beginning with a very
-simple case: save and restore a single task, with simple memory
-layout, disregarding other task state such as files, signals etc.
-
-Following these discussions I coded a prototype that can do exactly
-that, as a starter. This code adds two system calls - sys_checkpoint
-and sys_restart - that a task can call to save and restore its state
-respectively. It also demonstrates how the checkpoint image file can
-be formatted, as well as show its nested nature (e.g. cr_write_mm()
--> cr_write_vma() nesting).
-
-The state that is saved/restored is the following:
-* some of the task_struct
-* some of the thread_struct and thread_info
-* the cpu state (including FPU)
-* the memory address space
-
-In the current code, sys_checkpoint will checkpoint the current task,
-although the logic exists to checkpoint other tasks (not in the
-checkpointee's execution context). A simple loop will extend this to
-handle multiple processes. sys_restart restarts the current tasks, and
-with multiple tasks each task will call the syscall independently.
-(Actually, to checkpoint outside the context of a task, it is also
-necessary to also handle restart-block logic when saving/restoring the
-thread data).
-
-It takes longer to describe what isn't implemented or supported by
-this prototype ... basically everything that isn't as simple as the
-above.
-
-As for containers - since we still don't have a representation for a
-container, this patch has no notion of a container. The tests for
-consistent namespaces (and isolation) are also omitted.
-
-Below are two example programs: one uses checkpoint (called ckpt) and
-one uses restart (called rstr). Note the use of "dup2" to create a 
-copy of an open file and show how shared objects are treated. Execute
-like this (as a superuser):
-
-orenl:~/test$ ./ckpt > out.1
-                                <-- ctrl-c
-orenl:~/test$ cat /tmp/cr-rest.out
-hello, world!
-world, hello!
-(ret = 1)
-
-orenl:~/test$ ./ckpt > out.1
-                                <-- ctrl-c
-orenl:~/test$ cat /tmp/cr-rest.out
-hello, world!
-world, hello!
-(ret = 2)
-
-                                <-- now change the contents of the file
-orenl:~/test$ sed -i 's/world, hello!/xxxx/' /tmp/cr-rest.out
-orenl:~/test$ cat /tmp/cr-rest.out
-hello, world!
-xxxx
-(ret = 2)
-
-                                <-- and do the restart
-orenl:~/test$ ./rstr < out.1
-                                <-- ctrl-c
-orenl:~/test$ cat /tmp/cr-rest.out
-hello, world!
-world, hello!
-(ret = 0)
-
-(if you check the output of ps, you'll see that "rstr" changed its
-name to "ckpt", as expected). 
-
-============================== ckpt.c ================================
-
-#define _GNU_SOURCE        /* or _BSD_SOURCE or _SVID_SOURCE */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <asm/unistd.h>
-#include <sys/syscall.h>
-
-#define OUTFILE "/tmp/cr-test.out"
-
-int main(int argc, char *argv[])
-{
-        pid_t pid = getpid();
-        FILE *file;
-        int ret;
-
-        close(0);
-        close(2);
-
-        unlink(OUTFILE);
-        file = fopen(OUTFILE, "w+");
-        if (!file) {
-                perror("open");
-                exit(1);
-        }
-
-        if (dup2(0,2) < 0) {
-                perror("dups");
-                exit(1);
-        }
-
-        fprintf(file, "hello, world!\n");
-        fflush(file);
-
-        ret = syscall(__NR_checkpoint, pid, STDOUT_FILENO, 0);
-        if (ret < 0) {
-                perror("checkpoint");
-                exit(2);
-        }
-
-        fprintf(file, "world, hello!\n");
-        fprintf(file, "(ret = %d)\n", ret);
-        fflush(file);
-
-        while (1)
-                ;
-
-        return 0;
-}
-
-============================== rstr.c ================================
-
-#define _GNU_SOURCE        /* or _BSD_SOURCE or _SVID_SOURCE */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <asm/unistd.h>
-#include <sys/syscall.h>
-
-int main(int argc, char *argv[])
-{
-        pid_t pid = getpid();
-        int ret;
-
-        ret = syscall(__NR_restart, pid, STDIN_FILENO, 0);
-        if (ret < 0)
-                perror("restart");
-
-        printf("should not reach here !\n");
-
-        return 0;
-}
-
--- Dave
+diff -puN checkpoint/Makefile~v6_PATCH_7_9_Infrastructure_for_shared_objects checkpoint/Makefile
+--- linux-2.6.git/checkpoint/Makefile~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
++++ linux-2.6.git-dave/checkpoint/Makefile	2008-10-16 10:53:38.000000000 -0700
+@@ -2,5 +2,5 @@
+ # Makefile for linux checkpoint/restart.
+ #
+ 
+-obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o \
++obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+ 		ckpt_mem.o rstr_mem.o
+diff -puN /dev/null checkpoint/objhash.c
+--- /dev/null	2008-09-02 09:40:19.000000000 -0700
++++ linux-2.6.git-dave/checkpoint/objhash.c	2008-10-16 10:53:38.000000000 -0700
+@@ -0,0 +1,268 @@
++/*
++ *  Checkpoint-restart - object hash infrastructure to manage shared objects
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/kernel.h>
++#include <linux/file.h>
++#include <linux/hash.h>
++#include <linux/checkpoint.h>
++
++struct cr_objref {
++	int objref;
++	void *ptr;
++	unsigned short type;
++	unsigned short flags;
++	struct hlist_node hash;
++};
++
++struct cr_objhash {
++	struct hlist_head *head;
++	int next_free_objref;
++};
++
++#define CR_OBJHASH_NBITS  10
++#define CR_OBJHASH_TOTAL  (1UL << CR_OBJHASH_NBITS)
++
++static void cr_obj_ref_drop(struct cr_objref *obj)
++{
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		fput((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
++	}
++}
++
++static void cr_obj_ref_grab(struct cr_objref *obj)
++{
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		get_file((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
++	}
++}
++
++static void cr_objhash_clear(struct cr_objhash *objhash)
++{
++	struct hlist_head *h = objhash->head;
++	struct hlist_node *n, *t;
++	struct cr_objref *obj;
++	int i;
++
++	for (i = 0; i < CR_OBJHASH_TOTAL; i++) {
++		hlist_for_each_entry_safe(obj, n, t, &h[i], hash) {
++			cr_obj_ref_drop(obj);
++			kfree(obj);
++		}
++	}
++}
++
++void cr_objhash_free(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash = ctx->objhash;
++
++	if (objhash) {
++		cr_objhash_clear(objhash);
++		kfree(objhash->head);
++		kfree(ctx->objhash);
++		ctx->objhash = NULL;
++	}
++}
++
++int cr_objhash_alloc(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash;
++	struct hlist_head *head;
++
++	objhash = kzalloc(sizeof(*objhash), GFP_KERNEL);
++	if (!objhash)
++		return -ENOMEM;
++	head = kzalloc(CR_OBJHASH_TOTAL * sizeof(*head), GFP_KERNEL);
++	if (!head) {
++		kfree(objhash);
++		return -ENOMEM;
++	}
++
++	objhash->head = head;
++	objhash->next_free_objref = 1;
++
++	ctx->objhash = objhash;
++	return 0;
++}
++
++static struct cr_objref *cr_obj_find_by_ptr(struct cr_ctx *ctx, void *ptr)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
++
++	h = &ctx->objhash->head[hash_ptr(ptr, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->ptr == ptr)
++			return obj;
++	return NULL;
++}
++
++static struct cr_objref *cr_obj_find_by_objref(struct cr_ctx *ctx, int objref)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
++
++	h = &ctx->objhash->head[hash_ptr((void *) objref, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->objref == objref)
++			return obj;
++	return NULL;
++}
++
++/**
++ * cr_obj_new - allocate an object and add to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Allocate an object referring to @ptr and add to the hash table.
++ * If @objref is zero, assign a unique object reference and use @ptr
++ * as a hash key [checkpoint]. Else use @objref as a key [restart].
++ */
++static struct cr_objref *cr_obj_new(struct cr_ctx *ctx, void *ptr, int objref,
++				    unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int i;
++
++	obj = kmalloc(sizeof(*obj), GFP_KERNEL);
++	if (!obj)
++		return NULL;
++
++	obj->ptr = ptr;
++	obj->type = type;
++	obj->flags = flags;
++
++	if (objref) {
++		/* use @objref to index (restart) */
++		obj->objref = objref;
++		i = hash_ptr((void *) objref, CR_OBJHASH_NBITS);
++	} else {
++		/* use @ptr to index, assign objref (checkpoint) */
++		obj->objref = ctx->objhash->next_free_objref++;;
++		i = hash_ptr(ptr, CR_OBJHASH_NBITS);
++	}
++
++	hlist_add_head(&obj->hash, &ctx->objhash->head[i]);
++	cr_obj_ref_grab(obj);
++	return obj;
++}
++
++/**
++ * cr_obj_add_ptr - add an object to the hash table if not already there
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference [output]
++ * @type: object type
++ * @flags: object flags
++ *
++ * Look up the object pointed to by @ptr in the hash table. If it isn't
++ * already found there, then add the object to the table, and allocate a
++ * fresh unique object reference (objref). Fills the unique objref of
++ * the object into @objref.
++ * [This is used during checkpoint].
++ *
++ * Returns 0 if found, 1 if added, < 0 on error
++ */
++int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++		   unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int ret = 0;
++
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj) {
++		obj = cr_obj_new(ctx, ptr, 0, type, flags);
++		if (!obj)
++			return -ENOMEM;
++		else
++			ret = 1;
++	} else if (obj->type != type)	/* sanity check */
++		return -EINVAL;
++	*objref = obj->objref;
++	return ret;
++}
++
++/**
++ * cr_obj_add_ref - add an object with unique objref to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique identifier - object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Add the object pointer to by @ptr and identified by unique object
++ * reference given by @objref to the hash table (indexed by @objref).
++ * [This is used during restart].
++ */
++int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++		   unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_new(ctx, ptr, objref, type, flags);
++	return obj ? 0 : -ENOMEM;
++}
++
++/**
++ * cr_obj_get_by_ptr - find the unique object reference of an object
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ *
++ * Look up the unique object reference (objref) of the object pointed
++ * to by @ptr, and return that number, or 0 if not found.
++ * [This is used during checkpoint].
++ */
++int cr_obj_get_by_ptr(struct cr_ctx *ctx, void *ptr, unsigned short type)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj)
++		return -ESRCH;
++	if (obj->type != type)
++		return -EINVAL;
++	return obj->objref;
++}
++
++/**
++ * cr_obj_get_by_ref - find an object given its unique object reference
++ * @ctx: checkpoint context
++ * @objref: unique identifier - object reference
++ * @type: object type
++ *
++ * Look up the object who is identified by unique object reference that
++ * is specified by @objref, and return a pointer to that matching object,
++ * or NULL if not found.
++ * [This is used during restart].
++ */
++void *cr_obj_get_by_ref(struct cr_ctx *ctx, int objref, unsigned short type)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_find_by_objref(ctx, objref);
++	if (!obj)
++		return NULL;
++	if (obj->type != type)
++		return ERR_PTR(-EINVAL);
++	return obj->ptr;
++}
+diff -puN checkpoint/sys.c~v6_PATCH_7_9_Infrastructure_for_shared_objects checkpoint/sys.c
+--- linux-2.6.git/checkpoint/sys.c~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
++++ linux-2.6.git-dave/checkpoint/sys.c	2008-10-16 10:53:38.000000000 -0700
+@@ -167,6 +167,7 @@ void cr_ctx_free(struct cr_ctx *ctx)
+ 		path_put(ctx->vfsroot);
+ 
+ 	cr_pgarr_free(ctx);
++	cr_objhash_free(ctx);
+ 
+ 	kfree(ctx);
+ }
+@@ -191,6 +192,11 @@ struct cr_ctx *cr_ctx_alloc(pid_t pid, i
+ 		return ERR_PTR(-ENOMEM);
+ 	}
+ 
++	if (cr_objhash_alloc(ctx) < 0) {
++		cr_ctx_free(ctx);
++		return ERR_PTR(-ENOMEM);
++	}
++
+ 	/*
+ 	 * assume checkpointer is in container's root vfs
+ 	 * FIXME: this works for now, but will change with real containers
+diff -puN Documentation/checkpoint.txt~v6_PATCH_7_9_Infrastructure_for_shared_objects Documentation/checkpoint.txt
+--- linux-2.6.git/Documentation/checkpoint.txt~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
++++ linux-2.6.git-dave/Documentation/checkpoint.txt	2008-10-16 10:53:38.000000000 -0700
+@@ -189,6 +189,52 @@ cr_hdr + cr_hdr_task
+ cr_hdr + cr_hdr_tail
+ 
+ 
++=== Shared resources (objects)
++
++Many resources used by tasks may be shared by more than one task (e.g.
++file descriptors, memory address space, etc), or even have multiple
++references from other resources (e.g. a single inode that represents
++two ends of a pipe).
++
++Clearly, the state of shared objects need only be saved once, even if
++they occur multiple times. We use a hash table (ctx->objhash) to keep
++track of shared objects and whether they were already saved.  Shared
++objects are stored in a hash table as they appear, indexed by their
++kernel address. (The hash table itself is not saved as part of the
++checkpoint image: it is constructed dynamically during both checkpoint
++and restart, and discarded at the end of the operation).
++
++Each shared object that is found is first looked up in the hash table.
++On the first encounter, the object will not be found, so its state is
++dumped, and the object is assigned a unique identifier and also stored
++in the hash table. Subsequent lookups of that object in the hash table
++will yield that entry, and then only the unique identifier is saved,
++as opposed the entire state of the object.
++
++During restart, shared objects are seen by their unique identifiers as
++assigned during the checkpoint. Each shared object that it read in is
++first looked up in the hash table. On the first encounter it will not
++be found, meaning that the object needs to be created and its state
++read in and restored. Then the object is added to the hash table, this
++time indexed by its unique identifier. Subsequent lookups of the same
++unique identifier in the hash table will yield that entry, and then
++the existing object instance is reused instead of creating another one.
++
++The interface for the hash table is the following:
++
++cr_obj_get_by_ptr() - find the unique object reference (objref)
++  of the object that is pointer to by ptr [checkpoint]
++
++cr_obj_add_ptr() - add the object pointed to by ptr to the hash table
++  if not already there, and fill its unique object reference (objref)
++
++cr_obj_get_by_ref() - return the pointer to the object whose unique
++  object reference is equal to objref [restart]
++
++cr_obj_add_ref() - add the object with given unique object reference
++  (objref), pointed to by ptr to the hash table. [restart]
++
++
+ === Current Implementation
+ 
+ [2008-Oct-07]
+diff -puN include/linux/checkpoint.h~v6_PATCH_7_9_Infrastructure_for_shared_objects include/linux/checkpoint.h
+--- linux-2.6.git/include/linux/checkpoint.h~v6_PATCH_7_9_Infrastructure_for_shared_objects	2008-10-16 10:53:38.000000000 -0700
++++ linux-2.6.git-dave/include/linux/checkpoint.h	2008-10-16 10:53:38.000000000 -0700
+@@ -28,6 +28,8 @@ struct cr_ctx {
+ 	void *hbuf;		/* temporary buffer for headers */
+ 	int hpos;		/* position in headers buffer */
+ 
++	struct cr_objhash *objhash;	/* hash for shared objects */
++
+ 	struct list_head pgarr_list;	/* page array to dump VMA contents */
+ 
+ 	struct path *vfsroot;	/* container root (FIXME) */
+@@ -45,6 +47,24 @@ extern int cr_kread(struct cr_ctx *ctx, 
+ extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
+ extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
+ 
++/* shared objects handling */
++
++enum {
++	CR_OBJ_FILE = 1,
++	CR_OBJ_MAX
++};
++
++extern void cr_objhash_free(struct cr_ctx *ctx);
++extern int cr_objhash_alloc(struct cr_ctx *ctx);
++extern void *cr_obj_get_by_ref(struct cr_ctx *ctx,
++			       int objref, unsigned short type);
++extern int cr_obj_get_by_ptr(struct cr_ctx *ctx,
++			     void *ptr, unsigned short type);
++extern int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++			  unsigned short type, unsigned short flags);
++extern int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++			  unsigned short type, unsigned short flags);
++
+ struct cr_hdr;
+ 
+ extern int cr_write_obj(struct cr_ctx *ctx, struct cr_hdr *h, void *buf);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
