@@ -1,63 +1,41 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9G87kCl028009
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 16 Oct 2008 17:07:47 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B899D2AC026
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 17:07:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C37512C044
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 17:07:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BCEF1DB803B
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 17:07:46 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 12AFB1DB803E
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 17:07:46 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-In-Reply-To: <20081016153750.4E22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081015233126.27885bb9.akpm@linux-foundation.org> <20081016153750.4E22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081016170400.4E27.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: no way to swapoff a deleted swap file?
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20081015202141.GX26067@cordes.ca>
+References: <20081015202141.GX26067@cordes.ca>
+Content-Type: text/plain
+Date: Thu, 16 Oct 2008 10:28:04 +0200
+Message-Id: <1224145684.28131.25.camel@twins>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Thu, 16 Oct 2008 17:07:45 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
+To: Peter Cordes <peter@cordes.ca>
+Cc: linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > mmotm mode,
-> > > 
-> > > 1, shrink_inactive_list() free copy's page.
-> > > 2. end!
-> > 
-> > OK.  But my concern is that perhaps the above latency improvement was
-> > caused by one of the many other MM patches in mmotm.
-> > 
-> > Reverting mm-more-likely-reclaim-madv_sequential-mappings.patch from
-> > mmotm and rerunning the tests would be the way to determine this. 
-> > (hint :) - thanks).
+On Wed, 2008-10-15 at 17:21 -0300, Peter Cordes wrote:
+> I unlinked a swapfile without realizing I was still swapping on it.
+> Now my /proc/swaps looks like this:
+> Filename                                Type            Size    Used	Priority
+> /var/tmp/EXP/cache/swap/1\040(deleted)  file            1288644 1448	-1
+> /var/tmp/EXP/cache/swap/2\040(deleted)  file            1433368 0	-2
 > 
-> fair enough.
-> OK, please wait half hour.
+>  AFAICT, there's nothing I can pass to swapoff(2) that will make the
+> kernel let go of them.  If that's the case, please consider this a
+> feature request for a way to do this.  Now I'm going to have to reboot
+> before I can mkfs that partition.
+> 
+>  If kswapd0 had a fd open on the swap files, swapoff /proc/$PID/fd/3
+> could possibly work.  But it looks like the files are open but with no
+> user-space accessable file descriptors to them.  Which makes sense,
+> except for this case.
 
-I mesured 2.6.27+sequential-patch.
+Right, except that kswapd is per node, so we'd either have to add it to
+all kswapd instances or a random one. Also, kthreads don't seem to have
+a files table afaict.
 
-                                   (NEW)
-                         2.6.27    2.6.27+patch   mmotm-1010
-   ==============================================================
-   mm_sync_madv_cp       6:14      6:03           6:02         (min:sec)
-   dbench throughput     12.1507   13.915         14.6273      (MB/s)
-   dbench latency        33046     22062          21779        (ms)
-
-
-Hm, I think other patches influence isn't so much.
-
-Thanks.
-
+But yes, I see your problem and it makes sense to look for a nice
+solution.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
