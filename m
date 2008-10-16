@@ -1,18 +1,18 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9GIHDWM032129
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:17:14 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIEKsf076174
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:20 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIEJ33027423
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:20 -0400
-Subject: [PATCH 1/9] Create syscalls: sys_checkpoint, sys_restart
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9GIBOZG032380
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:11:24 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9GIEPAU051132
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:25 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9GIEPIo003268
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2008 14:14:25 -0400
+Subject: [PATCH 6/9] Checkpoint/restart: initial documentation
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 16 Oct 2008 11:14:15 -0700
+Date: Thu, 16 Oct 2008 11:14:23 -0700
 References: <20081016181414.934C4FCC@kernel>
 In-Reply-To: <20081016181414.934C4FCC@kernel>
-Message-Id: <20081016181415.B63AF0FA@kernel>
+Message-Id: <20081016181423.427CA9E1@kernel>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
@@ -21,154 +21,391 @@ List-ID: <linux-mm.kvack.org>
 
 From: Oren Laadan <orenl@cs.columbia.edu>
 
-Create trivial sys_checkpoint and sys_restore system calls. They will
-enable to checkpoint and restart an entire container, to and from a
-checkpoint image file descriptor.
-
-The syscalls take a file descriptor (for the image file) and flags as
-arguments. For sys_checkpoint the first argument identifies the target
-container; for sys_restart it will identify the checkpoint image.
+Covers application checkpoint/restart, overall design, interfaces
+and checkpoint image format.
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge Hallyn <serue@us.ibm.com>
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/arch/x86/kernel/syscall_table_32.S |    2 
- linux-2.6.git-dave/checkpoint/Kconfig                 |   11 ++++
- linux-2.6.git-dave/checkpoint/Makefile                |    5 ++
- linux-2.6.git-dave/checkpoint/sys.c                   |   41 ++++++++++++++++++
- linux-2.6.git-dave/include/asm-x86/unistd_32.h        |    2 
- linux-2.6.git-dave/include/linux/syscalls.h           |    2 
- linux-2.6.git-dave/init/Kconfig                       |    2 
- linux-2.6.git-dave/kernel/sys_ni.c                    |    4 +
- 8 files changed, 69 insertions(+)
+ linux-2.6.git-dave/Documentation/checkpoint.txt |  370 ++++++++++++++++++++++++
+ 1 file changed, 370 insertions(+)
 
-diff -puN arch/x86/kernel/syscall_table_32.S~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart arch/x86/kernel/syscall_table_32.S
---- linux-2.6.git/arch/x86/kernel/syscall_table_32.S~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart	2008-10-16 10:53:33.000000000 -0700
-+++ linux-2.6.git-dave/arch/x86/kernel/syscall_table_32.S	2008-10-16 10:53:33.000000000 -0700
-@@ -332,3 +332,5 @@ ENTRY(sys_call_table)
- 	.long sys_dup3			/* 330 */
- 	.long sys_pipe2
- 	.long sys_inotify_init1
-+	.long sys_checkpoint
-+	.long sys_restart
-diff -puN /dev/null checkpoint/Kconfig
+diff -puN /dev/null Documentation/checkpoint.txt
 --- /dev/null	2008-09-02 09:40:19.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/Kconfig	2008-10-16 10:53:33.000000000 -0700
-@@ -0,0 +1,11 @@
-+config CHECKPOINT_RESTART
-+	prompt "Enable checkpoint/restart (EXPERIMENTAL)"
-+	def_bool n
-+	depends on X86_32 && EXPERIMENTAL
-+	help
-+	  Application checkpoint/restart is the ability to save the
-+	  state of a running application so that it can later resume
-+	  its execution from the time at which it was checkpointed.
++++ linux-2.6.git-dave/Documentation/checkpoint.txt	2008-10-16 10:53:37.000000000 -0700
+@@ -0,0 +1,370 @@
 +
-+	  Turning this option on will enable checkpoint and restart
-+	  functionality in the kernel.
-diff -puN /dev/null checkpoint/Makefile
---- /dev/null	2008-09-02 09:40:19.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/Makefile	2008-10-16 10:53:33.000000000 -0700
-@@ -0,0 +1,5 @@
-+#
-+# Makefile for linux checkpoint/restart.
-+#
++	=== Checkpoint-Restart support in the Linux kernel ===
 +
-+obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o
-diff -puN /dev/null checkpoint/sys.c
---- /dev/null	2008-09-02 09:40:19.000000000 -0700
-+++ linux-2.6.git-dave/checkpoint/sys.c	2008-10-16 10:53:33.000000000 -0700
-@@ -0,0 +1,41 @@
-+/*
-+ *  Generic container checkpoint-restart
-+ *
-+ *  Copyright (C) 2008 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ */
++Copyright (C) 2008 Oren Laadan
 +
-+#include <linux/sched.h>
-+#include <linux/kernel.h>
++Author:		Oren Laadan <orenl@cs.columbia.edu>
 +
-+/**
-+ * sys_checkpoint - checkpoint a container
-+ * @pid: pid of the container init(1) process
-+ * @fd: file to which dump the checkpoint image
-+ * @flags: checkpoint operation flags
-+ *
-+ * Returns positive identifier on success, 0 when returning from restart
-+ * or negative value on error
-+ */
-+asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
++License:	The GNU Free Documentation License, Version 1.2
++		(dual licensed under the GPL v2)
++Reviewers:
++
++Application checkpoint/restart [CR] is the ability to save the state
++of a running application so that it can later resume its execution
++from the time at which it was checkpointed. An application can be
++migrated by checkpointing it on one machine and restarting it on
++another. CR can provide many potential benefits:
++
++* Failure recovery: by rolling back an to a previous checkpoint
++
++* Improved response time: by restarting applications from checkpoints
++  instead of from scratch.
++
++* Improved system utilization: by suspending long running CPU
++  intensive jobs and resuming them when load decreases.
++
++* Fault resilience: by migrating applications off of faulty hosts.
++
++* Dynamic load balancing: by migrating applications to less loaded
++  hosts.
++
++* Improved service availability and administration: by migrating
++  applications before host maintenance so that they continue to run
++  with minimal downtime
++
++* Time-travel: by taking periodic checkpoints and restarting from
++  any previous checkpoint.
++
++
++=== Overall design
++
++Checkpoint and restart is done in the kernel as much as possible. The
++kernel exports a relative opaque 'blob' of data to userspace which can
++then be handed to the new kernel at restore time.  The 'blob' contains
++data and state of select portions of kernel structures such as VMAs
++and mm_structs, as well as copies of the actual memory that the tasks
++use. Any changes in this blob's format between kernel revisions can be
++handled by an in-userspace conversion program. The approach is similar
++to virtually all of the commercial CR products out there, as well as
++the research project Zap.
++
++Two new system calls are introduced to provide CR: sys_checkpoint and
++sys_restart.  The checkpoint code basically serializes internal kernel
++state and writes it out to a file descriptor, and the resulting image
++is stream-able. More specifically, it consists of 5 steps:
++  1. Pre-dump
++  2. Freeze the container
++  3. Dump
++  4. Thaw (or kill) the container
++  5. Post-dump
++Steps 1 and 5 are an optimization to reduce application downtime:
++"pre-dump" works before freezing the container, e.g. the pre-copy for
++live migration, and "post-dump" works after the container resumes
++execution, e.g. write-back the data to secondary storage.
++
++The restart code basically reads the saved kernel state and from a
++file descriptor, and re-creates the tasks and the resources they need
++to resume execution. The restart code is executed by each task that
++is restored in a new container to reconstruct its own state.
++
++
++=== Interfaces
++
++int sys_checkpoint(pid_t pid, int fd, unsigned long flag);
++  Checkpoint a container whose init task is identified by pid, to the
++  file designated by fd. Flags will have future meaning (should be 0
++  for now).
++  Returns: a positive integer that identifies the checkpoint image
++  (for future reference in case it is kept in memory) upon success,
++  0 if it returns from a restart, and -1 if an error occurs.
++
++int sys_restart(int crid, int fd, unsigned long flags);
++  Restart a container from a checkpoint image identified by crid, or
++  from the blob stored in the file designated by fd. Flags will have
++  future meaning (should be 0 for now).
++  Returns: 0 on success and -1 if an error occurs.
++
++Thus, if checkpoint is initiated by a process in the container, one
++can use logic similar to fork():
++	...
++	crid = checkpoint(...);
++	switch (crid) {
++	case -1:
++		perror("checkpoint failed");
++		break;
++	default:
++		fprintf(stderr, "checkpoint succeeded, CRID=%d\n", ret);
++		/* proceed with execution after checkpoint */
++		...
++		break;
++	case 0:
++		fprintf(stderr, "returned after restart\n");
++		/* proceed with action required following a restart */
++		...
++		break;
++	}
++	...
++And to initiate a restart, the process in an empty container can use
++logic similar to execve():
++	...
++	if (restart(crid, ...) < 0)
++		perror("restart failed");
++	/* only get here if restart failed */
++	...
++
++See below a complete example in C.
++
++
++=== Order of state dump
++
++The order of operations, both save and restore, is as following:
++
++* Header section: header, container information, etc.
++* Global section: [TBD] global resources such as IPC, UTS, etc.
++* Process forest: [TBD] tasks and their relationships
++* Per task data (for each task):
++  -> task state: elements of task_struct
++  -> thread state: elements of thread_struct and thread_info
++  -> CPU state: registers etc, including FPU
++  -> memory state: memory address space layout and contents
++  -> filesystem state: [TBD] filesystem namespace state, chroot, cwd, etc
++  -> files state: open file descriptors and their state
++  -> signals state: [TBD] pending signals and signal handling state
++  -> credentials state: [TBD] user and group state, statistics
++
++
++=== Checkpoint image format
++
++The checkpoint image format is composed of records consistings of a
++pre-header that identifies its contents, followed by a payload. (The
++idea here is to enable parallel checkpointing in the future in which
++multiple threads interleave data from multiple processes into a single
++stream).
++
++The pre-header is defined by "struct cr_hdr" as follows:
++
++struct cr_hdr {
++	__s16 type;
++	__s16 len;
++	__u32 parent;
++};
++
++Here, 'type' field identifies the type of the payload, 'len' tells its
++length in bytes. The 'parent' identifies the owner object instance. The
++meaning of the 'parent field varies depending on the type. For example,
++for type CR_HDR_MM, the 'parent identifies the task to which this MM
++belongs. The payload also varies depending on the type, for instance,
++the data describing a task_struct is given by a 'struct cr_hdr_task'
++(type CR_HDR_TASK) and so on.
++
++The format of the memory dump is as follows: for each VMA, there is a
++'struct cr_vma'; if the VMA is file-mapped, it is followed by the file
++name. Following comes the actual contents, in one or more chunk: each
++chunk begins with a header that specifies how many pages it holds,
++then a the virtual addresses of all the dumped pages in that chunk,
++followed by the actual contents of all the dumped pages. A header with
++zero number of pages marks the end of the contents for a particular
++VMA. Then comes the next VMA and so on.
++
++To illustrate this, consider a single simple task with two VMAs: one
++is file mapped with two dumped pages, and the other is anonymous with
++three dumped pages. The checkpoint image will look like this:
++
++cr_hdr + cr_hdr_head
++cr_hdr + cr_hdr_task
++	cr_hdr + cr_hdr_mm
++		cr_hdr + cr_hdr_vma + cr_hdr + string
++			cr_hdr_pgarr (nr_pages = 2)
++			addr1, addr2
++			page1, page2
++			cr_hdr_pgarr (nr_pages = 0)
++		cr_hdr + cr_hdr_vma
++			cr_hdr_pgarr (nr_pages = 3)
++			addr3, addr4, addr5
++			page3, page4, page5
++			cr_hdr_pgarr (nr_pages = 0)
++		cr_hdr + cr_mm_context
++	cr_hdr + cr_hdr_thread
++	cr_hdr + cr_hdr_cpu
++cr_hdr + cr_hdr_tail
++
++
++=== Current Implementation
++
++[2008-Oct-07]
++There are several assumptions in the current implementation; they will
++be gradually relaxed in future versions. The main ones are:
++* A task can only checkpoint itself (missing "restart-block" logic).
++* Namespaces are not saved or restored; They will be treated as a type
++  of shared object.
++* In particular, it is assumed that the task's file system namespace
++  is the "root" for the entire container.
++* It is assumed that the same file system view is available for the
++  restart task(s). Otherwise, a file system snapshot is required.
++
++
++=== Sample code
++
++Two example programs: one uses checkpoint (called ckpt) to checkpoint
++itself, and another uses restart (called rstr) to restart from that
++checkpoint. Note the use of "dup2" to create a copy of an open file
++and show how shared objects are treated. Execute like this:
++
++orenl:~/test$ ./ckpt > out.1
++				<-- ctrl-c
++orenl:~/test$ cat /tmp/cr-rest.out
++hello, world!
++world, hello!
++(ret = 1)
++
++orenl:~/test$ ./ckpt > out.1
++				<-- ctrl-c
++orenl:~/test$ cat /tmp/cr-rest.out
++hello, world!
++world, hello!
++(ret = 2)
++
++				<-- now change the contents of the file
++orenl:~/test$ sed -i 's/world, hello!/xxxx/' /tmp/cr-rest.out
++orenl:~/test$ cat /tmp/cr-rest.out
++hello, world!
++xxxx
++(ret = 2)
++
++				<-- and do the restart
++orenl:~/test$ ./rstr < out.1
++				<-- ctrl-c
++orenl:~/test$ cat /tmp/cr-rest.out
++hello, world!
++world, hello!
++(ret = 0)
++
++(if you check the output of ps, you'll see that "rstr" changed its
++name to "ckpt", as expected).
++
++============================== ckpt.c ================================
++
++#define _GNU_SOURCE        /* or _BSD_SOURCE or _SVID_SOURCE */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <asm/unistd.h>
++#include <sys/syscall.h>
++
++#define OUTFILE "/tmp/cr-test.out"
++
++int main(int argc, char *argv[])
 +{
-+	pr_debug("sys_checkpoint not implemented yet\n");
-+	return -ENOSYS;
++	pid_t pid = getpid();
++	FILE *file;
++	int ret;
++
++	close(0);
++	close(2);
++
++	unlink(OUTFILE);
++	file = fopen(OUTFILE, "w+");
++	if (!file) {
++		perror("open");
++		exit(1);
++	}
++
++	if (dup2(0,2) < 0) {
++		perror("dups");
++		exit(1);
++	}
++
++	fprintf(file, "hello, world!\n");
++	fflush(file);
++
++	ret = syscall(__NR_checkpoint, pid, STDOUT_FILENO, 0);
++	if (ret < 0) {
++		perror("checkpoint");
++		exit(2);
++	}
++
++	fprintf(file, "world, hello!\n");
++	fprintf(file, "(ret = %d)\n", ret);
++	fflush(file);
++
++	while (1)
++		;
++
++	return 0;
 +}
-+/**
-+ * sys_restart - restart a container
-+ * @crid: checkpoint image identifier
-+ * @fd: file from which read the checkpoint image
-+ * @flags: restart operation flags
-+ *
-+ * Returns negative value on error, or otherwise returns in the realm
-+ * of the original checkpoint
-+ */
-+asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
++======================================================================
++
++============================== rstr.c ================================
++
++#define _GNU_SOURCE        /* or _BSD_SOURCE or _SVID_SOURCE */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <asm/unistd.h>
++#include <sys/syscall.h>
++
++int main(int argc, char *argv[])
 +{
-+	pr_debug("sys_restart not implemented yet\n");
-+	return -ENOSYS;
++	pid_t pid = getpid();
++	int ret;
++
++	ret = syscall(__NR_restart, pid, STDIN_FILENO, 0);
++	if (ret < 0)
++		perror("restart");
++
++	printf("should not reach here !\n");
++
++	return 0;
 +}
-diff -puN include/asm-x86/unistd_32.h~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart include/asm-x86/unistd_32.h
---- linux-2.6.git/include/asm-x86/unistd_32.h~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart	2008-10-16 10:53:33.000000000 -0700
-+++ linux-2.6.git-dave/include/asm-x86/unistd_32.h	2008-10-16 10:53:33.000000000 -0700
-@@ -338,6 +338,8 @@
- #define __NR_dup3		330
- #define __NR_pipe2		331
- #define __NR_inotify_init1	332
-+#define __NR_checkpoint		333
-+#define __NR_restart		334
- 
- #ifdef __KERNEL__
- 
-diff -puN include/linux/syscalls.h~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart include/linux/syscalls.h
---- linux-2.6.git/include/linux/syscalls.h~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart	2008-10-16 10:53:33.000000000 -0700
-+++ linux-2.6.git-dave/include/linux/syscalls.h	2008-10-16 10:53:33.000000000 -0700
-@@ -622,6 +622,8 @@ asmlinkage long sys_timerfd_gettime(int 
- asmlinkage long sys_eventfd(unsigned int count);
- asmlinkage long sys_eventfd2(unsigned int count, int flags);
- asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
-+asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags);
-+asmlinkage long sys_restart(int crid, int fd, unsigned long flags);
- 
- int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
- 
-diff -puN init/Kconfig~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart init/Kconfig
---- linux-2.6.git/init/Kconfig~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart	2008-10-16 10:53:33.000000000 -0700
-+++ linux-2.6.git-dave/init/Kconfig	2008-10-16 10:53:33.000000000 -0700
-@@ -779,6 +779,8 @@ config MARKERS
- 
- source "arch/Kconfig"
- 
-+source "checkpoint/Kconfig"
++======================================================================
 +
- endmenu		# General setup
- 
- config HAVE_GENERIC_DMA_COHERENT
-diff -puN kernel/sys_ni.c~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart kernel/sys_ni.c
---- linux-2.6.git/kernel/sys_ni.c~v6_PATCH_1_9_Create_syscalls-_sys_checkpoint_sys_restart	2008-10-16 10:53:33.000000000 -0700
-+++ linux-2.6.git-dave/kernel/sys_ni.c	2008-10-16 10:53:33.000000000 -0700
-@@ -169,3 +169,7 @@ cond_syscall(compat_sys_timerfd_settime)
- cond_syscall(compat_sys_timerfd_gettime);
- cond_syscall(sys_eventfd);
- cond_syscall(sys_eventfd2);
 +
-+/* checkpoint/restart */
-+cond_syscall(sys_checkpoint);
-+cond_syscall(sys_restart);
++=== Changelog
++
++[2008-Oct-07] v6:
++  - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
++    (even though it's not really needed)
++  - Add 'current implementation' to docs to describe assumptions
++  - Misc fixes and cleanups
++
++[2008-Sep-11] v5:
++  - Config is 'def_bool n' by default
++  - Improve memory dump/restore code (following Dave Hansen's comments)
++  - Change dump format (and code) to allow chunks of <vaddrs, pages>
++    instead of one long list of each
++  - Fix use of follow_page() to avoid faulting in non-present pages
++  - Memory restore now maps user pages explicitly to copy data into them,
++    instead of reading directly to user space; got rid of mprotect_fixup()
++  - Remove preempt_disable() when restoring debug registers
++  - Rename headers files s/ckpt/checkpoint/
++  - Fix misc bugs in files dump/restore
++  - Fix cleanup on some error paths
++  - Fix misc coding style
++
++[2008-Sep-04] v4:
++  - Fix calculation of hash table size
++  - Fix header structure alignment
++  - Use stand list_... for cr_pgarr
++
++[2008-Aug-20] v3:
++  - Various fixes and clean-ups
++  - Use standard hlist_... for hash table
++  - Better use of standard kmalloc/kfree
++
++[2008-Aug-09] v2:
++  - Added utsname->{release,version,machine} to checkpoint header
++  - Pad header structures to 64 bits to ensure compatibility
++  - Address comments from LKML and linux-containers mailing list
++
++[2008-Jul-29] v1:
++In this incarnation, CR only works on single task. The address space
++may consist of only private, simple VMAs - anonymous or file-mapped.
++Both checkpoint and restart will ignore the first argument (pid/crid)
++and instead act on themselves.
 _
 
 --
