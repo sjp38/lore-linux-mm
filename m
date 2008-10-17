@@ -1,57 +1,38 @@
-Received: from mq1.gw.fujitsu.co.jp ([10.0.50.171])
-	by fgwnews.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9H5emv6032686
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 17 Oct 2008 14:40:48 +0900
-Received: from m3.gw.fujitsu.co.jp (m3.gw.fujitsu.co.jp [10.0.50.73])
-        by mq1.gw.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9H5dIDd002375
-        for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-        Fri, 17 Oct 2008 14:39:18 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 079902AC029
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:37:48 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D233E12C046
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:37:47 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B1DC01DB803A
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:37:47 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 56CAF1DB8038
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:37:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-In-Reply-To: <200810171321.40725.nickpiggin@yahoo.com.au>
-References: <48F77430.80001@redhat.com> <200810171321.40725.nickpiggin@yahoo.com.au>
-Message-Id: <20081017143307.FAA9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <48F83078.8020408@davidnewall.com>
+Date: Fri, 17 Oct 2008 16:58:08 +1030
+From: David Newall <davidn@davidnewall.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: no way to swapoff a deleted swap file?
+References: <20081015202141.GX26067@cordes.ca> <1224145684.28131.25.camel@twins> <Pine.LNX.4.64.0810162313570.26758@blonde.site>
+In-Reply-To: <Pine.LNX.4.64.0810162313570.26758@blonde.site>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Fri, 17 Oct 2008 14:37:43 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Peter Cordes <peter@cordes.ca>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick,
+Hugh Dickins wrote:
+> On Thu, 16 Oct 2008, Peter Zijlstra wrote:
+>   
+>> On Wed, 2008-10-15 at 17:21 -0300, Peter Cordes wrote:
+>>     
+>>> I unlinked a swapfile without realizing I was still swapping on it.
+>>>       
+>> I see your problem and it makes sense to look for a nice solution.
+>>     
+>
+> although I'll willingly admit it's a
+> lacuna, I don't think it's one worth bloating the kernel for.
 
-I don't have any opinion against this patch is good or wrong.
-but I have a question.
+Me too.  The kernel shouldn't protect the administrator against all
+possible mistakes; and this mistake is one of them.  Besides, who's to
+say it's always a mistake?  Somebody might want their swap file to have
+zero links.
 
 
-> Really, filemap_fault should not mark the page as accessed,
-> zap_pte_range should mark the page has accessed rather than just
-> set referenced, and this patch should not clear referenced.
-
-IIRC, sequential mapping pages are usually touched twice.
- 1. page fault (caused by readahead)
- 2. memcpy in userland
-
-So, if we only drop accessed bit of the page at page fault, the page end up
-having accessed bit by memcpy.
-
-pointless?
-
+Do nothing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
