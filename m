@@ -1,73 +1,51 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9H1ooJD017611
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 17 Oct 2008 10:50:50 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 81DB853C124
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 10:50:50 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AA7C24005B
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 10:50:50 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 464CA1DB803E
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 10:50:50 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id F22C21DB8042
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 10:50:49 +0900 (JST)
-Date: Fri, 17 Oct 2008 10:50:28 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mmotm][PATCH] memcg-allocate-all-page_cgroup-at-boot-fix.patch
-Message-Id: <20081017105028.fac894c0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081017093046.80ae7d14.kamezawa.hiroyu@jp.fujitsu.com>
-References: <200810160758.m9G7wZmt018529@imap1.linux-foundation.org>
-	<Pine.LNX.4.64.0810161400230.14604@shark.he.net>
-	<20081017093046.80ae7d14.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
+Date: Fri, 17 Oct 2008 13:21:40 +1100
+References: <20081015162232.f673fa59.akpm@linux-foundation.org> <200810170043.26922.nickpiggin@yahoo.com.au> <48F77430.80001@redhat.com>
+In-Reply-To: <48F77430.80001@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810171321.40725.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "Randy.Dunlap" <rdunlap@xenotime.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Oct 2008 09:30:46 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Hmm....it seems
-> 
-> memcg-allocate-all-page_cgroup-at-boot.patch doesn't includes changes to Makefile...
-> 
-> Thank you for report. I'll send a fix soon.
-> 
-This is a fix. for this.
+On Friday 17 October 2008 04:04, Rik van Riel wrote:
+> Nick Piggin wrote:
+> > ClearPageReferenced I don't know if it should be cleared like this.
+> > PageReferenced is more of a bit for the mark_page_accessed state machine,
+> > rather than the pte_young stuff. Although when unmapping, the latter
+> > somewhat collapses back to the former, but I don't know if there is a
+> > very good reason to fiddle with it here.
+> >
+> > Ignoring the young bit in the pte for sequential hint maybe is OK (and
+> > seems to be effective as per the benchmarks). But I would prefer not to
+> > merge the PageReferenced parts unless they get their own justification.
+>
+> Unless we clear the PageReferenced bit, we will still activate
+> the page - even if its only access came through a sequential
+> mapping.
+>
+> Faulting the page into the sequential mapping ends up setting
+> PageReferenced, IIRC.
 
-Confirmed vmlinux can be compiled with the config.
-(but need to turn off CONFIG_HID_SUPPORT..and found small troube in /samples
- directory's Makefile.
+Yes I see. But that's stupid because then you can end up putting a
+sequential mapping on a page, and cause that to deactivate somebody
+else's references... and the deactivation _only_ happens if the
+sequential mapping pte is young and the page happens not to be
+active, which is totally arbitrary.
 
--Kame
-==
+Really, filemap_fault should not mark the page as accessed,
+zap_pte_range should mark the page has accessed rather than just
+set referenced, and this patch should not clear referenced.
 
-compile fix to memcg-allocate-all-page_cgroup-at-boot.patch
-
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
- mm/Makefile |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux-2.6.27/mm/Makefile
-===================================================================
---- linux-2.6.27.orig/mm/Makefile
-+++ linux-2.6.27/mm/Makefile
-@@ -33,5 +33,5 @@ obj-$(CONFIG_FS_XIP) += filemap_xip.o
- obj-$(CONFIG_MIGRATION) += migrate.o
- obj-$(CONFIG_SMP) += allocpercpu.o
- obj-$(CONFIG_QUICKLIST) += quicklist.o
--obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o
-+obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
- obj-$(CONFIG_CGROUP_MEMRLIMIT_CTLR) += memrlimitcgroup.o
-
+I dislike having to hack around something in a way that does work
+and improves a very particular situation, but is conceptually wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
