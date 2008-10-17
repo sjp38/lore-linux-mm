@@ -1,68 +1,57 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9H5gpxR009192
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 17 Oct 2008 14:42:51 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CF2A2AC02D
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:41:42 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D856C12C044
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:41:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 206B01DB803C
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:41:38 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 17D021DB8037
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 14:41:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch][rfc] mm: have expand_stack honour VM_LOCKED
-In-Reply-To: <20081017050120.GA28605@wotan.suse.de>
-References: <20081017050120.GA28605@wotan.suse.de>
-Message-Id: <20081017142346.FAA6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
+Date: Fri, 17 Oct 2008 16:56:09 +1100
+References: <48F77430.80001@redhat.com> <200810171321.40725.nickpiggin@yahoo.com.au> <20081017143307.FAA9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081017143307.FAA9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 17 Oct 2008 14:41:31 +0900 (JST)
+Content-Disposition: inline
+Message-Id: <200810171656.09935.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@saeurebad.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick,
+On Friday 17 October 2008 16:37, KOSAKI Motohiro wrote:
+> Hi Nick,
+>
+> I don't have any opinion against this patch is good or wrong.
+> but I have a question.
+>
+> > Really, filemap_fault should not mark the page as accessed,
+> > zap_pte_range should mark the page has accessed rather than just
+> > set referenced, and this patch should not clear referenced.
+>
+> IIRC, sequential mapping pages are usually touched twice.
+>  1. page fault (caused by readahead)
+>  2. memcpy in userland
+>
+> So, if we only drop accessed bit of the page at page fault, the page end up
+> having accessed bit by memcpy.
+>
+> pointless?
 
-> Is this valid?
-> 
-> 
-> It appears that direct callers of expand_stack may not properly lock the newly
-> expanded stack if they don't call make_pages_present (page fault handlers do
-> this).
+Well, the pte will get the accessed bit set by the set_pte call. This
+would probably not be set again by the memcpy (unless it was attempted
+to be reclaimed in the meantime, but that should be fairly rare).
 
-When happend this issue?
+And the sequential mapping special case ignores the pte bits, so that's
+OK.
 
-I think...
+The problem is that the page fault path also does a mark_page_accessed,
+which sets the page's PG_dirty bit. Now this bit is mainly used by the
+unmapped pagecache access / reclaim heuristics, but because we set it
+here, then the sequential mapping case is forced to clear it. I think it
+would be much cleaner not to set the bit in the fault handler to begin
+with.
 
-case 1. explit mlock to stack 
-
-   1. mlock to stack
-        -> make_pages_present is called via mlock(2).
-   2. stack increased
-        -> no page fault happened.
-
-case 2. swapout and mlock stack
-
-   1. stack swap out
-   2. mlock to stack
-        -> the page doesn't swap in at the time.
-   3. page fault in the stack
-        -> the page swap in
-           (no need make_present_page())
-
-
-So, it seems this patch isn't necessary.
-
-
-
+I would like to ask this sequential mapping patch is held off until then,
+and I will send a patch to make the mark_page_accessed, after the dust
+settles from Andrew's merge. (because I can't make such a change inside
+the merge window)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
