@@ -1,7 +1,7 @@
-Date: Fri, 17 Oct 2008 19:56:01 +0900
+Date: Fri, 17 Oct 2008 19:59:38 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mm 1/5] memcg: replace res_counter
-Message-Id: <20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mm 2/5] memcg: mem_cgroup private ID
+Message-Id: <20081017195938.0468cdd3.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
 References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -13,397 +13,164 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-For mem+swap controller, we'll use special counter which has 2 values and
-2 limit. Before doing that, replace current res_counter with new mem_counter.
+This patch adds a private ID to each memory resource controller.
+This is for mem+swap controller.
 
-This patch doen't have much meaning other than for clean up before mem+swap
-controller. New mem_counter's counter is "unsigned long" and account resource by
-# of pages. (I think "unsigned long" is safe under 32bit machines when we count
-resource by # of pages rather than bytes.) No changes in user interface.
-User interface is in "bytes".
+When we record memcgrp information per each swap entry, rememvering pointer
+can consume 8(4) bytes per entry. This is large.
 
-Using "unsigned long long", we have to be nervous to read to temporal value
-without lock.
+This patch limits the number of memory resource controller to 32768 and
+give ID to each controller. (1 bit will be used for flag..)
+This can help to save space in future.
+
+ID "0" is used for indicating "invalid" or "not used" ID.
+ID "1" is used for root.
+
+(*) 32768 is too small ?
 
 Changelog: v2 -> v3
- - fix trivial bugs
- - rebased on memcg-update-v7
+  - rebased on memcg-update-v7
+
+Changelog:
+  - new patch in v2.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d5b492f..e1c20d2 100644
+index e1c20d2..5ef5a5c 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -17,10 +17,9 @@
-  * GNU General Public License for more details.
-  */
+@@ -39,6 +39,7 @@
  
--#include <linux/res_counter.h>
-+#include <linux/mm.h>
- #include <linux/memcontrol.h>
- #include <linux/cgroup.h>
--#include <linux/mm.h>
- #include <linux/smp.h>
- #include <linux/page-flags.h>
- #include <linux/backing-dev.h>
-@@ -116,12 +115,21 @@ struct mem_cgroup_lru_info {
-  * no reclaim occurs from a cgroup at it's low water mark, this is
-  * a feature that will be implemented much later in the future.
-  */
-+struct mem_counter {
-+	unsigned long	pages;
-+	unsigned long	pages_limit;
-+	unsigned long	max_pages;
-+	unsigned long	failcnt;
-+	spinlock_t	lock;
-+};
-+
-+
- struct mem_cgroup {
- 	struct cgroup_subsys_state css;
- 	/*
- 	 * the counter to account for memory usage
- 	 */
--	struct res_counter res;
-+	struct mem_counter res;
- 	/*
- 	 * Per cgroup active and inactive list, similar to the
- 	 * per zone LRU lists.
-@@ -158,6 +166,14 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
- 	0, /* FORCE */
- };
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
++#define NR_MEMCGRP_ID			(32767)
  
-+/* Private File ID for memory resource controller's interface */
-+enum {
-+	MEMCG_FILE_PAGE_LIMIT,
-+	MEMCG_FILE_PAGE_USAGE,
-+	MEMCG_FILE_PAGE_MAX_USAGE,
-+	MEMCG_FILE_FAILCNT,
-+};
-+
  /*
-  * Always modified under lru lock. Then, not necessary to preempt_disable()
-  */
-@@ -237,6 +253,81 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- 				struct mem_cgroup, css);
+  * Statistics for memory cgroup.
+@@ -141,6 +142,10 @@ struct mem_cgroup {
+ 	 * statistics.
+ 	 */
+ 	struct mem_cgroup_stat stat;
++	/*
++	 * private ID
++	 */
++	unsigned short memcgrp_id;
+ };
+ static struct mem_cgroup init_mem_cgroup;
+ 
+@@ -327,6 +332,69 @@ static void mem_counter_reset(struct mem_cgroup *mem, int member)
+ 	spin_unlock_irqrestore(&mem->res.lock, flags);
  }
  
 +/*
-+ * counter for memory resource accounting.
++ * private ID management for memcg.
++ * set/clear bitmap is called by create/destroy and done under cgroup_mutex.
 + */
-+static void mem_counter_init(struct mem_cgroup *mem)
++static unsigned long *memcgrp_id_bitmap;
++static struct mem_cgroup **memcgrp_array;
++int nr_memcgrp;
++
++static int memcgrp_id_init(void)
 +{
-+	memset(&mem->res, 0, sizeof(mem->res));
-+	mem->res.pages_limit = ~0UL;
-+	spin_lock_init(&mem->res.lock);
-+}
++	void *addr;
++	unsigned long bitmap_size = NR_MEMCGRP_ID/8;
++	unsigned long array_size = NR_MEMCGRP_ID * sizeof(void *);
 +
-+static int mem_counter_charge(struct mem_cgroup *mem, long num)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&mem->res.lock, flags);
-+	if (mem->res.pages + num > mem->res.pages_limit)
-+		goto busy_out;
-+	mem->res.pages += num;
-+	if (mem->res.pages > mem->res.max_pages)
-+		mem->res.max_pages = mem->res.pages;
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
-+	return 0;
-+busy_out:
-+	mem->res.failcnt++;
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
-+	return -EBUSY;
-+}
-+
-+static void mem_counter_uncharge_page(struct mem_cgroup *mem, long num)
-+{
-+	unsigned long flags;
-+	spin_lock_irqsave(&mem->res.lock, flags);
-+	mem->res.pages -= num;
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
-+}
-+
-+static int mem_counter_set_pages_limit(struct mem_cgroup *mem,
-+					unsigned long num)
-+{
-+	unsigned long flags;
-+	int ret = -EBUSY;
-+
-+	spin_lock_irqsave(&mem->res.lock, flags);
-+	if (mem->res.pages < num) {
-+		mem->res.pages_limit = num;
-+		ret = 0;
++	addr = kmalloc(bitmap_size, GFP_KERNEL | __GFP_ZERO);
++	if (!addr)
++		return -ENOMEM;
++	memcgrp_array = vmalloc(array_size);
++	if (!memcgrp_array) {
++		kfree(memcgrp_array);
++		return -ENOMEM;
 +	}
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
-+	return ret;
-+}
-+
-+static int mem_counter_check_under_pages_limit(struct mem_cgroup *mem)
-+{
-+	if (mem->res.pages < mem->res.pages_limit)
-+		return 1;
++	memcgrp_id_bitmap = addr;
++	/* 0 for "invalid id" */
++	set_bit(0, memcgrp_id_bitmap);
++	set_bit(1, memcgrp_id_bitmap);
++	memcgrp_array[0] = NULL;
++	memcgrp_array[1] = &init_mem_cgroup;
++	init_mem_cgroup.memcgrp_id = 1;
++	nr_memcgrp = 1;
 +	return 0;
 +}
 +
-+static void mem_counter_reset(struct mem_cgroup *mem, int member)
++static unsigned int get_new_memcgrp_id(struct mem_cgroup *mem)
 +{
-+	unsigned long flags;
++	int id;
++	id = find_first_zero_bit(memcgrp_id_bitmap, NR_MEMCGRP_ID);
 +
-+	spin_lock_irqsave(&mem->res.lock, flags);
-+	switch (member) {
-+	case MEMCG_FILE_PAGE_MAX_USAGE:
-+		mem->res.max_pages = 0;
-+		break;
-+	case MEMCG_FILE_FAILCNT:
-+		mem->res.failcnt = 0;
-+		break;
-+	}
-+	spin_unlock_irqrestore(&mem->res.lock, flags);
++	if (id == NR_MEMCGRP_ID - 1)
++		return -ENOSPC;
++	set_bit(id, memcgrp_id_bitmap);
++	memcgrp_array[id] = mem;
++	mem->memcgrp_id = id;
++
++	return 0;
++}
++
++static void free_memcgrp_id(struct mem_cgroup *mem)
++{
++	memcgrp_array[mem->memcgrp_id] = NULL;
++	clear_bit(mem->memcgrp_id , memcgrp_id_bitmap);
++}
++
++/*
++ * please access this while you can convice memcgroup exist.
++ */
++
++static struct mem_cgroup *mem_cgroup_id_lookup(unsigned short id)
++{
++	return memcgrp_array[id];
 +}
 +
 +
+ 
  static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
  			struct page_cgroup *pc)
- {
-@@ -368,7 +459,7 @@ int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
- 	 * usage is recorded in bytes. But, here, we assume the number of
- 	 * physical pages can be represented by "long" on any arch.
- 	 */
--	total = (long) (mem->res.usage >> PAGE_SHIFT) + 1L;
-+	total = (long) (mem->res.pages) + 1L;
- 	rss = (long)mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
- 	return (int)((rss * 100L) / total);
- }
-@@ -692,7 +783,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	}
+@@ -1691,6 +1759,8 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	int node;
  
- 
--	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
-+	while (unlikely(mem_counter_charge(mem, 1))) {
- 		if (!(gfp_mask & __GFP_WAIT))
- 			goto nomem;
- 
-@@ -706,7 +797,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 		 * Check the limit again to see if the reclaim reduced the
- 		 * current usage of the cgroup before giving up
- 		 */
--		if (res_counter_check_under_limit(&mem->res))
-+		if (mem_counter_check_under_pages_limit(mem))
- 			continue;
- 
- 		if (!nr_retries--) {
-@@ -760,7 +851,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
- 	 */
- 	if (unlikely(PageCgroupUsed(pc))) {
- 		unlock_page_cgroup(pc);
--		res_counter_uncharge(&mem->res, PAGE_SIZE);
-+		mem_counter_uncharge_page(mem, 1);
- 		css_put(&mem->css);
- 		return;
- 	}
-@@ -841,7 +932,7 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
- 
- 	if (spin_trylock(&to_mz->lru_lock)) {
- 		__mem_cgroup_remove_list(from_mz, pc);
--		res_counter_uncharge(&from->res, PAGE_SIZE);
-+		mem_counter_uncharge_page(from, PAGE_SIZE);
- 		pc->mem_cgroup = to;
- 		__mem_cgroup_add_list(to_mz, pc, false);
- 		ret = 0;
-@@ -888,7 +979,7 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
- 	css_put(&parent->css);
- 	/* uncharge if move fails */
- 	if (ret)
--		res_counter_uncharge(&parent->res, PAGE_SIZE);
-+		mem_counter_uncharge_page(parent, 1);
- 
- 	return ret;
- }
-@@ -1005,7 +1096,7 @@ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
- 		return;
- 	if (!mem)
- 		return;
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
-+	mem_counter_uncharge_page(mem, 1);
- 	css_put(&mem->css);
- }
- 
-@@ -1042,7 +1133,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
- 	 * We must uncharge here because "reuse" can occur just after we
- 	 * unlock this.
- 	 */
--	res_counter_uncharge(&mem->res, PAGE_SIZE);
-+	mem_counter_uncharge_page(mem, 1);
- 	unlock_page_cgroup(pc);
- 	release_page_cgroup(pc);
- 	return;
-@@ -1174,7 +1265,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
- 
- 	do {
- 		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask);
--		progress += res_counter_check_under_limit(&mem->res);
-+		progress += mem_counter_check_under_pages_limit(mem);
- 	} while (!progress && --retry);
- 
- 	css_put(&mem->css);
-@@ -1189,8 +1280,12 @@ int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
- 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
- 	int progress;
- 	int ret = 0;
-+	unsigned long new_lim = (unsigned long)(val >> PAGE_SHIFT);
- 
--	while (res_counter_set_limit(&memcg->res, val)) {
-+	if (val & (PAGE_SIZE-1))
-+		new_lim += 1;
-+
-+	while (mem_counter_set_pages_limit(memcg, new_lim)) {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
- 			break;
-@@ -1273,7 +1368,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem)
- 
- 	shrink = 0;
- move_account:
--	while (mem->res.usage > 0) {
-+	while (mem->res.pages > 0) {
- 		ret = -EBUSY;
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
-@@ -1316,7 +1411,7 @@ try_to_free:
- 	}
- 	/* try to free all pages in this cgroup */
- 	shrink = 1;
--	while (nr_retries && mem->res.usage > 0) {
-+	while (nr_retries && mem->res.pages > 0) {
- 		int progress;
- 		progress = try_to_free_mem_cgroup_pages(mem,
- 						  GFP_HIGHUSER_MOVABLE);
-@@ -1325,7 +1420,7 @@ try_to_free:
- 
- 	}
- 	/* try move_account...there may be some *locked* pages. */
--	if (mem->res.usage)
-+	if (mem->res.pages)
- 		goto move_account;
- 	ret = 0;
- 	goto out;
-@@ -1333,13 +1428,43 @@ try_to_free:
- 
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- {
--	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
--				    cft->private);
-+	unsigned long long ret;
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-+
-+	switch (cft->private) {
-+	case MEMCG_FILE_PAGE_LIMIT:
-+		ret = (unsigned long long)mem->res.pages_limit << PAGE_SHIFT;
-+		break;
-+	case MEMCG_FILE_PAGE_USAGE:
-+		ret = (unsigned long long)mem->res.pages << PAGE_SHIFT;
-+		break;
-+	case MEMCG_FILE_PAGE_MAX_USAGE:
-+		ret = (unsigned long long)mem->res.max_pages << PAGE_SHIFT;
-+		break;
-+	case MEMCG_FILE_FAILCNT:
-+		ret = (unsigned long long)mem->res.failcnt;
-+		break;
-+	default:
-+		BUG();
-+	}
-+	return ret;
- }
- /*
-  * The user of this function is...
-  * RES_LIMIT.
-  */
-+static int call_memparse(const char *buf, unsigned long long *val)
-+{
-+	char *end;
-+
-+	*val = memparse((char *)buf, &end);
-+	if (*end != '\0')
-+		return -EINVAL;
-+	*val = PAGE_ALIGN(*val);
-+	return 0;
-+}
-+
-+
- static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			    const char *buffer)
- {
-@@ -1348,9 +1473,9 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 	int ret;
- 
- 	switch (cft->private) {
--	case RES_LIMIT:
-+	case MEMCG_FILE_PAGE_LIMIT:
- 		/* This function does all necessary parse...reuse it */
--		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		ret = call_memparse(buffer, &val);
- 		if (!ret)
- 			ret = mem_cgroup_resize_limit(memcg, val);
- 		break;
-@@ -1367,12 +1492,12 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
- 
- 	mem = mem_cgroup_from_cont(cont);
- 	switch (event) {
--	case RES_MAX_USAGE:
--		res_counter_reset_max(&mem->res);
--		break;
--	case RES_FAILCNT:
--		res_counter_reset_failcnt(&mem->res);
-+	case MEMCG_FILE_PAGE_MAX_USAGE:
-+	case MEMCG_FILE_FAILCNT:
-+		mem_counter_reset(mem, event);
- 		break;
-+	default:
-+		BUG();
- 	}
- 	return 0;
- }
-@@ -1436,24 +1561,24 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
--		.private = RES_USAGE,
-+		.private = MEMCG_FILE_PAGE_USAGE,
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
- 		.name = "max_usage_in_bytes",
--		.private = RES_MAX_USAGE,
-+		.private = MEMCG_FILE_PAGE_MAX_USAGE,
- 		.trigger = mem_cgroup_reset,
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
- 		.name = "limit_in_bytes",
--		.private = RES_LIMIT,
-+		.private = MEMCG_FILE_PAGE_LIMIT,
- 		.write_string = mem_cgroup_write,
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
- 		.name = "failcnt",
--		.private = RES_FAILCNT,
-+		.private = MEMCG_FILE_FAILCNT,
- 		.trigger = mem_cgroup_reset,
- 		.read_u64 = mem_cgroup_read,
- 	},
-@@ -1578,7 +1703,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	if (unlikely((cont->parent) == NULL)) {
++		if (memcgrp_id_init())
++			return ERR_PTR(-ENOMEM);
+ 		page_cgroup_init();
+ 		mem = &init_mem_cgroup;
+ 		cpu_memcgroup_callback(&memcgroup_nb,
+@@ -1701,6 +1771,11 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 		mem = mem_cgroup_alloc();
+ 		if (!mem)
  			return ERR_PTR(-ENOMEM);
++
++		if (get_new_memcgrp_id(mem)) {
++			kfree(mem);
++			return ERR_PTR(-ENOSPC);
++		}
  	}
  
--	res_counter_init(&mem->res);
-+	mem_counter_init(mem);
- 
+ 	mem_counter_init(mem);
+@@ -1713,8 +1788,10 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ free_out:
  	for_each_node_state(node, N_POSSIBLE)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
+ 		free_mem_cgroup_per_zone_info(mem, node);
+-	if (cont->parent != NULL)
++	if (cont->parent != NULL) {
++		free_memcgrp_id(mem);
+ 		mem_cgroup_free(mem);
++	}
+ 	return ERR_PTR(-ENOMEM);
+ }
+ 
+@@ -1731,6 +1808,7 @@ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ 	int node;
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 
++	free_memcgrp_id(mem);
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		free_mem_cgroup_per_zone_info(mem, node);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
