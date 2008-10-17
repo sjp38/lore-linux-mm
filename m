@@ -1,52 +1,70 @@
-From: Bodo Eggert <7eggert@gmx.de>
-Subject: Re: no way to swapoff a deleted swap file?
-Reply-To: 7eggert@gmx.de
-Date: Fri, 17 Oct 2008 01:43:15 +0200
-References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it> <bnJFK-3bu-7@gated-at.bofh.it>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7Bit
-Message-Id: <E1KqcUt-0003vU-ES@be1.7eggert.dyndns.org>
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9H0V8C6000561
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 17 Oct 2008 09:31:08 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F31F24004A
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 09:31:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 72E1A2DC07B
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 09:31:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B58A1DB8037
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 09:31:08 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FF281DB803F
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2008 09:31:08 +0900 (JST)
+Date: Fri, 17 Oct 2008 09:30:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: mmotm 2008-10-16-00-52 uploaded (cgroup + mm)
+Message-Id: <20081017093046.80ae7d14.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0810161400230.14604@shark.he.net>
+References: <200810160758.m9G7wZmt018529@imap1.linux-foundation.org>
+	<Pine.LNX.4.64.0810161400230.14604@shark.he.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <peterz@infradead.org>, Peter Cordes <peter@cordes.ca>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: "Randy.Dunlap" <rdunlap@xenotime.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins <hugh@veritas.com> wrote:
-> On Thu, 16 Oct 2008, Peter Zijlstra wrote:
->> On Wed, 2008-10-15 at 17:21 -0300, Peter Cordes wrote:
+On Thu, 16 Oct 2008 14:01:48 -0700 (PDT)
+"Randy.Dunlap" <rdunlap@xenotime.net> wrote:
 
->> > I unlinked a swapfile without realizing I was still swapping on it.
->> > Now my /proc/swaps looks like this:
->> > Filename                                Type            Size    Used
->> > Priority
->> > /var/tmp/EXP/cache/swap/1\040(deleted)  file            1288644 1448       -1
->> > /var/tmp/EXP/cache/swap/2\040(deleted)  file            1433368 0  -2
-
->> >  If kswapd0 had a fd open on the swap files, swapoff /proc/$PID/fd/3
->> > could possibly work.  But it looks like the files are open but with no
->> > user-space accessable file descriptors to them.  Which makes sense,
->> > except for this case.
->> 
->> Right, except that kswapd is per node, so we'd either have to add it to
->> all kswapd instances or a random one. Also, kthreads don't seem to have
->> a files table afaict.
->> 
->> But yes, I see your problem and it makes sense to look for a nice
->> solution.
+> On Thu, 16 Oct 2008, akpm@linux-foundation.org wrote:
 > 
-> No immediate answer springs to my mind.
+> > The mm-of-the-moment snapshot 2008-10-16-00-52 has been uploaded to
+> > 
+> >    http://userweb.kernel.org/~akpm/mmotm/
+> > 
+> > It contains the following patches against 2.6.27:
 > 
-> It's not something I'd want to add a new system call for.
-> I guess we could put a magic file for each swap area
-> somewhere down in /sys, and allow swapoff to act upon that.
+> 
+> build-r9168.out:(.text+0x261e6): undefined reference to `lookup_page_cgroup'
+> build-r9168.out:memcontrol.c:(.text+0x2629f): undefined reference to `lookup_page_cgroup'
+> build-r9168.out:memcontrol.c:(.text+0x2671a): undefined reference to `lookup_page_cgroup'
+> build-r9168.out:(.text+0x268f9): undefined reference to `lookup_page_cgroup'
+> build-r9168.out:memcontrol.c:(.text+0x26e52): undefined reference to `page_cgroup_init'
+> build-r9168.out:(.text+0x26f44): undefined reference to `lookup_page_cgroup'
+> build-r9168.out:(.init.text+0xe42): undefined reference to `pgdat_page_cgroup_init'
+> 
+> 
+> .config is at http://oss.oracle.com/~rdunlap/kerneltest/configs/config-r9168
+> 
+Ouch...
 
-I think the original idea of something like /proc/$PID/fd/ is not too bad.
-I don't know if it's possible to have the same mechanism in sysfs. I guess
-not, but with the rest of the vm knobs being in /proc, I would not be too sad.
+Hmm....it seems
 
-Maybe it's possible to clone(CLONE_FILES) the kswapds. This would allow to
-have /proc/sys/vm/swapfiles point to one of the correct /proc/$kwapd/fd/.
+memcg-allocate-all-page_cgroup-at-boot.patch doesn't includes changes to Makefile...
+
+Thank you for report. I'll send a fix soon.
+
+Regards,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
