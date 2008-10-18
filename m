@@ -1,45 +1,51 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
-Date: Sat, 18 Oct 2008 13:50:57 +1100
-From: Paul Mackerras <paulus@samba.org>
+Date: Fri, 17 Oct 2008 19:53:49 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <20081018015323.GA11149@wotan.suse.de>
-References: <20081016041033.GB10371@wotan.suse.de>
-	<Pine.LNX.4.64.0810172300280.30871@blonde.site>
-	<alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org>
-	<Pine.LNX.4.64.0810180045370.8995@blonde.site>
-	<20081018015323.GA11149@wotan.suse.de>
+In-Reply-To: <20081018022541.GA19018@wotan.suse.de>
+Message-ID: <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
+References: <20081016041033.GB10371@wotan.suse.de> <1224285222.10548.22.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
+ <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org> <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org> <20081018022541.GA19018@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <npiggin@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
 
-> But after thinking about this a bit more, I think Linux would be
-> broken all over the map under such ordering schemes. I think we'd
-> have to mandate causal consistency. Are there any architectures we
-> run on where this is not guaranteed? (I think recent clarifications
-> to x86 ordering give us CC on that architecture).
-> 
-> powerpc, ia64, alpha, sparc, arm, mips? (cced linux-arch)
+On Sat, 18 Oct 2008, Nick Piggin wrote:
+> @@ -171,6 +181,10 @@ static struct anon_vma *page_lock_anon_v
+>  
+>  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+>  	spin_lock(&anon_vma->lock);
+> +
+> +	if (anon_mapping != (unsigned long)page->mapping)
+> +		goto out;
+> +
+>  	return anon_vma;
+>  out:
+>  	rcu_read_unlock();
 
-Not sure what you mean by causal consistency, but I assume it's the
-same as saying that barriers give cumulative ordering, as described on
-page 413 of the Power Architecture V2.05 document at:
+I see why you'd like to try to do this, but look a bit closer, and you'll 
+realize that this is *really* wrong.
 
-http://www.power.org/resources/reading/PowerISA_V2.05.pdf
+So there's the brown-paper-bag-reason why it's wrong: you need to unlock 
+in this case, but there's a subtler reason why I doubt the whole approach 
+works: I don't think we actually hold the anon_vma lock when we set 
+page->mapping.
 
-The ordering provided by sync, lwsync and eieio is cumulative (see
-pages 446 and 448), so we should be OK on powerpc AFAICS.  (The
-cumulative property of eieio only applies to accesses to normal system
-memory, but that should be OK since we use sync when we want barriers
-that affect non-cacheable accesses as well as cacheable.)
+So I don't think you really fixed the race that you want to fix, and I 
+don't think that does what you wanted to do.
 
-Paul.
+But I might have missed something.
+
+I'm off to play poker. It's Friday night, there's only so many memory 
+ordering and locking issues I can take in one day. I'm hoping that by the 
+time I look at this again, you and Hugh will have sorted it out.
+
+			Linus
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
