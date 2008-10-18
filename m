@@ -1,87 +1,84 @@
-Date: Sat, 18 Oct 2008 20:14:12 +0100 (BST)
+Date: Sat, 18 Oct 2008 21:45:14 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <20081018022541.GA19018@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0810181952580.27309@blonde.site>
-References: <20081016041033.GB10371@wotan.suse.de>
- <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>
- <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>
- <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>
- <20081018022541.GA19018@wotan.suse.de>
+Subject: Re: no way to swapoff a deleted swap file?
+In-Reply-To: <20081018051800.GO24654@1wt.eu>
+Message-ID: <Pine.LNX.4.64.0810182058120.7154@blonde.site>
+References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it>
+ <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it>
+ <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org> <Pine.LNX.4.64.0810171250410.22374@blonde.site>
+ <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+To: Willy Tarreau <w@1wt.eu>
+Cc: Peter Cordes <peter@cordes.ca>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry, I've only just got back to this, and just had one quick read
-through the thread.  A couple of points on what I believe so far...
-
-On Sat, 18 Oct 2008, Nick Piggin wrote:
-> On Fri, Oct 17, 2008 at 07:11:38PM -0700, Linus Torvalds wrote:
-> > On Sat, 18 Oct 2008, Nick Piggin wrote:
-> > > 
-> > > We can't do that, unfortuantely, because anon_vmas are allocated with
-> > > SLAB_DESTROY_BY_RCU.
-> > 
-> > Aughh. I see what you're saying. We don't _free_ them by RCU, we just 
-> > destroy the page allocation. So an anon_vma can get _re-allocated_ for 
-> > another page (without being destroyed), concurrently with somebody 
-> > optimistically being busy with that same anon_vma that they got through 
-> > that optimistic 'page_lock_anon_vma()' thing.
-> > 
-> > So if we were to just set the lock, we might actually be messing with 
-> > something that is still actively used by the previous page that was 
-> > unmapped concurrently and still being accessed by try_to_unmap_anon. So 
-> > even though we allocated a "new" anon_vma, it might still be busy.
-> > 
-> > Yes? No?
-
-Yes, I believe Linus is right; but need to mull it over some more.
-That not-taking-the-lock-on-newly-allocated optimization comes
-from Andrea, and dates from before I removed the page_map_lock().
-It looks like an optimization that was valid in Andrea's original,
-but something I should have removed when going to SLAB_DESTROY_BY_RCU.
-
+On Sat, 18 Oct 2008, Willy Tarreau wrote:
+> (...)
+> I have another idea which might be simpler to implement in userspace.
+> What happened to you is a typical accident, you did not run on purpose
+> on a deleted swap file. So we should at least ensure that such types
+> of accidents could not happen easily.
 > 
-> That's what I'm thinking, yes. But I admit the last time I looked at
-> this really closely was probably reading through Hugh's patches and
-> changelogs (which at the time must have convinced me ;)). So I could
-> be wrong.
+> If swapon did set the immutable bit on a file just after enabling swap
+> to it, it would at least prevent accidental removal of that file. Swapoff
+> would have to clean that bit, and swapon would have to clean it upon
+> startup too (in case of unplanned reboots).
 > 
-> 
-> > That thing really is too subtle for words. But if that's actually what you 
-> > are alluding to, then doesn't that mean that we _really_ should be doing 
-> > that "spin_lock(&anon_vma->lock)" even for the first allocation, and that 
-> > the current code is broken? Because otherwise that other concurrent user 
-> > that found the stale vma through page_lock_anon_vma() will now try to 
-> > follow the linked list and _think_ it's stable (thanks to the lock), but 
-> > we're actually inserting entries into it without holding any locks at all.
-> 
-> Yes, that's what I meant by "has other problems". Another thing is also
-> that even if we have the lock here, I can't see why page_lock_anon_vma
-> is safe against finding an anon_vma which has been deallocated then
-> allocated for something else (and had vmas inserted into it etc.).
+> That way, you could still remove such files on purpose provided you do
+> a preliminary "chattr -i" on them, but "rm -rf" would keep them intact.
 
-And Nick is right that page_lock_anon_vma() is not safe against finding
-an anon_vma which has now been allocated for something else: but that
-is no surprise, it's very much in the nature of SLAB_DESTROY_BY_RCU
-(I left most of the comment in mm/slab.c, just said "tricky" here).
+That's a good idea, thank you Willy:
+much more to my taste than previous suggestions.
 
-It should be no problem: having locked the right-or-perhaps-wrong
-anon_vma, we then go on to search its list for a page which may or
-may not be there, even when it's the right anon_vma; there's no need
-for special code to deal with the very unlikely case that we've now
-got an irrelevant list, it's just that the page we're looking for
-won't be found in it.
+But I'm still not tempted to build it into the swapon and swapoff,
+neither at the command nor at the kernel level.  Let's leave it as
+advice to sufferers on how to address the issue if it troubles them.
 
-But not-taking-the-lock-on-newly-allocated does then look wrong.
+I did play with immutable on swapfiles back around 2.6.8.  Prior
+to that we left i_sem downed on a swapfile to protect it against
+truncation (freeing its pages!) while in use - which caused
+anyone idly touching it to hang, not very nice.
+
+I experimented with setting immutable in sys_swapon, clearing it
+in sys_swapoff, but I see from old mails that I didn't find that
+satisfactory: I haven't actually recorded why not, but I think it
+was partly a difficulty in getting the locking right, and partly
+what happened if the user also made it immutable while swapped on -
+oh, yes, and immutable gets written back to the filesystem which is
+inconvenient when we crash, as you observe.  So we ended up adding
+an additional swapfile flag just at the VFS level.
+
+Hmm, I suppose it would be very easy to make that additional swapfile
+flag prohibit unlinking just as immutable does: patch below should do
+that.  What do you guys think - should we include this?  It does then
+(barring races which I don't propose to worry about) make an unlinked
+swapfile impossible, which earlier had seemed a reasonable option.
+
+> It would also prevent accidental modifications, such as "ls .>swapfile"
+> instead of "ls ./swapfile".
+
+That we do already protect against with the swapfile flag: we don't
+actually protect against writing (that's just a permission thing,
+same as when swapping to block device), but we do protect against
+truncation, which would otherwise end up with swap corrupting
+blocks of other files.
 
 Hugh
+
+--- 2.6.27/fs/namei.c	2008-10-09 23:13:53.000000000 +0100
++++ linux/fs/namei.c	2008-10-18 21:33:01.000000000 +0100
+@@ -1407,7 +1407,7 @@ static int may_delete(struct inode *dir,
+ 	if (IS_APPEND(dir))
+ 		return -EPERM;
+ 	if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
+-	    IS_IMMUTABLE(victim->d_inode))
++	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
+ 		return -EPERM;
+ 	if (isdir) {
+ 		if (!S_ISDIR(victim->d_inode->i_mode))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
