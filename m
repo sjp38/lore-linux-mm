@@ -1,51 +1,42 @@
-Date: Fri, 17 Oct 2008 19:53:49 -0700 (PDT)
+Date: Fri, 17 Oct 2008 19:57:27 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <20081018022541.GA19018@wotan.suse.de>
-Message-ID: <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
-References: <20081016041033.GB10371@wotan.suse.de> <1224285222.10548.22.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org> <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org> <20081018022541.GA19018@wotan.suse.de>
+In-Reply-To: <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
+Message-ID: <alpine.LFD.2.00.0810171954050.3438@nehalem.linux-foundation.org>
+References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810172300280.30871@blonde.site> <alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org> <Pine.LNX.4.64.0810180045370.8995@blonde.site> <20081018015323.GA11149@wotan.suse.de>
+ <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Paul Mackerras <paulus@samba.org>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Sat, 18 Oct 2008, Nick Piggin wrote:
-> @@ -171,6 +181,10 @@ static struct anon_vma *page_lock_anon_v
->  
->  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
->  	spin_lock(&anon_vma->lock);
-> +
-> +	if (anon_mapping != (unsigned long)page->mapping)
-> +		goto out;
-> +
->  	return anon_vma;
->  out:
->  	rcu_read_unlock();
+On Sat, 18 Oct 2008, Paul Mackerras wrote:
+> 
+> Not sure what you mean by causal consistency, but I assume it's the
+> same as saying that barriers give cumulative ordering, as described on
+> page 413 of the Power Architecture V2.05 document at:
 
-I see why you'd like to try to do this, but look a bit closer, and you'll 
-realize that this is *really* wrong.
+I'm pretty sure that everybody but alpha is ok.
 
-So there's the brown-paper-bag-reason why it's wrong: you need to unlock 
-in this case, but there's a subtler reason why I doubt the whole approach 
-works: I don't think we actually hold the anon_vma lock when we set 
-page->mapping.
+And alpha needs the smp_read_barrier_depends() not because it doesn't 
+really support causality, but because each CPU internally doesn't 
+guarantee that they handle the cache invalidates in-order without a 
+barrier. 
 
-So I don't think you really fixed the race that you want to fix, and I 
-don't think that does what you wanted to do.
+So without the smp_read_barrier_depends(), alpha will actually have the 
+proper causal relationships (cachelines will move to exclusive state on 
+CPU0 in the right order and others will see the causality), but because 
+CPU2 may see the stale data from not even having invalidated the 
+"anon_vma.initialized" because the cache invalidation queue hadn't been 
+flushed in order.
 
-But I might have missed something.
-
-I'm off to play poker. It's Friday night, there's only so many memory 
-ordering and locking issues I can take in one day. I'm hoping that by the 
-time I look at this again, you and Hugh will have sorted it out.
+Alpha is insane. And the odd man out.
 
 			Linus
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
