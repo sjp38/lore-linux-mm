@@ -1,58 +1,87 @@
-Date: Sat, 18 Oct 2008 12:44:05 -0600
-From: Matthew Wilcox <matthew@wil.cx>
+Date: Sat, 18 Oct 2008 20:14:12 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [patch] mm: fix anon_vma races
-Message-ID: <20081018184405.GA26184@parisc-linux.org>
-References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810172300280.30871@blonde.site> <alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org> <Pine.LNX.4.64.0810180045370.8995@blonde.site> <20081018015323.GA11149@wotan.suse.de> <18681.20241.347889.843669@cargo.ozlabs.ibm.com> <20081018054916.GB26472@wotan.suse.de> <alpine.LFD.2.00.0810180921140.3438@nehalem.linux-foundation.org>
+In-Reply-To: <20081018022541.GA19018@wotan.suse.de>
+Message-ID: <Pine.LNX.4.64.0810181952580.27309@blonde.site>
+References: <20081016041033.GB10371@wotan.suse.de>
+ <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>
+ <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>
+ <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
+ <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>
+ <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>
+ <20081018022541.GA19018@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0810180921140.3438@nehalem.linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Paul Mackerras <paulus@samba.org>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 18, 2008 at 10:00:30AM -0700, Linus Torvalds wrote:
-> > Apparently pairwise ordering is more interesting than just a theoretical
-> > thing, and not just restricted to Alpha's funny caches.
+Sorry, I've only just got back to this, and just had one quick read
+through the thread.  A couple of points on what I believe so far...
+
+On Sat, 18 Oct 2008, Nick Piggin wrote:
+> On Fri, Oct 17, 2008 at 07:11:38PM -0700, Linus Torvalds wrote:
+> > On Sat, 18 Oct 2008, Nick Piggin wrote:
+> > > 
+> > > We can't do that, unfortuantely, because anon_vmas are allocated with
+> > > SLAB_DESTROY_BY_RCU.
+> > 
+> > Aughh. I see what you're saying. We don't _free_ them by RCU, we just 
+> > destroy the page allocation. So an anon_vma can get _re-allocated_ for 
+> > another page (without being destroyed), concurrently with somebody 
+> > optimistically being busy with that same anon_vma that they got through 
+> > that optimistic 'page_lock_anon_vma()' thing.
+> > 
+> > So if we were to just set the lock, we might actually be messing with 
+> > something that is still actively used by the previous page that was 
+> > unmapped concurrently and still being accessed by try_to_unmap_anon. So 
+> > even though we allocated a "new" anon_vma, it might still be busy.
+> > 
+> > Yes? No?
+
+Yes, I believe Linus is right; but need to mull it over some more.
+That not-taking-the-lock-on-newly-allocated optimization comes
+from Andrea, and dates from before I removed the page_map_lock().
+It looks like an optimization that was valid in Andrea's original,
+but something I should have removed when going to SLAB_DESTROY_BY_RCU.
+
 > 
-> Nobody does just pairwise ordering, afaik. It's an insane model. Everybody 
-> does some form of transitive ordering.
+> That's what I'm thinking, yes. But I admit the last time I looked at
+> this really closely was probably reading through Hugh's patches and
+> changelogs (which at the time must have convinced me ;)). So I could
+> be wrong.
+> 
+> 
+> > That thing really is too subtle for words. But if that's actually what you 
+> > are alluding to, then doesn't that mean that we _really_ should be doing 
+> > that "spin_lock(&anon_vma->lock)" even for the first allocation, and that 
+> > the current code is broken? Because otherwise that other concurrent user 
+> > that found the stale vma through page_lock_anon_vma() will now try to 
+> > follow the linked list and _think_ it's stable (thanks to the lock), but 
+> > we're actually inserting entries into it without holding any locks at all.
+> 
+> Yes, that's what I meant by "has other problems". Another thing is also
+> that even if we have the lock here, I can't see why page_lock_anon_vma
+> is safe against finding an anon_vma which has been deallocated then
+> allocated for something else (and had vmas inserted into it etc.).
 
-I assume you're talking about CPUs in particular here, and I don't know
-of any counterexamples.
+And Nick is right that page_lock_anon_vma() is not safe against finding
+an anon_vma which has now been allocated for something else: but that
+is no surprise, it's very much in the nature of SLAB_DESTROY_BY_RCU
+(I left most of the comment in mm/slab.c, just said "tricky" here).
 
-If you're talking about PCI devices, the model is not transitive.
-Here's the exact text from Appendix E of PCI 3.0:
+It should be no problem: having locked the right-or-perhaps-wrong
+anon_vma, we then go on to search its list for a page which may or
+may not be there, even when it's the right anon_vma; there's no need
+for special code to deal with the very unlikely case that we've now
+got an irrelevant list, it's just that the page we're looking for
+won't be found in it.
 
-  A system may have multiple Producer-Consumer pairs operating
-  simultaneously, with different data - flag-status sets located all
-  around the system. But since only one Producer can write to a single
-  data-flag set, there are no ordering requirements between different
-  masters. Writes from one master on one bus may occur in one order on
-  one bus, with respect to another master's writes, and occur in another
-  order on another bus. In this case, the rules allow for some writes
-  to be rearranged; for example, an agent on Bus 1 may see Transaction
-  A from a master on Bus 1 complete first, followed by Transaction B
-  from another master on Bus 0. An agent on Bus 0 may see Transaction
-  B complete first followed by Transaction A. Even though the actual
-  transactions complete in a different order, this causes no problem
-  since the different masters must be addressing different data-flag sets.
+But not-taking-the-lock-on-newly-allocated does then look wrong.
 
-I seem to remember earlier versions of the spec having more clear
-language about A happening before B and B happening before C didn't
-mean that A happened before C from the perspective of a third device,
-but I can't find it right now.
-
-Anyway, as the spec says, you're not supposed to use PCI like that,
-so it doesn't matter.
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
