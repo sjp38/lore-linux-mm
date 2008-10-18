@@ -1,42 +1,53 @@
-Date: Fri, 17 Oct 2008 19:57:27 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
-Message-ID: <alpine.LFD.2.00.0810171954050.3438@nehalem.linux-foundation.org>
-References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810172300280.30871@blonde.site> <alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org> <Pine.LNX.4.64.0810180045370.8995@blonde.site> <20081018015323.GA11149@wotan.suse.de>
- <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 18 Oct 2008 07:18:01 +0200
+From: Willy Tarreau <w@1wt.eu>
+Subject: Re: no way to swapoff a deleted swap file?
+Message-ID: <20081018051800.GO24654@1wt.eu>
+References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it> <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it> <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org> <Pine.LNX.4.64.0810171250410.22374@blonde.site> <20081018003117.GC26067@cordes.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081018003117.GC26067@cordes.ca>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Peter Cordes <peter@cordes.ca>
+Cc: Hugh Dickins <hugh@veritas.com>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Sat, 18 Oct 2008, Paul Mackerras wrote:
+On Fri, Oct 17, 2008 at 09:31:17PM -0300, Peter Cordes wrote:
+> On Fri, Oct 17, 2008 at 01:17:17PM +0100, Hugh Dickins wrote:
+> > On Fri, 17 Oct 2008, Bodo Eggert wrote:
+> > > 
+> > > Somebody might want their swapfiles to have zero links,
+> > > _and_ the possibility of doing swapoff.
+> > 
+> > You're right, they might, and it's not an unreasonable wish.
+> > But we've not supported it in the past, and I still don't
+> > think it's worth adding special kernel support for it now.
 > 
-> Not sure what you mean by causal consistency, but I assume it's the
-> same as saying that barriers give cumulative ordering, as described on
-> page 413 of the Power Architecture V2.05 document at:
+>  I'd be inclined to agree with not bloating the kernel to support
+> this, even though it would have been convenient for me in one case.  I
+> do have an idea for supporting this without bloat, see below.  In case
+> anyone wants more details about how I painted myself into that corner,
+> here's the backstory to my feature request.
 
-I'm pretty sure that everybody but alpha is ok.
+(...)
+I have another idea which might be simpler to implement in userspace.
+What happened to you is a typical accident, you did not run on purpose
+on a deleted swap file. So we should at least ensure that such types
+of accidents could not happen easily.
 
-And alpha needs the smp_read_barrier_depends() not because it doesn't 
-really support causality, but because each CPU internally doesn't 
-guarantee that they handle the cache invalidates in-order without a 
-barrier. 
+If swapon did set the immutable bit on a file just after enabling swap
+to it, it would at least prevent accidental removal of that file. Swapoff
+would have to clean that bit, and swapon would have to clean it upon
+startup too (in case of unplanned reboots).
 
-So without the smp_read_barrier_depends(), alpha will actually have the 
-proper causal relationships (cachelines will move to exclusive state on 
-CPU0 in the right order and others will see the causality), but because 
-CPU2 may see the stale data from not even having invalidated the 
-"anon_vma.initialized" because the cache invalidation queue hadn't been 
-flushed in order.
+That way, you could still remove such files on purpose provided you do
+a preliminary "chattr -i" on them, but "rm -rf" would keep them intact.
+It would also prevent accidental modifications, such as "ls .>swapfile"
+instead of "ls ./swapfile".
 
-Alpha is insane. And the odd man out.
-
-			Linus
+Regards,
+Willy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
