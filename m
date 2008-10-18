@@ -1,77 +1,57 @@
-Date: Sat, 18 Oct 2008 03:53:23 +0200
-From: Nick Piggin <npiggin@suse.de>
+Date: Fri, 17 Oct 2008 19:11:38 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [patch] mm: fix anon_vma races
-Message-ID: <20081018015323.GA11149@wotan.suse.de>
-References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810172300280.30871@blonde.site> <alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org> <Pine.LNX.4.64.0810180045370.8995@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0810180045370.8995@blonde.site>
+In-Reply-To: <20081018013258.GA3595@wotan.suse.de>
+Message-ID: <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>
+References: <20081016041033.GB10371@wotan.suse.de> <1224285222.10548.22.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
+ <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org> <20081018013258.GA3595@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 18, 2008 at 01:13:16AM +0100, Hugh Dickins wrote:
-> On Fri, 17 Oct 2008, Linus Torvalds wrote:
-> > would be more obvious in the place where we actually fetch that "anon_vma" 
-> > pointer again and actually derefernce it.
+
+On Sat, 18 Oct 2008, Nick Piggin wrote:
 > > 
-> > HOWEVER:
-> > 
-> >  - there are potentially multiple places that do that, and putting it in 
-> >    the anon_vma_prepare() thing not only matches things with the 
-> >    smp_wmb(), making that whole pairing much more obvious, but it also 
-> >    means that we're guaranteed that any anon_vma user will have done the 
-> >    smp_read_barrier_depends(), since they all have to do that prepare 
-> >    thing anyway.
+> > Side note: it would be nicer if we had a "spin_lock_init_locked()", so 
+> > that we could avoid the more expensive "true lock" when doing the initial 
+> > allocation, but we don't. That said, the case of having to allocate a new 
+> > anon_vma _should_ be the rare one.
 > 
-> No, it's not so that any anon_vma user would have done the
-> smp_read_barrier_depends() placed in anon_vma_prepare().
-> 
-> Anyone faulting in a page would have done it (swapoff? that
-> assumes it's been done, let's not worry about it right now).
-> 
-> But they're doing it to make the page's ptes accessible to
-> memory reclaim, and the CPU doing memory reclaim will not
-> (unless by coincidence) have done that anon_vma_prepare() -
-> it's just reading the links which the faulters are providing.
+> We can't do that, unfortuantely, because anon_vmas are allocated with
+> SLAB_DESTROY_BY_RCU.
 
-Yes, that's a very important flaw you point out with the fix. Good
-spotting.
+Aughh. I see what you're saying. We don't _free_ them by RCU, we just 
+destroy the page allocation. So an anon_vma can get _re-allocated_ for 
+another page (without being destroyed), concurrently with somebody 
+optimistically being busy with that same anon_vma that they got through 
+that optimistic 'page_lock_anon_vma()' thing.
 
-Actually another thing I was staying awake thinking about was the
-pairwise consistency problem. "Apparently" Linux is supposed to
-support arbitrary pairwise consistency.
+So if we were to just set the lock, we might actually be messing with 
+something that is still actively used by the previous page that was 
+unmapped concurrently and still being accessed by try_to_unmap_anon. So 
+even though we allocated a "new" anon_vma, it might still be busy.
 
-This means.
-CPU0
-anon_vma.initialized = 1;
-smp_wmb()
-vma->anon_vma = anon_vma;
+Yes? No?
 
-CPU1
-if (vma->anon_vma)
-  page->anon_vma = vma->anon_vma;
+That thing really is too subtle for words. But if that's actually what you 
+are alluding to, then doesn't that mean that we _really_ should be doing 
+that "spin_lock(&anon_vma->lock)" even for the first allocation, and that 
+the current code is broken? Because otherwise that other concurrent user 
+that found the stale vma through page_lock_anon_vma() will now try to 
+follow the linked list and _think_ it's stable (thanks to the lock), but 
+we're actually inserting entries into it without holding any locks at all.
 
-CPU2
-if (page->anon_vma) {
-  smp_read_barrier_depends();
-  assert(page->anon_vma.initialized);
-}
+But I'm hoping I actually am totally *not* understanding what you meant, 
+and am actually just terminally confused.
 
-The assertion may trigger because the store from CPU0 may not have
-propograted to CPU2 before the stores from CPU1.
+Hugh, this is very much your code. Can you please tell me I'm really 
+confused here, and un-confuse me. Pretty please?
 
-But after thinking about this a bit more, I think Linux would be
-broken all over the map under such ordering schemes. I think we'd
-have to mandate causal consistency. Are there any architectures we
-run on where this is not guaranteed? (I think recent clarifications
-to x86 ordering give us CC on that architecture).
-
-powerpc, ia64, alpha, sparc, arm, mips? (cced linux-arch)
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
