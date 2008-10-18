@@ -1,165 +1,72 @@
-Date: Sat, 18 Oct 2008 07:20:46 +0200
+Date: Sat, 18 Oct 2008 07:49:16 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] mm: fix anon_vma races
-Message-ID: <20081018052046.GA26472@wotan.suse.de>
-References: <20081016041033.GB10371@wotan.suse.de> <1224285222.10548.22.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org> <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org> <20081018022541.GA19018@wotan.suse.de> <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
+Message-ID: <20081018054916.GB26472@wotan.suse.de>
+References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810172300280.30871@blonde.site> <alpine.LFD.2.00.0810171549310.3438@nehalem.linux-foundation.org> <Pine.LNX.4.64.0810180045370.8995@blonde.site> <20081018015323.GA11149@wotan.suse.de> <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
+In-Reply-To: <18681.20241.347889.843669@cargo.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Paul Mackerras <paulus@samba.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 17, 2008 at 07:53:49PM -0700, Linus Torvalds wrote:
+On Sat, Oct 18, 2008 at 01:50:57PM +1100, Paul Mackerras wrote:
+> Nick Piggin writes:
 > 
+> > But after thinking about this a bit more, I think Linux would be
+> > broken all over the map under such ordering schemes. I think we'd
+> > have to mandate causal consistency. Are there any architectures we
+> > run on where this is not guaranteed? (I think recent clarifications
+> > to x86 ordering give us CC on that architecture).
+> > 
+> > powerpc, ia64, alpha, sparc, arm, mips? (cced linux-arch)
 > 
-> On Sat, 18 Oct 2008, Nick Piggin wrote:
-> > @@ -171,6 +181,10 @@ static struct anon_vma *page_lock_anon_v
-> >  
-> >  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> >  	spin_lock(&anon_vma->lock);
-> > +
-> > +	if (anon_mapping != (unsigned long)page->mapping)
-> > +		goto out;
-> > +
-> >  	return anon_vma;
-> >  out:
-> >  	rcu_read_unlock();
+> Not sure what you mean by causal consistency, but I assume it's the
+
+I think it can be called transitive. Basically (assumememory starts off zeroed)
+CPU0
+x := 1
+
+CPU1
+if (x == 1) {
+  fence
+  y := 1
+}
+
+CPU2
+if (y == 1) {
+  fence
+  assert(x == 1)
+}
+
+
+As opposed to pairwise, which only provides an ordering of visibility between
+any given two CPUs (so the store to y might be propogated to CPU2 after the
+store to x, regardless of the fences).
+
+Apparently pairwise ordering is more interesting than just a theoretical
+thing, and not just restricted to Alpha's funny caches. It can allow for
+arbitrary network propogating stores / cache coherency between CPUs. x86's
+publically documented memory model supposedly could allow for such ordering
+up until a year or so ago (when they clarified and strengthened it).
+
+
+> same as saying that barriers give cumulative ordering, as described on
+> page 413 of the Power Architecture V2.05 document at:
 > 
-> I see why you'd like to try to do this, but look a bit closer, and you'll 
-> realize that this is *really* wrong.
+> http://www.power.org/resources/reading/PowerISA_V2.05.pdf
 > 
-> So there's the brown-paper-bag-reason why it's wrong: you need to unlock 
-> in this case,
+> The ordering provided by sync, lwsync and eieio is cumulative (see
+> pages 446 and 448), so we should be OK on powerpc AFAICS.  (The
+> cumulative property of eieio only applies to accesses to normal system
+> memory, but that should be OK since we use sync when we want barriers
+> that affect non-cacheable accesses as well as cacheable.)
 
-Check.
-
-
-> but there's a subtler reason why I doubt the whole approach 
-> works: I don't think we actually hold the anon_vma lock when we set 
-> page->mapping.
-
-No, we don't, but I think that's OK because we do an atomic assignment
-to page->mapping. I can't see any bugs there (the change to always take
-the anon_vma lock when inserting a new anon_vma into vma->anon_vma
-should ensure the vma->anon_vma assignment happens after the busy lock
-is visible, and the fact that anyone looking into the anon_vma should
-hold the lock takes care of everything else).
-
- 
-> So I don't think you really fixed the race that you want to fix, and I 
-> don't think that does what you wanted to do.
-> 
-> But I might have missed something.
-
-No, I think this race is different. It's because it is "hard" to get a
-reference on anon_vma from the lru->page path, because unmapping a vma
-doesn't take any of the same locks (in particular it doesn't take the
-page lock, which would be the big hammer solution).
-
-So we can have a thread in reclaim who has a locked page, and is just
-about to call page_lock_anon_vma.
-
-At this point, another thread might unmap the whole vma. If this is
-the last vma in the anon_vma, then it garbage collects it in anon_vma_unlink.
-page->mapping does not get NULLed out or anything.
-
-So the first thread picks up the anon_vma under RCU, sees page_mapped is
-still true (let's say this part runs just before the unmapper decrements
-the last ->mapcount, then the page gets garbage collected).
-
-Then we take the page lock. Still OK because we are under SLAB_DESTROY_BY_RCU.
-Then we return the anon_vma and start using it. But when we took the page
-lock, we don't actually know that the anon_vma hasn't been allocated and used
-for something else entirely.
-
-Taking the anon_vma->lock in anon_vma_prepare of a new anon_vma closes the
-obvious list corruption problems that could occur if we tried to walk it
-at the same time a new vma was being put on there. But AFAIKS, even then we
-have a problem where we might be trying to walk over completely the wrong
-vmas now.
-
-Slight improvement attached.
----
-Index: linux-2.6/mm/rmap.c
-===================================================================
---- linux-2.6.orig/mm/rmap.c
-+++ linux-2.6/mm/rmap.c
-@@ -63,32 +63,42 @@ int anon_vma_prepare(struct vm_area_stru
- 	might_sleep();
- 	if (unlikely(!anon_vma)) {
- 		struct mm_struct *mm = vma->vm_mm;
--		struct anon_vma *allocated, *locked;
-+		struct anon_vma *allocated;
- 
- 		anon_vma = find_mergeable_anon_vma(vma);
- 		if (anon_vma) {
- 			allocated = NULL;
--			locked = anon_vma;
--			spin_lock(&locked->lock);
- 		} else {
- 			anon_vma = anon_vma_alloc();
- 			if (unlikely(!anon_vma))
- 				return -ENOMEM;
- 			allocated = anon_vma;
--			locked = NULL;
- 		}
- 
-+		/*
-+		 * The lock is required even for new anon_vmas, because as
-+		 * soon as we store vma->anon_vma = anon_vma, then the
-+		 * anon_vma becomes visible via the vma. This means another
-+		 * CPU can find the anon_vma, then store it into the struct
-+		 * page with page_add_anon_rmap. At this point, anon_vma can
-+		 * be loaded from the page with page_lock_anon_vma.
-+		 *
-+		 * So long as the anon_vma->lock is taken before looking at
-+		 * any fields in the anon_vma, the lock should take care of
-+		 * races and memory ordering issues WRT anon_vma fields.
-+		 */
-+		spin_lock(&anon_vma->lock);
-+
- 		/* page_table_lock to protect against threads */
- 		spin_lock(&mm->page_table_lock);
- 		if (likely(!vma->anon_vma)) {
--			vma->anon_vma = anon_vma;
- 			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-+			vma->anon_vma = anon_vma;
- 			allocated = NULL;
- 		}
- 		spin_unlock(&mm->page_table_lock);
-+		spin_lock(&anon_vma->lock);
- 
--		if (locked)
--			spin_unlock(&locked->lock);
- 		if (unlikely(allocated))
- 			anon_vma_free(allocated);
- 	}
-@@ -171,6 +181,21 @@ static struct anon_vma *page_lock_anon_v
- 
- 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
- 	spin_lock(&anon_vma->lock);
-+
-+	/*
-+	 * If the page is no longer mapped, we have no way to keep the
-+	 * anon_vma stable. It may be freed and even re-allocated for some
-+	 * other set of anonymous mappings at any point. If the page is
-+	 * mapped while we have the lock on the anon_vma, then we know
-+	 * anon_vma_unlink can't run and garbage collect the anon_vma
-+	 * (because unmapping the page happens before unlinking the anon_vma).
-+	 */
-+	if (unlikely(!page_mapped(page))) {
-+		spin_unlock(&anon_vma->lock);
-+		goto out;
-+	}
-+	BUG_ON(page->mapping != anon_mapping);
-+
- 	return anon_vma;
- out:
- 	rcu_read_unlock();
+The section on cumulative ordering sounds like it might do the trick. But
+I haven't really worked through exactly what it is saying ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
