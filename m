@@ -1,48 +1,41 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-Date: Sun, 19 Oct 2008 13:58:22 +1100
-References: <20081015162232.f673fa59.akpm@linux-foundation.org> <200810191321.25490.nickpiggin@yahoo.com.au> <48FA9EDA.4030802@redhat.com>
-In-Reply-To: <48FA9EDA.4030802@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Date: Sun, 19 Oct 2008 05:03:25 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: fix anon_vma races
+Message-ID: <20081019030325.GE16562@wotan.suse.de>
+References: <20081016041033.GB10371@wotan.suse.de> <1224285222.10548.22.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org> <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org> <20081018013258.GA3595@wotan.suse.de> <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org> <20081018022541.GA19018@wotan.suse.de> <Pine.LNX.4.64.0810181952580.27309@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200810191358.22874.nickpiggin@yahoo.com.au>
+In-Reply-To: <Pine.LNX.4.64.0810181952580.27309@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sunday 19 October 2008 13:43, Rik van Riel wrote:
-> Nick Piggin wrote:
-> > That's just handwaving. The patch still clears PG_referenced, which
-> > is a shared resource, and it is wrong, conceptually. You can't argue
-> > with that.
->
-> I don't see an easy way around that.  If the PG_referenced bit is
-> set and the page is mapped, the code in vmscan.c will move the
-> page to the active list.
->
-> Even if the one pte mapping the page is in an MADV_SEQUENTIAL
-> VMA, in which case we definately do not want to activate the page.
->
-> Of course, if the PG_referenced came from a different access, things
-> would be a different matter.
->
-> Fixing the page fault code so that it does not set the PG_referenced bit
-> would take care of that.
+On Sat, Oct 18, 2008 at 08:14:12PM +0100, Hugh Dickins wrote:
+> And Nick is right that page_lock_anon_vma() is not safe against finding
+> an anon_vma which has now been allocated for something else: but that
+> is no surprise, it's very much in the nature of SLAB_DESTROY_BY_RCU
+> (I left most of the comment in mm/slab.c, just said "tricky" here).
+> 
+> It should be no problem: having locked the right-or-perhaps-wrong
+> anon_vma, we then go on to search its list for a page which may or
+> may not be there, even when it's the right anon_vma; there's no need
 
-Yes, I skeched my plan to fix this in a previous mail.
+OK, so it may be correct but I think that's pretty nasty if we can
+avoid it so easily. Then we have to keep in mind this special case
+throughout the code rather than just confining it to the low level
+take-a-reference function and never having to worry about it.
 
-Take the mark_page_accessed out of the page fault handler; put it into
-the unmap path in replacement of the SetPageReferenced; then modify
-this patch so it doesn't fiddle with references that aren't hinted.
 
-I'm just going to wait for Andrew to do his merges before sending
-patches. There is no pressing need to merge this madv patch *right now*,
-so it can wait I think.
+> for special code to deal with the very unlikely case that we've now
+> got an irrelevant list, it's just that the page we're looking for
+> won't be found in it.
+
+There is already a page_mapped check in there. I'm just going to
+propose we move that down. No extra branchesin the fastpath. OK?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
