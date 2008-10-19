@@ -1,37 +1,45 @@
-Date: Sat, 18 Oct 2008 22:56:47 +0200
-From: Willy Tarreau <w@1wt.eu>
-Subject: Re: no way to swapoff a deleted swap file?
-Message-ID: <20081018205647.GA29946@1wt.eu>
-References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it> <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it> <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org> <Pine.LNX.4.64.0810171250410.22374@blonde.site> <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu> <Pine.LNX.4.64.0810182058120.7154@blonde.site> <20081018204948.GA22140@infradead.org>
-Mime-Version: 1.0
+Date: Sun, 19 Oct 2008 09:07:46 +0800
+From: Jianjun Kong <jianjun@zeuux.org>
+Subject: [PATCH] mm: fix-a-problem-of-annotation.patch
+Message-ID: <20081019010746.GA6882@ubuntu>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081018204948.GA22140@infradead.org>
 Sender: owner-linux-mm@kvack.org
+From: Jianjun Kong <jianjun@zeuux.org>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Peter Cordes <peter@cordes.ca>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Linux-Kernel-Mailing-List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Oct 18, 2008 at 04:49:48PM -0400, Christoph Hellwig wrote:
-> On Sat, Oct 18, 2008 at 09:45:14PM +0100, Hugh Dickins wrote:
-> > --- 2.6.27/fs/namei.c	2008-10-09 23:13:53.000000000 +0100
-> > +++ linux/fs/namei.c	2008-10-18 21:33:01.000000000 +0100
-> > @@ -1407,7 +1407,7 @@ static int may_delete(struct inode *dir,
-> >  	if (IS_APPEND(dir))
-> >  		return -EPERM;
-> >  	if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
-> > -	    IS_IMMUTABLE(victim->d_inode))
-> > +	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
-> >  		return -EPERM;
-> >  	if (isdir) {
-> >  		if (!S_ISDIR(victim->d_inode->i_mode))
-> 
-> Looks reasonable.
+mm/mmap.c: fix a problem of annotation
+It should be "down_write(&current->mm->mmap_sem)".
 
-I like the idea and the simplicity a lot !
+Signed-off-by: Jianjun Kong <jianjun@zeuux.org>
+---
+ mm/mmap.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-Willy
+diff --git a/mm/mmap.c b/mm/mmap.c
+index e7a5a68..f2e4444 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -906,7 +906,7 @@ void vm_stat_account(struct mm_struct *mm, unsigned long flags,
+ #endif /* CONFIG_PROC_FS */
+ 
+ /*
+- * The caller must hold down_write(current->mm->mmap_sem).
++ * The caller must hold down_write(&current->mm->mmap_sem).
+  */
+ 
+ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
+-- 
+1.5.2.5
+
+-- 
+Jianjun Kong | Happy Hacking
+HomePage: http://kongove.cn
+Gtalk: kongjianjun@gmail.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
