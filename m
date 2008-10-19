@@ -1,48 +1,72 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
-References: <20081015162232.f673fa59.akpm@linux-foundation.org>
-	<200810181230.33688.nickpiggin@yahoo.com.au>
-	<87fxmu41wt.fsf@saeurebad.de>
-	<200810191321.25490.nickpiggin@yahoo.com.au>
-Date: Sun, 19 Oct 2008 16:39:31 +0200
-In-Reply-To: <200810191321.25490.nickpiggin@yahoo.com.au> (Nick Piggin's
-	message of "Sun, 19 Oct 2008 13:21:25 +1100")
-Message-ID: <87skqshcnw.fsf@saeurebad.de>
+Date: Sun, 19 Oct 2008 11:25:03 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch] mm: fix anon_vma races
+In-Reply-To: <1224413500.10548.55.camel@lappy.programming.kicks-ass.net>
+Message-ID: <alpine.LFD.2.00.0810191105090.4386@nehalem.linux-foundation.org>
+References: <20081016041033.GB10371@wotan.suse.de>  <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>  <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>  <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
+ <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>  <20081018013258.GA3595@wotan.suse.de>  <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>  <20081018022541.GA19018@wotan.suse.de>  <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
+  <20081018052046.GA26472@wotan.suse.de> <1224326299.28131.132.camel@twins>  <Pine.LNX.4.64.0810191048410.11802@blonde.site> <1224413500.10548.55.camel@lappy.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <nickpiggin@yahoo.com.au> writes:
 
->> >> Another access would mean another young PTE, which we will catch as a
->> >> proper reference sooner or later while walking the mappings, no?
->> >
->> > No. Another access could come via read/write, or be subsequently unmapped
->> > and put into PG_referenced.
->>
->> read/write use mark_page_accessed(), so after having two accesses, the
->> page is already active.  If it's not and we find an access through a
->> sequential mapping, we should be safe to clear PG_referenced.
->
-> That's just handwaving. The patch still clears PG_referenced, which
-> is a shared resource, and it is wrong, conceptually. You can't argue
-> with that.
->
-> What about if mark_page_accessed is only used on the page once? and
-> it is referenced but not active?
+On Sun, 19 Oct 2008, Peter Zijlstra wrote:
+> 
+> Part of the confusion is that we don't clear those pointers at the end
+> of their lifetimes (page_remove_rmap and anon_vma_unlink).
+> 
+> I guess the !page_mapping() test in page_lock_anon_vma() is meant to
+> deal with this
 
-I see the problem now, thanks for not giving up ;) Fixing up the fault
-paths and moving their mark_page_accessed to the unmap side seems like a
-good idea.
+Hmm. So that part I'm still not entirely convinced about.
 
-	Hannes
+The thing is, we have two issues on anon_vma usage, and the
+page_lock_anon_vma() usage in particular:
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ - the integrity of the list itself
+
+   Here it should be sufficient to just always get the lock, to the point 
+   where we don't need to care about anything else. So getting the lock 
+   properly on new allocation makes all the other races irrelevant.
+
+ - the integrity of the _result_ of traversing the list
+
+   This is what the !page_mapping() thing is supposedly protecting 
+   against, I think.
+
+   But as far as I can tell, there's really two different use cases here: 
+   (a) people who care deeply about the result and (b) people who don't.
+
+   And the difference between the two cases is whether they had the page 
+   locked or not. The "try_to_unmap()" callers care deeply, and lock the 
+   page. In contrast, some "page_referenced()" callers (really just 
+   shrink_active_list) don't care deeply, and to them the return value is 
+   really just a heuristic.
+
+As far as I can tell, all the people who care deeply will lock the page 
+(and _have_ to lock the page), and thus 'page->mapping' should be stable 
+for those cases.
+
+And then we have the other cases, who just want a heuristic, and they 
+don't hold the page lock, but if we look at the wrong active_vma that has 
+gotten reallocated to something else, they don't even really care. 
+
+So I'm not seeing the reason for that check for page_mapped() at the end. 
+Does it actually protect against anything relevant?
+
+Anyway, I _think_ the part that everybody agrees about is the initial 
+locking of the anon_vma. Whether we then even need any memory barriers 
+and/or the page_mapped() check is an independent question. Yes? No?
+
+So I'm suggesting this commit as the part we at least all agree on. But I 
+haven't pushed it out yet, so you can still holler.. But I think all the 
+discussion is about other issues, and we all agree on at least this part?
+
+		Linus
+
+---
