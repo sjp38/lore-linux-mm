@@ -1,118 +1,64 @@
-Date: Mon, 20 Oct 2008 19:21:54 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0810201809380.689@blonde.site>
-References: <20081016041033.GB10371@wotan.suse.de>
- <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>
- <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>
- <20081018013258.GA3595@wotan.suse.de>  <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>
-  <20081018022541.GA19018@wotan.suse.de>  <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
-  <20081018052046.GA26472@wotan.suse.de> <1224326299.28131.132.camel@twins>
-  <Pine.LNX.4.64.0810191048410.11802@blonde.site>
- <1224413500.10548.55.camel@lappy.programming.kicks-ass.net>
- <alpine.LFD.2.00.0810191105090.4386@nehalem.linux-foundation.org>
- <Pine.LNX.4.64.0810200427270.5543@blonde.site>
- <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org>
+Message-ID: <48FCCC72.5020202@linux-foundation.org>
+Date: Mon, 20 Oct 2008 13:22:42 -0500
+From: Christoph Lameter <cl@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: SLUB defrag pull request?
+References: <1223883004.31587.15.camel@penberg-laptop> <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site> <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu> <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org> <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu> <48FC9CCC.3040006@linux-foundation.org> <E1Krz4o-0002Fi-Pu@pomaz-ex.szeredi.hu>
+In-Reply-To: <E1Krz4o-0002Fi-Pu@pomaz-ex.szeredi.hu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Oct 2008, Linus Torvalds wrote:
-> On Mon, 20 Oct 2008, Hugh Dickins wrote:
-> > 
-> > When you say "to the point where we don't need to care about anything
-> > else", are you there agreeing with Nick that your smp_wmb() and
-> > smp_read_barrier_depends() are no longer needed?
+Miklos Szeredi wrote:
+> On Mon, 20 Oct 2008, Christoph Lameter wrote:
+>>>> kick_inodes() only works on inodes that first have undergone 
+>>>> get_inodes() where we establish a refcount under inode_lock(). The final 
+>>>> cleanup in kick_inodes() is done under iprune_mutex. You are looking at 
+>>>> the loop that does writeback and invalidates attached dentries. This can 
+>>>> fail for various reasons.
+>>> Yes, but I'm not at all sure that calling remove_inode_buffers() or
+>>> invalidate_mapping_pages() is OK on a live inode.  They should be done
+>>> after checking the refcount, just like prune_icache() does.
+>> Dont we do the same on a truncate?
 > 
-> Yes. The anon_vma only has two fields: the spinlock itself, and the list. 
-> And with all list allocations being inside the spinlock, and with the 
-> spinlock itself being a memory barrier, I'm now convinced that the worry 
-> about memory ordering was unnecessary.
+> Yes, with i_mutex and i_alloc_sem held.
 
-Okay, thanks, that's a relief.  I'm afraid that once a barrier discussion
-comes up and we insert them, then I become dazedly paranoid and it's very
-hard to shake me from seeing a need for barriers everywhere, including a
-barrier before and after every barrier ad infinitum to make sure they're
-really barriers.
+There is another call to invalidate_mapping_pages() in prune_icache (that is
+where this code originates). No i_mutex and i_alloc. Only iprune_mutex held
+and that seems to be for the protection of the list. So just checking
+inode->i_count would do the trick?
 
-I still get a twinge of anxiety seeing anon_vma_prepare()'s unlocked
-	if (unlikely(!anon_vma)) {
-since it looks like the kind of thing that can be a problem.  But on
-reflection, I guess there are lots and lots of places where we do such
-opportunistic checks before going the slow path taking the lock.
-
+>>> Also, while d_invalidate() is not actually wrong here, because you
+>>> check S_ISDIR(), but it's still the wrong function to use.  You really
+>>> just want to shrink the children.  Invalidation means: the filesystem
+>>> found out that the cached inode is invalid, so we want to throw it
+>>> away.  In the future it might actually be able to do it for
+>>> directories as well, but currently it cannot because of possible
+>>> mounts on the dentry.
+>> Thats the same issue as with the dentries. The new function could deal with
+>> both situations?
 > 
-> Well, not unnecessary, because I think the discussion was good, and I 
-> think we fixed another bug,
-
-Yes, that was a valuable find, which Nick's ctor aberration led us to.
-Though whether it ever bit anyone, I doubt.  We did have a spate of
-anon_vma corruptions 2.5 years ago, but I think they were just one
-manifestation of some more general slab corruption, don't match this.
-
-> but the smp_wmb++smp_read_barrier_depends does 
-> seem to be a non-issue in this path.
+> Sure.
 > 
-> > But this is all _irrelevant_ : the tricky test to worry about in
-> > page_lock_anon_vma() is of page_mapped() i.e. does this page currently
-> > have any ptes in userspace, not of page_mapping() or page->mapping.
-> 
-> I'm not arguing for removing the page_mapped() we have now, I'm just 
-> wondering about the one Nick wanted to add at the end.
+> The big issue is dealing with umount.  You could do something like
+> grab_super() on sb before getting a ref on the inode/dentry.  But I'm
+> not sure this is a good idea.  There must be a simpler way to achieve
+> this...
 
-Oh, that, sorry I didn't realize - but there again, it was well
-worth my writing it down again, else I wouldn't have corrected
-my embarrassingly mistaken goahead to Nick on moving the check.
+Taking a lock on vfsmount_lock? But that would make dentry reclaim a pain.
 
-[snipped a lot of good understanding of how it works]
+We are only interested in the reclaim a dentry if its currently unused. If so
+then why does unmount matter? Both unmount and reclaim will attempt to remove
+the dentry.
 
-> So what I'm trying to figure out is why Nick wanted to add another check 
-> for page_mapped(). I'm not seeing what it is supposed to protect against.
+Have a look at get_dentries(). It takes the dcache_lock and checks the dentry
+state. Either the entry is ignored or dget_locked() removes it from the lru.
+If its off the LRU then it can no longer be reclaimed by umount.
 
-I think it's a matter of mental comfort, or good interface design.
-
-You're right that it will make no actual difference to what happens
-in its two sole callers page_referenced_anon() and try_to_unmap_anon(),
-beyond adding an extra branch to short-circuit a futile search which
-would already terminate after the first iteration (each loop already
-has a page_mapped test, to get out a.s.a.p. if the list is very long).
-
-But (particularly because he didn't realize it could happen: I put
-no comment there beyond "tricky") he thinks it would be better to
-know that when you emerge from a successful page_lock_anon_vma(),
-then the anon_vma you have is indeed still the right one for the
-page (as you noted, we do assume caller holds a reference on page).
-
-One might argue that a comment would be better than a runtime test:
-so long as page_lock_anon_vma() is a static function with just those
-two callers.
-
-In writing this, another barrier anxiety crossed my mind.  I've made
-a big deal of checking page_mapped after getting rcu_read_lock, but
-now I wonder if another barrier is needed for that.
-
-Documentation/memory-barriers.txt "LOCKING FUNCTIONS" groups RCU along
-with spin locks in discussing their semipermeable characteristics, so
-I guess no extra barrier needed; but it does work rather differently.
-
-In CLASSIC_RCU the preempt_disable() has a compiler barrier() but
-not any processor *mb().  As I understand it, that's fine because if
-page->_mapcount was loaded before the preempt_disable and we don't
-preempt before the preempt_disable, then so what, that's okay; and
-if we are preempted immediately before the preempt_disable, then
-all the business of context switch is sure to reload it again after.
-
-In PREEMPT_RCU?  I don't know, that's some study I've never got
-around to; but I think you and Peter will know whether it's good.
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
