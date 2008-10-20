@@ -1,115 +1,48 @@
-Date: Mon, 20 Oct 2008 08:17:35 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <Pine.LNX.4.64.0810200427270.5543@blonde.site>
-Message-ID: <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org>
-References: <20081016041033.GB10371@wotan.suse.de>  <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>  <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>  <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>  <20081018013258.GA3595@wotan.suse.de>  <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>  <20081018022541.GA19018@wotan.suse.de>  <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
-  <20081018052046.GA26472@wotan.suse.de> <1224326299.28131.132.camel@twins>  <Pine.LNX.4.64.0810191048410.11802@blonde.site> <1224413500.10548.55.camel@lappy.programming.kicks-ass.net> <alpine.LFD.2.00.0810191105090.4386@nehalem.linux-foundation.org>
- <Pine.LNX.4.64.0810200427270.5543@blonde.site>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9KHHGmD030957
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 13:17:16 -0400
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9KHHGXV072604
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 13:17:16 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9KHHF5v024983
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 13:17:16 -0400
+Subject: Re: [RFC v6][PATCH 0/9] Kernel based checkpoint/restart
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <48F83121.7070705@davidnewall.com>
+References: <1223461197-11513-1-git-send-email-orenl@cs.columbia.edu>
+	 <20081009124658.GE2952@elte.hu>	<1223557122.11830.14.camel@nimitz>
+	 <20081009131701.GA21112@elte.hu>	<1223559246.11830.23.camel@nimitz>
+	 <20081009134415.GA12135@elte.hu>	<1223571036.11830.32.camel@nimitz>
+	 <20081010153951.GD28977@elte.hu>	<48F30315.1070909@fr.ibm.com>
+	 <1223916223.29877.14.camel@nimitz>	<48F6092D.6050400@fr.ibm.com>
+	 <48F685A3.1060804@cs.columbia.edu>	<48F7352F.3020700@fr.ibm.com>
+	 <48F74674.20202@cs.columbia.edu> <87r66g8875.wl%peter@chubb.wattle.id.au>
+	 <48F83121.7070705@davidnewall.com>
+Content-Type: text/plain
+Date: Mon, 20 Oct 2008 10:17:12 -0700
+Message-Id: <1224523032.1848.119.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: David Newall <davidn@davidnewall.com>
+Cc: Peter Chubb <peterc@gelato.unsw.edu.au>, Oren Laadan <orenl@cs.columbia.edu>, Daniel Lezcano <dlezcano@fr.ibm.com>, Cedric Le Goater <clg@fr.ibm.com>, jeremy@goop.org, arnd@arndb.de, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, Andrey Mirkin <major@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 20 Oct 2008, Hugh Dickins wrote:
+On Fri, 2008-10-17 at 17:00 +1030, David Newall wrote:
+> > The strace/gdb example is *really* hard; but for vfork, you just wait
+> > until it's over. The interval between vfork and exec/exit should be
+> > short enough not to affect the overall time for a checkpoint
 > 
-> When you say "to the point where we don't need to care about anything
-> else", are you there agreeing with Nick that your smp_wmb() and
-> smp_read_barrier_depends() are no longer needed?
+> A malicious user could trivially exploit that.
 
-Yes. The anon_vma only has two fields: the spinlock itself, and the list. 
-And with all list allocations being inside the spinlock, and with the 
-spinlock itself being a memory barrier, I'm now convinced that the worry 
-about memory ordering was unnecessary.
+You mean a malicious user could prevent a checkpoint from occurring by
+doing this?
 
-Well, not unnecessary, because I think the discussion was good, and I 
-think we fixed another bug, but the smp_wmb++smp_read_barrier_depends does 
-seem to be a non-issue in this path.
+There are going to be a lot of those for a long while. :)
 
-> But this is all _irrelevant_ : the tricky test to worry about in
-> page_lock_anon_vma() is of page_mapped() i.e. does this page currently
-> have any ptes in userspace, not of page_mapping() or page->mapping.
-
-I'm not arguing for removing the page_mapped() we have now, I'm just 
-wondering about the one Nick wanted to add at the end.
-
-> In the case of file pages, it is in some places crucial to check
-> page->mapping against a racing file truncation; but there's no such
-> issue with anon pages, their page->mapping pointing to anon_vma is
-> left set until the page is finally freed, it is not volatile.
-> 
-> But in the case of anon pages, what page->mapping points to may be
-> volatile, in the sense that that memory might at some point get reused
-> for a different anon_vma, or the slab page below it get freed and
-> reused for a different purpose completely: that's what we have to
-> careful of in the case of anon pages, and it's RCU and the
-> page_mapped() test which guard that.
-
-.. and I'm not worried about the slab page. It's stable, since we hold the 
-RCU read-lock. No worries about that one either.
-
-It's the "struct page" itself - the one we use for lookup in 
-page_lock_anon_vma(). And I'm worried about the need for *re-doing* the 
-page_mapped() test.
-
-The problem that makes "page_lock_anon_vma()" such a total disaster is 
-that yes, it does locking, but it does locking _after_ the lookup, and the 
-lock doesn't actually protect any of the data that it is using for the 
-lookup itself.
-
-And yes, we have various tricks to try to make the data "safe" even if we 
-race with the lookup, like the RCU stability of the anon_vma allocation, 
-so that even if we race, we don't do anything bad. And I don't worry about 
-the anon_vma, that part looks fine.
-
-But page_remove_rmap() is run totally unlocked wrt page_lock_anon_vma(), 
-it looks like. page_remove_rmap() is run under the pte lock, and 
-page_lock_anon_vma() is run under no lock at all that I can see that is 
-reliable.
-
-So yes, we have the same kind of "delay the destroy" wrt page->mapping (ie 
-page_remove_rmap() doesn't actually clear page->mapping at all), but none 
-of this runs under any lock at all.
-
-So as far as I can tell, the only reason "page_lock_anon_vma()" is safe is 
-because we hopefully always hold an elevated page count when we call it, 
-so at least the struct page itself will never get freed, so page->mapping 
-is safe just because it's not cleared. 
-
-But assuming all that is true, it boils down to this:
-
- - the anon_vma we get may be the wrong one or a stale one (since 
-   page_remove_rmap ran concurrently and we ended up freeing the 
-   anon_vma), but it's always a "valid" anon_vma in the sense that it's 
-   initialized and the list is always pointing to *some* stable set of 
-   vm_area_struct's.
-
- - if we raced, and the anon_vma is stale, we're going to walk over 
-   some bogus list that pertains to a totally different page, but WHO 
-   REALLY CARES? If it is about another page that got that anon_vma 
-   reallocated to it, all the code that traverses the list of vma's still 
-   has to check the page tables _anyway_. And that will never trigger, and 
-   that will get the pte lock for checking anyway, so at _that_ point do 
-   we correctly finally synchronize with a lock that is actually relevant.
-
- - the "anon_vma->lock" is totally irrelevant wrt "page_mapped()", and I'm 
-   not seeing what it could possibly help to re-check after getting that 
-   lock.
-
-So what I'm trying to figure out is why Nick wanted to add another check 
-for page_mapped(). I'm not seeing what it is supposed to protect against.
-
-(Yes, we have checks for "page_mapped()" inside the "try_tp_unmap_xyz()" 
-loops, but those are for a different reason - they're there to exit the 
-loop early when we know there's no point. They don't claim to be about 
-locking serialization).
-
-			Linus
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
