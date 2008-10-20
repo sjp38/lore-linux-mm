@@ -1,42 +1,60 @@
-Date: Sun, 19 Oct 2008 20:00:27 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] mm: fix anon_vma races
-In-Reply-To: <alpine.LFD.2.00.0810191105090.4386@nehalem.linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0810191957300.16676@blonde.site>
-References: <20081016041033.GB10371@wotan.suse.de>
- <1224285222.10548.22.camel@lappy.programming.kicks-ass.net>
- <alpine.LFD.2.00.0810171621180.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171737350.3438@nehalem.linux-foundation.org>
- <alpine.LFD.2.00.0810171801220.3438@nehalem.linux-foundation.org>
- <20081018013258.GA3595@wotan.suse.de>  <alpine.LFD.2.00.0810171846180.3438@nehalem.linux-foundation.org>
-  <20081018022541.GA19018@wotan.suse.de>  <alpine.LFD.2.00.0810171949010.3438@nehalem.linux-foundation.org>
-  <20081018052046.GA26472@wotan.suse.de> <1224326299.28131.132.camel@twins>
-  <Pine.LNX.4.64.0810191048410.11802@blonde.site>
- <1224413500.10548.55.camel@lappy.programming.kicks-ass.net>
- <alpine.LFD.2.00.0810191105090.4386@nehalem.linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9K0OYxO024784
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 20 Oct 2008 09:24:34 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E17B53C161
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 09:24:34 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 40117240060
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 09:24:34 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D1651DB803B
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 09:24:34 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id DF8E91DB8038
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 09:24:33 +0900 (JST)
+Date: Mon, 20 Oct 2008 09:24:09 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH -mm 0/5] mem+swap resource controller(trial patch)
+Message-Id: <20081020092409.67d34506.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
+References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 19 Oct 2008, Linus Torvalds wrote:
-> 
-> Anyway, I _think_ the part that everybody agrees about is the initial 
-> locking of the anon_vma. Whether we then even need any memory barriers 
-> and/or the page_mapped() check is an independent question. Yes? No?
-> 
-> So I'm suggesting this commit as the part we at least all agree on. But I 
-> haven't pushed it out yet, so you can still holler.. But I think all the 
-> discussion is about other issues, and we all agree on at least this part?
+On Fri, 17 Oct 2008 19:48:04 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-I'll have to postpone answering the rest of your mail until later,
-but yes, I agree your patch is what we've all agreed on so far,
-and I can't even quibble with your description - it's good.
+> Hi.
+> 
+> I think Kamezawa-san is working on this now, I also made
+> a trial patch based on Kamezawa-san's v2.
+> 
+yes, I'm now rewriting. I'm now considering whether we can implement easier
+protocol or not. But your patch's direction is not far from mine.
 
-Hugh
+> Unfortunately this patch doesn't work(I'll investigate),
+> but I post it to promote discussion on this topic.
+> 
+What kind of problems ? accounting is not correct ?
+
+
+> Major changes from v2:
+> - rebased on memcg-update-v7.
+> - add a counter to count real swap usage(# of swap entries).
+> - add arg "use_swap" to try_to_mem_cgroup_pages() and use it sc->may_swap.
+> 
+> 
+> Thanks,
+> Daisuke Nishimura.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
