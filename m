@@ -1,116 +1,89 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9L2pELs019059
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 21 Oct 2008 11:51:14 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EC38853C161
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:51:13 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C06A224005E
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:51:13 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A9A741DB803F
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:51:13 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 630E21DB803E
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:51:13 +0900 (JST)
-Date: Tue, 21 Oct 2008 11:50:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mm 1/5] memcg: replace res_counter
-Message-Id: <20081021115048.2ca024b6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830810201915g8af14fbg3de7a23a1409ef68@mail.gmail.com>
-References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
-	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
-	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
-	<20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830810201829o5483ef48g633e920cce9cc015@mail.gmail.com>
-	<20081021104932.5115a077.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830810201915g8af14fbg3de7a23a1409ef68@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch] mm: fix anon_vma races
+Date: Tue, 21 Oct 2008 13:56:12 +1100
+References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810200427270.5543@blonde.site> <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810211356.13191.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Oct 2008 19:15:37 -0700
-"Paul Menage" <menage@google.com> wrote:
+On Tuesday 21 October 2008 02:17, Linus Torvalds wrote:
+> On Mon, 20 Oct 2008, Hugh Dickins wrote:
 
-> On Mon, Oct 20, 2008 at 6:49 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >
-> > res_counter's operation is very short.
-> >  take a lock => add and compare. => unlock.
-> >
-> > So, I wonder there is not enough runway to do prefetch.
-> 
-> Sorry, let me be clearer. I'm assuming that since a write operation on
-> the base counter will generally be accompanied by a write operation on
-> the aggregate counter, that one of the following is true:
-> 
-That's not true.  Mem+Swap contoller has following ops.
-
-   charge:  page++
-            compare page < mem_limit.
-            compare page+swap < memsw_limit.
-   unmap/cache delete:
-            page--
-   swapout:
-            page--
-            swap++
-   swap_free:
-            swap--
-
-....there is no *aggregate* counter. just have limit of total.
-
-But Ok, to get Ack, I'll have to do something.
-
-2 coutner version will be..
-
-   charge: page++   compare page < mem_limit.
-           memsw++  counrare memsw < memsw_limit
-   unmap/cache-delete:
-           page--
-   swapout:
-           no change.
-   swap_free:
-           memsw--
-
-No need for *aggregate* counter. just call charge twice.
-
-
-> - neither cache line is in a M or E state in our cache. So the
-> prefetchw on the aggregate counter proceeds in parallel to the stall
-> on fetching the base counter, and there's no additional delay to
-> access the aggregate counter.
-> 
-
-
-   CPU 0                CPU1
-  prefetchw()
-                      prefetchw()
-  spinlock()
-                      spinlock()
-  win-spinlock
-  cache-miss.
-                      cache-miss.
-
-Mem+Swap counter will rerely see this. But if you want to use aggregate counter
-for parent/child, you'll see *prefetchw* is no help. 
-parent is busier than child.
-
-> - both cache lines are in a M or E state in our cache, so there are no
-> misses on either counter.
+> > But in the case of anon pages, what page->mapping points to may be
+> > volatile, in the sense that that memory might at some point get reused
+> > for a different anon_vma, or the slab page below it get freed and
+> > reused for a different purpose completely: that's what we have to
+> > careful of in the case of anon pages, and it's RCU and the
+> > page_mapped() test which guard that.
 >
-But adds cost of unnecessary prefetch.
+> .. and I'm not worried about the slab page. It's stable, since we hold the
+> RCU read-lock. No worries about that one either.
+>
+> It's the "struct page" itself - the one we use for lookup in
+> page_lock_anon_vma(). And I'm worried about the need for *re-doing* the
+> page_mapped() test.
+>
+> The problem that makes "page_lock_anon_vma()" such a total disaster is
+> that yes, it does locking, but it does locking _after_ the lookup, and the
+> lock doesn't actually protect any of the data that it is using for the
+> lookup itself.
+>
+> And yes, we have various tricks to try to make the data "safe" even if we
+> race with the lookup, like the RCU stability of the anon_vma allocation,
+> so that even if we race, we don't do anything bad. And I don't worry about
+> the anon_vma, that part looks fine.
+>
+> But page_remove_rmap() is run totally unlocked wrt page_lock_anon_vma(),
+> it looks like. page_remove_rmap() is run under the pte lock, and
+> page_lock_anon_vma() is run under no lock at all that I can see that is
+> reliable.
+>
+> So yes, we have the same kind of "delay the destroy" wrt page->mapping (ie
+> page_remove_rmap() doesn't actually clear page->mapping at all), but none
+> of this runs under any lock at all.
+>
+> So as far as I can tell, the only reason "page_lock_anon_vma()" is safe is
+> because we hopefully always hold an elevated page count when we call it,
+> so at least the struct page itself will never get freed, so page->mapping
+> is safe just because it's not cleared.
+>
+> But assuming all that is true, it boils down to this:
+>
+>  - the anon_vma we get may be the wrong one or a stale one (since
+>    page_remove_rmap ran concurrently and we ended up freeing the
+>    anon_vma), but it's always a "valid" anon_vma in the sense that it's
+>    initialized and the list is always pointing to *some* stable set of
+>    vm_area_struct's.
+>
+>  - if we raced, and the anon_vma is stale, we're going to walk over
+>    some bogus list that pertains to a totally different page, but WHO
+>    REALLY CARES? If it is about another page that got that anon_vma
+>    reallocated to it, all the code that traverses the list of vma's still
+>    has to check the page tables _anyway_. And that will never trigger, and
+>    that will get the pte lock for checking anyway, so at _that_ point do
+>    we correctly finally synchronize with a lock that is actually relevant.
+>
+>  - the "anon_vma->lock" is totally irrelevant wrt "page_mapped()", and I'm
+>    not seeing what it could possibly help to re-check after getting that
+>    lock.
+>
+> So what I'm trying to figure out is why Nick wanted to add another check
+> for page_mapped(). I'm not seeing what it is supposed to protect against.
 
-
-Maybe, I'll just use 2 res_coutnters. more updates will be done later if necessary.
-
-Thanks,
--Kame
+It's not supposed to protect against anything that would be a problem
+in the existing code (well, I initially thought it might be, but Hugh
+explained why its not needed). I'd still like to put the check in, in
+order to constrain this peculiarity of SLAB_DESTROY_BY_RCU to those
+couple of functions which allocate or take a reference.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
