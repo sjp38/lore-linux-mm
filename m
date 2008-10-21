@@ -1,32 +1,40 @@
-Subject: Re: mlock: mlocked pages are unevictable
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1224621015.6724.6.camel@twins>
-References: <200810201659.m9KGxtFC016280@hera.kernel.org>
-	 <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
-	 <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
-	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
-	 <1224621015.6724.6.camel@twins>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Oct 2008 22:48:06 +0200
-Message-Id: <1224622086.6724.8.camel@twins>
+Date: Tue, 21 Oct 2008 15:13:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
+Message-Id: <20081021151342.c1678bd6.akpm@linux-foundation.org>
+In-Reply-To: <878wsigp2e.fsf_-_@saeurebad.de>
+References: <87d4hugrwm.fsf@saeurebad.de>
+	<20081021104357.GA12329@wotan.suse.de>
+	<878wsigp2e.fsf_-_@saeurebad.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Oleg Nesterov <oleg@tv-sign.ru>
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: npiggin@suse.de, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-10-21 at 22:30 +0200, Peter Zijlstra wrote:
+On Tue, 21 Oct 2008 13:33:45 +0200
+Johannes Weiner <hannes@saeurebad.de> wrote:
 
-> The problem appears to be calling flush_work(), which is rather heavy
-> handed. We could do schedule_on_each_cpu() using a completion.
+> File pages mapped only in sequentially read mappings are perfect
+> reclaim canditates.
 > 
-> Which I think is a nicer solution (if sufficient of course).
+> This makes MADV_SEQUENTIAL mappings behave like a weak references,
+> their pages will be reclaimed unless they have a strong reference from
+> a normal mapping as well.
+> 
+> The patch changes the reclaim and the unmap path where they check if
+> the page has been referenced.  In both cases, accesses through
+> sequentially read mappings will be ignored.
+> 
+> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+> ---
+> II: add likely()s to mitigate the extra branches a bit as to Nick's
+>     suggestion
 
-Ah, never mind, the flush_work() is already doing the right thing using
-barriers and completions.
-
+Is http://hannes.saeurebad.de/madvseq/ still true with this version?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
