@@ -1,79 +1,65 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id m9L5UiTX000958
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:00:44 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9L5Ui661015828
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:00:44 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id m9L5Uhl7032120
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:00:44 +0530
-Message-ID: <48FD6901.6050301@linux.vnet.ibm.com>
-Date: Tue, 21 Oct 2008 11:00:41 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9L5eKGl023140
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Oct 2008 14:40:21 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B99182AC026
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 839EC12C046
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D6C01DB803B
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A2181DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
+Date: Tue, 21 Oct 2008 14:39:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH -mm 1/5] memcg: replace res_counter
-References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp> <20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp> <6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com> <20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20081021143955.eeb86d49.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48FD6901.6050301@linux.vnet.ibm.com>
+References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
+	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
+	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
+	<20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
+	<48FD6901.6050301@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
 Cc: Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Mon, 20 Oct 2008 12:53:58 -0700
-> "Paul Menage" <menage@google.com> wrote:
+On Tue, 21 Oct 2008 11:00:41 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > 1. It's harmful to increase size of *generic* res_counter. So, modifing
+> >    res_counter only for us is not a choice.
+> > 2. Operation should be done under a lock. We have to do 
+> >    -page + swap in atomic, at least.
+> > 3. We want to pack all member into a cache-line, multiple res_counter
+> >    is no good.
+> > 4. I hate res_counter ;)
+> > 
 > 
->> Can't we do this in a more generic way, rather than duplicating a lot
->> of functionality from res_counter?
->>
->> You're trying to track:
->>
->> - mem usage
->> - mem limit
->> - swap usage
->> - swap+mem usage
->> - swap+mem limit
->>
->> And ensuring that:
->>
->> - mem usage < mem limit
->> - swap+mem usage < swap+mem limit
->>
->> Could we somehow represent this as a pair of resource counters, one
->> for mem and one for swap+mem that are linked together?
->>
+> What do you hate about it? I'll review the patchset in detail (I am currently
+> unwell, but I'll definitely take a look later).
 > 
-> 1. It's harmful to increase size of *generic* res_counter. So, modifing
->    res_counter only for us is not a choice.
-> 2. Operation should be done under a lock. We have to do 
->    -page + swap in atomic, at least.
-> 3. We want to pack all member into a cache-line, multiple res_counter
->    is no good.
-> 4. I hate res_counter ;)
-> 
+Just because I feel this kind of *generic* counter can be an obstacle to
+do aggressive special optimization for some resource. But I don't want to
+argue this now. 
 
-What do you hate about it? I'll review the patchset in detail (I am currently
-unwell, but I'll definitely take a look later).
+I'll rewrite and avoid to add new mem_counter. (and use 2 res_counters.)
 
->> Maybe have an "aggregate" pointer in a res_counter that points to
->> another res_counter that sums some number of counters; both the mem
->> and the swap res_counter objects for a cgroup would point to the
->> mem+swap res_counter for their aggregate. Adjusting the usage of a
->> counter would also adjust its aggregate (or fail if adjusting the
->> aggregate failed).
->>
-> It's complicated. 
+Core logic will not be changed very much but....
+Anyway, I'll go to the way which doesn't bother anyone.
 
-It seems complicated and for hierarchies we'll do a simple charge up approach
-(we've agreed upon the fact that hierarchies are expensive and deep hierarchies
-most definitely are)
+BTW, "allocate all page_cgroup at boot" patch goes to Linus' git. Wow.
 
--- 
-	Balbir
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
