@@ -1,42 +1,35 @@
+In-reply-to: <20081021145901.GA28279@fogou.chygwyn.com> (steve@chygwyn.com)
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-From: Andi Kleen <andi@firstfloor.org>
-References: <20081021112137.GB12329@wotan.suse.de>
-Date: Tue, 21 Oct 2008 18:16:24 +0200
-In-Reply-To: <20081021112137.GB12329@wotan.suse.de> (Nick Piggin's message of "Tue, 21 Oct 2008 13:21:37 +0200")
-Message-ID: <87mygxexev.fsf@basil.nowhere.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru> <20081021145901.GA28279@fogou.chygwyn.com>
+Message-Id: <E1KsJxx-0006l4-NH@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 21 Oct 2008 18:20:17 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: steve@chygwyn.com
+Cc: zbr@ioremap.net, miklos@szeredi.hu, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin <npiggin@suse.de> writes:
+On Tue, 21 Oct 2008, steve@chygwyn.co wrote:
+> No, I guess it might be possible, but for the time being it is
+> its own "glock" plus the page lock dependency. I'd have to
+> think quite hard about what the consequences of using the
+> inode lock would be.
+> 
+> Of course we do demand the inode lock as well in some cases
+> since the vfs has already grabbed it before calling
+> into the filesystem when its required. Because of that and
+> where we run the glock state machine from, it would be rather
+> complicated to make that work I suspect,
 
-> IO error handling in the core mm/fs still doesn't seem perfect, but with
-> the recent round of patches and this one, it should be getting on the
-> right track.
->
-> I kind of get the feeling some people would rather forget about all this
-> and brush it under the carpet. Hopefully I'm mistaken, but if anybody
-> disagrees with my assertion that error handling, and data integrity
-> semantics are first-class correctness issues, and therefore are more
-> important than all other non-correctness problems... speak now and let's
-> discuss that, please.
->
-> Otherwise, unless anybody sees obvious problems with this, hopefully it
-> can go into -mm for some wider testing (I've tested it with a few filesystems
-> so far and no immediate problems)
+BTW, why do you want strict coherency for memory mappings?  It's not
+something POSIX mandates.  It's not even something that Linux always
+did.
 
-I think the first step to get these more robust in the future would be to
-have a standard regression test testing these paths.  Otherwise it'll
-bit-rot sooner or later again.
+If I were an application writer, I'd never try to rely on mmap
+coherency without the appropriate magic msync() calls.
 
--Andi
-
--- 
-ak@linux.intel.com
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
