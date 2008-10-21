@@ -1,62 +1,41 @@
-Message-ID: <48FDFC6C.5080606@linux-foundation.org>
-Date: Tue, 21 Oct 2008 10:59:40 -0500
-From: Christoph Lameter <cl@linux-foundation.org>
-MIME-Version: 1.0
-Subject: Re: [patch] mm: fix anon_vma races
-References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810200427270.5543@blonde.site> <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org> <200810211356.13191.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0810202024150.3287@nehalem.linux-foundation.org> <20081021043338.GA5694@wotan.suse.de>
-In-Reply-To: <20081021043338.GA5694@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-reply-to: <20081021150948.GB28279@fogou.chygwyn.com> (steve@chygwyn.com)
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <E1KsIHV-0006JW-65@pomaz-ex.szeredi.hu> <20081021150948.GB28279@fogou.chygwyn.com>
+Message-Id: <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Tue, 21 Oct 2008 18:13:08 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+To: steve@chygwyn.com
+Cc: miklos@szeredi.hu, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Tue, 21 Oct 2008, steve@chygwyn.co wrote:
+> Well I'm not sure why we'd need to distinguish between "page has not
+> been read" and "page has been read but no longer valid". I guess I
+> don't understand why those two cases are not the same from the vfs
+> and filesystem points of view.
 
+In the first case the page contains random bytes, in the second case
+it contains actual file data, which has become stale, but at some
+point in time it _was_ the contents of the file.
 
->  	if (!page_mapped(page))
->  		goto out;
->  
->  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+This is a very important distinction for splice(2) for example.
+Splice does not actually copy data into the pipe buffer, only
+references the pages.  And it can reference pages which are not yet
+up-to-date.  So when the buffers are consumed from the pipe, the
+splice code needs to know if the page contains random junk (never
+brought up-to-date) or data that is, or once was, valid.
 
-Isnt it possible for the anon_vma to be freed and reallocated for another use
-after this statement and before taking the lock?
+> I'm sure it should be documented :-) it certainly seems confusing and if we
+> want to keep this scheme, can we change PG_uptodate to PG_wasread or
+> PG_usedonce or something like that which more clearly reflects its
+> purpose in that case,
 
->  	spin_lock(&anon_vma->lock);
+I'm not going to argue about the name :)
 
-Then we may take the spinlock on another anon_vma structure not related to
-this page.
-
-> +
-> +	/*
-> +	 * If the page is no longer mapped, we have no way to keep the anon_vma
-> +	 * stable. It may be freed and even re-allocated for some other set of
-> +	 * anonymous mappings at any point. Technically this should be OK, as
-> +	 * we hold the spinlock, and should be able to tolerate finding
-> +	 * unrelated vmas on our list. However we'd rather nip these in the bud
-> +	 * here, for simplicity.
-> +	 *
-> +	 * If the page is mapped while we have the lock on the anon_vma, then
-> +	 * we know anon_vma_unlink can't run and garbage collect the anon_vma:
-> +	 * unmapping the page and decrementing its mapcount happens before
-> +	 * unlinking the anon_vma; unlinking the anon_vma requires the
-> +	 * anon_vma lock to be held. So this check ensures we have a stable
-> +	 * anon_vma.
-> +	 *
-> +	 * Note: the page can still become unmapped, and the !page_mapped
-> +	 * condition become true at any point. This check is definitely not
-> +	 * preventing any such thing.
-> +	 */
-
-What is this then? An optimization?
-
-> +	if (unlikely(!page_mapped(page))) {
-> +		spin_unlock(&anon_vma->lock);
-> +		goto out;
-> +	}
-
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
