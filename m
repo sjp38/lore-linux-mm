@@ -1,35 +1,57 @@
-Date: Tue, 21 Oct 2008 10:29:58 -0600
-From: Matthew Wilcox <matthew@wil.cx>
+Date: Tue, 21 Oct 2008 17:30:24 +0100
+From: steve@chygwyn.com
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081021162957.GQ26184@parisc-linux.org>
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru> <20081021145901.GA28279@fogou.chygwyn.com> <E1KsJxx-0006l4-NH@pomaz-ex.szeredi.hu> <E1KsK5R-0006mR-AO@pomaz-ex.szeredi.hu>
+Message-ID: <20081021163024.GB29653@fogou.chygwyn.com>
+References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E1KsK5R-0006mR-AO@pomaz-ex.szeredi.hu>
+In-Reply-To: <87mygxexev.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: steve@chygwyn.com, zbr@ioremap.net, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 21, 2008 at 06:28:01PM +0200, Miklos Szeredi wrote:
-> On Tue, 21 Oct 2008, Miklos Szeredi wrote:
-> > BTW, why do you want strict coherency for memory mappings?  It's not
-> > something POSIX mandates.  It's not even something that Linux always
-> > did.
+Hi,
+
+On Tue, Oct 21, 2008 at 06:16:24PM +0200, Andi Kleen wrote:
+> Nick Piggin <npiggin@suse.de> writes:
 > 
-> Or does, for that matter, on those architectures which have virtually
-> addressed caches.
+> > IO error handling in the core mm/fs still doesn't seem perfect, but with
+> > the recent round of patches and this one, it should be getting on the
+> > right track.
+> >
+> > I kind of get the feeling some people would rather forget about all this
+> > and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> > disagrees with my assertion that error handling, and data integrity
+> > semantics are first-class correctness issues, and therefore are more
+> > important than all other non-correctness problems... speak now and let's
+> > discuss that, please.
+> >
+> > Otherwise, unless anybody sees obvious problems with this, hopefully it
+> > can go into -mm for some wider testing (I've tested it with a few filesystems
+> > so far and no immediate problems)
+> 
+> I think the first step to get these more robust in the future would be to
+> have a standard regression test testing these paths.  Otherwise it'll
+> bit-rot sooner or later again.
+> 
+> -Andi
+>
+I have a plan to (at some stage, when I get some time!) create some
+mechanism which will allow the mounting of multiple GFS2 filesystems
+on a single device, on the same node. i.e. like a cluster but multiple
+mounts from a single node. Currently we can get half way there by
+"cloning" a block device with dm, but our locking doesn't support that
+configuration at the moment.
 
-Careful with those slurs you're throwing around.  PA-RISC carefully
-aligns its mmaps so they are coherent.
+Given that, it should then be possible to run cluster tests on a single
+node across several mounts of the same filesystem, and thus allow
+much easier testing (there is of course no practical reason to allow
+such a configuration aside from testing),
 
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+Steve.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
