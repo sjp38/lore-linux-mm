@@ -1,41 +1,42 @@
-In-reply-to: <20081021150948.GB28279@fogou.chygwyn.com> (steve@chygwyn.com)
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <E1KsIHV-0006JW-65@pomaz-ex.szeredi.hu> <20081021150948.GB28279@fogou.chygwyn.com>
-Message-Id: <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Tue, 21 Oct 2008 18:13:08 +0200
+From: Andi Kleen <andi@firstfloor.org>
+References: <20081021112137.GB12329@wotan.suse.de>
+Date: Tue, 21 Oct 2008 18:16:24 +0200
+In-Reply-To: <20081021112137.GB12329@wotan.suse.de> (Nick Piggin's message of "Tue, 21 Oct 2008 13:21:37 +0200")
+Message-ID: <87mygxexev.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: steve@chygwyn.com
-Cc: miklos@szeredi.hu, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Oct 2008, steve@chygwyn.co wrote:
-> Well I'm not sure why we'd need to distinguish between "page has not
-> been read" and "page has been read but no longer valid". I guess I
-> don't understand why those two cases are not the same from the vfs
-> and filesystem points of view.
+Nick Piggin <npiggin@suse.de> writes:
 
-In the first case the page contains random bytes, in the second case
-it contains actual file data, which has become stale, but at some
-point in time it _was_ the contents of the file.
+> IO error handling in the core mm/fs still doesn't seem perfect, but with
+> the recent round of patches and this one, it should be getting on the
+> right track.
+>
+> I kind of get the feeling some people would rather forget about all this
+> and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> disagrees with my assertion that error handling, and data integrity
+> semantics are first-class correctness issues, and therefore are more
+> important than all other non-correctness problems... speak now and let's
+> discuss that, please.
+>
+> Otherwise, unless anybody sees obvious problems with this, hopefully it
+> can go into -mm for some wider testing (I've tested it with a few filesystems
+> so far and no immediate problems)
 
-This is a very important distinction for splice(2) for example.
-Splice does not actually copy data into the pipe buffer, only
-references the pages.  And it can reference pages which are not yet
-up-to-date.  So when the buffers are consumed from the pipe, the
-splice code needs to know if the page contains random junk (never
-brought up-to-date) or data that is, or once was, valid.
+I think the first step to get these more robust in the future would be to
+have a standard regression test testing these paths.  Otherwise it'll
+bit-rot sooner or later again.
 
-> I'm sure it should be documented :-) it certainly seems confusing and if we
-> want to keep this scheme, can we change PG_uptodate to PG_wasread or
-> PG_usedonce or something like that which more clearly reflects its
-> purpose in that case,
+-Andi
 
-I'm not going to argue about the name :)
-
-Thanks,
-Miklos
+-- 
+ak@linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
