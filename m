@@ -1,94 +1,92 @@
-Date: Tue, 21 Oct 2008 12:43:57 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc] mm: more likely reclaim MADV_SEQUENTIAL mappings
-Message-ID: <20081021104357.GA12329@wotan.suse.de>
-References: <87d4hugrwm.fsf@saeurebad.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d4hugrwm.fsf@saeurebad.de>
+Message-ID: <48FDB584.7080608@cn.fujitsu.com>
+Date: Tue, 21 Oct 2008 18:57:08 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [memcg BUG] unable to handle kernel NULL pointer derefence at
+ 00000000
+References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>	<20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>	<48FD6901.6050301@linux.vnet.ibm.com>	<20081021143955.eeb86d49.kamezawa.hiroyu@jp.fujitsu.com>	<48FD74AB.9010307@cn.fujitsu.com>	<20081021155454.db6888e4.kamezawa.hiroyu@jp.fujitsu.com>	<48FD7EEF.3070803@cn.fujitsu.com>	<20081021161621.bb51af90.kamezawa.hiroyu@jp.fujitsu.com>	<48FD82E3.9050502@cn.fujitsu.com>	<20081021171801.4c16c295.kamezawa.hiroyu@jp.fujitsu.com>	<48FD943D.5090709@cn.fujitsu.com>	<20081021175735.0c3d3534.kamezawa.hiroyu@jp.fujitsu.com>	<48FD9D30.2030500@cn.fujitsu.com>	<20081021182551.0158a47b.kamezawa.hiroyu@jp.fujitsu.com>	<48FDA6D4.3090809@cn.fujitsu.com> <20081021191417.02ab97cc.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081021191417.02ab97cc.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux MM Mailing List <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, mel@csn.ul.ie, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 21, 2008 at 12:32:25PM +0200, Johannes Weiner wrote:
-> File pages mapped only in sequentially read mappings are perfect
-> reclaim canditates.
+KAMEZAWA Hiroyuki wrote:
+> On Tue, 21 Oct 2008 17:54:28 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
 > 
-> This makes MADV_SEQUENTIAL mappings behave like weak references, its
-> pages will be reclaimed unless they have a strong reference from a
-> normal mapping as well.
+>> KAMEZAWA Hiroyuki wrote:
+>>> On Tue, 21 Oct 2008 17:13:20 +0800
+>>> Li Zefan <lizf@cn.fujitsu.com> wrote:
+>>>
+>>>> KAMEZAWA Hiroyuki wrote:
+>>>>> On Tue, 21 Oct 2008 16:35:09 +0800
+>>>>> Li Zefan <lizf@cn.fujitsu.com> wrote:
+>>>>>
+>>>>>> KAMEZAWA Hiroyuki wrote:
+>>>>>>> On Tue, 21 Oct 2008 15:21:07 +0800
+>>>>>>> Li Zefan <lizf@cn.fujitsu.com> wrote:
+>>>>>>>> dmesg is attached.
+>>>>>>>>
+>>>>>>> Thanks....I think I caught some. (added Mel Gorman to CC:)
+>>>>>>>
+>>>>>>> NODE_DATA(nid)->spanned_pages just means sum of zone->spanned_pages in node.
+>>>>>>>
+>>>>>>> So, If there is a hole between zone, node->spanned_pages doesn't mean
+>>>>>>> length of node's memmap....(then, some hole can be skipped.)
+>>>>>>>
+>>>>>>> OMG....Could you try this ? 
+>>>>>>>
+>>>>>> No luck, the same bug still exists. :(
+>>>>>>
+>>>>> This is a little fixed one..
+>>>>>
+>>>> I tried the patch, but it doesn't solve the problem..
+>>>>
+>>> Hmm.. Can you catch "pfn" of troublesome page_cgroup ?
+>>> By patch like this ?
+>>>
+>> I got what you want:
+>>
+>> pc c1d589dc pc->page 00000000 page c105f67c pfn 1d5b
+>> ...
+>> pc c1d589f0 pc->page 00000000 page c105f6b0 pfn 1d5c
+>>
+> Oh! thanks...but it seems pc->page is NULL in the middle of ZONE_NORMAL..
+> ==
+>  Normal   0x00001000 -> 0x000373fe
+> ==
+> This is appearently in the range of page_cgroup initialization.
+> (if pgdat->node_page_cgroup is initalized correctly...)
 > 
-> The patch changes the reclaim and the unmap path where they check if
-> the page has been referenced.  In both cases, accesses through
-> sequentially read mappings will be ignored.
+> I think write to page_cgroup->page happens only at initialization.
+> Hmm ? not initilization failure but curruption ?
 > 
-> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-> ---
-> 
-> I'm afraid this is now quite a bit more aggressive than the earlier
-> version.  When the fault path did a mark_page_access(), we wouldn't
-> reclaim a page when it has been faulted into several MADV_SEQUENTIAL
-> mappings but now we ignore *every* activity through such a mapping.
-> 
-> What do you think?
 
-I think it's OK. MADV_SEQUENTIAL man page explicitly states they can
-soon be freed, and we won't DoS anybody else's working set because we
-are only ignoring referenced from MADV_SEQUENTIAL ptes.
+Yes, curruption. I didn't find informatation about initialization failure.
 
-It's annoying to put in extra banches especially in the unmap path.
-Oh well... (at least if you can mark them as likely()).
-
-Otherwise, this patch looks much better to me now.
-
-Thanks,
-Nick
-
+> What happens if replacing __alloc_bootmem() with vmalloc() in page_cgroup.c init ?
 > 
-> Perhaps we should note a reference if there are two or more accesses
-> through sequentially read mappings?
-> 
->  mm/memory.c |    3 ++-
->  mm/rmap.c   |   13 +++++++++++--
->  2 files changed, 13 insertions(+), 3 deletions(-)
-> 
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -337,8 +337,17 @@ static int page_referenced_one(struct pa
->  		goto out_unmap;
->  	}
->  
-> -	if (ptep_clear_flush_young_notify(vma, address, pte))
-> -		referenced++;
-> +	if (ptep_clear_flush_young_notify(vma, address, pte)) {
-> +		/*
-> +		 * Don't treat a reference through a sequentially read
-> +		 * mapping as such.  If the page has been used in
-> +		 * another mapping, we will catch it; if this other
-> +		 * mapping is already gone, the unmap path will have
-> +		 * set PG_referenced or activated the page.
-> +		 */
-> +		if (!VM_SequentialReadHint(vma))
-> +			referenced++;
-> +	}
->  
->  	/* Pretend the page is referenced if the task has the
->  	   swap token and is in the middle of a page fault. */
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -759,7 +759,8 @@ static unsigned long zap_pte_range(struc
->  			else {
->  				if (pte_dirty(ptent))
->  					set_page_dirty(page);
-> -				if (pte_young(ptent))
-> +				if (pte_young(ptent) &&
-> +						!VM_SequentialReadHint(vma))
->  					mark_page_accessed(page);
->  				file_rss--;
->  			}
+
+So I did this change, and the box booted up without any problem.
+
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 5d86550..82a30b1 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -48,8 +48,7 @@ static int __init alloc_node_page_cgroup(int nid)
+ 
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
+ 
+-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	base = vmalloc_node(table_size, nid);
+ 	if (!base)
+ 		return -ENOMEM;
+ 	for (index = 0; index < nr_pages; index++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
