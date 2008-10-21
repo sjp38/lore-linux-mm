@@ -1,65 +1,65 @@
-Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9L5eKGl023140
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 21 Oct 2008 14:40:21 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B99182AC026
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 839EC12C046
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D6C01DB803B
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A2181DB8037
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:40:20 +0900 (JST)
-Date: Tue, 21 Oct 2008 14:39:55 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH -mm 1/5] memcg: replace res_counter
-Message-Id: <20081021143955.eeb86d49.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <48FD6901.6050301@linux.vnet.ibm.com>
-References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
-	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
-	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
-	<20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
-	<48FD6901.6050301@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id m9L5xG2l002400
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:29:16 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9L5xGTx925708
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 11:29:16 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id m9L5xFws022633
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 16:59:15 +1100
+Date: Tue, 21 Oct 2008 11:21:18 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: memcg: Fix init/Kconfig documentation
+Message-ID: <20081021055118.GA11429@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Tue, 21 Oct 2008 11:12:45 +0530
+Subject: [PATCH] memcg: Update Kconfig to remove the struct page overhead statement.
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Oct 2008 11:00:41 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 1. It's harmful to increase size of *generic* res_counter. So, modifing
-> >    res_counter only for us is not a choice.
-> > 2. Operation should be done under a lock. We have to do 
-> >    -page + swap in atomic, at least.
-> > 3. We want to pack all member into a cache-line, multiple res_counter
-> >    is no good.
-> > 4. I hate res_counter ;)
-> > 
-> 
-> What do you hate about it? I'll review the patchset in detail (I am currently
-> unwell, but I'll definitely take a look later).
-> 
-Just because I feel this kind of *generic* counter can be an obstacle to
-do aggressive special optimization for some resource. But I don't want to
-argue this now. 
+The memory resource controller no longer has a struct page overhead
+associated with it. The init/Kconfig help has been replaced with
+something more suitable based on the current implementation.
 
-I'll rewrite and avoid to add new mem_counter. (and use 2 res_counters.)
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+ init/Kconfig |   11 ++++-------
+ 1 files changed, 4 insertions(+), 7 deletions(-)
 
-Core logic will not be changed very much but....
-Anyway, I'll go to the way which doesn't bother anyone.
+diff --git a/init/Kconfig b/init/Kconfig
+index 113c74c..1847f87 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -404,13 +404,10 @@ config CGROUP_MEM_RES_CTLR
+ 	  Provides a memory resource controller that manages both page cache and
+ 	  RSS memory.
+ 
+-	  Note that setting this option increases fixed memory overhead
+-	  associated with each page of memory in the system by 4/8 bytes
+-	  and also increases cache misses because struct page on many 64bit
+-	  systems will not fit into a single cache line anymore.
+-
+-	  Only enable when you're ok with these trade offs and really
+-	  sure you need the memory resource controller.
++	  The config option adds a small memory overhead proportional to the
++	  size of memory. The controller can be disabled at run time by
++	  using the cgroup_disable=memory option, at which point the overhead
++	  disappears.
+ 
+ 	  This config option also selects MM_OWNER config option, which
+ 	  could in turn add some fork/exit overhead.
+-- 
+1.5.6.3
 
-BTW, "allocate all page_cgroup at boot" patch goes to Linus' git. Wow.
 
-Thanks,
--Kame
+        Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
