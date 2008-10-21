@@ -1,79 +1,51 @@
-Received: from zps35.corp.google.com (zps35.corp.google.com [172.25.146.35])
-	by smtp-out.google.com with ESMTP id m9L1TUra004730
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 18:29:31 -0700
-Received: from qw-out-2122.google.com (qwi5.prod.google.com [10.241.195.5])
-	by zps35.corp.google.com with ESMTP id m9L1TTqS012918
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2008 18:29:29 -0700
-Received: by qw-out-2122.google.com with SMTP id 5so601472qwi.57
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2008 18:29:28 -0700 (PDT)
-Message-ID: <6599ad830810201829o5483ef48g633e920cce9cc015@mail.gmail.com>
-Date: Mon, 20 Oct 2008 18:29:28 -0700
-From: "Paul Menage" <menage@google.com>
-Subject: Re: [PATCH -mm 1/5] memcg: replace res_counter
-In-Reply-To: <20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: mm-more-likely-reclaim-madv_sequential-mappings.patch
+Date: Tue, 21 Oct 2008 12:45:07 +1100
+References: <20081015162232.f673fa59.akpm@linux-foundation.org> <200810191321.25490.nickpiggin@yahoo.com.au> <87skqshcnw.fsf@saeurebad.de>
+In-Reply-To: <87skqshcnw.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
-	 <20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
-	 <6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
-	 <20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <200810211245.08184.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 20, 2008 at 6:14 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Monday 20 October 2008 01:39, Johannes Weiner wrote:
+> Nick Piggin <nickpiggin@yahoo.com.au> writes:
+> >> >> Another access would mean another young PTE, which we will catch as a
+> >> >> proper reference sooner or later while walking the mappings, no?
+> >> >
+> >> > No. Another access could come via read/write, or be subsequently
+> >> > unmapped and put into PG_referenced.
+> >>
+> >> read/write use mark_page_accessed(), so after having two accesses, the
+> >> page is already active.  If it's not and we find an access through a
+> >> sequential mapping, we should be safe to clear PG_referenced.
+> >
+> > That's just handwaving. The patch still clears PG_referenced, which
+> > is a shared resource, and it is wrong, conceptually. You can't argue
+> > with that.
+> >
+> > What about if mark_page_accessed is only used on the page once? and
+> > it is referenced but not active?
 >
-> 1. It's harmful to increase size of *generic* res_counter. So, modifing
->   res_counter only for us is not a choice.
+> I see the problem now, thanks for not giving up ;) Fixing up the fault
+> paths and moving their mark_page_accessed to the unmap side seems like a
+> good idea.
 
-Adding an extra pointer to a per-cgroup structure isn't particularly harmful.
+Thanks. I think I was skeptical of the patch the first time around, but
+that could have been because of this other stuff you necessarily had to
+hack around to make it work confused me for one reason or another.
 
-> 2. Operation should be done under a lock. We have to do
->   -page + swap in atomic, at least.
+With that fixed up, I think your patch should become much more "obviously
+correct", and definitely a win for anyone using MADV_SEQUENTIAL.
 
-How bad would things really be if you did something like the code below?
-
-if (charge_swap()) {
-  uncharge_mem();
-} else {
-  return -ENOMEM;
-}
-
-It's true that this introduces a tiny race whereby a single swap-in
-page allocation that might have succeeded could fail, but if you're
-that close to the limit your cgroup is heading for an OOM anyway.
-
-> 3. We want to pack all member into a cache-line, multiple res_counter
->   is no good.
-
-As I said previously, if we do a prefetch on the aggregated
-res_counter before we touch any fields in the basic counter, then in
-theory we should never have to wait on a cache miss on the aggregated
-counter - either we have no misses (if both were in cache) or we fetch
-both lines concurrently (if neither were in cache). Do you think that
-reasoning is invalid?
-
->
->> Maybe have an "aggregate" pointer in a res_counter that points to
->> another res_counter that sums some number of counters; both the mem
->> and the swap res_counter objects for a cgroup would point to the
->> mem+swap res_counter for their aggregate. Adjusting the usage of a
->> counter would also adjust its aggregate (or fail if adjusting the
->> aggregate failed).
->>
-> It's complicated.
-
-Agreed, it's a bit more complicated than defining a new structure and
-code that's very reminiscent of res_counter. But it does solve the
-problem of aggregating across multiple resource types and multiple
-children in a generic way.
-
-Paul
+Andrew's merged up most stuff now, so I'll send over some patches soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
