@@ -1,173 +1,189 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9LKO3vh031064
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:24:03 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9LKODHJ088746
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:24:14 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9LKNePL028921
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 14:23:41 -0600
-Date: Tue, 21 Oct 2008 15:24:10 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
-	restart
-Message-ID: <20081021202410.GA10423@us.ibm.com>
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu> <20081021124130.a002e838.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081021124130.a002e838.akpm@linux-foundation.org>
+Subject: Re: mlock: mlocked pages are unevictable
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+References: <200810201659.m9KGxtFC016280@hera.kernel.org>
+	 <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
+	 <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
+	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Oct 2008 22:30:15 +0200
+Message-Id: <1224621015.6724.6.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, tglx@linutronix.de, dave@linux.vnet.ibm.com, mingo@elte.hu, hpa@zytor.com, viro@zeniv.linux.org.uk
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Oleg Nesterov <oleg@tv-sign.ru>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Andrew Morton (akpm@linux-foundation.org):
-> On Mon, 20 Oct 2008 01:40:30 -0400
-> Oren Laadan <orenl@cs.columbia.edu> wrote:
-> >  asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
-> >  {
-> > -	pr_debug("sys_checkpoint not implemented yet\n");
-> > -	return -ENOSYS;
-> > +	struct cr_ctx *ctx;
-> > +	int ret;
-> > +
-> > +	/* no flags for now */
-> > +	if (flags)
-> > +		return -EINVAL;
-> > +
-> > +	ctx = cr_ctx_alloc(pid, fd, flags | CR_CTX_CKPT);
-> > +	if (IS_ERR(ctx))
-> > +		return PTR_ERR(ctx);
-> > +
-> > +	ret = do_checkpoint(ctx);
-> > +
-> > +	if (!ret)
-> > +		ret = ctx->crid;
-> > +
-> > +	cr_ctx_free(ctx);
-> > +	return ret;
-> >  }
+On Wed, 2008-10-22 at 02:18 +0900, KOSAKI Motohiro wrote:
+> 2008/10/22 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
+> > Hi
+> >
+> >> I think the following part of your patch:
+> >>
+> >>> diff --git a/mm/swap.c b/mm/swap.c
+> >>> index fee6b97..bc58c13 100644
+> >>> --- a/mm/swap.c
+> >>> +++ b/mm/swap.c
+> >>> @@ -278,7 +278,7 @@ void lru_add_drain(void)
+> >>>       put_cpu();
+> >>>  }
+> >>>
+> >>> -#ifdef CONFIG_NUMA
+> >>> +#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
+> >>>  static void lru_add_drain_per_cpu(struct work_struct *dummy)
+> >>>  {
+> >>>       lru_add_drain();
+> >>
+> >> causes this (allyesconfig on s390):
+
+I would have suspected the new might_fault() annotation, although I
+haven't checked if that made it to Linus yet.
+
+> > hm,
+> >
+> > I don't think so.
+> >
+> > Actually, this patch has
+> >   mmap_sem -> lru_add_drain_all() dependency.
+> >
+> > but its dependency already exist in another place.
+> > example,
+> >
+> >  sys_move_pages()
+> >      do_move_pages()  <- down_read(mmap_sem)
+> >          migrate_prep()
+> >               lru_add_drain_all()
+> >
+> > Thought?
 > 
-> Is it appropriate that this be an unprivileged operation?
-
-Early versions checked capable(CAP_SYS_ADMIN), and we reasoned that we
-would later attempt to remove the need for privilege so that all users
-could safely use it.
-
-Arnd Bergmann called us on that nonsense, pointing out that it'd make
-more sense to let unprivileged users use them now, so that we'll be
-more careful about the security as patches roll in.
-
-So, Oren's patchset right now only checkpoints current, despite pid
-being part of the API.  So the task can access its own data.  When
-the patch supports checkpointing another task (which Oren says he's
-doing right now), then our intent is to check for ptrace access to
-the target task.  (Right, Oren?)
-
-> What happens if I pass it a pid which isn't system-wide unique?
-
-pid must be checked in the caller's pid namespace.  So if I've create a
-container which I want to checkpoint, pid 1 in that pidns will be, say,
-3497 in my pid_ns, and so 3497 is the pid I must use.  If I try to pass
-1, I'll try to checkpoint my own container.  And, if I'm not privileged
-and init is owned by root, the ptrace() check I mentioned above will
-return -EPERM.
-
-> What happens if I pass it a pid of a process which I don't own?  This
-> is super security-sensitive and we need to go over the permission
-> checking with a toothcomb.  It needs to be exhaustively described in
-> the changelog.  It might have security/selinux implications - I don't
-> know, I didn't look, but lights are flashing and bells are ringing over
-> here.
+> ok. maybe I understand this issue.
 > 
-> What happens if I pass it a pid of a process which I _do_ own, but it
-> does not refer to a container's init process?
-
-I would assume that do_checkpoint() would return -EINVAL, but it's a
-great question:  Oren, did you have another plan?
-
-> If `pid' must refer to a container's init process, isn't it always
-> equal to 1??
-
-Not in the caller's pid_namespace.
-
+> This bug is caused by folloing dependencys.
 > 
-> >  /**
-> >   * sys_restart - restart a container
-> >   * @crid: checkpoint image identifier
-> > @@ -36,6 +234,19 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
-> >   */
-> >  asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
-> >  {
-> > -	pr_debug("sys_restart not implemented yet\n");
-> > -	return -ENOSYS;
-> > +	struct cr_ctx *ctx;
-> > +	int ret;
-> > +
-> > +	/* no flags for now */
-> > +	if (flags)
-> > +		return -EINVAL;
-> > +
-> > +	ctx = cr_ctx_alloc(crid, fd, flags | CR_CTX_RSTR);
-> > +	if (IS_ERR(ctx))
-> > +		return PTR_ERR(ctx);
-> > +
-> > +	ret = do_restart(ctx);
-> > +
-> > +	cr_ctx_free(ctx);
-> > +	return ret;
-> >  }
+> some VM place has
+>       mmap_sem -> kevent_wq
 > 
-> Again, this is scary stuff.  We're allowing unprivileged userspace to
-> feed random numbers into kernel data structures.
-
-Yes, all of the file opens and mmaps must not skip the usual security
-checks.  The task credentials are currently unsupported, meaning that
-euid, etc, come from the caller, not the checkpoint image.  When the
-restoration of credentials becomes supported, then definately the
-caller (of sys_restore())'s ability to setresuid/setresgid to those
-values must be checked.
-
-So that's why we don't want CAP_SYS_ADMIN required up-front.  That way
-we will be forced to more carefully review each of those features.
-
-> I'd like to see the security guys take a real close look at all of
-> this, and for them to do that effectively they should be provided with
-> a full description of the security design of this feature.
-
-Right, some of the above should be spelled out somewhere.  Should it be
-in the patch description, in the Documentation/checkpoint.txt file,
-or someplace else?  Oren, do you want to filter the above information
-into the right place, or do you want me to do it and send you a patch?
-
-> > diff --git a/fs/read_write.c b/fs/read_write.c
-> > index 9ba495d..e2deded 100644
-> > --- a/fs/read_write.c
-> > +++ b/fs/read_write.c
-> > @@ -324,12 +324,12 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
-> >  
-> >  EXPORT_SYMBOL(vfs_write);
-> >  
-> > -static inline loff_t file_pos_read(struct file *file)
-> > +inline loff_t file_pos_read(struct file *file)
-> >  {
-> >  	return file->f_pos;
-> >  }
-> >  
-> > -static inline void file_pos_write(struct file *file, loff_t pos)
-> > +inline void file_pos_write(struct file *file, loff_t pos)
-> >  {
-> >  	file->f_pos = pos;
-> >  }
+> net/core/dev.c::dev_ioctl()  has
+>      rtnl_lock  ->  mmap_sem        (*) almost ioctl has
+> copy_from_user() and it cause page fault.
 > 
-> Might as well move these to a header and inline them everywhere. 
-> That'd be a separate leadin patch.
+> linkwatch_event has
+>     kevent_wq -> rtnl_lock
 > 
+> 
+> So, I think VM subsystem shouldn't use kevent_wq because many driver
+> use ioctl and work queue combination.
+> then drivers fixing isn't easy.
+> 
+> I'll make the patch soon.
 
-thanks,
--serge
+Doing what exactly?
+
+The problem appears to be calling flush_work(), which is rather heavy
+handed. We could do schedule_on_each_cpu() using a completion.
+
+Which I think is a nicer solution (if sufficient of course).
+
+lockdep splat attached for Oleg's convenience.
+
+> [17179587.988810] =======================================================
+> [17179587.988819] [ INFO: possible circular locking dependency detected ]
+> [17179587.988824] 2.6.27-06509-g2515ddc-dirty #190
+> [17179587.988827] -------------------------------------------------------
+> [17179587.988831] multipathd/3868 is trying to acquire lock:
+> [17179587.988834]  (events){--..}, at: [<0000000000157f82>] flush_work+0x42/0x124
+> [17179587.988850] 
+> [17179587.988851] but task is already holding lock:
+> [17179587.988854]  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
+> [17179587.988865] 
+> [17179587.988866] which lock already depends on the new lock.
+> [17179587.988867] 
+> [17179587.988871] 
+> [17179587.988871] the existing dependency chain (in reverse order) is:
+> [17179587.988875] 
+> [17179587.988876] -> #3 (&mm->mmap_sem){----}:
+> [17179587.988883]        [<0000000000171a42>] __lock_acquire+0x143e/0x17c4
+> [17179587.988891]        [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.988896]        [<0000000000b2a532>] down_read+0x62/0xd8
+> [17179587.988905]        [<0000000000b2cc40>] do_dat_exception+0x14c/0x390
+> [17179587.988910]        [<0000000000114d36>] sysc_return+0x0/0x8
+> [17179587.988917]        [<00000000006c694a>] copy_from_user_mvcos+0x12/0x84
+> [17179587.988926]        [<00000000007335f0>] eql_ioctl+0x3e8/0x590
+> [17179587.988935]        [<00000000008b6230>] dev_ifsioc+0x29c/0x2c8
+> [17179587.988942]        [<00000000008b6874>] dev_ioctl+0x618/0x680
+> [17179587.988946]        [<00000000008a1a8c>] sock_ioctl+0x2b4/0x2c8
+> [17179587.988953]        [<00000000001f99a8>] vfs_ioctl+0x50/0xbc
+> [17179587.988960]        [<00000000001f9ee2>] do_vfs_ioctl+0x4ce/0x510
+> [17179587.988965]        [<00000000001f9f94>] sys_ioctl+0x70/0x98
+> [17179587.988970]        [<0000000000114d30>] sysc_noemu+0x10/0x16
+> [17179587.988975]        [<0000020000131286>] 0x20000131286
+> [17179587.988980] 
+> [17179587.988981] -> #2 (rtnl_mutex){--..}:
+> [17179587.988987]        [<0000000000171a42>] __lock_acquire+0x143e/0x17c4
+> [17179587.988993]        [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.988998]        [<0000000000b29ae8>] mutex_lock_nested+0x11c/0x31c
+> [17179587.989003]        [<00000000008bff1c>] rtnl_lock+0x30/0x40
+> [17179587.989009]        [<00000000008c144e>] linkwatch_event+0x26/0x6c
+> [17179587.989015]        [<0000000000157356>] run_workqueue+0x146/0x240
+> [17179587.989020]        [<000000000015756e>] worker_thread+0x11e/0x134
+> [17179587.989025]        [<000000000015cd8e>] kthread+0x6e/0xa4
+> [17179587.989030]        [<000000000010ad9a>] kernel_thread_starter+0x6/0xc
+> [17179587.989036]        [<000000000010ad94>] kernel_thread_starter+0x0/0xc
+> [17179587.989042] 
+> [17179587.989042] -> #1 ((linkwatch_work).work){--..}:
+> [17179587.989049]        [<0000000000171a42>] __lock_acquire+0x143e/0x17c4
+> [17179587.989054]        [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.989059]        [<0000000000157350>] run_workqueue+0x140/0x240
+> [17179587.989064]        [<000000000015756e>] worker_thread+0x11e/0x134
+> [17179587.989069]        [<000000000015cd8e>] kthread+0x6e/0xa4
+> [17179587.989074]        [<000000000010ad9a>] kernel_thread_starter+0x6/0xc
+> [17179587.989079]        [<000000000010ad94>] kernel_thread_starter+0x0/0xc
+> [17179587.989084] 
+> [17179587.989085] -> #0 (events){--..}:
+> [17179587.989091]        [<00000000001716ca>] __lock_acquire+0x10c6/0x17c4
+> [17179587.989096]        [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.989101]        [<0000000000157fb4>] flush_work+0x74/0x124
+> [17179587.989107]        [<0000000000158620>] schedule_on_each_cpu+0xec/0x138
+> [17179587.989112]        [<00000000001b0ab4>] lru_add_drain_all+0x2c/0x40
+> [17179587.989117]        [<00000000001c05ac>] __mlock_vma_pages_range+0xcc/0x2e8
+> [17179587.989123]        [<00000000001c0970>] mlock_fixup+0x1a8/0x280
+> [17179587.989128]        [<00000000001c0aec>] do_mlockall+0xa4/0xd4
+> [17179587.989133]        [<00000000001c0c36>] sys_mlockall+0xae/0xe0
+> [17179587.989138]        [<0000000000114d30>] sysc_noemu+0x10/0x16
+> [17179587.989142]        [<000002000025a466>] 0x2000025a466
+> [17179587.989147] 
+> [17179587.989148] other info that might help us debug this:
+> [17179587.989149] 
+> [17179587.989154] 1 lock held by multipathd/3868:
+> [17179587.989156]  #0:  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
+> [17179587.989165] 
+> [17179587.989166] stack backtrace:
+> [17179587.989170] CPU: 0 Not tainted 2.6.27-06509-g2515ddc-dirty #190
+> [17179587.989174] Process multipathd (pid: 3868, task: 000000003978a298, ksp: 0000000039b23eb8)
+> [17179587.989178] 000000003978aa00 0000000039b238b8 0000000000000002 0000000000000000 
+> [17179587.989184]        0000000039b23958 0000000039b238d0 0000000039b238d0 00000000001060ee 
+> [17179587.989192]        0000000000000003 0000000000000000 0000000000000000 000000000000000b 
+> [17179587.989199]        0000000000000060 0000000000000008 0000000039b238b8 0000000039b23928 
+> [17179587.989207]        0000000000b30b50 00000000001060ee 0000000039b238b8 0000000039b23910 
+> [17179587.989216] Call Trace:
+> [17179587.989219] ([<0000000000106036>] show_trace+0xb2/0xd0)
+> [17179587.989225]  [<000000000010610c>] show_stack+0xb8/0xc8
+> [17179587.989230]  [<0000000000b27a96>] dump_stack+0xae/0xbc
+> [17179587.989234]  [<000000000017019e>] print_circular_bug_tail+0xee/0x100
+> [17179587.989240]  [<00000000001716ca>] __lock_acquire+0x10c6/0x17c4
+> [17179587.989245]  [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.989250]  [<0000000000157fb4>] flush_work+0x74/0x124
+> [17179587.989256]  [<0000000000158620>] schedule_on_each_cpu+0xec/0x138
+> [17179587.989261]  [<00000000001b0ab4>] lru_add_drain_all+0x2c/0x40
+> [17179587.989266]  [<00000000001c05ac>] __mlock_vma_pages_range+0xcc/0x2e8
+> [17179587.989271]  [<00000000001c0970>] mlock_fixup+0x1a8/0x280
+> [17179587.989276]  [<00000000001c0aec>] do_mlockall+0xa4/0xd4
+> [17179587.989281]  [<00000000001c0c36>] sys_mlockall+0xae/0xe0
+> [17179587.989286]  [<0000000000114d30>] sysc_noemu+0x10/0x16
+> [17179587.989290]  [<000002000025a466>] 0x2000025a466
+> [17179587.989294] INFO: lockdep is turned off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
