@@ -1,279 +1,108 @@
-Date: Tue, 21 Oct 2008 09:33:56 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: invoke oom-killer from page fault
-Message-ID: <20081021073356.GB3237@wotan.suse.de>
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9L8IU0F008444
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Oct 2008 17:18:31 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B99D41B8020
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 17:18:30 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B1312DC015
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 17:18:30 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 660C51DB803B
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 17:18:30 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 252431DB803C
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 17:18:27 +0900 (JST)
+Date: Tue, 21 Oct 2008 17:18:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [memcg BUG] unable to handle kernel NULL pointer derefence at
+ 00000000
+Message-Id: <20081021171801.4c16c295.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48FD82E3.9050502@cn.fujitsu.com>
+References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
+	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
+	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
+	<20081021101430.d2629a81.kamezawa.hiroyu@jp.fujitsu.com>
+	<48FD6901.6050301@linux.vnet.ibm.com>
+	<20081021143955.eeb86d49.kamezawa.hiroyu@jp.fujitsu.com>
+	<48FD74AB.9010307@cn.fujitsu.com>
+	<20081021155454.db6888e4.kamezawa.hiroyu@jp.fujitsu.com>
+	<48FD7EEF.3070803@cn.fujitsu.com>
+	<20081021161621.bb51af90.kamezawa.hiroyu@jp.fujitsu.com>
+	<48FD82E3.9050502@cn.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Yes I tested this and it correctly results in panic if panic_on_oom is set and
-the page fault runs out of memory. It also doesn't try to kill init if some
-other task can be killed.
+On Tue, 21 Oct 2008 15:21:07 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
+> dmesg is attached.
+> 
+Thanks....I think I caught some. (added Mel Gorman to CC:)
 
-One remaining problem is that we don't know the constraint of the allocation
-(don't know the GFP mask etc), so we can't do exactly the right thing there
-yet, but at least we do better than before.
+NODE_DATA(nid)->spanned_pages just means sum of zone->spanned_pages in node.
 
----
+So, If there is a hole between zone, node->spanned_pages doesn't mean
+length of node's memmap....(then, some hole can be skipped.)
 
-mm: invoke OOM killer from pagefault handler
+OMG....Could you try this ? 
 
-Rather than have the pagefault handler kill a process directly if it gets a
-VM_FAULT_OOM, have it call into the OOM killer.
+-Kame
+==
+NODE_DATA(nid)->node_spanned_pages doesn't means width of node's memory
+but means sum of spanned_pages in all zones of node.
 
-With increasingly sophisticated oom behaviour (cpusets, memory cgroups, oom
-killing throttling, oom priority adjustment or selective disabling, panic on
-oom, etc), it's silly to unconditionally kill the faulting process at page
-fault time. Create a hook for pagefault oom path to call into instead.
+alloc_node_page_cgroup() misunderstand it. This patch tries to use
+the same algorithm as alloc_node_mem_map() for allocating page_cgroup()
+for node.
 
-Only converted x86 and uml so far.
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Index: linux-2.6/mm/oom_kill.c
+ mm/page_cgroup.c |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+Index: linux-2.6.27/mm/page_cgroup.c
 ===================================================================
---- linux-2.6.orig/mm/oom_kill.c
-+++ linux-2.6/mm/oom_kill.c
-@@ -508,6 +508,69 @@ void clear_zonelist_oom(struct zonelist 
- 	spin_unlock(&zone_scan_mutex);
- }
- 
-+/*
-+ * Must be called with tasklist_lock held for read.
-+ */
-+void __out_of_memory(gfp_t gfp_mask, int order)
-+{
-+	if (sysctl_oom_kill_allocating_task) {
-+		oom_kill_process(current, gfp_mask, order, 0, NULL,
-+				"Out of memory (oom_kill_allocating_task)");
-+
-+	} else {
-+		unsigned long points;
-+		struct task_struct *p;
-+
-+retry:
-+		/*
-+		 * Rambo mode: Shoot down a process and hope it solves whatever
-+		 * issues we may have.
-+		 */
-+		p = select_bad_process(&points, NULL);
-+
-+		if (PTR_ERR(p) == -1UL)
-+			return;
-+
-+		/* Found nothing?!?! Either we hang forever, or we panic. */
-+		if (!p) {
-+			read_unlock(&tasklist_lock);
-+			panic("Out of memory and no killable processes...\n");
-+		}
-+
-+		if (oom_kill_process(p, gfp_mask, order, points, NULL,
-+				     "Out of memory"))
-+			goto retry;
-+	}
-+}
-+
-+/*
-+ * pagefault handler calls into here because it is out of memory but
-+ * doesn't know exactly how or why.
-+ */
-+void pagefault_out_of_memory(void)
-+{
-+	unsigned long freed = 0;
-+
-+	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-+	if (freed > 0)
-+		/* Got some memory back in the last second. */
-+		return;
-+
-+	if (sysctl_panic_on_oom)
-+		panic("out of memory from page fault. panic_on_oom is selected.\n");
-+
-+	read_lock(&tasklist_lock);
-+	__out_of_memory(0, 0); /* unknown gfp_mask and order */
-+	read_unlock(&tasklist_lock);
-+
-+	/*
-+	 * Give "p" a good chance of killing itself before we
-+	 * retry to allocate memory unless "p" is current
-+	 */
-+	if (!test_thread_flag(TIF_MEMDIE))
-+		schedule_timeout_uninterruptible(1);
-+}
-+
- /**
-  * out_of_memory - kill the "best" process when we run out of memory
-  * @zonelist: zonelist pointer
-@@ -521,8 +584,6 @@ void clear_zonelist_oom(struct zonelist 
-  */
- void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
+--- linux-2.6.27.orig/mm/page_cgroup.c
++++ linux-2.6.27/mm/page_cgroup.c
+@@ -41,10 +41,18 @@ static int __init alloc_node_page_cgroup
  {
--	struct task_struct *p;
--	unsigned long points = 0;
- 	unsigned long freed = 0;
- 	enum oom_constraint constraint;
+ 	struct page_cgroup *base, *pc;
+ 	unsigned long table_size;
+-	unsigned long start_pfn, nr_pages, index;
++	unsigned long start, end, start_pfn, nr_pages, index;
  
-@@ -543,7 +604,7 @@ void out_of_memory(struct zonelist *zone
- 
- 	switch (constraint) {
- 	case CONSTRAINT_MEMORY_POLICY:
--		oom_kill_process(current, gfp_mask, order, points, NULL,
-+		oom_kill_process(current, gfp_mask, order, 0, NULL,
- 				"No available memory (MPOL_BIND)");
- 		break;
- 
-@@ -552,35 +613,10 @@ void out_of_memory(struct zonelist *zone
- 			panic("out of memory. panic_on_oom is selected\n");
- 		/* Fall-through */
- 	case CONSTRAINT_CPUSET:
--		if (sysctl_oom_kill_allocating_task) {
--			oom_kill_process(current, gfp_mask, order, points, NULL,
--					"Out of memory (oom_kill_allocating_task)");
--			break;
--		}
--retry:
--		/*
--		 * Rambo mode: Shoot down a process and hope it solves whatever
--		 * issues we may have.
--		 */
--		p = select_bad_process(&points, NULL);
--
--		if (PTR_ERR(p) == -1UL)
--			goto out;
--
--		/* Found nothing?!?! Either we hang forever, or we panic. */
--		if (!p) {
--			read_unlock(&tasklist_lock);
--			panic("Out of memory and no killable processes...\n");
--		}
--
--		if (oom_kill_process(p, gfp_mask, order, points, NULL,
--				     "Out of memory"))
--			goto retry;
--
-+		__out_of_memory(gfp_mask, order);
- 		break;
- 	}
- 
--out:
- 	read_unlock(&tasklist_lock);
- 
- 	/*
-Index: linux-2.6/include/linux/mm.h
-===================================================================
---- linux-2.6.orig/include/linux/mm.h
-+++ linux-2.6/include/linux/mm.h
-@@ -700,6 +700,11 @@ static inline int page_mapped(struct pag
- 
- #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
- 
-+/*
-+ * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
-+ */
-+extern void pagefault_out_of_memory(void);
-+
- #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
- 
- extern void show_free_areas(void);
-Index: linux-2.6/arch/x86/mm/fault.c
-===================================================================
---- linux-2.6.orig/arch/x86/mm/fault.c
-+++ linux-2.6/arch/x86/mm/fault.c
-@@ -665,7 +665,6 @@ void __kprobes do_page_fault(struct pt_r
- 	if (unlikely(in_atomic() || !mm))
- 		goto bad_area_nosemaphore;
- 
--again:
- 	/*
- 	 * When running in the kernel we expect faults to occur only to
- 	 * addresses in user space.  All other faults represent errors in the
-@@ -856,25 +855,14 @@ no_context:
- 	oops_end(flags, regs, SIGKILL);
- #endif
- 
--/*
-- * We ran out of memory, or some other thing happened to us that made
-- * us unable to handle the page fault gracefully.
-- */
- out_of_memory:
+-	start_pfn = NODE_DATA(nid)->node_start_pfn;
+-	nr_pages = NODE_DATA(nid)->node_spanned_pages;
 +	/*
-+	 * We ran out of memory, call the OOM killer, and return the userspace
-+	 * (which will retry the fault, or kill us if we got oom-killed).
++	 * Instead of allocating page_cgroup for [start, end)
++	 * We allocate page_cgroup to the same size of mem_map.
++	 * See page_alloc.c::alloc_node_mem_map()
 +	 */
- 	up_read(&mm->mmap_sem);
--	if (is_global_init(tsk)) {
--		yield();
--		/*
--		 * Re-lookup the vma - in theory the vma tree might
--		 * have changed:
--		 */
--		goto again;
--	}
--
--	printk("VM: killing process %s\n", tsk->comm);
--	if (error_code & PF_USER)
--		do_group_exit(SIGKILL);
--	goto no_context;
-+	pagefault_out_of_memory();
-+	return;
++	start = NODE_DATA(nid)->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
++	end = NODE_DATA(nid)->node_start_pfn
++			+ NODE_DATA(nid)->node_spanned_pages;
++	end = ALIGN(end, MAX_ORDER_NR_PAGES);
++	nr_pages = end - start;
  
- do_sigbus:
- 	up_read(&mm->mmap_sem);
-Index: linux-2.6/arch/um/kernel/trap.c
-===================================================================
---- linux-2.6.orig/arch/um/kernel/trap.c
-+++ linux-2.6/arch/um/kernel/trap.c
-@@ -64,11 +64,10 @@ good_area:
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
  
- 	do {
- 		int fault;
--survive:
+@@ -52,6 +60,9 @@ static int __init alloc_node_page_cgroup
+ 			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+ 	if (!base)
+ 		return -ENOMEM;
 +
- 		fault = handle_mm_fault(mm, vma, address, is_write);
- 		if (unlikely(fault & VM_FAULT_ERROR)) {
- 			if (fault & VM_FAULT_OOM) {
--				err = -ENOMEM;
- 				goto out_of_memory;
- 			} else if (fault & VM_FAULT_SIGBUS) {
- 				err = -EACCES;
-@@ -104,18 +103,14 @@ out:
- out_nosemaphore:
- 	return err;
- 
--/*
-- * We ran out of memory, or some other thing happened to us that made
-- * us unable to handle the page fault gracefully.
-- */
- out_of_memory:
--	if (is_global_init(current)) {
--		up_read(&mm->mmap_sem);
--		yield();
--		down_read(&mm->mmap_sem);
--		goto survive;
--	}
--	goto out;
-+	/*
-+	 * We ran out of memory, call the OOM killer, and return the userspace
-+	 * (which will retry the fault, or kill us if we got oom-killed).
-+	 */
-+	up_read(&mm->mmap_sem);
-+	pagefault_out_of_memory();
-+	return 0;
- }
- 
- static void bad_segv(struct faultinfo fi, unsigned long ip)
-@@ -214,9 +209,6 @@ unsigned long segv(struct faultinfo fi, 
- 		si.si_addr = (void __user *)address;
- 		current->thread.arch.faultinfo = fi;
- 		force_sig_info(SIGBUS, &si, current);
--	} else if (err == -ENOMEM) {
--		printk(KERN_INFO "VM: killing process %s\n", current->comm);
--		do_exit(SIGKILL);
- 	} else {
- 		BUG_ON(err != -EFAULT);
- 		si.si_signo = SIGSEGV;
++	start_pfn = NODE_DATA(nid)->node_start_pfn;
++	base = base + start_pfn - start;
+ 	for (index = 0; index < nr_pages; index++) {
+ 		pc = base + index;
+ 		__init_page_cgroup(pc, start_pfn + index);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
