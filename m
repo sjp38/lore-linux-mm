@@ -1,9 +1,25 @@
-Date: Tue, 21 Oct 2008 15:38:55 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9L6tKOl021515
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Oct 2008 15:55:21 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5202AC026
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 15:55:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 83B4712C044
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 15:55:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 72E331DB803A
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 15:55:20 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F4451DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 15:55:20 +0900 (JST)
+Date: Tue, 21 Oct 2008 15:54:54 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [memcg BUG] unable to handle kernel NULL pointer derefence at
  00000000
-Message-Id: <20081021153855.cf347e84.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <48FD7695.6090407@cn.fujitsu.com>
+Message-Id: <20081021155454.db6888e4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <48FD74AB.9010307@cn.fujitsu.com>
 References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
 	<20081017195601.0b9abda1.nishimura@mxp.nes.nec.co.jp>
 	<6599ad830810201253u3bca41d4rabe48eb1ec1d529f@mail.gmail.com>
@@ -11,68 +27,49 @@ References: <20081017194804.fce28258.nishimura@mxp.nes.nec.co.jp>
 	<48FD6901.6050301@linux.vnet.ibm.com>
 	<20081021143955.eeb86d49.kamezawa.hiroyu@jp.fujitsu.com>
 	<48FD74AB.9010307@cn.fujitsu.com>
-	<20081021152557.1540b22e.kamezawa.hiroyu@jp.fujitsu.com>
-	<48FD7695.6090407@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, linux-mm@kvack.org
+Cc: balbir@linux.vnet.ibm.com, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Oct 2008 14:28:37 +0800, Li Zefan <lizf@cn.fujitsu.com> wrote:
-> KAMEZAWA Hiroyuki wrote:
-> > On Tue, 21 Oct 2008 14:20:27 +0800
-> > Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Tue, 21 Oct 2008 14:20:27 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
+
+> > BTW, "allocate all page_cgroup at boot" patch goes to Linus' git. Wow.
 > > 
-> >>> BTW, "allocate all page_cgroup at boot" patch goes to Linus' git. Wow.
-> >>>
-> >> But seems this patch causes kernel panic at system boot ... (or maybe one of other
-> >> memcg patches?)
-> >>
-> >> I wrote down the panic manually:
-> >>
-> >> BUG: unable to handle kernel NULL pointer dereference at 00000000
-> >> IP: page_cgroup_zoneinfo + 0xa
-> >>
-> >> Call Trace:
-> >> ? mem_cgroup_charge_common + 0x17d
-> >> ? mem_cgroup_charge
-> >> ? add_to_page_cache_locked
-> >> ? add_to_page_cache_lru
-> >> ? find_or_create_page
-> >> ? __getblk
-> >> ? ext3_get_inode_loc
-> >> ? ext3_iget
-> >> ? ext3_lookup
-> >>
-> >> Tell me if you need extra information.
-> >>
-> > This shows how small testers in -mm ...this is on x86 ?
 > 
-> Yes, x86_32
+> But seems this patch causes kernel panic at system boot ... (or maybe one of other
+> memcg patches?)
 > 
-> > Could you show me your config ? 
+> I wrote down the panic manually:
 > 
-> attached
+> BUG: unable to handle kernel NULL pointer dereference at 00000000
+> IP: page_cgroup_zoneinfo + 0xa
 > 
-Hmm... I tested mmotm-2008-10-16-18-58 + memcg update v7 on x86_32 yesterday,
-but it worked fine.
+> Call Trace:
+> ? mem_cgroup_charge_common + 0x17d
+> ? mem_cgroup_charge
+> ? add_to_page_cache_locked
+> ? add_to_page_cache_lru
+> ? find_or_create_page
+> ? __getblk
+> ? ext3_get_inode_loc
+> ? ext3_iget
+> ? ext3_lookup
+> 
+> Tell me if you need extra information.
+> 
+Hmm, it's curious but page_cgroup->page seems to be NULL...
+Could you show disassemble code of page_cgroup_zoneinfo() ?
 
-I'll try by your config.
-
+BTW, this happens always ?
 
 Thanks,
-Daisuke Nishimura.
-
-> > and what happens if cgroup_disable=memory ?
-> > 
-> 
-> then booted up successfully
-> 
-> 
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
