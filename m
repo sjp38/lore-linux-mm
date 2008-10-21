@@ -1,30 +1,38 @@
-Date: Tue, 21 Oct 2008 18:35:18 +0400
-From: Evgeniy Polyakov <zbr@ioremap.net>
-Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081021143518.GA7158@2ka.mipt.ru>
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com>
+Message-ID: <48FDE9E9.5020805@redhat.com>
+Date: Tue, 21 Oct 2008 10:40:41 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081021133814.GA26942@fogou.chygwyn.com>
+Subject: Re: [rfc] mm: more likely reclaim MADV_SEQUENTIAL mappings
+References: <87d4hugrwm.fsf@saeurebad.de>
+In-Reply-To: <87d4hugrwm.fsf@saeurebad.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: steve@chygwyn.com
-Cc: Miklos Szeredi <miklos@szeredi.hu>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Johannes Weiner wrote:
 
-On Tue, Oct 21, 2008 at 02:38:14PM +0100, steve@chygwyn.com (steve@chygwyn.com) wrote:
-> As a result of that, the VFS needs reads (and page_mkwrite) to
-> retry when !PageUptodate() in case the returned page has been
-> invalidated at any time when the page lock has been dropped.
+> I'm afraid this is now quite a bit more aggressive than the earlier
+> version.  When the fault path did a mark_page_access(), we wouldn't
+> reclaim a page when it has been faulted into several MADV_SEQUENTIAL
+> mappings but now we ignore *every* activity through such a mapping.
+> 
+> What do you think?
+> 
+> Perhaps we should note a reference if there are two or more accesses
+> through sequentially read mappings?
 
-Doesn't it happen under appropriate inode lock being held,
-which is a main serialization point?
+That can be easily accomplished by dropping the memory.c
+part of your patch.
+
+I do not know whether that would work any better than
+the patch you just posted, though :)
 
 -- 
-	Evgeniy Polyakov
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
