@@ -1,88 +1,235 @@
-Date: Tue, 21 Oct 2008 14:38:14 +0100
-From: steve@chygwyn.com
-Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081021133814.GA26942@fogou.chygwyn.com>
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu>
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9LDi9qx023543
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Oct 2008 22:44:09 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D75A53C161
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 22:44:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 613E7240060
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 22:44:09 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 472B41DB803B
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 22:44:09 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E37201DB803A
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 22:44:05 +0900 (JST)
+Message-ID: <27462.10.75.179.61.1224596645.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <48FDDA81.5040606@linux.vnet.ibm.com>
+References: <20081021161621.bb51af90.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FD82E3.9050502@cn.fujitsu.com>
+    <20081021171801.4c16c295.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FD943D.5090709@cn.fujitsu.com>
+    <20081021175735.0c3d3534.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FD9D30.2030500@cn.fujitsu.com>
+    <20081021182551.0158a47b.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FDA6D4.3090809@cn.fujitsu.com>
+    <20081021191417.02ab97cc.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FDB584.7080608@cn.fujitsu.com> <20081021111951.GB4476@elte.hu>
+    <20081021202325.938678c0.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FDBD18.6090100@linux.vnet.ibm.com>
+    <20081021210015.02c8cacc.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FDC7B0.6040704@linux.vnet.ibm.com>
+    <20081021220927.97df17fa.kamezawa.hiroyu@jp.fujitsu.com>
+    <48FDDA81.5040606@linux.vnet.ibm.com>
+Date: Tue, 21 Oct 2008 22:44:05 +0900 (JST)
+Subject: Re: [memcg BUG] unable to handle kernel NULL pointer derefence
+     at00000000
+From: =?ISO-2022-JP?B?GyRCNTVfNyEhNDJHNxsoQg==?=
+	<kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu>
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> KAMEZAWA Hiroyuki wrote:
+>> On Tue, 21 Oct 2008 17:44:40 +0530
+>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>>> I got an idea and maybe can send a patch soon. I'm now finding x86-32
+>>>> box..
+>>> Please send it to me, I am able to reproduce the problem with my kvm
+>>> setup on my
+>>> 32 bit system. I can do a quick test/verification for you.
+>>>
+>> Thanks. how about this ? test on x86-64 is done.
+>> -Kame
+>> ==
+>>
+>>
+>>
+>> page_cgroup_init() is called from mem_cgroup_init(). But at this
+>> point, we cannot call alloc_bootmem().
+>> (and this caused panic at boot.)
+>>
+>> This patch moves page_cgroup_init() to init/main.c.
+>>
+>> Time table is following:
+>> ==
+>>   parse_args(). # we can trust mem_cgroup_subsys.disabled bit after
+>> this.
+>>   ....
+>>   cgroup_init_early()  # "early" init of cgroup.
+>>   ....
+>>   setup_arch()         # memmap is allocated.
+>>   ...
+>>   page_cgroup_init();
+>>   mem_init();   # we cannot call alloc_bootmem after this.
+>>   ....
+>>   cgroup_init() # mem_cgroup is initialized.
+>> ==
+>>
+>> Before page_cgroup_init(), mem_map must be initialized. So,
+>> I added page_cgroup_init() to init/main.c directly.
+>>
+>> (*) maybe this is not very clean but cgroup_init_early() is too early
+>>     and we have to use vmalloc instead of alloc_bootmem() in
+>> cgroup_init().
+>>     usage of vmalloc area in x86-32 is important and we should avoid
+>>     vmalloc() in x86-32. So, we want to use alloc_bootmem() from
+>>     sutaible place.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>>  include/linux/page_cgroup.h |    1 +
+>>  init/main.c                 |    2 ++
+>>  mm/memcontrol.c             |    1 -
+>>  mm/page_cgroup.c            |   35 ++++++++++++++++++++++++++++-------
+>>  4 files changed, 31 insertions(+), 8 deletions(-)
+>>
+>> Index: linux-2.6/init/main.c
+>> ===================================================================
+>> --- linux-2.6.orig/init/main.c
+>> +++ linux-2.6/init/main.c
+>> @@ -62,6 +62,7 @@
+>>  #include <linux/signal.h>
+>>  #include <linux/idr.h>
+>>  #include <linux/ftrace.h>
+>> +#include <linux/page_cgroup.h>
+>>
+>>  #include <asm/io.h>
+>>  #include <asm/bugs.h>
+>> @@ -647,6 +648,7 @@ asmlinkage void __init start_kernel(void
+>>  	vmalloc_init();
+>>  	vfs_caches_init_early();
+>>  	cpuset_init_early();
+>> +	page_cgroup_init();
+>>  	mem_init();
+>>  	enable_debug_pagealloc();
+>>  	cpu_hotplug_init();
+>> Index: linux-2.6/mm/memcontrol.c
+>> ===================================================================
+>> --- linux-2.6.orig/mm/memcontrol.c
+>> +++ linux-2.6/mm/memcontrol.c
+>> @@ -1088,7 +1088,6 @@ mem_cgroup_create(struct cgroup_subsys *
+>>  	int node;
+>>
+>>  	if (unlikely((cont->parent) == NULL)) {
+>> -		page_cgroup_init();
+>>  		mem = &init_mem_cgroup;
+>>  	} else {
+>>  		mem = mem_cgroup_alloc();
+>> Index: linux-2.6/include/linux/page_cgroup.h
+>> ===================================================================
+>> --- linux-2.6.orig/include/linux/page_cgroup.h
+>> +++ linux-2.6/include/linux/page_cgroup.h
+>> @@ -3,6 +3,7 @@
+>>
+>>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>>  #include <linux/bit_spinlock.h>
+>> +
+>>  /*
+>>   * Page Cgroup can be considered as an extended mem_map.
+>>   * A page_cgroup page is associated with every page descriptor. The
+>> Index: linux-2.6/mm/page_cgroup.c
+>> ===================================================================
+>> --- linux-2.6.orig/mm/page_cgroup.c
+>> +++ linux-2.6/mm/page_cgroup.c
+>> @@ -4,7 +4,12 @@
+>>  #include <linux/bit_spinlock.h>
+>>  #include <linux/page_cgroup.h>
+>>  #include <linux/hash.h>
+>> +#include <linux/slab.h>
+>>  #include <linux/memory.h>
+>> +#include <linux/cgroup.h>
+>> +
+>> +extern struct cgroup_subsys	mem_cgroup_subsys;
+>> +
+>>
+>>  static void __meminit
+>>  __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+>> @@ -66,6 +71,9 @@ void __init page_cgroup_init(void)
+>>
+>>  	int nid, fail;
+>>
+>> +	if (mem_cgroup_subsys.disabled)
+>> +		return;
+>> +
+>>  	for_each_online_node(nid)  {
+>>  		fail = alloc_node_page_cgroup(nid);
+>>  		if (fail)
+>> @@ -106,9 +114,14 @@ int __meminit init_section_page_cgroup(u
+>>  	nid = page_to_nid(pfn_to_page(pfn));
+>>
+>>  	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+>> -	base = kmalloc_node(table_size, GFP_KERNEL, nid);
+>> -	if (!base)
+>> -		base = vmalloc_node(table_size, nid);
+>> +	if (slab_is_available()) {
+>> +		base = kmalloc_node(table_size, GFP_KERNEL, nid);
+>> +		if (!base)
+>> +			base = vmalloc_node(table_size, nid);
+>> +	} else {
+>> +		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
+>> +				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+>> +	}
+>>
+>>  	if (!base) {
+>>  		printk(KERN_ERR "page cgroup allocation failure\n");
+>> @@ -135,11 +148,16 @@ void __free_page_cgroup(unsigned long pf
+>>  	if (!ms || !ms->page_cgroup)
+>>  		return;
+>>  	base = ms->page_cgroup + pfn;
+>> -	ms->page_cgroup = NULL;
+>> -	if (is_vmalloc_addr(base))
+>> +	if (is_vmalloc_addr(base)) {
+>>  		vfree(base);
+>> -	else
+>> -		kfree(base);
+>> +		ms->page_cgroup = NULL;
+>> +	} else {
+>> +		struct page *page = virt_to_page(base);
+>> +		if (!PageReserved(page)) { /* Is bootmem ? */
+>> +			kfree(base);
+>> +			ms->page_cgroup = NULL;
+>> +		}
+>> +	}
+>>  }
+>>
+>>  int online_page_cgroup(unsigned long start_pfn,
+>> @@ -213,6 +231,9 @@ void __init page_cgroup_init(void)
+>>  	unsigned long pfn;
+>>  	int fail = 0;
+>>
+>> +	if (mem_cgroup_subsys.disabled)
+>> +		return;
+>> +
+>>  	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
+>>  		if (!pfn_present(pfn))
+>>  			continue;
+>
+> Booted on x86_32 for me
+>
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>
 
-On Tue, Oct 21, 2008 at 03:14:48PM +0200, Miklos Szeredi wrote:
-> On Tue, 21 Oct 2008, steve@chygwyn.com
-> > > Is there a case where retrying in case of !PageUptodate() makes any
-> > > sense?
-> > >
-> > Yes... cluster filesystems. Its very important in case a readpage
-> > races with a lock demotion. Since the introduction of page_mkwrite
-> > that hasn't worked quite right, but by retrying when the page is
-> > not uptodate, that should fix the problem,
-> 
-> I see.
-> 
-> Could you please give some more details?  In particular I don't know
-> what's lock demotion in this context.  And how page_mkwrite() come
-> into the picture?
-> 
-> Thanks,
-> Miklos
+Thank you ! (I'll resend later if necessary.)
 
-page_mkwrite is only in the picture really because its the last
-time that code was changed. At that point GFS2 adopted
-->filemap_fault() rather than using its own page fault
-routine.
-
-So here are the basics of locking, so far as GFS2 goes, although
-other cluster filesystems are similar. Lets suppose that on
-node A, an inode is in cache and its being read/written and
-on node B, another process wants to perform some operation
-(read/write/etc) on the same inode.
-
-Node B requests a lock via the dlm which causes Node A to
-receive a callback. The callback sets a flag in the glock[*]
-state on Node A corresponding to the inode in question. This
-results in all future requests for that particular lock on
-Node A blocking. Also at that time, we unmap any mapped pages
-relating to that inode, flush any dirty data back onto the
-disk (and if the request was for an exclusive lock, invalidate
-the pages as well). So thats what I was refering to above as
-lock demotion.
-
-Once thats done, the dlm/glock is dropped (again notification is via
-the dlm) and if Node A has outstanding requests queued up, it
-re-requests the glock. This is a slightly simplified explanation
-but, I hope it gives the general drift.
-
-So to return to the original subject, in order to allow all
-this locking to occur with no lock ordering problems, we have
-to define a suitable ordering of page locks vs. glocks, and the
-ordering that we use is that glocks must come before page locks. The
-full ordering of locks in GFS2 is in Documentation/filesystems/gfs2-glocks.txt
-
-As a result of that, the VFS needs reads (and page_mkwrite) to
-retry when !PageUptodate() in case the returned page has been
-invalidated at any time when the page lock has been dropped.
-
-Obviously we hope that this doesn't happen too often since its
-very inefficient (and we have a system to try and reduce the
-frequency of such events) but it can and does happen at more
-or less any time, so the vfs needs to take that into account.
-
-I hope that makes some kind of sense... let me know if its
-not clear,
-
-Steve.
-
-[*] The glock layer is a state machine which is associated with each
-dlm lock and performs the required actions is response to dlm messages
-and filesystem requests to keep the page cache coherent.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
