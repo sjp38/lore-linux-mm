@@ -1,38 +1,46 @@
-Message-ID: <48FDE9E9.5020805@redhat.com>
-Date: Tue, 21 Oct 2008 10:40:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Date: Tue, 21 Oct 2008 15:59:01 +0100
+From: steve@chygwyn.com
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+Message-ID: <20081021145901.GA28279@fogou.chygwyn.com>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru>
 MIME-Version: 1.0
-Subject: Re: [rfc] mm: more likely reclaim MADV_SEQUENTIAL mappings
-References: <87d4hugrwm.fsf@saeurebad.de>
-In-Reply-To: <87d4hugrwm.fsf@saeurebad.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081021143518.GA7158@2ka.mipt.ru>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux MM Mailing List <linux-mm@kvack.org>
+To: Evgeniy Polyakov <zbr@ioremap.net>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner wrote:
+Hi,
 
-> I'm afraid this is now quite a bit more aggressive than the earlier
-> version.  When the fault path did a mark_page_access(), we wouldn't
-> reclaim a page when it has been faulted into several MADV_SEQUENTIAL
-> mappings but now we ignore *every* activity through such a mapping.
+On Tue, Oct 21, 2008 at 06:35:18PM +0400, Evgeniy Polyakov wrote:
+> Hi.
 > 
-> What do you think?
+> On Tue, Oct 21, 2008 at 02:38:14PM +0100, steve@chygwyn.com (steve@chygwyn.com) wrote:
+> > As a result of that, the VFS needs reads (and page_mkwrite) to
+> > retry when !PageUptodate() in case the returned page has been
+> > invalidated at any time when the page lock has been dropped.
 > 
-> Perhaps we should note a reference if there are two or more accesses
-> through sequentially read mappings?
+> Doesn't it happen under appropriate inode lock being held,
+> which is a main serialization point?
+> 
+> -- 
+> 	Evgeniy Polyakov
 
-That can be easily accomplished by dropping the memory.c
-part of your patch.
+No, I guess it might be possible, but for the time being it is
+its own "glock" plus the page lock dependency. I'd have to
+think quite hard about what the consequences of using the
+inode lock would be.
 
-I do not know whether that would work any better than
-the patch you just posted, though :)
+Of course we do demand the inode lock as well in some cases
+since the vfs has already grabbed it before calling
+into the filesystem when its required. Because of that and
+where we run the glock state machine from, it would be rather
+complicated to make that work I suspect,
 
--- 
-All rights reversed.
+Steve.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
