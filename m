@@ -1,45 +1,76 @@
-In-reply-to: <Pine.LNX.4.64.0810221416130.26639@quilx.com> (message from
-	Christoph Lameter on Wed, 22 Oct 2008 14:28:57 -0700 (PDT))
-Subject: Re: SLUB defrag pull request?
-References: <1223883004.31587.15.camel@penberg-laptop>
- <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu>  <48FE6306.6020806@linux-foundation.org>
-  <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810220822500.30851@quilx.com>
-  <E1Ksjed-00023D-UB@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221252570.3562@quilx.com>
-  <E1Ksk3g-00027r-Lp@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221315080.26671@quilx.com>
-  <E1KskHI-0002AF-Hz@pomaz-ex.szeredi.hu> <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
- <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu> <Pine.LNX.4.64.0810221416130.26639@quilx.com>
-Message-Id: <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 23 Oct 2008 00:10:34 +0200
+Date: Wed, 22 Oct 2008 15:23:16 -0700
+From: Mark Fasheh <mfasheh@suse.com>
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+Message-ID: <20081022222316.GI15154@wotan.suse.de>
+Reply-To: Mark Fasheh <mfasheh@suse.com>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081021125915.GA26697@fogou.chygwyn.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cl@linux-foundation.org
-Cc: miklos@szeredi.hu, penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: steve@chygwyn.com
+Cc: Miklos Szeredi <miklos@szeredi.hu>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Oct 2008, Christoph Lameter wrote:
-> On Wed, 22 Oct 2008, Miklos Szeredi wrote:
+On Tue, Oct 21, 2008 at 01:59:15PM +0100, steve@chygwyn.com wrote:
+> Hi,
 > 
-> >> Actually, when debugging is enabled, it's customary to poison the
-> >> object, for example (see free_debug_processing() in mm/slub.c). So we
-> >> really can't "easily ensure" that in the allocator unless we by-pass
-> >> all the current debugging code.
-> 
-> Plus the allocator may be reusing parts of the freed object for a freelist 
-> etc even if the object is not poisoned.
+> On Tue, Oct 21, 2008 at 02:52:45PM +0200, Miklos Szeredi wrote:
+> > On Tue, 21 Oct 2008, Nick Piggin wrote:
+> > > IO error handling in the core mm/fs still doesn't seem perfect, but with
+> > > the recent round of patches and this one, it should be getting on the
+> > > right track.
+> > > 
+> > > I kind of get the feeling some people would rather forget about all this
+> > > and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> > > disagrees with my assertion that error handling, and data integrity
+> > > semantics are first-class correctness issues, and therefore are more
+> > > important than all other non-correctness problems... speak now and let's
+> > > discuss that, please.
+> > 
+> > I agree that error handling is important.  But careful: some
+> > filesystems (NFS I know) don't set PG_error on async read errors, and
+> > changing the semantics of ->readpage() from returning EIO to retrying
+> > will potentially cause infinite loops.  And no casual testing will
+> > reveal those because peristent read errors are extremely rare.
+> > 
+> > So I think a better aproach would be to do
+> > 
+> > 			error = lock_page_killable(page);
+> > 			if (unlikely(error))
+> > 				goto readpage_error;
+> > 			if (PageError(page) || !PageUptodate(page)) {
+> > 				unlock_page(page);
+> > 				shrink_readahead_size_eio(filp, ra);
+> > 				error = -EIO;
+> > 				goto readpage_error;
+> > 			}
+> > 			if (!page->mapping) {
+> > 				unlock_page(page);
+> > 				page_cache_release(page);
+> > 				goto find_page;
+> > 			}
+> > 
+> > etc...
+> > 
+> > Is there a case where retrying in case of !PageUptodate() makes any
+> > sense?
+> >
+> Yes... cluster filesystems. Its very important in case a readpage
+> races with a lock demotion. Since the introduction of page_mkwrite
+> that hasn't worked quite right, but by retrying when the page is
+> not uptodate, that should fix the problem,
 
-Actually, no: looking at the slub code it already makes sure that
-objects are neither poisoned, nor touched in any way _if_ there is a
-constructor for the object.  And for good reason too, otherwise a
-reused object would contain rubbish after a second allocation.
+Btw, at least for the readpage case, a return of AOP_TRUNCATED_PAGE should
+be checked for, which would indicate (along with !PageUptodate()) whether we
+need to retry the read. page_mkwrite though, as you point out, is a
+different story.
+	--Mark
 
-Come on guys, you should be the experts in this thing!
-
-So again, just checking d_lru should do work fine.  There's absolutely
-no need to mess with extra references in a separate phase, which leads
-to lots of complications.
-
-Miklos
+--
+Mark Fasheh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
