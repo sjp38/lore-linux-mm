@@ -1,118 +1,78 @@
-Subject: Re: mlock: mlocked pages are unevictable
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
-References: <200810201659.m9KGxtFC016280@hera.kernel.org>
-	 <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
-Content-Type: text/plain
-Date: Wed, 22 Oct 2008 11:28:47 -0400
-Message-Id: <1224689328.6392.19.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 22 Oct 2008 08:42:25 -0700 (PDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: SLUB defrag pull request?
+In-Reply-To: <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0810220822500.30851@quilx.com>
+References: <1223883004.31587.15.camel@penberg-laptop>
+ <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site>
+ <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu>
+ <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org>
+ <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu> <48FC9CCC.3040006@linux-foundation.org>
+ <E1Krz4o-0002Fi-Pu@pomaz-ex.szeredi.hu> <48FCCC72.5020202@linux-foundation.org>
+ <E1KrzgK-0002QS-Os@pomaz-ex.szeredi.hu> <48FCD7CB.4060505@linux-foundation.org>
+ <E1Ks0QX-0002aC-SQ@pomaz-ex.szeredi.hu> <48FCE1C4.20807@linux-foundation.org>
+ <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu> <48FE6306.6020806@linux-foundation.org>
+ <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-10-21 at 17:13 +0200, Heiko Carstens wrote:
-> Hi Nick,
-> 
-> On Mon, Oct 20, 2008 at 04:59:55PM +0000, Linux Kernel Mailing List wrote:
-> > Gitweb:     http://git.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b291f000393f5a0b679012b39d79fbc85c018233
-> > Commit:     b291f000393f5a0b679012b39d79fbc85c018233
-> > Author:     Nick Piggin <npiggin@suse.de>
-> > AuthorDate: Sat Oct 18 20:26:44 2008 -0700
-> > Committer:  Linus Torvalds <torvalds@linux-foundation.org>
-> > CommitDate: Mon Oct 20 08:52:30 2008 -0700
-> > 
-> >     mlock: mlocked pages are unevictable
-> 
-> [...]
-> 
-> I think the following part of your patch:
-> 
-> > diff --git a/mm/swap.c b/mm/swap.c
-> > index fee6b97..bc58c13 100644
-> > --- a/mm/swap.c
-> > +++ b/mm/swap.c
-> > @@ -278,7 +278,7 @@ void lru_add_drain(void)
-> >  	put_cpu();
-> >  }
-> > 
-> > -#ifdef CONFIG_NUMA
-> > +#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
-> >  static void lru_add_drain_per_cpu(struct work_struct *dummy)
-> >  {
-> >  	lru_add_drain();
-> 
-> causes this (allyesconfig on s390):
-> 
-> [17179587.988810] =======================================================
-> [17179587.988819] [ INFO: possible circular locking dependency detected ]
-> [17179587.988824] 2.6.27-06509-g2515ddc-dirty #190
-> [17179587.988827] -------------------------------------------------------
-> [17179587.988831] multipathd/3868 is trying to acquire lock:
-> [17179587.988834]  (events){--..}, at: [<0000000000157f82>] flush_work+0x42/0x124
-> [17179587.988850] 
-> [17179587.988851] but task is already holding lock:
-> [17179587.988854]  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
-> [17179587.988865] 
-> [17179587.988866] which lock already depends on the new lock.
-> [17179587.988867] 
-<snip>
-> [17179587.989148] other info that might help us debug this:
-> [17179587.989149] 
-> [17179587.989154] 1 lock held by multipathd/3868:
-> [17179587.989156]  #0:  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
-> [17179587.989165] 
-> [17179587.989166] stack backtrace:
-> [17179587.989170] CPU: 0 Not tainted 2.6.27-06509-g2515ddc-dirty #190
-> [17179587.989174] Process multipathd (pid: 3868, task: 000000003978a298, ksp: 0000000039b23eb8)
-> [17179587.989178] 000000003978aa00 0000000039b238b8 0000000000000002 0000000000000000 
-> [17179587.989184]        0000000039b23958 0000000039b238d0 0000000039b238d0 00000000001060ee 
-> [17179587.989192]        0000000000000003 0000000000000000 0000000000000000 000000000000000b 
-> [17179587.989199]        0000000000000060 0000000000000008 0000000039b238b8 0000000039b23928 
-> [17179587.989207]        0000000000b30b50 00000000001060ee 0000000039b238b8 0000000039b23910 
-> [17179587.989216] Call Trace:
-> [17179587.989219] ([<0000000000106036>] show_trace+0xb2/0xd0)
-> [17179587.989225]  [<000000000010610c>] show_stack+0xb8/0xc8
-> [17179587.989230]  [<0000000000b27a96>] dump_stack+0xae/0xbc
-> [17179587.989234]  [<000000000017019e>] print_circular_bug_tail+0xee/0x100
-> [17179587.989240]  [<00000000001716ca>] __lock_acquire+0x10c6/0x17c4
-> [17179587.989245]  [<0000000000171e5c>] lock_acquire+0x94/0xbc
-> [17179587.989250]  [<0000000000157fb4>] flush_work+0x74/0x124
-> [17179587.989256]  [<0000000000158620>] schedule_on_each_cpu+0xec/0x138
-> [17179587.989261]  [<00000000001b0ab4>] lru_add_drain_all+0x2c/0x40
-> [17179587.989266]  [<00000000001c05ac>] __mlock_vma_pages_range+0xcc/0x2e8
-> [17179587.989271]  [<00000000001c0970>] mlock_fixup+0x1a8/0x280
-> [17179587.989276]  [<00000000001c0aec>] do_mlockall+0xa4/0xd4
-> [17179587.989281]  [<00000000001c0c36>] sys_mlockall+0xae/0xe0
-> [17179587.989286]  [<0000000000114d30>] sysc_noemu+0x10/0x16
-> [17179587.989290]  [<000002000025a466>] 0x2000025a466
-> [17179587.989294] INFO: lockdep is turned off.
+On Wed, 22 Oct 2008, Miklos Szeredi wrote:
 
+> On Tue, 21 Oct 2008, Christoph Lameter wrote:
+>> The only way that a secure reference can be established is if the
+>> slab page is locked. That requires a spinlock. The slab allocator
+>> calls the get() functions while the slab lock guarantees object
+>> existence. Then locks are dropped and reclaim actions can start with
+>> the guarantee that the slab object will not suddenly vanish.
+>
+> Yes, you've made up your mind, that you want to do it this way.  But
+> it's the _wrong_ way, this "want to get a secure reference for use
+> later" leads to madness when applied to dentries or inodes.  Try for a
+> minute to think outside this template.
+>
+> For example dcache_lock will protect against dentries moving to/from
+> d_lru.  So you can do this:
+>
+>  take dcache_lock
+>  check if d_lru is non-empty
 
-We could probably remove the lru_add_drain_all() called from
-__mlock_vma_pages_range(), or replace it with a local lru_add_drain().
-It's only there to push pages that might still be in the lru pagevecs
-out to the lru lists so that we can isolate them and move them to the
-the unevictable list.  The local lru_drain() should push any pages
-faulted in by the immediately prior call to get_user_pages().  The only
-pages we'd miss would be pages [recently?] faulted on another processor
-and still in that pagevec.  So, we'll have a page marked as mlocked on a
-normal lru list.  If/when vmscan sees it, it will immediately move it to
-the unevictable lru list.
+The dentry could have been freed even before we take the dcache_lock. We 
+cannot access d_lru without a stable reference to the dentry.
 
-The call to lru_add_drain_all() from __clear_page_mlock() may be more
-difficult.  Rik added that during testing because we found race
-conditions--during COW in the fault path, IIRC--where we would strand an
-mlocked page on the unevictable list.  It's an unlikely situation, I
-think.  We were beating on COWing of mlocked pages--mlockall(); fork();
-child attempts write to shared anon page, mlocked by parent;
-munlockall()/exit() from parent--pretty heavily at the time.
+>  take sb->s_umount
+>  free dentry
+>  release sb->s_umount
+>  release dcache_lock
+>
+> Yeah, locking will be more complicated in reality.  Still, much less
+> complicated than trying to do the same across two separate phases.
+>
+> Why can't something like that work?
 
-Lee
+Because the slab starts out with a series of objects left in a slab. It 
+needs to do build a list of objects etc in a way that is independent as 
+possible from the user of the slab page. It does that by locking the slab 
+page so that free operations stall until the reference has been 
+established. If it would not be shutting off frees then the objects could 
+vanish under us.
 
+We could also avoid frees by calling some cache specific method that locks 
+out frees before and after. But then frees would stall everywhere and 
+every slab cache would have to check a global lock before freeing objects 
+(there would be numerous complications with RCU free etc etc).
+
+Slab defrag only stops frees on a particular slab page.
+
+The slab defrag approach also allows the slab cache (dentry or inodes 
+here) to do something else than free the object. It would be possible f.e. 
+to move the object by allocating a new entry and moving the information to 
+the new dentry. That would actually be better since it would preserve the 
+objects and just move them into the same slab page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
