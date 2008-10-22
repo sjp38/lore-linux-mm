@@ -1,45 +1,76 @@
-Date: Wed, 22 Oct 2008 13:51:40 +0100
-From: Jamie Lokier <jamie@shareable.org>
+Date: Wed, 22 Oct 2008 15:16:48 +0200
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081022125140.GB826@shareable.org>
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <E1KsIHV-0006JW-65@pomaz-ex.szeredi.hu> <20081021150948.GB28279@fogou.chygwyn.com> <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
+Message-ID: <20081022131648.GA20625@wotan.suse.de>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu>
+In-Reply-To: <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: steve@chygwyn.com, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Miklos Szeredi wrote:
-> On Tue, 21 Oct 2008, steve@chygwyn.co wrote:
-> > Well I'm not sure why we'd need to distinguish between "page has not
-> > been read" and "page has been read but no longer valid". I guess I
-> > don't understand why those two cases are not the same from the vfs
-> > and filesystem points of view.
+On Tue, Oct 21, 2008 at 02:52:45PM +0200, Miklos Szeredi wrote:
+> On Tue, 21 Oct 2008, Nick Piggin wrote:
+> > IO error handling in the core mm/fs still doesn't seem perfect, but with
+> > the recent round of patches and this one, it should be getting on the
+> > right track.
+> > 
+> > I kind of get the feeling some people would rather forget about all this
+> > and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> > disagrees with my assertion that error handling, and data integrity
+> > semantics are first-class correctness issues, and therefore are more
+> > important than all other non-correctness problems... speak now and let's
+> > discuss that, please.
 > 
-> In the first case the page contains random bytes, in the second case
-> it contains actual file data, which has become stale, but at some
-> point in time it _was_ the contents of the file.
+> I agree that error handling is important.  But careful: some
+> filesystems (NFS I know) don't set PG_error on async read errors, and
+> changing the semantics of ->readpage() from returning EIO to retrying
+> will potentially cause infinite loops.  And no casual testing will
+
+OK, they'll just need to be fixed.
+
+
+> reveal those because peristent read errors are extremely rare.
+
+Same as other read errors I guess. We need to be doing more testing
+of error cases. I've been doing it a little bit recently for a couple
+of block based filesystems... but the hardest code I think is actually
+ensuring each filesystem actually does sane things.
+  
+
+> So I think a better aproach would be to do
 > 
-> This is a very important distinction for splice(2) for example.
-> Splice does not actually copy data into the pipe buffer, only
-> references the pages.  And it can reference pages which are not yet
-> up-to-date.  So when the buffers are consumed from the pipe, the
-> splice code needs to know if the page contains random junk (never
-> brought up-to-date) or data that is, or once was, valid.
+> 			error = lock_page_killable(page);
+> 			if (unlikely(error))
+> 				goto readpage_error;
+> 			if (PageError(page) || !PageUptodate(page)) {
+> 				unlock_page(page);
+> 				shrink_readahead_size_eio(filp, ra);
+> 				error = -EIO;
+> 				goto readpage_error;
+> 			}
+> 			if (!page->mapping) {
+> 				unlock_page(page);
+> 				page_cache_release(page);
+> 				goto find_page;
+> 			}
+> 
+> etc...
+> 
+> Is there a case where retrying in case of !PageUptodate() makes any
+> sense?
 
-So GFS goes to great lengths to ensure that read/write are coherent,
-so are mmaps (writable or not), but _splice_ is not coherent in the
-sense that it can send invalid but non-random data? :-)
+Invalidate I guess is covered now (I don't exactly like the solution,
+but it's what we have for now). Truncate hmm, I thought that still
+clears PageUptodate, but it doesn't seem to either?
 
-Also, is there still a problem where the data is "valid" but part of
-the page may have been zero'd by truncate, which is then transmitted
-by splice?
-
--- Jamie
+Maybe we can use !PageUptodate, with care, for read errors. It might 
+actually be a bit preferable in the sense that PageError can just be
+used for write errors only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
