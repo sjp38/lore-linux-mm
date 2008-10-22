@@ -1,72 +1,55 @@
-Message-ID: <48FEBAAA.5080604@suse.de>
-Date: Wed, 22 Oct 2008 11:01:22 +0530
-From: Suresh Jayaraman <sjayaraman@suse.de>
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9M6dhVG027079
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 22 Oct 2008 15:39:43 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 013D32AC026
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 15:39:43 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CD99612C0A7
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 15:39:42 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EA8E1DB8041
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 15:39:42 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 28C501DB803F
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 15:39:42 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
+In-Reply-To: <87ljwhfo4e.fsf@saeurebad.de>
+References: <87r669fq2v.fsf@saeurebad.de> <87ljwhfo4e.fsf@saeurebad.de>
+Message-Id: <20081022152911.1CD9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 20/32] netvm: INET reserves.
-References: <20081002130504.927878499@chello.nl> <20081002131609.071928149@chello.nl>
-In-Reply-To: <20081002131609.071928149@chello.nl>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 22 Oct 2008 15:39:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, npiggin@suse.de, riel@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Peter,
+> >> Is http://hannes.saeurebad.de/madvseq/ still true with this version?
+> >
+> > No, sorry, still running benchmarks on this version.  Coming up
+> > soon...
+> 
+> Ok, reran the tests I used for the data on this website and updated it.
+> Take a look.  I am quite overwhelmed by the results, hehe.
+> 
+> Kosaki-san, could you perhaps run the tests you did for the previous
+> patch on this one, too?  I am not getting any stable results for
+> throughput measuring...
 
->>> Peter Zijlstra <a.p.zijlstra@chello.nl> 10/02/08 7:06 PM >>>
-> Add reserves for INET.
-
-There's a typo in this patch that results in a Oops like the one below
-when doing `sysctl -a'
-
-<cut>
-RIP: 0010:[<ffffffff804a0487>]  [<ffffffff804a0487>]
-__mutex_lock_slowpath+0x34/0xc9
-
-Call Trace:
- [<ffffffff804a044f>] mutex_lock+0x1a/0x1e
- [<ffffffff8044a82e>] proc_dointvec_route+0x38/0xad
- [<ffffffff80301fce>] proc_sys_call_handler+0x91/0xb8
- [<ffffffff802ba07e>] vfs_read+0xaa/0x153
- [<ffffffff802ba1e3>] sys_read+0x45/0x6e
- [<ffffffff8020c37a>] system_call_fastpath+0x16/0x1b
- [<00007fb25e415880>] 0x7fb25e415880
-
-</cut>
+Usually, any reclaim throughput mesurement isn't stable.
+Then I used an average of five times mesurement.
 
 
-Index: linux-2.6/net/ipv4/route.c
-===================================================================
---- linux-2.6.orig/net/ipv4/route.c
-+++ linux-2.6/net/ipv4/route.c
-
-        /* Deprecated. Use gc_min_interval_ms */
-@@ -3271,6 +3330,15 @@ int __init ip_rt_init(void)
-    ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
-    ip_rt_max_size = (rt_hash_mask + 1) * 16;
-
-+#ifdef CONFIG_PROCFS
-
-Should be CONFIG_PROC_FS
-
-+    mutex_init(&ipv4_route_lock);
-+#endif
-+
-+    mem_reserve_init(&ipv4_route_reserve, "IPv4 route cache",
-+            &net_rx_reserve);
-+    mem_reserve_kmem_cache_set(&ipv4_route_reserve,
-+            ipv4_dst_ops.kmem_cachep, ip_rt_max_size);
-+
-    devinet_init();
-    ip_fib_init();
+Unfortunately, I can't understand I should mesure which patch combination
+because you and Nick post many patches of this issue related yesterday.
+Please let me know it?
 
 
-Thanks,
-
--- 
-Suresh Jayaraman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
