@@ -1,54 +1,45 @@
-Date: Wed, 22 Oct 2008 12:54:30 -0700 (PDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: SLUB defrag pull request?
-In-Reply-To: <E1Ksjed-00023D-UB@pomaz-ex.szeredi.hu>
-Message-ID: <Pine.LNX.4.64.0810221252570.3562@quilx.com>
-References: <1223883004.31587.15.camel@penberg-laptop>
- <1223883164.31587.16.camel@penberg-laptop> <Pine.LNX.4.64.0810131227120.20511@blonde.site>
- <200810132354.30789.nickpiggin@yahoo.com.au> <E1KpNwq-0003OW-8f@pomaz-ex.szeredi.hu>
- <E1KpOOL-0003Vf-9y@pomaz-ex.szeredi.hu> <48F378C6.7030206@linux-foundation.org>
- <E1KpOjX-0003dt-AY@pomaz-ex.szeredi.hu> <48FC9CCC.3040006@linux-foundation.org>
- <E1Krz4o-0002Fi-Pu@pomaz-ex.szeredi.hu> <48FCCC72.5020202@linux-foundation.org>
- <E1KrzgK-0002QS-Os@pomaz-ex.szeredi.hu> <48FCD7CB.4060505@linux-foundation.org>
- <E1Ks0QX-0002aC-SQ@pomaz-ex.szeredi.hu> <48FCE1C4.20807@linux-foundation.org>
- <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu> <48FE6306.6020806@linux-foundation.org>
- <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu> <Pine.LNX.4.64.0810220822500.30851@quilx.com>
- <E1Ksjed-00023D-UB@pomaz-ex.szeredi.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+In-reply-to: <20081022131648.GA20625@wotan.suse.de> (message from Nick Piggin
+	on Wed, 22 Oct 2008 15:16:48 +0200)
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081022131648.GA20625@wotan.suse.de>
+Message-Id: <E1Ksk1B-00027N-Ju@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Wed, 22 Oct 2008 22:09:21 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: npiggin@suse.de
+Cc: miklos@szeredi.hu, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Oct 2008, Miklos Szeredi wrote:
+On Wed, 22 Oct 2008, Nick Piggin wrote:
+> Invalidate I guess is covered now (I don't exactly like the solution,
+> but it's what we have for now). Truncate hmm, I thought that still
+> clears PageUptodate, but it doesn't seem to either?
 
-> Why?  The kmem_cache_free() doesn't touch the contents of the object,
-> does it?
+Right.  Linus's reasons for this change:
 
-Because filesystem code may be running on other processors which may be 
-freeing the dentry.
+  "But I'd really like to get that PG_uptodate bit just fixed - both
+   wrt writeout errors and wrt truncate/holepunch. We had some similar
+   issues wrt ext3 (?) inode buffers, where removing the uptodate bit
+   actually ended up being a mistake."
 
->> Because the slab starts out with a series of objects left in a slab. It
->> needs to do build a list of objects etc in a way that is independent as
->> possible from the user of the slab page. It does that by locking the slab
->> page so that free operations stall until the reference has been
->> established. If it would not be shutting off frees then the objects could
->> vanish under us.
->
-> It doesn't matter.  All we care about is that the dentry is on the
-> lru: it's cached but unused.  Every other state (being created,
-> active, being freed, freed) is uninteresting.
+My thoughts are:
 
-We cannot figure out that it is on the lru if we do not have a stable 
-reference to the object.
+ a) clearing both PG_uptodate *and* page->mapping is redundant
 
-> Sure, and all that is possible without doing this messy 2 phase thing.
-> Unless I'm still missing something obvious...
+ b) the page contents do not actually change in either the whole-page
+    truncate or the invalidate case, so the up-to-date state shouldn't
+    change either.
 
-Obviously one cannot free or handle an object that may be concurrently 
-freed on another processor.
+> Maybe we can use !PageUptodate, with care, for read errors. It might 
+> actually be a bit preferable in the sense that PageError can just be
+> used for write errors only.
+
+That's fine by me, some filesystems do set PageError even on read, but
+it doesn't matter, since they obviously won't set PageUptodate in that
+case.
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
