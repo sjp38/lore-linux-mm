@@ -1,58 +1,187 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
-References: <87d4hugrwm.fsf@saeurebad.de>
-	<20081021104357.GA12329@wotan.suse.de>
-	<878wsigp2e.fsf_-_@saeurebad.de>
-	<20081021151342.c1678bd6.akpm@linux-foundation.org>
-	<87r669fq2v.fsf@saeurebad.de>
-Date: Wed, 22 Oct 2008 02:51:45 +0200
-In-Reply-To: <87r669fq2v.fsf@saeurebad.de> (Johannes Weiner's message of "Wed,
-	22 Oct 2008 02:09:28 +0200")
-Message-ID: <87ljwhfo4e.fsf@saeurebad.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9M1OWW8028382
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 22 Oct 2008 10:24:32 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C9E101B801F
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 10:24:31 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FF102DC01F
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 10:24:31 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 872701DB803C
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 10:24:31 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 363FA1DB8042
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 10:24:31 +0900 (JST)
+Date: Wed, 22 Oct 2008 10:24:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH][BUGFIX] memcg: fix page_cgroup allocation
+Message-Id: <20081022102404.e1f3565a.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: npiggin@suse.de, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Johannes Weiner <hannes@saeurebad.de> writes:
+Andrew, this is a fix to "x86 cannot boot if memcg is enabled" problem in Linus's git-tree,0
+fix to "memcg: allocate all page_cgroup at boot" patch.
 
-> Andrew Morton <akpm@linux-foundation.org> writes:
->
->> On Tue, 21 Oct 2008 13:33:45 +0200
->> Johannes Weiner <hannes@saeurebad.de> wrote:
->>
->>> File pages mapped only in sequentially read mappings are perfect
->>> reclaim canditates.
->>> 
->>> This makes MADV_SEQUENTIAL mappings behave like a weak references,
->>> their pages will be reclaimed unless they have a strong reference from
->>> a normal mapping as well.
->>> 
->>> The patch changes the reclaim and the unmap path where they check if
->>> the page has been referenced.  In both cases, accesses through
->>> sequentially read mappings will be ignored.
->>> 
->>> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
->>> ---
->>> II: add likely()s to mitigate the extra branches a bit as to Nick's
->>>     suggestion
->>
->> Is http://hannes.saeurebad.de/madvseq/ still true with this version?
->
-> No, sorry, still running benchmarks on this version.  Coming up
-> soon...
+Thank you for all helps!
+(*) I and Balbir tested this. other testers are welcome :)
+-Kame
+==
 
-Ok, reran the tests I used for the data on this website and updated it.
-Take a look.  I am quite overwhelmed by the results, hehe.
+page_cgroup_init() is called from mem_cgroup_init(). But at this
+point, we cannot call alloc_bootmem().
+(and this caused panic at boot.)
 
-Kosaki-san, could you perhaps run the tests you did for the previous
-patch on this one, too?  I am not getting any stable results for
-throughput measuring...
+This patch moves page_cgroup_init() to init/main.c.
 
-> 	Hannes
+Time table is following:
+==
+  parse_args(). # we can trust mem_cgroup_subsys.disabled bit after this.
+  ....
+  cgroup_init_early()  # "early" init of cgroup.
+  ....
+  setup_arch()         # memmap is allocated.
+  ...
+  page_cgroup_init();
+  mem_init();   # we cannot call alloc_bootmem after this.
+  ....
+  cgroup_init() # mem_cgroup is initialized.
+==
+
+Before page_cgroup_init(), mem_map must be initialized. So, 
+I added page_cgroup_init() to init/main.c directly.
+
+(*) maybe this is not very clean but
+    - cgroup_init_early() is too early
+    - in cgroup_init(), we have to use vmalloc instead of alloc_bootmem().
+    use of vmalloc area in x86-32 is important and we should avoid very large
+    vmalloc() in x86-32. So, we want to use alloc_bootmem() and added page_cgroup_init()
+    directly to init/main.c
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+ init/main.c      |    2 ++
+ mm/memcontrol.c  |    1 -
+ mm/page_cgroup.c |   35 ++++++++++++++++++++++++++++-------
+ 3 files changed, 30 insertions(+), 8 deletions(-)
+
+Index: linux-2.6/init/main.c
+===================================================================
+--- linux-2.6.orig/init/main.c
++++ linux-2.6/init/main.c
+@@ -62,6 +62,7 @@
+ #include <linux/signal.h>
+ #include <linux/idr.h>
+ #include <linux/ftrace.h>
++#include <linux/page_cgroup.h>
+ 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -647,6 +648,7 @@ asmlinkage void __init start_kernel(void
+ 	vmalloc_init();
+ 	vfs_caches_init_early();
+ 	cpuset_init_early();
++	page_cgroup_init();
+ 	mem_init();
+ 	enable_debug_pagealloc();
+ 	cpu_hotplug_init();
+Index: linux-2.6/mm/memcontrol.c
+===================================================================
+--- linux-2.6.orig/mm/memcontrol.c
++++ linux-2.6/mm/memcontrol.c
+@@ -1088,7 +1088,6 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	int node;
+ 
+ 	if (unlikely((cont->parent) == NULL)) {
+-		page_cgroup_init();
+ 		mem = &init_mem_cgroup;
+ 	} else {
+ 		mem = mem_cgroup_alloc();
+Index: linux-2.6/mm/page_cgroup.c
+===================================================================
+--- linux-2.6.orig/mm/page_cgroup.c
++++ linux-2.6/mm/page_cgroup.c
+@@ -4,7 +4,12 @@
+ #include <linux/bit_spinlock.h>
+ #include <linux/page_cgroup.h>
+ #include <linux/hash.h>
++#include <linux/slab.h>
+ #include <linux/memory.h>
++#include <linux/cgroup.h>
++
++extern struct cgroup_subsys	mem_cgroup_subsys;
++
+ 
+ static void __meminit
+ __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+@@ -66,6 +71,9 @@ void __init page_cgroup_init(void)
+ 
+ 	int nid, fail;
+ 
++	if (mem_cgroup_subsys.disabled)
++		return;
++
+ 	for_each_online_node(nid)  {
+ 		fail = alloc_node_page_cgroup(nid);
+ 		if (fail)
+@@ -106,9 +114,14 @@ int __meminit init_section_page_cgroup(u
+ 	nid = page_to_nid(pfn_to_page(pfn));
+ 
+ 	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-	base = kmalloc_node(table_size, GFP_KERNEL, nid);
+-	if (!base)
+-		base = vmalloc_node(table_size, nid);
++	if (slab_is_available()) {
++		base = kmalloc_node(table_size, GFP_KERNEL, nid);
++		if (!base)
++			base = vmalloc_node(table_size, nid);
++	} else {
++		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
++				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	}
+ 
+ 	if (!base) {
+ 		printk(KERN_ERR "page cgroup allocation failure\n");
+@@ -135,11 +148,16 @@ void __free_page_cgroup(unsigned long pf
+ 	if (!ms || !ms->page_cgroup)
+ 		return;
+ 	base = ms->page_cgroup + pfn;
+-	ms->page_cgroup = NULL;
+-	if (is_vmalloc_addr(base))
++	if (is_vmalloc_addr(base)) {
+ 		vfree(base);
+-	else
+-		kfree(base);
++		ms->page_cgroup = NULL;
++	} else {
++		struct page *page = virt_to_page(base);
++		if (!PageReserved(page)) { /* Is bootmem ? */
++			kfree(base);
++			ms->page_cgroup = NULL;
++		}
++	}
+ }
+ 
+ int online_page_cgroup(unsigned long start_pfn,
+@@ -213,6 +231,9 @@ void __init page_cgroup_init(void)
+ 	unsigned long pfn;
+ 	int fail = 0;
+ 
++	if (mem_cgroup_subsys.disabled)
++		return;
++
+ 	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
+ 		if (!pfn_present(pfn))
+ 			continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
