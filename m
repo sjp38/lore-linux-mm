@@ -1,36 +1,42 @@
-Date: Wed, 22 Oct 2008 10:29:07 -0400
-From: Daniel Jacobowitz <dan@debian.org>
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
-	restart
-Message-ID: <20081022142907.GA13574@caradoc.them.org>
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu> <20081021124130.a002e838.akpm@linux-foundation.org> <20081021202410.GA10423@us.ibm.com> <48FE82DF.6030005@cs.columbia.edu> <20081022025513.GA7504@caradoc.them.org> <1224644563.1848.232.camel@nimitz>
+Date: Wed, 22 Oct 2008 08:35:11 -0600
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+Message-ID: <20081022143511.GF26094@parisc-linux.org>
+References: <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru> <20081021145901.GA28279@fogou.chygwyn.com> <E1KsJxx-0006l4-NH@pomaz-ex.szeredi.hu> <E1KsK5R-0006mR-AO@pomaz-ex.szeredi.hu> <20081021162957.GQ26184@parisc-linux.org> <20081022124829.GA826@shareable.org> <20081022134531.GE26094@parisc-linux.org> <E1KseI2-0001G8-3Y@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1224644563.1848.232.camel@nimitz>
+In-Reply-To: <E1KseI2-0001G8-3Y@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: jamie@shareable.org, steve@chygwyn.com, zbr@ioremap.net, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 21, 2008 at 08:02:43PM -0700, Dave Hansen wrote:
-> Let's say you have a process you want to checkpoint.  If it uses a
-> completely discrete IPC namespace, you *know* that nothing else depends
-> on those IPC ids.  We don't even have to worry about who might have been
-> using them and when.
+On Wed, Oct 22, 2008 at 04:02:22PM +0200, Miklos Szeredi wrote:
+> On Wed, 22 Oct 2008, Matthew Wilcox wrote:
+> > On Wed, Oct 22, 2008 at 01:48:29PM +0100, Jamie Lokier wrote:
+> > > Matthew Wilcox wrote:
+> > > > Careful with those slurs you're throwing around.  PA-RISC carefully
+> > > > aligns its mmaps so they are coherent.
+> > > 
+> > > (Unless you use MAP_FIXED?)
+> > 
+> > Doctor, it hurts when I point this gun at my foot and pull the trigger
+> > ...
 > 
-> Also think about pids.  Without containers, how can you guarantee a
-> restarted process that it can regain the same pid?
+> And remap_file_pages() also.  Neither that nor MAP_FIXED are widely
+> used, but still, coherency is not a completely solved issue.
 
-OK, that makes sense.  In a lot of simple cases you can get by without
-regaining the same pid; there's an implementation of checkpointing in
-GDB that works by injecting fork calls into the child, and it is
-useful for a reasonable selection of single-threaded programs.
+remap_file_pages() only hurts if you map the same page more than once
+(which is permitted, but again, I don't think anyone actually does
+that).
 
 -- 
-Daniel Jacobowitz
-CodeSourcery
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
