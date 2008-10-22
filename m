@@ -1,166 +1,118 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e36.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9MFSGRA003072
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 11:28:16 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9MFS5m6062172
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 09:28:07 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9MFRa9d018361
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 09:27:36 -0600
-Date: Wed, 22 Oct 2008 10:28:04 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
-	restart
-Message-ID: <20081022152804.GA23821@us.ibm.com>
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu> <20081021124130.a002e838.akpm@linux-foundation.org> <20081021202410.GA10423@us.ibm.com> <48FE82DF.6030005@cs.columbia.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <48FE82DF.6030005@cs.columbia.edu>
+Subject: Re: mlock: mlocked pages are unevictable
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
+References: <200810201659.m9KGxtFC016280@hera.kernel.org>
+	 <20081021151301.GE4980@osiris.boeblingen.de.ibm.com>
+Content-Type: text/plain
+Date: Wed, 22 Oct 2008 11:28:47 -0400
+Message-Id: <1224689328.6392.19.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, tglx@linutronix.de, dave@linux.vnet.ibm.com, mingo@elte.hu, hpa@zytor.com, viro@zeniv.linux.org.uk
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Quoting Oren Laadan (orenl@cs.columbia.edu):
+On Tue, 2008-10-21 at 17:13 +0200, Heiko Carstens wrote:
+> Hi Nick,
 > 
-> 
-> Serge E. Hallyn wrote:
-> > Quoting Andrew Morton (akpm@linux-foundation.org):
-> >> On Mon, 20 Oct 2008 01:40:30 -0400
-> >> Oren Laadan <orenl@cs.columbia.edu> wrote:
-> >>>  asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
-> >>>  {
-> >>> -	pr_debug("sys_checkpoint not implemented yet\n");
-> >>> -	return -ENOSYS;
-> >>> +	struct cr_ctx *ctx;
-> >>> +	int ret;
-> >>> +
-> >>> +	/* no flags for now */
-> >>> +	if (flags)
-> >>> +		return -EINVAL;
-> >>> +
-> >>> +	ctx = cr_ctx_alloc(pid, fd, flags | CR_CTX_CKPT);
-> >>> +	if (IS_ERR(ctx))
-> >>> +		return PTR_ERR(ctx);
-> >>> +
-> >>> +	ret = do_checkpoint(ctx);
-> >>> +
-> >>> +	if (!ret)
-> >>> +		ret = ctx->crid;
-> >>> +
-> >>> +	cr_ctx_free(ctx);
-> >>> +	return ret;
-> >>>  }
-> >> Is it appropriate that this be an unprivileged operation?
+> On Mon, Oct 20, 2008 at 04:59:55PM +0000, Linux Kernel Mailing List wrote:
+> > Gitweb:     http://git.kernel.org/git/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=b291f000393f5a0b679012b39d79fbc85c018233
+> > Commit:     b291f000393f5a0b679012b39d79fbc85c018233
+> > Author:     Nick Piggin <npiggin@suse.de>
+> > AuthorDate: Sat Oct 18 20:26:44 2008 -0700
+> > Committer:  Linus Torvalds <torvalds@linux-foundation.org>
+> > CommitDate: Mon Oct 20 08:52:30 2008 -0700
 > > 
-> > Early versions checked capable(CAP_SYS_ADMIN), and we reasoned that we
-> > would later attempt to remove the need for privilege so that all users
-> > could safely use it.
+> >     mlock: mlocked pages are unevictable
+> 
+> [...]
+> 
+> I think the following part of your patch:
+> 
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index fee6b97..bc58c13 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -278,7 +278,7 @@ void lru_add_drain(void)
+> >  	put_cpu();
+> >  }
 > > 
-> > Arnd Bergmann called us on that nonsense, pointing out that it'd make
-> > more sense to let unprivileged users use them now, so that we'll be
-> > more careful about the security as patches roll in.
-> > 
-> > So, Oren's patchset right now only checkpoints current, despite pid
-> > being part of the API.  So the task can access its own data.  When
-> > the patch supports checkpointing another task (which Oren says he's
-> > doing right now), then our intent is to check for ptrace access to
-> > the target task.  (Right, Oren?)
+> > -#ifdef CONFIG_NUMA
+> > +#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
+> >  static void lru_add_drain_per_cpu(struct work_struct *dummy)
+> >  {
+> >  	lru_add_drain();
 > 
-> Correct. That's already in the additional patch in the git tree - first
-> I locate the task and if found, I check ptrace_may_access() (read mode).
-
-Just thinking aloud...
-
-Is read mode appropriate?  The user can edit the statefile and restart
-it.  Admittedly the restart code should then do all the appropriate
-checks for recreating resources, but I'm having a hard time thinking
-through this straight.
-
-Let's say hallyn is running passwd.  ruid=500,euid=0.  He quickly
-checkpoints.  Then he restarts.  Will restart say "ok, the /bin/passwd
-binary is setuid 0 so let hallyn take euid=0 for this?"  I guess not.
-But are there other resources for which this is harder to get right?
-
-...
-
-> This should be covered by ptrace_may_access() test.
+> causes this (allyesconfig on s390):
 > 
-> In the longer run, I suppose SElinux people would want a security hook
-> there to approve or disapprove the operation.
+> [17179587.988810] =======================================================
+> [17179587.988819] [ INFO: possible circular locking dependency detected ]
+> [17179587.988824] 2.6.27-06509-g2515ddc-dirty #190
+> [17179587.988827] -------------------------------------------------------
+> [17179587.988831] multipathd/3868 is trying to acquire lock:
+> [17179587.988834]  (events){--..}, at: [<0000000000157f82>] flush_work+0x42/0x124
+> [17179587.988850] 
+> [17179587.988851] but task is already holding lock:
+> [17179587.988854]  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
+> [17179587.988865] 
+> [17179587.988866] which lock already depends on the new lock.
+> [17179587.988867] 
+<snip>
+> [17179587.989148] other info that might help us debug this:
+> [17179587.989149] 
+> [17179587.989154] 1 lock held by multipathd/3868:
+> [17179587.989156]  #0:  (&mm->mmap_sem){----}, at: [<00000000001c0be4>] sys_mlockall+0x5c/0xe0
+> [17179587.989165] 
+> [17179587.989166] stack backtrace:
+> [17179587.989170] CPU: 0 Not tainted 2.6.27-06509-g2515ddc-dirty #190
+> [17179587.989174] Process multipathd (pid: 3868, task: 000000003978a298, ksp: 0000000039b23eb8)
+> [17179587.989178] 000000003978aa00 0000000039b238b8 0000000000000002 0000000000000000 
+> [17179587.989184]        0000000039b23958 0000000039b238d0 0000000039b238d0 00000000001060ee 
+> [17179587.989192]        0000000000000003 0000000000000000 0000000000000000 000000000000000b 
+> [17179587.989199]        0000000000000060 0000000000000008 0000000039b238b8 0000000039b23928 
+> [17179587.989207]        0000000000b30b50 00000000001060ee 0000000039b238b8 0000000039b23910 
+> [17179587.989216] Call Trace:
+> [17179587.989219] ([<0000000000106036>] show_trace+0xb2/0xd0)
+> [17179587.989225]  [<000000000010610c>] show_stack+0xb8/0xc8
+> [17179587.989230]  [<0000000000b27a96>] dump_stack+0xae/0xbc
+> [17179587.989234]  [<000000000017019e>] print_circular_bug_tail+0xee/0x100
+> [17179587.989240]  [<00000000001716ca>] __lock_acquire+0x10c6/0x17c4
+> [17179587.989245]  [<0000000000171e5c>] lock_acquire+0x94/0xbc
+> [17179587.989250]  [<0000000000157fb4>] flush_work+0x74/0x124
+> [17179587.989256]  [<0000000000158620>] schedule_on_each_cpu+0xec/0x138
+> [17179587.989261]  [<00000000001b0ab4>] lru_add_drain_all+0x2c/0x40
+> [17179587.989266]  [<00000000001c05ac>] __mlock_vma_pages_range+0xcc/0x2e8
+> [17179587.989271]  [<00000000001c0970>] mlock_fixup+0x1a8/0x280
+> [17179587.989276]  [<00000000001c0aec>] do_mlockall+0xa4/0xd4
+> [17179587.989281]  [<00000000001c0c36>] sys_mlockall+0xae/0xe0
+> [17179587.989286]  [<0000000000114d30>] sysc_noemu+0x10/0x16
+> [17179587.989290]  [<000002000025a466>] 0x2000025a466
+> [17179587.989294] INFO: lockdep is turned off.
 
-I think we'll find the ptrace() checks to be so like what we're doing
-that no new check will be needed.  But we should definately ask them.
 
-Now may be too early to ask, though.  The answer will be clearer once
-more resources are supported.
- 
-> 
-> >>
-> >> What happens if I pass it a pid of a process which I _do_ own, but it
-> >> does not refer to a container's init process?
-> > 
-> > I would assume that do_checkpoint() would return -EINVAL, but it's a
-> > great question:  Oren, did you have another plan?
-> 
-> Since we intentional provide minimal functionality to keep the patchset
-> simple and allow easy review - we only checkpoint one task; it doesn't
-> really matter because we don't deal with the entire container.
-> 
-> With the ability to checkpoint multiple process we will have to ensure
-> that we checkpoint an entire container. I planned to return -EINVAL if
-> the target task isn't a container init(1). Another option, if people
-> prefer, is to use any task in a container to "represent" the entire
-> container.
+We could probably remove the lru_add_drain_all() called from
+__mlock_vma_pages_range(), or replace it with a local lru_add_drain().
+It's only there to push pages that might still be in the lru pagevecs
+out to the lru lists so that we can isolate them and move them to the
+the unevictable list.  The local lru_drain() should push any pages
+faulted in by the immediately prior call to get_user_pages().  The only
+pages we'd miss would be pages [recently?] faulted on another processor
+and still in that pagevec.  So, we'll have a page marked as mlocked on a
+normal lru list.  If/when vmscan sees it, it will immediately move it to
+the unevictable lru list.
 
-Except we support nested containers, so unless we only support
-checkpoint of the deepest container, that doesn't work.
+The call to lru_add_drain_all() from __clear_page_mlock() may be more
+difficult.  Rik added that during testing because we found race
+conditions--during COW in the fault path, IIRC--where we would strand an
+mlocked page on the unevictable list.  It's an unlikely situation, I
+think.  We were beating on COWing of mlocked pages--mlockall(); fork();
+child attempts write to shared anon page, mlocked by parent;
+munlockall()/exit() from parent--pretty heavily at the time.
 
-...
+Lee
 
-> >> Again, this is scary stuff.  We're allowing unprivileged userspace to
-> >> feed random numbers into kernel data structures.
-> > 
-> > Yes, all of the file opens and mmaps must not skip the usual security
-> > checks.  The task credentials are currently unsupported, meaning that
-> > euid, etc, come from the caller, not the checkpoint image.  When the
-> 
-> Actually, the fact that task credentials are not restored makes it
-> more secure, because the user can't do anything beyond her current
-> capabilities.
-
-Hmm, so do you think we just always use the caller's credentials?
-
-If we were to use some sort of tpm-signing of statefiles, then
-hallyn restarting a checkpointed /bin/passwd may become doable.
-
-> For the same reason, however, unless we agree on a secure way to
-> elevate credentials, there are various things that we cannot restore,
-> even though it may be something we would want to permit.
-> 
-> > restoration of credentials becomes supported, then definately the
-> > caller (of sys_restore())'s ability to setresuid/setresgid to those
-> > values must be checked.
-> > 
-> > So that's why we don't want CAP_SYS_ADMIN required up-front.  That way
-> > we will be forced to more carefully review each of those features.
-> > 
-> >> I'd like to see the security guys take a real close look at all of
-> >> this, and for them to do that effectively they should be provided with
-> >> a full description of the security design of this feature.
-> > 
-> > Right, some of the above should be spelled out somewhere.  Should it be
-> > in the patch description, in the Documentation/checkpoint.txt file,
-> > or someplace else?  Oren, do you want to filter the above information
-> > into the right place, or do you want me to do it and send you a patch?
-> 
-> I'll add something to the Documentation/checkpoint.txt.
-
-Cool, thanks Oren.
-
--serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
