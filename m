@@ -1,66 +1,38 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id m9MBtkcI329658
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 11:55:46 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9MBtkxd2703550
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 13:55:46 +0200
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9MBtjHI024443
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2008 13:55:45 +0200
-Message-ID: <48FF14BA.6050807@fr.ibm.com>
-Date: Wed, 22 Oct 2008 13:55:38 +0200
-From: Cedric Le Goater <clg@fr.ibm.com>
+Date: Wed, 22 Oct 2008 13:48:29 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+Message-ID: <20081022124829.GA826@shareable.org>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru> <20081021145901.GA28279@fogou.chygwyn.com> <E1KsJxx-0006l4-NH@pomaz-ex.szeredi.hu> <E1KsK5R-0006mR-AO@pomaz-ex.szeredi.hu> <20081021162957.GQ26184@parisc-linux.org>
 MIME-Version: 1.0
-Subject: Re: [RFC v7][PATCH 0/9] Kernel based checkpoint/restart
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <20081021122135.4bce362c.akpm@linux-foundation.org> <1224621667.1848.228.camel@nimitz> <20081022092024.GC12453@elte.hu>
-In-Reply-To: <20081022092024.GC12453@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081021162957.GQ26184@parisc-linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, tglx@linutronix.de, torvalds@linux-foundation.org
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, steve@chygwyn.com, zbr@ioremap.net, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> * Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+Matthew Wilcox wrote:
+> On Tue, Oct 21, 2008 at 06:28:01PM +0200, Miklos Szeredi wrote:
+> > On Tue, 21 Oct 2008, Miklos Szeredi wrote:
+> > > BTW, why do you want strict coherency for memory mappings?  It's not
+> > > something POSIX mandates.  It's not even something that Linux always
+> > > did.
+> > 
+> > Or does, for that matter, on those architectures which have virtually
+> > addressed caches.
 > 
->> On Tue, 2008-10-21 at 12:21 -0700, Andrew Morton wrote:
->>> On Mon, 20 Oct 2008 01:40:28 -0400
->>> Oren Laadan <orenl@cs.columbia.edu> wrote:
->>>> These patches implement basic checkpoint-restart [CR]. This version
->>>> (v7) supports basic tasks with simple private memory, and open files
->>>> (regular files and directories only).
->>> - how useful is this code as it stands in real-world usage?
->> Right now, an application must be specifically written to use these 
->> mew system calls.  It must be a single process and not share any 
->> resources with other processes.  The only file descriptors that may be 
->> open are simple files and may not include sockets or pipes.
->>
->> What this means in practice is that it is useful for a simple app 
->> doing computational work.
-> 
-> say a chemistry application doing calculations. Or a raytracer with a 
-> large job. Both can take many hours (days!) even on very fast machine 
+> Careful with those slurs you're throwing around.  PA-RISC carefully
+> aligns its mmaps so they are coherent.
 
-even weeks in the EDA and Petroleum geophysics.
+(Unless you use MAP_FIXED?)
 
-> and the restrictions on rebootability can hurt in such cases.
+Last time I looked at the coherency code, there appeared to be a few
+bugs on some architectures, but I didn't have the architectures to
+test and confirm them.  It was a long time ago, in the 2.4 era though.
 
-yes, indeed. 
-
-These industries also like to be able to schedule high priority jobs
-needing the full power of their clusters: checkpoint running jobs,
-schedule a high priority one, restart the previous.
-
-> You should reach a minimal level of initial practical utility: say some 
-> helper tool that allows testers to checkpoint and restore a real PovRay 
-> session - without any modification to a stock distro PovRay.
-
-Supporting Povray is a good target. many HPC applications have the same 
-resource  scope.  
-
-C.
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
