@@ -1,46 +1,76 @@
-Date: Wed, 22 Oct 2008 11:20:24 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC v7][PATCH 0/9] Kernel based checkpoint/restart
-Message-ID: <20081022092024.GC12453@elte.hu>
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <20081021122135.4bce362c.akpm@linux-foundation.org> <1224621667.1848.228.camel@nimitz>
-MIME-Version: 1.0
+Date: Wed, 22 Oct 2008 11:29:01 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: fix anon_vma races
+Message-ID: <20081022092901.GC4359@wotan.suse.de>
+References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810200427270.5543@blonde.site> <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org> <200810211356.13191.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0810202024150.3287@nehalem.linux-foundation.org> <20081021043338.GA5694@wotan.suse.de> <48FDFC6C.5080606@linux-foundation.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1224621667.1848.228.camel@nimitz>
+In-Reply-To: <48FDFC6C.5080606@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, tglx@linutronix.de, torvalds@linux-foundation.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-
-> On Tue, 2008-10-21 at 12:21 -0700, Andrew Morton wrote:
-> > On Mon, 20 Oct 2008 01:40:28 -0400
-> > Oren Laadan <orenl@cs.columbia.edu> wrote:
-> > > These patches implement basic checkpoint-restart [CR]. This version
-> > > (v7) supports basic tasks with simple private memory, and open files
-> > > (regular files and directories only).
-> > 
-> > - how useful is this code as it stands in real-world usage?
+On Tue, Oct 21, 2008 at 10:59:40AM -0500, Christoph Lameter wrote:
+> Nick Piggin wrote:
 > 
-> Right now, an application must be specifically written to use these 
-> mew system calls.  It must be a single process and not share any 
-> resources with other processes.  The only file descriptors that may be 
-> open are simple files and may not include sockets or pipes.
 > 
-> What this means in practice is that it is useful for a simple app 
-> doing computational work.
+> >  	if (!page_mapped(page))
+> >  		goto out;
+> >  
+> >  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+> 
+> Isnt it possible for the anon_vma to be freed and reallocated for another use
+> after this statement and before taking the lock?
 
-say a chemistry application doing calculations. Or a raytracer with a 
-large job. Both can take many hours (days!) even on very fast machine 
-and the restrictions on rebootability can hurt in such cases.
+Yes.
 
-You should reach a minimal level of initial practical utility: say some 
-helper tool that allows testers to checkpoint and restore a real PovRay 
-session - without any modification to a stock distro PovRay.
 
-	Ingo
+> >  	spin_lock(&anon_vma->lock);
+> 
+> Then we may take the spinlock on another anon_vma structure not related to
+> this page.
+
+Yes.
+
+
+> > +
+> > +	/*
+> > +	 * If the page is no longer mapped, we have no way to keep the anon_vma
+> > +	 * stable. It may be freed and even re-allocated for some other set of
+> > +	 * anonymous mappings at any point. Technically this should be OK, as
+> > +	 * we hold the spinlock, and should be able to tolerate finding
+> > +	 * unrelated vmas on our list. However we'd rather nip these in the bud
+> > +	 * here, for simplicity.
+> > +	 *
+> > +	 * If the page is mapped while we have the lock on the anon_vma, then
+> > +	 * we know anon_vma_unlink can't run and garbage collect the anon_vma:
+> > +	 * unmapping the page and decrementing its mapcount happens before
+> > +	 * unlinking the anon_vma; unlinking the anon_vma requires the
+> > +	 * anon_vma lock to be held. So this check ensures we have a stable
+> > +	 * anon_vma.
+> > +	 *
+> > +	 * Note: the page can still become unmapped, and the !page_mapped
+> > +	 * condition become true at any point. This check is definitely not
+> > +	 * preventing any such thing.
+> > +	 */
+> 
+> What is this then? An optimization?
+
+As the comment says, it filters out those unrelated anon_vmas. In doing so
+it allows us to guarantee the reference with the lock alone (as-per the next
+patch). Also just means we don't have to care about that case (even though
+it's not technically wrong).
+
+
+> 
+> > +	if (unlikely(!page_mapped(page))) {
+> > +		spin_unlock(&anon_vma->lock);
+> > +		goto out;
+> > +	}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
