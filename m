@@ -1,29 +1,32 @@
-In-reply-to: <20081022134531.GE26094@parisc-linux.org> (message from Matthew
-	Wilcox on Wed, 22 Oct 2008 07:45:31 -0600)
+In-reply-to: <20081022125140.GB826@shareable.org> (message from Jamie Lokier
+	on Wed, 22 Oct 2008 13:51:40 +0100)
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-References: <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <20081021143518.GA7158@2ka.mipt.ru> <20081021145901.GA28279@fogou.chygwyn.com> <E1KsJxx-0006l4-NH@pomaz-ex.szeredi.hu> <E1KsK5R-0006mR-AO@pomaz-ex.szeredi.hu> <20081021162957.GQ26184@parisc-linux.org> <20081022124829.GA826@shareable.org> <20081022134531.GE26094@parisc-linux.org>
-Message-Id: <E1KseI2-0001G8-3Y@pomaz-ex.szeredi.hu>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <E1KsIHV-0006JW-65@pomaz-ex.szeredi.hu> <20081021150948.GB28279@fogou.chygwyn.com> <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu> <20081022125140.GB826@shareable.org>
+Message-Id: <E1KseOO-0001HK-Rq@pomaz-ex.szeredi.hu>
 From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 22 Oct 2008 16:02:22 +0200
+Date: Wed, 22 Oct 2008 16:08:56 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: matthew@wil.cx
-Cc: jamie@shareable.org, miklos@szeredi.hu, steve@chygwyn.com, zbr@ioremap.net, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: jamie@shareable.org
+Cc: miklos@szeredi.hu, steve@chygwyn.com, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Oct 2008, Matthew Wilcox wrote:
-> On Wed, Oct 22, 2008 at 01:48:29PM +0100, Jamie Lokier wrote:
-> > Matthew Wilcox wrote:
-> > > Careful with those slurs you're throwing around.  PA-RISC carefully
-> > > aligns its mmaps so they are coherent.
-> > 
-> > (Unless you use MAP_FIXED?)
-> 
-> Doctor, it hurts when I point this gun at my foot and pull the trigger
-> ...
+On Wed, 22 Oct 2008, Jamie Lokier wrote:
+> So GFS goes to great lengths to ensure that read/write are coherent,
+> so are mmaps (writable or not), but _splice_ is not coherent in the
+> sense that it can send invalid but non-random data? :-)
 
-And remap_file_pages() also.  Neither that nor MAP_FIXED are widely
-used, but still, coherency is not a completely solved issue.
+Spice is not coherent in any sense on any filesystem :)
+
+Your idea about COWing the page would be nice, and I think it may even
+be implementable.  Currently the biggest problem with splice is the
+lack of users, we'd have to solve that first somehow.
+
+> Also, is there still a problem where the data is "valid" but part of
+> the page may have been zero'd by truncate, which is then transmitted
+> by splice?
+
+Yes.
 
 Miklos
 
