@@ -1,62 +1,46 @@
-Message-ID: <48FEE616.6050603@tensilica.com>
-Date: Wed, 22 Oct 2008 01:36:38 -0700
-From: Piet Delaney <piet.delaney@tensilica.com>
+Date: Wed, 22 Oct 2008 11:20:24 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [RFC v7][PATCH 0/9] Kernel based checkpoint/restart
+Message-ID: <20081022092024.GC12453@elte.hu>
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <20081021122135.4bce362c.akpm@linux-foundation.org> <1224621667.1848.228.camel@nimitz>
 MIME-Version: 1.0
-Subject: Initialization of init_pid_ns.pid_cachep->nodelists[]
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1224621667.1848.228.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Piet Delaney <piet.delaney@tensilica.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, tglx@linutronix.de, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-I'm working on a 2.6.24 kernel with SPINLOCK debug enabled I ran into a 
-NULL pointer in nit_pid_ns.pid_cachep->nodelists[].
-Problem occurs while creating the pid cache:
+* Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-   #0          panic (fmt=0xd01fd500 "kmem_list3 == 
-NU"...)                                         at 
-/export/src/xtensa-2.6.24-smp/kernel/panic.c:77
-   #1         do_tune_cpucache (cachep=0xd3803f00, limit=0x20, 
-batchcount=0x10, shared=0x8)         at 
-/export/src/xtensa-2.6.24-smp/mm/slab.c:3962
-   #2        enable_cpucache 
-(cachep=0xd3803f00)                                                    
-at /export/src/xtensa-2.6.24-smp/mm/slab.c:4022
-   #3       setup_cpu_cache 
-(cachep=0xd3803f00)                                                     
-at /export/src/xtensa-2.6.24-smp/mm/slab.c:2088
-   #4      kmem_cache_create (name=0xd38054b4 "pid_1", size=0x48, 
-align=0x8, flags=0x12c00, ctor=0) at 
-/export/src/xtensa-2.6.24-smp/mm/slab.c:2401
-   #5     create_pid_cachep 
-(nr_ids=0x1)                                                            
-at /export/src/xtensa-2.6.24-smp/kernel/pid.c:520
-   #6    pidmap_init 
-()                                                                             
-at /export/src/xtensa-2.6.24-smp/kernel/pid.c:696
-   #7   start_kernel 
-()                                                                             
-at /export/src/xtensa-2.6.24-smp/init/main.c:616
-   #8  _startup 
-()                                                                                  
-at /export/src/xtensa-2.6.24-smp/arch/xtensa/kernel/head.S:250
+> On Tue, 2008-10-21 at 12:21 -0700, Andrew Morton wrote:
+> > On Mon, 20 Oct 2008 01:40:28 -0400
+> > Oren Laadan <orenl@cs.columbia.edu> wrote:
+> > > These patches implement basic checkpoint-restart [CR]. This version
+> > > (v7) supports basic tasks with simple private memory, and open files
+> > > (regular files and directories only).
+> > 
+> > - how useful is this code as it stands in real-world usage?
+> 
+> Right now, an application must be specifically written to use these 
+> mew system calls.  It must be a single process and not share any 
+> resources with other processes.  The only file descriptors that may be 
+> open are simple files and may not include sockets or pipes.
+> 
+> What this means in practice is that it is useful for a simple app 
+> doing computational work.
 
-It appears that a kmem_cache is initialized in
-            set_up_list3s() to point to initkmem_list3[].
-          init_list() to a newly allocated list
+say a chemistry application doing calculations. Or a raytracer with a 
+large job. Both can take many hours (days!) even on very fast machine 
+and the restrictions on rebootability can hurt in such cases.
 
-Looks like setup_cpu_cache() above #3 didn't call  set_up_list3s() due to
-g_cpucache_up being set to FULL. g_cpucache_up is set to FULL in  
-kmem_cache_init()
-which was called from start_kernel() much earlier that the call to 
-pidmap_init().
+You should reach a minimal level of initial practical utility: say some 
+helper tool that allows testers to checkpoint and restore a real PovRay 
+session - without any modification to a stock distro PovRay.
 
-How was nodelist to this newly created kmem_cache for pids
-suppose to have been initialized by the time it gets here?
-
--piet
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
