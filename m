@@ -1,177 +1,117 @@
-Message-ID: <48FE82DF.6030005@cs.columbia.edu>
-Date: Tue, 21 Oct 2008 21:33:19 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint	restart
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu> <20081021124130.a002e838.akpm@linux-foundation.org> <20081021202410.GA10423@us.ibm.com>
-In-Reply-To: <20081021202410.GA10423@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 21 Oct 2008 18:37:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][BUGFIX] memcg: fix page_cgroup allocation
+Message-Id: <20081021183738.d3c995b9.akpm@linux-foundation.org>
+In-Reply-To: <20081022102404.e1f3565a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081022102404.e1f3565a.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, tglx@linutronix.de, dave@linux.vnet.ibm.com, mingo@elte.hu, hpa@zytor.com, viro@zeniv.linux.org.uk
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "mingo@elte.hu" <mingo@elte.hu>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 22 Oct 2008 10:24:04 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Serge E. Hallyn wrote:
-> Quoting Andrew Morton (akpm@linux-foundation.org):
->> On Mon, 20 Oct 2008 01:40:30 -0400
->> Oren Laadan <orenl@cs.columbia.edu> wrote:
->>>  asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
->>>  {
->>> -	pr_debug("sys_checkpoint not implemented yet\n");
->>> -	return -ENOSYS;
->>> +	struct cr_ctx *ctx;
->>> +	int ret;
->>> +
->>> +	/* no flags for now */
->>> +	if (flags)
->>> +		return -EINVAL;
->>> +
->>> +	ctx = cr_ctx_alloc(pid, fd, flags | CR_CTX_CKPT);
->>> +	if (IS_ERR(ctx))
->>> +		return PTR_ERR(ctx);
->>> +
->>> +	ret = do_checkpoint(ctx);
->>> +
->>> +	if (!ret)
->>> +		ret = ctx->crid;
->>> +
->>> +	cr_ctx_free(ctx);
->>> +	return ret;
->>>  }
->> Is it appropriate that this be an unprivileged operation?
+> Andrew, this is a fix to "x86 cannot boot if memcg is enabled" problem in Linus's git-tree,0
+> fix to "memcg: allocate all page_cgroup at boot" patch.
 > 
-> Early versions checked capable(CAP_SYS_ADMIN), and we reasoned that we
-> would later attempt to remove the need for privilege so that all users
-> could safely use it.
+> Thank you for all helps!
+> (*) I and Balbir tested this. other testers are welcome :)
+> -Kame
+> ==
 > 
-> Arnd Bergmann called us on that nonsense, pointing out that it'd make
-> more sense to let unprivileged users use them now, so that we'll be
-> more careful about the security as patches roll in.
+> page_cgroup_init() is called from mem_cgroup_init(). But at this
+> point, we cannot call alloc_bootmem().
+> (and this caused panic at boot.)
 > 
-> So, Oren's patchset right now only checkpoints current, despite pid
-> being part of the API.  So the task can access its own data.  When
-> the patch supports checkpointing another task (which Oren says he's
-> doing right now), then our intent is to check for ptrace access to
-> the target task.  (Right, Oren?)
-
-Correct. That's already in the additional patch in the git tree - first
-I locate the task and if found, I check ptrace_may_access() (read mode).
-
-see the top patch in:
-http://git.ncl.cs.columbia.edu/?p=linux-cr-dev.git;a=shortlog;h=refs/heads/ckpt-v7
-
+> This patch moves page_cgroup_init() to init/main.c.
 > 
->> What happens if I pass it a pid which isn't system-wide unique?
+> Time table is following:
+> ==
+>   parse_args(). # we can trust mem_cgroup_subsys.disabled bit after this.
+>   ....
+>   cgroup_init_early()  # "early" init of cgroup.
+>   ....
+>   setup_arch()         # memmap is allocated.
+>   ...
+>   page_cgroup_init();
+>   mem_init();   # we cannot call alloc_bootmem after this.
+>   ....
+>   cgroup_init() # mem_cgroup is initialized.
+> ==
 > 
-> pid must be checked in the caller's pid namespace.  So if I've create a
-> container which I want to checkpoint, pid 1 in that pidns will be, say,
-> 3497 in my pid_ns, and so 3497 is the pid I must use.  If I try to pass
-> 1, I'll try to checkpoint my own container.  And, if I'm not privileged
-> and init is owned by root, the ptrace() check I mentioned above will
-> return -EPERM.
-
-Yup.
-
+> Before page_cgroup_init(), mem_map must be initialized. So, 
+> I added page_cgroup_init() to init/main.c directly.
 > 
->> What happens if I pass it a pid of a process which I don't own?  This
->> is super security-sensitive and we need to go over the permission
->> checking with a toothcomb.  It needs to be exhaustively described in
->> the changelog.  It might have security/selinux implications - I don't
->> know, I didn't look, but lights are flashing and bells are ringing over
->> here.
-
-This should be covered by ptrace_may_access() test.
-
-In the longer run, I suppose SElinux people would want a security hook
-there to approve or disapprove the operation.
-
->>
->> What happens if I pass it a pid of a process which I _do_ own, but it
->> does not refer to a container's init process?
+> (*) maybe this is not very clean but
+>     - cgroup_init_early() is too early
+>     - in cgroup_init(), we have to use vmalloc instead of alloc_bootmem().
+>     use of vmalloc area in x86-32 is important and we should avoid very large
+>     vmalloc() in x86-32. So, we want to use alloc_bootmem() and added page_cgroup_init()
+>     directly to init/main.c
 > 
-> I would assume that do_checkpoint() would return -EINVAL, but it's a
-> great question:  Oren, did you have another plan?
-
-Since we intentional provide minimal functionality to keep the patchset
-simple and allow easy review - we only checkpoint one task; it doesn't
-really matter because we don't deal with the entire container.
-
-With the ability to checkpoint multiple process we will have to ensure
-that we checkpoint an entire container. I planned to return -EINVAL if
-the target task isn't a container init(1). Another option, if people
-prefer, is to use any task in a container to "represent" the entire
-container.
-
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
->> If `pid' must refer to a container's init process, isn't it always
->> equal to 1??
+>  init/main.c      |    2 ++
+>  mm/memcontrol.c  |    1 -
+>  mm/page_cgroup.c |   35 ++++++++++++++++++++++++++++-------
+>  3 files changed, 30 insertions(+), 8 deletions(-)
 > 
-> Not in the caller's pid_namespace.
-> 
->>>  /**
->>>   * sys_restart - restart a container
->>>   * @crid: checkpoint image identifier
->>> @@ -36,6 +234,19 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
->>>   */
->>>  asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
->>>  {
->>> -	pr_debug("sys_restart not implemented yet\n");
->>> -	return -ENOSYS;
->>> +	struct cr_ctx *ctx;
->>> +	int ret;
->>> +
->>> +	/* no flags for now */
->>> +	if (flags)
->>> +		return -EINVAL;
->>> +
->>> +	ctx = cr_ctx_alloc(crid, fd, flags | CR_CTX_RSTR);
->>> +	if (IS_ERR(ctx))
->>> +		return PTR_ERR(ctx);
->>> +
->>> +	ret = do_restart(ctx);
->>> +
->>> +	cr_ctx_free(ctx);
->>> +	return ret;
->>>  }
->> Again, this is scary stuff.  We're allowing unprivileged userspace to
->> feed random numbers into kernel data structures.
-> 
-> Yes, all of the file opens and mmaps must not skip the usual security
-> checks.  The task credentials are currently unsupported, meaning that
-> euid, etc, come from the caller, not the checkpoint image.  When the
+> Index: linux-2.6/init/main.c
+> ===================================================================
+> --- linux-2.6.orig/init/main.c
+> +++ linux-2.6/init/main.c
+> @@ -62,6 +62,7 @@
+>  #include <linux/signal.h>
+>  #include <linux/idr.h>
+>  #include <linux/ftrace.h>
+> +#include <linux/page_cgroup.h>
+>  
+>  #include <asm/io.h>
+>  #include <asm/bugs.h>
+> @@ -647,6 +648,7 @@ asmlinkage void __init start_kernel(void
+>  	vmalloc_init();
+>  	vfs_caches_init_early();
+>  	cpuset_init_early();
+> +	page_cgroup_init();
+>  	mem_init();
+>  	enable_debug_pagealloc();
+>  	cpu_hotplug_init();
+> Index: linux-2.6/mm/memcontrol.c
+> ===================================================================
+> --- linux-2.6.orig/mm/memcontrol.c
+> +++ linux-2.6/mm/memcontrol.c
+> @@ -1088,7 +1088,6 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	int node;
+>  
+>  	if (unlikely((cont->parent) == NULL)) {
+> -		page_cgroup_init();
+>  		mem = &init_mem_cgroup;
+>  	} else {
+>  		mem = mem_cgroup_alloc();
+> Index: linux-2.6/mm/page_cgroup.c
+> ===================================================================
+> --- linux-2.6.orig/mm/page_cgroup.c
+> +++ linux-2.6/mm/page_cgroup.c
+> @@ -4,7 +4,12 @@
+>  #include <linux/bit_spinlock.h>
+>  #include <linux/page_cgroup.h>
+>  #include <linux/hash.h>
+> +#include <linux/slab.h>
+>  #include <linux/memory.h>
+> +#include <linux/cgroup.h>
+> +
+> +extern struct cgroup_subsys	mem_cgroup_subsys;
 
-Actually, the fact that task credentials are not restored makes it
-more secure, because the user can't do anything beyond her current
-capabilities.
+no no bad! evil! unclean!
 
-For the same reason, however, unless we agree on a secure way to
-elevate credentials, there are various things that we cannot restore,
-even though it may be something we would want to permit.
-
-> restoration of credentials becomes supported, then definately the
-> caller (of sys_restore())'s ability to setresuid/setresgid to those
-> values must be checked.
-> 
-> So that's why we don't want CAP_SYS_ADMIN required up-front.  That way
-> we will be forced to more carefully review each of those features.
-> 
->> I'd like to see the security guys take a real close look at all of
->> this, and for them to do that effectively they should be provided with
->> a full description of the security design of this feature.
-> 
-> Right, some of the above should be spelled out somewhere.  Should it be
-> in the patch description, in the Documentation/checkpoint.txt file,
-> or someplace else?  Oren, do you want to filter the above information
-> into the right place, or do you want me to do it and send you a patch?
-
-I'll add something to the Documentation/checkpoint.txt.
-
-Thanks,
-
-Oren.
+Didn't the linux/cgroup.h -> linux/cgroup_subsys..h inclusion already
+declare this for us?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
