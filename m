@@ -1,76 +1,53 @@
-Date: Wed, 22 Oct 2008 11:29:01 +0200
+Date: Wed, 22 Oct 2008 12:31:13 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: fix anon_vma races
-Message-ID: <20081022092901.GC4359@wotan.suse.de>
-References: <20081016041033.GB10371@wotan.suse.de> <Pine.LNX.4.64.0810200427270.5543@blonde.site> <alpine.LFD.2.00.0810200742300.3518@nehalem.linux-foundation.org> <200810211356.13191.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0810202024150.3287@nehalem.linux-foundation.org> <20081021043338.GA5694@wotan.suse.de> <48FDFC6C.5080606@linux-foundation.org>
+Subject: Re: [patch] fs: improved handling of page and buffer IO errors
+Message-ID: <20081022103112.GA27862@wotan.suse.de>
+References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <48FDFC6C.5080606@linux-foundation.org>
+In-Reply-To: <87mygxexev.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 21, 2008 at 10:59:40AM -0500, Christoph Lameter wrote:
-> Nick Piggin wrote:
+On Tue, Oct 21, 2008 at 06:16:24PM +0200, Andi Kleen wrote:
+> Nick Piggin <npiggin@suse.de> writes:
 > 
+> > IO error handling in the core mm/fs still doesn't seem perfect, but with
+> > the recent round of patches and this one, it should be getting on the
+> > right track.
+> >
+> > I kind of get the feeling some people would rather forget about all this
+> > and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> > disagrees with my assertion that error handling, and data integrity
+> > semantics are first-class correctness issues, and therefore are more
+> > important than all other non-correctness problems... speak now and let's
+> > discuss that, please.
+> >
+> > Otherwise, unless anybody sees obvious problems with this, hopefully it
+> > can go into -mm for some wider testing (I've tested it with a few filesystems
+> > so far and no immediate problems)
 > 
-> >  	if (!page_mapped(page))
-> >  		goto out;
-> >  
-> >  	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-> 
-> Isnt it possible for the anon_vma to be freed and reallocated for another use
-> after this statement and before taking the lock?
+> I think the first step to get these more robust in the future would be to
+> have a standard regression test testing these paths.  Otherwise it'll
+> bit-rot sooner or later again.
 
-Yes.
+The problem I've had with testing is that it's hard to trigger a specific
+path for a given error, because write IO especially can be quite non
+deterministic, and the filesystem or kernel may give up at various points.
 
+I agree, but I just don't know exactly how they can be turned into
+standard tests. Some filesystems like XFS seem to completely shut down
+quite easily on IO errors. Others like ext2 can't really unwind from
+a failure in a multi-block operation (eg. allocating a block to an
+inode) if an error is detected, and it just gets ignored.
 
-> >  	spin_lock(&anon_vma->lock);
-> 
-> Then we may take the spinlock on another anon_vma structure not related to
-> this page.
+I am testing, but mainly just random failure injections and seeing if
+things go bug or go undetected etc.
 
-Yes.
-
-
-> > +
-> > +	/*
-> > +	 * If the page is no longer mapped, we have no way to keep the anon_vma
-> > +	 * stable. It may be freed and even re-allocated for some other set of
-> > +	 * anonymous mappings at any point. Technically this should be OK, as
-> > +	 * we hold the spinlock, and should be able to tolerate finding
-> > +	 * unrelated vmas on our list. However we'd rather nip these in the bud
-> > +	 * here, for simplicity.
-> > +	 *
-> > +	 * If the page is mapped while we have the lock on the anon_vma, then
-> > +	 * we know anon_vma_unlink can't run and garbage collect the anon_vma:
-> > +	 * unmapping the page and decrementing its mapcount happens before
-> > +	 * unlinking the anon_vma; unlinking the anon_vma requires the
-> > +	 * anon_vma lock to be held. So this check ensures we have a stable
-> > +	 * anon_vma.
-> > +	 *
-> > +	 * Note: the page can still become unmapped, and the !page_mapped
-> > +	 * condition become true at any point. This check is definitely not
-> > +	 * preventing any such thing.
-> > +	 */
-> 
-> What is this then? An optimization?
-
-As the comment says, it filters out those unrelated anon_vmas. In doing so
-it allows us to guarantee the reference with the lock alone (as-per the next
-patch). Also just means we don't have to care about that case (even though
-it's not technically wrong).
-
-
-> 
-> > +	if (unlikely(!page_mapped(page))) {
-> > +		spin_unlock(&anon_vma->lock);
-> > +		goto out;
-> > +	}
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
