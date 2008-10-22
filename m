@@ -1,51 +1,72 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9M32jjW014206
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 23:02:46 -0400
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9M32juI145964
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 21:02:45 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9M32jWN030462
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2008 21:02:45 -0600
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
-	restart
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20081022025513.GA7504@caradoc.them.org>
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>
-	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>
-	 <20081021124130.a002e838.akpm@linux-foundation.org>
-	 <20081021202410.GA10423@us.ibm.com> <48FE82DF.6030005@cs.columbia.edu>
-	 <20081022025513.GA7504@caradoc.them.org>
-Content-Type: text/plain
-Date: Tue, 21 Oct 2008 20:02:43 -0700
-Message-Id: <1224644563.1848.232.camel@nimitz>
-Mime-Version: 1.0
+Message-ID: <48FEBAAA.5080604@suse.de>
+Date: Wed, 22 Oct 2008 11:01:22 +0530
+From: Suresh Jayaraman <sjayaraman@suse.de>
+MIME-Version: 1.0
+Subject: Re: [PATCH 20/32] netvm: INET reserves.
+References: <20081002130504.927878499@chello.nl> <20081002131609.071928149@chello.nl>
+In-Reply-To: <20081002131609.071928149@chello.nl>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Jacobowitz <dan@debian.org>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, trond.myklebust@fys.uio.no, Daniel Lezcano <dlezcano@fr.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Neil Brown <neilb@suse.de>, David Miller <davem@davemloft.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-10-21 at 22:55 -0400, Daniel Jacobowitz wrote:
-> I haven't been following - but why this whole container restriction?
-> Checkpoint/restart of individual processes is very useful too.
-> There are issues with e.g. IPC, but I'm not convinced they're
-> substantially different than the issues already present for a
-> container.
+Hi Peter,
 
-Containers provide isolation.  Once you have isolation, you have a
-discrete set of resources which you can checkpoint/restart.
+>>> Peter Zijlstra <a.p.zijlstra@chello.nl> 10/02/08 7:06 PM >>>
+> Add reserves for INET.
 
-Let's say you have a process you want to checkpoint.  If it uses a
-completely discrete IPC namespace, you *know* that nothing else depends
-on those IPC ids.  We don't even have to worry about who might have been
-using them and when.
+There's a typo in this patch that results in a Oops like the one below
+when doing `sysctl -a'
 
-Also think about pids.  Without containers, how can you guarantee a
-restarted process that it can regain the same pid?
+<cut>
+RIP: 0010:[<ffffffff804a0487>]  [<ffffffff804a0487>]
+__mutex_lock_slowpath+0x34/0xc9
 
--- Dave
+Call Trace:
+ [<ffffffff804a044f>] mutex_lock+0x1a/0x1e
+ [<ffffffff8044a82e>] proc_dointvec_route+0x38/0xad
+ [<ffffffff80301fce>] proc_sys_call_handler+0x91/0xb8
+ [<ffffffff802ba07e>] vfs_read+0xaa/0x153
+ [<ffffffff802ba1e3>] sys_read+0x45/0x6e
+ [<ffffffff8020c37a>] system_call_fastpath+0x16/0x1b
+ [<00007fb25e415880>] 0x7fb25e415880
+
+</cut>
+
+
+Index: linux-2.6/net/ipv4/route.c
+===================================================================
+--- linux-2.6.orig/net/ipv4/route.c
++++ linux-2.6/net/ipv4/route.c
+
+        /* Deprecated. Use gc_min_interval_ms */
+@@ -3271,6 +3330,15 @@ int __init ip_rt_init(void)
+    ipv4_dst_ops.gc_thresh = (rt_hash_mask + 1);
+    ip_rt_max_size = (rt_hash_mask + 1) * 16;
+
++#ifdef CONFIG_PROCFS
+
+Should be CONFIG_PROC_FS
+
++    mutex_init(&ipv4_route_lock);
++#endif
++
++    mem_reserve_init(&ipv4_route_reserve, "IPv4 route cache",
++            &net_rx_reserve);
++    mem_reserve_kmem_cache_set(&ipv4_route_reserve,
++            ipv4_dst_ops.kmem_cachep, ip_rt_max_size);
++
+    devinet_init();
+    ip_fib_init();
+
+
+Thanks,
+
+-- 
+Suresh Jayaraman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
