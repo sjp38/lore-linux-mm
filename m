@@ -1,34 +1,36 @@
-In-reply-to: <20081022125140.GB826@shareable.org> (message from Jamie Lokier
-	on Wed, 22 Oct 2008 13:51:40 +0100)
-Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <E1KsH4S-0005ya-6F@pomaz-ex.szeredi.hu> <20081021133814.GA26942@fogou.chygwyn.com> <E1KsIHV-0006JW-65@pomaz-ex.szeredi.hu> <20081021150948.GB28279@fogou.chygwyn.com> <E1KsJr2-0006jT-1R@pomaz-ex.szeredi.hu> <20081022125140.GB826@shareable.org>
-Message-Id: <E1KseOO-0001HK-Rq@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 22 Oct 2008 16:08:56 +0200
+Date: Wed, 22 Oct 2008 10:29:07 -0400
+From: Daniel Jacobowitz <dan@debian.org>
+Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
+	restart
+Message-ID: <20081022142907.GA13574@caradoc.them.org>
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu> <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu> <20081021124130.a002e838.akpm@linux-foundation.org> <20081021202410.GA10423@us.ibm.com> <48FE82DF.6030005@cs.columbia.edu> <20081022025513.GA7504@caradoc.them.org> <1224644563.1848.232.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1224644563.1848.232.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jamie@shareable.org
-Cc: miklos@szeredi.hu, steve@chygwyn.com, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Oct 2008, Jamie Lokier wrote:
-> So GFS goes to great lengths to ensure that read/write are coherent,
-> so are mmaps (writable or not), but _splice_ is not coherent in the
-> sense that it can send invalid but non-random data? :-)
+On Tue, Oct 21, 2008 at 08:02:43PM -0700, Dave Hansen wrote:
+> Let's say you have a process you want to checkpoint.  If it uses a
+> completely discrete IPC namespace, you *know* that nothing else depends
+> on those IPC ids.  We don't even have to worry about who might have been
+> using them and when.
+> 
+> Also think about pids.  Without containers, how can you guarantee a
+> restarted process that it can regain the same pid?
 
-Spice is not coherent in any sense on any filesystem :)
+OK, that makes sense.  In a lot of simple cases you can get by without
+regaining the same pid; there's an implementation of checkpointing in
+GDB that works by injecting fork calls into the child, and it is
+useful for a reasonable selection of single-threaded programs.
 
-Your idea about COWing the page would be nice, and I think it may even
-be implementable.  Currently the biggest problem with splice is the
-lack of users, we'd have to solve that first somehow.
-
-> Also, is there still a problem where the data is "valid" but part of
-> the page may have been zero'd by truncate, which is then transmitted
-> by splice?
-
-Yes.
-
-Miklos
+-- 
+Daniel Jacobowitz
+CodeSourcery
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
