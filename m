@@ -1,34 +1,62 @@
-Date: Wed, 22 Oct 2008 00:41:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
-Message-Id: <20081022004121.9c41c495.akpm@linux-foundation.org>
-In-Reply-To: <87abcxksn1.fsf@saeurebad.de>
-References: <87r669fq2v.fsf@saeurebad.de>
-	<87ljwhfo4e.fsf@saeurebad.de>
-	<20081022152911.1CD9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<87abcxksn1.fsf@saeurebad.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <48FEE616.6050603@tensilica.com>
+Date: Wed, 22 Oct 2008 01:36:38 -0700
+From: Piet Delaney <piet.delaney@tensilica.com>
+MIME-Version: 1.0
+Subject: Initialization of init_pid_ns.pid_cachep->nodelists[]
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, npiggin@suse.de, riel@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Piet Delaney <piet.delaney@tensilica.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Oct 2008 09:15:14 +0200 Johannes Weiner <hannes@saeurebad.de> wrote:
+I'm working on a 2.6.24 kernel with SPINLOCK debug enabled I ran into a 
+NULL pointer in nit_pid_ns.pid_cachep->nodelists[].
+Problem occurs while creating the pid cache:
 
-> Andrew's tree (not yet released) already has the first two changes, so
-> if he releases a new mmotm in the meantime, you only need this patch on
-> top of it.
-> 
+   #0          panic (fmt=0xd01fd500 "kmem_list3 == 
+NU"...)                                         at 
+/export/src/xtensa-2.6.24-smp/kernel/panic.c:77
+   #1         do_tune_cpucache (cachep=0xd3803f00, limit=0x20, 
+batchcount=0x10, shared=0x8)         at 
+/export/src/xtensa-2.6.24-smp/mm/slab.c:3962
+   #2        enable_cpucache 
+(cachep=0xd3803f00)                                                    
+at /export/src/xtensa-2.6.24-smp/mm/slab.c:4022
+   #3       setup_cpu_cache 
+(cachep=0xd3803f00)                                                     
+at /export/src/xtensa-2.6.24-smp/mm/slab.c:2088
+   #4      kmem_cache_create (name=0xd38054b4 "pid_1", size=0x48, 
+align=0x8, flags=0x12c00, ctor=0) at 
+/export/src/xtensa-2.6.24-smp/mm/slab.c:2401
+   #5     create_pid_cachep 
+(nr_ids=0x1)                                                            
+at /export/src/xtensa-2.6.24-smp/kernel/pid.c:520
+   #6    pidmap_init 
+()                                                                             
+at /export/src/xtensa-2.6.24-smp/kernel/pid.c:696
+   #7   start_kernel 
+()                                                                             
+at /export/src/xtensa-2.6.24-smp/init/main.c:616
+   #8  _startup 
+()                                                                                  
+at /export/src/xtensa-2.6.24-smp/arch/xtensa/kernel/head.S:250
 
-OK, there's one there now.
+It appears that a kmem_cache is initialized in
+            set_up_list3s() to point to initkmem_list3[].
+          init_list() to a newly allocated list
 
-It gets multiple definitions of elfcorehdr_addr if you pick an
-unfortunate config but I didn't bother fixing that because it'll
-probably go away next time I merge everything.
+Looks like setup_cpu_cache() above #3 didn't call  set_up_list3s() due to
+g_cpucache_up being set to FULL. g_cpucache_up is set to FULL in  
+kmem_cache_init()
+which was called from start_kernel() much earlier that the call to 
+pidmap_init().
 
+How was nodelist to this newly created kmem_cache for pids
+suppose to have been initialized by the time it gets here?
+
+-piet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
