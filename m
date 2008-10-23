@@ -1,58 +1,67 @@
-Date: Thu, 23 Oct 2008 13:07:50 +0200
+Date: Thu, 23 Oct 2008 13:15:00 +0200
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081023110750.GA7693@wotan.suse.de>
-References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <20081022222316.GI15154@wotan.suse.de> <20081023095949.GB6640@fogou.chygwyn.com> <20081023102100.GA23694@wotan.suse.de> <20081023105211.GA8011@fogou.chygwyn.com>
+Message-ID: <20081023111500.GB7693@wotan.suse.de>
+References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org> <20081022103112.GA27862@wotan.suse.de> <20081022230715.GX18495@disturbed> <20081023070711.GB30765@wotan.suse.de> <20081023094416.GA6640@fogou.chygwyn.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081023105211.GA8011@fogou.chygwyn.com>
+In-Reply-To: <20081023094416.GA6640@fogou.chygwyn.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: steve@chygwyn.com
-Cc: Mark Fasheh <mfasheh@suse.com>, Miklos Szeredi <miklos@szeredi.hu>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 23, 2008 at 11:52:11AM +0100, steve@chygwyn.com wrote:
+On Thu, Oct 23, 2008 at 10:44:16AM +0100, steve@chygwyn.com wrote:
 > Hi,
 > 
-> On Thu, Oct 23, 2008 at 12:21:00PM +0200, Nick Piggin wrote:
-> > On Thu, Oct 23, 2008 at 10:59:49AM +0100, steve@chygwyn.com wrote:
-> > > > Btw, at least for the readpage case, a return of AOP_TRUNCATED_PAGE should
-> > > > be checked for, which would indicate (along with !PageUptodate()) whether we
-> > > > need to retry the read. page_mkwrite though, as you point out, is a
-> > > > different story.
-> > > > 	--Mark
-> > > >
-> > > Yes, and although I probably didn't make it clear I was thinking
-> > > specifically of the page fault path there where both readpage and
-> > > page_mkwrite hang out.
+> On Thu, Oct 23, 2008 at 09:07:11AM +0200, Nick Piggin wrote:
+> > On Thu, Oct 23, 2008 at 10:07:15AM +1100, Dave Chinner wrote:
+> [snip]
+> > 
+> > > You could do the same thing for metadata read operations. e.g. build
+> > > a large directory structure, then do read operations on it (readdir,
+> > > stat, etc) and inject errors into each of those. All filesystems
+> > > should return the (EIO) error to the application in this case.
 > > > 
-> > > Also, I've looked through all the current GFS2 code and it seems to
-> > > be correct in relation to Miklos' point on PageUptodate() vs
-> > > page->mapping == NULL so I don't think any changes are required there,
-> > > but obviously that needs to be taken into account in filemap_fault wrt
-> > > to retrying in the lock demotion case. In other words we should be
-> > > testing for page->mapping == NULL rather than !PageUptodate() in that
-> > > case,
+> > > Those two cases should be pretty generic and deterministic - they
+> > > both avoid the difficult problem of determining what the response
+> > > to an I/O error during metadata modifcation should be....
 > > 
-> > PageUptodate is OK for the filemap_fault check AFAIKS, because it does
-> > a find_lock_page and runs the check under lock (so it can't be truncated
-> > or invalidated), in order to prevent fault vs truncate / invalidate races.
+> > Good suggestion.
 > > 
+> > I'll see what I can do. I'm using the fault injection stuff, which I
+> > don't think can distinguish metadata, so I might just have to work
+> > out a bio flag or something we can send down to the block layer to
+> > distinguish.
+> > 
+> > Thanks,
+> > Nick
+> >
 > 
-> Ah yes, I see now. Sorry, my fault (no pun intended!). Its the test after
-> readpage that I was thinking of, for which I'd previously posted a
-> patch under the subject "Potential fix to filemap_fault()" and you'd
-> reponded with a more comprehensive patch, back in July,
+> Don't we already have such a flag? I know that its not set in all
+> the correct places in GFS2 so far, but I've gradually been fixing
+> them to include BIO_RW_META where appropriate.
+ 
+That should probably work. It seems to be very incomplete (GFS2
+being one of the few exceptions). Though adding more support in
+ext2 and buffer layer should be enough for me to start with,
+and shouldn't be too hard.
 
-Yes, this is roughly the same patch, although probably that part of it
-was valid when you posted it as we probably still cleared PG_uptodate
-on invalidate at that time...
 
-I still think there are some improvements we can make though, so I
-have picked up the patch again and started trying to do more testing
-of it
+> Also it occurs to me that we can use FIEMAP to discover where a
+> parciular file is and that would then allow us to target error
+> injection at particular blocks of the file.
+> 
+> Given that we can cover xattr blocks with FIEMAP too[*], and that at
+> least with GFS2 and similar filesystems the inode number is the
+> block number of the inode, the only thing that would be missing,
+> in terms of locating inode data & metadata would be the indirect blocks,
+
+That would be interesting. I'm finding it hard to come up with
+good ways to trigger a lot of the cases just for single-file case,
+so I won't need to do anything so advanced yet ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
