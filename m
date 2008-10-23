@@ -1,23 +1,23 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9N9BRFk006003
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9N9Cn12007472
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 23 Oct 2008 18:11:28 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C59EC2AC028
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:11:27 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4798212C045
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:11:27 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id BA40C1DB8048
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:11:26 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 226C61DB8045
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:11:23 +0900 (JST)
-Date: Thu, 23 Oct 2008 18:10:55 +0900
+	Thu, 23 Oct 2008 18:12:49 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D79832AC025
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:12:48 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AE77912C046
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:12:48 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 94C8C1DB8048
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:12:48 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A67E1DB8043
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 18:12:48 +0900 (JST)
+Date: Thu, 23 Oct 2008 18:12:20 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 8/11] memcg: shmem account helper
-Message-Id: <20081023181055.cb9f8685.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 9/11] memcg : mem+swap controlelr kconfig
+Message-Id: <20081023181220.80dc24c5.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081023175800.73afc957.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081023175800.73afc957.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,106 +29,118 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-In mem+swap controller, we also have to catch shmem's swap-in.
+Config and control variable for mem+swap controller.
 
-This patch adds hook to shmem's swap-in path.
+This patch adds CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+(memory resource controller swap extension.)
 
-And as a good effect, a charge done under spinlock(info->lock)
-is moved out to outside of lock.
-(do that under spinlock is bug...)
+For accounting swap, it's obvious that we have to use additional memory
+to remember "who uses swap". This adds more overhead.
+So, it's better to offer "choice" to users. This patch adds 2 choices.
 
-And this also fixes gfp mask of shmem's charge. Now, we don't
-have to allocate page_cgroup dynamically, GFP_KERNEL is not suitable.
+This patch adds 2 parameters to enable swap extenstion or not.
+  - CONFIG
+  - boot option
 
-mem_cgroup_charge_cache_swapin() itself will be modified by following patch.
+This version uses policy of "default is enable if configured."
+please tell me you dislike this. See patches following this in detail...
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
- include/linux/memcontrol.h |    3 +++
- mm/memcontrol.c            |   12 ++++++++++++
- mm/shmem.c                 |   17 ++++++++++++++---
- 3 files changed, 29 insertions(+), 3 deletions(-)
+ Documentation/kernel-parameters.txt |    3 +++
+ include/linux/memcontrol.h          |    3 +++
+ init/Kconfig                        |   16 ++++++++++++++++
+ mm/memcontrol.c                     |   17 +++++++++++++++++
+ 4 files changed, 39 insertions(+)
 
-Index: mmotm-2.6.27+/mm/shmem.c
+Index: mmotm-2.6.27+/init/Kconfig
 ===================================================================
---- mmotm-2.6.27+.orig/mm/shmem.c
-+++ mmotm-2.6.27+/mm/shmem.c
-@@ -920,8 +920,9 @@ found:
- 	error = 1;
- 	if (!inode)
- 		goto out;
--	/* Precharge page using GFP_KERNEL while we can wait */
--	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
-+	/* Precharge page using GFP_HIGHUSER_PAGECACHE while we can wait */
-+	error = mem_cgroup_cache_charge_swapin(page, current->mm,
-+			GFP_HIGHUSER_PAGECACHE);
- 	if (error)
- 		goto out;
- 	error = radix_tree_preload(GFP_KERNEL);
-@@ -1259,6 +1260,16 @@ repeat:
- 			}
- 			wait_on_page_locked(swappage);
- 			page_cache_release(swappage);
-+			/*
-+			 * We want to charge agaisnt this page not-under
-+			 * info->lock. do precharge here.
-+			 */
-+			if (mem_cgroup_cache_charge_swapin(swappage,
-+					current->mm, gfp)) {
-+				error = -ENOMEM;
-+				goto failed;
-+			}
+--- mmotm-2.6.27+.orig/init/Kconfig
++++ mmotm-2.6.27+/init/Kconfig
+@@ -613,6 +613,22 @@ config KALLSYMS_EXTRA_PASS
+ 	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
+ 	   you wait for kallsyms to be fixed.
+ 
++config CGROUP_MEM_RES_CTLR_SWAP
++	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
++	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
++	help
++	  Add swap management feature to memory resource controller. When you
++	  enable this, you can limit mem+swap usage per cgroup. In other words,
++	  when you disable this, memory resource controller have no cares to
++	  usage of swap...a process can exhaust the all swap. This extension
++	  is useful when you want to avoid exhausion of swap but this itself
++	  adds more overheads and consumes memory for remembering information.
++	  Especially if you use 32bit system or small memory system,
++	  please be careful to enable this. When memory resource controller
++	  is disabled by boot option, this will be automatiaclly disabled and
++	  there will be no overhead from this. Even when you set this config=y,
++	  if boot option "noswapaccount" is set, swap will not be accounted.
 +
- 			goto repeat;
- 		}
  
-@@ -1371,7 +1382,7 @@ repeat:
- 
- 			/* Precharge page while we can wait, compensate after */
- 			error = mem_cgroup_cache_charge(filepage, current->mm,
--							gfp & ~__GFP_HIGHMEM);
-+							gfp);
- 			if (error) {
- 				page_cache_release(filepage);
- 				shmem_unacct_blocks(info->flags, 1);
+ config HOTPLUG
+ 	bool "Support for hot-pluggable devices" if EMBEDDED
 Index: mmotm-2.6.27+/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.27+.orig/mm/memcontrol.c
 +++ mmotm-2.6.27+/mm/memcontrol.c
-@@ -988,6 +988,18 @@ int mem_cgroup_cache_charge(struct page 
- 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
- }
+@@ -41,6 +41,13 @@
+ struct cgroup_subsys mem_cgroup_subsys __read_mostly;
+ #define MEM_CGROUP_RECLAIM_RETRIES	5
  
-+int mem_cgroup_cache_charge_swapin(struct page *page, struct mm_struct *mm,
-+				gfp_t gfp_mask)
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++int do_swap_account __read_mostly = 1;
++#else
++#define do_swap_account		(0)
++#endif
++
++
+ /*
+  * Statistics for memory cgroup.
+  */
+@@ -1658,3 +1665,13 @@ struct cgroup_subsys mem_cgroup_subsys =
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
+ };
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++
++static int __init disable_swap_account(char *s)
 +{
-+	if (mem_cgroup_subsys.disabled)
-+		return 0;
-+	if (unlikely(!mm))
-+		mm = &init_mm;
-+	return mem_cgroup_charge_common(page, mm, gfp_mask,
-+				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
-+
++	do_swap_account = 0;
++	return 1;
 +}
++__setup("noswapaccount", disable_swap_account);
++#endif
+Index: mmotm-2.6.27+/Documentation/kernel-parameters.txt
+===================================================================
+--- mmotm-2.6.27+.orig/Documentation/kernel-parameters.txt
++++ mmotm-2.6.27+/Documentation/kernel-parameters.txt
+@@ -1540,6 +1540,9 @@ and is between 256 and 4096 characters. 
+ 
+ 	nosoftlockup	[KNL] Disable the soft-lockup detector.
+ 
++	noswapaccount	[KNL] Disable accounting of swap in memory resource
++			controller. (See Documentation/controllers/memory.txt)
 +
- void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
- {
- 	struct page_cgroup *pc;
+ 	nosync		[HW,M68K] Disables sync negotiation for all devices.
+ 
+ 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
 Index: mmotm-2.6.27+/include/linux/memcontrol.h
 ===================================================================
 --- mmotm-2.6.27+.orig/include/linux/memcontrol.h
 +++ mmotm-2.6.27+/include/linux/memcontrol.h
-@@ -38,6 +38,9 @@ extern void mem_cgroup_cancel_charge_swa
+@@ -80,6 +80,9 @@ extern void mem_cgroup_record_reclaim_pr
+ extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
+ 					int priority, enum lru_list lru);
  
- extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 					gfp_t gfp_mask);
-+extern int mem_cgroup_cache_charge_swapin(struct page *page,
-+			struct mm_struct *mm, gfp_t gfp_mask);
-+
- extern void mem_cgroup_move_lists(struct page *page, enum lru_list lru);
- extern void mem_cgroup_uncharge_page(struct page *page);
- extern void mem_cgroup_uncharge_cache_page(struct page *page);
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++extern int do_swap_account;
++#endif
+ 
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
