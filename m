@@ -1,68 +1,66 @@
-Date: Fri, 24 Oct 2008 09:48:04 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081023224804.GD18495@disturbed>
-References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org> <20081022103112.GA27862@wotan.suse.de> <20081022230715.GX18495@disturbed> <20081023070711.GB30765@wotan.suse.de> <20081023094416.GA6640@fogou.chygwyn.com> <20081023111500.GB7693@wotan.suse.de>
+Message-ID: <49010D41.1080305@goop.org>
+Date: Thu, 23 Oct 2008 16:48:17 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081023111500.GB7693@wotan.suse.de>
+Subject: vm_unmap_aliases and Xen
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: steve@chygwyn.com, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 23, 2008 at 01:15:00PM +0200, Nick Piggin wrote:
-> On Thu, Oct 23, 2008 at 10:44:16AM +0100, steve@chygwyn.com wrote:
-> > Hi,
-> > 
-> > On Thu, Oct 23, 2008 at 09:07:11AM +0200, Nick Piggin wrote:
-> > > On Thu, Oct 23, 2008 at 10:07:15AM +1100, Dave Chinner wrote:
-> > [snip]
-> > > 
-> > > > You could do the same thing for metadata read operations. e.g. build
-> > > > a large directory structure, then do read operations on it (readdir,
-> > > > stat, etc) and inject errors into each of those. All filesystems
-> > > > should return the (EIO) error to the application in this case.
-> > > > 
-> > > > Those two cases should be pretty generic and deterministic - they
-> > > > both avoid the difficult problem of determining what the response
-> > > > to an I/O error during metadata modifcation should be....
-> > > 
-> > > Good suggestion.
-> > > 
-> > > I'll see what I can do. I'm using the fault injection stuff, which I
-> > > don't think can distinguish metadata, so I might just have to work
-> > > out a bio flag or something we can send down to the block layer to
-> > > distinguish.
-> > > 
-> > > Thanks,
-> > > Nick
-> > >
-> > 
-> > Don't we already have such a flag? I know that its not set in all
-> > the correct places in GFS2 so far, but I've gradually been fixing
-> > them to include BIO_RW_META where appropriate.
->  
-> That should probably work. It seems to be very incomplete (GFS2
-> being one of the few exceptions). Though adding more support in
-> ext2 and buffer layer should be enough for me to start with,
-> and shouldn't be too hard.
+I've been having a few problems with Xen, I suspect as a result of the 
+lazy unmapping in vmalloc.c.
 
-I've posted patches to tag XFS metadata with BIO_RW_META in the
-past, but that patch set had performance implications for different I/O
-schedulers so it never went further than just a patch. If I
-leave all the BIO_RW_SYNC tagging for the metadata bios, then
-a single line change to add BIO_RW_META should not have any
-performance impact....
+One immediate one is that vm_unmap_aliases() will oops if you call it 
+before vmalloc_init() is called, which can happen in the Xen case.  RFC 
+patch below.
 
-Cheers,
+But the bigger problem I'm seeing is that despite calling 
+vm_unmap_aliases() at the pertinent places, I'm still seeing errors 
+resulting from stray aliases.  Is it possible that vm_unmap_aliases() 
+could be missing some, or not completely synchronous?
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Subject: vmap: cope with vm_unmap_aliases before vmalloc_init()
+
+Xen can end up calling vm_unmap_aliases() before vmalloc_init() has
+been called.  In this case its safe to make it a simple no-op.
+
+Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
+diff -r 42c8b29f7ccf mm/vmalloc.c
+--- a/mm/vmalloc.c	Wed Oct 22 12:43:39 2008 -0700
++++ b/mm/vmalloc.c	Wed Oct 22 21:39:00 2008 -0700
+@@ -591,6 +591,8 @@
+ 
+ #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+ 
++static bool vmap_initialized = false;
++
+ struct vmap_block_queue {
+ 	spinlock_t lock;
+ 	struct list_head free;
+@@ -827,6 +829,9 @@
+ 	int cpu;
+ 	int flush = 0;
+ 
++	if (!vmap_initialized)
++		return;
++
+ 	for_each_possible_cpu(cpu) {
+ 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
+ 		struct vmap_block *vb;
+@@ -940,6 +945,8 @@
+ 		INIT_LIST_HEAD(&vbq->dirty);
+ 		vbq->nr_dirty = 0;
+ 	}
++
++	vmap_initialized = true;
+ }
+ 
+ void unmap_kernel_range(unsigned long addr, unsigned long size)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
