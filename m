@@ -1,60 +1,89 @@
-Date: Thu, 23 Oct 2008 10:44:16 +0100
+Date: Thu, 23 Oct 2008 10:59:49 +0100
 From: steve@chygwyn.com
 Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081023094416.GA6640@fogou.chygwyn.com>
-References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org> <20081022103112.GA27862@wotan.suse.de> <20081022230715.GX18495@disturbed> <20081023070711.GB30765@wotan.suse.de>
+Message-ID: <20081023095949.GB6640@fogou.chygwyn.com>
+References: <20081021112137.GB12329@wotan.suse.de> <E1KsGj7-0005sK-Uq@pomaz-ex.szeredi.hu> <20081021125915.GA26697@fogou.chygwyn.com> <20081022222316.GI15154@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081023070711.GB30765@wotan.suse.de>
+In-Reply-To: <20081022222316.GI15154@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Mark Fasheh <mfasheh@suse.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, npiggin@suse.de, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Thu, Oct 23, 2008 at 09:07:11AM +0200, Nick Piggin wrote:
-> On Thu, Oct 23, 2008 at 10:07:15AM +1100, Dave Chinner wrote:
-[snip]
-> 
-> > You could do the same thing for metadata read operations. e.g. build
-> > a large directory structure, then do read operations on it (readdir,
-> > stat, etc) and inject errors into each of those. All filesystems
-> > should return the (EIO) error to the application in this case.
+On Wed, Oct 22, 2008 at 03:23:16PM -0700, Mark Fasheh wrote:
+> On Tue, Oct 21, 2008 at 01:59:15PM +0100, steve@chygwyn.com wrote:
+> > Hi,
 > > 
-> > Those two cases should be pretty generic and deterministic - they
-> > both avoid the difficult problem of determining what the response
-> > to an I/O error during metadata modifcation should be....
+> > On Tue, Oct 21, 2008 at 02:52:45PM +0200, Miklos Szeredi wrote:
+> > > On Tue, 21 Oct 2008, Nick Piggin wrote:
+> > > > IO error handling in the core mm/fs still doesn't seem perfect, but with
+> > > > the recent round of patches and this one, it should be getting on the
+> > > > right track.
+> > > > 
+> > > > I kind of get the feeling some people would rather forget about all this
+> > > > and brush it under the carpet. Hopefully I'm mistaken, but if anybody
+> > > > disagrees with my assertion that error handling, and data integrity
+> > > > semantics are first-class correctness issues, and therefore are more
+> > > > important than all other non-correctness problems... speak now and let's
+> > > > discuss that, please.
+> > > 
+> > > I agree that error handling is important.  But careful: some
+> > > filesystems (NFS I know) don't set PG_error on async read errors, and
+> > > changing the semantics of ->readpage() from returning EIO to retrying
+> > > will potentially cause infinite loops.  And no casual testing will
+> > > reveal those because peristent read errors are extremely rare.
+> > > 
+> > > So I think a better aproach would be to do
+> > > 
+> > > 			error = lock_page_killable(page);
+> > > 			if (unlikely(error))
+> > > 				goto readpage_error;
+> > > 			if (PageError(page) || !PageUptodate(page)) {
+> > > 				unlock_page(page);
+> > > 				shrink_readahead_size_eio(filp, ra);
+> > > 				error = -EIO;
+> > > 				goto readpage_error;
+> > > 			}
+> > > 			if (!page->mapping) {
+> > > 				unlock_page(page);
+> > > 				page_cache_release(page);
+> > > 				goto find_page;
+> > > 			}
+> > > 
+> > > etc...
+> > > 
+> > > Is there a case where retrying in case of !PageUptodate() makes any
+> > > sense?
+> > >
+> > Yes... cluster filesystems. Its very important in case a readpage
+> > races with a lock demotion. Since the introduction of page_mkwrite
+> > that hasn't worked quite right, but by retrying when the page is
+> > not uptodate, that should fix the problem,
 > 
-> Good suggestion.
-> 
-> I'll see what I can do. I'm using the fault injection stuff, which I
-> don't think can distinguish metadata, so I might just have to work
-> out a bio flag or something we can send down to the block layer to
-> distinguish.
-> 
-> Thanks,
-> Nick
+> Btw, at least for the readpage case, a return of AOP_TRUNCATED_PAGE should
+> be checked for, which would indicate (along with !PageUptodate()) whether we
+> need to retry the read. page_mkwrite though, as you point out, is a
+> different story.
+> 	--Mark
 >
+Yes, and although I probably didn't make it clear I was thinking
+specifically of the page fault path there where both readpage and
+page_mkwrite hang out.
 
-Don't we already have such a flag? I know that its not set in all
-the correct places in GFS2 so far, but I've gradually been fixing
-them to include BIO_RW_META where appropriate.
-
-Also it occurs to me that we can use FIEMAP to discover where a
-parciular file is and that would then allow us to target error
-injection at particular blocks of the file.
-
-Given that we can cover xattr blocks with FIEMAP too[*], and that at
-least with GFS2 and similar filesystems the inode number is the
-block number of the inode, the only thing that would be missing,
-in terms of locating inode data & metadata would be the indirect blocks,
+Also, I've looked through all the current GFS2 code and it seems to
+be correct in relation to Miklos' point on PageUptodate() vs
+page->mapping == NULL so I don't think any changes are required there,
+but obviously that needs to be taken into account in filemap_fault wrt
+to retrying in the lock demotion case. In other words we should be
+testing for page->mapping == NULL rather than !PageUptodate() in that
+case,
 
 Steve.
-
-[*] GFS2's FIEMAP doesn't support xattrs yet, but its on my todo list
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
