@@ -1,55 +1,91 @@
-In-reply-to: <1224745831.25814.21.camel@penberg-laptop> (message from Pekka
-	Enberg on Thu, 23 Oct 2008 10:10:31 +0300)
-Subject: Re: SLUB defrag pull request?
-References: <1223883004.31587.15.camel@penberg-laptop>
-	 <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu>
-	 <48FE6306.6020806@linux-foundation.org>
-	 <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu>
-	 <Pine.LNX.4.64.0810220822500.30851@quilx.com>
-	 <E1Ksjed-00023D-UB@pomaz-ex.szeredi.hu>
-	 <Pine.LNX.4.64.0810221252570.3562@quilx.com>
-	 <E1Ksk3g-00027r-Lp@pomaz-ex.szeredi.hu>
-	 <Pine.LNX.4.64.0810221315080.26671@quilx.com>
-	 <E1KskHI-0002AF-Hz@pomaz-ex.szeredi.hu>
-	 <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
-	 <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu>
-	 <Pine.LNX.4.64.0810221416130.26639@quilx.com>
-	 <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu> <1224745831.25814.21.camel@penberg-laptop>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 23 Oct 2008 10:38:54 +0200
+Received: from m4.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9N8wUEq001318
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 23 Oct 2008 17:58:30 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B13E52AC026
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 17:58:30 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B1912C048
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 17:58:30 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6DBAB1DB803E
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 17:58:30 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2921F1DB8038
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2008 17:58:30 +0900 (JST)
+Date: Thu, 23 Oct 2008 17:58:00 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/11] memcg updates / clean up, lazy lru ,mem+swap
+ controller
+Message-Id: <20081023175800.73afc957.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: penberg@cs.helsinki.fi
-Cc: miklos@szeredi.hu, cl@linux-foundation.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Oct 2008, Pekka Enberg wrote:
-> i>>?On Thu, 2008-10-23 at 00:10 +0200, Miklos Szeredi wrote:i>>?
-> > Actually, no: looking at the slub code it already makes sure that
-> > objects are neither poisoned, nor touched in any way _if_ there is a
-> > constructor for the object. And for good reason too, otherwise a
-> > reused object would contain rubbish after a second allocation.
-> 
-> There's no inherent reason why we cannot poison slab caches with a
-> constructor.
+Just for internal review. Now, it's under merge window ;)
 
-Right, it just needs to call the constructor for every allocation.
+This is mem cgroup next update (in my queue.)
+I'm now testing this set and would like to post next week, one by one.
+(Anyway, I'll wait until mmotm/mainline seems to be setteled.)
 
-> > Come on guys, you should be the experts in this thing!
-> 
-> Yeah, I know. Yet you're stuck with us. That's sad.
+These are against "The mm-of-the-moment snapshot 2008-10-22-17-18"
 
-No, I was a bit rude, sorry.
+Includes 1 clean up and 4 major changes.
 
-I think the _real_ problem is that instead of fancy features like this
-defragmenter, SLUB should first concentrate on getting the code solid
-enough to replace the other allocators.
+  a. menuconfig cleanup
+     Now, "General Setup" in menuconfig is getting longer day by day...
+     add cgroup submenu for good look.
 
-Miklos
+  b. try/commit/cancel protocol.
+     make mem_cgroup interface to be more specific and add new interface to
+     try/commit/cancel.
+     Because we allocates all page_cgroup at boot, we can do better handling
+     of charge/uncharge calls.
+
+  c. change force_empty's behavior from forgetting all to move to parent.
+     Now, force_empty does "forget all". This is not good. 
+     Change this behavior to
+        - move account to the parent.
+        - if the parent hits limit, free pages.
+     and this remove memory.force_empty interface....a debug only brutal file.
+     (This file can be a hole....)
+  d. lazy lru handling.
+     do add/remove to memcg's LRU in lazy way as pagevec does.
+
+  e. Mem+Swap controller.
+     account swap and limit by mem+swap. this feature is implemented as a
+     extension to memcg. (mem_counter is removed.)
+
+In my view,
+   a. is ok. (patch 1,2)
+   b,c,d have been tested for 2-3 weeks unchaged.. (patch 3-7)
+   e. is very new and will be in my queue for more weeks. (patch8-11)
+
+
+Patches.
+ [1/11] fix menu's comment about page_cgroup overhead.
+ [2/11] make cgroup's manuconfig as sub menu
+ [3/11] introduce charge/commit/cancel
+ [4/11] clean up page migration (again!)
+ [5/11] fix force_empty to move account to parent
+ [6/11] lazy memcg lru removal
+ [7/11] lazy memcg lru add
+ [8/11] make shmem's accounting clealer before mem+swap controller
+ [9/11] mem+swap controller kconfig.
+ [10/11] swap_cgroup for recording swap information
+ [11/11] mem+swap controller core
+
+Thank you for all your patient helps.
+
+Regards,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
