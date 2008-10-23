@@ -1,39 +1,178 @@
-Date: Thu, 23 Oct 2008 10:39:58 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: SLUB defrag pull request?
-In-Reply-To: <49009575.60004@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0810231035510.17638@quilx.com>
-References: <1223883004.31587.15.camel@penberg-laptop>
- <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
- <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221416130.26639@quilx.com>
-  <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu>  <1224745831.25814.21.camel@penberg-laptop>
-  <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810230638450.11924@quilx.com>
-  <84144f020810230658o7c6b3651k2d671aab09aa71fb@mail.gmail.com>
- <Pine.LNX.4.64.0810230705210.12497@quilx.com>
- <84144f020810230714g7f5d36bas812ad691140ee453@mail.gmail.com>
- <Pine.LNX.4.64.0810230721400.12497@quilx.com> <49009575.60004@cosmosbay.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [patch 0/3] activate pages in batch
+References: <20081023104002.1CEA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<87prlsjcjg.fsf@saeurebad.de>
+	<20081023110723.1CF0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Thu, 23 Oct 2008 18:21:41 +0200
+In-Reply-To: <20081023110723.1CF0.KOSAKI.MOTOHIRO@jp.fujitsu.com> (KOSAKI
+	Motohiro's message of "Thu, 23 Oct 2008 11:10:16 +0900 (JST)")
+Message-ID: <87abcvjn8q.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Miklos Szeredi <miklos@szeredi.hu>, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Oct 2008, Eric Dumazet wrote:
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> writes:
 
-> At alloc time, I remember I added a prefetchw() call in SLAB in 
-> __cache_alloc(),
-> this could explain some differences between SLUB and SLAB too, since SLAB
-> gives a hint to processor to warm its cache.
+>> >> Instead of re-acquiring the highly contented LRU lock on every single
+>> >> page activation, deploy an extra pagevec to do page activation in
+>> >> batch.
+>> >
+>> > Do you have any mesurement result?
+>> 
+>> Not yet, sorry.
+>> 
+>> Spinlocks are no-ops on my architecture, though, so the best I can come
+>> up with is results from emulating an SMP machine, would that be okay?
+>
+> it's not ok..
 
-SLUB touches objects by default when allocating. And it does it 
-immediately in slab_alloc() in order to retrieve the pointer to the next 
-object. So there is no point of hinting there right now.
+Ok.
 
-If we go to the pointer arrays then the situation is similar to SLAB where 
-the object is not touched by the allocator. Then the hint would be useful 
-again.
+> if you can explain best mesurement way, I can mesure on 8 way machine
+> :)
+
+Hmm, the `best way' is probably something else, but I played with the
+attached program.  It causes around as much activations as I read in
+pages and a lot of scanning, too, so perhaps this could work.  On your
+box, you most likely need to turn up the knobs a bit, though ;)
+
+> (but, of cource, I should mesure your madv_sequence patch earlier)
+
+Thanks a lot for this, btw!
+
+        Hannes
+
+---
+Sample output from the program:
+
+$ egrep '(pgactivate|pgscan_direct_normal)' /proc/vmstat; \
+  /usr/bin/time ./activate-reclaim-smp; \
+  egrep '(pgactivate|pgscan_direct_normal)' /proc/vmstat
+
+pgactivate 9587603
+pgscan_direct_normal 8150176
+2: warning, can not migrate to cpu
+1: warning, can not migrate to cpu
+<snipped warnings, you shouldn't get those, of course!>
+/loader
+/children
+1.93user 16.36system 0:58.17elapsed 31%CPU (0avgtext+0avgdata 0maxresident)k
+0inputs+0outputs (31major+526765minor)pagefaults 0swaps
+pgactivate 9856316
+pgscan_direct_normal 8603232
+
+---
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sched.h>
+#include <sys/mman.h>
+
+#define NR_CPUS		8
+#define PROCS_PER_CPU	4
+
+#define NR_PROCS	(NR_CPUS * PROCS_PER_CPU)
+
+#define FILE_SIZE       (1<<30)
+#define ANON_SIZE       (1<<30)
+
+static void move_self_to(int cpu)
+{
+	cpu_set_t set;
+
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+	if (sched_setaffinity(0, sizeof(set), &set))
+		printf("%d: warning, can not migrate to cpu\n", cpu);
+	sched_yield();
+}
+
+/* generate file pages */
+static void reader(int cpu)
+{
+	int fd;
+	char buf;
+	unsigned long off;
+
+	fd = open("zeroes", O_RDONLY);
+	if (fd < 0) {
+		printf("%d: open() failed\n", cpu);
+		return;
+	}
+
+	for (off = 0; off < FILE_SIZE; off += sysconf(_SC_PAGESIZE)) {
+		if (!read(fd, &buf, 1))
+			puts("huh?");
+		lseek(fd, off, SEEK_SET);
+	}
+	close(fd);
+}
+
+/* generate anon pages to trigger reclaims */
+static void loader(void)
+{
+	char *map;
+	unsigned long offset;
+
+	map = mmap(NULL, ANON_SIZE, PROT_READ, MAP_PRIVATE|MAP_ANON, -1, 0);
+	if (!map) {
+		printf("failed to anon-map\n");
+		return;
+	}
+
+	for (offset = 0; offset < ANON_SIZE; offset += sysconf(_SC_PAGESIZE))
+		if (map[offset])
+			puts("huh?");
+
+	munmap(map, ANON_SIZE);
+}
+
+static pid_t spawn_on(int cpu)
+{
+	pid_t child = fork();
+
+	switch (child) {
+	case -1:
+		printf("%d: fork() failed\n", cpu);
+		exit(1);
+	case 0:
+		move_self_to(cpu);
+		reader(cpu);
+		exit(0);
+	default:
+		return child;
+	}
+}
+
+int main(void)
+{
+	int cpu = -1, proc;
+	pid_t children[NR_PROCS];
+
+	while (++cpu < NR_CPUS)
+		for (proc = 0; proc < PROCS_PER_CPU; proc++)
+			children[cpu+proc] = spawn_on(cpu);
+
+	loader();
+	loader();
+	puts("/loader");
+
+	for (proc = 0; proc < NR_PROCS; proc++)
+		waitpid(children[proc], &cpu, 0);
+	puts("/children");
+
+	return 0;
+}
+		
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
