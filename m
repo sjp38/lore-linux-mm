@@ -1,67 +1,36 @@
-Date: Thu, 23 Oct 2008 13:15:00 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] fs: improved handling of page and buffer IO errors
-Message-ID: <20081023111500.GB7693@wotan.suse.de>
-References: <20081021112137.GB12329@wotan.suse.de> <87mygxexev.fsf@basil.nowhere.org> <20081022103112.GA27862@wotan.suse.de> <20081022230715.GX18495@disturbed> <20081023070711.GB30765@wotan.suse.de> <20081023094416.GA6640@fogou.chygwyn.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081023094416.GA6640@fogou.chygwyn.com>
+Date: Thu, 23 Oct 2008 06:40:43 -0700 (PDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: SLUB defrag pull request?
+In-Reply-To: <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0810230638450.11924@quilx.com>
+References: <1223883004.31587.15.camel@penberg-laptop>
+ <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu>  <48FE6306.6020806@linux-foundation.org>
+  <E1KsXrY-0000AU-C4@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810220822500.30851@quilx.com>
+  <E1Ksjed-00023D-UB@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221252570.3562@quilx.com>
+  <E1Ksk3g-00027r-Lp@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221315080.26671@quilx.com>
+  <E1KskHI-0002AF-Hz@pomaz-ex.szeredi.hu>  <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
+  <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221416130.26639@quilx.com>
+  <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu> <1224745831.25814.21.camel@penberg-laptop>
+ <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: steve@chygwyn.com
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: penberg@cs.helsinki.fi, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 23, 2008 at 10:44:16AM +0100, steve@chygwyn.com wrote:
-> Hi,
-> 
-> On Thu, Oct 23, 2008 at 09:07:11AM +0200, Nick Piggin wrote:
-> > On Thu, Oct 23, 2008 at 10:07:15AM +1100, Dave Chinner wrote:
-> [snip]
-> > 
-> > > You could do the same thing for metadata read operations. e.g. build
-> > > a large directory structure, then do read operations on it (readdir,
-> > > stat, etc) and inject errors into each of those. All filesystems
-> > > should return the (EIO) error to the application in this case.
-> > > 
-> > > Those two cases should be pretty generic and deterministic - they
-> > > both avoid the difficult problem of determining what the response
-> > > to an I/O error during metadata modifcation should be....
-> > 
-> > Good suggestion.
-> > 
-> > I'll see what I can do. I'm using the fault injection stuff, which I
-> > don't think can distinguish metadata, so I might just have to work
-> > out a bio flag or something we can send down to the block layer to
-> > distinguish.
-> > 
-> > Thanks,
-> > Nick
-> >
-> 
-> Don't we already have such a flag? I know that its not set in all
-> the correct places in GFS2 so far, but I've gradually been fixing
-> them to include BIO_RW_META where appropriate.
- 
-That should probably work. It seems to be very incomplete (GFS2
-being one of the few exceptions). Though adding more support in
-ext2 and buffer layer should be enough for me to start with,
-and shouldn't be too hard.
+On Thu, 23 Oct 2008, Miklos Szeredi wrote:
 
+> I think the _real_ problem is that instead of fancy features like this
+> defragmenter, SLUB should first concentrate on getting the code solid
+> enough to replace the other allocators.
 
-> Also it occurs to me that we can use FIEMAP to discover where a
-> parciular file is and that would then allow us to target error
-> injection at particular blocks of the file.
-> 
-> Given that we can cover xattr blocks with FIEMAP too[*], and that at
-> least with GFS2 and similar filesystems the inode number is the
-> block number of the inode, the only thing that would be missing,
-> in terms of locating inode data & metadata would be the indirect blocks,
+Solid? What is not solid? The SLUB design was made in part because of the 
+defrag problems that were not easy to solve with SLAB. The ability to lock 
+down a slab allows stabilizing objects. We discussed solutions to the 
+fragmentation problem for years and did not get anywhere with SLAB.
 
-That would be interesting. I'm finding it hard to come up with
-good ways to trigger a lot of the cases just for single-file case,
-so I won't need to do anything so advanced yet ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
