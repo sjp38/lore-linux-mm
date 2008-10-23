@@ -1,6 +1,6 @@
+In-reply-to: <1224745831.25814.21.camel@penberg-laptop> (message from Pekka
+	Enberg on Thu, 23 Oct 2008 10:10:31 +0300)
 Subject: Re: SLUB defrag pull request?
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu>
 References: <1223883004.31587.15.camel@penberg-laptop>
 	 <E1Ks1hu-0002nN-9f@pomaz-ex.szeredi.hu>
 	 <48FE6306.6020806@linux-foundation.org>
@@ -14,39 +14,42 @@ References: <1223883004.31587.15.camel@penberg-laptop>
 	 <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
 	 <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu>
 	 <Pine.LNX.4.64.0810221416130.26639@quilx.com>
-	 <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu>
-Content-Type: text/plain; charset=UTF-8
-Date: Thu, 23 Oct 2008 10:10:31 +0300
-Message-Id: <1224745831.25814.21.camel@penberg-laptop>
-Mime-Version: 1.0
+	 <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu> <1224745831.25814.21.camel@penberg-laptop>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
+Message-Id: <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 23 Oct 2008 10:38:54 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: cl@linux-foundation.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: penberg@cs.helsinki.fi
+Cc: miklos@szeredi.hu, cl@linux-foundation.org, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Miklos,
+On Thu, 23 Oct 2008, Pekka Enberg wrote:
+> i>>?On Thu, 2008-10-23 at 00:10 +0200, Miklos Szeredi wrote:i>>?
+> > Actually, no: looking at the slub code it already makes sure that
+> > objects are neither poisoned, nor touched in any way _if_ there is a
+> > constructor for the object. And for good reason too, otherwise a
+> > reused object would contain rubbish after a second allocation.
+> 
+> There's no inherent reason why we cannot poison slab caches with a
+> constructor.
 
-i>>?On Thu, 2008-10-23 at 00:10 +0200, Miklos Szeredi wrote:i>>?
-> Actually, no: looking at the slub code it already makes sure that
-> objects are neither poisoned, nor touched in any way _if_ there is a
-> constructor for the object. And for good reason too, otherwise a
-> reused object would contain rubbish after a second allocation.
+Right, it just needs to call the constructor for every allocation.
 
-There's no inherent reason why we cannot poison slab caches with a
-constructor. As a matter of fact SLAB does it which is probably why I
-got confused here. The only thing that needs to disable slab poisoning
-by design is SLAB_DESTROY_BY_RCU.
+> > Come on guys, you should be the experts in this thing!
+> 
+> Yeah, I know. Yet you're stuck with us. That's sad.
 
-But for SLUB, you're obviously right.
+No, I was a bit rude, sorry.
 
-i>>?On Thu, 2008-10-23 at 00:10 +0200, Miklos Szeredi wrote:
-> Come on guys, you should be the experts in this thing!
+I think the _real_ problem is that instead of fancy features like this
+defragmenter, SLUB should first concentrate on getting the code solid
+enough to replace the other allocators.
 
-Yeah, I know. Yet you're stuck with us. That's sad.
-
-		Pekka
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
