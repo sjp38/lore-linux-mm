@@ -1,51 +1,56 @@
-Received: by wf-out-1314.google.com with SMTP id 28so1054868wfc.11
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2008 11:59:28 -0700 (PDT)
-Message-ID: <2f11576a0810241159i677f67a0x7dce373bee7cd1d6@mail.gmail.com>
-Date: Sat, 25 Oct 2008 03:59:27 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
-In-Reply-To: <4901DC5E.5040908@redhat.com>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate8.de.ibm.com (8.13.8/8.13.8) with ESMTP id m9OJKWOn389570
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 19:20:32 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9OJKWeZ3838094
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 21:20:32 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9OJKVwp018144
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 21:20:32 +0200
+Date: Fri, 24 Oct 2008 21:20:31 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
+	schedule_on_each_cpu()
+Message-ID: <20081024192031.GA4155@osiris.boeblingen.de.ibm.com>
+References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com> <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com> <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <878wsigp2e.fsf_-_@saeurebad.de> <87zlkuj10z.fsf@saeurebad.de>
-	 <20081024213527.492B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <4901DC5E.5040908@redhat.com>
+In-Reply-To: <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@saeurebad.de>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux MM Mailing List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
->>> Well, time-wise not sooo much of an improvement.  But given the
->>> massively decreased LRU-rotation [ http://hannes.saeurebad.de/madvseq/ ]
->>
->> My first impression, this result mean the patch is not so useful.
->> But anyway, I mesured it again because I think Nick's opinion is very
->> reasonable and I don't know your mesurement condition so detail.
->
-> It may not make much of a difference if the MADV_SEQUENTIAL
-> program is the only thing running on the system.
->
-> However, the goal of MADV_SEQUENTIAL is to make sure that a
-> streaming mapping does not kick the data from other programs
-> out of memory.  The patch should take care of that very well.
+On Fri, Oct 24, 2008 at 12:00:17AM +0900, KOSAKI Motohiro wrote:
+> Hi Heiko,
+> > This bug is caused by folloing dependencys.
+> > 
+> > some VM place has
+> >       mmap_sem -> kevent_wq
+> > 
+> > net/core/dev.c::dev_ioctl()  has
+> >      rtnl_lock  ->  mmap_sem        (*) almost ioctl has
+> > copy_from_user() and it cause page fault.
+> > 
+> > linkwatch_event has
+> >     kevent_wq -> rtnl_lock
+> > 
+> > 
+> > So, I think VM subsystem shouldn't use kevent_wq because many driver
+> > use ioctl and work queue combination.
+> > then drivers fixing isn't easy.
+> > 
+> > I'll make the patch soon.
+> 
+> My box can't reproduce this issue.
+> Could you please test on following patch?
 
+Your patch seems to fix the issue. At least I don't see the warning anymore ;)
 
-Well, my second test(following) indicate it IMO.
-
-> 2. MADV_SEQUENTIAL vs dbench
->
->                        mmotm1022   + the patch
->  ==============================================================
->  mm_sync_madv_cp       6:29        6:19           (min:sec)
->  dbench throughput     11.633      14.4045        (MB/s)
->  dbench latency        65628       18565          (ms)
-
-
-So, I think the code of this patch is good, but I guess his mesurement
-way isn't so good.
+Thanks,
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
