@@ -1,66 +1,44 @@
-Message-ID: <49010D41.1080305@goop.org>
-Date: Thu, 23 Oct 2008 16:48:17 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
+References: <87d4hugrwm.fsf@saeurebad.de>
+	<20081021104357.GA12329@wotan.suse.de>
+	<878wsigp2e.fsf_-_@saeurebad.de>
+Date: Fri, 24 Oct 2008 02:21:32 +0200
+In-Reply-To: <878wsigp2e.fsf_-_@saeurebad.de> (Johannes Weiner's message of
+	"Tue, 21 Oct 2008 13:33:45 +0200")
+Message-ID: <87zlkuj10z.fsf@saeurebad.de>
 MIME-Version: 1.0
-Subject: vm_unmap_aliases and Xen
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I've been having a few problems with Xen, I suspect as a result of the 
-lazy unmapping in vmalloc.c.
+Finally got some half-way stable time numbers for this patch.
 
-One immediate one is that vm_unmap_aliases() will oops if you call it 
-before vmalloc_init() is called, which can happen in the Xen case.  RFC 
-patch below.
+My approach was to generate background activity by dd'ing my hard-drive
+to /dev/null and meanwhile copy a 1G file with memcpy() between two
+mmaps and then the same file again with MADV_SEQUENTIAL mmaps.  The
+numbers below are averages/standard deviations from 8 copy iterations.
 
-But the bigger problem I'm seeing is that despite calling 
-vm_unmap_aliases() at the pertinent places, I'm still seeing errors 
-resulting from stray aliases.  Is it possible that vm_unmap_aliases() 
-could be missing some, or not completely synchronous?
+I dropped the caches before each copy and waited for them to become
+repopulated by the background dd.
 
-Subject: vmap: cope with vm_unmap_aliases before vmalloc_init()
+The numbers in brackets are the std dev.
 
-Xen can end up calling vm_unmap_aliases() before vmalloc_init() has
-been called.  In this case its safe to make it a simple no-op.
+mmotm:
+    normal  user: 1.775000s [0.053307] system: 9.620000s [0.135339] total: 98.875000s [0.613956]
+   madvise  user: 2.552500s [0.041307] system: 9.442500s [0.075980] total: 73.937500s [0.734170]
+mmotm+patch:
+    normal  user: 1.850000s [0.013540] system: 9.760000s [0.047081] total: 99.250000s [0.569386]
+   madvise  user: 2.547500s [0.014930] system: 8.865000s [0.055000] total: 71.897500s [0.144763]
 
-Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-diff -r 42c8b29f7ccf mm/vmalloc.c
---- a/mm/vmalloc.c	Wed Oct 22 12:43:39 2008 -0700
-+++ b/mm/vmalloc.c	Wed Oct 22 21:39:00 2008 -0700
-@@ -591,6 +591,8 @@
- 
- #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
- 
-+static bool vmap_initialized = false;
-+
- struct vmap_block_queue {
- 	spinlock_t lock;
- 	struct list_head free;
-@@ -827,6 +829,9 @@
- 	int cpu;
- 	int flush = 0;
- 
-+	if (!vmap_initialized)
-+		return;
-+
- 	for_each_possible_cpu(cpu) {
- 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
- 		struct vmap_block *vb;
-@@ -940,6 +945,8 @@
- 		INIT_LIST_HEAD(&vbq->dirty);
- 		vbq->nr_dirty = 0;
- 	}
-+
-+	vmap_initialized = true;
- }
- 
- void unmap_kernel_range(unsigned long addr, unsigned long size)
+Well, time-wise not sooo much of an improvement.  But given the
+massively decreased LRU-rotation [ http://hannes.saeurebad.de/madvseq/ ]
+I'm still looking forward to Kosaki-san's throughput measurements :)
 
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
