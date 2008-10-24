@@ -1,96 +1,55 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9O4cOcv021886
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 24 Oct 2008 13:38:24 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D9832AC025
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:38:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 09E2612C047
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:38:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E7C881DB8038
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:38:23 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A0EAA1DB803F
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:38:20 +0900 (JST)
-Date: Fri, 24 Oct 2008 13:37:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 9/11] memcg : mem+swap controlelr kconfig
-Message-Id: <20081024133751.db999b79.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081023213228.bf7cc325.randy.dunlap@oracle.com>
-References: <20081023175800.73afc957.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081023181220.80dc24c5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081023213228.bf7cc325.randy.dunlap@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9O4sm0N007231
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 24 Oct 2008 13:54:48 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 18AAA1B8020
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:54:48 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E24B32DC01E
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:54:47 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id A64691DB803A
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:54:47 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 64D1B1DB803E
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2008 13:54:47 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use schedule_on_each_cpu()
+In-Reply-To: <20081024012831.GE5004@wotan.suse.de>
+References: <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081024012831.GE5004@wotan.suse.de>
+Message-Id: <20081024135149.9C46.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 24 Oct 2008 13:54:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Randy Dunlap <randy.dunlap@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "xemul@openvz.org" <xemul@openvz.org>, "menage@google.com" <menage@google.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: kosaki.motohiro@jp.fujitsu.com, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Oct 2008 21:32:28 -0700
-Randy Dunlap <randy.dunlap@oracle.com> wrote:
-
-> On Thu, 23 Oct 2008 18:12:20 +0900 KAMEZAWA Hiroyuki wrote:
-> 
-> >  Documentation/kernel-parameters.txt |    3 +++
-> >  include/linux/memcontrol.h          |    3 +++
-> >  init/Kconfig                        |   16 ++++++++++++++++
-> >  mm/memcontrol.c                     |   17 +++++++++++++++++
-> >  4 files changed, 39 insertions(+)
 > > 
-> > Index: mmotm-2.6.27+/init/Kconfig
-> > ===================================================================
-> > --- mmotm-2.6.27+.orig/init/Kconfig
-> > +++ mmotm-2.6.27+/init/Kconfig
-> > @@ -613,6 +613,22 @@ config KALLSYMS_EXTRA_PASS
-> >  	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
-> >  	   you wait for kallsyms to be fixed.
-> >  
-> > +config CGROUP_MEM_RES_CTLR_SWAP
-> > +	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
-> > +	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
-> > +	help
-> > +	  Add swap management feature to memory resource controller. When you
-> > +	  enable this, you can limit mem+swap usage per cgroup. In other words,
-> > +	  when you disable this, memory resource controller have no cares to
+> > Actually, schedule_on_each_cpu() is very problematic function.
+> > it introduce the dependency of all worker on keventd_wq, 
+> > but we can't know what lock held by worker in kevend_wq because
+> > keventd_wq is widely used out of kernel drivers too.
+> > 
+> > So, the task of any lock held shouldn't wait on keventd_wq.
+> > Its task should use own special purpose work queue.
 > 
-> 	  probably:                                         has
-> 
-> > +	  usage of swap...a process can exhaust the all swap. This extension
-> 
-> 	                                        all of the swap.
-> 
-> > +	  is useful when you want to avoid exhausion of swap but this itself
-> 
-> 	                                   exhaustion
-> 
-> > +	  adds more overheads and consumes memory for remembering information.
-> > +	  Especially if you use 32bit system or small memory system,
-> > +	  please be careful to enable this. When memory resource controller
-> 
-> 	  probably:         about enabling this.
-> 
-Thank you for review. will be fixed.
+> I don't see a better way to solve it, other than avoiding lru_add_drain_all
 
--Kame
+Well,
+
+Unfortunately, lru_add_drain_all is also used some other VM place
+(page migration and memory hotplug).
+and page migration's usage is the same of this mlock usage.
+(1. grab mmap_sem  2.  call lru_add_drain_all)
+
+Then, change mlock usage isn't solution ;-)
 
 
-> > +	  is disabled by boot option, this will be automatiaclly disabled and
-> > +	  there will be no overhead from this. Even when you set this config=y,
-> > +	  if boot option "noswapaccount" is set, swap will not be accounted.
-> > +
-> >  
-> >  config HOTPLUG
-> >  	bool "Support for hot-pluggable devices" if EMBEDDED
-> 
-> 
-> ---
-> ~Randy
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
