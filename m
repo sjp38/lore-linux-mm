@@ -1,24 +1,57 @@
-Date: Fri, 24 Oct 2008 18:29:47 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: 2.6.28-rc1: EIP: slab_destroy+0x84/0x142
-In-Reply-To: <20081024220750.GA22973@x200.localdomain>
-Message-ID: <Pine.LNX.4.64.0810241829140.25302@quilx.com>
-References: <alpine.LFD.2.00.0810232028500.3287@nehalem.linux-foundation.org>
- <20081024185952.GA18526@x200.localdomain> <1224884318.3248.54.camel@calx>
- <20081024220750.GA22973@x200.localdomain>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [patch] mm: more likely reclaim MADV_SEQUENTIAL mappings II
+References: <878wsigp2e.fsf_-_@saeurebad.de> <87zlkuj10z.fsf@saeurebad.de>
+	<20081024213527.492B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<4901DC5E.5040908@redhat.com> <87myguhsv4.fsf@saeurebad.de>
+Date: Sat, 25 Oct 2008 01:48:21 +0200
+In-Reply-To: <87myguhsv4.fsf@saeurebad.de> (Johannes Weiner's message of "Fri,
+	24 Oct 2008 18:15:27 +0200")
+Message-ID: <87fxmlimgq.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Matt Mackall <mpm@selenic.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, akpm@linux-foundation.org
+To: Linux MM Mailing List <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 25 Oct 2008, Alexey Dobriyan wrote:
+Johannes Weiner <hannes@saeurebad.de> writes:
 
-> Fault occured at slab_destroy in KVM guest kernel.
+> Rik van Riel <riel@redhat.com> writes:
+>
+>> KOSAKI Motohiro wrote:
+>>>> mmotm:
+>>>>     normal  user: 1.775000s [0.053307] system: 9.620000s [0.135339] total: 98.875000s [0.613956]
+>>>>    madvise  user: 2.552500s [0.041307] system: 9.442500s [0.075980] total: 73.937500s [0.734170]
+>>>> mmotm+patch:
+>>>>     normal  user: 1.850000s [0.013540] system: 9.760000s [0.047081] total: 99.250000s [0.569386]
+>>>>    madvise  user: 2.547500s [0.014930] system: 8.865000s [0.055000] total: 71.897500s [0.144763]
+>>>>
+>>>> Well, time-wise not sooo much of an improvement.  But given the
+>>>> massively decreased LRU-rotation [ http://hannes.saeurebad.de/madvseq/ ]
+>>>
+>>> My first impression, this result mean the patch is not so useful.
+>>> But anyway, I mesured it again because I think Nick's opinion is very
+>>> reasonable and I don't know your mesurement condition so detail.
+>>
+>> It may not make much of a difference if the MADV_SEQUENTIAL
+>> program is the only thing running on the system.
+>
+> As said, I had a big dd running in the background.  The box has only
+> 768mb RAM, so there really was VM activity going on.
+>
+> And given this small standard deviations, the numbers seem pretty
+> stable.  Even if I had taken more samples, I highly doubt that they
+> would have looked much different.
+>
+> Perhaps still not enough VM pressure...
 
-Please switch on all SLAB debug options and rerun.
+Okay, Rik was kind enough to explain me what was wrong about my approach
+on IRC.
+
+Yes, the benchmark pretty much missed the point.  Please ignore.
+
+        Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
