@@ -1,107 +1,171 @@
-Date: Sun, 26 Oct 2008 15:20:26 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: deadlock with latest xfs
-Message-ID: <20081026042026.GM18495@disturbed>
-References: <4900412A.2050802@sgi.com> <20081023205727.GA28490@infradead.org> <49013C47.4090601@sgi.com> <20081024052418.GO25906@disturbed> <20081024064804.GQ25906@disturbed> <20081026005351.GK18495@disturbed> <20081026025013.GL18495@disturbed>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081026025013.GL18495@disturbed>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
+ schedule_on_each_cpu()
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
+	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+	 <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Sun, 26 Oct 2008 12:06:16 +0100
+Message-Id: <1225019176.32713.5.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lachlan McIlroy <lachlan@sgi.com>, Christoph Hellwig <hch@infradead.org>, xfs-oss <xfs@oss.sgi.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Gautham Shenoy <ego@in.ibm.com>, Oleg Nesterov <oleg@tv-sign.ru>, Rusty Russell <rusty@rustcorp.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 26, 2008 at 01:50:13PM +1100, Dave Chinner wrote:
-> On Sun, Oct 26, 2008 at 11:53:51AM +1100, Dave Chinner wrote:
-> > On Fri, Oct 24, 2008 at 05:48:04PM +1100, Dave Chinner wrote:
-> > > OK, I just hung a single-threaded rm -rf after this completed:
-> > > 
-> > > # fsstress -p 1024 -n 100 -d /mnt/xfs2/fsstress
-> > > 
-> > > It has hung with this trace:
-> > > 
-> > > # echo w > /proc/sysrq-trigger
-> > ....
-> > > [42954211.590000] 794877f8:  [<6002e40a>] update_curr+0x3a/0x50
-> > > [42954211.590000] 79487818:  [<60014f0d>] _switch_to+0x6d/0xe0
-> > > [42954211.590000] 79487858:  [<60324b21>] schedule+0x171/0x2c0
-> > > [42954211.590000] 794878a8:  [<60324e6d>] schedule_timeout+0xad/0xf0
-> > > [42954211.590000] 794878c8:  [<60326e98>] _spin_unlock_irqrestore+0x18/0x20
-> > > [42954211.590000] 79487908:  [<60195455>] xlog_grant_log_space+0x245/0x470
-> > > [42954211.590000] 79487920:  [<60030ba0>] default_wake_function+0x0/0x10
-> > > [42954211.590000] 79487978:  [<601957a2>] xfs_log_reserve+0x122/0x140
-> > > [42954211.590000] 794879c8:  [<601a36e7>] xfs_trans_reserve+0x147/0x2e0
-> > > [42954211.590000] 794879f8:  [<60087374>] kmem_cache_alloc+0x84/0x100
-> > > [42954211.590000] 79487a38:  [<601ab01f>] xfs_inactive_symlink_rmt+0x9f/0x450
-> > > [42954211.590000] 79487a88:  [<601ada94>] kmem_zone_zalloc+0x34/0x50
-> > > [42954211.590000] 79487aa8:  [<601a3a6d>] _xfs_trans_alloc+0x2d/0x70
-> > ....
-> > 
-> > I came back to the system, and found that the hang had gone away - the
-> > rm -rf had finished sometime in the ~36 hours between triggering the
-> > problem and coming back to look at the corpse....
-> > 
-> > So nothing to report yet.
+On Fri, 2008-10-24 at 00:00 +0900, KOSAKI Motohiro wrote:
+
+> It because following three circular locking dependency.
 > 
-> Got it now. I can reproduce this in a couple of minutes now that both
-> the test fs and the fs hosting the UML fs images are using lazy-count=1
-> (and the frequent 10s long host system freezes have gone away, too).
+> Some VM place has
+>       mmap_sem -> kevent_wq via lru_add_drain_all()
 > 
-> Looks like *another* new memory allocation problem [1]:
+> net/core/dev.c::dev_ioctl()  has
+>      rtnl_lock  ->  mmap_sem        (*) the ioctl has copy_from_user() and it can do page fault.
+> 
+> linkwatch_event has
+>      kevent_wq -> rtnl_lock
+> 
+> 
+> Actually, schedule_on_each_cpu() is very problematic function.
+> it introduce the dependency of all worker on keventd_wq, 
+> but we can't know what lock held by worker in kevend_wq because
+> keventd_wq is widely used out of kernel drivers too.
+> 
+> So, the task of any lock held shouldn't wait on keventd_wq.
+> Its task should use own special purpose work queue.
+> 
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> CC: Christoph Lameter <cl@linux-foundation.org>
+> CC: Nick Piggin <npiggin@suse.de>
+> CC: Hugh Dickins <hugh@veritas.com>,
+> CC: Andrew Morton <akpm@linux-foundation.org>,
+> CC: Linus Torvalds <torvalds@linux-foundation.org>,
+> CC: Rik van Riel <riel@redhat.com>,
+> CC: Lee Schermerhorn <lee.schermerhorn@hp.com>,
+> 
+>  linux-2.6.27-git10-vm_wq/include/linux/workqueue.h |    1 
+>  linux-2.6.27-git10-vm_wq/kernel/workqueue.c        |   37 +++++++++++++++++++++
+>  linux-2.6.27-git10-vm_wq/mm/swap.c                 |    8 +++-
+>  3 files changed, 45 insertions(+), 1 deletion(-)
+> 
+> Index: linux-2.6.27-git10-vm_wq/include/linux/workqueue.h
+> ===================================================================
+> --- linux-2.6.27-git10-vm_wq.orig/include/linux/workqueue.h	2008-10-23 21:01:38.000000000 +0900
+> +++ linux-2.6.27-git10-vm_wq/include/linux/workqueue.h	2008-10-23 22:34:20.000000000 +0900
+> @@ -195,6 +195,7 @@ extern int schedule_delayed_work(struct 
+>  extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
+>  					unsigned long delay);
+>  extern int schedule_on_each_cpu(work_func_t func);
+> +int queue_work_on_each_cpu(struct workqueue_struct *wq, work_func_t func);
+>  extern int current_is_keventd(void);
+>  extern int keventd_up(void);
+>  
+> Index: linux-2.6.27-git10-vm_wq/kernel/workqueue.c
+> ===================================================================
+> --- linux-2.6.27-git10-vm_wq.orig/kernel/workqueue.c	2008-10-23 21:01:38.000000000 +0900
+> +++ linux-2.6.27-git10-vm_wq/kernel/workqueue.c	2008-10-23 22:34:20.000000000 +0900
+> @@ -674,6 +674,8 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
+>   * Returns -ve errno on failure.
+>   *
+>   * schedule_on_each_cpu() is very slow.
+> + * caller should NOT held any lock, otherwise flush_work(keventd_wq) can
+> + * cause dead-lock.
 
-[snip]
+I think this is too strong.
 
-And having fixed that, I'm now seeing the log reservation hang:
+> */
+>  int schedule_on_each_cpu(work_func_t func)
+>  {
+> @@ -698,6 +700,41 @@ int schedule_on_each_cpu(work_func_t fun
+>  	return 0;
+>  }
+>  
+> +/**
+> + * queue_work_on_each_cpu - call a function on each online CPU
+> + *
+> + * @wq:   the workqueue
+> + * @func: the function to call
+> + *
+> + * Returns zero on success.
+> + * Returns -ve errno on failure.
+> + *
+> + * similar to schedule_on_each_cpu(), but wq argument is there.
+> + * queue_work_on_each_cpu() is very slow.
+> + */
+> +int queue_work_on_each_cpu(struct workqueue_struct *wq, work_func_t func)
+> +{
+> +	int cpu;
+> +	struct work_struct *works;
+> +
+> +	works = alloc_percpu(struct work_struct);
+> +	if (!works)
+> +		return -ENOMEM;
+> +
+> +	get_online_cpus();
+> +	for_each_online_cpu(cpu) {
+> +		struct work_struct *work = per_cpu_ptr(works, cpu);
+> +
+> +		INIT_WORK(work, func);
+> +		queue_work_on(cpu, wq, work);
+> +	}
+> +	for_each_online_cpu(cpu)
+> +		flush_work(per_cpu_ptr(works, cpu));
+> +	put_online_cpus();
+> +	free_percpu(works);
+> +	return 0;
+> +}
+> +
 
-[42950307.350000] xfsdatad/0    D 00000000407219f0     0    51      2
-[42950307.350000] 7bd1acd8 7bd1a838 60498c40 81074000 81077b40 60014f0d 81044780 81074000
-[42950307.350000]        81074000 7e15f808 7bd1a800 81044780 81077b90 60324bc1 81074000 00000250
-[42950307.350000]        81074000 81074000 7fffffffffffffff 6646a168 80b6dd28 80b6ddf8 81077bf0 60324f0d <6>Call Trace:
-[42950307.350000] 81077b08:  [<60014f0d>] _switch_to+0x6d/0xe0
-[42950307.350000] 81077b48:  [<60324bc1>] schedule+0x171/0x2c0
-[42950307.350000] 81077b98:  [<60324f0d>] schedule_timeout+0xad/0xf0
-[42950307.350000] 81077bb8:  [<60326f38>] _spin_unlock_irqrestore+0x18/0x20
-[42950307.350000] 81077bf8:  [<601953e9>] xlog_grant_log_space+0x169/0x470
-[42950307.350000] 81077c10:  [<60030ba0>] default_wake_function+0x0/0x10
-[42950307.350000] 81077c68:  [<60195812>] xfs_log_reserve+0x122/0x140
-[42950307.350000] 81077cb8:  [<601a3757>] xfs_trans_reserve+0x147/0x2e0
-[42950307.350000] 81077ce8:  [<601adb14>] kmem_zone_zalloc+0x34/0x50
-[42950307.350000] 81077d28:  [<6018f985>] xfs_iomap_write_unwritten+0xa5/0x2d0
-[42950307.350000] 81077d38:  [<60326f38>] _spin_unlock_irqrestore+0x18/0x20
-[42950307.350000] 81077d48:  [<60085750>] cache_free_debugcheck+0x150/0x2e0
-[42950307.350000] 81077d50:  [<60063d12>] mempool_free_slab+0x12/0x20
-[42950307.350000] 81077d88:  [<60085e02>] kmem_cache_free+0x72/0xb0
-[42950307.350000] 81077dc8:  [<60063dbf>] mempool_free+0x4f/0x90
-[42950307.350000] 81077e08:  [<601af66d>] xfs_end_bio_unwritten+0x6d/0xa0
-[42950307.350000] 81077e38:  [<60048574>] run_workqueue+0xa4/0x180
-[42950307.350000] 81077e50:  [<601af600>] xfs_end_bio_unwritten+0x0/0xa0
-[42950307.350000] 81077e58:  [<6004c791>] prepare_to_wait+0x51/0x80
-[42950307.350000] 81077e98:  [<600488e0>] worker_thread+0x70/0xd0
-[42950307.350000] 81077eb0:  [<6004c5b0>] autoremove_wake_function+0x0/0x40
-[42950307.350000] 81077ee8:  [<60048870>] worker_thread+0x0/0xd0
-[42950307.350000] 81077f08:  [<6004c204>] kthread+0x64/0xb0
-[42950307.350000] 81077f48:  [<60026285>] run_kernel_thread+0x35/0x60
-[42950307.350000] 81077f58:  [<6004c1a0>] kthread+0x0/0xb0
-[42950307.350000] 81077f98:  [<60026278>] run_kernel_thread+0x28/0x60
-[42950307.350000] 81077fc8:  [<60014e71>] new_thread_handler+0x71/0xa0
+Which gives the opportunity to implement schedule_on_each_cpu() with
+this.
 
-Basically, the log is too small to fit the number of transaction reservations
-that are currently being attempted (roughly 1000 parallel transactions), and so
-xlog_grant_log_space() is sleeping.  Because it is sleeping in I/O completion,
-the log tail can't move forward because I/O completion is not occurring.
+> void flush_scheduled_work(void)
+>  {
+>  	flush_workqueue(keventd_wq);
+> Index: linux-2.6.27-git10-vm_wq/mm/swap.c
+> ===================================================================
+> --- linux-2.6.27-git10-vm_wq.orig/mm/swap.c	2008-10-23 21:01:38.000000000 +0900
+> +++ linux-2.6.27-git10-vm_wq/mm/swap.c	2008-10-23 22:53:27.000000000 +0900
+> @@ -39,6 +39,8 @@ int page_cluster;
+>  static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+>  
+> +static struct workqueue_struct *vm_wq __read_mostly;
+> +
+>  /*
+>   * This path almost never happens for VM activity - pages are normally
+>   * freed via pagevecs.  But it gets used by networking.
+> @@ -310,7 +312,7 @@ static void lru_add_drain_per_cpu(struct
+>   */
+>  int lru_add_drain_all(void)
+>  {
+> -	return schedule_on_each_cpu(lru_add_drain_per_cpu);
+> +	return queue_work_on_each_cpu(vm_wq, lru_add_drain_per_cpu);
+>  }
+>  
+>  #else
+> @@ -611,4 +613,8 @@ void __init swap_setup(void)
+>  #ifdef CONFIG_HOTPLUG_CPU
+>  	hotcpu_notifier(cpu_swap_callback, 0);
+>  #endif
+> +
+> +	vm_wq = create_workqueue("vm_work");
+> +	BUG_ON(!vm_wq);
+> +
+>  }
 
-I think that at this point, we need a separate workqueue for unwritten extent
-conversion to prevent it from blocking normal data and metadata I/O completion.
-that way we can allow it to recurse on allocation and transaction reservation
-without introducing I/O completion deadlocks....
+While I really hate adding yet another per-cpu thread for this, I don't
+see another way out atm.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Oleg, Rusty, ego, you lot were discussing a similar extra per-cpu
+workqueue, can we merge these two?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
