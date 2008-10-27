@@ -1,47 +1,32 @@
-Message-ID: <4905F648.4030402@cs.columbia.edu>
-Date: Mon, 27 Oct 2008 13:11:36 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint	restart
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>	 <20081021124130.a002e838.akpm@linux-foundation.org>	 <20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>	 <20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu>	 <87tzayh27r.wl%peter@chubb.wattle.id.au> <49059FED.4030202@cs.columbia.edu> <1225125752.12673.79.camel@nimitz>
-In-Reply-To: <1225125752.12673.79.camel@nimitz>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate1.uk.ibm.com (8.13.1/8.13.1) with ESMTP id m9RHHRGQ016872
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:17:27 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9RHHRE8618556
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:17:27 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9RHHQXc032099
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:17:27 GMT
+Subject: Re: [PATCH] memory hotplug: fix page_zone() calculation in
+	test_pages_isolated()
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <4905F114.3030406@de.ibm.com>
+References: <4905F114.3030406@de.ibm.com>
+Content-Type: text/plain
+Date: Mon, 27 Oct 2008 18:17:26 +0100
+Message-Id: <1225127846.20384.3.camel@localhost.localdomain>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Peter Chubb <peterc@gelato.unsw.edu.au>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Mon, 2008-10-27 at 07:03 -0400, Oren Laadan wrote:
->>> In our implementation, we simply refused to checkpoint setid
->> programs.
->>
->> True. And this works very well for HPC applications.
->>
->> However, it doesn't work so well for server applications, for
->> instance.
->>
->> Also, you could use file system snapshotting to ensure that the file
->> system view does not change, and still face the same issue.
->>
->> So I'm perfectly ok with deferring this discussion to a later time :)
-> 
-> Oren, is this a good place to stick a process_deny_checkpoint()?  Both
-> so we refuse to checkpoint, and document this as something that has to
-> be addressed later?
+Ouch, stupid Thunderbird broke the patch (or stupid me used Thunderbird...),
+will send a new one.
 
-why refuse to checkpoint ?
-
-if I'm root, and I want to checkpoint, and later restart, my sshd server
-(assuming we support listening sockets) - then why not ?
-
-we can just let it be, and have the restart fail (if it isn't root that
-does the restart); perhaps add something like warn_checkpoint() (similar
-to deny, but only warns) ?
-
-Oren.
+Gerald
 
 
 --
