@@ -1,68 +1,48 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.1/8.13.1) with ESMTP id m9RGnPaN010491
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 16:49:25 GMT
-Received: from d12av01.megacenter.de.ibm.com (d12av01.megacenter.de.ibm.com [9.149.165.212])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9RGnOoO1982698
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:49:24 +0100
-Received: from d12av01.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av01.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9RGnOsJ016126
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:49:24 +0100
-Message-ID: <4905F114.3030406@de.ibm.com>
-Date: Mon, 27 Oct 2008 17:49:24 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reply-To: gerald.schaefer@de.ibm.com
+Message-ID: <4905F648.4030402@cs.columbia.edu>
+Date: Mon, 27 Oct 2008 13:11:36 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Subject: [PATCH] memory hotplug: fix page_zone() calculation in test_pages_isolated()
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint	restart
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>	 <20081021124130.a002e838.akpm@linux-foundation.org>	 <20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>	 <20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu>	 <87tzayh27r.wl%peter@chubb.wattle.id.au> <49059FED.4030202@cs.columbia.edu> <1225125752.12673.79.camel@nimitz>
+In-Reply-To: <1225125752.12673.79.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Peter Chubb <peterc@gelato.unsw.edu.au>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-My last bugfix here (adding zone->lock) introduced a new problem: Using
-pfn_to_page(pfn) to get the zone after the for() loop is wrong. pfn then
-points to the first pfn after end_pfn, which may be in a different zone
-or not present at all. This may lead to an addressing exception in
-page_zone() or spin_lock_irqsave().
+Dave Hansen wrote:
+> On Mon, 2008-10-27 at 07:03 -0400, Oren Laadan wrote:
+>>> In our implementation, we simply refused to checkpoint setid
+>> programs.
+>>
+>> True. And this works very well for HPC applications.
+>>
+>> However, it doesn't work so well for server applications, for
+>> instance.
+>>
+>> Also, you could use file system snapshotting to ensure that the file
+>> system view does not change, and still face the same issue.
+>>
+>> So I'm perfectly ok with deferring this discussion to a later time :)
+> 
+> Oren, is this a good place to stick a process_deny_checkpoint()?  Both
+> so we refuse to checkpoint, and document this as something that has to
+> be addressed later?
 
-Using the last valid page that was found inside the for() loop, instead
-of pfn_to_page(), should fix this.
+why refuse to checkpoint ?
 
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+if I'm root, and I want to checkpoint, and later restart, my sshd server
+(assuming we support listening sockets) - then why not ?
 
----
-mm/page_isolation.c |    6 +++---
-1 file changed, 3 insertions(+), 3 deletions(-)
+we can just let it be, and have the restart fail (if it isn't root that
+does the restart); perhaps add something like warn_checkpoint() (similar
+to deny, but only warns) ?
 
-Index: linux-2.6/mm/page_isolation.c
-===================================================================
---- linux-2.6.orig/mm/page_isolation.c
-+++ linux-2.6/mm/page_isolation.c
-@@ -115,7 +115,7 @@ __test_page_isolated_in_pageblock(unsign
-int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
-{
-	unsigned long pfn, flags;
--	struct page *page;
-+	struct page *page = NULL;
-	struct zone *zone;
-	int ret;
+Oren.
 
-@@ -130,10 +130,10 @@ int test_pages_isolated(unsigned long st
-		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-			break;
-	}
--	if (pfn < end_pfn)
-+	if ((pfn < end_pfn) || !page)
-		return -EBUSY;
-	/* Check all pages are free or Marked as ISOLATED */
--	zone = page_zone(pfn_to_page(pfn));
-+	zone = page_zone(page);
-	spin_lock_irqsave(&zone->lock, flags);
-	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn);
-	spin_unlock_irqrestore(&zone->lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
