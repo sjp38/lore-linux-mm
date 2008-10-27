@@ -1,72 +1,55 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9R84l0O014839
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 27 Oct 2008 17:04:47 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EA1EC1B801F
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:04:46 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C0BCC2DC015
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:04:46 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C14D1DB803F
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:04:46 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 57C371DB803C
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:04:46 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use schedule_on_each_cpu()
-In-Reply-To: <1225094190.16159.3.camel@twins>
-References: <20081027120405.1B45.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1225094190.16159.3.camel@twins>
-Message-Id: <20081027170156.9659.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: Johannes Weiner <hannes@saeurebad.de>
+Subject: Re: [patch 2/3] swap: refactor pagevec flushing
+References: <20081022225006.010250557@saeurebad.de>
+	<20081022225512.879260477@saeurebad.de>
+	<20081026235011.8af44857.akpm@linux-foundation.org>
+Date: Mon, 27 Oct 2008 09:08:55 +0100
+In-Reply-To: <20081026235011.8af44857.akpm@linux-foundation.org> (Andrew
+	Morton's message of "Sun, 26 Oct 2008 23:50:11 -0700")
+Message-ID: <877i7uihns.fsf@saeurebad.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 27 Oct 2008 17:03:51 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Gautham Shenoy <ego@in.ibm.com>, Oleg Nesterov <oleg@tv-sign.ru>, Rusty Russell <rusty@rustcorp.com.au>, mpm <mpm@selenic.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, 2008-10-27 at 12:14 +0900, KOSAKI Motohiro wrote:
-> > > Right, and would be about 4k+sizeof(task_struct), some people might be
-> > > bothered, but most won't care.
-> > > 
-> > > > Perhaps, I misunderstand your intension. so can you point your
-> > > > previous discussion url?
-> > > 
-> > > my google skillz fail me, but once in a while people complain that we
-> > > have too many kernel threads.
-> > > 
-> > > Anyway, if we can re-use this per-cpu workqueue for more goals, I guess
-> > > there is even less of an objection.
-> > 
-> > In general, you are right.
-> > but this is special case. mmap_sem is really widely used various subsystem and drivers.
-> > (because page fault via copy_user introduce to depend on mmap_sem)
-> > 
-> > Then, any work-queue reu-sing can cause similar dead-lock easily.
-> 
-> Yeah, I know, and the cpu-hotplug discussion needed another thread due
-> to yet another locking incident. I was hoping these two could go
-> together.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Yeah, I found its thread. (I think it is "work_on_cpu: helper for doing task on a CPU.", right?)
-So I'll read it soon.
+> On Thu, 23 Oct 2008 00:50:08 +0200 Johannes Weiner <hannes@saeurebad.de> wrote:
+>
+>> Having all pagevecs in one array allows for easier flushing.  Use a
+>> single flush function that decides what to do based on the target LRU.
+>> 
+>> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+>> ---
+>>  include/linux/pagevec.h |   13 +++--
+>>  mm/swap.c               |  121 +++++++++++++++++++++++-------------------------
+>>  2 files changed, 66 insertions(+), 68 deletions(-)
+>> 
+>> --- a/include/linux/pagevec.h
+>> +++ b/include/linux/pagevec.h
+>> @@ -27,10 +27,13 @@ enum lru_pagevec {
+>>  	NR_LRU_PAGEVECS
+>>  };
+>>  
+>> +#define for_each_lru_pagevec(pv)		\
+>> +	for (pv = 0; pv < NR_LRU_PAGEVECS; pv++)
+>
+> This only gets used once.  I don't think it's existence is justified?
 
-Please wait a bit.
+I don't see any other use-case for it now.  So, yes, let's drop it.
 
+> (`pv' is usally parenthesised in macros like this, but it's unlikely to
+> matter).
 
-> 
-> Neither are general-purpose workqueues, both need to stay away from the
-> normal eventd due to deadlocks.
-> 
-> ego, does you extra thread ever use mmap_sem?
+Hmm, wondering which valid lvalue construction could break it...?
+Probably something involving stars...
 
+Okay, get doubly rid of it.  Replacement patch coming soon.
 
-
-
+        Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
