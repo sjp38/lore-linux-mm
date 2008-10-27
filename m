@@ -1,105 +1,75 @@
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate7.de.ibm.com (8.13.8/8.13.8) with ESMTP id m9RHxTO4158684
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 17:59:29 GMT
-Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9RHxUfa1576996
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 18:59:30 +0100
-Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9RHxTLJ023753
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 18:59:30 +0100
-Subject: Re: [PATCH] memory hotplug: fix page_zone() calculation in
-	test_pages_isolated()
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-In-Reply-To: <1225128359.12673.101.camel@nimitz>
-References: <4905F114.3030406@de.ibm.com>
-	 <1225128359.12673.101.camel@nimitz>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9RKpoiD013459
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 16:51:50 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9RKpowr124922
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 16:51:50 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9RKpiRr020068
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 16:51:44 -0400
+Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for
+	checkpoint	restart
+From: Matt Helsley <matthltc@us.ibm.com>
+In-Reply-To: <4905F648.4030402@cs.columbia.edu>
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>
+	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>
+	 <20081021124130.a002e838.akpm@linux-foundation.org>
+	 <20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>
+	 <20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu>
+	 <87tzayh27r.wl%peter@chubb.wattle.id.au> <49059FED.4030202@cs.columbia.edu>
+	 <1225125752.12673.79.camel@nimitz> <4905F648.4030402@cs.columbia.edu>
 Content-Type: text/plain
-Date: Mon, 27 Oct 2008 18:59:29 +0100
-Message-Id: <1225130369.20384.33.camel@localhost.localdomain>
+Date: Mon, 27 Oct 2008 13:51:45 -0700
+Message-Id: <1225140705.5115.40.camel@enoch>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, Peter Chubb <peterc@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-10-27 at 10:25 -0700, Dave Hansen wrote:
-> I'm not sure I follow.  Let's look at the code, pre-patch:
+On Mon, 2008-10-27 at 13:11 -0400, Oren Laadan wrote:
+> Dave Hansen wrote:
+> > On Mon, 2008-10-27 at 07:03 -0400, Oren Laadan wrote:
+> >>> In our implementation, we simply refused to checkpoint setid
+> >> programs.
+> >>
+> >> True. And this works very well for HPC applications.
+> >>
+> >> However, it doesn't work so well for server applications, for
+> >> instance.
+> >>
+> >> Also, you could use file system snapshotting to ensure that the file
+> >> system view does not change, and still face the same issue.
+> >>
+> >> So I'm perfectly ok with deferring this discussion to a later time :)
+> > 
+> > Oren, is this a good place to stick a process_deny_checkpoint()?  Both
+> > so we refuse to checkpoint, and document this as something that has to
+> > be addressed later?
 > 
-> > 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
-> >                 page = __first_valid_page(pfn, pageblock_nr_pages);
-> >                 if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> >                         break;
-> >         }
-> >         if (pfn < end_pfn)
-> >                 return -EBUSY;
-> 
-> We have two ways out of the loop:
-> 1. 'page' is valid, and not isolated, so we did a 'break'
-> 2. No page hit (1) in the range and we broke out of the loop because
->    of the for() condition: (pfn < end_pfn).  
-> 
-> So, when the condition happens that you mentioned in your changelog
-> above: "pfn then points to the first pfn after end_pfn", we jump out at
-> the 'return -EBUSY;'.  We don't ever do pfn_to_page() in that case since
-> we've returned befoer.
-> 
-> Either 'page' is valid *OR* you return -EBUSY.  I don't think you need
-> to check both.
+> why refuse to checkpoint ?
 
-We only return -EBUSY if pfn < end_pfn, but after completing the loop w/o
-a break pfn will be > end_pfn. Also, the last call to __first_valid_page()
-may return NULL w/o causing a break, so page may also be invalid after the
-loop.
+	If most setuid programs hold privileged resources for extended periods
+of time after dropping privileges then it seems like a good idea to
+refuse to checkpoint. Restart of those programs would be quite
+unreliable unless/until we find a nice solution.
 
-> > Using the last valid page that was found inside the for() loop, instead
-> > of pfn_to_page(), should fix this.
-> > @@ -130,10 +130,10 @@ int test_pages_isolated(unsigned long st
-> > 		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
-> > 			break;
-> > 	}
-> > -	if (pfn < end_pfn)
-> > +	if ((pfn < end_pfn) || !page)
-> > 		return -EBUSY;
-> > 	/* Check all pages are free or Marked as ISOLATED */
-> > -	zone = page_zone(pfn_to_page(pfn));
-> > +	zone = page_zone(page);
-> 
-> I think this patch fixes the bug, but for reasons other than what you
-> said. :)
-> 
-> The trouble here is that the 'pfn' could have been in the middle of a
-> hole somewhere, which __first_valid_page() worked around.  Since you
-> saved off the result of __first_valid_page(), it ends up being OK with
-> your patch.
+> if I'm root, and I want to checkpoint, and later restart, my sshd server
+> (assuming we support listening sockets) - then why not ?
+> we can just let it be, and have the restart fail (if it isn't root that
+> does the restart); perhaps add something like warn_checkpoint() (similar
+> to deny, but only warns) ?
 
-I think pfn will always be > end_pfn if we complete the loop. And breaking
-out of the loop earlier will always return -EBUSY.
+	How will folks not specializing in checkpoint/restart know when to use
+this as opposed to deny?
 
-> Instead of using pfn_to_page() you could also have just called
-> __first_valid_page() again.  But, that would have duplicated a bit of
-> work, even though not much in practice because the caches are still hot.
-> 
-> Technically, you wouldn't even need to check the return from
-> __first_valid_page() since you know it has a valid result because you
-> made the exact same call a moment before.
-> 
-> Anyway, can you remove the !page check, fix up the changelog and resend?
+	Instead, how about a flag to sys_checkpoint() -- DO_RISKY_CHECKPOINT --
+which checkpoints despite !may_checkpoint?
 
-Calling __first_valid_page() again might be a good idea. Thinking about it
-now, I guess there is still a problem left with my patch, but for reasons
-other than what you said :) If the loop is completed with page == NULL,
-we will return -EBUSY with the new patch. But there may have been valid
-pages before, and only some memory hole at the end. In this case, returning
--EBUSY would probably be wrong.
-
-Kamezawa, this loop/function was added by you, what do you think?
-
---
-Thanks,
-Gerald
-
+Cheers,
+	-Matt Helsley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
