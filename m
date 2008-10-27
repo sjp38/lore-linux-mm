@@ -1,101 +1,56 @@
-Date: Mon, 27 Oct 2008 14:55:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
- schedule_on_each_cpu()
-Message-Id: <20081027145509.ebffcf0e.akpm@linux-foundation.org>
-In-Reply-To: <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
-	<2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
-	<20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id m9RM9aEs031894
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 18:09:36 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9RM9aaj123118
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 18:09:36 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9RM9akA004395
+	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 18:09:36 -0400
+Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint
+	restart
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <490637D8.4080404@cs.columbia.edu>
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>
+	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>
+	 <20081021124130.a002e838.akpm@linux-foundation.org>
+	 <20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>
+	 <20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu>
+	 <87tzayh27r.wl%peter@chubb.wattle.id.au> <49059FED.4030202@cs.columbia.edu>
+		 <1225125752.12673.79.camel@nimitz> <4905F648.4030402@cs.columbia.edu>
+	 <1225140705.5115.40.camel@enoch> <490637D8.4080404@cs.columbia.edu>
+Content-Type: text/plain
+Date: Mon, 27 Oct 2008 15:09:33 -0700
+Message-Id: <1225145373.12673.125.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, lee.schermerhorn@hp.com, linux-mm@kvack.org, cl@linux-foundation.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Matt Helsley <matthltc@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, Peter Chubb <peterc@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Oct 2008 00:00:17 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Hi Heiko,
+On Mon, 2008-10-27 at 17:51 -0400, Oren Laadan wrote:
+> >       Instead, how about a flag to sys_checkpoint() -- DO_RISKY_CHECKPOINT --
+> > which checkpoints despite !may_checkpoint?
 > 
-> > >> I think the following part of your patch:
-> > >>
-> > >>> diff --git a/mm/swap.c b/mm/swap.c
-> > >>> index fee6b97..bc58c13 100644
-> > >>> --- a/mm/swap.c
-> > >>> +++ b/mm/swap.c
-> > >>> @@ -278,7 +278,7 @@ void lru_add_drain(void)
-> > >>>       put_cpu();
-> > >>>  }
-> > >>>
-> > >>> -#ifdef CONFIG_NUMA
-> > >>> +#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
-> > >>>  static void lru_add_drain_per_cpu(struct work_struct *dummy)
-> > >>>  {
-> > >>>       lru_add_drain();
-> > >>
-> > >> causes this (allyesconfig on s390):
-> > >
-> > > hm,
-> > >
-> > > I don't think so.
-> > >
-> > > Actually, this patch has
-> > >   mmap_sem -> lru_add_drain_all() dependency.
-> > >
-> > > but its dependency already exist in another place.
-> > > example,
-> > >
-> > >  sys_move_pages()
-> > >      do_move_pages()  <- down_read(mmap_sem)
-> > >          migrate_prep()
-> > >               lru_add_drain_all()
-
-Can we fix that instead?
-
-> ...
->
-> It because following three circular locking dependency.
+> I also agree with Matt - so we have a quorum :)
 > 
-> Some VM place has
->       mmap_sem -> kevent_wq via lru_add_drain_all()
+> so just to clarify: sys_checkpoint() is to fail (with what error ?) if the
+> deny-checkpoint test fails.
 > 
-> net/core/dev.c::dev_ioctl()  has
->      rtnl_lock  ->  mmap_sem        (*) the ioctl has copy_from_user() and it can do page fault.
-> 
-> linkwatch_event has
->      kevent_wq -> rtnl_lock
-> 
-> 
-> Actually, schedule_on_each_cpu() is very problematic function.
-> it introduce the dependency of all worker on keventd_wq, 
-> but we can't know what lock held by worker in kevend_wq because
-> keventd_wq is widely used out of kernel drivers too.
-> 
-> So, the task of any lock held shouldn't wait on keventd_wq.
-> Its task should use own special purpose work queue.
-> 
+> however, if the user is risky, she can specify CR_CHECKPOINT_RISKY to force
+> an attempt to checkpoint as is.
 
-Or we change the callers of lru_add_drain_all() to call it without
-holding any locks.  I mean, what's the *point* in calling it with
-mmap_sem held?  That won't stop threads from adding new pages into the
-pagevecs.
+This sounds like an awful lot of policy to determine *inside* the
+kernel.  Everybody is going to have a different definition of risky, so
+this scheme will work for approximately 5 minutes until it gets
+patched. :)
 
+Is it possible to enhance our interface such that users might have some
+kind of choice on these matters?
 
->  #endif
-> +
-> +	vm_wq = create_workqueue("vm_work");
-> +	BUG_ON(!vm_wq);
-> +
->  }
-
-Because it's pretty sad to add yet another kernel thread on each CPU
-(thousands!) just because of some obscure theoretical deadlock in
-page-migration and memory-hotplug.  Most people don't even use those.
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
