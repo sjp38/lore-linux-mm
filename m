@@ -1,78 +1,50 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9RAiAo4006094
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 27 Oct 2008 19:44:10 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2CCA2AC028
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 19:44:09 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A848C12C047
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 19:44:09 +0900 (JST)
-Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 905311DB803A
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 19:44:09 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 45A001DB8037
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 19:44:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use schedule_on_each_cpu()
-In-Reply-To: <20081027170156.9659.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <1225094190.16159.3.camel@twins> <20081027170156.9659.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081027193918.9667.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <49059FED.4030202@cs.columbia.edu>
+Date: Mon, 27 Oct 2008 07:03:09 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for checkpoint	restart
+References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>	<1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>	<20081021124130.a002e838.akpm@linux-foundation.org>	<20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>	<20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu> <87tzayh27r.wl%peter@chubb.wattle.id.au>
+In-Reply-To: <87tzayh27r.wl%peter@chubb.wattle.id.au>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Mon, 27 Oct 2008 19:42:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Gautham Shenoy <ego@in.ibm.com>, Oleg Nesterov <oleg@tv-sign.ru>, Rusty Russell <rusty@rustcorp.com.au>, mpm <mpm@selenic.com>
+To: Peter Chubb <peterc@gelato.unsw.edu.au>
+Cc: "Serge E. Hallyn" <serue@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, tglx@linutronix.de, dave@linux.vnet.ibm.com, mingo@elte.hu, hpa@zytor.com, viro@zeniv.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-> > On Mon, 2008-10-27 at 12:14 +0900, KOSAKI Motohiro wrote:
-> > > > Right, and would be about 4k+sizeof(task_struct), some people might be
-> > > > bothered, but most won't care.
-> > > > 
-> > > > > Perhaps, I misunderstand your intension. so can you point your
-> > > > > previous discussion url?
-> > > > 
-> > > > my google skillz fail me, but once in a while people complain that we
-> > > > have too many kernel threads.
-> > > > 
-> > > > Anyway, if we can re-use this per-cpu workqueue for more goals, I guess
-> > > > there is even less of an objection.
-> > > 
-> > > In general, you are right.
-> > > but this is special case. mmap_sem is really widely used various subsystem and drivers.
-> > > (because page fault via copy_user introduce to depend on mmap_sem)
-> > > 
-> > > Then, any work-queue reu-sing can cause similar dead-lock easily.
-> > 
-> > Yeah, I know, and the cpu-hotplug discussion needed another thread due
-> > to yet another locking incident. I was hoping these two could go
-> > together.
-> 
-> Yeah, I found its thread. (I think it is "work_on_cpu: helper for doing task on a CPU.", right?)
-> So I'll read it soon.
-> 
-> Please wait a bit.
 
-Done.
-
-Now, I think smp_call_function() is better for this issue.
-I'll try it.
-
-Thanks a lot.
-
-> > Neither are general-purpose workqueues, both need to stay away from the
-> > normal eventd due to deadlocks.
-> > 
-> > ego, does you extra thread ever use mmap_sem?
+Peter Chubb wrote:
+>>>>>> "Oren" == Oren Laadan <orenl@cs.columbia.edu> writes:
 > 
 > 
+> Oren> Nope, since we will fail to restart in many cases. We will need
+> Oren> a way to move from caller's credentials to saved credentials,
+> Oren> and even from caller's credentials to privileged credentials
+> Oren> (e.g. to reopen a file that was created by a setuid program
+> Oren> prior to dropping privileges).
 > 
+> You can't necessarily tell the difference between this and revocation
+> of privilege.  For most security models, it must be possible to change
+> the permissions on the file, and then the restart should fail.
+> 
+> In our implementation, we simply refused to checkpoint setid programs.
 
+True. And this works very well for HPC applications.
 
+However, it doesn't work so well for server applications, for instance.
+
+Also, you could use file system snapshotting to ensure that the file
+system view does not change, and still face the same issue.
+
+So I'm perfectly ok with deferring this discussion to a later time :)
+
+Oren.
+
+> --
+> Dr Peter Chubb  http://www.gelato.unsw.edu.au  peterc AT gelato.unsw.edu.au
+> http://www.ertos.nicta.com.au           ERTOS within National ICT Australia
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
