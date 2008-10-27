@@ -1,36 +1,38 @@
-Received: by nf-out-0910.google.com with SMTP id c10so739117nfd.6
-        for <linux-mm@kvack.org>; Sun, 26 Oct 2008 14:23:57 -0700 (PDT)
-Date: Mon, 27 Oct 2008 00:27:15 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: 2.6.28-rc1: EIP: slab_destroy+0x84/0x142
-Message-ID: <20081026212715.GA12941@x200.localdomain>
-References: <alpine.LFD.2.00.0810232028500.3287@nehalem.linux-foundation.org> <20081024185952.GA18526@x200.localdomain> <1224884318.3248.54.camel@calx> <20081024220750.GA22973@x200.localdomain> <Pine.LNX.4.64.0810241829140.25302@quilx.com> <20081025002406.GA20024@x200.localdomain> <20081025025408.GA27684@x200.localdomain> <490462FC.7040107@redhat.com>
+Date: Mon, 27 Oct 2008 08:27:32 +0800
+From: Jianjun Kong <jianjun@zeuux.org>
+Subject: [PATCH/RESEND] mm: Fix problem of parameter in note
+Message-ID: <20081027002732.GA6363@ubuntu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <490462FC.7040107@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Avi Kivity <avi@redhat.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, akpm@linux-foundation.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: Linux-Kernel-Mailing-List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Oct 26, 2008 at 02:30:52PM +0200, Avi Kivity wrote:
-> Alexey Dobriyan wrote:
->> Same picture for different guest kernels: 2.6.26, 2.6.27, 2.6.28-rc1
->> and different host kernels: 2.6.26-1-686 from to be Debian Lenny, 2.6.27.3
->> and 2.6.28-rc1.
->>   
->
-> Does this go away with !CONFIG_KVM_GUEST on the guest kernel?
->
-> This only makes sense if you're using the kvm modules from kvm-77.  If  
-> so, you can also try http://userweb.kernel.org/~avi/kvm-78rc1.tar.gz  
-> which fixes a bug with CONFIG_KVM_GUEST.
+'current' is a pointer, so the right form is  'down_write(&current->mm->mmap_sem)'.
 
-KVM_GUEST=n definitely helps.
+Signed-off-by: Jianjun Kong <jianjun@zeuux.org>
+---
+ mm/mmap.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-This is kvm-72+dfsg-2 from soon-to-be-lenny.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 74f4d15..3183990 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -904,7 +904,7 @@ void vm_stat_account(struct mm_struct *mm, unsigned long flags,
+ #endif /* CONFIG_PROC_FS */
+ 
+ /*
+- * The caller must hold down_write(current->mm->mmap_sem).
++ * The caller must hold down_write(&current->mm->mmap_sem).
+  */
+ 
+ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
