@@ -1,68 +1,101 @@
-Message-ID: <490637D8.4080404@cs.columbia.edu>
-Date: Mon, 27 Oct 2008 17:51:20 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Subject: Re: [RFC v7][PATCH 2/9] General infrastructure for	checkpoint	restart
-References: <1224481237-4892-1-git-send-email-orenl@cs.columbia.edu>	 <1224481237-4892-3-git-send-email-orenl@cs.columbia.edu>	 <20081021124130.a002e838.akpm@linux-foundation.org>	 <20081021202410.GA10423@us.ibm.com>	<48FE82DF.6030005@cs.columbia.edu>	 <20081022152804.GA23821@us.ibm.com>	<48FF4EB2.5060206@cs.columbia.edu>	 <87tzayh27r.wl%peter@chubb.wattle.id.au> <49059FED.4030202@cs.columbia.edu>	 <1225125752.12673.79.camel@nimitz> <4905F648.4030402@cs.columbia.edu> <1225140705.5115.40.camel@enoch>
-In-Reply-To: <1225140705.5115.40.camel@enoch>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 27 Oct 2008 14:55:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
+ schedule_on_each_cpu()
+Message-Id: <20081027145509.ebffcf0e.akpm@linux-foundation.org>
+In-Reply-To: <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
+	<2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+	<20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Helsley <matthltc@us.ibm.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, Peter Chubb <peterc@gelato.unsw.edu.au>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, lee.schermerhorn@hp.com, linux-mm@kvack.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 24 Oct 2008 00:00:17 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Matt Helsley wrote:
-> On Mon, 2008-10-27 at 13:11 -0400, Oren Laadan wrote:
->> Dave Hansen wrote:
->>> On Mon, 2008-10-27 at 07:03 -0400, Oren Laadan wrote:
->>>>> In our implementation, we simply refused to checkpoint setid
->>>> programs.
->>>>
->>>> True. And this works very well for HPC applications.
->>>>
->>>> However, it doesn't work so well for server applications, for
->>>> instance.
->>>>
->>>> Also, you could use file system snapshotting to ensure that the file
->>>> system view does not change, and still face the same issue.
->>>>
->>>> So I'm perfectly ok with deferring this discussion to a later time :)
->>> Oren, is this a good place to stick a process_deny_checkpoint()?  Both
->>> so we refuse to checkpoint, and document this as something that has to
->>> be addressed later?
->> why refuse to checkpoint ?
+> Hi Heiko,
 > 
-> 	If most setuid programs hold privileged resources for extended periods
-> of time after dropping privileges then it seems like a good idea to
-> refuse to checkpoint. Restart of those programs would be quite
-> unreliable unless/until we find a nice solution.
+> > >> I think the following part of your patch:
+> > >>
+> > >>> diff --git a/mm/swap.c b/mm/swap.c
+> > >>> index fee6b97..bc58c13 100644
+> > >>> --- a/mm/swap.c
+> > >>> +++ b/mm/swap.c
+> > >>> @@ -278,7 +278,7 @@ void lru_add_drain(void)
+> > >>>       put_cpu();
+> > >>>  }
+> > >>>
+> > >>> -#ifdef CONFIG_NUMA
+> > >>> +#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
+> > >>>  static void lru_add_drain_per_cpu(struct work_struct *dummy)
+> > >>>  {
+> > >>>       lru_add_drain();
+> > >>
+> > >> causes this (allyesconfig on s390):
+> > >
+> > > hm,
+> > >
+> > > I don't think so.
+> > >
+> > > Actually, this patch has
+> > >   mmap_sem -> lru_add_drain_all() dependency.
+> > >
+> > > but its dependency already exist in another place.
+> > > example,
+> > >
+> > >  sys_move_pages()
+> > >      do_move_pages()  <- down_read(mmap_sem)
+> > >          migrate_prep()
+> > >               lru_add_drain_all()
+
+Can we fix that instead?
+
+> ...
+>
+> It because following three circular locking dependency.
 > 
->> if I'm root, and I want to checkpoint, and later restart, my sshd server
->> (assuming we support listening sockets) - then why not ?
->> we can just let it be, and have the restart fail (if it isn't root that
->> does the restart); perhaps add something like warn_checkpoint() (similar
->> to deny, but only warns) ?
+> Some VM place has
+>       mmap_sem -> kevent_wq via lru_add_drain_all()
 > 
-> 	How will folks not specializing in checkpoint/restart know when to use
-> this as opposed to deny?
+> net/core/dev.c::dev_ioctl()  has
+>      rtnl_lock  ->  mmap_sem        (*) the ioctl has copy_from_user() and it can do page fault.
 > 
-> 	Instead, how about a flag to sys_checkpoint() -- DO_RISKY_CHECKPOINT --
-> which checkpoints despite !may_checkpoint?
+> linkwatch_event has
+>      kevent_wq -> rtnl_lock
+> 
+> 
+> Actually, schedule_on_each_cpu() is very problematic function.
+> it introduce the dependency of all worker on keventd_wq, 
+> but we can't know what lock held by worker in kevend_wq because
+> keventd_wq is widely used out of kernel drivers too.
+> 
+> So, the task of any lock held shouldn't wait on keventd_wq.
+> Its task should use own special purpose work queue.
+> 
 
-I also agree with Matt - so we have a quorum :)
+Or we change the callers of lru_add_drain_all() to call it without
+holding any locks.  I mean, what's the *point* in calling it with
+mmap_sem held?  That won't stop threads from adding new pages into the
+pagevecs.
 
-so just to clarify: sys_checkpoint() is to fail (with what error ?) if the
-deny-checkpoint test fails.
 
-however, if the user is risky, she can specify CR_CHECKPOINT_RISKY to force
-an attempt to checkpoint as is.
+>  #endif
+> +
+> +	vm_wq = create_workqueue("vm_work");
+> +	BUG_ON(!vm_wq);
+> +
+>  }
 
-does this sound right ?
+Because it's pretty sad to add yet another kernel thread on each CPU
+(thousands!) just because of some obscure theoretical deadlock in
+page-migration and memory-hotplug.  Most people don't even use those.
 
-Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
