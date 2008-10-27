@@ -1,64 +1,72 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9R3Esw9009208
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 27 Oct 2008 12:14:54 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 269F153C125
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 12:14:54 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id EF44F240049
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 12:14:53 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id D7CE31DB8041
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 12:14:53 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 82A8F1DB8038
-	for <linux-mm@kvack.org>; Mon, 27 Oct 2008 12:14:53 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use schedule_on_each_cpu()
-In-Reply-To: <1225037872.32713.22.camel@twins>
-References: <2f11576a0810260851h15cb7e1ahb454b70a2e99e1a8@mail.gmail.com> <1225037872.32713.22.camel@twins>
-Message-Id: <20081027120405.1B45.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 27 Oct 2008 16:30:04 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: deadlock with latest xfs
+Message-ID: <20081027053004.GF11948@disturbed>
+References: <4900412A.2050802@sgi.com> <20081023205727.GA28490@infradead.org> <49013C47.4090601@sgi.com> <20081024052418.GO25906@disturbed> <20081024064804.GQ25906@disturbed> <20081026005351.GK18495@disturbed> <20081026025013.GL18495@disturbed> <49051C71.9040404@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 27 Oct 2008 12:14:52 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49051C71.9040404@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <npiggin@suse.de>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Gautham Shenoy <ego@in.ibm.com>, Oleg Nesterov <oleg@tv-sign.ru>, Rusty Russell <rusty@rustcorp.com.au>, mpm <mpm@selenic.com>
+To: Lachlan McIlroy <lachlan@sgi.com>
+Cc: Christoph Hellwig <hch@infradead.org>, xfs-oss <xfs@oss.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Right, and would be about 4k+sizeof(task_struct), some people might be
-> bothered, but most won't care.
-> 
-> > Perhaps, I misunderstand your intension. so can you point your
-> > previous discussion url?
-> 
-> my google skillz fail me, but once in a while people complain that we
-> have too many kernel threads.
-> 
-> Anyway, if we can re-use this per-cpu workqueue for more goals, I guess
-> there is even less of an objection.
+On Mon, Oct 27, 2008 at 12:42:09PM +1100, Lachlan McIlroy wrote:
+> Dave Chinner wrote:
+>> On Sun, Oct 26, 2008 at 11:53:51AM +1100, Dave Chinner wrote:
+>>> On Fri, Oct 24, 2008 at 05:48:04PM +1100, Dave Chinner wrote:
+>>>> OK, I just hung a single-threaded rm -rf after this completed:
+>>>>
+>>>> # fsstress -p 1024 -n 100 -d /mnt/xfs2/fsstress
+>>>>
+>>>> It has hung with this trace:
+....
+>> Got it now. I can reproduce this in a couple of minutes now that both
+>> the test fs and the fs hosting the UML fs images are using lazy-count=1
+>> (and the frequent 10s long host system freezes have gone away, too).
+>>
+>> Looks like *another* new memory allocation problem [1]:
+.....
+>> We've entered memory reclaim inside the xfsdatad while trying to do
+>> unwritten extent completion during I/O completion, and that memory
+>> reclaim is now blocked waiting for I/o completion that cannot make
+>> progress.
+>>
+>> Nasty.
+>>
+>> My initial though is to make _xfs_trans_alloc() able to take a KM_NOFS argument
+>> so we don't re-enter the FS here. If we get an ENOMEM in this case, we should
+>> then re-queue the I/O completion at the back of the workqueue and let other
+>> I/o completions progress before retrying this one. That way the I/O that
+>> is simply cleaning memory will make progress, hence allowing memory
+>> allocation to occur successfully when we retry this I/O completion...
+> It could work - unless it's a synchronous I/O in which case the I/O is not
+> complete until the extent conversion takes place.
 
-In general, you are right.
-but this is special case. mmap_sem is really widely used various subsystem and drivers.
-(because page fault via copy_user introduce to depend on mmap_sem)
+Right. Pushing unwritten extent conversion onto a different
+workqueue is probably the only way to handle this easily.
+That's the same solution Irix has been using for a long time
+(the xfsc thread)....
 
-Then, any work-queue reu-sing can cause similar dead-lock easily.
+> Could we allocate the memory up front before the I/O is issued?
 
+Possibly, but that will create more memory pressure than
+allocation in I/O completion because now we could need to hold
+thousands of allocations across an I/O - think of the case where
+we are running low on memory and have a disk subsystem capable of
+a few hundred thousand I/Os per second. the allocation failing would
+prevent the I/os from being issued, and if this is buffered writes
+into unwritten extents we'd be preventing dirty pages from being
+cleaned....
 
-So I think we have two choices (nick explained it at this thread).
+Cheers,
 
-(1) own workqueue (the patch)
-(2) avoid lru_add_drain_all completely
-
-
-if you really strongly hate (1), we should target to (2) IMO.
-
-Thought?
-
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
