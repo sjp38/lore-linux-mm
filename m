@@ -1,44 +1,131 @@
-Message-ID: <4905CF2E.9070709@redhat.com>
-Date: Mon, 27 Oct 2008 16:24:46 +0200
-From: Avi Kivity <avi@redhat.com>
+From: Alan Cox <alan@redhat.com>
+Subject: [PATCH] nfsd: Fix vm overcommit crash
+Date: Mon, 27 Oct 2008 14:27:28 +0000
+Message-ID: <20081027142445.21908.74962.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: 2.6.28-rc1: EIP: slab_destroy+0x84/0x142
-References: <alpine.LFD.2.00.0810232028500.3287@nehalem.linux-foundation.org> <20081024185952.GA18526@x200.localdomain> <1224884318.3248.54.camel@calx> <20081024220750.GA22973@x200.localdomain> <Pine.LNX.4.64.0810241829140.25302@quilx.com> <20081025002406.GA20024@x200.localdomain> <20081025025408.GA27684@x200.localdomain> <490462FC.7040107@redhat.com> <20081027142353.GA32490@x200.localdomain>
-In-Reply-To: <20081027142353.GA32490@x200.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, akpm@linux-foundation.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alexey Dobriyan wrote:
-> On Sun, Oct 26, 2008 at 02:30:52PM +0200, Avi Kivity wrote:
->   
->> Alexey Dobriyan wrote:
->>     
->>> Same picture for different guest kernels: 2.6.26, 2.6.27, 2.6.28-rc1
->>> and different host kernels: 2.6.26-1-686 from to be Debian Lenny, 2.6.27.3
->>> and 2.6.28-rc1.
->>>   
->>>       
->> Does this go away with !CONFIG_KVM_GUEST on the guest kernel?
->>
->> This only makes sense if you're using the kvm modules from kvm-77.  If  
->> so, you can also try http://userweb.kernel.org/~avi/kvm-78rc1.tar.gz  
->> which fixes a bug with CONFIG_KVM_GUEST.
->>     
->
-> Er, which commmit exactly?
->   
-e74bb3fa ("KVM: MMU: sync root on paravirt TLB flush") in kvm.git; it's 
-not yet in mainline.
+Junjiro R. Okajima reported a problem where knfsd crashes if you are using
+it to export shmemfs objects and run strict overcommit. In this situation
+the current->mm based modifier to the overcommit goes through a NULL
+pointer.
 
-(apply to host, not guest)
+We could simply check for NULL and skip the modifier but we've caught other
+real bugs in the past from mm being NULL here - cases where we did need a
+valid mm set up (eg the exec bug about a year ago).
 
--- 
-error compiling committee.c: too many arguments to function
+To preserve the checks and get the logic we want shuffle the checking
+around and add a new helper to the vm_ security wrappers. While at it the
+checks are switched to WARN_ON - we need to know if someone gets current->mm
+wrong in the other calls but we don't need to crash.
+
+Also fix a current->mm reference in nommu that should use the passed mm
+
+Signed-off-by: Alan Cox <alan@redhat.com>
+---
+
+ include/linux/security.h |    1 +
+ mm/mmap.c                |    3 ++-
+ mm/nommu.c               |    3 ++-
+ mm/shmem.c               |    4 ++--
+ security/security.c      |    9 +++++++++
+ 5 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/security.h b/include/linux/security.h
+index f5c4a51..a2b8430 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -1585,6 +1585,7 @@ int security_syslog(int type);
+ int security_settime(struct timespec *ts, struct timezone *tz);
+ int security_vm_enough_memory(long pages);
+ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
++int security_vm_enough_memory_kern(long pages);
+ int security_bprm_alloc(struct linux_binprm *bprm);
+ void security_bprm_free(struct linux_binprm *bprm);
+ void security_bprm_apply_creds(struct linux_binprm *bprm, int unsafe);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 74f4d15..de14ac2 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -175,7 +175,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 
+ 	/* Don't let a single process grow too big:
+ 	   leave 3% of the size of this process for other processes */
+-	allowed -= mm->total_vm / 32;
++	if (mm)
++		allowed -= mm->total_vm / 32;
+ 
+ 	/*
+ 	 * cast `allowed' as a signed long because vm_committed_space
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 2696b24..7695dc8 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1454,7 +1454,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 
+ 	/* Don't let a single process grow too big:
+ 	   leave 3% of the size of this process for other processes */
+-	allowed -= current->mm->total_vm / 32;
++	if (mm)
++		allowed -= mm->total_vm / 32;
+ 
+ 	/*
+ 	 * cast `allowed' as a signed long because vm_committed_space
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d38d7e6..1677b3e 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -162,7 +162,7 @@ static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
+ static inline int shmem_acct_size(unsigned long flags, loff_t size)
+ {
+ 	return (flags & VM_ACCOUNT)?
+-		security_vm_enough_memory(VM_ACCT(size)): 0;
++		security_vm_enough_memory_kern(VM_ACCT(size)): 0;
+ }
+ 
+ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+@@ -180,7 +180,7 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+ static inline int shmem_acct_block(unsigned long flags)
+ {
+ 	return (flags & VM_ACCOUNT)?
+-		0: security_vm_enough_memory(VM_ACCT(PAGE_CACHE_SIZE));
++		0: security_vm_enough_memory_kern(VM_ACCT(PAGE_CACHE_SIZE));
+ }
+ 
+ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
+diff --git a/security/security.c b/security/security.c
+index 255b085..c0acfa7 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -198,14 +198,23 @@ int security_settime(struct timespec *ts, struct timezone *tz)
+ 
+ int security_vm_enough_memory(long pages)
+ {
++	WARN_ON(current->mm == NULL);
+ 	return security_ops->vm_enough_memory(current->mm, pages);
+ }
+ 
+ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+ {
++	WARN_ON(mm == NULL);
+ 	return security_ops->vm_enough_memory(mm, pages);
+ }
+ 
++int security_vm_enough_memory_kern(long pages)
++{
++	/* If current->mm is a kernel thread then we will pass NULL,
++	   for this specific case that is fine */
++	return security_ops->vm_enough_memory(current->mm, pages);
++}
++
+ int security_bprm_alloc(struct linux_binprm *bprm)
+ {
+ 	return security_ops->bprm_alloc_security(bprm);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
