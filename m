@@ -1,61 +1,47 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: deadlock with latest xfs
-Date: Tue, 28 Oct 2008 19:56:35 +1100
-References: <4900412A.2050802@sgi.com> <200810281702.17135.nickpiggin@yahoo.com.au> <20081028062524.GQ4985@disturbed>
-In-Reply-To: <20081028062524.GQ4985@disturbed>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9SA9gFr028042
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 28 Oct 2008 19:09:42 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5AD92AC026
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A056812C047
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CF1E1DB803C
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 47A941DB8037
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
+Date: Tue, 28 Oct 2008 19:09:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/4][mmotm] memcg clean up
+Message-Id: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200810281956.36199.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Lachlan McIlroy <lachlan@sgi.com>, Christoph Hellwig <hch@infradead.org>, xfs-oss <xfs@oss.sgi.com>, linux-mm@kvack.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 28 October 2008 17:25, Dave Chinner wrote:
-> On Tue, Oct 28, 2008 at 05:02:16PM +1100, Nick Piggin wrote:
-> > On Sunday 26 October 2008 13:50, Dave Chinner wrote:
-> > > [1] I don't see how any of the XFS changes we made make this easier to
-> > > hit. What I suspect is a VM regression w.r.t. memory reclaim because
-> > > this is the second problem since 2.6.26 that appears to be a result of
-> > > memory allocation failures in places that we've never, ever seen
-> > > failures before.
-> > >
-> > > The other new failure is this one:
-> > >
-> > > http://bugzilla.kernel.org/show_bug.cgi?id=11805
-> > >
-> > > which is an alloc_pages(GFP_KERNEL) failure....
-> > >
-> > > mm-folk - care to weight in?
-> >
-> > order-0 alloc page GFP_KERNEL can fail sometimes. If it is called
-> > from reclaim or PF_MEMALLOC thread; if it is OOM-killed; fault
-> > injection.
-> >
-> > This is even the case for __GFP_NOFAIL allocations (which basically
-> > are buggy anyway).
-> >
-> > Not sure why it might have started happening, but I didn't see
-> > exactly which alloc_pages you are talking about? If it is via slab,
-> > then maybe some parameters have changed (eg. in SLUB) which is
-> > using higher order allocations.
->
-> In fs/xfs/linux-2.6/xfs_buf.c::xfs_buf_get_noaddr(). It's doing a
-> single page allocation at a time.
->
-> It may be that this failure is caused by an increase base memory
-> consumption of the kernel as this failure was reported in an lguest
-> and reproduced with a simple 'modprobe xfs ; mount /dev/xxx
-> /mnt/xfs' command. Maybe the lguest had very little memory available
-> to begin with and trying to allocate 2MB of pages for 8x256k log
-> buffers may have been too much for it...
+This set is easy clean up and fixes to current memory resource controller in mmotm.
 
-I suppose it could have been getting oom-killed, then failing the
-alloc, then oopsing on the way out, yes.
+Contents are
+ [1/4] make cgroup menu as submenu
+ [2/4] divide mem_cgroup's charge behavior to charge/commit/cancel
+ [3/4] fix gfp_mask of callers of mem_cgroup_charge_xxx
+ [4/4] make memcg's page migration handler simple.
+
+pushed out from memcg updates posted at 23/Oct. These are easy part.
+all comments are applied (and spell check is done...)
+
+They are against today's mmotm and tested on x86-64.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
