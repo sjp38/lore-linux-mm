@@ -1,53 +1,80 @@
-Date: Tue, 28 Oct 2008 13:45:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
- schedule_on_each_cpu()
-Message-Id: <20081028134536.9a7a5351.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0810280914010.15939@quilx.com>
+	schedule_on_each_cpu()
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20081028134536.9a7a5351.akpm@linux-foundation.org>
 References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
-	<2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
-	<20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081027145509.ebffcf0e.akpm@linux-foundation.org>
-	<Pine.LNX.4.64.0810280914010.15939@quilx.com>
+	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+	 <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081027145509.ebffcf0e.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0810280914010.15939@quilx.com>
+	 <20081028134536.9a7a5351.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Tue, 28 Oct 2008 17:29:26 -0400
+Message-Id: <1225229366.6343.74.camel@lts-notebook>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Oct 2008 09:25:31 -0500 (CDT)
-Christoph Lameter <cl@linux-foundation.org> wrote:
+On Tue, 2008-10-28 at 13:45 -0700, Andrew Morton wrote:
+> On Tue, 28 Oct 2008 09:25:31 -0500 (CDT)
+> Christoph Lameter <cl@linux-foundation.org> wrote:
+> 
+> > On Mon, 27 Oct 2008, Andrew Morton wrote:
+> > 
+> > > Can we fix that instead?
+> > 
+> > How about this fix?
+> > 
+> > 
+> > 
+> > Subject: Move migrate_prep out from under mmap_sem
+> > 
+> > Move the migrate_prep outside the mmap_sem for the following system calls
+> > 
+> > 1. sys_move_pages
+> > 2. sys_migrate_pages
+> > 3. sys_mbind()
+> > 
+> > It really does not matter when we flush the lru. The system is free to add
+> > pages onto the lru even during migration which will make the page 
+> > migration either skip the page (mbind, migrate_pages) or return a busy 
+> > state (move_pages).
+> > 
+> 
+> That looks nicer, thanks.  Hopefully it fixes the
+> lockdep-warning/deadlock...
 
-> On Mon, 27 Oct 2008, Andrew Morton wrote:
-> 
-> > Can we fix that instead?
-> 
-> How about this fix?
-> 
-> 
-> 
-> Subject: Move migrate_prep out from under mmap_sem
-> 
-> Move the migrate_prep outside the mmap_sem for the following system calls
-> 
-> 1. sys_move_pages
-> 2. sys_migrate_pages
-> 3. sys_mbind()
-> 
-> It really does not matter when we flush the lru. The system is free to add
-> pages onto the lru even during migration which will make the page 
-> migration either skip the page (mbind, migrate_pages) or return a busy 
-> state (move_pages).
-> 
+I believe that we still  have the lru_drain_all() called from the fault
+path [with mmap_sem held] in clear_page_mlock().  We call
+clear_page_mlock() on COW of an mlocked page in a VM_LOCKED vma to
+ensure that we don't end up with an mlocked page in some other task's
+non-VM_LOCKED vma where we'd then fail to munlock it later.  During
+development testing, Rik encountered scenarios where a page would
+encounter a COW fault while it was still making its way to the LRU via
+the pagevecs.  So, he added the 'drain_all() and that seemed to avoid
+this scenario.
 
-That looks nicer, thanks.  Hopefully it fixes the
-lockdep-warning/deadlock...
+Now, in the current upstream version of the unevictable mlocked pages
+patches, we just count any mlocked pages [vmstat] that make their way to
+free*page() instead of BUGging out, as we were doing earlier during
+development.  So, maybe we can drop the lru_drain_add()s in the
+unevictable mlocked pages work and live with the occasional freed
+mlocked page, or mlocked page on the active/inactive lists to be dealt
+with by vmscan.
 
-I guess we should document our newly discovered schedule_on_each_cpu()
-problems before we forget about it and later rediscover it.
+Comments?
+
+Lee
+
+> 
+> I guess we should document our newly discovered schedule_on_each_cpu()
+> problems before we forget about it and later rediscover it.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
