@@ -1,23 +1,24 @@
 Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9SAAdvk032767
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9SABuqB012769
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 28 Oct 2008 19:10:39 +0900
+	Tue, 28 Oct 2008 19:11:56 +0900
 Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41AC12AEA83
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:39 +0900 (JST)
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 07F292AEA81
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:11:56 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 137F71EF083
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:39 +0900 (JST)
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D1DF91EF081
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:11:55 +0900 (JST)
 Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E49051DB8042
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:38 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EDBF1DB803A
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:38 +0900 (JST)
-Date: Tue, 28 Oct 2008 19:10:08 +0900
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B582B1DB8042
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:11:55 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C3441DB8043
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:11:55 +0900 (JST)
+Date: Tue, 28 Oct 2008 19:11:25 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/4][mmotm]  cgroup: make cgroup config as submenu
-Message-Id: <20081028191008.d610de18.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/4][mmotm] memcg: introduce charge-commit-cancel style of
+ functions.
+Message-Id: <20081028191125.2197d276.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,188 +30,476 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-Making CGROUP related configs to be sub-menu.
+There is a small race in do_swap_page(). When the page swapped-in is charged,
+the mapcount can be greater than 0. But, at the same time some process (shares
+it ) call unmap and make mapcount 1->0 and the page is uncharged.
 
-This patch will making CGROUP related configs to be sub-menu and
-making 1st level configs of "General Setup" shorter.
+      CPUA 			CPUB
+       mapcount == 1.
+   (1) charge if mapcount==0     zap_pte_range()
+                                (2) mapcount 1 => 0.
+			        (3) uncharge(). (success)
+   (4) set page's rmap()
+       mapcount 0=>1
 
- including following additional changes 
-  - add help comment about CGROUPS and GROUP_SCHED.
-  - moved MM_OWNER config to the bottom.
-    (for good indent in menuconfig)
+Then, this swap page's account is leaked.
 
-Changelog: v1->v2
- - applied comments and fixed text.
- - added precise "See Documentation..."
+For fixing this, I added a new interface.
+  - charge
+   account to res_counter by PAGE_SIZE and try to free pages if necessary.
+  - commit	
+   register page_cgroup and add to LRU if necessary.
+  - cancel
+   uncharge PAGE_SIZE because of do_swap_page failure.
+
+
+     CPUA              
+  (1) charge (always)
+  (2) set page's rmap (mapcount > 0)
+  (3) commit charge was necessary or not after set_pte().
+
+This protocol uses PCG_USED bit on page_cgroup for avoiding over accounting.
+Usual mem_cgroup_charge_common() does charge -> commit at a time.
+
+And this patch also adds following function to clarify all charges.
+
+  - mem_cgroup_newpage_charge() ....replacement for mem_cgroup_charge()
+	called against newly allocated anon pages.
+
+  - mem_cgroup_charge_migrate_fixup()
+        called only from remove_migration_ptes().
+	we'll have to rewrite this later.(this patch just keeps old behavior)
+	This function will be removed by additional patch to make migration
+	clearer.
+
+Good for clarify "what we does"
+
+Then, we have 4 following charge points.
+  - newpage
+  - swap-in
+  - add-to-cache.
+  - migration.
+
+Changelog v8 -> v9
+ - fixed text
+Changelog v7 -> v8
+ - handles that try_charge() sets NULL to *memcg.
+
+Changelog v5 -> v7:
+ - added newpage_charge() and migrate_fixup().
+ - renamed  functions for swap-in from "swap" to "swapin"
+ - add more precise description.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+ include/linux/memcontrol.h |   35 +++++++++-
+ mm/memcontrol.c            |  155 ++++++++++++++++++++++++++++++++++++---------
+ mm/memory.c                |   12 ++-
+ mm/migrate.c               |    2 
+ mm/swapfile.c              |    6 +
+ 5 files changed, 169 insertions(+), 41 deletions(-)
 
- init/Kconfig |  123 ++++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 67 insertions(+), 56 deletions(-)
-
-Index: mmotm-2.6.28rc2+/init/Kconfig
+Index: mmotm-2.6.28rc2+/include/linux/memcontrol.h
 ===================================================================
---- mmotm-2.6.28rc2+.orig/init/Kconfig
-+++ mmotm-2.6.28rc2+/init/Kconfig
-@@ -271,59 +271,6 @@ config LOG_BUF_SHIFT
- 		     13 =>  8 KB
- 		     12 =>  4 KB
+--- mmotm-2.6.28rc2+.orig/include/linux/memcontrol.h
++++ mmotm-2.6.28rc2+/include/linux/memcontrol.h
+@@ -27,8 +27,17 @@ struct mm_struct;
  
--config CGROUPS
--	bool "Control Group support"
--	help
--	  This option will let you use process cgroup subsystems
--	  such as Cpusets
--
--	  Say N if unsure.
--
--config CGROUP_DEBUG
--	bool "Example debug cgroup subsystem"
--	depends on CGROUPS
--	default n
--	help
--	  This option enables a simple cgroup subsystem that
--	  exports useful debugging information about the cgroups
--	  framework
--
--	  Say N if unsure
--
--config CGROUP_NS
--        bool "Namespace cgroup subsystem"
--        depends on CGROUPS
--        help
--          Provides a simple namespace cgroup subsystem to
--          provide hierarchical naming of sets of namespaces,
--          for instance virtual servers and checkpoint/restart
--          jobs.
--
--config CGROUP_FREEZER
--        bool "control group freezer subsystem"
--        depends on CGROUPS
--        help
--          Provides a way to freeze and unfreeze all tasks in a
--	  cgroup.
--
--config CGROUP_DEVICE
--	bool "Device controller for cgroups"
--	depends on CGROUPS && EXPERIMENTAL
--	help
--	  Provides a cgroup implementing whitelists for devices which
--	  a process in the cgroup can mknod or open.
--
--config CPUSETS
--	bool "Cpuset support"
--	depends on SMP && CGROUPS
--	help
--	  This option will let you create and manage CPUSETs which
--	  allow dynamically partitioning a system into sets of CPUs and
--	  Memory Nodes and assigning tasks to run only within those sets.
--	  This is primarily useful on large SMP or NUMA systems.
--
--	  Say N if unsure.
--
- #
- # Architectures with an unreliable sched_clock() should select this:
- #
-@@ -337,6 +284,8 @@ config GROUP_SCHED
- 	help
- 	  This feature lets CPU scheduler recognize task groups and control CPU
- 	  bandwidth allocation to such task groups.
-+	  In order to create a group from arbitrary set of processes, use
-+	  CONFIG_CGROUPS. (See Control Group support.)
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR
  
- config FAIR_GROUP_SCHED
- 	bool "Group scheduling for SCHED_OTHER"
-@@ -379,6 +328,66 @@ config CGROUP_SCHED
+-extern int mem_cgroup_charge(struct page *page, struct mm_struct *mm,
++extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask);
++extern int mem_cgroup_charge_migrate_fixup(struct page *page,
++				struct mm_struct *mm, gfp_t gfp_mask);
++/* for swap handling */
++extern int mem_cgroup_try_charge(struct mm_struct *mm,
++		gfp_t gfp_mask, struct mem_cgroup **ptr);
++extern void mem_cgroup_commit_charge_swapin(struct page *page,
++					struct mem_cgroup *ptr);
++extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
++
+ extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 					gfp_t gfp_mask);
+ extern void mem_cgroup_move_lists(struct page *page, enum lru_list lru);
+@@ -71,7 +80,9 @@ extern long mem_cgroup_calc_reclaim(stru
  
- endchoice
  
-+menu "Control Group support"
-+config CGROUPS
-+	bool "Control Group support"
-+	help
-+	  This option add support for grouping sets of processes together, for
-+	  use with process control subsystems such as Cpusets, CFS, memory
-+	  controls or device isolation.
-+	  See
-+		- Documentation/cpusets.txt	(Cpusets)
-+		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
-+		- Documentation/cgroups/ (features for grouping, isolation)
-+		- Documentation/controllers/ (features for resource control)
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+-static inline int mem_cgroup_charge(struct page *page,
++struct mem_cgroup;
 +
-+	  Say N if unsure.
-+
-+config CGROUP_DEBUG
-+	bool "Example debug cgroup subsystem"
-+	depends on CGROUPS
-+	default n
-+	help
-+	  This option enables a simple cgroup subsystem that
-+	  exports useful debugging information about the cgroups
-+	  framework
-+
-+	  Say N if unsure
-+
-+config CGROUP_NS
-+        bool "Namespace cgroup subsystem"
-+        depends on CGROUPS
-+        help
-+          Provides a simple namespace cgroup subsystem to
-+          provide hierarchical naming of sets of namespaces,
-+          for instance virtual servers and checkpoint/restart
-+          jobs.
-+
-+config CGROUP_FREEZER
-+        bool "control group freezer subsystem"
-+        depends on CGROUPS
-+        help
-+          Provides a way to freeze and unfreeze all tasks in a
-+	  cgroup.
-+
-+config CGROUP_DEVICE
-+	bool "Device controller for cgroups"
-+	depends on CGROUPS && EXPERIMENTAL
-+	help
-+	  Provides a cgroup implementing whitelists for devices which
-+	  a process in the cgroup can mknod or open.
-+
-+config CPUSETS
-+	bool "Cpuset support"
-+	depends on SMP && CGROUPS
-+	help
-+	  This option will let you create and manage CPUSETs which
-+	  allow dynamically partitioning a system into sets of CPUs and
-+	  Memory Nodes and assigning tasks to run only within those sets.
-+	  This is primarily useful on large SMP or NUMA systems.
-+
-+	  Say N if unsure.
-+
- config CGROUP_CPUACCT
- 	bool "Simple CPU accounting cgroup subsystem"
- 	depends on CGROUPS
-@@ -393,9 +402,6 @@ config RESOURCE_COUNTERS
-           infrastructure that works with cgroups
- 	depends on CGROUPS
++static inline int mem_cgroup_newpage_charge(struct page *page,
+ 					struct mm_struct *mm, gfp_t gfp_mask)
+ {
+ 	return 0;
+@@ -83,6 +94,26 @@ static inline int mem_cgroup_cache_charg
+ 	return 0;
+ }
  
--config MM_OWNER
--	bool
++static inline int mem_cgroup_charge_migrate_fixup(struct page *page,
++					struct mm_struct *mm, gfp_t gfp_mask)
++{
++	return 0;
++}
++
++static int mem_cgroup_try_charge(struct mm_struct *mm,
++				gfp_t gfp_mask, struct mem_cgroup **ptr)
++{
++	return 0;
++}
++
++static void mem_cgroup_commit_charge_swapin(struct page *page,
++					  struct mem_cgroup *ptr)
++{
++}
++static void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr)
++{
++}
++
+ static inline void mem_cgroup_uncharge_page(struct page *page)
+ {
+ }
+Index: mmotm-2.6.28rc2+/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.28rc2+.orig/mm/memcontrol.c
++++ mmotm-2.6.28rc2+/mm/memcontrol.c
+@@ -467,35 +467,31 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	return nr_taken;
+ }
+ 
+-/*
+- * Charge the memory controller for page usage.
+- * Return
+- * 0 if the charge was successful
+- * < 0 if the cgroup is over its limit
++
++/**
++ * mem_cgroup_try_charge - get charge of PAGE_SIZE.
++ * @mm: an mm_struct which is charged against. (when *memcg is NULL)
++ * @gfp_mask: gfp_mask for reclaim.
++ * @memcg: a pointer to memory cgroup which is charged against.
++ *
++ * charge against memory cgroup pointed by *memcg. if *memcg == NULL, estimated
++ * memory cgroup from @mm is got and stored in *memcg.
++ *
++ * Returns 0 if success. -ENOMEM at failure.
+  */
+-static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
+-				gfp_t gfp_mask, enum charge_type ctype,
+-				struct mem_cgroup *memcg)
++
++int mem_cgroup_try_charge(struct mm_struct *mm,
++			gfp_t gfp_mask, struct mem_cgroup **memcg)
+ {
+ 	struct mem_cgroup *mem;
+-	struct page_cgroup *pc;
+-	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-	struct mem_cgroup_per_zone *mz;
+-	unsigned long flags;
 -
- config CGROUP_MEM_RES_CTLR
- 	bool "Memory Resource Controller for Control Groups"
- 	depends on CGROUPS && RESOURCE_COUNTERS
-@@ -419,6 +425,11 @@ config CGROUP_MEM_RES_CTLR
- 	  This config option also selects MM_OWNER config option, which
- 	  could in turn add some fork/exit overhead.
+-	pc = lookup_page_cgroup(page);
+-	/* can happen at boot */
+-	if (unlikely(!pc))
+-		return 0;
+-	prefetchw(pc);
++	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 	/*
+ 	 * We always charge the cgroup the mm_struct belongs to.
+ 	 * The mm_struct's mem_cgroup changes on task migration if the
+ 	 * thread group leader migrates. It's possible that mm is not
+ 	 * set, if so charge the init_mm (happens for pagecache usage).
+ 	 */
+-
+-	if (likely(!memcg)) {
++	if (likely(!*memcg)) {
+ 		rcu_read_lock();
+ 		mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
+ 		if (unlikely(!mem)) {
+@@ -506,15 +502,17 @@ static int mem_cgroup_charge_common(stru
+ 		 * For every charge from the cgroup, increment reference count
+ 		 */
+ 		css_get(&mem->css);
++		*memcg = mem;
+ 		rcu_read_unlock();
+ 	} else {
+-		mem = memcg;
+-		css_get(&memcg->css);
++		mem = *memcg;
++		css_get(&mem->css);
+ 	}
  
-+config MM_OWNER
-+	bool
 +
-+endmenu
-+
- config SYSFS_DEPRECATED
- 	bool
+ 	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+ 		if (!(gfp_mask & __GFP_WAIT))
+-			goto out;
++			goto nomem;
  
+ 		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+ 			continue;
+@@ -531,18 +529,37 @@ static int mem_cgroup_charge_common(stru
+ 
+ 		if (!nr_retries--) {
+ 			mem_cgroup_out_of_memory(mem, gfp_mask);
+-			goto out;
++			goto nomem;
+ 		}
+ 	}
++	return 0;
++nomem:
++	css_put(&mem->css);
++	return -ENOMEM;
++}
++
++/*
++ * commit a charge got by mem_cgroup_try_charge() and makes page_cgroup to be
++ * USED state. If already USED, uncharge and return.
++ */
+ 
++static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
++				     struct page_cgroup *pc,
++				     enum charge_type ctype)
++{
++	struct mem_cgroup_per_zone *mz;
++	unsigned long flags;
++
++	/* try_charge() can return NULL to *memcg, taking care of it. */
++	if (!mem)
++		return;
+ 
+ 	lock_page_cgroup(pc);
+ 	if (unlikely(PageCgroupUsed(pc))) {
+ 		unlock_page_cgroup(pc);
+ 		res_counter_uncharge(&mem->res, PAGE_SIZE);
+ 		css_put(&mem->css);
+-
+-		goto done;
++		return;
+ 	}
+ 	pc->mem_cgroup = mem;
+ 	/*
+@@ -557,15 +574,39 @@ static int mem_cgroup_charge_common(stru
+ 	__mem_cgroup_add_list(mz, pc);
+ 	spin_unlock_irqrestore(&mz->lru_lock, flags);
+ 	unlock_page_cgroup(pc);
++}
++
++/*
++ * Charge the memory controller for page usage.
++ * Return
++ * 0 if the charge was successful
++ * < 0 if the cgroup is over its limit
++ */
++static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
++				gfp_t gfp_mask, enum charge_type ctype,
++				struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *mem;
++	struct page_cgroup *pc;
++	int ret;
+ 
+-done:
++	pc = lookup_page_cgroup(page);
++	/* can happen at boot */
++	if (unlikely(!pc))
++		return 0;
++	prefetchw(pc);
++
++	mem = memcg;
++	ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
++	if (ret)
++		return ret;
++
++	__mem_cgroup_commit_charge(mem, pc, ctype);
+ 	return 0;
+-out:
+-	css_put(&mem->css);
+-	return -ENOMEM;
+ }
+ 
+-int mem_cgroup_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
++int mem_cgroup_newpage_charge(struct page *page,
++			      struct mm_struct *mm, gfp_t gfp_mask)
+ {
+ 	if (mem_cgroup_subsys.disabled)
+ 		return 0;
+@@ -586,6 +627,34 @@ int mem_cgroup_charge(struct page *page,
+ 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+ }
+ 
++/*
++ * same as mem_cgroup_newpage_charge(), now.
++ * But what we assume is different from newpage, and this is special case.
++ * treat this in special function. easy for maintenance.
++ */
++
++int mem_cgroup_charge_migrate_fixup(struct page *page,
++				struct mm_struct *mm, gfp_t gfp_mask)
++{
++	if (mem_cgroup_subsys.disabled)
++		return 0;
++
++	if (PageCompound(page))
++		return 0;
++
++	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
++		return 0;
++
++	if (unlikely(!mm))
++		mm = &init_mm;
++
++	return mem_cgroup_charge_common(page, mm, gfp_mask,
++				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
++}
++
++
++
++
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
+@@ -628,6 +697,30 @@ int mem_cgroup_cache_charge(struct page 
+ 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+ }
+ 
++
++void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
++{
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_subsys.disabled)
++		return;
++	if (!ptr)
++		return;
++	pc = lookup_page_cgroup(page);
++	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
++}
++
++void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
++{
++	if (mem_cgroup_subsys.disabled)
++		return;
++	if (!mem)
++		return;
++	res_counter_uncharge(&mem->res, PAGE_SIZE);
++	css_put(&mem->css);
++}
++
++
+ /*
+  * uncharge if !page_mapped(page)
+  */
+Index: mmotm-2.6.28rc2+/mm/memory.c
+===================================================================
+--- mmotm-2.6.28rc2+.orig/mm/memory.c
++++ mmotm-2.6.28rc2+/mm/memory.c
+@@ -1889,7 +1889,7 @@ gotten:
+ 	cow_user_page(new_page, old_page, address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+-	if (mem_cgroup_charge(new_page, mm, GFP_KERNEL))
++	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
+ 		goto oom_free_new;
+ 
+ 	/*
+@@ -2285,6 +2285,7 @@ static int do_swap_page(struct mm_struct
+ 	struct page *page;
+ 	swp_entry_t entry;
+ 	pte_t pte;
++	struct mem_cgroup *ptr = NULL;
+ 	int ret = 0;
+ 
+ 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
+@@ -2323,7 +2324,7 @@ static int do_swap_page(struct mm_struct
+ 	lock_page(page);
+ 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+ 
+-	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
++	if (mem_cgroup_try_charge(mm, GFP_KERNEL, &ptr) == -ENOMEM) {
+ 		ret = VM_FAULT_OOM;
+ 		unlock_page(page);
+ 		goto out;
+@@ -2353,6 +2354,7 @@ static int do_swap_page(struct mm_struct
+ 	flush_icache_page(vma, page);
+ 	set_pte_at(mm, address, page_table, pte);
+ 	page_add_anon_rmap(page, vma, address);
++	mem_cgroup_commit_charge_swapin(page, ptr);
+ 
+ 	swap_free(entry);
+ 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+@@ -2373,7 +2375,7 @@ unlock:
+ out:
+ 	return ret;
+ out_nomap:
+-	mem_cgroup_uncharge_page(page);
++	mem_cgroup_cancel_charge_swapin(ptr);
+ 	pte_unmap_unlock(page_table, ptl);
+ 	unlock_page(page);
+ 	page_cache_release(page);
+@@ -2403,7 +2405,7 @@ static int do_anonymous_page(struct mm_s
+ 		goto oom;
+ 	__SetPageUptodate(page);
+ 
+-	if (mem_cgroup_charge(page, mm, GFP_KERNEL))
++	if (mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))
+ 		goto oom_free_page;
+ 
+ 	entry = mk_pte(page, vma->vm_page_prot);
+@@ -2496,7 +2498,7 @@ static int __do_fault(struct mm_struct *
+ 				ret = VM_FAULT_OOM;
+ 				goto out;
+ 			}
+-			if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
++			if (mem_cgroup_newpage_charge(page, mm, GFP_KERNEL)) {
+ 				ret = VM_FAULT_OOM;
+ 				page_cache_release(page);
+ 				goto out;
+Index: mmotm-2.6.28rc2+/mm/migrate.c
+===================================================================
+--- mmotm-2.6.28rc2+.orig/mm/migrate.c
++++ mmotm-2.6.28rc2+/mm/migrate.c
+@@ -133,7 +133,7 @@ static void remove_migration_pte(struct 
+ 	 * be reliable, and this charge can actually fail: oh well, we don't
+ 	 * make the situation any worse by proceeding as if it had succeeded.
+ 	 */
+-	mem_cgroup_charge(new, mm, GFP_ATOMIC);
++	mem_cgroup_charge_migrate_fixup(new, mm, GFP_ATOMIC);
+ 
+ 	get_page(new);
+ 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
+Index: mmotm-2.6.28rc2+/mm/swapfile.c
+===================================================================
+--- mmotm-2.6.28rc2+.orig/mm/swapfile.c
++++ mmotm-2.6.28rc2+/mm/swapfile.c
+@@ -530,17 +530,18 @@ unsigned int count_swap_pages(int type, 
+ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long addr, swp_entry_t entry, struct page *page)
+ {
++	struct mem_cgroup *ptr = NULL;
+ 	spinlock_t *ptl;
+ 	pte_t *pte;
+ 	int ret = 1;
+ 
+-	if (mem_cgroup_charge(page, vma->vm_mm, GFP_KERNEL))
++	if (mem_cgroup_try_charge(vma->vm_mm, GFP_KERNEL, &ptr))
+ 		ret = -ENOMEM;
+ 
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
+ 		if (ret > 0)
+-			mem_cgroup_uncharge_page(page);
++			mem_cgroup_cancel_charge_swapin(ptr);
+ 		ret = 0;
+ 		goto out;
+ 	}
+@@ -550,6 +551,7 @@ static int unuse_pte(struct vm_area_stru
+ 	set_pte_at(vma->vm_mm, addr, pte,
+ 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
+ 	page_add_anon_rmap(page, vma, addr);
++	mem_cgroup_commit_charge_swapin(page, ptr);
+ 	swap_free(entry);
+ 	/*
+ 	 * Move the page to the active list so it is not
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
