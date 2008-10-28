@@ -1,375 +1,71 @@
-Date: Tue, 28 Oct 2008 21:37:24 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH 4/4][mmotm] memcg: simple migration handling
-Message-Id: <20081028213724.ce556e4a.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20081028191532.e2cb2f03.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081028191532.e2cb2f03.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate7.uk.ibm.com (8.13.8/8.13.8) with ESMTP id m9SD03CM311300
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 13:00:03 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9SD03tn4325572
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 13:00:03 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9SD022W019729
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 13:00:03 GMT
+Subject: Re: [PATCH] memory hotplug: fix page_zone() calculation in
+	test_pages_isolated()
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <20081028093224.a0de9f64.kamezawa.hiroyu@jp.fujitsu.com>
+References: <4905F114.3030406@de.ibm.com>
+	 <1225128359.12673.101.camel@nimitz>
+	 <1225130369.20384.33.camel@localhost.localdomain>
+	 <20081028093224.a0de9f64.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Tue, 28 Oct 2008 14:00:01 +0100
+Message-Id: <1225198802.10037.7.camel@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Oct 2008 19:15:32 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> Now, management of "charge" under page migration is done under following
-> manner. (Assume migrate page contents from oldpage to newpage)
+On Tue, 2008-10-28 at 09:32 +0900, KAMEZAWA Hiroyuki wrote:
+> But
+>  - "pfn" and "end_pfn" (and pfn in the middle of them) can be in different zone on strange machine.
 > 
->  before
->   - "newpage" is charged before migration.
->  at success.
->   - "oldpage" is uncharged at somewhere(unmap, radix-tree-replace)
->  at failure
->   - "newpage" is uncharged.
->   - "oldpage" is charged if necessary (*1)
-> 
-> But (*1) is not reliable....because of GFP_ATOMIC.
-> 
-> This patch tries to change behavior as following by charge/commit/cancel ops.
-> 
->  before
->   - charge PAGE_SIZE (no target page)
->  success
->   - commit charge against "newpage".
->  failure
->   - commit charge against "oldpage".
->     (PCG_USED bit works effectively to avoid double-counting)
->   - if "oldpage" is obsolete, cancel charge of PAGE_SIZE.
-> 
-> Changelog: v8 -> v9
->  - fixed text.
-> Changelog: v7 -> v8
->  - fixed memcg==NULL case in migration handling.
+> Now: test_pages_isolated() is called in following sequence.
 >   
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>   check_page_isolated()
+>      walk_memory_resource()			# read resource range and get start/end of pfn
+>          -> chcek_page_isolated_cb()
+> 		-> test_page_isolated().
 > 
-	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> I think all pages within [start, end) passed to test_pages_isolated() should be in the same zone.
+> 
+> please change this to
+>   check_page_isolated()
+>      walk_memory_resource()
+>          -> check_page_isolated_cb()
+>                  -> walk_page_range_in_same_zone()  # get page range in the same zone.
+>                         -> test_page_isolated().
+> 
+> Could you try ?
 
-I tested previous version of these patches of course, I'm now
-testing this version just in case.
+There is already a "same zone" check at the beginning of offline_pages():
 
+>	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+>		return -EINVAL;
+
+So we should be safe here, the only problem that I see is that my
+zone->lock patch in test_pages_isolated() is broken. As explained,
+the pfn used in my page_zone(pfn_to_page(pfn)) is >= end_pfn.
+
+I'll send a new patch to fix this, using __first_valid_page() again,
+as described in my reply to Daves mail. The only other solution that
+I see would be to remember the first/last !NULL page that was found
+inside the for() loop. Not sure which is better, but I think I like
+the first one more. Any other ideas?
 
 Thanks,
-Daisuke Nishimura.
+Gerald
 
->  include/linux/memcontrol.h |   19 ++-----
->  mm/memcontrol.c            |  108 +++++++++++++++++++++------------------------
->  mm/migrate.c               |   42 +++++------------
->  3 files changed, 73 insertions(+), 96 deletions(-)
-> 
-> Index: mmotm-2.6.28rc2+/mm/migrate.c
-> ===================================================================
-> --- mmotm-2.6.28rc2+.orig/mm/migrate.c
-> +++ mmotm-2.6.28rc2+/mm/migrate.c
-> @@ -121,20 +121,6 @@ static void remove_migration_pte(struct 
->  	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
->  		goto out;
->  
-> -	/*
-> -	 * Yes, ignore the return value from a GFP_ATOMIC mem_cgroup_charge.
-> -	 * Failure is not an option here: we're now expected to remove every
-> -	 * migration pte, and will cause crashes otherwise.  Normally this
-> -	 * is not an issue: mem_cgroup_prepare_migration bumped up the old
-> -	 * page_cgroup count for safety, that's now attached to the new page,
-> -	 * so this charge should just be another incrementation of the count,
-> -	 * to keep in balance with rmap.c's mem_cgroup_uncharging.  But if
-> -	 * there's been a force_empty, those reference counts may no longer
-> -	 * be reliable, and this charge can actually fail: oh well, we don't
-> -	 * make the situation any worse by proceeding as if it had succeeded.
-> -	 */
-> -	mem_cgroup_charge_migrate_fixup(new, mm, GFP_ATOMIC);
-> -
->  	get_page(new);
->  	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
->  	if (is_write_migration_entry(entry))
-> @@ -382,9 +368,6 @@ static void migrate_page_copy(struct pag
->  	anon = PageAnon(page);
->  	page->mapping = NULL;
->  
-> -	if (!anon) /* This page was removed from radix-tree. */
-> -		mem_cgroup_uncharge_cache_page(page);
-> -
->  	/*
->  	 * If any waiters have accumulated on the new page then
->  	 * wake them up.
-> @@ -621,6 +604,7 @@ static int unmap_and_move(new_page_t get
->  	struct page *newpage = get_new_page(page, private, &result);
->  	int rcu_locked = 0;
->  	int charge = 0;
-> +	struct mem_cgroup *mem;
->  
->  	if (!newpage)
->  		return -ENOMEM;
-> @@ -630,24 +614,26 @@ static int unmap_and_move(new_page_t get
->  		goto move_newpage;
->  	}
->  
-> -	charge = mem_cgroup_prepare_migration(page, newpage);
-> -	if (charge == -ENOMEM) {
-> -		rc = -ENOMEM;
-> -		goto move_newpage;
-> -	}
->  	/* prepare cgroup just returns 0 or -ENOMEM */
-> -	BUG_ON(charge);
-> -
->  	rc = -EAGAIN;
-> +
->  	if (!trylock_page(page)) {
->  		if (!force)
->  			goto move_newpage;
->  		lock_page(page);
->  	}
->  
-> +	/* charge against new page */
-> +	charge = mem_cgroup_prepare_migration(page, &mem);
-> +	if (charge == -ENOMEM) {
-> +		rc = -ENOMEM;
-> +		goto unlock;
-> +	}
-> +	BUG_ON(charge);
-> +
->  	if (PageWriteback(page)) {
->  		if (!force)
-> -			goto unlock;
-> +			goto uncharge;
->  		wait_on_page_writeback(page);
->  	}
->  	/*
-> @@ -700,7 +686,9 @@ static int unmap_and_move(new_page_t get
->  rcu_unlock:
->  	if (rcu_locked)
->  		rcu_read_unlock();
-> -
-> +uncharge:
-> +	if (!charge)
-> +		mem_cgroup_end_migration(mem, page, newpage);
->  unlock:
->  	unlock_page(page);
->  
-> @@ -716,8 +704,6 @@ unlock:
->  	}
->  
->  move_newpage:
-> -	if (!charge)
-> -		mem_cgroup_end_migration(newpage);
->  
->  	/*
->  	 * Move the new page to the LRU. If migration was not successful
-> Index: mmotm-2.6.28rc2+/include/linux/memcontrol.h
-> ===================================================================
-> --- mmotm-2.6.28rc2+.orig/include/linux/memcontrol.h
-> +++ mmotm-2.6.28rc2+/include/linux/memcontrol.h
-> @@ -29,8 +29,6 @@ struct mm_struct;
->  
->  extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
->  				gfp_t gfp_mask);
-> -extern int mem_cgroup_charge_migrate_fixup(struct page *page,
-> -				struct mm_struct *mm, gfp_t gfp_mask);
->  /* for swap handling */
->  extern int mem_cgroup_try_charge(struct mm_struct *mm,
->  		gfp_t gfp_mask, struct mem_cgroup **ptr);
-> @@ -60,8 +58,9 @@ extern struct mem_cgroup *mem_cgroup_fro
->  	((cgroup) == mem_cgroup_from_task((mm)->owner))
->  
->  extern int
-> -mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
-> -extern void mem_cgroup_end_migration(struct page *page);
-> +mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
-> +extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> +	struct page *oldpage, struct page *newpage);
->  
->  /*
->   * For memory reclaim.
-> @@ -94,12 +93,6 @@ static inline int mem_cgroup_cache_charg
->  	return 0;
->  }
->  
-> -static inline int mem_cgroup_charge_migrate_fixup(struct page *page,
-> -					struct mm_struct *mm, gfp_t gfp_mask)
-> -{
-> -	return 0;
-> -}
-> -
->  static int mem_cgroup_try_charge(struct mm_struct *mm,
->  				gfp_t gfp_mask, struct mem_cgroup **ptr)
->  {
-> @@ -143,12 +136,14 @@ static inline int task_in_mem_cgroup(str
->  }
->  
->  static inline int
-> -mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
-> +mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
->  {
->  	return 0;
->  }
->  
-> -static inline void mem_cgroup_end_migration(struct page *page)
-> +static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> +					struct page *oldpage,
-> +					struct page *newpage)
->  {
->  }
->  
-> Index: mmotm-2.6.28rc2+/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.28rc2+.orig/mm/memcontrol.c
-> +++ mmotm-2.6.28rc2+/mm/memcontrol.c
-> @@ -627,34 +627,6 @@ int mem_cgroup_newpage_charge(struct pag
->  				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
->  }
->  
-> -/*
-> - * same as mem_cgroup_newpage_charge(), now.
-> - * But what we assume is different from newpage, and this is special case.
-> - * treat this in special function. easy for maintenance.
-> - */
-> -
-> -int mem_cgroup_charge_migrate_fixup(struct page *page,
-> -				struct mm_struct *mm, gfp_t gfp_mask)
-> -{
-> -	if (mem_cgroup_subsys.disabled)
-> -		return 0;
-> -
-> -	if (PageCompound(page))
-> -		return 0;
-> -
-> -	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
-> -		return 0;
-> -
-> -	if (unlikely(!mm))
-> -		mm = &init_mm;
-> -
-> -	return mem_cgroup_charge_common(page, mm, gfp_mask,
-> -				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
-> -}
-> -
-> -
-> -
-> -
->  int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  				gfp_t gfp_mask)
->  {
-> @@ -697,7 +669,6 @@ int mem_cgroup_cache_charge(struct page 
->  				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
->  }
->  
-> -
->  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
->  {
->  	struct page_cgroup *pc;
-> @@ -782,13 +753,13 @@ void mem_cgroup_uncharge_cache_page(stru
->  }
->  
->  /*
-> - * Before starting migration, account against new page.
-> + * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
-> + * page belongs to.
->   */
-> -int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
-> +int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup *mem = NULL;
-> -	enum charge_type ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
->  	int ret = 0;
->  
->  	if (mem_cgroup_subsys.disabled)
-> @@ -799,42 +770,67 @@ int mem_cgroup_prepare_migration(struct 
->  	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
->  		css_get(&mem->css);
-> -		if (PageCgroupCache(pc)) {
-> -			if (page_is_file_cache(page))
-> -				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> -			else
-> -				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> -		}
->  	}
->  	unlock_page_cgroup(pc);
-> +
->  	if (mem) {
-> -		ret = mem_cgroup_charge_common(newpage, NULL,
-> -					GFP_HIGHUSER_MOVABLE,
-> -					ctype, mem);
-> +		ret = mem_cgroup_try_charge(NULL, GFP_HIGHUSER_MOVABLE, &mem);
->  		css_put(&mem->css);
->  	}
-> +	*ptr = mem;
->  	return ret;
->  }
->  
->  /* remove redundant charge if migration failed*/
-> -void mem_cgroup_end_migration(struct page *newpage)
-> +void mem_cgroup_end_migration(struct mem_cgroup *mem,
-> +		struct page *oldpage, struct page *newpage)
->  {
-> +	struct page *target, *unused;
-> +	struct page_cgroup *pc;
-> +	enum charge_type ctype;
-> +
-> +	if (!mem)
-> +		return;
-> +
-> +	/* at migration success, oldpage->mapping is NULL. */
-> +	if (oldpage->mapping) {
-> +		target = oldpage;
-> +		unused = NULL;
-> +	} else {
-> +		target = newpage;
-> +		unused = oldpage;
-> +	}
-> +
-> +	if (PageAnon(target))
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-> +	else if (page_is_file_cache(target))
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> +	else
-> +		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-> +
-> +	/* unused page is not on radix-tree now. */
-> +	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
-> +		__mem_cgroup_uncharge_common(unused, ctype);
-> +
-> +	pc = lookup_page_cgroup(target);
->  	/*
-> -	 * At success, page->mapping is not NULL.
-> -	 * special rollback care is necessary when
-> -	 * 1. at migration failure. (newpage->mapping is cleared in this case)
-> -	 * 2. the newpage was moved but not remapped again because the task
-> -	 *    exits and the newpage is obsolete. In this case, the new page
-> -	 *    may be a swapcache. So, we just call mem_cgroup_uncharge_page()
-> -	 *    always for avoiding mess. The  page_cgroup will be removed if
-> -	 *    unnecessary. File cache pages is still on radix-tree. Don't
-> -	 *    care it.
-> +	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
-> +	 * So, double-counting is effectively avoided.
-> +	 */
-> +	__mem_cgroup_commit_charge(mem, pc, ctype);
-> +
-> +	/*
-> +	 * Both of oldpage and newpage are still under lock_page().
-> +	 * Then, we don't have to care about race in radix-tree.
-> +	 * But we have to be careful that this page is unmapped or not.
-> +	 *
-> +	 * There is a case for !page_mapped(). At the start of
-> +	 * migration, oldpage was mapped. But now, it's zapped.
-> +	 * But we know *target* page is not freed/reused under us.
-> +	 * mem_cgroup_uncharge_page() does all necessary checks.
->  	 */
-> -	if (!newpage->mapping)
-> -		__mem_cgroup_uncharge_common(newpage,
-> -				MEM_CGROUP_CHARGE_TYPE_FORCE);
-> -	else if (PageAnon(newpage))
-> -		mem_cgroup_uncharge_page(newpage);
-> +	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-> +		mem_cgroup_uncharge_page(target);
->  }
->  
->  /*
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
