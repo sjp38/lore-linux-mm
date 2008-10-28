@@ -1,47 +1,216 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9SA9gFr028042
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9SAAdvk032767
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 28 Oct 2008 19:09:42 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D5AD92AC026
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A056812C047
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CF1E1DB803C
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 47A941DB8037
-	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:09:41 +0900 (JST)
-Date: Tue, 28 Oct 2008 19:09:11 +0900
+	Tue, 28 Oct 2008 19:10:39 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41AC12AEA83
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 137F71EF083
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E49051DB8042
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:38 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EDBF1DB803A
+	for <linux-mm@kvack.org>; Tue, 28 Oct 2008 19:10:38 +0900 (JST)
+Date: Tue, 28 Oct 2008 19:10:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 0/4][mmotm] memcg clean up
-Message-Id: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 1/4][mmotm]  cgroup: make cgroup config as submenu
+Message-Id: <20081028191008.d610de18.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081028190911.6857b0a6.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "xemul@openvz.org" <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-This set is easy clean up and fixes to current memory resource controller in mmotm.
+Making CGROUP related configs to be sub-menu.
 
-Contents are
- [1/4] make cgroup menu as submenu
- [2/4] divide mem_cgroup's charge behavior to charge/commit/cancel
- [3/4] fix gfp_mask of callers of mem_cgroup_charge_xxx
- [4/4] make memcg's page migration handler simple.
+This patch will making CGROUP related configs to be sub-menu and
+making 1st level configs of "General Setup" shorter.
 
-pushed out from memcg updates posted at 23/Oct. These are easy part.
-all comments are applied (and spell check is done...)
+ including following additional changes 
+  - add help comment about CGROUPS and GROUP_SCHED.
+  - moved MM_OWNER config to the bottom.
+    (for good indent in menuconfig)
 
-They are against today's mmotm and tested on x86-64.
+Changelog: v1->v2
+ - applied comments and fixed text.
+ - added precise "See Documentation..."
 
-Thanks,
--Kame
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
+ init/Kconfig |  123 ++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 67 insertions(+), 56 deletions(-)
+
+Index: mmotm-2.6.28rc2+/init/Kconfig
+===================================================================
+--- mmotm-2.6.28rc2+.orig/init/Kconfig
++++ mmotm-2.6.28rc2+/init/Kconfig
+@@ -271,59 +271,6 @@ config LOG_BUF_SHIFT
+ 		     13 =>  8 KB
+ 		     12 =>  4 KB
+ 
+-config CGROUPS
+-	bool "Control Group support"
+-	help
+-	  This option will let you use process cgroup subsystems
+-	  such as Cpusets
+-
+-	  Say N if unsure.
+-
+-config CGROUP_DEBUG
+-	bool "Example debug cgroup subsystem"
+-	depends on CGROUPS
+-	default n
+-	help
+-	  This option enables a simple cgroup subsystem that
+-	  exports useful debugging information about the cgroups
+-	  framework
+-
+-	  Say N if unsure
+-
+-config CGROUP_NS
+-        bool "Namespace cgroup subsystem"
+-        depends on CGROUPS
+-        help
+-          Provides a simple namespace cgroup subsystem to
+-          provide hierarchical naming of sets of namespaces,
+-          for instance virtual servers and checkpoint/restart
+-          jobs.
+-
+-config CGROUP_FREEZER
+-        bool "control group freezer subsystem"
+-        depends on CGROUPS
+-        help
+-          Provides a way to freeze and unfreeze all tasks in a
+-	  cgroup.
+-
+-config CGROUP_DEVICE
+-	bool "Device controller for cgroups"
+-	depends on CGROUPS && EXPERIMENTAL
+-	help
+-	  Provides a cgroup implementing whitelists for devices which
+-	  a process in the cgroup can mknod or open.
+-
+-config CPUSETS
+-	bool "Cpuset support"
+-	depends on SMP && CGROUPS
+-	help
+-	  This option will let you create and manage CPUSETs which
+-	  allow dynamically partitioning a system into sets of CPUs and
+-	  Memory Nodes and assigning tasks to run only within those sets.
+-	  This is primarily useful on large SMP or NUMA systems.
+-
+-	  Say N if unsure.
+-
+ #
+ # Architectures with an unreliable sched_clock() should select this:
+ #
+@@ -337,6 +284,8 @@ config GROUP_SCHED
+ 	help
+ 	  This feature lets CPU scheduler recognize task groups and control CPU
+ 	  bandwidth allocation to such task groups.
++	  In order to create a group from arbitrary set of processes, use
++	  CONFIG_CGROUPS. (See Control Group support.)
+ 
+ config FAIR_GROUP_SCHED
+ 	bool "Group scheduling for SCHED_OTHER"
+@@ -379,6 +328,66 @@ config CGROUP_SCHED
+ 
+ endchoice
+ 
++menu "Control Group support"
++config CGROUPS
++	bool "Control Group support"
++	help
++	  This option add support for grouping sets of processes together, for
++	  use with process control subsystems such as Cpusets, CFS, memory
++	  controls or device isolation.
++	  See
++		- Documentation/cpusets.txt	(Cpusets)
++		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
++		- Documentation/cgroups/ (features for grouping, isolation)
++		- Documentation/controllers/ (features for resource control)
++
++	  Say N if unsure.
++
++config CGROUP_DEBUG
++	bool "Example debug cgroup subsystem"
++	depends on CGROUPS
++	default n
++	help
++	  This option enables a simple cgroup subsystem that
++	  exports useful debugging information about the cgroups
++	  framework
++
++	  Say N if unsure
++
++config CGROUP_NS
++        bool "Namespace cgroup subsystem"
++        depends on CGROUPS
++        help
++          Provides a simple namespace cgroup subsystem to
++          provide hierarchical naming of sets of namespaces,
++          for instance virtual servers and checkpoint/restart
++          jobs.
++
++config CGROUP_FREEZER
++        bool "control group freezer subsystem"
++        depends on CGROUPS
++        help
++          Provides a way to freeze and unfreeze all tasks in a
++	  cgroup.
++
++config CGROUP_DEVICE
++	bool "Device controller for cgroups"
++	depends on CGROUPS && EXPERIMENTAL
++	help
++	  Provides a cgroup implementing whitelists for devices which
++	  a process in the cgroup can mknod or open.
++
++config CPUSETS
++	bool "Cpuset support"
++	depends on SMP && CGROUPS
++	help
++	  This option will let you create and manage CPUSETs which
++	  allow dynamically partitioning a system into sets of CPUs and
++	  Memory Nodes and assigning tasks to run only within those sets.
++	  This is primarily useful on large SMP or NUMA systems.
++
++	  Say N if unsure.
++
+ config CGROUP_CPUACCT
+ 	bool "Simple CPU accounting cgroup subsystem"
+ 	depends on CGROUPS
+@@ -393,9 +402,6 @@ config RESOURCE_COUNTERS
+           infrastructure that works with cgroups
+ 	depends on CGROUPS
+ 
+-config MM_OWNER
+-	bool
+-
+ config CGROUP_MEM_RES_CTLR
+ 	bool "Memory Resource Controller for Control Groups"
+ 	depends on CGROUPS && RESOURCE_COUNTERS
+@@ -419,6 +425,11 @@ config CGROUP_MEM_RES_CTLR
+ 	  This config option also selects MM_OWNER config option, which
+ 	  could in turn add some fork/exit overhead.
+ 
++config MM_OWNER
++	bool
++
++endmenu
++
+ config SYSFS_DEPRECATED
+ 	bool
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
