@@ -1,83 +1,61 @@
-Message-ID: <4906CBEA.8040605@goop.org>
-Date: Tue, 28 Oct 2008 19:23:06 +1100
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: deadlock with latest xfs
+Date: Tue, 28 Oct 2008 19:56:35 +1100
+References: <4900412A.2050802@sgi.com> <200810281702.17135.nickpiggin@yahoo.com.au> <20081028062524.GQ4985@disturbed>
+In-Reply-To: <20081028062524.GQ4985@disturbed>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] xen: make sure stray alias mappings are gone before pinning
-References: <49010D41.1080305@goop.org> <200810281619.10388.nickpiggin@yahoo.com.au>
-In-Reply-To: <200810281619.10388.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200810281956.36199.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Lachlan McIlroy <lachlan@sgi.com>, Christoph Hellwig <hch@infradead.org>, xfs-oss <xfs@oss.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Xen requires that all mappings of pagetable pages are read-only, so
-that they can't be updated illegally.  As a result, if a page is being
-turned into a pagetable page, we need to make sure all its mappings
-are RO.
+On Tuesday 28 October 2008 17:25, Dave Chinner wrote:
+> On Tue, Oct 28, 2008 at 05:02:16PM +1100, Nick Piggin wrote:
+> > On Sunday 26 October 2008 13:50, Dave Chinner wrote:
+> > > [1] I don't see how any of the XFS changes we made make this easier to
+> > > hit. What I suspect is a VM regression w.r.t. memory reclaim because
+> > > this is the second problem since 2.6.26 that appears to be a result of
+> > > memory allocation failures in places that we've never, ever seen
+> > > failures before.
+> > >
+> > > The other new failure is this one:
+> > >
+> > > http://bugzilla.kernel.org/show_bug.cgi?id=11805
+> > >
+> > > which is an alloc_pages(GFP_KERNEL) failure....
+> > >
+> > > mm-folk - care to weight in?
+> >
+> > order-0 alloc page GFP_KERNEL can fail sometimes. If it is called
+> > from reclaim or PF_MEMALLOC thread; if it is OOM-killed; fault
+> > injection.
+> >
+> > This is even the case for __GFP_NOFAIL allocations (which basically
+> > are buggy anyway).
+> >
+> > Not sure why it might have started happening, but I didn't see
+> > exactly which alloc_pages you are talking about? If it is via slab,
+> > then maybe some parameters have changed (eg. in SLUB) which is
+> > using higher order allocations.
+>
+> In fs/xfs/linux-2.6/xfs_buf.c::xfs_buf_get_noaddr(). It's doing a
+> single page allocation at a time.
+>
+> It may be that this failure is caused by an increase base memory
+> consumption of the kernel as this failure was reported in an lguest
+> and reproduced with a simple 'modprobe xfs ; mount /dev/xxx
+> /mnt/xfs' command. Maybe the lguest had very little memory available
+> to begin with and trying to allocate 2MB of pages for 8x256k log
+> buffers may have been too much for it...
 
-If the page had been used for ioremap or vmalloc, it may still have
-left over mappings as a result of not having been lazily unmapped.
-This change makes sure we explicitly mop them all up before pinning
-the page.
-
-Unlike aliases created by kmap, the there can be vmalloc aliases even
-for non-high pages, so we must do the flush unconditionally.
-
-Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
----
- arch/x86/xen/enlighten.c |    5 +++--
- arch/x86/xen/mmu.c       |    9 ++++++---
- 2 files changed, 9 insertions(+), 5 deletions(-)
-
-===================================================================
---- a/arch/x86/xen/enlighten.c
-+++ b/arch/x86/xen/enlighten.c
-@@ -863,15 +863,16 @@
- 	if (PagePinned(virt_to_page(mm->pgd))) {
- 		SetPagePinned(page);
- 
-+		vm_unmap_aliases();
- 		if (!PageHighMem(page)) {
- 			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
- 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
- 				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
--		} else
-+		} else {
- 			/* make sure there are no stray mappings of
- 			   this page */
- 			kmap_flush_unused();
--			vm_unmap_aliases();
-+		}
- 	}
- }
- 
-===================================================================
---- a/arch/x86/xen/mmu.c
-+++ b/arch/x86/xen/mmu.c
-@@ -840,13 +840,16 @@
-    read-only, and can be pinned. */
- static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
- {
-+	vm_unmap_aliases();
-+
- 	xen_mc_batch();
- 
--	if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
--		/* re-enable interrupts for kmap_flush_unused */
-+	 if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
-+		/* re-enable interrupts for flushing */
- 		xen_mc_issue(0);
-+
- 		kmap_flush_unused();
--		vm_unmap_aliases();
-+
- 		xen_mc_batch();
- 	}
- 
-
+I suppose it could have been getting oom-killed, then failing the
+alloc, then oopsing on the way out, yes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
