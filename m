@@ -1,8 +1,8 @@
-Message-ID: <4906CBCA.6060908@goop.org>
-Date: Tue, 28 Oct 2008 19:22:34 +1100
+Message-ID: <4906CBEA.8040605@goop.org>
+Date: Tue, 28 Oct 2008 19:23:06 +1100
 From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: [PATCH 1/2] vmap: cope with vm_unmap_aliases before vmalloc_init()
+Subject: [PATCH 2/2] xen: make sure stray alias mappings are gone before pinning
 References: <49010D41.1080305@goop.org> <200810281619.10388.nickpiggin@yahoo.com.au>
 In-Reply-To: <200810281619.10388.nickpiggin@yahoo.com.au>
 Content-Type: text/plain; charset=UTF-8; format=flowed
@@ -13,45 +13,70 @@ To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Xen can end up calling vm_unmap_aliases() before vmalloc_init() has
-been called.  In this case its safe to make it a simple no-op.
+Xen requires that all mappings of pagetable pages are read-only, so
+that they can't be updated illegally.  As a result, if a page is being
+turned into a pagetable page, we need to make sure all its mappings
+are RO.
+
+If the page had been used for ioremap or vmalloc, it may still have
+left over mappings as a result of not having been lazily unmapped.
+This change makes sure we explicitly mop them all up before pinning
+the page.
+
+Unlike aliases created by kmap, the there can be vmalloc aliases even
+for non-high pages, so we must do the flush unconditionally.
 
 Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 ---
- mm/vmalloc.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/xen/enlighten.c |    5 +++--
+ arch/x86/xen/mmu.c       |    9 ++++++---
+ 2 files changed, 9 insertions(+), 5 deletions(-)
 
 ===================================================================
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -592,6 +592,8 @@
+--- a/arch/x86/xen/enlighten.c
++++ b/arch/x86/xen/enlighten.c
+@@ -863,15 +863,16 @@
+ 	if (PagePinned(virt_to_page(mm->pgd))) {
+ 		SetPagePinned(page);
  
- #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
- 
-+static bool vmap_initialized __read_mostly = false;
-+
- struct vmap_block_queue {
- 	spinlock_t lock;
- 	struct list_head free;
-@@ -828,6 +830,9 @@
- 	int cpu;
- 	int flush = 0;
- 
-+	if (unlikely(!vmap_initialized))
-+		return;
-+
- 	for_each_possible_cpu(cpu) {
- 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
- 		struct vmap_block *vb;
-@@ -941,6 +946,8 @@
- 		INIT_LIST_HEAD(&vbq->dirty);
- 		vbq->nr_dirty = 0;
++		vm_unmap_aliases();
+ 		if (!PageHighMem(page)) {
+ 			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
+ 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
+ 				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+-		} else
++		} else {
+ 			/* make sure there are no stray mappings of
+ 			   this page */
+ 			kmap_flush_unused();
+-			vm_unmap_aliases();
++		}
  	}
-+
-+	vmap_initialized = true;
  }
  
- void unmap_kernel_range(unsigned long addr, unsigned long size)
+===================================================================
+--- a/arch/x86/xen/mmu.c
++++ b/arch/x86/xen/mmu.c
+@@ -840,13 +840,16 @@
+    read-only, and can be pinned. */
+ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
+ {
++	vm_unmap_aliases();
++
+ 	xen_mc_batch();
+ 
+-	if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
+-		/* re-enable interrupts for kmap_flush_unused */
++	 if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
++		/* re-enable interrupts for flushing */
+ 		xen_mc_issue(0);
++
+ 		kmap_flush_unused();
+-		vm_unmap_aliases();
++
+ 		xen_mc_batch();
+ 	}
+ 
 
 
 --
