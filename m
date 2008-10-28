@@ -1,91 +1,46 @@
 From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: vm_unmap_aliases and Xen
-Date: Tue, 28 Oct 2008 16:19:10 +1100
-References: <49010D41.1080305@goop.org>
-In-Reply-To: <49010D41.1080305@goop.org>
+Subject: Re: deadlock with latest xfs
+Date: Tue, 28 Oct 2008 17:02:16 +1100
+References: <4900412A.2050802@sgi.com> <20081026005351.GK18495@disturbed> <20081026025013.GL18495@disturbed>
+In-Reply-To: <20081026025013.GL18495@disturbed>
 MIME-Version: 1.0
 Content-Type: text/plain;
-  charset="utf-8"
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200810281619.10388.nickpiggin@yahoo.com.au>
+Message-Id: <200810281702.17135.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Lachlan McIlroy <lachlan@sgi.com>, Christoph Hellwig <hch@infradead.org>, xfs-oss <xfs@oss.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 24 October 2008 10:48, Jeremy Fitzhardinge wrote:
-> I've been having a few problems with Xen, I suspect as a result of the
-> lazy unmapping in vmalloc.c.
+On Sunday 26 October 2008 13:50, Dave Chinner wrote:
+
+> [1] I don't see how any of the XFS changes we made make this easier to hit.
+> What I suspect is a VM regression w.r.t. memory reclaim because this is
+> the second problem since 2.6.26 that appears to be a result of memory
+> allocation failures in places that we've never, ever seen failures before.
 >
-> One immediate one is that vm_unmap_aliases() will oops if you call it
-> before vmalloc_init() is called, which can happen in the Xen case.  RFC
-> patch below.
-
-Sure, we could do that. If you add an unlikely, and a __read_mostly,
-I'd ack it. Thanks for picking this up.
-
-
-> But the bigger problem I'm seeing is that despite calling
-> vm_unmap_aliases() at the pertinent places, I'm still seeing errors
-> resulting from stray aliases.  Is it possible that vm_unmap_aliases()
-> could be missing some, or not completely synchronous?
-
-It's possible, but of course that would not be by design ;)
-
-I've had another look over it, and nothing obvious comes to
-mind.
-
-Actually, there may be a slight problem with the per-cpu KVA
-flushing (it doesn't clear the dirty map after flushing, so
-it would be possible to see the warning in vunmap_pte_range
-trigger, I'll have to fix that). But I can't see your problem
-yet.
-
-It would be nice to narrow it down... Could you replace
-lazy_max_pages call with 0, then change the 3rd and 4th
-parameters of __purge_vmap_area_lazy in purge_vmap_area_lazy
-with 1 and 1 rather than 0 and 0?
-
-
-> Subject: vmap: cope with vm_unmap_aliases before vmalloc_init()
+> The other new failure is this one:
 >
-> Xen can end up calling vm_unmap_aliases() before vmalloc_init() has
-> been called.  In this case its safe to make it a simple no-op.
+> http://bugzilla.kernel.org/show_bug.cgi?id=11805
 >
-> Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-> diff -r 42c8b29f7ccf mm/vmalloc.c
-> --- a/mm/vmalloc.c	Wed Oct 22 12:43:39 2008 -0700
-> +++ b/mm/vmalloc.c	Wed Oct 22 21:39:00 2008 -0700
-> @@ -591,6 +591,8 @@
+> which is an alloc_pages(GFP_KERNEL) failure....
 >
->  #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
->
-> +static bool vmap_initialized = false;
-> +
->  struct vmap_block_queue {
->  	spinlock_t lock;
->  	struct list_head free;
-> @@ -827,6 +829,9 @@
->  	int cpu;
->  	int flush = 0;
->
-> +	if (!vmap_initialized)
-> +		return;
-> +
->  	for_each_possible_cpu(cpu) {
->  		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
->  		struct vmap_block *vb;
-> @@ -940,6 +945,8 @@
->  		INIT_LIST_HEAD(&vbq->dirty);
->  		vbq->nr_dirty = 0;
->  	}
-> +
-> +	vmap_initialized = true;
->  }
->
->  void unmap_kernel_range(unsigned long addr, unsigned long size)
+> mm-folk - care to weight in?
+
+order-0 alloc page GFP_KERNEL can fail sometimes. If it is called
+from reclaim or PF_MEMALLOC thread; if it is OOM-killed; fault
+injection.
+
+This is even the case for __GFP_NOFAIL allocations (which basically
+are buggy anyway).
+
+Not sure why it might have started happening, but I didn't see
+exactly which alloc_pages you are talking about? If it is via slab,
+then maybe some parameters have changed (eg. in SLUB) which is
+using higher order allocations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
