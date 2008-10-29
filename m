@@ -1,49 +1,57 @@
-Received: by wa-out-1112.google.com with SMTP id j37so1954413waf.22
-        for <linux-mm@kvack.org>; Tue, 28 Oct 2008 23:55:06 -0700 (PDT)
-Message-ID: <2f11576a0810282355t7a5b5cc1id7442229ded104b1@mail.gmail.com>
-Date: Wed, 29 Oct 2008 15:55:06 +0900
+Received: by wa-out-1112.google.com with SMTP id j37so1958990waf.22
+        for <linux-mm@kvack.org>; Wed, 29 Oct 2008 00:17:19 -0700 (PDT)
+Message-ID: <2f11576a0810290017g310e4469gd27aa857866849bd@mail.gmail.com>
+Date: Wed, 29 Oct 2008 16:17:19 +0900
 From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [discuss][memcg] oom-kill extension
-In-Reply-To: <alpine.DEB.1.10.0810282206260.10159@chino.kir.corp.google.com>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use schedule_on_each_cpu()
+In-Reply-To: <1225229366.6343.74.camel@lts-notebook>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-References: <20081029113826.cc773e21.kamezawa.hiroyu@jp.fujitsu.com>
-	 <4907E1B4.6000406@linux.vnet.ibm.com>
-	 <20081029140012.fff30bce.kamezawa.hiroyu@jp.fujitsu.com>
-	 <alpine.DEB.1.10.0810282206260.10159@chino.kir.corp.google.com>
+References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
+	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+	 <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081027145509.ebffcf0e.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0810280914010.15939@quilx.com>
+	 <20081028134536.9a7a5351.akpm@linux-foundation.org>
+	 <1225229366.6343.74.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, Marcelo Tosatti <mtosatti@redhat.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> There was a patchset from February that added /dev/mem_notify to warn
-> userspace of low or out of memory conditions:
->
->        http://marc.info/?l=linux-kernel&m=120257050719077
->        http://marc.info/?l=linux-kernel&m=120257050719087
->        http://marc.info/?l=linux-kernel&m=120257062719234
->        http://marc.info/?l=linux-kernel&m=120257071219327
->        http://marc.info/?l=linux-kernel&m=120257071319334
->        http://marc.info/?l=linux-kernel&m=120257080919488
->        http://marc.info/?l=linux-kernel&m=120257081019497
->        http://marc.info/?l=linux-kernel&m=120257096219705
->        http://marc.info/?l=linux-kernel&m=120257096319717
->
-> Perhaps this idea can simply be reworked for the memory controller or
-> standalone cgroup?
+> I believe that we still  have the lru_drain_all() called from the fault
+> path [with mmap_sem held] in clear_page_mlock().  We call
+> clear_page_mlock() on COW of an mlocked page in a VM_LOCKED vma to
+> ensure that we don't end up with an mlocked page in some other task's
+> non-VM_LOCKED vma where we'd then fail to munlock it later.  During
+> development testing, Rik encountered scenarios where a page would
+> encounter a COW fault while it was still making its way to the LRU via
+> the pagevecs.  So, he added the 'drain_all() and that seemed to avoid
+> this scenario.
 
-Very sorry.
+Agreed.
 
-I know my laziness is wrong.
-I have made split-lru effort give priority more than other awhile.
 
-So I'll restart user-land notify effort soon.
+> Now, in the current upstream version of the unevictable mlocked pages
+> patches, we just count any mlocked pages [vmstat] that make their way to
+> free*page() instead of BUGging out, as we were doing earlier during
+> development.  So, maybe we can drop the lru_drain_add()s in the
+> unevictable mlocked pages work and live with the occasional freed
+> mlocked page, or mlocked page on the active/inactive lists to be dealt
+> with by vmscan.
 
-Paul, I strongly interest to your implementation.
-Could you post your notify patch?
+hm, okey.
+maybe, I was wrong.
+
+I'll make "dropping lru_add_drain_all()" patch soon.
+I expect I need few days.
+  make the patch:                  1 day
+  confirm by stress workload:  2-3 days
+
+because rik's original problem only happend on heavy wokload, I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
