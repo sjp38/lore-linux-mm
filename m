@@ -1,227 +1,61 @@
-Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
-	schedule_on_each_cpu()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <2f11576a0810290017g310e4469gd27aa857866849bd@mail.gmail.com>
-References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
-	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
-	 <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20081027145509.ebffcf0e.akpm@linux-foundation.org>
-	 <Pine.LNX.4.64.0810280914010.15939@quilx.com>
-	 <20081028134536.9a7a5351.akpm@linux-foundation.org>
-	 <1225229366.6343.74.camel@lts-notebook>
-	 <2f11576a0810290017g310e4469gd27aa857866849bd@mail.gmail.com>
-Content-Type: multipart/mixed; boundary="=-1BA4qEJtvsphARYKZVsK"
-Date: Wed, 29 Oct 2008 08:40:14 -0400
-Message-Id: <1225284014.8257.36.camel@lts-notebook>
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate1.de.ibm.com (8.13.1/8.13.1) with ESMTP id m9TEPcMO023108
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 14:25:38 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9TEPcAf3268634
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 15:25:38 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9TEPbab025961
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 15:25:38 +0100
+Subject: [PATCH] memory hotplug: fix page_zone() calculation in
+	test_pages_isolated()
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Reply-To: gerald.schaefer@de.ibm.com
+Content-Type: text/plain
+Date: Wed, 29 Oct 2008 15:25:30 +0100
+Message-Id: <1225290330.10021.7.camel@t60p>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com, dave@linux.vnet.ibm.com
 List-ID: <linux-mm.kvack.org>
 
---=-1BA4qEJtvsphARYKZVsK
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+My last bugfix here (adding zone->lock) introduced a new problem: Using
+page_zone(pfn_to_page(pfn)) to get the zone after the for() loop is wrong.
+pfn will then be >= end_pfn, which may be in a different zone or not
+present at all. This may lead to an addressing exception in page_zone()
+or spin_lock_irqsave().
 
-On Wed, 2008-10-29 at 16:17 +0900, KOSAKI Motohiro wrote:
-> > I believe that we still  have the lru_drain_all() called from the fault
-> > path [with mmap_sem held] in clear_page_mlock().  We call
-> > clear_page_mlock() on COW of an mlocked page in a VM_LOCKED vma to
-> > ensure that we don't end up with an mlocked page in some other task's
-> > non-VM_LOCKED vma where we'd then fail to munlock it later.  During
-> > development testing, Rik encountered scenarios where a page would
-> > encounter a COW fault while it was still making its way to the LRU via
-> > the pagevecs.  So, he added the 'drain_all() and that seemed to avoid
-> > this scenario.
-> 
-> Agreed.
-> 
-> 
-> > Now, in the current upstream version of the unevictable mlocked pages
-> > patches, we just count any mlocked pages [vmstat] that make their way to
-> > free*page() instead of BUGging out, as we were doing earlier during
-> > development.  So, maybe we can drop the lru_drain_add()s in the
-> > unevictable mlocked pages work and live with the occasional freed
-> > mlocked page, or mlocked page on the active/inactive lists to be dealt
-> > with by vmscan.
-> 
-> hm, okey.
-> maybe, I was wrong.
-> 
-> I'll make "dropping lru_add_drain_all()" patch soon.
-> I expect I need few days.
->   make the patch:                  1 day
->   confirm by stress workload:  2-3 days
-> 
-> because rik's original problem only happend on heavy wokload, I think.
+Now I use __first_valid_page() again after the loop to find a valid page
+for page_zone().
 
-Indeed.  It was an ad hoc test program [2 versions attached] written
-specifically to beat on COW of shared pages mlocked by parent then COWed
-by parent or child and unmapped explicitly or via exit.  We were trying
-to find all the ways the we could end up freeing mlocked pages--and
-there were several.  Most of these turned out to be genuine
-coding/design defects [as difficult as that may be to believe :-)], so
-tracking them down was worthwhile.  And, I think that, in general,
-clearing a page's mlocked state and rescuing from the unevictable lru
-list on COW--to prevent the mlocked page from ending up mapped into some
-task's non-VM_LOCKED vma--is a good thing to strive for.  
+Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-Now, looking at the current code [28-rc1] in [__]clear_page_mlock():
-We've already cleared the PG_mlocked flag, we've decremented the mlocked
-pages stats, and we're just trying to rescue the page from the
-unevictable list to the in/active list.  If we fail to isolate the page,
-then either some other task has it isolated and will return it to an
-appropriate lru or it resides in a pagevec heading for an in/active lru
-list.  We don't use pagevec for unevictable list.  Any other cases?  If
-not, then we can probably dispense with the "try harder" logic--the
-lru_add_drain()--in __clear_page_mlock().
+---
+ mm/page_isolation.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-Do you agree?  Or have I missed something?
-
-Lee   
-
---=-1BA4qEJtvsphARYKZVsK
-Content-Disposition: attachment; filename=rvr-mlock-oops.c
-Content-Type: text/x-csrc; name=rvr-mlock-oops.c; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-/*
- * In the split VM code in 2.6.25-rc3-mm1 and later, we see PG_mlock
- * pages freed from the exit/exit_mmap path.  This test case creates
- * a process, forks it, mlocks, touches some memory and exits, to
- * try and trigger the bug - Rik van Riel, Mar 2008
- */
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#define NUMFORKS 1000
-#define MEMSIZE 1024*1024
-
-void child(void)
-{
-	char * mem;
-	int err;
-	int i;
-
-	err = mlockall(MCL_CURRENT|MCL_FUTURE);
-	if (err < 0) {
-		printf("child mlock failed\n");
-		exit(1);
-	}
-
-	mem = malloc(MEMSIZE);
-	if (!mem) {
-		printf("child could not allocate memory\n");
-		exit(2);
-	}
-
-	/* Touch the memory so the kernel allocates actual pages. */
-	for (i = 0; i < MEMSIZE; i++)
-		mem[i] = i;
-
-	/* Avoids the oops?  Nope ... :( */
-	munlockall();
-
-	/* This is where we can trigger the oops. */
-	exit(0);
-}
-
-int main(int argc, char *argv)
-{
-	int i;
-	int status;
-
-	for (i = 0; i < NUMFORKS ; i++) {
-		pid_t pid = fork();
-
-		if (!pid)	
-			child(); /* does not return */
-		else if (pid > 0)
-			wait(&status);
-		else {
-			printf("fork failed\n");
-			exit(1);
-		}
-	}
-}
-
---=-1BA4qEJtvsphARYKZVsK
-Content-Disposition: attachment; filename=rvr-mlock-oops2.c
-Content-Type: text/x-csrc; name=rvr-mlock-oops2.c; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-/*
- * In the split VM code in 2.6.25-rc3-mm1 and later, we see PG_mlock
- * pages freed from the exit/exit_mmap path.  This test case creates
- * a process, forks it, mlocks, touches some memory and exits, to
- * try and trigger the bug - Rik van Riel, Mar 2008
- */
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#define NUMFORKS 1
-#define MEMSIZE 1024*1024
-
-void child(void)
-{
-	char * mem;
-	int i;
-
-	mem = malloc(MEMSIZE);
-	if (!mem) {
-		printf("child could not allocate memory\n");
-		exit(2);
-	}
-
-	/* Touch the memory so the kernel allocates actual pages. */
-	for (i = 0; i < MEMSIZE; i++)
-		mem[i] = i;
-
-	/* This is where we can trigger the oops. */
-	exit(0);
-}
-
-int main(int argc, char *argv)
-{
-	int i;
-	int status;
-	pid_t pid;
-	int err;
-
-	err = mlockall(MCL_CURRENT|MCL_FUTURE);
-	if (err < 0) {
-		printf("parent mlock failed\n");
-		exit(1);
-	}
-
-	pid = getpid();
-
-	printf("parent pid = %d\n", pid);
-
-	for (i = 0; i < NUMFORKS ; i++) {
-		pid = fork();
-
-		if (!pid)	
-			child(); /* does not return */
-		else if (pid > 0)
-			wait(&status);
-		else {
-			printf("fork failed\n");
-			exit(1);
-		}
-	}
-}
-
---=-1BA4qEJtvsphARYKZVsK--
+Index: linux-2.6/mm/page_isolation.c
+===================================================================
+--- linux-2.6.orig/mm/page_isolation.c
++++ linux-2.6/mm/page_isolation.c
+@@ -130,10 +130,11 @@ int test_pages_isolated(unsigned long st
+ 		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+ 			break;
+ 	}
+-	if (pfn < end_pfn)
++	page = __first_valid_page(start_pfn, end_pfn - start_pfn);
++	if ((pfn < end_pfn) || !page)
+ 		return -EBUSY;
+ 	/* Check all pages are free or Marked as ISOLATED */
+-	zone = page_zone(pfn_to_page(pfn));
++	zone = page_zone(page);
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	ret = __test_page_isolated_in_pageblock(start_pfn, end_pfn);
+ 	spin_unlock_irqrestore(&zone->lock, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
