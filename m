@@ -1,37 +1,36 @@
-Received: by ug-out-1314.google.com with SMTP id 34so702591ugf.19
-        for <linux-mm@kvack.org>; Wed, 29 Oct 2008 14:18:11 -0700 (PDT)
-Message-ID: <4908D30F.1020206@gmail.com>
-Date: Wed, 29 Oct 2008 17:18:07 -0400
-From: roel kluin <roel.kluin@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] slab: unsigned slabp->inuse cannot be less than 0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 29 Oct 2008 14:54:46 -0700
+From: Arjan van de Ven <arjan@infradead.org>
+Subject: Re: 2.6.28-rc2-mm1: possible circular locking
+Message-ID: <20081029145446.081141b4@infradead.org>
+In-Reply-To: <20081029135840.0a50e19c.akpm@linux-foundation.org>
+References: <20081028233836.8b1ff9ae.akpm@linux-foundation.org>
+	<200810292146.03967.m.kozlowski@tuxland.pl>
+	<20081029135840.0a50e19c.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: penberg@cs.helsinki.fi, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mariusz Kozlowski <m.kozlowski@tuxland.pl>, linux-kernel@vger.kernel.org, kernel-testers@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-unsigned slabp->inuse cannot be less than 0
+On Wed, 29 Oct 2008 13:58:40 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
----
-N.B. It could be possible that a different check is needed.
-I may not be able to respond for a few weeks.
+> We've been calling schedule_on_each_cpu() from within
+> lru_add_drain_all() for ages.  What changed to cause all this
+> to start happening?
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 0918751..f634a87 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2997,7 +2997,7 @@ retry:
- 		 * there must be at least one object available for
- 		 * allocation.
- 		 */
--		BUG_ON(slabp->inuse < 0 || slabp->inuse >= cachep->num);
-+		BUG_ON(slabp->inuse >= cachep->num);
- 
- 		while (slabp->inuse < cachep->num && batchcount--) {
- 			STATS_INC_ALLOCED(cachep);
+what started to get these out of the weed is that copy_*_user() is now
+annotated to (potentially) take the mmap sem (which it does if there's
+a fault)... 
+previously you had to actually fault to get the lock dependency noticed.
+
+-- 
+Arjan van de Ven 	Intel Open Source Technology Centre
+For development, discussion and tips for power savings, 
+visit atty://www.lesswatts.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
