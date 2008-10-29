@@ -1,57 +1,61 @@
-Date: Tue, 28 Oct 2008 19:00:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH/RESEND] include/linux/mca-legacy.h: Fix the warning of
- note
-Message-Id: <20081028190059.3d59fec7.akpm@linux-foundation.org>
-In-Reply-To: <20081029014918.GA9649@ubuntu>
-References: <20081029014918.GA9649@ubuntu>
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9T2ctsh011952
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 29 Oct 2008 11:38:55 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B641253C161
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 11:38:55 +0900 (JST)
+Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F30D240060
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 11:38:55 +0900 (JST)
+Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 76FAE1DB803F
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 11:38:55 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 3740C1DB8037
+	for <linux-mm@kvack.org>; Wed, 29 Oct 2008 11:38:55 +0900 (JST)
+Date: Wed, 29 Oct 2008 11:38:26 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [discuss][memcg] oom-kill extension
+Message-Id: <20081029113826.cc773e21.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jianjun Kong <jianjun@zeuux.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 Oct 2008 09:49:18 +0800 Jianjun Kong <jianjun@zeuux.org> wrote:
+Under memory resource controller(memcg), oom-killer can be invoked when it
+reaches limit and no memory can be reclaimed.
 
-> include/linux/mca-legacy.h: Fix the warning of note
+In general, not under memcg, oom-kill(or panic) is an only chance to recover
+the system because there is no available memory. But when oom occurs under
+memcg, it just reaches limit and it seems we can do something else.
 
-When preparing patch changelogs, it is usually not sufficient to just
-describe the change itself.  Often that is obvious from the patch
-itself, as in this case.
+Does anyone have plan to enhance oom-kill ?
 
-Instead, please take care to explain to us *why* a change was made.
+What I can think of now is
+  - add an notifier to user-land.
+    - receiver of notify should work in another cgroup.
+    - automatically extend the limit as emergency
+    - trigger fail-over process.
+    - automatically create a precise report of OOM.
+      - record snapshot of 'ps -elf' and so on of memcg which triggers oom.
 
-> Signed-off-by: Jianjun Kong <jianjun@zeuux.org>
-> ---
->  include/linux/mca-legacy.h |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/include/linux/mca-legacy.h b/include/linux/mca-legacy.h
-> index 7a3aea8..e349f2b 100644
-> --- a/include/linux/mca-legacy.h
-> +++ b/include/linux/mca-legacy.h
-> @@ -9,7 +9,7 @@
->  
->  #include <linux/mca.h>
->  
-> -#warning "MCA legacy - please move your driver to the new sysfs api"
-> +/* warning "MCA legacy - please move your driver to the new sysfs api" */
->  
->  /* MCA_NOTFOUND is an error condition.  The other two indicate
->   * motherboard POS registers contain the adapter.  They might be
+  - freeze processes under cgroup.
+    - maybe freezer cgroup should be mounted at the same time.
+    - can we add memcg-oom-freezing-point in somewhere we can sleep ?
+  
+Is there a chance to add oom_notifier to memcg ? (netlink ?)
 
-Why was this change made?
+But the real problem is that what we can do in the kernel is limited
+and we need proper userland, anyway ;)
 
-As far as I can tell, the patch is wrong?  Any driver which is using
-the interfaces declared by mca-legacy.h should be changed to use the
-sysfs API (whatever that is - I'm not sure).
 
-So this warning should remain in place until all such drivers have been
-converted to that API.
-
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
