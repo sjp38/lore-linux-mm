@@ -1,33 +1,42 @@
-Message-ID: <4909D9D5.1070501@cs.columbia.edu>
-Date: Thu, 30 Oct 2008 11:59:17 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
+Message-ID: <4909FBAE.4080002@cs.helsinki.fi>
+Date: Thu, 30 Oct 2008 20:23:42 +0200
+From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [Devel] [RFC v8][PATCH 0/12] Kernel based checkpoint/restart
-References: <1225374675-22850-1-git-send-email-orenl@cs.columbia.edu> <200810301745.45068.major@openvz.org>
-In-Reply-To: <200810301745.45068.major@openvz.org>
-Content-Type: text/plain; charset=iso-8859-1
+Subject: Re: [PATCH] slab: unsigned slabp->inuse cannot be less than 0
+References: <4908D30F.1020206@gmail.com>
+In-Reply-To: <4908D30F.1020206@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrey Mirkin <major@openvz.org>
-Cc: devel@openvz.org, Linus Torvalds <torvalds@osdl.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: roel kluin <roel.kluin@gmail.com>
+Cc: linux-mm@kvack.org, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Andrey Mirkin wrote:
-> Oren,
-> 
-> Can you please check your git server. I can't update to the latest version:
-> 
-> # git-pull
-> fatal: The remote end hung up unexpectedly
-> 
-> git-clone exits with the same error.
-> 
-> Andrey
+roel kluin wrote:
+> unsigned slabp->inuse cannot be less than 0
 
-Not sure what was the problem. It works now.
+Christoph, this is on my to-merge list but an ACK would be nice.
 
-Oren.
+> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
+> ---
+> N.B. It could be possible that a different check is needed.
+> I may not be able to respond for a few weeks.
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 0918751..f634a87 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2997,7 +2997,7 @@ retry:
+>  		 * there must be at least one object available for
+>  		 * allocation.
+>  		 */
+> -		BUG_ON(slabp->inuse < 0 || slabp->inuse >= cachep->num);
+> +		BUG_ON(slabp->inuse >= cachep->num);
+>  
+>  		while (slabp->inuse < cachep->num && batchcount--) {
+>  			STATS_INC_ALLOCED(cachep);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
