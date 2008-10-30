@@ -1,39 +1,33 @@
-Date: Thu, 30 Oct 2008 10:45:45 -0500 (CDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: SLUB defrag pull request?
-In-Reply-To: <1225191983.27477.16.camel@penberg-laptop>
-Message-ID: <Pine.LNX.4.64.0810301044290.20953@quilx.com>
-References: <1223883004.31587.15.camel@penberg-laptop>
- <84144f020810221348j536f0d84vca039ff32676e2cc@mail.gmail.com>
- <E1Ksksa-0002Iq-EV@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810221416130.26639@quilx.com>
-  <E1KsluU-0002R1-Ow@pomaz-ex.szeredi.hu>  <1224745831.25814.21.camel@penberg-laptop>
-  <E1KsviY-0003Mq-6M@pomaz-ex.szeredi.hu>  <Pine.LNX.4.64.0810230638450.11924@quilx.com>
-  <84144f020810230658o7c6b3651k2d671aab09aa71fb@mail.gmail.com>
- <Pine.LNX.4.64.0810230705210.12497@quilx.com>
- <84144f020810230714g7f5d36bas812ad691140ee453@mail.gmail.com>
- <Pine.LNX.4.64.0810230721400.12497@quilx.com>  <49009575.60004@cosmosbay.com>
-  <Pine.LNX.4.64.0810231035510.17638@quilx.com>  <4900A7C8.9020707@cosmosbay.com>
-  <Pine.LNX.4.64.0810231145430.19239@quilx.com>  <4900B0EF.2000108@cosmosbay.com>
- <1225191983.27477.16.camel@penberg-laptop>
+Message-ID: <4909D9D5.1070501@cs.columbia.edu>
+Date: Thu, 30 Oct 2008 11:59:17 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [Devel] [RFC v8][PATCH 0/12] Kernel based checkpoint/restart
+References: <1225374675-22850-1-git-send-email-orenl@cs.columbia.edu> <200810301745.45068.major@openvz.org>
+In-Reply-To: <200810301745.45068.major@openvz.org>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Eric Dumazet <dada1@cosmosbay.com>, Miklos Szeredi <miklos@szeredi.hu>, nickpiggin@yahoo.com.au, hugh@veritas.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Andrey Mirkin <major@openvz.org>
+Cc: devel@openvz.org, Linus Torvalds <torvalds@osdl.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Oct 2008, Pekka Enberg wrote:
+Andrey Mirkin wrote:
+> Oren,
+> 
+> Can you please check your git server. I can't update to the latest version:
+> 
+> # git-pull
+> fatal: The remote end hung up unexpectedly
+> 
+> git-clone exits with the same error.
+> 
+> Andrey
 
-> Christoph, I was sort of expecting a NAK/ACK from you before merging
-> this. I would be nice to have numbers on this but then again I don't see
-> how this can hurt either.
+Not sure what was the problem. It works now.
 
-Its an additional instruction in a hot path. Lets see some numbers first.
-
-Try tbench. Seems to be very popular recently. Or my microbenchmarks 
-for slab allocations on kernel.org.
-
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
