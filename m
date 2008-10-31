@@ -1,49 +1,63 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9VDwDlu014010
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 07:58:13 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9VDwr5f072934
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 07:58:53 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9VDwO8A018682
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 07:58:24 -0600
-Date: Fri, 31 Oct 2008 08:58:52 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC v8][PATCH 11/12] External checkpoint of a task other than
-	ourself
-Message-ID: <20081031135852.GA11641@us.ibm.com>
-References: <1225374675-22850-1-git-send-email-orenl@cs.columbia.edu> <1225374675-22850-12-git-send-email-orenl@cs.columbia.edu>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id m9VHpRHQ011904
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:51:27 -0600
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id m9VHqBPK141916
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:52:11 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id m9VHqBMm025300
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:52:11 -0600
+Date: Fri, 31 Oct 2008 10:52:03 -0700
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: [PATCH] [RESEND] x86: add memory hotremove config option
+Message-ID: <20081031175203.GA7483@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1225374675-22850-12-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, linux-kernel@vger.kernel.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Quoting Oren Laadan (orenl@cs.columbia.edu):
-> Now we can do "external" checkpoint, i.e. act on another task.
-> 
-> sys_checkpoint() now looks up the target pid (in our namespace) and
-> checkpoints that corresponding task. That task should be the root of
-> a container.
-> 
-> sys_restart() remains the same, as the restart is always done in the
-> context of the restarting task.
-> 
-> Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+I am resending this patch (originally posted by Badari Pulavarty)
+since the "mm: cleanup to make remove_memory() arch-neutral" patch
+on which it depends is now in Linus' 2.6.git tree (commit
+71088785c6bc68fddb450063d57b1bd1c78e0ea1) and 2.6.28-rc2.
 
-(Have looked this up and down, and it looks good, so while it's the
-easiest piece of code to blame for the BUG() I'm getting, it doesn't
-seem possible that it is)
+Thanks,
+Gary
 
-Acked-by: Serge Hallyn <serue@us.ibm.com>
+---
+Add memory hotremove config option to x86
 
-thanks, Oren.
+Memory hotremove functionality can currently be configured into
+the ia64, powerpc, and s390 kernels.  This patch makes it possible
+to configure the memory hotremove functionality into the x86
+kernel as well.
 
--serge
+Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+Signed-off-by: Gary Hade <garyhade@us.ibm.com>
+
+---
+ arch/x86/Kconfig |    4 ++++
+ 1 file changed, 4 insertions(+)
+
+Index: linux-2.6.28-rc2/arch/x86/Kconfig
+===================================================================
+--- linux-2.6.28-rc2.orig/arch/x86/Kconfig	2008-10-31 10:34:14.000000000 -0700
++++ linux-2.6.28-rc2/arch/x86/Kconfig	2008-10-31 10:34:27.000000000 -0700
+@@ -1486,6 +1486,10 @@
+ 	def_bool y
+ 	depends on X86_64 || (X86_32 && HIGHMEM)
+ 
++config ARCH_ENABLE_MEMORY_HOTREMOVE
++	def_bool y
++	depends on MEMORY_HOTPLUG
++
+ config HAVE_ARCH_EARLY_PFN_TO_NID
+ 	def_bool X86_64
+ 	depends on NUMA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
