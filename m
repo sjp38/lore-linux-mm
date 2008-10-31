@@ -1,23 +1,23 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9V2tgxx007440
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id m9V2wZHX008628
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 31 Oct 2008 11:55:43 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D80E45DD87
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:55:42 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EC9A45DD7F
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:55:42 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 53E421DB804B
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:55:41 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E9B241DB803E
-	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:55:40 +0900 (JST)
-Date: Fri, 31 Oct 2008 11:55:10 +0900
+	Fri, 31 Oct 2008 11:58:35 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 28BAA2AC029
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:58:35 +0900 (JST)
+Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EB5A212C052
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:58:34 +0900 (JST)
+Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id D675D1DB8037
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:58:34 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 86D6C1DB803A
+	for <linux-mm@kvack.org>; Fri, 31 Oct 2008 11:58:31 +0900 (JST)
+Date: Fri, 31 Oct 2008 11:58:00 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 3/5] memcg : mem+swap controller kconfig
-Message-Id: <20081031115510.3ba13f3b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 4/5] memcg : add swap_cgroup
+Message-Id: <20081031115800.f09ba084.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,152 +29,328 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, hugh@veritas.com, taka@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Experimental.
+For accounting swap, we need a record per swap entry, at least.
 
-Config and control variable for mem+swap controller.
+This patch adds following function.
+  - swap_cgroup_swapon() .... called from swapon
+  - swap_cgroup_swapoff() ... called at the end of swapoff.
 
-This patch adds CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-(memory resource controller swap extension.)
+  - swap_cgroup_record() .... record information of swap entry.
+                              returns old value.
+  - swap_cgroup_lookup() .... lookup information of swap entry.
 
-For accounting swap, it's obvious that we have to use additional memory
-to remember "who uses swap". This adds more overhead.
-So, it's better to offer "choice" to users. This patch adds 2 choices.
+This patch just implements "how to record information". No actual
+method for limit the usage of swap. These routine uses flat table
+to record and lookup. "wise" lookup system like radix-tree requires
+requires memory allocation at new records but swap-out is usually
+called under memory shortage (or memcg hits limit.)
+So, I used static allocation. (maybe dynamic allocation is not very
+hard but it adds additional memory allocation in memory shortage path.)
 
-This patch adds 2 parameters to enable swap extension or not.
-  - CONFIG
-  - boot option
+Note1: In this, we use pointer to record information and this means
+      8bytes per swap entry. I think we can reduce this when we
+      create "id of cgroup" in the range of 0-65535 or 0-255.
 
-Changelog: v1 -> v2
- - fixed typo.
- - make default value of "do_swap_account" to be 0 and turned on 1
-   later if configured.
+Note2: array of swap_cgroup is allocated from HIGHMEM. maybe good for x86-32.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+ include/linux/page_cgroup.h |   35 +++++++
+ mm/page_cgroup.c            |  199 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/swapfile.c               |    8 +
+ 3 files changed, 242 insertions(+)
 
- Documentation/kernel-parameters.txt |    3 +++
- include/linux/memcontrol.h          |    3 +++
- init/Kconfig                        |   17 +++++++++++++++++
- mm/memcontrol.c                     |   32 ++++++++++++++++++++++++++++++++
- 4 files changed, 55 insertions(+)
-
-Index: mmotm-2.6.28-rc2+/init/Kconfig
+Index: mmotm-2.6.28-rc2+/mm/page_cgroup.c
 ===================================================================
---- mmotm-2.6.28-rc2+.orig/init/Kconfig
-+++ mmotm-2.6.28-rc2+/init/Kconfig
-@@ -428,6 +428,23 @@ config CGROUP_MEM_RES_CTLR
- config MM_OWNER
- 	bool
+--- mmotm-2.6.28-rc2+.orig/mm/page_cgroup.c
++++ mmotm-2.6.28-rc2+/mm/page_cgroup.c
+@@ -8,6 +8,8 @@
+ #include <linux/memory.h>
+ #include <linux/vmalloc.h>
+ #include <linux/cgroup.h>
++#include <linux/swapops.h>
++#include <linux/highmem.h>
  
-+config CGROUP_MEM_RES_CTLR_SWAP
-+	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
-+	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
-+	help
-+	  Add swap management feature to memory resource controller. When you
-+	  enable this, you can limit mem+swap usage per cgroup. In other words,
-+	  when you disable this, memory resource controller has no cares to
-+	  usage of swap...a process can exhaust all of the swap. This extension
-+	  is useful when you want to avoid exhaustion swap but this itself
-+	  adds more overheads and consumes memory for remembering information.
-+	  Especially if you use 32bit system or small memory system, please
-+	  be careful about enabling this. When memory resource controller
-+	  is disabled by boot option, this will be automatically disabled and
-+	  there will be no overhead from this. Even when you set this config=y,
-+	  if boot option "noswapaccount" is set, swap will not be accounted.
-+
-+
- endmenu
- 
- config SYSFS_DEPRECATED
-Index: mmotm-2.6.28-rc2+/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-rc2+.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-rc2+/mm/memcontrol.c
-@@ -41,6 +41,15 @@
- struct cgroup_subsys mem_cgroup_subsys __read_mostly;
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+/* Turned on only when memory cgroup is enabled && reallY_do_swap_account = 0 */
-+int do_swap_account __read_mostly;
-+static int really_do_swap_account __initdata = 1; /* for remember boot option*/
-+#else
-+#define do_swap_account		(0)
-+#endif
-+
-+
- /*
-  * Statistics for memory cgroup.
-  */
-@@ -1369,6 +1378,18 @@ static void mem_cgroup_free(struct mem_c
+ static void __meminit
+ __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
+@@ -254,3 +256,200 @@ void __init pgdat_page_cgroup_init(struc
  }
  
- 
+ #endif
++
++
 +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+static void __init enable_swap_cgroup(void)
++
++DEFINE_MUTEX(swap_cgroup_mutex);
++struct swap_cgroup_ctrl {
++	spinlock_t lock;
++	struct page **map;
++	unsigned long length;
++};
++
++struct swap_cgroup_ctrl swap_cgroup_ctrl[MAX_SWAPFILES];
++
++/*
++ * This 8bytes seems big..maybe we can reduce this when we can use "id" for
++ * cgroup rather than pointer.
++ */
++struct swap_cgroup {
++	struct mem_cgroup	*val;
++};
++#define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
++#define SC_POS_MASK	(SC_PER_PAGE - 1)
++
++/*
++ * allocate buffer for swap_cgroup.
++ */
++static int swap_cgroup_prepare(int type)
 +{
-+	if (really_do_swap_account)
-+		do_swap_account = 1;
++	struct page *page;
++	struct swap_cgroup_ctrl *ctrl;
++	unsigned long idx, max;
++
++	if (!do_swap_account)
++		return 0;
++	ctrl = &swap_cgroup_ctrl[type];
++
++	for (idx = 0; idx < ctrl->length; idx++) {
++		page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
++		if (!page)
++			goto not_enough_page;
++		ctrl->map[idx] = page;
++	}
++	return 0;
++not_enough_page:
++	max = idx;
++	for (idx = 0; idx < max; idx++)
++		__free_page(ctrl->map[idx]);
++
++	return -ENOMEM;
 +}
++
++/**
++ * swap_cgroup_record - record mem_cgroup for this swp_entry.
++ * @ent: swap entry to be recorded into
++ * @mem: mem_cgroup to be recorded
++ *
++ * Returns old value at success, NULL at failure.
++ * (Of course, old value can be NULL.)
++ */
++struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
++{
++	unsigned long flags;
++	int type = swp_type(ent);
++	unsigned long offset = swp_offset(ent);
++	unsigned long idx = offset / SC_PER_PAGE;
++	unsigned long pos = offset & SC_POS_MASK;
++	struct swap_cgroup_ctrl *ctrl;
++	struct page *mappage;
++	struct swap_cgroup *sc;
++	struct mem_cgroup *old;
++
++	if (!do_swap_account)
++		return NULL;
++
++	ctrl = &swap_cgroup_ctrl[type];
++
++	mappage = ctrl->map[idx];
++	spin_lock_irqsave(&ctrl->lock, flags);
++	sc = kmap_atomic(mappage, KM_USER0);
++	sc += pos;
++	old = sc->val;
++	sc->val = mem;
++	kunmap_atomic(mappage, KM_USER0);
++	spin_unlock_irqrestore(&ctrl->lock, flags);
++	return old;
++}
++
++/**
++ * lookup_swap_cgroup - lookup mem_cgroup tied to swap entry
++ * @ent: swap entry to be looked up.
++ *
++ * Returns pointer to mem_cgroup at success. NULL at failure.
++ */
++struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
++{
++	int type = swp_type(ent);
++	unsigned long flags;
++	unsigned long offset = swp_offset(ent);
++	unsigned long idx = offset / SC_PER_PAGE;
++	unsigned long pos = offset & SC_POS_MASK;
++	struct swap_cgroup_ctrl *ctrl;
++	struct page *mappage;
++	struct swap_cgroup *sc;
++	struct mem_cgroup *ret;
++
++	if (!do_swap_account)
++		return NULL;
++
++	ctrl = &swap_cgroup_ctrl[type];
++
++	mappage = ctrl->map[idx];
++
++	spin_lock_irqsave(&ctrl->lock, flags);
++	sc = kmap_atomic(mappage, KM_USER0);
++	sc += pos;
++	ret = sc->val;
++	kunmap_atomic(mapppage, KM_USER0);
++	spin_unlock_irqrestore(&ctrl->lock, flags);
++	return ret;
++}
++
++int swap_cgroup_swapon(int type, unsigned long max_pages)
++{
++	void *array;
++	unsigned long array_size;
++	unsigned long length;
++	struct swap_cgroup_ctrl *ctrl;
++
++	if (!do_swap_account)
++		return 0;
++
++	length = ((max_pages/SC_PER_PAGE) + 1);
++	array_size = length * sizeof(void *);
++
++	array = vmalloc(array_size);
++	if (!array)
++		goto nomem;
++
++	memset(array, 0, array_size);
++	ctrl = &swap_cgroup_ctrl[type];
++	mutex_lock(&swap_cgroup_mutex);
++	ctrl->length = length;
++	ctrl->map = array;
++	if (swap_cgroup_prepare(type)) {
++		/* memory shortage */
++		ctrl->map = NULL;
++		ctrl->length = 0;
++		vfree(array);
++		mutex_unlock(&swap_cgroup_mutex);
++		goto nomem;
++	}
++	mutex_unlock(&swap_cgroup_mutex);
++
++	printk(KERN_INFO
++		"swap_cgroup: uses %ld bytes vmalloc and %ld bytes buffres\n",
++		array_size, length * PAGE_SIZE);
++	printk(KERN_INFO
++	"swap_cgroup can be disabled by noswapaccount boot option.\n");
++
++	return 0;
++nomem:
++	printk(KERN_INFO "couldn't allocate enough memory for swap_cgroup.\n");
++	printk(KERN_INFO
++		"swap_cgroup can be disabled by noswapaccount boot option\n");
++	return -ENOMEM;
++}
++
++void swap_cgroup_swapoff(int type)
++{
++	int i;
++	struct swap_cgroup_ctrl *ctrl;
++
++	if (!do_swap_account)
++		return;
++
++	mutex_lock(&swap_cgroup_mutex);
++	ctrl = &swap_cgroup_ctrl[type];
++	for (i = 0; i < ctrl->length; i++) {
++		struct page *page = ctrl->map[i];
++		if (page)
++			__free_page(page);
++	}
++	vfree(ctrl->map);
++	ctrl->map = NULL;
++	ctrl->length = 0;
++	mutex_unlock(&swap_cgroup_mutex);
++}
++
++static int __init swap_cgroup_init(void)
++{
++	int i;
++	for (i = 0; i < MAX_SWAPFILES; i++)
++		spin_lock_init(&swap_cgroup_ctrl[i].lock);
++	return 0;
++}
++late_initcall(swap_cgroup_init);
++#endif
+Index: mmotm-2.6.28-rc2+/include/linux/page_cgroup.h
+===================================================================
+--- mmotm-2.6.28-rc2+.orig/include/linux/page_cgroup.h
++++ mmotm-2.6.28-rc2+/include/linux/page_cgroup.h
+@@ -105,4 +105,39 @@ static inline void page_cgroup_init(void
+ }
+ 
+ #endif
++
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
++#include <linux/swap.h>
++extern struct mem_cgroup *
++swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem);
++extern struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent);
++extern int swap_cgroup_swapon(int type, unsigned long max_pages);
++extern void swap_cgroup_swapoff(int type);
 +#else
-+static void __init enable_swap_cgroup(void)
++#include <linux/swap.h>
++
++static inline
++struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
 +{
++	return NULL;
 +}
-+#endif
 +
- static struct cgroup_subsys_state *
- mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- {
-@@ -1377,6 +1398,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 
- 	if (unlikely((cont->parent) == NULL)) {
- 		mem = &init_mem_cgroup;
-+		enable_swap_cgroup();
- 	} else {
- 		mem = mem_cgroup_alloc();
- 		if (!mem)
-@@ -1460,3 +1482,13 @@ struct cgroup_subsys mem_cgroup_subsys =
- 	.attach = mem_cgroup_move_task,
- 	.early_init = 0,
- };
-+
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+
-+static int __init disable_swap_account(char *s)
++static inline
++struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
 +{
-+	really_do_swap_account = 0;
-+	return 1;
++	return NULL;
 +}
-+__setup("noswapaccount", disable_swap_account);
-+#endif
-Index: mmotm-2.6.28-rc2+/Documentation/kernel-parameters.txt
-===================================================================
---- mmotm-2.6.28-rc2+.orig/Documentation/kernel-parameters.txt
-+++ mmotm-2.6.28-rc2+/Documentation/kernel-parameters.txt
-@@ -1543,6 +1543,9 @@ and is between 256 and 4096 characters. 
- 
- 	nosoftlockup	[KNL] Disable the soft-lockup detector.
- 
-+	noswapaccount	[KNL] Disable accounting of swap in memory resource
-+			controller. (See Documentation/controllers/memory.txt)
 +
- 	nosync		[HW,M68K] Disables sync negotiation for all devices.
- 
- 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
-Index: mmotm-2.6.28-rc2+/include/linux/memcontrol.h
-===================================================================
---- mmotm-2.6.28-rc2+.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.28-rc2+/include/linux/memcontrol.h
-@@ -77,6 +77,9 @@ extern void mem_cgroup_record_reclaim_pr
- extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
- 					int priority, enum lru_list lru);
- 
-+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-+extern int do_swap_account;
++static inline int
++swap_cgroup_swapon(int type, unsigned long max_pages)
++{
++	return 0;
++}
++
++static inline void swap_cgroup_swapoff(int type)
++{
++	return;
++}
++
 +#endif
+ #endif
+Index: mmotm-2.6.28-rc2+/mm/swapfile.c
+===================================================================
+--- mmotm-2.6.28-rc2+.orig/mm/swapfile.c
++++ mmotm-2.6.28-rc2+/mm/swapfile.c
+@@ -32,6 +32,7 @@
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+ #include <linux/swapops.h>
++#include <linux/page_cgroup.h>
  
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct mem_cgroup;
+ static DEFINE_SPINLOCK(swap_lock);
+ static unsigned int nr_swapfiles;
+@@ -1345,6 +1346,9 @@ asmlinkage long sys_swapoff(const char _
+ 	spin_unlock(&swap_lock);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
++	/* Destroy swap account informatin */
++	swap_cgroup_swapoff(type);
++
+ 	inode = mapping->host;
+ 	if (S_ISBLK(inode->i_mode)) {
+ 		struct block_device *bdev = I_BDEV(inode);
+@@ -1669,6 +1673,10 @@ asmlinkage long sys_swapon(const char __
+ 		nr_good_pages = swap_header->info.last_page -
+ 				swap_header->info.nr_badpages -
+ 				1 /* header page */;
++
++		if (!error)
++			error = swap_cgroup_swapon(type, maxpages);
++
+ 		if (error)
+ 			goto bad_swap;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
