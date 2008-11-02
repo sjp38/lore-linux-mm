@@ -1,47 +1,62 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id mA262u1c002340
-	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 17:02:56 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA263ubd2363552
-	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 17:03:56 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA263tWg016319
-	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 17:03:55 +1100
-Message-ID: <490D42C7.4000301@linux.vnet.ibm.com>
-Date: Sun, 02 Nov 2008 11:33:51 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA26OjAn002895
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sun, 2 Nov 2008 15:24:45 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A5D745DE4D
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 15:24:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41BCD45DE38
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 15:24:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2319C1DB8040
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 15:24:45 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CD57A1DB803A
+	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 15:24:44 +0900 (JST)
+Date: Sun, 2 Nov 2008 15:24:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [mm] [PATCH 4/4] Memory cgroup hierarchy feature selector
-References: <20081101184812.2575.68112.sendpatchset@balbir-laptop> <20081101184902.2575.11443.sendpatchset@balbir-laptop> <20081102143817.99edca6d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081102143817.99edca6d.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20081102152412.2af29a1b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <490D42C7.4000301@linux.vnet.ibm.com>
+References: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
+	<20081101184902.2575.11443.sendpatchset@balbir-laptop>
+	<20081102143817.99edca6d.kamezawa.hiroyu@jp.fujitsu.com>
+	<490D42C7.4000301@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
 Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Sun, 02 Nov 2008 00:19:02 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Sun, 02 Nov 2008 11:33:51 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> KAMEZAWA Hiroyuki wrote:
+> > On Sun, 02 Nov 2008 00:19:02 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > 
+> >> Don't enable multiple hierarchy support by default. This patch introduces
+> >> a features element that can be set to enable the nested depth hierarchy
+> >> feature. This feature can only be enabled when there is just one cgroup
+> >> (the root cgroup).
+> >>
+> > Why the flag is for the whole system ?
+> > flag-per-subtree is of no use ?
 > 
->> Don't enable multiple hierarchy support by default. This patch introduces
->> a features element that can be set to enable the nested depth hierarchy
->> feature. This feature can only be enabled when there is just one cgroup
->> (the root cgroup).
->>
-> Why the flag is for the whole system ?
-> flag-per-subtree is of no use ?
+> Flag per subtree might not be useful, since we charge all the way up to root,
+Ah, what I said is "How about enabling/disabling hierarhcy support per subtree ?"
+Sorry for bad text.
 
-Flag per subtree might not be useful, since we charge all the way up to root,
-which means that all subtrees have the root cgroup and hence the global flag.
+like this.
+  - you can set hierarchy mode of a cgroup turned on/off when...
+    * you don't have any tasks under it && it doesn't have any child cgroup.
 
-Thanks for the comments,
-
--- 
-	Balbir
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
