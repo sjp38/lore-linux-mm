@@ -1,234 +1,143 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA25h9lt027642
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sun, 2 Nov 2008 14:43:10 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0E7745DD7D
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 14:43:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B80345DD7A
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 14:43:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A0381DB803E
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 14:43:09 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BAF781DB803B
-	for <linux-mm@kvack.org>; Sun,  2 Nov 2008 14:43:08 +0900 (JST)
-Date: Sun, 2 Nov 2008 14:42:37 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mm] [PATCH 2/4] Memory cgroup resource counters for hierarchy
-Message-Id: <20081102144237.59ab5f03.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081101184837.2575.98059.sendpatchset@balbir-laptop>
-References: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
-	<20081101184837.2575.98059.sendpatchset@balbir-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id mA25iqnw005653
+	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 11:14:52 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA25io0V1703938
+	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 11:14:51 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id mA25iph8013978
+	for <linux-mm@kvack.org>; Sun, 2 Nov 2008 11:14:52 +0530
+Message-ID: <490D3E50.9070606@linux.vnet.ibm.com>
+Date: Sun, 02 Nov 2008 11:14:48 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [mm] [PATCH 3/4] Memory cgroup hierarchical reclaim
+References: <20081101184812.2575.68112.sendpatchset@balbir-laptop> <20081101184849.2575.37734.sendpatchset@balbir-laptop> <20081102143707.1bf7e2d0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081102143707.1bf7e2d0.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 02 Nov 2008 00:18:37 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Sun, 02 Nov 2008 00:18:49 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+>> This patch introduces hierarchical reclaim. When an ancestor goes over its
+>> limit, the charging routine points to the parent that is above its limit.
+>> The reclaim process then starts from the last scanned child of the ancestor
+>> and reclaims until the ancestor goes below its limit.
+>>
+>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> ---
+>>
+>>  mm/memcontrol.c |  153 +++++++++++++++++++++++++++++++++++++++++++++++---------
+>>  1 file changed, 129 insertions(+), 24 deletions(-)
+>>
+>> diff -puN mm/memcontrol.c~memcg-hierarchical-reclaim mm/memcontrol.c
+>> --- linux-2.6.28-rc2/mm/memcontrol.c~memcg-hierarchical-reclaim	2008-11-02 00:14:59.000000000 +0530
+>> +++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-02 00:14:59.000000000 +0530
+>> @@ -132,6 +132,11 @@ struct mem_cgroup {
+>>  	 * statistics.
+>>  	 */
+>>  	struct mem_cgroup_stat stat;
+>> +	/*
+>> +	 * While reclaiming in a hiearchy, we cache the last child we
+>> +	 * reclaimed from.
+>> +	 */
+>> +	struct mem_cgroup *last_scanned_child;
+>>  };
+>>  static struct mem_cgroup init_mem_cgroup;
+>>  
+>> @@ -467,6 +472,125 @@ unsigned long mem_cgroup_isolate_pages(u
+>>  	return nr_taken;
+>>  }
+>>  
+>> +static struct mem_cgroup *
+>> +mem_cgroup_from_res_counter(struct res_counter *counter)
+>> +{
+>> +	return container_of(counter, struct mem_cgroup, res);
+>> +}
+>> +
+>> +/*
+>> + * Dance down the hierarchy if needed to reclaim memory. We remember the
+>> + * last child we reclaimed from, so that we don't end up penalizing
+>> + * one child extensively based on its position in the children list
+>> + */
+>> +static int
+>> +mem_cgroup_hierarchical_reclaim(struct mem_cgroup *mem, gfp_t gfp_mask)
+>> +{
+>> +	struct cgroup *cg, *cg_current, *cgroup;
+>> +	struct mem_cgroup *mem_child;
+>> +	int ret = 0;
+>> +
+>> +	if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+>> +		return -ENOMEM;
+>> +
+>> +	/*
+>> +	 * try_to_free_mem_cgroup_pages() might not give us a full
+>> +	 * picture of reclaim. Some pages are reclaimed and might be
+>> +	 * moved to swap cache or just unmapped from the cgroup.
+>> +	 * Check the limit again to see if the reclaim reduced the
+>> +	 * current usage of the cgroup before giving up
+>> +	 */
+>> +	if (res_counter_check_under_limit(&mem->res))
+>> +		return 0;
+>> +
+>> +	/*
+>> +	 * Scan all children under the mem_cgroup mem
+>> +	 */
+>> +	if (!mem->last_scanned_child)
+>> +		cgroup = list_first_entry(&mem->css.cgroup->children,
+>> +				struct cgroup, sibling);
+>> +	else
+>> +		cgroup = mem->last_scanned_child->css.cgroup;
+>> +
+>> +	cg_current = cgroup;
+>> +
+>> +	/*
+>> +	 * We iterate twice, one of it is fundamental list issue, where
+>> +	 * the elements are inserted using list_add and hence the list
+>> +	 * behaves like a stack and list_for_entry_safe_from() stops
+>> +	 * after seeing the first child. The two loops help us work
+>> +	 * independently of the insertion and it helps us get a full pass at
+>> +	 * scanning all list entries for reclaim
+>> +	 */
+>> +	list_for_each_entry_safe_from(cgroup, cg, &cg_current->parent->children,
+>> +						 sibling) {
+>> +		mem_child = mem_cgroup_from_cont(cgroup);
+>> +
+>> +		/*
+>> +		 * Move beyond last scanned child
+>> +		 */
+>> +		if (mem_child == mem->last_scanned_child)
+>> +			continue;
+>> +
+>> +		ret = try_to_free_mem_cgroup_pages(mem_child, gfp_mask);
+>> +		mem->last_scanned_child = mem_child;
+>> +
+>> +		if (res_counter_check_under_limit(&mem->res)) {
+>> +			ret = 0;
+>> +			goto done;
+>> +		}
+>> +	}
+> 
+> Is this safe against cgroup create/remove ? cgroup_mutex is held ?
 
-> 
-> Add support for building hierarchies in resource counters. Cgroups allows us
-> to build a deep hierarchy, but we currently don't link the resource counters
-> belonging to the memory controller control groups, which are linked in
-> cgroup hiearchy. This patch provides the infrastructure for resource counters
-> that have the same hiearchy as their cgroup counter parts.
-> 
-> These set of patches are based on the resource counter hiearchy patches posted
-> by Pavel Emelianov.
-> 
-> NOTE: Building hiearchies is expensive, deeper hierarchies imply charging
-> the all the way up to the root. It is known that hiearchies are expensive,
-> so the user needs to be careful and aware of the trade-offs before creating
-> very deep ones.
-> 
-...isn't it better to add "root_lock" to res_counter rather than taking
-all levels of lock one by one ?
+Yes, I thought about it, but with the setup, each parent will be busy since they
+have children and hence cannot be removed. The leaf child itself has tasks, so
+it cannot be removed. IOW, it should be safe against removal.
 
- spin_lock(&res_counter->hierarchy_root->lock);
- do all charge/uncharge to hierarchy
- spin_unlock(&res_counter->hierarchy_root->lock);
+For creation we might need to hold the mutex, I'll review that part of the code.
 
-Hmm ?
+Thanks for the comments,
 
-Thaks,
--Kame
-
-
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  include/linux/res_counter.h |    8 ++++++--
->  kernel/res_counter.c        |   42 ++++++++++++++++++++++++++++++++++--------
->  mm/memcontrol.c             |    9 ++++++---
->  3 files changed, 46 insertions(+), 13 deletions(-)
-> 
-> diff -puN include/linux/res_counter.h~resource-counters-hierarchy-support include/linux/res_counter.h
-> --- linux-2.6.28-rc2/include/linux/res_counter.h~resource-counters-hierarchy-support	2008-11-02 00:14:58.000000000 +0530
-> +++ linux-2.6.28-rc2-balbir/include/linux/res_counter.h	2008-11-02 00:14:58.000000000 +0530
-> @@ -43,6 +43,10 @@ struct res_counter {
->  	 * the routines below consider this to be IRQ-safe
->  	 */
->  	spinlock_t lock;
-> +	/*
-> +	 * Parent counter, used for hierarchial resource accounting
-> +	 */
-> +	struct res_counter *parent;
->  };
->  
->  /**
-> @@ -87,7 +91,7 @@ enum {
->   * helpers for accounting
->   */
->  
-> -void res_counter_init(struct res_counter *counter);
-> +void res_counter_init(struct res_counter *counter, struct res_counter *parent);
->  
->  /*
->   * charge - try to consume more resource.
-> @@ -103,7 +107,7 @@ void res_counter_init(struct res_counter
->  int __must_check res_counter_charge_locked(struct res_counter *counter,
->  		unsigned long val);
->  int __must_check res_counter_charge(struct res_counter *counter,
-> -		unsigned long val);
-> +		unsigned long val, struct res_counter **limit_fail_at);
->  
->  /*
->   * uncharge - tell that some portion of the resource is released
-> diff -puN kernel/res_counter.c~resource-counters-hierarchy-support kernel/res_counter.c
-> --- linux-2.6.28-rc2/kernel/res_counter.c~resource-counters-hierarchy-support	2008-11-02 00:14:58.000000000 +0530
-> +++ linux-2.6.28-rc2-balbir/kernel/res_counter.c	2008-11-02 00:14:58.000000000 +0530
-> @@ -15,10 +15,11 @@
->  #include <linux/uaccess.h>
->  #include <linux/mm.h>
->  
-> -void res_counter_init(struct res_counter *counter)
-> +void res_counter_init(struct res_counter *counter, struct res_counter *parent)
->  {
->  	spin_lock_init(&counter->lock);
->  	counter->limit = (unsigned long long)LLONG_MAX;
-> +	counter->parent = parent;
->  }
->  
->  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
-> @@ -34,14 +35,34 @@ int res_counter_charge_locked(struct res
->  	return 0;
->  }
->  
-> -int res_counter_charge(struct res_counter *counter, unsigned long val)
-> +int res_counter_charge(struct res_counter *counter, unsigned long val,
-> +			struct res_counter **limit_fail_at)
->  {
->  	int ret;
->  	unsigned long flags;
-> +	struct res_counter *c, *u;
->  
-> -	spin_lock_irqsave(&counter->lock, flags);
-> -	ret = res_counter_charge_locked(counter, val);
-> -	spin_unlock_irqrestore(&counter->lock, flags);
-> +	*limit_fail_at = NULL;
-> +	local_irq_save(flags);
-> +	for (c = counter; c != NULL; c = c->parent) {
-> +		spin_lock(&c->lock);
-> +		ret = res_counter_charge_locked(c, val);
-> +		spin_unlock(&c->lock);
-> +		if (ret < 0) {
-> +			*limit_fail_at = c;
-> +			goto undo;
-> +		}
-> +	}
-> +	ret = 0;
-> +	goto done;
-> +undo:
-> +	for (u = counter; u != c; u = u->parent) {
-> +		spin_lock(&u->lock);
-> +		res_counter_uncharge_locked(u, val);
-> +		spin_unlock(&u->lock);
-> +	}
-> +done:
-> +	local_irq_restore(flags);
->  	return ret;
->  }
->  
-> @@ -56,10 +77,15 @@ void res_counter_uncharge_locked(struct 
->  void res_counter_uncharge(struct res_counter *counter, unsigned long val)
->  {
->  	unsigned long flags;
-> +	struct res_counter *c;
->  
-> -	spin_lock_irqsave(&counter->lock, flags);
-> -	res_counter_uncharge_locked(counter, val);
-> -	spin_unlock_irqrestore(&counter->lock, flags);
-> +	local_irq_save(flags);
-> +	for (c = counter; c != NULL; c = c->parent) {
-> +		spin_lock(&c->lock);
-> +		res_counter_uncharge_locked(c, val);
-> +		spin_unlock(&c->lock);
-> +	}
-> +	local_irq_restore(flags);
->  }
->  
->  
-> diff -puN mm/memcontrol.c~resource-counters-hierarchy-support mm/memcontrol.c
-> --- linux-2.6.28-rc2/mm/memcontrol.c~resource-counters-hierarchy-support	2008-11-02 00:14:58.000000000 +0530
-> +++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-02 00:14:58.000000000 +0530
-> @@ -485,6 +485,7 @@ int mem_cgroup_try_charge(struct mm_stru
->  {
->  	struct mem_cgroup *mem;
->  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +	struct res_counter *fail_res;
->  	/*
->  	 * We always charge the cgroup the mm_struct belongs to.
->  	 * The mm_struct's mem_cgroup changes on task migration if the
-> @@ -510,7 +511,7 @@ int mem_cgroup_try_charge(struct mm_stru
->  	}
->  
->  
-> -	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
-> +	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
->  		if (!(gfp_mask & __GFP_WAIT))
->  			goto nomem;
->  
-> @@ -1175,18 +1176,20 @@ static void mem_cgroup_free(struct mem_c
->  static struct cgroup_subsys_state *
->  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  {
-> -	struct mem_cgroup *mem;
-> +	struct mem_cgroup *mem, *parent;
->  	int node;
->  
->  	if (unlikely((cont->parent) == NULL)) {
->  		mem = &init_mem_cgroup;
-> +		parent = NULL;
->  	} else {
->  		mem = mem_cgroup_alloc();
-> +		parent = mem_cgroup_from_cont(cont->parent);
->  		if (!mem)
->  			return ERR_PTR(-ENOMEM);
->  	}
->  
-> -	res_counter_init(&mem->res);
-> +	res_counter_init(&mem->res, parent ? &parent->res : NULL);
->  
->  	for_each_node_state(node, N_POSSIBLE)
->  		if (alloc_mem_cgroup_per_zone_info(mem, node))
-> _
-> 
-> -- 
-> 	Balbir
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
