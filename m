@@ -1,107 +1,43 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id mA3MbOmp023771
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 17:37:24 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA3MYSb9089892
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 17:34:28 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA3MYSX3020325
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 17:34:28 -0500
-Subject: Re: [PATCH] hibernation should work ok with memory hotplug
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <200811032324.02163.rjw@sisk.pl>
-References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz>
-	 <20081103125108.46d0639e.akpm@linux-foundation.org>
-	 <1225747308.12673.486.camel@nimitz>  <200811032324.02163.rjw@sisk.pl>
+Subject: Re: mmap: is default non-populating behavior stable?
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <490F73CD.4010705@gmail.com>
+References: <490F73CD.4010705@gmail.com>
 Content-Type: text/plain
-Date: Mon, 03 Nov 2008 14:34:25 -0800
-Message-Id: <1225751665.12673.511.camel@nimitz>
-Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Date: Mon, 03 Nov 2008 23:41:23 +0100
+Message-Id: <1225752083.7803.1644.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, pavel@suse.cz, linux-kernel@vger.kernel.org, linux-pm@lists.osdl.org, Matt Tolentino <matthew.e.tolentino@intel.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>
+To: "Eugene V. Lyubimkin" <jackyf.devel@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>, riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-11-03 at 23:24 +0100, Rafael J. Wysocki wrote:
-> On Monday, 3 of November 2008, Dave Hansen wrote:
-> > On Mon, 2008-11-03 at 12:51 -0800, Andrew Morton wrote:
-> > > On Wed, 29 Oct 2008 13:25:00 +0100
-> > > "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
-> > > > On Wednesday, 29 of October 2008, Pavel Machek wrote:
-> > > > > 
-> > > > > hibernation + memory hotplug was disabled in kconfig because we could
-> > > > > not handle hibernation + sparse mem at some point. It seems to work
-> > > > > now, so I guess we can enable it.
-> > > > 
-> > > > OK, if "it seems to work now" means that it has been tested and confirmed to
-> > > > work, no objection from me.
-> > > 
-> > > yes, that was not a terribly confidence-inspiring commit message.
-> > > 
-> > > 3947be1969a9ce455ec30f60ef51efb10e4323d1 said "For now, disable memory
-> > > hotplug when swsusp is enabled.  There's a lot of churn there right
-> > > now.  We'll fix it up properly once it calms down." which is also
-> > > rather rubbery.  
-> > > 
-> > > Cough up, guys: what was the issue with memory hotplug and swsusp, and
-> > > is it indeed now fixed?
-> > 
-> > I suck.  That commit message was horrid and I'm racking my brain now to
-> > remember what I meant.  Don't end up like me, kids.
-> > 
-> > I've attached the message that I sent to the swsusp folks.  I never got
-> > a reply from that as far as I can tell.
-> > 
-> > http://sourceforge.net/mailarchive/forum.php?thread_name=1118682535.22631.22.camel%40localhost&forum_name=lhms-devel
-> > 
-> > As I look at it now, it hasn't improved much since 2005.  Take a look at
-> > kernel/power/snapshot.c::copy_data_pages().  It still assumes that the
-> > list of zones that a system has is static.  Memory hotplug needs to be
-> > excluded while that operation is going on.
+On Mon, 2008-11-03 at 23:57 +0200, Eugene V. Lyubimkin wrote:
+> Hello kernel hackers!
 > 
-> This operation is carried out on one CPU with interrupts disabled.  Is that
-> not enough?
-
-If that's true then you don't need any locking for anything at all,
-right?
-
-All of the changes I was talking about occur inside the kernel and code
-has to run for it to happen.  So, if you are saying that absolutely no
-other code on the system can possibly run, then it should be OK.
-
-> > page_is_saveable() checks for pfn_valid().  But, with memory hotplug,
-> > things can become invalid at any time since no references are held or
-> > taken on the page.  Or, a page that *was* invalid may become valid and
-> > get missed.
+> The current implementation of mmap() in kernel is very convenient.
+> It allows to mmap(fd) very big amount of memory having small file as back-end.
+> So one can mmap() 100 MiB on empty file, use first 10 KiB of memory, munmap() and have
+> only 10 KiB of file at the end. And while working with memory, file will automatically be
+> grown by read/write memory requests.
 > 
-> Can that really happen given the conditions above?
+> Question is: can user-space application rely on this behavior (I failed to find any
+> documentation about this)?
+> 
+> TIA and please CC me in replies.
 
-Nope.
+mmap() writes past the end of the file should not grow the file if I
+understand things write, but produce a sigbus (after the first page size
+alignment).
 
-But, as I think about it, there is another issue that we need to
-address, CONFIG_NODES_SPAN_OTHER_NODES.
+The exact interaction of mmap() and truncate() I'm not exactly clear on.
 
-A node might have a node_start_pfn=0 and a node_end_pfn=100 (and it may
-have only one zone).  But, there may be another node with
-node_start_pfn=10 and a node_end_pfn=20.  This loop:
+The safe way to do things is to first create your file of at least the
+size you mmap, using truncate. This will create a sparse file, and will
+on any sane filesystem not take more space than its meta data.
 
-        for_each_zone(zone) {
-		...
-                for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
-                        if (page_is_saveable(zone, pfn))
-                                memory_bm_set_bit(orig_bm, pfn);
-        }
-
-will walk over the smaller node's pfn range multiple times.  Is this OK?
-
-I think all you have to do to fix it is check page_zone(page) == zone
-and skip out if they don't match.
-
-Andy, does anything else stick out to you?
-
--- Dave
+Thereafter you can fill it with writes to the mmap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
