@@ -1,55 +1,101 @@
-Received: from root by ciao.gmane.org with local (Exim 4.43)
-	id 1Kx1NS-0006fD-EQ
-	for linux-mm@kvack.org; Mon, 03 Nov 2008 15:30:02 +0000
-Received: from one.firstfloor.org ([213.235.205.2])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 15:30:02 +0000
-Received: from andi by one.firstfloor.org with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 15:30:02 +0000
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [RESEND] x86: add memory hotremove config option
-Date: 03 Nov 2008 16:22:27 +0100
-Message-ID: <m0od0wzvf0.fsf@localhost.localdomain>
-References: <20081031175203.GA7483@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: by yx-out-1718.google.com with SMTP id 36so1011908yxh.26
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 09:04:20 -0800 (PST)
+Message-ID: <b647ffbd0811030904k4049cca3jafba532c24a4f5e9@mail.gmail.com>
+Date: Mon, 3 Nov 2008 18:04:20 +0100
+From: "Dmitry Adamushko" <dmitry.adamushko@gmail.com>
+Subject: possible dcache aliasing problems after do_swap_page()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Cc: Ralf Baechle <ralf@linux-mips.org>, Nitin Gupta <nitingupta910@gmail.com>, linux-mm-cc@lists.laptop.org, linux-mips@linux-mips.org
 List-ID: <linux-mm.kvack.org>
 
-Gary Hade <garyhade@us.ibm.com> writes:
-> 
-> Memory hotremove functionality can currently be configured into
-> the ia64, powerpc, and s390 kernels.  This patch makes it possible
-> to configure the memory hotremove functionality into the x86
-> kernel as well.
+Hi,
 
-You still didn't say how this is actually going to work and what
-it is good for? See thread last time. The big difference is that
-the powerpc and s390 kernels have the needed Hypervisor interfaces, x86
-has not (not sure about ia64)
 
-iirc the code is useless for hardware based memory hotplug (because it
-doesn't free full nodes) and not useful for hypervisor based memory
-hotplug without additional drivers (and actual hypervisor support of
-course)
+the observations below are based on experiments with 'compcache'
+(http://code.google.com/p/compcache/) on a MIPS-based system with
+2.6.21.5. Although, at first glance 2.6.28-rc2 doesn't seem to make
+any diffrence in this respect.
 
-Enabling the sysfs interface now is just giving a promise to the user
-that you cannot hold. Also it makes the kernel bigger without actually
-giving useful functionality.
 
-If some x86 hypervisor gains support for this I think the interface
-shouldn't be through sysfs, but controlled through the respective PV drivers
-which need to be involved anyways.
+Note, I don't say there is a bug. After all, it likely depends on
+whether the use of
+(virtual) block-devices as 'swap' is considered sane/supported or not
+:-) Other use-cases are unlikely to be affected. OTOH, perhaps having
+a dependency on internals of block devices (basically, on how data is
+copied from them) in this context is not ok as well.
 
--Andi
+
+update_mmu_cache() -> __update_cache() being called at the end of do_swap_page()
+does not result in a call of flush_data_cache_page() due to the fact
+that a new 'page'
+has been anonymously mapped (so page_mapping(page) returns NULL),
+notwithstanding
+its 'dcache_dirty' bit is present [*]
+
+Now, it all depends on how data has been copied into this new page
+from a swap device.
+Let's imagine that it's done by a cpu via virtual kernel-space address
+(page_address(page)),
+so that there can be dcache aliases with a user-space address to which
+the 'page' is now mapped.
+
+Obviously, the code doing the actual copying should expect this possibility and
+call flush_dcache_page(page). It looks like the correct interface for
+this case (?), since the only
+info we have got there (passed to a block-device driver via
+swap_readpage()) is a 'page' where data has to be written.
+
+The 'problem' is that in this particular case flush_dcache_page(page)
+will just call
+SetPageDcacheDirty(page) due to the following check being true:
+
+        struct address_space *mapping = page_mapping(page);
+        ...
+        if (mapping && !mapping_mapped(mapping)) {
+                SetPageDcacheDirty(page);
+                return;
+        }
+
+because 'mapping' is 'swapper_space' and mapping_mapped(&swapper_space) == 0.
+
+To sum it up, the 'dcache_dirty' bit is set but it won't be considered
+by __update_cache()
+as described above [*].
+
+As a result, for this specific setup 'dcache aliases' are not properly handled
+leading to random user-space crashes.
+
+The use of flush_data_cache_page() by (virtual) block-device's driver
+fixes it but it's
+an overkill (always results in a flush) and moreover it's
+arch-specific. The placement of
+flush_anon_page() in do_swap_page() (with the version of
+flush_anon_page() from .28)
+solves the issue as well (sure, there are a few alternative workarounds).
+
+This is a specific setup indeed. One would get a similar problem
+enabling a swap on top of
+e.g. the "Ram backed block device driver" (drivers/block/brd.c). well,
+don't ask me why one would need that :-) The use of 'compcache' is
+arguably more useful.
+
+I guess, other cases of anonymous mappings shouldn't be prone to this scenario.
+flush_dcache_page() -> page_mapping() -> 'swapper_space' looks like a
+'culprit' here.
+
+Any comments?
+
+TIA,
 
 -- 
-ak@linux.intel.com
+Best regards,
+Dmitry Adamushko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
