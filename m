@@ -1,15 +1,17 @@
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id mA3Le6OZ008250
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 13:40:07 -0800
-Received: from yx-out-2324.google.com (yxb8.prod.google.com [10.190.1.72])
-	by spaceape14.eur.corp.google.com with ESMTP id mA3Le4mA008724
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 13:40:04 -0800
-Received: by yx-out-2324.google.com with SMTP id 8so1080261yxb.65
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 13:40:04 -0800 (PST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id mA3MJEhL008806
+	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 22:19:14 GMT
+Received: from wf-out-1314.google.com (wfg24.prod.google.com [10.142.7.24])
+	by wpaz13.hot.corp.google.com with ESMTP id mA3MJCU6024722
+	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 14:19:12 -0800
+Received: by wf-out-1314.google.com with SMTP id 24so3056649wfg.15
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 14:19:11 -0800 (PST)
 MIME-Version: 1.0
-Date: Mon, 3 Nov 2008 13:40:03 -0800
-Message-ID: <604427e00811031340k56634773g6e260d79e6cb51e7@mail.gmail.com>
-Subject: [RFC][PATCH]Per-cgroup OOM handler
+In-Reply-To: <604427e00811031340k56634773g6e260d79e6cb51e7@mail.gmail.com>
+References: <604427e00811031340k56634773g6e260d79e6cb51e7@mail.gmail.com>
+Date: Mon, 3 Nov 2008 14:19:11 -0800
+Message-ID: <604427e00811031419k2e990061kdb03f4b715b51fb9@mail.gmail.com>
+Subject: Re: [RFC][PATCH]Per-cgroup OOM handler
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
@@ -18,6 +20,9 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: Rohit Seth <rohitseth@google.com>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>
 List-ID: <linux-mm.kvack.org>
+
+sorry, please use the following patch. (deleted the double definition
+in cgroup_subsys.h from last patch)
 
 Per-cgroup OOM handler ported from cpuset to cgroup.
 
@@ -80,6 +85,10 @@ be tied to later OOM-kill notifications.
  mm/oom_kill.c                         |  220 +++++++++++++++++++++++++++++++++
  6 files changed, 301 insertions(+), 3 deletions(-)
 
+Signed-off-by:Paul Menage <menage@google.com>
+	      David Rientjes <rientjes@google.com>
+	      Ying Han <yinghan@google.com>
+
 
 diff --git a/Documentation/cgroups/oom-handler.txt
 b/Documentation/cgroups/oom-handler.txt
@@ -138,19 +147,13 @@ index 0000000..aa006fe
 +
 +
 diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
-index 9c22396..1e63bd5 100644
+index 9c22396..23fe6c7 100644
 --- a/include/linux/cgroup_subsys.h
 +++ b/include/linux/cgroup_subsys.h
-@@ -54,3 +54,15 @@ SUBSYS(freezer)
+@@ -54,3 +54,9 @@ SUBSYS(freezer)
  #endif
 
  /* */
-+
-+#ifdef CONFIG_CGROUP_OOM_CONT
-+SUBSYS(oom_cgroup)
-+#endif
-+
-+/* */
 +
 +#ifdef CONFIG_CGROUP_OOM_CONT
 +SUBSYS(oom_cgroup)
