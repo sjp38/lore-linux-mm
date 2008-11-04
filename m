@@ -1,16 +1,16 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA4IiGHI000868
-	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 11:44:16 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA4LbbBp011231
+	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 14:37:37 -0700
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA4Iic48149868
-	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 11:44:38 -0700
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA4Lc7pq073482
+	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 14:38:07 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA4Ii8Pn005398
-	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 11:44:09 -0700
-Date: Tue, 4 Nov 2008 12:44:36 -0600
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA4LbbXJ020395
+	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 14:37:38 -0700
+Date: Tue, 4 Nov 2008 15:38:05 -0600
 From: "Serge E. Hallyn" <serue@us.ibm.com>
 Subject: Re: [RFC v8][PATCH 0/12] Kernel based checkpoint/restart
-Message-ID: <20081104184436.GA16328@us.ibm.com>
+Message-ID: <20081104213805.GA14737@us.ibm.com>
 References: <1225374675-22850-1-git-send-email-orenl@cs.columbia.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -26,40 +26,4 @@ Quoting Oren Laadan (orenl@cs.columbia.edu):
 > Basic checkpoint-restart [C/R]: v8 adds support for "external" checkpoint
 > and improves documentation. Older announcements below.
 
-The following test-program seems to reliably trigger a bug.  Run it in a
-new set of namespaces, i.e.
-	ns_exec -cmpiuU ./runme > /tmp/o
-then control-c it.  The second time I do that, I get the dcache.c:666
-BUG().
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <sys/syscall.h>
-
-#define __NR_checkpoint 333
-int main (int argc, char *argv[])
-{
-	pid_t pid = getpid();
-	int ret;
-
-	close(0); close(2);
-	ret = syscall (__NR_checkpoint, pid, STDOUT_FILENO, 0);
-
-	if (ret < 0)
-		perror ("checkpoint");
-	else
-		printf ("checkpoint id %d\n", ret);
-
-	sleep(200);
-	return (ret > 0 ? 0 : 1);
-}
-
--serge
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Finally!
