@@ -1,48 +1,66 @@
-Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
-	by smtp-out.google.com with ESMTP id mA46FiMl023886
-	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 06:15:44 GMT
-Received: from rv-out-0708.google.com (rvbf25.prod.google.com [10.140.82.25])
-	by spaceape24.eur.corp.google.com with ESMTP id mA46FDnI004514
-	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 22:15:42 -0800
-Received: by rv-out-0708.google.com with SMTP id f25so2851651rvb.32
-        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 22:15:42 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 3 Nov 2008 22:15:41 -0800
-Message-ID: <6599ad830811032215j3ce5dcc1g6d0c3e9439a004d@mail.gmail.com>
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA46ILW6030305
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 4 Nov 2008 15:18:21 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 03C0F45DD7B
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:18:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D3F8D45DD7A
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:18:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BC98A1DB803B
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:18:20 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 78E9C1DB803A
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:18:20 +0900 (JST)
+Date: Tue, 4 Nov 2008 15:17:48 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH 1/5] memcg : force_empty to do move account
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20081104151748.4731f5a1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830811032215j3ce5dcc1g6d0c3e9439a004d@mail.gmail.com>
+References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830811032215j3ce5dcc1g6d0c3e9439a004d@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Paul Menage <menage@google.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, hugh@veritas.com, taka@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 30, 2008 at 6:52 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> This patch provides a function to move account information of a page between
-> mem_cgroups and rewrite force_empty to make use of this.
+On Mon, 3 Nov 2008 22:15:41 -0800
+Paul Menage <menage@google.com> wrote:
 
-One part of this that wasn't clear to me - if a cgroup has a lot of
-unmapped pagecache sitting around but no tasks, and we try to rmdir
-it, then all the pagecache gets moved to the parent too? Or just the
-stray mapped pages?
+> On Thu, Oct 30, 2008 at 6:52 PM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > This patch provides a function to move account information of a page between
+> > mem_cgroups and rewrite force_empty to make use of this.
+> 
+> One part of this that wasn't clear to me - if a cgroup has a lot of
+> unmapped pagecache sitting around but no tasks, and we try to rmdir
+> it, then all the pagecache gets moved to the parent too? Or just the
+> stray mapped pages?
+> 
+All page caches will be moved to. 
+(I'll add "shrink_usage" interface to drop page caches, later.)
 
-> @@ -597,7 +709,7 @@ static int mem_cgroup_charge_common(stru
->        prefetchw(pc);
->
->        mem = memcg;
-> -       ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
-> +       ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
+> > @@ -597,7 +709,7 @@ static int mem_cgroup_charge_common(stru
+> >        prefetchw(pc);
+> >
+> >        mem = memcg;
+> > -       ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
+> > +       ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
+> 
+> Isn't this the same as the definition of mem_cgroup_try_charge()? So
+> you could leave it as-is?
+> 
+try_charge is called by other places....swapin.
 
-Isn't this the same as the definition of mem_cgroup_try_charge()? So
-you could leave it as-is?
-
-Paul
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
