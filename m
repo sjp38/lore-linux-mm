@@ -1,69 +1,172 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA40FiT7009347
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 4 Nov 2008 09:15:44 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AA7A45DD7B
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 09:15:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3401545DD7A
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 09:15:44 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 173331DB803F
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 09:15:44 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C70FA1DB803A
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 09:15:43 +0900 (JST)
-Date: Tue, 4 Nov 2008 09:15:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mm][PATCH 0/4] Memory cgroup hierarchy introduction
-Message-Id: <20081104091510.01cf3a1e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
-References: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] hibernation should work ok with memory hotplug
+Date: Tue, 4 Nov 2008 01:29:34 +0100
+References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <200811040005.12418.rjw@sisk.pl> <1225753819.12673.518.camel@nimitz>
+In-Reply-To: <1225753819.12673.518.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200811040129.35335.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, pavel@suse.cz, linux-kernel@vger.kernel.org, linux-pm@lists.osdl.org, Matt Tolentino <matthew.e.tolentino@intel.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 02 Nov 2008 00:18:12 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Tuesday, 4 of November 2008, Dave Hansen wrote:
+> On Tue, 2008-11-04 at 00:05 +0100, Rafael J. Wysocki wrote:
+> > On Monday, 3 of November 2008, Dave Hansen wrote:
+> > > But, as I think about it, there is another issue that we need to
+> > > address, CONFIG_NODES_SPAN_OTHER_NODES.
+> > > 
+> > > A node might have a node_start_pfn=0 and a node_end_pfn=100 (and it may
+> > > have only one zone).  But, there may be another node with
+> > > node_start_pfn=10 and a node_end_pfn=20.  This loop:
+> > > 
+> > >         for_each_zone(zone) {
+> > > 		...
+> > >                 for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+> > >                         if (page_is_saveable(zone, pfn))
+> > >                                 memory_bm_set_bit(orig_bm, pfn);
+> > >         }
+> > > 
+> > > will walk over the smaller node's pfn range multiple times.  Is this OK?
+> > 
+> > Hm, well, I'm not really sure at the moment.
+> > 
+> > Does it mean that, in your example, the pfns 10 to 20 from the first node
+> > refer to the same page frames that are referred to by the pfns from the
+> > second node?
+> 
+> Maybe using pfns didn't make for a good example.  I could have used
+> physical addresses as well.
+> 
+> All that I'm saying is that nodes (and zones) can span other nodes (and
+> zones).  This means that the address ranges making up that node can
+> overlap with the address ranges of another node.  This doesn't mean that
+> *each* node has those address ranges.  Each individual address can only
+> be in one node.
+> 
+> Since zone *ranges* overlap, you can't tell to which zone a page belongs
+> simply from its address.  You need to ask the 'struct page'.
 
-> This patch follows several iterations of the memory controller hierarchy
-> patches. The hardwall approach by Kamezawa-San[1]. Version 1 of this patchset
-> at [2].
-> 
-> The current approach is based on [2] and has the following properties
-> 
-> 1. Hierarchies are very natural in a filesystem like the cgroup filesystem.
->    A multi-tree hierarchy has been supported for a long time in filesystems.
->    When the feature is turned on, we honor hierarchies such that the root
->    accounts for resource usage of all children and limits can be set at
->    any point in the hierarchy. Any memory cgroup is limited by limits
->    along the hierarchy. The total usage of all children of a node cannot
->    exceed the limit of the node.
-> 2. The hierarchy feature is selectable and off by default
-> 3. Hierarchies are expensive and the trade off is depth versus performance.
->    Hierarchies can also be completely turned off.
-> 
-> The patches are against 2.6.28-rc2-mm1 and were tested in a KVM instance
-> with SMP and swap turned on.
-> 
+Understood.
 
-As first impression, I think hierarchical LRU management is not good...means
-not fair from viewpoint of memory management.
-I'd like to show some other possible implementation of
-try_to_free_mem_cgroup_pages() if I can.
+This means that some zones may contain some ranges of pfns that correspond
+to struct pages in another zone, correct?
 
-Anyway, I have to merge this with mem+swap controller. 
+> > > I think all you have to do to fix it is check page_zone(page) == zone
+> > > and skip out if they don't match.
+> > 
+> > Well, probably.  I need to know exactly what's the relationship between pfns,
+> > pages and physical page frames in that case.
+> 
+> 1 pfn == 1 'struct page' == 1 physical page
+> 
+> The only exception to that is that we may have more 'struct pages' than
+> we have actual physical memory due to rounding and so forth.
+
+OK, I think that the appended patch will do the trick (compiled, untested).
 
 Thanks,
--Kame
+Rafael
 
 
+Not-yet-signed-off-by: Rafael J. Wysocki <rjw@sisk.pl>
+---
+ kernel/power/snapshot.c |   23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)
+
+Index: linux-2.6/kernel/power/snapshot.c
+===================================================================
+--- linux-2.6.orig/kernel/power/snapshot.c
++++ linux-2.6/kernel/power/snapshot.c
+@@ -817,8 +817,7 @@ static unsigned int count_free_highmem_p
+  *	We should save the page if it isn't Nosave or NosaveFree, or Reserved,
+  *	and it isn't a part of a free chunk of pages.
+  */
+-
+-static struct page *saveable_highmem_page(unsigned long pfn)
++static struct page *saveable_highmem_page(struct zone *zone, unsigned long pfn)
+ {
+ 	struct page *page;
+ 
+@@ -826,6 +825,8 @@ static struct page *saveable_highmem_pag
+ 		return NULL;
+ 
+ 	page = pfn_to_page(pfn);
++	if (page_zone(page) != zone)
++		return NULL;
+ 
+ 	BUG_ON(!PageHighMem(page));
+ 
+@@ -855,13 +856,16 @@ unsigned int count_highmem_pages(void)
+ 		mark_free_pages(zone);
+ 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
+ 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+-			if (saveable_highmem_page(pfn))
++			if (saveable_highmem_page(zone, pfn))
+ 				n++;
+ 	}
+ 	return n;
+ }
+ #else
+-static inline void *saveable_highmem_page(unsigned long pfn) { return NULL; }
++static inline void *saveable_highmem_page(struct zone *z, unsigned long p)
++{
++	return NULL;
++}
+ #endif /* CONFIG_HIGHMEM */
+ 
+ /**
+@@ -872,8 +876,7 @@ static inline void *saveable_highmem_pag
+  *	of pages statically defined as 'unsaveable', and it isn't a part of
+  *	a free chunk of pages.
+  */
+-
+-static struct page *saveable_page(unsigned long pfn)
++static struct page *saveable_page(struct zone *zone, unsigned long pfn)
+ {
+ 	struct page *page;
+ 
+@@ -881,6 +884,8 @@ static struct page *saveable_page(unsign
+ 		return NULL;
+ 
+ 	page = pfn_to_page(pfn);
++	if (page_zone(page) != zone)
++		return NULL;
+ 
+ 	BUG_ON(PageHighMem(page));
+ 
+@@ -912,7 +917,7 @@ unsigned int count_data_pages(void)
+ 		mark_free_pages(zone);
+ 		max_zone_pfn = zone->zone_start_pfn + zone->spanned_pages;
+ 		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+-			if(saveable_page(pfn))
++			if(saveable_page(zone, pfn))
+ 				n++;
+ 	}
+ 	return n;
+@@ -953,7 +958,7 @@ static inline struct page *
+ page_is_saveable(struct zone *zone, unsigned long pfn)
+ {
+ 	return is_highmem(zone) ?
+-			saveable_highmem_page(pfn) : saveable_page(pfn);
++		saveable_highmem_page(zone, pfn) : saveable_page(zone, pfn);
+ }
+ 
+ static void copy_data_page(unsigned long dst_pfn, unsigned long src_pfn)
+@@ -984,7 +989,7 @@ static void copy_data_page(unsigned long
+ 	}
+ }
+ #else
+-#define page_is_saveable(zone, pfn)	saveable_page(pfn)
++#define page_is_saveable(zone, pfn)	saveable_page(zone, pfn)
+ 
+ static inline void copy_data_page(unsigned long dst_pfn, unsigned long src_pfn)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
