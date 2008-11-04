@@ -1,62 +1,55 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA46QOK4007513
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 4 Nov 2008 15:26:24 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B0352AC02A
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:26:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 01B8A12C048
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:26:24 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DDCBB1DB803A
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:26:23 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8602B1DB8042
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 15:26:23 +0900 (JST)
-Date: Tue, 4 Nov 2008 15:25:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/5] memcg : force_empty to do move account
-Message-Id: <20081104152551.28851a7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6599ad830811032223r4c655c2dsc0c4b61c048039f9@mail.gmail.com>
-References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830811032215j3ce5dcc1g6d0c3e9439a004d@mail.gmail.com>
-	<20081104151748.4731f5a1.kamezawa.hiroyu@jp.fujitsu.com>
-	<6599ad830811032223r4c655c2dsc0c4b61c048039f9@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from wpaz29.hot.corp.google.com (wpaz29.hot.corp.google.com [172.24.198.93])
+	by smtp-out.google.com with ESMTP id mA46bXjW027566
+	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 22:37:33 -0800
+Received: from rv-out-0708.google.com (rvfc5.prod.google.com [10.140.180.5])
+	by wpaz29.hot.corp.google.com with ESMTP id mA46bReF020318
+	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 22:37:32 -0800
+Received: by rv-out-0708.google.com with SMTP id c5so2898786rvf.56
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 22:37:31 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <490DCCC9.5000508@linux.vnet.ibm.com>
+References: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
+	 <20081101184902.2575.11443.sendpatchset@balbir-laptop>
+	 <20081102143817.99edca6d.kamezawa.hiroyu@jp.fujitsu.com>
+	 <490D42C7.4000301@linux.vnet.ibm.com>
+	 <20081102152412.2af29a1b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <490DCCC9.5000508@linux.vnet.ibm.com>
+Date: Mon, 3 Nov 2008 22:37:31 -0800
+Message-ID: <6599ad830811032237q14c065efx4316fee8f8daa515@mail.gmail.com>
+Subject: Re: [mm] [PATCH 4/4] Memory cgroup hierarchy feature selector
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, hugh@veritas.com, taka@valinux.co.jp
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 3 Nov 2008 22:23:11 -0800
-Paul Menage <menage@google.com> wrote:
+On Sun, Nov 2, 2008 at 7:52 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>
+> That should not be hard, but having it per-subtree sounds a little complex in
+> terms of exploiting from the end-user perspective and from symmetry perspective
+> (the CPU cgroup controller provides hierarchy control for the full hierarchy).
+>
 
-> On Mon, Nov 3, 2008 at 10:17 PM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> >> >
-> >> >        mem = memcg;
-> >> > -       ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
-> >> > +       ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
-> >>
-> >> Isn't this the same as the definition of mem_cgroup_try_charge()? So
-> >> you could leave it as-is?
-> >>
-> > try_charge is called by other places....swapin.
-> >
-> 
-> No, I mean here you can call mem_cgroup_try_charge(...) rather than
-> __mem_cgroup_try_charge(..., true).
-> 
+The difference is that the CPU controller works in terms of shares,
+whereas memory works in terms of absolute memory size. So it pretty
+much has to limit the hierarchy to a single tree. Also, I didn't think
+that you could modify the shares for the root cgroup - what would that
+mean if so?
 
-you're right. will remove this change.
+With this patch set as it is now, the root cgroup's lock becomes a
+global memory allocation/deallocation lock, which seems a bit painful.
+Having a bunch of top-level cgroups each with their own independent
+memory limits, and allowing sub cgroups of them to be constrained by
+the parent's memory limit, seems more useful than a single hierarchy
+connected at the root.
 
-Thanks,
--Kame
+In what realistic circumstances do you actually want to limit the root
+cgroup's memory usage?
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
