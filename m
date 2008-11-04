@@ -1,27 +1,27 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA4953Zm012407
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA49EHIG017086
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 4 Nov 2008 18:05:03 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F63645DD7F
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:05:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A96045DD7C
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:05:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2EBB61DB8044
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:05:03 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C75711DB8040
-	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:05:02 +0900 (JST)
-Date: Tue, 4 Nov 2008 18:04:29 +0900
+	Tue, 4 Nov 2008 18:14:17 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 97C9845DD7F
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:14:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6282C45DD7E
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:14:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 36C841DB803B
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:14:17 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E6B291DB803F
+	for <linux-mm@kvack.org>; Tue,  4 Nov 2008 18:14:16 +0900 (JST)
+Date: Tue, 4 Nov 2008 18:13:43 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/5] memcg : handle swap cache
-Message-Id: <20081104180429.4e47875e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081104174201.9e2dc44c.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 3/5] memcg : mem+swap controller kconfig
+Message-Id: <20081104181343.3b0eb168.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081104175406.cb46d68d.nishimura@mxp.nes.nec.co.jp>
 References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081031115411.25478878.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081104174201.9e2dc44c.nishimura@mxp.nes.nec.co.jp>
+	<20081031115510.3ba13f3b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081104175406.cb46d68d.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -31,46 +31,92 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, hugh@veritas.com, taka@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Nov 2008 17:42:01 +0900
+On Tue, 4 Nov 2008 17:54:06 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> > +#ifdef CONFIG_SWAP
-> > +int mem_cgroup_cache_charge_swapin(struct page *page,
-> > +			struct mm_struct *mm, gfp_t mask)
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> > +static void __init enable_swap_cgroup(void)
 > > +{
-> > +	int ret = 0;
-> > +
-> > +	if (mem_cgroup_subsys.disabled)
-> > +		return 0;
-> > +	if (unlikely(!mm))
-> > +		mm = &init_mm;
-> > +
-> > +	ret = mem_cgroup_charge_common(page, mm, mask,
-> > +			MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
-> > +	/*
-> > +	 * The page may be dropped from SwapCache because we don't have
-> > +	 * lock_page().This may cause charge-after-uncharge trouble.
-> > +	 * Fix it up here. (the caller have refcnt to this page and
-> > +	 * page itself is guaranteed not to be freed.)
-> > +	 */
-> > +	if (ret && !PageSwapCache(page))
-> > +		mem_cgroup_uncharge_swapcache(page);
-> > +
-> Hmm.. after [5/5], mem_cgroup_cache_charge_swapin has 'locked' parameter,
-> calls lock_page(if !locked), and checks PageSwapCache under page lock.
-> 
-> Why not doing it in this patch?
+> > +	if (really_do_swap_account)
+> > +		do_swap_account = 1;
+> > +}
+> I think check for !mem_cgroup_subsys.disabled is also needed here.
 > 
 
-My intention is to guard swap_cgroup by lock_page() against SwapCache.
-In Mem+Swap controller. we get "memcg" from information in page->private.
-I think we need lock_page(), there. 
+Hmm, mem_cgroup_create() is called even when disabled ?
+.......seems so.
 
-But here, we don't refer page->private information. 
-I think we don't need lock_page() because there is no inofrmation we depends on.
+Ok, will fix. thank you for checking it.
 
-Thanks,
+Regards,
 -Kame
+
+
+> 
+> Thanks,
+> Daisuke Nishimura.
+> 
+> > +#else
+> > +static void __init enable_swap_cgroup(void)
+> > +{
+> > +}
+> > +#endif
+> > +
+> >  static struct cgroup_subsys_state *
+> >  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+> >  {
+> > @@ -1377,6 +1398,7 @@ mem_cgroup_create(struct cgroup_subsys *
+> >  
+> >  	if (unlikely((cont->parent) == NULL)) {
+> >  		mem = &init_mem_cgroup;
+> > +		enable_swap_cgroup();
+> >  	} else {
+> >  		mem = mem_cgroup_alloc();
+> >  		if (!mem)
+> > @@ -1460,3 +1482,13 @@ struct cgroup_subsys mem_cgroup_subsys =
+> >  	.attach = mem_cgroup_move_task,
+> >  	.early_init = 0,
+> >  };
+> > +
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> > +
+> > +static int __init disable_swap_account(char *s)
+> > +{
+> > +	really_do_swap_account = 0;
+> > +	return 1;
+> > +}
+> > +__setup("noswapaccount", disable_swap_account);
+> > +#endif
+> > Index: mmotm-2.6.28-rc2+/Documentation/kernel-parameters.txt
+> > ===================================================================
+> > --- mmotm-2.6.28-rc2+.orig/Documentation/kernel-parameters.txt
+> > +++ mmotm-2.6.28-rc2+/Documentation/kernel-parameters.txt
+> > @@ -1543,6 +1543,9 @@ and is between 256 and 4096 characters. 
+> >  
+> >  	nosoftlockup	[KNL] Disable the soft-lockup detector.
+> >  
+> > +	noswapaccount	[KNL] Disable accounting of swap in memory resource
+> > +			controller. (See Documentation/controllers/memory.txt)
+> > +
+> >  	nosync		[HW,M68K] Disables sync negotiation for all devices.
+> >  
+> >  	notsc		[BUGS=X86-32] Disable Time Stamp Counter
+> > Index: mmotm-2.6.28-rc2+/include/linux/memcontrol.h
+> > ===================================================================
+> > --- mmotm-2.6.28-rc2+.orig/include/linux/memcontrol.h
+> > +++ mmotm-2.6.28-rc2+/include/linux/memcontrol.h
+> > @@ -77,6 +77,9 @@ extern void mem_cgroup_record_reclaim_pr
+> >  extern long mem_cgroup_calc_reclaim(struct mem_cgroup *mem, struct zone *zone,
+> >  					int priority, enum lru_list lru);
+> >  
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> > +extern int do_swap_account;
+> > +#endif
+> >  
+> >  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+> >  struct mem_cgroup;
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
