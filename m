@@ -1,143 +1,70 @@
-Subject: Re: [RFC v8][PATCH 05/12] x86 support for checkpoint/restart
-From: Masahiko Takahashi <m-takahashi@ex.jp.nec.com>
-In-Reply-To: <1225374675-22850-6-git-send-email-orenl@cs.columbia.edu>
-References: <1225374675-22850-1-git-send-email-orenl@cs.columbia.edu>
-	 <1225374675-22850-6-git-send-email-orenl@cs.columbia.edu>
-Content-Type: text/plain
-Date: Tue, 04 Nov 2008 18:30:16 +0900
-Message-Id: <1225791016.5940.33.camel@noir.spf.cl.nec.co.jp>
+Date: Tue, 4 Nov 2008 19:28:22 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 2/5] memcg : handle swap cache
+Message-Id: <20081104192822.fc87868b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081104180429.4e47875e.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081031115411.25478878.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081104174201.9e2dc44c.nishimura@mxp.nes.nec.co.jp>
+	<20081104180429.4e47875e.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Linus Torvalds <torvalds@osdl.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, hugh@veritas.com, taka@valinux.co.jp, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi Oren,
+On Tue, 4 Nov 2008 18:04:29 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 4 Nov 2008 17:42:01 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > > +#ifdef CONFIG_SWAP
+> > > +int mem_cgroup_cache_charge_swapin(struct page *page,
+> > > +			struct mm_struct *mm, gfp_t mask)
+> > > +{
+> > > +	int ret = 0;
+> > > +
+> > > +	if (mem_cgroup_subsys.disabled)
+> > > +		return 0;
+> > > +	if (unlikely(!mm))
+> > > +		mm = &init_mm;
+> > > +
+> > > +	ret = mem_cgroup_charge_common(page, mm, mask,
+> > > +			MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+> > > +	/*
+> > > +	 * The page may be dropped from SwapCache because we don't have
+> > > +	 * lock_page().This may cause charge-after-uncharge trouble.
+> > > +	 * Fix it up here. (the caller have refcnt to this page and
+> > > +	 * page itself is guaranteed not to be freed.)
+> > > +	 */
+> > > +	if (ret && !PageSwapCache(page))
+> > > +		mem_cgroup_uncharge_swapcache(page);
+> > > +
+> > Hmm.. after [5/5], mem_cgroup_cache_charge_swapin has 'locked' parameter,
+> > calls lock_page(if !locked), and checks PageSwapCache under page lock.
+> > 
+> > Why not doing it in this patch?
+> > 
+> 
+> My intention is to guard swap_cgroup by lock_page() against SwapCache.
+> In Mem+Swap controller. we get "memcg" from information in page->private.
+> I think we need lock_page(), there. 
+> 
+> But here, we don't refer page->private information. 
+> I think we don't need lock_page() because there is no inofrmation we depends on.
+> 
+I just thought it would be simpler to check PageSwapCache after holding
+page lock rather than to handle the case that the page might be removed from
+swap cache.
 
-I'm now trying to port your patchset to x86_64, and find a tiny
-inconsistency issue.
-
-
-On 2008-10-30 at 09:51 -0400, Oren Laadan wrote:
-> +/* dump the thread_struct of a given task */
-> +int cr_write_thread(struct cr_ctx *ctx, struct task_struct *t)
-> +{
-> +	struct cr_hdr h;
-> +	struct cr_hdr_thread *hh = cr_hbuf_get(ctx, sizeof(*hh));
-> +	struct thread_struct *thread;
-> +	struct desc_struct *desc;
-> +	int ntls = 0;
-> +	int n, ret;
-> +
-> +	h.type = CR_HDR_THREAD;
-> +	h.len = sizeof(*hh);
-> +	h.parent = task_pid_vnr(t);
-> +
-> +	thread = &t->thread;
-> +
-> +	/* calculate no. of TLS entries that follow */
-> +	desc = thread->tls_array;
-> +	for (n = GDT_ENTRY_TLS_ENTRIES; n > 0; n--, desc++) {
-> +		if (desc->a || desc->b)
-> +			ntls++;
-> +	}
-> +
-> +	hh->gdt_entry_tls_entries = GDT_ENTRY_TLS_ENTRIES;
-> +	hh->sizeof_tls_array = sizeof(thread->tls_array);
-> +	hh->ntls = ntls;
-> +
-> +	ret = cr_write_obj(ctx, &h, hh);
-> +	cr_hbuf_put(ctx, sizeof(*hh));
-> +	if (ret < 0)
-> +		return ret;
-
-Please add
-   if (ntls == 0)
-            return ret;
-because, in restart phase, reading TLS entries from the image file
-is skipped if hh->ntls == 0, which may incur inconsistency and fail
-to restart.
-
-> +	/* for simplicity dump the entire array, cherry-pick upon restart */
-> +	ret = cr_kwrite(ctx, thread->tls_array, sizeof(thread->tls_array));
-> +
-> +	cr_debug("ntls %d\n", ntls);
-> +
-> +	/* IGNORE RESTART BLOCKS FOR NOW ... */
-> +
-> +	return ret;
-> +}
-(snip)
-> +/* read the thread_struct into the current task */
-> +int cr_read_thread(struct cr_ctx *ctx)
-> +{
-> +	struct cr_hdr_thread *hh = cr_hbuf_get(ctx, sizeof(*hh));
-> +	struct task_struct *t = current;
-> +	struct thread_struct *thread = &t->thread;
-> +	int parent, ret;
-> +
-> +	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_THREAD);
-> +	if (parent < 0) {
-> +		ret = parent;
-> +		goto out;
-> +	}
-> +
-> +	ret = -EINVAL;
-> +
-> +#if 0	/* activate when containers are used */
-> +	if (parent != task_pid_vnr(t))
-> +		goto out;
-> +#endif
-> +	cr_debug("ntls %d\n", hh->ntls);
-> +
-> +	if (hh->gdt_entry_tls_entries != GDT_ENTRY_TLS_ENTRIES ||
-> +	    hh->sizeof_tls_array != sizeof(thread->tls_array) ||
-> +	    hh->ntls < 0 || hh->ntls > GDT_ENTRY_TLS_ENTRIES)
-> +		goto out;
-> +
-> +	if (hh->ntls > 0) {
-> +		struct desc_struct *desc;
-> +		int size, cpu;
-> +
-> +		/*
-> +		 * restore TLS by hand: why convert to struct user_desc if
-> +		 * sys_set_thread_entry() will convert it back ?
-> +		 */
-> +
-> +		size = sizeof(*desc) * GDT_ENTRY_TLS_ENTRIES;
-> +		desc = kmalloc(size, GFP_KERNEL);
-> +		if (!desc)
-> +			return -ENOMEM;
-> +
-> +		ret = cr_kread(ctx, desc, size);
-> +		if (ret >= 0) {
-> +			/*
-> +			 * FIX: add sanity checks (eg. that values makes
-> +			 * sense, that we don't overwrite old values, etc
-> +			 */
-> +			cpu = get_cpu();
-> +			memcpy(thread->tls_array, desc, size);
-> +			load_TLS(thread, cpu);
-> +			put_cpu();
-> +		}
-> +		kfree(desc);
-> +	}
-> +
-> +	ret = 0;
-> + out:
-> +	cr_hbuf_put(ctx, sizeof(*hh));
-> +	return ret;
-> +}
+And to be honest, I can't understand the "charge-after-uncharge trouble".
+Could you explain more?
 
 
 Thanks,
-
-Masahiko.
-
----
-Masahiko Takahashi / m-takahashi@ex.jp.nec.com
+Dasiuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
