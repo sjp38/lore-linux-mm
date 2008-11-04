@@ -1,53 +1,53 @@
-Date: Tue, 4 Nov 2008 16:28:20 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: mmap: is default non-populating behavior stable?
-Message-ID: <20081104162820.644b1487@lxorguk.ukuu.org.uk>
-In-Reply-To: <1225814820.7803.1672.camel@twins>
-References: <490F73CD.4010705@gmail.com>
-	<1225752083.7803.1644.camel@twins>
-	<490F8005.9020708@redhat.com>
-	<491070B5.2060209@nortel.com>
-	<1225814820.7803.1672.camel@twins>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory hotplug
+Date: Tue, 4 Nov 2008 17:34:03 +0100
+References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <200811041635.49932.rjw@sisk.pl> <1225813182.12673.587.camel@nimitz>
+In-Reply-To: <1225813182.12673.587.camel@nimitz>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200811041734.04802.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Chris Friesen <cfriesen@nortel.com>, Rik van Riel <riel@redhat.com>, "Eugene V. Lyubimkin" <jackyf.devel@gmail.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, hugh <hugh@veritas.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Nigel Cunningham <ncunningham@crca.org.au>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 04 Nov 2008 17:07:00 +0100
-Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Tue, 2008-11-04 at 09:56 -0600, Chris Friesen wrote:
-> > Rik van Riel wrote:
-> > > Peter Zijlstra wrote:
-> > 
-> > >> The exact interaction of mmap() and truncate() I'm not exactly clear on.
+On Tuesday, 4 of November 2008, Dave Hansen wrote:
+> On Tue, 2008-11-04 at 16:35 +0100, Rafael J. Wysocki wrote:
+> > On Tuesday, 4 of November 2008, Dave Hansen wrote:
+> > > On Tue, 2008-11-04 at 09:54 +0100, Rafael J. Wysocki wrote:
+> > > > To handle this, I need to know two things:
+> > > > 1) what changes of the zones are possible due to memory hotplugging
+> > > > (i.e.    can they grow, shring, change boundaries etc.)
 > > > 
-> > > Truncate will reduce the size of the mmaps on the file to
-> > > match the new file size, so processes accessing beyond the
-> > > end of file will get a segmentation fault (SIGSEGV).
+> > > All of the above. 
 > > 
-> > I suspect Peter was talking about using truncate() to set the initial 
-> > file size, effectively increasing rather than reducing it.
+> > OK
+> > 
+> > If I allocate a page frame corresponding to specific pfn, is it guaranteed to
+> > be associated with the same pfn in future?
 > 
-> I was thinking of truncate() on an already mmap()'ed region, either
-> increasing or decreasing the size so that part of the mmap becomes
-> (in)valid.
-> 
-> I'm not sure how POSIX speaks of this.
-> 
-> I think Linux does the expected thing.
+> Page allocation is different.  Since you hold a reference to a page, it
+> can not be removed until you release that reference.  That's why every
+> normal alloc_pages() user in the kernel doesn't have to worry about
+> memory hotplug.
 
-I believe our behaviour is correct for mmap/mumap/truncate and it
-certainly used to be and was tested.
+Good. :-)
 
-At the point you do anything involving mremap (which is non posix) our
-behaviour becomes rather bizarre.
+So, if I allocate the image pages right prior to creating the image, they
+won't be touched by memory hotplug.
 
-Alan
+Now, I need to do one more thing, which is to check how much memory has to be
+freed before creating the image.  For this purpose I need to lock memory
+hotplug temporarily, count pages to free and unlock it.  What interface should
+I use for this purpose? 
+
+[I'll also need to lock memory hotplug temporarily during resume.]
+
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
