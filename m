@@ -1,47 +1,48 @@
-Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory
-	hotplug
-From: Nigel Cunningham <ncunningham@crca.org.au>
-In-Reply-To: <1225751665.12673.511.camel@nimitz>
-References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz>
-	 <20081103125108.46d0639e.akpm@linux-foundation.org>
-	 <1225747308.12673.486.camel@nimitz>  <200811032324.02163.rjw@sisk.pl>
-	 <1225751665.12673.511.camel@nimitz>
-Content-Type: text/plain
-Date: Tue, 04 Nov 2008 15:02:33 +1100
-Message-Id: <1225771353.6755.16.camel@nigel-laptop>
-Mime-Version: 1.0
+Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
+	by smtp-out.google.com with ESMTP id mA46FiMl023886
+	for <linux-mm@kvack.org>; Tue, 4 Nov 2008 06:15:44 GMT
+Received: from rv-out-0708.google.com (rvbf25.prod.google.com [10.140.82.25])
+	by spaceape24.eur.corp.google.com with ESMTP id mA46FDnI004514
+	for <linux-mm@kvack.org>; Mon, 3 Nov 2008 22:15:42 -0800
+Received: by rv-out-0708.google.com with SMTP id f25so2851651rvb.32
+        for <linux-mm@kvack.org>; Mon, 03 Nov 2008 22:15:42 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20081031115241.1399d605.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 3 Nov 2008 22:15:41 -0800
+Message-ID: <6599ad830811032215j3ce5dcc1g6d0c3e9439a004d@mail.gmail.com>
+Subject: Re: [RFC][PATCH 1/5] memcg : force_empty to do move account
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, hugh@veritas.com, taka@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+On Thu, Oct 30, 2008 at 6:52 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> This patch provides a function to move account information of a page between
+> mem_cgroups and rewrite force_empty to make use of this.
 
-On Mon, 2008-11-03 at 14:34 -0800, Dave Hansen wrote:
-> A node might have a node_start_pfn=0 and a node_end_pfn=100 (and it may
-> have only one zone).  But, there may be another node with
-> node_start_pfn=10 and a node_end_pfn=20.  This loop:
-> 
->         for_each_zone(zone) {
-> 		...
->                 for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
->                         if (page_is_saveable(zone, pfn))
->                                 memory_bm_set_bit(orig_bm, pfn);
->         }
-> 
-> will walk over the smaller node's pfn range multiple times.  Is this OK?
-> 
-> I think all you have to do to fix it is check page_zone(page) == zone
-> and skip out if they don't match.
+One part of this that wasn't clear to me - if a cgroup has a lot of
+unmapped pagecache sitting around but no tasks, and we try to rmdir
+it, then all the pagecache gets moved to the parent too? Or just the
+stray mapped pages?
 
-So pfn 10 in the first node refers to the same memory as pfn 10 in the
-second node?
+> @@ -597,7 +709,7 @@ static int mem_cgroup_charge_common(stru
+>        prefetchw(pc);
+>
+>        mem = memcg;
+> -       ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
+> +       ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
 
-Regards,
+Isn't this the same as the definition of mem_cgroup_try_charge()? So
+you could leave it as-is?
 
-Nigel
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
