@@ -1,80 +1,42 @@
-Subject: Re: [linux-pm] [PATCH] hibernation should work ok with
-	memory	hotplug
-From: Nigel Cunningham <ncunningham@crca.org.au>
-In-Reply-To: <1225785224.12673.564.camel@nimitz>
-References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz>
-	 <20081103125108.46d0639e.akpm@linux-foundation.org>
-	 <1225747308.12673.486.camel@nimitz>  <200811032324.02163.rjw@sisk.pl>
-	 <1225751665.12673.511.camel@nimitz> <1225771353.6755.16.camel@nigel-laptop>
-	 <1225782572.12673.540.camel@nimitz> <1225783837.6755.33.camel@nigel-laptop>
-	 <1225785224.12673.564.camel@nimitz>
+Subject: Re: [RFC][PATCH] lru_add_drain_all() don't use
+ schedule_on_each_cpu()
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <2f11576a0810290020i362441edkb494b10c10b17401@mail.gmail.com>
+References: <2f11576a0810210851g6e0d86benef5d801871886dd7@mail.gmail.com>
+	 <2f11576a0810211018g5166c1byc182f1194cfdd45d@mail.gmail.com>
+	 <20081023235425.9C40.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081027145509.ebffcf0e.akpm@linux-foundation.org>
+	 <Pine.LNX.4.64.0810280914010.15939@quilx.com>
+	 <20081028134536.9a7a5351.akpm@linux-foundation.org>
+	 <2f11576a0810290020i362441edkb494b10c10b17401@mail.gmail.com>
 Content-Type: text/plain
-Date: Wed, 05 Nov 2008 20:10:05 +1100
-Message-Id: <1225876205.6755.55.camel@nigel-laptop>
-Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Date: Wed, 05 Nov 2008 10:51:44 +0100
+Message-Id: <1225878704.7803.2771.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, heiko.carstens@de.ibm.com, npiggin@suse.de, linux-kernel@vger.kernel.org, hugh@veritas.com, torvalds@linux-foundation.org, riel@redhat.com, lee.schermerhorn@hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-On Mon, 2008-11-03 at 23:53 -0800, Dave Hansen wrote:
-> On Tue, 2008-11-04 at 18:30 +1100, Nigel Cunningham wrote:
-> > One other question, if I may. Would you please explain (or point me to
-> > an explanation) of PHYS_PFN_OFFSET/ARCH_PFN_OFFSET? I've been dealing
-> > occasionally with people wanting to have hibernation on arm, and I don't
-> > really get the concept or the implementation (particularly when it comes
-> > to trying to do the sort of iterating over zones and pfns that was being
-> > discussed in previous messages in this thread.
+On Wed, 2008-10-29 at 16:20 +0900, KOSAKI Motohiro wrote:
+> > I guess we should document our newly discovered schedule_on_each_cpu()
+> > problems before we forget about it and later rediscover it.
 > 
-> First of all, I think PHYS_PFN_OFFSET is truly an arch-dependent
-> construct.  It only appears in arm an avr32.  I'll tell you only how
-> ARCH_PFN_OFFSET looks to me.  My guess is that those two arches need to
-> reconcile themselves and start using ARCH_PFN_OFFSET instead.
+> Now, schedule_on_each_cpu() is only used by lru_add_drain_all().
+> and smp_call_function() is better way for cross call.
 > 
-> In the old days, we only had memory that started at physical address 0x0
-> and went up to some larger address.  We allocated a mem_map[] of 'struct
-> pages' in one big chunk, one for each address.  mem_map[0] was for
-> physical address 0x0 and mem_map[1] was for 0x1000, mem_map[2] was for
-> 0x2000 and so on...
+> So I propose
+>    1. lru_add_drain_all() use smp_call_function()
+>    2. remove schedule_on_each_cpu()
 > 
-> If a machine didn't have a physical address 0x0, we allocated mem_map[]
-> for it anyway and just wasted that entry.  What ARCH_PFN_OFFSET does is
-> let us bias the mem_map[] structure so that mem_map[0] does not
-> represent 0x0.
 > 
-> If ARCH_PFN_OFFSET is 1, then mem_map[0] actually represents the
-> physical address 0x1000.  If it is 2, then mem_map[0] represents
-> physical addr 0x2000.  ARCH_PFN_OFFSET means that the first physical
-> address on the machine is at ARCH_PFN_OFFSET*PAGE_SIZE.  We bias all
-> lookups into the mem_map[] so that we don't waste space in it.  There
-> will never be a zone_start_pfn lower than ARCH_PFN_OFFSET, for instance.
-> 
-> What does that mean for walking zones?  Nothing.  It only has meaning
-> for how we allocate and do lookups into the mem_map[].  But, since
-> everyone uses pfn_to_page() and friends, you don't ever see this.
-> 
-> I'm curious why you think you need to be concerned with it.
+> Thought?
 
-Sorry for the delay in replying.
+At the very least that will not solve the problem on -rt where a lot of
+the smp_call_function() users are converted to schedule_on_each_cpu().
 
-It's because I'm looking at old patches for arm support for TuxOnIce and
-because of the way TuxOnIce records what pages need attention:
-
-My method of recording what needs doing is different to Rafael's. I use
-per zone bitmaps (constructed out of order 0 allocations) and therefore
-look at zone_start_pfn in calculating what bit within the zone needs to
-be set/cleared/tested.
-
-In your example above, zone_start_pfn will be 1, won't it? If that's the
-case, I shouldn't need to subtract ARCH_PFN_OFFSET to get the right
-index within the zone and avoid the same wastage that ARCH_PFN_OFFSET
-avoids with mem_map.
-
-Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
