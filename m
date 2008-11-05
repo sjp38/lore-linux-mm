@@ -1,23 +1,23 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA58J4U1031746
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA58Kj2s027741
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 5 Nov 2008 17:19:04 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CB63245DD79
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:19:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EF5745DD7D
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:19:03 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B6501DB803A
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:19:03 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C6F431DB8044
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:19:02 +0900 (JST)
-Date: Wed, 5 Nov 2008 17:18:27 +0900
+	Wed, 5 Nov 2008 17:20:45 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3534345DE51
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:20:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1177745DE50
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:20:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F179B1DB8040
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:20:44 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A45AF1DB803E
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:20:44 +0900 (JST)
+Date: Wed, 5 Nov 2008 17:20:09 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/6] memcg: move all accounts to parent at rmdir()
-Message-Id: <20081105171827.b1dc3862.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/6] memcg: handle swap cache
+Message-Id: <20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,515 +29,271 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Not different from a patch I sent.
-==
-This patch provides a function to move account information of a page between
-mem_cgroups and rewrite force_empty to make use of this.
+SwapCache support for memory resource controller (memcg)
 
-This moving of page_cgroup is done under
- - lru_lock of source/destination mem_cgroup is held.
- - lock_page_cgroup() is held.
+Before mem+swap controller, memcg itself should handle SwapCache in proper way.
 
-Then, a routine which touches pc->mem_cgroup without lock_page_cgroup() should
-confirm pc->mem_cgroup is still valid or not. Typical code can be following.
+In current memcg, SwapCache is just leaked and the user can create tons of
+SwapCache. This is a leak of account and should be handled.
 
-(while page is not under lock_page())
-	mem = pc->mem_cgroup;
-	mz = page_cgroup_zoneinfo(pc)
-	spin_lock_irqsave(&mz->lru_lock);
-	if (pc->mem_cgroup == mem)
-		...../* some list handling */
-	spin_unlock_irqrestore(&mz->lru_lock);
+SwapCache accounting is done as following.
 
-Of course, better way is
-	lock_page_cgroup(pc);
-	....
-	unlock_page_cgroup(pc);
+  charge (anon)
+	- charged when it's mapped.
+	  (because of readahead, charge at add_to_swap_cache() is not sane)
+  uncharge (anon)
+	- uncharged when it's dropped from swapcache and fully unmapped.
+	  means it's not uncharged at unmap.
+	  Note: delete from swap cache at swap-in is done after rmap information
+	        is established.
+  charge (shmem)
+	- charged at swap-in. this prevents charge at add_to_page_cache().
 
-But you should confirm the nest of lock and avoid deadlock.
+  uncharge (shmem)
+	- uncharged when it's dropped from swapcache and not on shmem's
+	  radix-tree.
 
-If you treats page_cgroup from mem_cgroup's LRU under mz->lru_lock,
-you don't have to worry about what pc->mem_cgroup points to.
-moved pages are added to head of lru, not to tail.
+  at migration, check against 'old page' is modified to handle shmem.
 
-Expected users of this routine is:
-  - force_empty (rmdir)
-  - moving tasks between cgroup (for moving account information.)
-  - hierarchy (maybe useful.)
+Comparing to the old version discussed (and caused troubles), we have
+advantages of
+  - PCG_USED bit.
+  - simple migrating handling.
 
-force_empty(rmdir) uses this move_account and move pages to its parent.
-This "move" will not cause OOM (I added "oom" parameter to try_charge().)
+So, situation is much easier than several months ago, maybe.
 
-If the parent is busy (not enough memory), force_empty calls try_to_free_page()
-and reduce usage.
+Changelog (v1) -> (v2)
+  - use lock_page() when we handle unlocked SwapCache.
 
-Purpose of this behavior is
-  - Fix "forget all" behavior of force_empty and avoid leak of accounting.
-  - By "moving first, free if necessary", keep pages on memory as much as
-    possible.
-
-Adding a switch to change behavior of force_empty to
-  - free first, move if necessary
-  - free all, if there is mlocked/busy pages, return -EBUSY.
-is under consideration.
-
-This patch removes memory.force_empty file, a brutal debug-only interface.
-
-Changelog: (v8) -> (v9)
-  - fixed excessive use of __mem_cgroup_try_charge().
-  - explained "page cache moves, too" in Documentation.
-
-Changelog: (v6) -> (v8)
-  - removed memory.force_empty file which was provided only for debug.
-
-Changelog: (v5) -> (v6)
-  - removed unnecessary check.
-  - do all under lock_page_cgroup().
-  - removed res_counter_charge() from move function itself.
-    (and modifies try_charge() function.)
-  - add argument to add_list() to specify to add page_cgroup head or tail.
-  - merged with force_empty patch. (to answer who is user? question)
-
-Changelog: (v4) -> (v5)
-  - check for lock_page() is removed.
-  - rewrote description.
-
-Changelog: (v2) -> (v4)
-  - added lock_page_cgroup().
-  - moved out from new-force-empty patch.
-  - added how-to-use text.
-  - fixed race in __mem_cgroup_uncharge_common().
-
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
- Documentation/controllers/memory.txt |   12 -
- mm/memcontrol.c                      |  277 ++++++++++++++++++++++++++---------
- 2 files changed, 214 insertions(+), 75 deletions(-)
+---
+ Documentation/controllers/memory.txt |    5 ++
+ include/linux/swap.h                 |   16 ++++++++
+ mm/memcontrol.c                      |   67 +++++++++++++++++++++++++++++++----
+ mm/shmem.c                           |   18 ++++++++-
+ mm/swap_state.c                      |    1 
+ 5 files changed, 99 insertions(+), 8 deletions(-)
 
 Index: mmotm-2.6.28-rc2+/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.28-rc2+.orig/mm/memcontrol.c
 +++ mmotm-2.6.28-rc2+/mm/memcontrol.c
-@@ -257,7 +257,7 @@ static void __mem_cgroup_remove_list(str
+@@ -21,6 +21,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/cgroup.h>
+ #include <linux/mm.h>
++#include <linux/pagemap.h>
+ #include <linux/smp.h>
+ #include <linux/page-flags.h>
+ #include <linux/backing-dev.h>
+@@ -140,6 +141,7 @@ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+ 	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+ 	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
++	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
+ 	NR_CHARGE_TYPE,
+ };
+ 
+@@ -781,6 +783,33 @@ int mem_cgroup_cache_charge(struct page 
+ 				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
  }
  
- static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
--				struct page_cgroup *pc)
-+				struct page_cgroup *pc, bool hot)
- {
- 	int lru = LRU_BASE;
- 
-@@ -271,7 +271,10 @@ static void __mem_cgroup_add_list(struct
- 	}
- 
- 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
--	list_add(&pc->lru, &mz->lists[lru]);
-+	if (hot)
-+		list_add(&pc->lru, &mz->lists[lru]);
-+	else
-+		list_add_tail(&pc->lru, &mz->lists[lru]);
- 
- 	mem_cgroup_charge_statistics(pc->mem_cgroup, pc, true);
- }
-@@ -467,21 +470,12 @@ unsigned long mem_cgroup_isolate_pages(u
- 	return nr_taken;
- }
- 
--
--/**
-- * mem_cgroup_try_charge - get charge of PAGE_SIZE.
-- * @mm: an mm_struct which is charged against. (when *memcg is NULL)
-- * @gfp_mask: gfp_mask for reclaim.
-- * @memcg: a pointer to memory cgroup which is charged against.
-- *
-- * charge against memory cgroup pointed by *memcg. if *memcg == NULL, estimated
-- * memory cgroup from @mm is got and stored in *memcg.
-- *
-- * Returns 0 if success. -ENOMEM at failure.
-+/*
-+ * Unlike exported interface, "oom" parameter is added. if oom==true,
-+ * oom-killer can be invoked.
-  */
--
--int mem_cgroup_try_charge(struct mm_struct *mm,
--			gfp_t gfp_mask, struct mem_cgroup **memcg)
-+static int __mem_cgroup_try_charge(struct mm_struct *mm,
-+			gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
- {
- 	struct mem_cgroup *mem;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-@@ -528,7 +522,8 @@ int mem_cgroup_try_charge(struct mm_stru
- 			continue;
- 
- 		if (!nr_retries--) {
--			mem_cgroup_out_of_memory(mem, gfp_mask);
-+			if (oom)
-+				mem_cgroup_out_of_memory(mem, gfp_mask);
- 			goto nomem;
- 		}
- 	}
-@@ -538,6 +533,25 @@ nomem:
- 	return -ENOMEM;
- }
- 
-+/**
-+ * mem_cgroup_try_charge - get charge of PAGE_SIZE.
-+ * @mm: an mm_struct which is charged against. (when *memcg is NULL)
-+ * @gfp_mask: gfp_mask for reclaim.
-+ * @memcg: a pointer to memory cgroup which is charged against.
-+ *
-+ * charge against memory cgroup pointed by *memcg. if *memcg == NULL, estimated
-+ * memory cgroup from @mm is got and stored in *memcg.
-+ *
-+ * Returns 0 if success. -ENOMEM at failure.
-+ * This call can invoke OOM-Killer.
-+ */
-+
-+int mem_cgroup_try_charge(struct mm_struct *mm,
-+			  gfp_t mask, struct mem_cgroup **memcg)
++#ifdef CONFIG_SWAP
++int mem_cgroup_cache_charge_swapin(struct page *page,
++			struct mm_struct *mm, gfp_t mask, bool locked)
 +{
-+	return __mem_cgroup_try_charge(mm, mask, memcg, true);
++	int ret = 0;
++
++	if (mem_cgroup_subsys.disabled)
++		return 0;
++	if (unlikely(!mm))
++		mm = &init_mm;
++	if (!locked)
++		lock_page(page);
++	/*
++	 * If not locked, the page can be dropped from SwapCache until
++	 * we reach here.
++	 */
++	if (PageSwapCache(page)) {
++		ret = mem_cgroup_charge_common(page, mm, mask,
++				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
++	}
++	if (!locked)
++		unlock_page(page);
++
++	return ret;
 +}
++#endif
 +
- /*
-  * commit a charge got by mem_cgroup_try_charge() and makes page_cgroup to be
-  * USED state. If already USED, uncharge and return.
-@@ -571,11 +585,109 @@ static void __mem_cgroup_commit_charge(s
- 	mz = page_cgroup_zoneinfo(pc);
+ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+ {
+ 	struct page_cgroup *pc;
+@@ -818,6 +847,9 @@ __mem_cgroup_uncharge_common(struct page
+ 	if (mem_cgroup_subsys.disabled)
+ 		return;
  
- 	spin_lock_irqsave(&mz->lru_lock, flags);
--	__mem_cgroup_add_list(mz, pc);
-+	__mem_cgroup_add_list(mz, pc, true);
- 	spin_unlock_irqrestore(&mz->lru_lock, flags);
- 	unlock_page_cgroup(pc);
- }
++	if (PageSwapCache(page))
++		return;
++
+ 	/*
+ 	 * Check if our page_cgroup is valid
+ 	 */
+@@ -826,12 +858,26 @@ __mem_cgroup_uncharge_common(struct page
+ 		return;
  
-+/**
-+ * mem_cgroup_move_account - move account of the page
-+ * @pc:	page_cgroup of the page.
-+ * @from: mem_cgroup which the page is moved from.
-+ * @to:	mem_cgroup which the page is moved to. @from != @to.
-+ *
-+ * The caller must confirm following.
-+ * 1. disable irq.
-+ * 2. lru_lock of old mem_cgroup(@from) should be held.
-+ *
-+ * returns 0 at success,
-+ * returns -EBUSY when lock is busy or "pc" is unstable.
-+ *
-+ * This function does "uncharge" from old cgroup but doesn't do "charge" to
-+ * new cgroup. It should be done by a caller.
-+ */
-+
-+static int mem_cgroup_move_account(struct page_cgroup *pc,
-+	struct mem_cgroup *from, struct mem_cgroup *to)
-+{
-+	struct mem_cgroup_per_zone *from_mz, *to_mz;
-+	int nid, zid;
-+	int ret = -EBUSY;
-+
-+	VM_BUG_ON(!irqs_disabled());
-+	VM_BUG_ON(from == to);
-+
-+	nid = page_cgroup_nid(pc);
-+	zid = page_cgroup_zid(pc);
-+	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
-+	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
-+
-+
-+	if (!trylock_page_cgroup(pc))
-+		return ret;
+ 	lock_page_cgroup(pc);
+-	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED && page_mapped(page))
+-	     || !PageCgroupUsed(pc)) {
+-		/* This happens at race in zap_pte_range() and do_swap_page()*/
+-		unlock_page_cgroup(pc);
+-		return;
 +
 +	if (!PageCgroupUsed(pc))
-+		goto out;
++		goto unlock_out;
 +
-+	if (pc->mem_cgroup != from)
-+		goto out;
-+
-+	if (spin_trylock(&to_mz->lru_lock)) {
-+		__mem_cgroup_remove_list(from_mz, pc);
-+		css_put(&from->css);
-+		res_counter_uncharge(&from->res, PAGE_SIZE);
-+		pc->mem_cgroup = to;
-+		css_get(&to->css);
-+		__mem_cgroup_add_list(to_mz, pc, false);
-+		ret = 0;
-+		spin_unlock(&to_mz->lru_lock);
-+	}
-+out:
-+	unlock_page_cgroup(pc);
-+	return ret;
-+}
-+
-+/*
-+ * move charges to its parent.
-+ */
-+
-+static int mem_cgroup_move_parent(struct page_cgroup *pc,
-+				  struct mem_cgroup *child,
-+				  gfp_t gfp_mask)
-+{
-+	struct cgroup *cg = child->css.cgroup;
-+	struct cgroup *pcg = cg->parent;
-+	struct mem_cgroup *parent;
-+	struct mem_cgroup_per_zone *mz;
-+	unsigned long flags;
-+	int ret;
-+
-+	/* Is ROOT ? */
-+	if (!pcg)
-+		return -EINVAL;
-+
-+	parent = mem_cgroup_from_cont(pcg);
-+
-+	ret = __mem_cgroup_try_charge(NULL, gfp_mask, &parent, false);
-+	if (ret)
-+		return ret;
-+
-+	mz = mem_cgroup_zoneinfo(child,
-+			page_cgroup_nid(pc), page_cgroup_zid(pc));
-+
-+	spin_lock_irqsave(&mz->lru_lock, flags);
-+	ret = mem_cgroup_move_account(pc, child, parent);
-+	spin_unlock_irqrestore(&mz->lru_lock, flags);
-+
-+	/* drop extra refcnt */
-+	css_put(&parent->css);
-+	/* uncharge if move fails */
-+	if (ret)
-+		res_counter_uncharge(&parent->res, PAGE_SIZE);
-+
-+	return ret;
-+}
-+
- /*
-  * Charge the memory controller for page usage.
-  * Return
-@@ -597,7 +709,7 @@ static int mem_cgroup_charge_common(stru
- 	prefetchw(pc);
- 
- 	mem = memcg;
--	ret = mem_cgroup_try_charge(mm, gfp_mask, &mem);
-+	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
- 	if (ret)
- 		return ret;
- 
-@@ -898,46 +1010,52 @@ int mem_cgroup_resize_limit(struct mem_c
-  * This routine traverse page_cgroup in given list and drop them all.
-  * *And* this routine doesn't reclaim page itself, just removes page_cgroup.
-  */
--#define FORCE_UNCHARGE_BATCH	(128)
--static void mem_cgroup_force_empty_list(struct mem_cgroup *mem,
-+static int mem_cgroup_force_empty_list(struct mem_cgroup *mem,
- 			    struct mem_cgroup_per_zone *mz,
- 			    enum lru_list lru)
- {
--	struct page_cgroup *pc;
--	struct page *page;
--	int count = FORCE_UNCHARGE_BATCH;
-+	struct page_cgroup *pc, *busy;
- 	unsigned long flags;
-+	unsigned long loop;
- 	struct list_head *list;
-+	int ret = 0;
- 
- 	list = &mz->lists[lru];
- 
--	spin_lock_irqsave(&mz->lru_lock, flags);
--	while (!list_empty(list)) {
--		pc = list_entry(list->prev, struct page_cgroup, lru);
--		page = pc->page;
--		if (!PageCgroupUsed(pc))
-+	loop = MEM_CGROUP_ZSTAT(mz, lru);
-+	/* give some margin against EBUSY etc...*/
-+	loop += 256;
-+	busy = NULL;
-+	while (loop--) {
-+		ret = 0;
-+		spin_lock_irqsave(&mz->lru_lock, flags);
-+		if (list_empty(list)) {
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
- 			break;
--		get_page(page);
-+		}
-+		pc = list_entry(list->prev, struct page_cgroup, lru);
-+		if (busy == pc) {
-+			list_move(&pc->lru, list);
-+			busy = 0;
-+			spin_unlock_irqrestore(&mz->lru_lock, flags);
-+			continue;
-+		}
- 		spin_unlock_irqrestore(&mz->lru_lock, flags);
--		/*
--		 * Check if this page is on LRU. !LRU page can be found
--		 * if it's under page migration.
--		 */
--		if (PageLRU(page)) {
--			__mem_cgroup_uncharge_common(page,
--					MEM_CGROUP_CHARGE_TYPE_FORCE);
--			put_page(page);
--			if (--count <= 0) {
--				count = FORCE_UNCHARGE_BATCH;
--				cond_resched();
--			}
--		} else {
--			spin_lock_irqsave(&mz->lru_lock, flags);
-+
-+		ret = mem_cgroup_move_parent(pc, mem, GFP_HIGHUSER_MOVABLE);
-+		if (ret == -ENOMEM)
- 			break;
--		}
--		spin_lock_irqsave(&mz->lru_lock, flags);
-+
-+		if (ret == -EBUSY || ret == -EINVAL) {
-+			/* found lock contention or "pc" is obsolete. */
-+			busy = pc;
-+			cond_resched();
-+		} else
-+			busy = NULL;
++	switch(ctype) {
++	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
++		if (page_mapped(page))
++			goto unlock_out;
++		break;
++	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
++		if (!PageAnon(page)) {	/* Shared memory */
++			if (page->mapping && !page_is_file_cache(page))
++				goto unlock_out;
++		} else if (page_mapped(page)) /* Anon */
++				goto unlock_out;
++		break;
++	default:
++		break;
  	}
--	spin_unlock_irqrestore(&mz->lru_lock, flags);
-+	if (!ret && !list_empty(list))
-+		return -EBUSY;
-+	return ret;
- }
- 
- /*
-@@ -946,34 +1064,68 @@ static void mem_cgroup_force_empty_list(
-  */
- static int mem_cgroup_force_empty(struct mem_cgroup *mem)
- {
--	int ret = -EBUSY;
--	int node, zid;
-+	int ret;
-+	int node, zid, shrink;
-+	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 
- 	css_get(&mem->css);
--	/*
--	 * page reclaim code (kswapd etc..) will move pages between
--	 * active_list <-> inactive_list while we don't take a lock.
--	 * So, we have to do loop here until all lists are empty.
--	 */
 +
-+	shrink = 0;
-+move_account:
- 	while (mem->res.usage > 0) {
-+		ret = -EBUSY;
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
-+
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
--		for_each_node_state(node, N_POSSIBLE)
--			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+		ret = 0;
-+		for_each_node_state(node, N_POSSIBLE) {
-+			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
- 				struct mem_cgroup_per_zone *mz;
- 				enum lru_list l;
- 				mz = mem_cgroup_zoneinfo(mem, node, zid);
--				for_each_lru(l)
--					mem_cgroup_force_empty_list(mem, mz, l);
-+				for_each_lru(l) {
-+					ret = mem_cgroup_force_empty_list(mem,
-+								  mz, l);
-+					if (ret)
-+						break;
-+				}
- 			}
-+			if (ret)
-+				break;
-+		}
-+		/* it seems parent cgroup doesn't have enough mem */
-+		if (ret == -ENOMEM)
-+			goto try_to_free;
- 		cond_resched();
- 	}
- 	ret = 0;
- out:
+ 	ClearPageCgroupUsed(pc);
+ 	mem = pc->mem_cgroup;
+ 
+@@ -845,6 +891,10 @@ __mem_cgroup_uncharge_common(struct page
  	css_put(&mem->css);
- 	return ret;
+ 
+ 	return;
 +
-+try_to_free:
-+	/* returns EBUSY if we come here twice. */
-+	if (shrink)  {
-+		ret = -EBUSY;
-+		goto out;
-+	}
-+	/* try to free all pages in this cgroup */
-+	shrink = 1;
-+	while (nr_retries && mem->res.usage > 0) {
-+		int progress;
-+		progress = try_to_free_mem_cgroup_pages(mem,
-+						  GFP_HIGHUSER_MOVABLE);
-+		if (!progress)
-+			nr_retries--;
-+
-+	}
-+	/* try move_account...there may be some *locked* pages. */
-+	if (mem->res.usage)
-+		goto move_account;
-+	ret = 0;
-+	goto out;
++unlock_out:
++	unlock_page_cgroup(pc);
++	return;
  }
  
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
-@@ -1022,11 +1174,6 @@ static int mem_cgroup_reset(struct cgrou
- 	return 0;
+ void mem_cgroup_uncharge_page(struct page *page)
+@@ -864,6 +914,11 @@ void mem_cgroup_uncharge_cache_page(stru
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
  }
  
--static int mem_force_empty_write(struct cgroup *cont, unsigned int event)
--{
--	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont));
--}
--
- static const struct mem_cgroup_stat_desc {
- 	const char *msg;
- 	u64 unit;
-@@ -1103,10 +1250,6 @@ static struct cftype mem_cgroup_files[] 
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
--		.name = "force_empty",
--		.trigger = mem_force_empty_write,
--	},
--	{
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
++void mem_cgroup_uncharge_swapcache(struct page *page)
++{
++	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
++}
++
+ /*
+  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+  * page belongs to.
+@@ -921,7 +976,7 @@ void mem_cgroup_end_migration(struct mem
+ 		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+ 
+ 	/* unused page is not on radix-tree now. */
+-	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
++	if (unused)
+ 		__mem_cgroup_uncharge_common(unused, ctype);
+ 
+ 	pc = lookup_page_cgroup(target);
+Index: mmotm-2.6.28-rc2+/mm/swap_state.c
+===================================================================
+--- mmotm-2.6.28-rc2+.orig/mm/swap_state.c
++++ mmotm-2.6.28-rc2+/mm/swap_state.c
+@@ -119,6 +119,7 @@ void __delete_from_swap_cache(struct pag
+ 	total_swapcache_pages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
++	mem_cgroup_uncharge_swapcache(page);
+ }
+ 
+ /**
+Index: mmotm-2.6.28-rc2+/include/linux/swap.h
+===================================================================
+--- mmotm-2.6.28-rc2+.orig/include/linux/swap.h
++++ mmotm-2.6.28-rc2+/include/linux/swap.h
+@@ -332,6 +332,22 @@ static inline void disable_swap_token(vo
+ 	put_swap_token(swap_token_mm);
+ }
+ 
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++extern int mem_cgroup_cache_charge_swapin(struct page *page,
++				struct mm_struct *mm, gfp_t mask, bool locked);
++extern void mem_cgroup_uncharge_swapcache(struct page *page);
++#else
++static inline
++int mem_cgroup_cache_charge_swapin(struct page *page,
++				struct mm_struct *mm, gfp_t mask, bool locked)
++{
++	return 0;
++}
++static inline void mem_cgroup_uncharge_swapcache(struct page *page)
++{
++}
++#endif
++
+ #else /* CONFIG_SWAP */
+ 
+ #define total_swap_pages			0
+Index: mmotm-2.6.28-rc2+/mm/shmem.c
+===================================================================
+--- mmotm-2.6.28-rc2+.orig/mm/shmem.c
++++ mmotm-2.6.28-rc2+/mm/shmem.c
+@@ -920,8 +920,12 @@ found:
+ 	error = 1;
+ 	if (!inode)
+ 		goto out;
+-	/* Charge page using GFP_HIGHUSER_MOVABLE while we can wait */
+-	error = mem_cgroup_cache_charge(page, current->mm, GFP_HIGHUSER_MOVABLE);
++	/*
++         * Charge page using GFP_HIGHUSER_MOVABLE while we can wait.
++         * charged back to the user(not to caller) when swap account is used.
++         */
++	error = mem_cgroup_cache_charge_swapin(page,
++			current->mm, GFP_HIGHUSER_MOVABLE, true);
+ 	if (error)
+ 		goto out;
+ 	error = radix_tree_preload(GFP_KERNEL);
+@@ -1258,6 +1262,16 @@ repeat:
+ 				goto repeat;
+ 			}
+ 			wait_on_page_locked(swappage);
++			/*
++			 * We want to avoid charge at add_to_page_cache().
++			 * charge against this swap cache here.
++			 */
++			if (mem_cgroup_cache_charge_swapin(swappage,
++						current->mm, gfp, false)) {
++				page_cache_release(swappage);
++				error = -ENOMEM;
++				goto failed;
++			}
+ 			page_cache_release(swappage);
+ 			goto repeat;
+ 		}
 Index: mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
 ===================================================================
 --- mmotm-2.6.28-rc2+.orig/Documentation/controllers/memory.txt
 +++ mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
-@@ -207,12 +207,6 @@ exceeded.
- The memory.stat file gives accounting information. Now, the number of
- caches, RSS and Active pages/Inactive pages are shown.
+@@ -137,6 +137,11 @@ behind this approach is that a cgroup th
+ page will eventually get charged for it (once it is uncharged from
+ the cgroup that brought it in -- this will happen on memory pressure).
  
--The memory.force_empty gives an interface to drop *all* charges by force.
--
--# echo 1 > memory.force_empty
--
--will drop all charges in cgroup. Currently, this is maintained for test.
--
- 4. Testing
++Exception: When you do swapoff and make swapped-out pages of shmem(tmpfs) to
++be backed into memory in force, charges for pages are accounted against the
++caller of swapoff rather than the users of shmem.
++
++
+ 2.4 Reclaim
  
- Balbir posted lmbench, AIM9, LTP and vmmstress results [10] and [11].
-@@ -242,8 +236,10 @@ reclaimed.
- 
- A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
- cgroup might have some charge associated with it, even though all
--tasks have migrated away from it. Such charges are automatically dropped at
--rmdir() if there are no tasks.
-+tasks have migrated away from it.
-+Such charges are moved to its parent as much as possible and freed if parent
-+is full. Both of RSS and CACHES are moved to parent.
-+If both of them are busy, rmdir() returns -EBUSY.
- 
- 5. TODO
- 
+ Each cgroup maintains a per cgroup LRU that consists of an active
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
