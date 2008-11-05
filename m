@@ -1,140 +1,91 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA524412002145
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA58HDpj026343
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 5 Nov 2008 11:04:04 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB6F645DD82
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 11:04:03 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 930DC45DD7B
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 11:04:03 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B3FF1DB8044
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 11:04:03 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 0ED8B1DB8037
-	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 11:04:03 +0900 (JST)
-Date: Wed, 5 Nov 2008 11:03:29 +0900
+	Wed, 5 Nov 2008 17:17:13 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 24A4A45DD7B
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:17:13 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 00D8D45DD78
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:17:13 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D068C1DB8037
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:17:12 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 774FB1DB803A
+	for <linux-mm@kvack.org>; Wed,  5 Nov 2008 17:17:12 +0900 (JST)
+Date: Wed, 5 Nov 2008 17:16:37 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/5] memcg : handle swap cache
-Message-Id: <20081105110329.a66d4679.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081105090749.a8756b03.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081031115057.6da3dafd.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081031115411.25478878.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081104174201.9e2dc44c.nishimura@mxp.nes.nec.co.jp>
-	<20081104180429.4e47875e.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081104192822.fc87868b.nishimura@mxp.nes.nec.co.jp>
-	<20081105090749.a8756b03.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/6] memcg updates (05/Nov)
+Message-Id: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, hugh@veritas.com, taka@valinux.co.jp
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Nov 2008 09:07:49 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Weekly (RFC) update for memcg.
 
-> On Tue, 4 Nov 2008 19:28:22 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > On Tue, 4 Nov 2008 18:04:29 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Tue, 4 Nov 2008 17:42:01 +0900
-> > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > 
-> > > > > +#ifdef CONFIG_SWAP
-> > > > > +int mem_cgroup_cache_charge_swapin(struct page *page,
-> > > > > +			struct mm_struct *mm, gfp_t mask)
-> > > > > +{
-> > > > > +	int ret = 0;
-> > > > > +
-> > > > > +	if (mem_cgroup_subsys.disabled)
-> > > > > +		return 0;
-> > > > > +	if (unlikely(!mm))
-> > > > > +		mm = &init_mm;
-> > > > > +
-> > > > > +	ret = mem_cgroup_charge_common(page, mm, mask,
-> > > > > +			MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
-> > > > > +	/*
-> > > > > +	 * The page may be dropped from SwapCache because we don't have
-> > > > > +	 * lock_page().This may cause charge-after-uncharge trouble.
-> > > > > +	 * Fix it up here. (the caller have refcnt to this page and
-> > > > > +	 * page itself is guaranteed not to be freed.)
-> > > > > +	 */
-> > > > > +	if (ret && !PageSwapCache(page))
-> > > > > +		mem_cgroup_uncharge_swapcache(page);
-> > > > > +
-> > > > Hmm.. after [5/5], mem_cgroup_cache_charge_swapin has 'locked' parameter,
-> > > > calls lock_page(if !locked), and checks PageSwapCache under page lock.
-> > > > 
-> > > > Why not doing it in this patch?
-> > > > 
-> > > 
-> > > My intention is to guard swap_cgroup by lock_page() against SwapCache.
-> > > In Mem+Swap controller. we get "memcg" from information in page->private.
-> > > I think we need lock_page(), there. 
-> > > 
-> > > But here, we don't refer page->private information. 
-> > > I think we don't need lock_page() because there is no inofrmation we depends on.
-> > > 
-> > I just thought it would be simpler to check PageSwapCache after holding
-> > page lock rather than to handle the case that the page might be removed from
-> > swap cache.
-> > 
-> > And to be honest, I can't understand the "charge-after-uncharge trouble".
-> > Could you explain more?
-> > 
+This set includes
 
-I'll add lock_page() here to make this simple.
+1. change force_empty to do move account rather than forget all
+2. swap cache handling
+3. mem+swap controller kconfig
+4. swap_cgroup for rememver swap account information
+5. mem+swap controller core
+6. synchronize memcg's LRU and global LRU.
+
+"1" is already sent, "6" is a newcomer.
+I'd like to push out "2" or "2-5" in the next week (if no bugs.)
+
+after 6, next candidates are
+  - dirty_ratio handler
+  - account move at task move.
+
+Some more explanation about purpose of "6". (see details in patch itself)
+Now, one of complicated logic in memcg is LRU handling. Because the place of
+lru_head depends on page_cgroup->mem_cgroup pointer, we have to take
+lock as following even under zone->lru_lock.
+==
+  pc = lookup_page_cgroup(page);
+  if (!trylock_page_cgroup(pc))
+  	return -EBUSY;
+
+   if (PageCgroupUsed(pc)) {
+	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
+	spin_lock_irqsave(&mz->lru_lock, flags);
+	....some operation on LRU.
+	spin_unlock_irqrestore(&mz->lru_lock, flags);
+   }
+   unlock_page_cgroup(pc);
+==
+Sigh..
+
+After "6", page_cgroup's LRU management can be done independently to some extent.
+== as
+  (zone->lru_lock is held here)
+  pc = lookup_page_cgroup(page);
+  list operation on pc.
+  (unlock zone->lru_lock)
+==
+Maybe good for maintainance and as a bonus, we can make use of isolate_lru_page() when
+doing some racy operation.
+
+	isolate_lru_page(page);
+	pc = lookup_page_cgroup(page);
+	do some jobs.
+	putback_lru_page(page);
+
+Maybe this will be a help to implement "account move at task move".
 
 Thanks,
 -Kame
 
 
-> Maybe typical case is following.
-> __delete_from_swapcache can happen while the page is unlocked.
-> ==
->                                                   some other thread.
->    page = shmem_swapin()
->    	swapin_readahead();
->    # page is SwapCache here.
->    # but this page is not locked.
->                                                   ___delete_from_swapcache(page)
->    # This is not SwapCache.                                 => uncharge swapcache.
->    mem_cgroup_charge_cache_swapin();
->    {
->        charge();  # charged this page but we don't know this is still swapcache.
->        if (!PageSwapCache(page)) {
-> 		# Oh we should unroll this.
->        }
->    }
-> =
-> 
-> Thanks,
-> -Kame
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
