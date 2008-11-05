@@ -1,20 +1,20 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id mA5DYuSh031954
-	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:56 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA5DYtwp3301418
-	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:56 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id mA5DYti4001575
-	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:55 +0530
-Message-ID: <4911A0FC.9@linux.vnet.ibm.com>
-Date: Wed, 05 Nov 2008 19:04:52 +0530
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id mA5DpXgW004997
+	for <linux-mm@kvack.org>; Thu, 6 Nov 2008 00:51:33 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA5DpTmD2826334
+	for <linux-mm@kvack.org>; Thu, 6 Nov 2008 00:51:29 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA5DpPpE001037
+	for <linux-mm@kvack.org>; Thu, 6 Nov 2008 00:51:26 +1100
+Message-ID: <4911A4D8.4010402@linux.vnet.ibm.com>
+Date: Wed, 05 Nov 2008 19:21:20 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [mm] [PATCH 3/4] Memory cgroup hierarchical reclaim
-References: <20081101184812.2575.68112.sendpatchset@balbir-laptop> <20081101184849.2575.37734.sendpatchset@balbir-laptop> <20081102143707.1bf7e2d0.kamezawa.hiroyu@jp.fujitsu.com> <490D3E50.9070606@linux.vnet.ibm.com> <20081104111751.51ea897b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081104111751.51ea897b.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [mm][PATCH 0/4] Memory cgroup hierarchy introduction
+References: <20081101184812.2575.68112.sendpatchset@balbir-laptop> <20081104091510.01cf3a1e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081104091510.01cf3a1e.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,136 +24,45 @@ Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <
 List-ID: <linux-mm.kvack.org>
 
 KAMEZAWA Hiroyuki wrote:
-> On Sun, 02 Nov 2008 11:14:48 +0530
+> On Sun, 02 Nov 2008 00:18:12 +0530
 > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
->> KAMEZAWA Hiroyuki wrote:
->>> On Sun, 02 Nov 2008 00:18:49 +0530
->>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>>
->>>> This patch introduces hierarchical reclaim. When an ancestor goes over its
->>>> limit, the charging routine points to the parent that is above its limit.
->>>> The reclaim process then starts from the last scanned child of the ancestor
->>>> and reclaims until the ancestor goes below its limit.
->>>>
->>>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->>>> ---
->>>>
->>>>  mm/memcontrol.c |  153 +++++++++++++++++++++++++++++++++++++++++++++++---------
->>>>  1 file changed, 129 insertions(+), 24 deletions(-)
->>>>
->>>> diff -puN mm/memcontrol.c~memcg-hierarchical-reclaim mm/memcontrol.c
->>>> --- linux-2.6.28-rc2/mm/memcontrol.c~memcg-hierarchical-reclaim	2008-11-02 00:14:59.000000000 +0530
->>>> +++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-02 00:14:59.000000000 +0530
->>>> @@ -132,6 +132,11 @@ struct mem_cgroup {
->>>>  	 * statistics.
->>>>  	 */
->>>>  	struct mem_cgroup_stat stat;
->>>> +	/*
->>>> +	 * While reclaiming in a hiearchy, we cache the last child we
->>>> +	 * reclaimed from.
->>>> +	 */
->>>> +	struct mem_cgroup *last_scanned_child;
->>>>  };
->>>>  static struct mem_cgroup init_mem_cgroup;
->>>>  
->>>> @@ -467,6 +472,125 @@ unsigned long mem_cgroup_isolate_pages(u
->>>>  	return nr_taken;
->>>>  }
->>>>  
->>>> +static struct mem_cgroup *
->>>> +mem_cgroup_from_res_counter(struct res_counter *counter)
->>>> +{
->>>> +	return container_of(counter, struct mem_cgroup, res);
->>>> +}
->>>> +
->>>> +/*
->>>> + * Dance down the hierarchy if needed to reclaim memory. We remember the
->>>> + * last child we reclaimed from, so that we don't end up penalizing
->>>> + * one child extensively based on its position in the children list
->>>> + */
->>>> +static int
->>>> +mem_cgroup_hierarchical_reclaim(struct mem_cgroup *mem, gfp_t gfp_mask)
->>>> +{
->>>> +	struct cgroup *cg, *cg_current, *cgroup;
->>>> +	struct mem_cgroup *mem_child;
->>>> +	int ret = 0;
->>>> +
->>>> +	if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
->>>> +		return -ENOMEM;
->>>> +
->>>> +	/*
->>>> +	 * try_to_free_mem_cgroup_pages() might not give us a full
->>>> +	 * picture of reclaim. Some pages are reclaimed and might be
->>>> +	 * moved to swap cache or just unmapped from the cgroup.
->>>> +	 * Check the limit again to see if the reclaim reduced the
->>>> +	 * current usage of the cgroup before giving up
->>>> +	 */
->>>> +	if (res_counter_check_under_limit(&mem->res))
->>>> +		return 0;
->>>> +
->>>> +	/*
->>>> +	 * Scan all children under the mem_cgroup mem
->>>> +	 */
->>>> +	if (!mem->last_scanned_child)
->>>> +		cgroup = list_first_entry(&mem->css.cgroup->children,
->>>> +				struct cgroup, sibling);
->>>> +	else
->>>> +		cgroup = mem->last_scanned_child->css.cgroup;
->>>> +
->>>> +	cg_current = cgroup;
->>>> +
->>>> +	/*
->>>> +	 * We iterate twice, one of it is fundamental list issue, where
->>>> +	 * the elements are inserted using list_add and hence the list
->>>> +	 * behaves like a stack and list_for_entry_safe_from() stops
->>>> +	 * after seeing the first child. The two loops help us work
->>>> +	 * independently of the insertion and it helps us get a full pass at
->>>> +	 * scanning all list entries for reclaim
->>>> +	 */
->>>> +	list_for_each_entry_safe_from(cgroup, cg, &cg_current->parent->children,
->>>> +						 sibling) {
->>>> +		mem_child = mem_cgroup_from_cont(cgroup);
->>>> +
->>>> +		/*
->>>> +		 * Move beyond last scanned child
->>>> +		 */
->>>> +		if (mem_child == mem->last_scanned_child)
->>>> +			continue;
->>>> +
->>>> +		ret = try_to_free_mem_cgroup_pages(mem_child, gfp_mask);
->>>> +		mem->last_scanned_child = mem_child;
->>>> +
->>>> +		if (res_counter_check_under_limit(&mem->res)) {
->>>> +			ret = 0;
->>>> +			goto done;
->>>> +		}
->>>> +	}
->>> Is this safe against cgroup create/remove ? cgroup_mutex is held ?
->> Yes, I thought about it, but with the setup, each parent will be busy since they
->> have children and hence cannot be removed. The leaf child itself has tasks, so
->> it cannot be removed. IOW, it should be safe against removal.
+>> This patch follows several iterations of the memory controller hierarchy
+>> patches. The hardwall approach by Kamezawa-San[1]. Version 1 of this patchset
+>> at [2].
 >>
-> I'm sorry if I misunderstand something. could you explain folloing ?
+>> The current approach is based on [2] and has the following properties
+>>
+>> 1. Hierarchies are very natural in a filesystem like the cgroup filesystem.
+>>    A multi-tree hierarchy has been supported for a long time in filesystems.
+>>    When the feature is turned on, we honor hierarchies such that the root
+>>    accounts for resource usage of all children and limits can be set at
+>>    any point in the hierarchy. Any memory cgroup is limited by limits
+>>    along the hierarchy. The total usage of all children of a node cannot
+>>    exceed the limit of the node.
+>> 2. The hierarchy feature is selectable and off by default
+>> 3. Hierarchies are expensive and the trade off is depth versus performance.
+>>    Hierarchies can also be completely turned off.
+>>
+>> The patches are against 2.6.28-rc2-mm1 and were tested in a KVM instance
+>> with SMP and swap turned on.
+>>
 > 
-> In following tree,
-> 
->     level-1
->          -  level-2
->                 -  level-3
->                        -  level-4
-> level-1's usage = level-1 + level-2 + level-3 + level-4
-> level-2's usage = level-2 + level-3 + level-4
-> level-3's usage = level-3 + level-4
-> level-4's usage = level-4
-> 
-> Assume that a task in level-2 hits its limit. It has to reclaim memory from
-> level-2 and level-3, level-4.
-> 
-> How can we guarantee level-4 has a task in this case ?
+> As first impression, I think hierarchical LRU management is not good...means
+> not fair from viewpoint of memory management.
 
-Good question. If there is no task, the LRU's will be empty and reclaim will
-return. We could also add other checks if needed.
+Could you elaborate on this further? Is scanning of children during reclaim the
+issue? Do you want weighted reclaim for each of the children?
+
+> I'd like to show some other possible implementation of
+> try_to_free_mem_cgroup_pages() if I can.
+> 
+
+Elaborate please!
+
+> Anyway, I have to merge this with mem+swap controller. 
+
+Cool! I'll send you an updated version.
 
 -- 
 	Balbir
