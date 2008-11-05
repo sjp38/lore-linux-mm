@@ -1,78 +1,162 @@
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory hotplug
-Date: Wed, 5 Nov 2008 12:08:25 +0100
-References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <1225817945.12673.602.camel@nimitz> <20081105093837.e073c373.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081105093837.e073c373.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id mA5DYuSh031954
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:56 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA5DYtwp3301418
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:56 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id mA5DYti4001575
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:04:55 +0530
+Message-ID: <4911A0FC.9@linux.vnet.ibm.com>
+Date: Wed, 05 Nov 2008 19:04:52 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [mm] [PATCH 3/4] Memory cgroup hierarchical reclaim
+References: <20081101184812.2575.68112.sendpatchset@balbir-laptop> <20081101184849.2575.37734.sendpatchset@balbir-laptop> <20081102143707.1bf7e2d0.kamezawa.hiroyu@jp.fujitsu.com> <490D3E50.9070606@linux.vnet.ibm.com> <20081104111751.51ea897b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081104111751.51ea897b.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200811051208.26628.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nigel Cunningham <ncunningham@crca.org.au>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday, 5 of November 2008, KAMEZAWA Hiroyuki wrote:
-> On Tue, 04 Nov 2008 08:59:05 -0800
-> Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> On Sun, 02 Nov 2008 11:14:48 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> > On Tue, 2008-11-04 at 17:34 +0100, Rafael J. Wysocki wrote:
-> > > Now, I need to do one more thing, which is to check how much memory has to be
-> > > freed before creating the image.  For this purpose I need to lock memory
-> > > hotplug temporarily, count pages to free and unlock it.  What interface should
-> > > I use for this purpose? 
-> > > 
-> > > [I'll also need to lock memory hotplug temporarily during resume.]
-> > 
-> > We currently don't have any big switch to disable memory hotplug, like
-> > lock_memory_hotplug() or something. :)
-> > 
-> > If you are simply scanning and counting pages, I think the best thing to
-> > use would be the zone_span_seq*() seqlock stuff.  Do your count inside
-> > the seqlock's while loop.  That covers detecting a zone changing while
-> > it is being scanned.
-> > 
-> > The other case to detect is when a new zone gets added.  These are
-> > really rare.  Rare enough that we actually use a stop_machine() call in
-> > build_all_zonelists() to do it.  All you would have to do is detect when
-> > one of these calls gets made.  I think that's a good application for a
-> > new seq_lock.
-> > 
-> > I've attached an utterly untested patch that should do the trick.
-> > Yasunori and KAME should probably take a look at it since the node
-> > addition code is theirs.
-> > 
+>> KAMEZAWA Hiroyuki wrote:
+>>> On Sun, 02 Nov 2008 00:18:49 +0530
+>>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>>>
+>>>> This patch introduces hierarchical reclaim. When an ancestor goes over its
+>>>> limit, the charging routine points to the parent that is above its limit.
+>>>> The reclaim process then starts from the last scanned child of the ancestor
+>>>> and reclaims until the ancestor goes below its limit.
+>>>>
+>>>> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>>>> ---
+>>>>
+>>>>  mm/memcontrol.c |  153 +++++++++++++++++++++++++++++++++++++++++++++++---------
+>>>>  1 file changed, 129 insertions(+), 24 deletions(-)
+>>>>
+>>>> diff -puN mm/memcontrol.c~memcg-hierarchical-reclaim mm/memcontrol.c
+>>>> --- linux-2.6.28-rc2/mm/memcontrol.c~memcg-hierarchical-reclaim	2008-11-02 00:14:59.000000000 +0530
+>>>> +++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-02 00:14:59.000000000 +0530
+>>>> @@ -132,6 +132,11 @@ struct mem_cgroup {
+>>>>  	 * statistics.
+>>>>  	 */
+>>>>  	struct mem_cgroup_stat stat;
+>>>> +	/*
+>>>> +	 * While reclaiming in a hiearchy, we cache the last child we
+>>>> +	 * reclaimed from.
+>>>> +	 */
+>>>> +	struct mem_cgroup *last_scanned_child;
+>>>>  };
+>>>>  static struct mem_cgroup init_mem_cgroup;
+>>>>  
+>>>> @@ -467,6 +472,125 @@ unsigned long mem_cgroup_isolate_pages(u
+>>>>  	return nr_taken;
+>>>>  }
+>>>>  
+>>>> +static struct mem_cgroup *
+>>>> +mem_cgroup_from_res_counter(struct res_counter *counter)
+>>>> +{
+>>>> +	return container_of(counter, struct mem_cgroup, res);
+>>>> +}
+>>>> +
+>>>> +/*
+>>>> + * Dance down the hierarchy if needed to reclaim memory. We remember the
+>>>> + * last child we reclaimed from, so that we don't end up penalizing
+>>>> + * one child extensively based on its position in the children list
+>>>> + */
+>>>> +static int
+>>>> +mem_cgroup_hierarchical_reclaim(struct mem_cgroup *mem, gfp_t gfp_mask)
+>>>> +{
+>>>> +	struct cgroup *cg, *cg_current, *cgroup;
+>>>> +	struct mem_cgroup *mem_child;
+>>>> +	int ret = 0;
+>>>> +
+>>>> +	if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+>>>> +		return -ENOMEM;
+>>>> +
+>>>> +	/*
+>>>> +	 * try_to_free_mem_cgroup_pages() might not give us a full
+>>>> +	 * picture of reclaim. Some pages are reclaimed and might be
+>>>> +	 * moved to swap cache or just unmapped from the cgroup.
+>>>> +	 * Check the limit again to see if the reclaim reduced the
+>>>> +	 * current usage of the cgroup before giving up
+>>>> +	 */
+>>>> +	if (res_counter_check_under_limit(&mem->res))
+>>>> +		return 0;
+>>>> +
+>>>> +	/*
+>>>> +	 * Scan all children under the mem_cgroup mem
+>>>> +	 */
+>>>> +	if (!mem->last_scanned_child)
+>>>> +		cgroup = list_first_entry(&mem->css.cgroup->children,
+>>>> +				struct cgroup, sibling);
+>>>> +	else
+>>>> +		cgroup = mem->last_scanned_child->css.cgroup;
+>>>> +
+>>>> +	cg_current = cgroup;
+>>>> +
+>>>> +	/*
+>>>> +	 * We iterate twice, one of it is fundamental list issue, where
+>>>> +	 * the elements are inserted using list_add and hence the list
+>>>> +	 * behaves like a stack and list_for_entry_safe_from() stops
+>>>> +	 * after seeing the first child. The two loops help us work
+>>>> +	 * independently of the insertion and it helps us get a full pass at
+>>>> +	 * scanning all list entries for reclaim
+>>>> +	 */
+>>>> +	list_for_each_entry_safe_from(cgroup, cg, &cg_current->parent->children,
+>>>> +						 sibling) {
+>>>> +		mem_child = mem_cgroup_from_cont(cgroup);
+>>>> +
+>>>> +		/*
+>>>> +		 * Move beyond last scanned child
+>>>> +		 */
+>>>> +		if (mem_child == mem->last_scanned_child)
+>>>> +			continue;
+>>>> +
+>>>> +		ret = try_to_free_mem_cgroup_pages(mem_child, gfp_mask);
+>>>> +		mem->last_scanned_child = mem_child;
+>>>> +
+>>>> +		if (res_counter_check_under_limit(&mem->res)) {
+>>>> +			ret = 0;
+>>>> +			goto done;
+>>>> +		}
+>>>> +	}
+>>> Is this safe against cgroup create/remove ? cgroup_mutex is held ?
+>> Yes, I thought about it, but with the setup, each parent will be busy since they
+>> have children and hence cannot be removed. The leaf child itself has tasks, so
+>> it cannot be removed. IOW, it should be safe against removal.
+>>
+> I'm sorry if I misunderstand something. could you explain folloing ?
 > 
-> Hmm ? I think there is no real requirement for doing hibernation while
-> memory is under hotplug.
+> In following tree,
 > 
-> Assume following.
->  - memory hotplug can be triggerred by
->     1. interrupt from system.
->     2. "probe" interface in sysfs.
->  - ONLINE/OFFLINE is only trigerred by sysfs interface.
+>     level-1
+>          -  level-2
+>                 -  level-3
+>                        -  level-4
+> level-1's usage = level-1 + level-2 + level-3 + level-4
+> level-2's usage = level-2 + level-3 + level-4
+> level-3's usage = level-3 + level-4
+> level-4's usage = level-4
 > 
-> I believe we can't block "1", but "1" cannot be raised while hibernation.
-> (If it happens, it's mistake of the firmware.)
+> Assume that a task in level-2 hits its limit. It has to reclaim memory from
+> level-2 and level-3, level-4.
 > 
-> "probe" interface can be triggered from userland. Then it may be worth to be
-> blocked. How about to add device_pm_lock() to following place ?
+> How can we guarantee level-4 has a task in this case ?
 
-This is not necessary as long as we freeze the userland before hibernation.
-Still, this is one thing to remeber that the freezing is needed for. :-)
+Good question. If there is no task, the LRU's will be empty and reclaim will
+return. We could also add other checks if needed.
 
-1. seems to be problematic, though, since we rely on zones remaining
-unchanged while we're counting memory pages to free before hibernation
-and this happens before the calling ->suspend() methods of device drivers.
-Of course we can count free pages in a different way, but that will be a
-substantial modification (I think).
-
-How's the firmware supposed to be notified that hibernation is going to happen?
-
-Rafael
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
