@@ -1,46 +1,43 @@
-Date: Thu, 6 Nov 2008 11:59:58 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH 7/6] memcg: add atribute (for change bahavior of
- rmdir)
-In-Reply-To: <20081106194153.220157ec.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0811061151130.26541@blonde.site>
-References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
- <49129493.9070103@linux.vnet.ibm.com> <20081106194153.220157ec.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Thu, 6 Nov 2008 13:28:55 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [PATCH] hibernation should work ok with memory hotplug
+Message-ID: <20081106122855.GA1549@ucw.cz>
+References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <200810291325.01481.rjw@sisk.pl> <20081103125108.46d0639e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081103125108.46d0639e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-pm@lists.osdl.org, Matt Tolentino <matthew.e.tolentino@intel.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Nov 2008, KAMEZAWA Hiroyuki wrote:
-> On Thu, 06 Nov 2008 12:24:11 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > KAMEZAWA Hiroyuki wrote:
+On Mon 2008-11-03 12:51:08, Andrew Morton wrote:
+> On Wed, 29 Oct 2008 13:25:00 +0100
+> "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+> 
+> > On Wednesday, 29 of October 2008, Pavel Machek wrote:
 > > > 
-> > > 1. change force_empty to do move account rather than forget all
+> > > hibernation + memory hotplug was disabled in kconfig because we could
+> > > not handle hibernation + sparse mem at some point. It seems to work
+> > > now, so I guess we can enable it.
 > > 
-> > I would like this to be selectable, please. We don't want to break behaviour and
-> > not everyone would like to pay the cost of movement.
+> > OK, if "it seems to work now" means that it has been tested and confirmed to
+> > work, no objection from me.
 > 
-> How about a patch like this ? I'd like to move this as [2/7], if possible.
-> It obviously needs painful rework. If I found it difficult, schedule this as [7/7].
+> yes, that was not a terribly confidence-inspiring commit message.
 > 
-> BTW, cost of movement itself is not far from cost for force_empty.
-> 
-> If you can't find why "forget" is bad, please consider one more day.
+> 3947be1969a9ce455ec30f60ef51efb10e4323d1 said "For now, disable memory
+> hotplug when swsusp is enabled.  There's a lot of churn there right
+> now.  We'll fix it up properly once it calms down." which is also
+> rather rubbery.  
 
-My recollection from a year ago is that force_empty totally violated
-the rules established elsewhere, making a nonsense of it all: once a
-force_empty had been done, you couldn't really be sure of anything
-(perhaps it deserved a Taint flag).
+I was not terribly confident. Sorry about that.
 
-Without studying your proposals at all, I do believe you've a good
-chance of creating a sensible and consistent force_empty by moving
-account, and abandoning the old "forget all" approach completely.
-
-Hugh
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
