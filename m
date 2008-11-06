@@ -1,534 +1,288 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA65ZEQb022003
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA664g6v011403
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 6 Nov 2008 14:35:14 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C54045DD7B
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 14:35:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 29DFF45DD78
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 14:35:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B95B1DB803A
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 14:35:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AE9721DB8037
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 14:35:13 +0900 (JST)
-Date: Thu, 6 Nov 2008 14:34:38 +0900
+	Thu, 6 Nov 2008 15:04:43 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9189745DD7D
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 15:04:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5DAE445DD78
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 15:04:42 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2603B1DB8040
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 15:04:42 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B3B361DB803A
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 15:04:41 +0900 (JST)
+Date: Thu, 6 Nov 2008 15:04:05 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH]Per-cgroup OOM handler
-Message-Id: <20081106143438.5557b87c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <604427e00811031419k2e990061kdb03f4b715b51fb9@mail.gmail.com>
-References: <604427e00811031340k56634773g6e260d79e6cb51e7@mail.gmail.com>
-	<604427e00811031419k2e990061kdb03f4b715b51fb9@mail.gmail.com>
+Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory
+ hotplug
+Message-Id: <20081106150405.6dd4200a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081106121916.4474.E1E9C6FF@jp.fujitsu.com>
+References: <20081106110709.b168cc30.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081106121212.e609476d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081106121916.4474.E1E9C6FF@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, Rohit Seth <rohitseth@google.com>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>
+To: Yasunori Goto <y-goto@jp.fujitsu.com>
+Cc: Nigel Cunningham <ncunningham@crca.org.au>, "Rafael J. Wysocki" <rjw@sisk.pl>, Dave Hansen <dave@linux.vnet.ibm.com>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Thank you for posting.
-
-On Mon, 3 Nov 2008 14:19:11 -0800
-Ying Han <yinghan@google.com> wrote:
-
-> sorry, please use the following patch. (deleted the double definition
-> in cgroup_subsys.h from last patch)
-> 
-> Per-cgroup OOM handler ported from cpuset to cgroup.
-> 
-> Per cgroup OOM handler allows a userspace handler catches and handle the OOM,
-> the OOMing thread doesn't trigger a kill, but returns to alloc_pages to try
-> again; alternatively usersapce can cause the OOM killer to go ahead as normal.
-> 
-> It's a standalone subsystem that can work with either the memory cgroup or
-> with cpusets(where memory is constrained by numa nodes).
-> 
-> The features are:
-> 
-> - an oom.delay file that controls how long a thread will pause in the
-> OOM killer waiting for a response from userspace (in milliseconds)
-> 
-> - an oom.await file that a userspace handler can write a timeout value
-> to, and be awoken either when a process in that cgroup enters the OOM
-> killer, or the timeout expires.
-> 
-> example:
-> (mount oom as normal cgroup subsystem as well as cpuset)
-> 1. mount -t cgroup -o cpuset,oom cpuset /dev/cpuset
-> 
-> (config sample cpuset contains single fakenuma node with 128M and one
-> cpu core)
-> 2. mkdir /dev/cpuset/sample
->    echo 1 > /dev/cpuset/sample/cpuset.mems
->    echo 1 > /dev/cpuset/sample/cpuset.cpus
-> 
-> (config the oom.delay to be 10sec)
-> 3. echo 10000 >/dev/cpuset/sample/oom.oom_delay
-> 
-> (put the shell in the wait-queue with max 60sec waitting)
-> 4. echo 60000 >/dev/cpuset/sample/oom.await_oom
-> 
-> (trigger the oom by mlockall 600M anon memory)
-> 5. /oom 600000000
-> 
-> When the sample cpuset triggers the OOM, it will wake-up the
-> OOM-handler thread that slept in step 4, sleep for a jiffie, and then
-> return to alloc_pages() to try again. This sleep gives the OOM-handler
-> time to deal with the OOM, for example by giving another memory node
-> to the OOMing cpuset.
-> 
-Where does this one-tick-wait comes from ? It works well ?
-(Before OOM, the system tend to wait in congestion_wait() or some.)
-
-OOM-handler shoule be in another cpuset or mlocked in this case ?
-
-> We're sending out this in-house patch to start discussion about what
-> might be appropriate for supporting user-space OOM-handling in the
-> mainline kernel. Potential improvements include:
-> 
-thanks.
-
-> - providing more information in the OOM notification, such as the pid
-> that triggered the OOM, and a unique id for that OOM instance that can
-> be tied to later OOM-kill notifications.
-
-With this patch, why the system OOM is unknown.
-I think following information is necessary at least.
-
-   - OOM because global memory shortage.
-   - OOM because cpuset memory shortage.
-   - OOM because memcg memory hit limits.
+On Thu, 06 Nov 2008 12:28:30 +0900
+Yasunori Goto <y-goto@jp.fujitsu.com> wrote:
 
 > 
-> - allowing better notifications from userspace back to the kernel.
+> Hmm.
+> 
+> I think simple mutex is enough. read/write lock is not necessary.
+> Memory hotplug event is very rare, and there is no requirement of
+> parallel execution.
+> 
 
-I love some interface allowing poll().
+OK, change it to mutex and start new thread.
 
-I'm wondering 
-  - freeeze-all-threads-in-group-at-oom 
-  - free emergency memory to page allocator which was pooled at cgroup creation
-    rather than 1-tick wait
-
-BTW, it seems this patch allows task detach/attach always. it's safe(and sane) ?
-
-At first impression, needs some progress but interesting in general. thanks.
-
+Thanks,
 -Kame
 
-
 > 
->  Documentation/cgroups/oom-handler.txt |   49 ++++++++
->  include/linux/cgroup_subsys.h         |   12 ++
->  include/linux/cpuset.h                |    7 +-
->  init/Kconfig                          |    8 ++
->  kernel/cpuset.c                       |    8 +-
->  mm/oom_kill.c                         |  220 +++++++++++++++++++++++++++++++++
->  6 files changed, 301 insertions(+), 3 deletions(-)
+> > On Thu, 6 Nov 2008 11:07:09 +0900
+> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > Okay. then we can add "kernel thread for calling add/remove memory" and say
+> > > "PLEASE WAIT UNTIL HIBERNATION IS READY".
+> > > 
+> > > I can try that by myself but doesn't have suitable machine....
+> > > I think I can show you pseudo code in hours. please wait a bit.
+> > > 
+> > 
+> > How about this one ? as a start step ?
+> > I have no test environment. So please take this as a sample.
+> > -Kame
+> > =
+> > 
+> > Now, MEMORY_HOTPLUG and HIBERNATION is mutually exclusive in Kconfig.
+> > That's because
+> > 	- memory hotplug changes pgdat/zone/memmap range.
+> > 	- hibernation countes # of memory based on pgdate/zone/memmap.
+> > 
+> > This patch adds rwsemaphore for making them not to run at the same time.
+> > 
+> > IIUC, add_memory() is called from following places.
+> >     - probe interface
+> >     - acpi handler
+> > It seems both can sleep. (acpi handler uses sleepable memory allocator etc...)
+> > 
+> > online/offline handlers also sleeps.
+> > 
+> > Anyway, the most difficult thing is how to test this.
+> > 
+> > 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > 
+> >  mm/Kconfig          |    2 -
+> >  mm/memory_hotplug.c |   61 +++++++++++++++++++++++++++++++++++++++++++++-------
+> >  2 files changed, 54 insertions(+), 9 deletions(-)
+> > 
+> > Index: linux-2.6.27.4/mm/memory_hotplug.c
+> > ===================================================================
+> > --- linux-2.6.27.4.orig/mm/memory_hotplug.c
+> > +++ linux-2.6.27.4/mm/memory_hotplug.c
+> > @@ -31,6 +31,13 @@
+> >  
+> >  #include "internal.h"
+> >  
+> > +struct rw_semaphore memhp_mutex;
+> > +
+> > +static int init_memhp_mutex(void)
+> > +{
+> > +	init_rwsem(&memhp_mutex);
+> > +}
+> > +
+> >  /* add this memory to iomem resource */
+> >  static struct resource *register_memory_resource(u64 start, u64 size)
+> >  {
+> > @@ -381,6 +388,7 @@ int online_pages(unsigned long pfn, unsi
+> >  	int ret;
+> >  	struct memory_notify arg;
+> >  
+> > +	down_read(&memhp_mutex);
+> >  	arg.start_pfn = pfn;
+> >  	arg.nr_pages = nr_pages;
+> >  	arg.status_change_nid = -1;
+> > @@ -392,6 +400,7 @@ int online_pages(unsigned long pfn, unsi
+> >  	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+> >  	ret = notifier_to_errno(ret);
+> >  	if (ret) {
+> > +		up_read(&memhp_mutex);
+> >  		memory_notify(MEM_CANCEL_ONLINE, &arg);
+> >  		return ret;
+> >  	}
+> > @@ -415,6 +424,7 @@ int online_pages(unsigned long pfn, unsi
+> >  		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
+> >  			nr_pages, pfn);
+> >  		memory_notify(MEM_CANCEL_ONLINE, &arg);
+> > +		up_read(&memhp_mutex);
+> >  		return ret;
+> >  	}
+> >  
+> > @@ -436,7 +446,7 @@ int online_pages(unsigned long pfn, unsi
+> >  
+> >  	if (onlined_pages)
+> >  		memory_notify(MEM_ONLINE, &arg);
+> > -
+> > +	up_read(&memhp_mutex);
+> >  	return 0;
+> >  }
+> >  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+> > @@ -477,14 +487,18 @@ int add_memory(int nid, u64 start, u64 s
+> >  	struct resource *res;
+> >  	int ret;
+> >  
+> > +	down_read(&memhp_mutex);
+> >  	res = register_memory_resource(start, size);
+> > -	if (!res)
+> > +	if (!res) {
+> > +		up_read(&memhp_mutex);
+> >  		return -EEXIST;
+> > -
+> > +	}
+> >  	if (!node_online(nid)) {
+> >  		pgdat = hotadd_new_pgdat(nid, start);
+> > -		if (!pgdat)
+> > +		if (!pgdat) {
+> > +			up_read(&memhp_mutex);
+> >  			return -ENOMEM;
+> > +		}
+> >  		new_pgdat = 1;
+> >  	}
+> >  
+> > @@ -508,7 +522,7 @@ int add_memory(int nid, u64 start, u64 s
+> >  		 */
+> >  		BUG_ON(ret);
+> >  	}
+> > -
+> > +	up_read(&memhp_mutex);
+> >  	return ret;
+> >  error:
+> >  	/* rollback pgdat allocation and others */
+> > @@ -517,10 +531,12 @@ error:
+> >  	if (res)
+> >  		release_memory_resource(res);
+> >  
+> > +	up_read(&memhp_mutex);
+> >  	return ret;
+> >  }
+> >  EXPORT_SYMBOL_GPL(add_memory);
+> >  
+> > +
+> >  #ifdef CONFIG_MEMORY_HOTREMOVE
+> >  /*
+> >   * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
+> > @@ -750,20 +766,23 @@ int offline_pages(unsigned long start_pf
+> >  		return -EINVAL;
+> >  	if (!IS_ALIGNED(end_pfn, pageblock_nr_pages))
+> >  		return -EINVAL;
+> > +
+> >  	/* This makes hotplug much easier...and readable.
+> >  	   we assume this for now. .*/
+> >  	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+> >  		return -EINVAL;
+> >  
+> > +	down_read(&memhp_mutex);
+> >  	zone = page_zone(pfn_to_page(start_pfn));
+> >  	node = zone_to_nid(zone);
+> >  	nr_pages = end_pfn - start_pfn;
+> >  
+> >  	/* set above range as isolated */
+> >  	ret = start_isolate_page_range(start_pfn, end_pfn);
+> > -	if (ret)
+> > +	if (ret) {
+> > +		up_read(&memhp_mutex);
+> >  		return ret;
+> > -
+> > +	}
+> >  	arg.start_pfn = start_pfn;
+> >  	arg.nr_pages = nr_pages;
+> >  	arg.status_change_nid = -1;
+> > @@ -838,6 +857,7 @@ repeat:
+> >  	writeback_set_ratelimit();
+> >  
+> >  	memory_notify(MEM_OFFLINE, &arg);
+> > +	up_read(&memhp_mutex);
+> >  	return 0;
+> >  
+> >  failed_removal:
+> > @@ -846,7 +866,7 @@ failed_removal:
+> >  	memory_notify(MEM_CANCEL_OFFLINE, &arg);
+> >  	/* pushback to free area */
+> >  	undo_isolate_page_range(start_pfn, end_pfn);
+> > -
+> > +	up_read(&memhp_mutex);
+> >  	return ret;
+> >  }
+> >  #else
+> > @@ -856,3 +876,34 @@ int remove_memory(u64 start, u64 size)
+> >  }
+> >  EXPORT_SYMBOL_GPL(remove_memory);
+> >  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> > +
+> > +
+> > +#ifdef CONFIG_HIBERNATION
+> > +
+> > +int memhp_hibenation_callback(struct notifier_block *self,
+> > +			      unsigned long action,
+> > +			      void *arg)
+> > +{
+> > +	int ret;
+> > +
+> > +	switch(action) {
+> > +	case PM_HIBERNATION_PREPARE:
+> > +		down_write(&memhp_mutex);
+> > +		break;
+> > +	case PM_POST_HIBERNATION:
+> > +		up_write(&memhp_mutex);
+> > +		break;
+> > +	case PM_RESTORE_PREPARE:
+> > +		down_write(&memhp_mutex);
+> > +		break;
+> > +	case PM_POST_RESTORE:
+> > +		up_write(&memhp_mutex);
+> > +		break;
+> > +	default:
+> > +		break;
+> > +	}
+> > +	return NOTIFY_OK;
+> > +}
+> > +#endif
+> > +
+> > +
+> > Index: linux-2.6.27.4/mm/Kconfig
+> > ===================================================================
+> > --- linux-2.6.27.4.orig/mm/Kconfig
+> > +++ linux-2.6.27.4/mm/Kconfig
+> > @@ -128,12 +128,9 @@ config SPARSEMEM_VMEMMAP
+> >  config MEMORY_HOTPLUG
+> >  	bool "Allow for memory hot-add"
+> >  	depends on SPARSEMEM || X86_64_ACPI_NUMA
+> > -	depends on HOTPLUG && !HIBERNATION && ARCH_ENABLE_MEMORY_HOTPLUG
+> > +	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
+> >  	depends on (IA64 || X86 || PPC64 || SUPERH || S390)
+> >  
+> > -comment "Memory hotplug is currently incompatible with Software Suspend"
+> > -	depends on SPARSEMEM && HOTPLUG && HIBERNATION
+> > -
+> >  config MEMORY_HOTPLUG_SPARSE
+> >  	def_bool y
+> >  	depends on SPARSEMEM && MEMORY_HOTPLUG
+> > 
 > 
-> Signed-off-by:Paul Menage <menage@google.com>
-> 	      David Rientjes <rientjes@google.com>
-> 	      Ying Han <yinghan@google.com>
+> -- 
+> Yasunori Goto 
 > 
 > 
-> diff --git a/Documentation/cgroups/oom-handler.txt
-> b/Documentation/cgroups/oom-handler.txt
-> new file mode 100644
-> index 0000000..aa006fe
-> --- /dev/null
-> +++ b/Documentation/cgroups/oom-handler.txt
-> @@ -0,0 +1,49 @@
-> +Per cgroup OOM handler allows a userspace handler catches and handle the OOM,
-> +the OOMing thread doesn't trigger a kill, but returns to alloc_pages to try
-> +again; alternatively usersapce can cause the OOM killer to go ahead as normal.
-> +
-> +It's a standalone subsystem that can work with either the memory cgroup or
-> +with cpusets(where memory is constrained by numa nodes).
-> +
-> +The features are:
-> +
-> +- an oom.delay file that controls how long a thread will pause in the
-> +OOM killer waiting for a response from userspace (in milliseconds)
-> +
-> +- an oom.await file that a userspace handler can write a timeout value
-> +to, and be awoken either when a process in that cgroup enters the OOM
-> +killer, or the timeout expires.
-> +
-> +example:
-> +(mount oom as normal cgroup subsystem as well as cpuset)
-> +1. mount -t cgroup -o cpuset,oom cpuset /dev/cpuset
-> +
-> +(config sample cpuset contains single fakenuma node with 128M and one
-> +cpu core)
-> +2. mkdir /dev/cpuset/sample
-> +   echo 1 > /dev/cpuset/sample/cpuset.mems
-> +   echo 1 > /dev/cpuset/sample/cpuset.cpus
-> +
-> +(config the oom.delay to be 10sec)
-> +3. echo 10000 >/dev/cpuset/sample/oom.oom_delay
-> +
-> +(put the shell in the wait-queue with max 60sec waitting)
-> +4. echo 60000 >/dev/cpuset/sample/oom.await_oom
-> +
-> +(trigger the oom by mlockall 600M anon memory)
-> +5. /oom 600000000
-> +
-> +When the sample cpuset triggers the OOM, it will wake-up the
-> +OOM-handler thread that slept in step 4, sleep for a jiffie, and then
-> +return to alloc_pages() to try again. This sleep gives the OOM-handler
-> +time to deal with the OOM, for example by giving another memory node
-> +to the OOMing cpuset.
-> +
-> +Potential improvements include:
-> +- providing more information in the OOM notification, such as the pid
-> +that triggered the OOM, and a unique id for that OOM instance that can
-> +be tied to later OOM-kill notifications.
-> +
-> +- allowing better notifications from userspace back to the kernel.
-> +
-> +
-> diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
-> index 9c22396..23fe6c7 100644
-> --- a/include/linux/cgroup_subsys.h
-> +++ b/include/linux/cgroup_subsys.h
-> @@ -54,3 +54,9 @@ SUBSYS(freezer)
->  #endif
-> 
->  /* */
-> +
-> +#ifdef CONFIG_CGROUP_OOM_CONT
-> +SUBSYS(oom_cgroup)
-> +#endif
-> +
-> +/* */
-> diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-> index 2691926..26dab22 100644
-> --- a/include/linux/cpuset.h
-> +++ b/include/linux/cpuset.h
-> @@ -25,7 +25,7 @@ extern void cpuset_cpus_allowed_locked(struct
-> task_struct *p, cpumask_t *mask);
->  extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
->  #define cpuset_current_mems_allowed (current->mems_allowed)
->  void cpuset_init_current_mems_allowed(void);
-> -void cpuset_update_task_memory_state(void);
-> +int cpuset_update_task_memory_state(void);
->  int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask);
-> 
->  extern int __cpuset_zone_allowed_softwall(struct zone *z, gfp_t gfp_mask);
-> @@ -103,7 +103,10 @@ static inline nodemask_t
-> cpuset_mems_allowed(struct task_struct *p)
-> 
->  #define cpuset_current_mems_allowed (node_states[N_HIGH_MEMORY])
->  static inline void cpuset_init_current_mems_allowed(void) {}
-> -static inline void cpuset_update_task_memory_state(void) {}
-> +static inline int cpuset_update_task_memory_state(void)
-> +{
-> +	return 1;
-> +}
-> 
->  static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
->  {
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 44e9208..971b0b5 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -324,6 +324,14 @@ config CPUSETS
-> 
->  	  Say N if unsure.
-> 
-> +config CGROUP_OOM_CONT
-> +	bool "OOM controller for cgroups"
-> +	depends on CGROUPS
-> +	help
-> +	  This option allows userspace to trap OOM conditions on a
-> +	  per-cgroup basis, and take action that might prevent the OOM from
-> +	  occurring.
-> +
->  #
->  # Architectures with an unreliable sched_clock() should select this:
->  #
-> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-> index 3e00526..c986423 100644
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -355,13 +355,17 @@ static void guarantee_online_mems(const struct
-> cpuset *cs, nodemask_t *pmask)
->   * within the tasks context, when it is trying to allocate memory
->   * (in various mm/mempolicy.c routines) and notices that some other
->   * task has been modifying its cpuset.
-> + *
-> + * Returns non-zero if the state was updated, including when it is
-> + * an effective no-op.
->   */
-> 
-> -void cpuset_update_task_memory_state(void)
-> +int cpuset_update_task_memory_state(void)
->  {
->  	int my_cpusets_mem_gen;
->  	struct task_struct *tsk = current;
->  	struct cpuset *cs;
-> +	int ret = 0;
-> 
->  	if (task_cs(tsk) == &top_cpuset) {
->  		/* Don't need rcu for top_cpuset.  It's never freed. */
-> @@ -389,7 +393,9 @@ void cpuset_update_task_memory_state(void)
->  		task_unlock(tsk);
->  		mutex_unlock(&callback_mutex);
->  		mpol_rebind_task(tsk, &tsk->mems_allowed);
-> +		ret = 1;
->  	}
-> +	return ret;
->  }
-> 
->  /*
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 64e5b4b..5677b72 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -32,6 +32,219 @@ int sysctl_panic_on_oom;
->  int sysctl_oom_kill_allocating_task;
->  int sysctl_oom_dump_tasks;
->  static DEFINE_SPINLOCK(zone_scan_mutex);
-> +
-> +#ifdef CONFIG_CGROUP_OOM_CONT
-> +struct oom_cgroup {
-> +	struct cgroup_subsys_state css;
-> +
-> +	/* How long between first OOM indication and actual OOM kill
-> +	 * for processes in this cgroup */
-> +	unsigned long oom_delay;
-> +
-> +	/* When the current OOM delay began. Zero means no delay in progress */
-> +	unsigned long oom_since;
-> +
-> +	/* Wait queue for userspace OOM handler */
-> +	wait_queue_head_t oom_wait;
-> +
-> +	spinlock_t oom_lock;
-> +};
-> +
-> +static inline
-> +struct oom_cgroup *oom_cgroup_from_cont(struct cgroup *cont)
-> +{
-> +	return container_of(cgroup_subsys_state(cont, oom_cgroup_subsys_id),
-> +				struct oom_cgroup, css);
-> +}
-> +
-> +static inline
-> +struct oom_cgroup *oom_cgroup_from_task(struct task_struct *task)
-> +{
-> +	return container_of(task_subsys_state(task, oom_cgroup_subsys_id),
-> +					struct oom_cgroup, css);
-> +}
-> +
-> +/*
-> + * Takes oom_lock during call.
-> + */
-> +static int oom_cgroup_write_delay(struct cgroup *cont, struct cftype *cft,
-> +				u64 delay)
-> +{
-> +	struct oom_cgroup *cs = oom_cgroup_from_cont(cont);
-> +
-> +	/* Sanity check */
-> +	if (unlikely(delay > 60 * 1000))
-> +		return -EINVAL;
-> +	spin_lock(&cs->oom_lock);
-> +	cs->oom_delay = msecs_to_jiffies(delay);
-> +	spin_unlock(&cs->oom_lock);
-> +	return 0;
-> +}
-> +
-> +/*
-> + * sleeps until the cgroup enters OOM (or a maximum of N milliseconds if N is
-> + * passed). Clears the OOM condition in the cgroup when it returns.
-> + */
-> +static int oom_cgroup_write_await(struct cgroup *cont, struct cftype *cft,
-> +				u64 await)
-> +{
-> +	int retval = 0;
-> +	struct oom_cgroup *cs = oom_cgroup_from_cont(cont);
-> +
-> +	/* Don't try to wait for more than a minute */
-> +	await = min(await, 60ULL * 1000);
-> +	/* Try waiting for up to a second for an OOM condition */
-> +	wait_event_interruptible_timeout(cs->oom_wait, cs->oom_since ||
-> +					 cgroup_is_removed(cs->css.cgroup),
-> +					 msecs_to_jiffies(await));
-> +	spin_lock(&cs->oom_lock);
-> +	if (cgroup_is_removed(cs->css.cgroup)) {
-> +		/* The cpuset was removed while we slept */
-> +		retval = -ENODEV;
-> +	} else if (cs->oom_since) {
-> +		/* We reached OOM. Clear the OOM condition now that
-> +		 * userspace knows about it */
-> +		cs->oom_since = 0;
-> +	} else if (signal_pending(current)) {
-> +		retval = -EINTR;
-> +	} else {
-> +		/* No OOM yet */
-> +		retval = -ETIMEDOUT;
-> +	}
-> +	spin_unlock(&cs->oom_lock);
-> +	return retval;
-> +}
-> +
-> +static u64 oom_cgroup_read_delay(struct cgroup *cont, struct cftype *cft)
-> +{
-> +	return oom_cgroup_from_cont(cont)->oom_delay;
-> +}
-> +
-> +static struct cftype oom_cgroup_files[] = {
-> +	{
-> +		.name = "delay",
-> +		.read_u64 = oom_cgroup_read_delay,
-> +		.write_u64 = oom_cgroup_write_delay,
-> +	},
-> +
-> +	{
-> +		.name = "await",
-> +		.write_u64 = oom_cgroup_write_await,
-> +	},
-> +};
-> +
-> +static struct cgroup_subsys_state *oom_cgroup_create(
-> +		struct cgroup_subsys *ss,
-> +		struct cgroup *cont)
-> +{
-> +	struct oom_cgroup *oom;
-> +
-> +	oom = kmalloc(sizeof(*oom), GFP_KERNEL);
-> +	if (!oom)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	oom->oom_delay = 0;
-> +	init_waitqueue_head(&oom->oom_wait);
-> +	oom->oom_since = 0;
-> +	spin_lock_init(&oom->oom_lock);
-> +
-> +	return &oom->css;
-> +}
-> +
-> +static void oom_cgroup_destroy(struct cgroup_subsys *ss,
-> +			struct cgroup *cont)
-> +{
-> +	kfree(oom_cgroup_from_cont(cont));
-> +}
-> +
-> +static int oom_cgroup_populate(struct cgroup_subsys *ss,
-> +			struct cgroup *cont)
-> +{
-> +	return cgroup_add_files(cont, ss, oom_cgroup_files,
-> +					ARRAY_SIZE(oom_cgroup_files));
-> +}
-> +
-> +struct cgroup_subsys oom_cgroup_subsys = {
-> +	.name = "oom",
-> +	.subsys_id = oom_cgroup_subsys_id,
-> +	.create = oom_cgroup_create,
-> +	.destroy = oom_cgroup_destroy,
-> +	.populate = oom_cgroup_populate,
-> +};
-> +
-> +
-> +/*
-> + * Call with no cpuset mutex held. Determines whether this process
-> + * should allow an OOM to proceed as normal (retval==1) or should try
-> + * again to allocate memory (retval==0). If necessary, sleeps and then
-> + * updates the task's mems_allowed to let userspace update the memory
-> + * nodes for the task's cpuset.
-> + */
-> +static int cgroup_should_oom(void)
-> +{
-> +	int ret = 1; /* OOM by default */
-> +	struct oom_cgroup *cs;
-> +
-> +	task_lock(current);
-> +	cs = oom_cgroup_from_task(current);
-> +
-> +	spin_lock(&cs->oom_lock);
-> +	if (cs->oom_delay) {
-> +		/* We have an OOM delay configured */
-> +		if (cs->oom_since) {
-> +			/* We're already OOMing - see if we're over
-> +			 * the time limit. Also make sure that jiffie
-> +			 * wrap-around doesn't make us think we're in
-> +			 * an incredibly long OOM delay */
-> +			unsigned long deadline = cs->oom_since + cs->oom_delay;
-> +			if (time_after(deadline, jiffies) &&
-> +			    !time_after(cs->oom_since, jiffies)) {
-> +				/* Not OOM yet */
-> +				ret = 0;
-> +			}
-> +		} else {
-> +			/* This is the first OOM */
-> +			ret = 0;
-> +			cs->oom_since = jiffies;
-> +			/* Avoid problems with jiffie wrap - make an
-> +			 * oom_since of zero always mean not
-> +			 * OOMing */
-> +			if (!cs->oom_since)
-> +				cs->oom_since = 1;
-> +			printk(KERN_WARNING
-> +			       "Cpuset %s (pid %d) sending memory "
-> +			       "notification to userland at %lu%s\n",
-> +			       cs->css.cgroup->dentry->d_name.name,
-> +			       current->pid, jiffies,
-> +			       waitqueue_active(&cs->oom_wait) ?
-> +			       "" : " (no waiters)");
-> +		}
-> +		if (!ret) {
-> +			/* If we're planning to retry, we should wake
-> +			 * up any userspace waiter in order to let it
-> +			 * handle the OOM
-> +			 */
-> +			wake_up_all(&cs->oom_wait);
-> +		}
-> +	}
-> +
-> +	spin_unlock(&cs->oom_lock);
-> +	task_unlock(current);
-> +	if (!ret) {
-> +		/* If we're not going to OOM, we should sleep for a
-> +		 * bit to give userspace a chance to respond before we
-> +		 * go back and try to reclaim again */
-> +		schedule_timeout_uninterruptible(1);
-> +	}
-> +	return ret;
-> +}
-> +#else /* !CONFIG_CGROUP_OOM_CONT */
-> +static inline int cgroup_should_oom(void)
-> +{
-> +	return 1;
-> +}
-> +#endif
-> +
->  /* #define DEBUG */
-> 
->  /**
-> @@ -526,6 +739,13 @@ void out_of_memory(struct zonelist *zonelist,
-> gfp_t gfp_mask, int order)
->  	unsigned long freed = 0;
->  	enum oom_constraint constraint;
-> 
-> +	/*
-> +	 * It is important to call in this order since cgroup_should_oom()
-> +	 * might sleep and give userspace chance to update mems.
-> +	 */
-> +	if (!cgroup_should_oom() || cpuset_update_task_memory_state())
-> +		return;
-> +
->  	blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
->  	if (freed > 0)
->  		/* Got some memory back in the last second. */
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
 --
