@@ -1,107 +1,45 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA67bAMI019229
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 6 Nov 2008 16:37:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D29845DD7D
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 16:37:10 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A5F145DD81
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 16:37:10 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 05671E08005
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 16:37:10 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A641C1DB8037
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 16:37:09 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: get rid of pagevec_release_nonlru()
-Message-Id: <20081106162839.0D3A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Thu, 6 Nov 2008 09:47:27 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory hotplug
+Message-ID: <20081106084727.GC11095@atrey.karlin.mff.cuni.cz>
+References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <1225817945.12673.602.camel@nimitz> <20081105093837.e073c373.kamezawa.hiroyu@jp.fujitsu.com> <200811051208.26628.rjw@sisk.pl> <20081106091441.6517c072.kamezawa.hiroyu@jp.fujitsu.com> <1225931281.11514.27.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu,  6 Nov 2008 16:37:08 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1225931281.11514.27.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nigel Cunningham <ncunningham@crca.org.au>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-speculative page references patch (commit: e286781d5f2e9c846e012a39653a166e9d31777d)
-removed last pagevec_release_nonlru() caller.
+Hi!
 
-So, its function can be removed now.
+> > To trigger "2", the user have special console to tell firmware "enable this memory".
+> > Such firmware console or users have to know "the system works well." And, more important,
+> > when the system is suspended, the firmware can't do hotplug because the kernel is sleeping.
+> > So, such firmware console or operator have to know the system status.
+> > 
+> > Am I missing some ? Current linux can know PCI/USB hotplug while the
+> > system is suspended ?
+> 
+> * echo 'disk' > /sys/power/state
+> * count number of pages to write to disk
+> * turn all interrupts off
+> * copy pages to disk
+> * power down
+> 
+> I think the race we're trying to close is the one between when we count
+> pages and when we turn interrupts off.  I assume that there is a reason
+> that we don't do the *entire* hibernation process with interrupts off,
+> probably because it would "lock" the system up for too long, and can
+> even possibly fail.
 
-this patch doesn't have any functional change.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Nick Piggin <npiggin@suse.de>
-
----
- include/linux/pagevec.h |    7 -------
- mm/swap.c               |   22 ----------------------
- 2 files changed, 29 deletions(-)
-
-Index: b/include/linux/pagevec.h
-===================================================================
---- a/include/linux/pagevec.h
-+++ b/include/linux/pagevec.h
-@@ -21,7 +21,6 @@ struct pagevec {
- };
- 
- void __pagevec_release(struct pagevec *pvec);
--void __pagevec_release_nonlru(struct pagevec *pvec);
- void __pagevec_free(struct pagevec *pvec);
- void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
- void pagevec_strip(struct pagevec *pvec);
-@@ -69,12 +68,6 @@ static inline void pagevec_release(struc
- 		__pagevec_release(pvec);
- }
- 
--static inline void pagevec_release_nonlru(struct pagevec *pvec)
--{
--	if (pagevec_count(pvec))
--		__pagevec_release_nonlru(pvec);
--}
--
- static inline void pagevec_free(struct pagevec *pvec)
- {
- 	if (pagevec_count(pvec))
-Index: b/mm/swap.c
-===================================================================
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -411,28 +411,6 @@ void __pagevec_release(struct pagevec *p
- EXPORT_SYMBOL(__pagevec_release);
- 
- /*
-- * pagevec_release() for pages which are known to not be on the LRU
-- *
-- * This function reinitialises the caller's pagevec.
-- */
--void __pagevec_release_nonlru(struct pagevec *pvec)
--{
--	int i;
--	struct pagevec pages_to_free;
--
--	pagevec_init(&pages_to_free, pvec->cold);
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--
--		VM_BUG_ON(PageLRU(page));
--		if (put_page_testzero(page))
--			pagevec_add(&pages_to_free, page);
--	}
--	pagevec_free(&pages_to_free);
--	pagevec_reinit(pvec);
--}
--
--/*
-  * Add the passed pages to the LRU, then drop the caller's refcount
-  * on them.  Reinitialises the caller's pagevec.
-  */
-
+We need interrupts to write pages to the disk.
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
