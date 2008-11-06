@@ -1,76 +1,77 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA6CiNQC023955
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA6ClQEX020717
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 6 Nov 2008 21:44:23 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DFEF845DD80
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA42245DD7C
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FE691DB803B
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 563041DB803A
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
-Message-ID: <29542.10.75.179.61.1225975461.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20081106202534.80e5cf0a.nishimura@mxp.nes.nec.co.jp>
-References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com><20081105172141.1a12dc23.kamezawa.hiroyu@jp.fujitsu.com>
-    <20081106202534.80e5cf0a.nishimura@mxp.nes.nec.co.jp>
-Date: Thu, 6 Nov 2008 21:44:21 +0900 (JST)
-Subject: Re: [RFC][PATCH 4/6] memcg : swap cgroup
+	Thu, 6 Nov 2008 21:47:26 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 44E1445DD87
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:47:26 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9ECF445DD7C
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:47:25 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F6CB1DB803A
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:47:25 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F69E1DB8038
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:47:25 +0900 (JST)
+Message-ID: <30704.10.75.179.61.1225975644.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0811061151130.26541@blonde.site>
+References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com><49129493.9070103@linux.vnet.ibm.com>
+    <20081106194153.220157ec.kamezawa.hiroyu@jp.fujitsu.com>
+    <Pine.LNX.4.64.0811061151130.26541@blonde.site>
+Date: Thu, 6 Nov 2008 21:47:24 +0900 (JST)
+Subject: Re: [RFC][PATCH 7/6] memcg: add atribute (for change bahavior
+     ofrmdir)
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=us-ascii
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura said:
-> On Wed, 5 Nov 2008 17:21:41 +0900, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> Note1: In this, we use pointer to record information and this means
->>       8bytes per swap entry. I think we can reduce this when we
->>       create "id of cgroup" in the range of 0-65535 or 0-255.
+Hugh Dickins said:
+> On Thu, 6 Nov 2008, KAMEZAWA Hiroyuki wrote:
+>> On Thu, 06 Nov 2008 12:24:11 +0530
+>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> > KAMEZAWA Hiroyuki wrote:
+>> > >
+>> > > 1. change force_empty to do move account rather than forget all
+>> >
+>> > I would like this to be selectable, please. We don't want to break
+>> behaviour and
+>> > not everyone would like to pay the cost of movement.
 >>
->> Note2: array of swap_cgroup is allocated from HIGHMEM. maybe good for
->> x86-32.
+>> How about a patch like this ? I'd like to move this as [2/7], if
+>> possible.
+>> It obviously needs painful rework. If I found it difficult, schedule
+>> this as [7/7].
 >>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> BTW, cost of movement itself is not far from cost for force_empty.
 >>
->>  include/linux/page_cgroup.h |   35 +++++++
->>  mm/page_cgroup.c            |  201
->> ++++++++++++++++++++++++++++++++++++++++++++
->>  mm/swapfile.c               |    8 +
->>  3 files changed, 244 insertions(+)
->>
-> Is there any reason why they are defined not in memcontrol.[ch]
-> but in page_cgroup.[ch]?
+>> If you can't find why "forget" is bad, please consider one more day.
 >
-no strong reason. just because this is not core logic for acccounting.
-do you want to see this in memcontrol.c ?
-
->> +void swap_cgroup_swapoff(int type)
->> +{
->> +	int i;
->> +	struct swap_cgroup_ctrl *ctrl;
->> +
->> +	if (!do_swap_account)
->> +		return;
->> +
->> +	mutex_lock(&swap_cgroup_mutex);
->> +	if (ctrl->map) {
->> +		ctrl = &swap_cgroup_ctrl[type];
-> This line should be before "if (ctrl->map)"(otherwise "ctrl" will be
-> undefined!).
+> My recollection from a year ago is that force_empty totally violated
+> the rules established elsewhere, making a nonsense of it all: once a
+> force_empty had been done, you couldn't really be sure of anything
+> (perhaps it deserved a Taint flag).
 >
-Oh....maybe refresh mis...brame me.
+yes. that was terrible. (but necessary to do so because we accounted
+pages not on LRU or some other reason.)
 
-Thanks,
+> Without studying your proposals at all, I do believe you've a good
+> chance of creating a sensible and consistent force_empty by moving
+> account, and abandoning the old "forget all" approach completely.
+>
+
+yes. I'm very encouraged. thanks!
+After patch [1/6]
+  -> move all at force empty
+After this
+  -> move all or free (not forget) all.
+
 -Kame
 
 
