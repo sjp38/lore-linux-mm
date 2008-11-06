@@ -1,96 +1,72 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA60MgDV001508
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 6 Nov 2008 09:22:42 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C598A45DD7C
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 09:22:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8997045DD7E
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 09:22:41 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B35F1DB803F
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 09:22:41 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 030ED1DB8037
-	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 09:22:41 +0900 (JST)
-Date: Thu, 6 Nov 2008 09:22:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [mm][PATCH 0/4] Memory cgroup hierarchy introduction
-Message-Id: <20081106092204.2e5dacfb.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4911DD64.7010508@linux.vnet.ibm.com>
-References: <20081101184812.2575.68112.sendpatchset@balbir-laptop>
-	<20081104091510.01cf3a1e.kamezawa.hiroyu@jp.fujitsu.com>
-	<4911A4D8.4010402@linux.vnet.ibm.com>
-	<50093.10.75.179.62.1225902786.squirrel@webmail-b.css.fujitsu.com>
-	<4911DD64.7010508@linux.vnet.ibm.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA60OOqj026372
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:24:24 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA60S532105808
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:28:05 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA60Rr6r001083
+	for <linux-mm@kvack.org>; Wed, 5 Nov 2008 19:27:54 -0500
+Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory
+	hotplug
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081106091441.6517c072.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz>
+	 <1225817945.12673.602.camel@nimitz>
+	 <20081105093837.e073c373.kamezawa.hiroyu@jp.fujitsu.com>
+	 <200811051208.26628.rjw@sisk.pl>
+	 <20081106091441.6517c072.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 05 Nov 2008 16:28:01 -0800
+Message-Id: <1225931281.11514.27.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Yasunori Goto <y-goto@jp.fujitsu.com>, Nigel Cunningham <ncunningham@crca.org.au>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 05 Nov 2008 23:22:36 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> >   Now,
-> >         /group_root limit=1G, usage=990M
-> >                     /group_A  usage=600M , no limit, no tasks for a while
-> >                     /group_B  usage=10M  , no limit, no tasks
-> >                     /group_C  usage=380M , no limit, 2 tasks
-> > 
-> >   A user run a new task in group_B.
-> >   In your algorithm, group_A and B and C's memory are reclaimed
-> >   to the same extent becasue there is no information to show
-> >   "group A's memory are not accessed recently rather than B or C".
-> > 
-> >   This information is what we want for managing memory.
-> > 
+On Thu, 2008-11-06 at 09:14 +0900, KAMEZAWA Hiroyuki wrote:
+> Ok, please consider "when memory hotplug happens." 
 > 
-> For that sort of implementation, we'll need a common LRU. I actually thought of
-> implementing it by sharing a common LRU, but then we would end up with just one
-> common LRU at the root :)
+> In general, it happens when
+>   1. memory is inserted to slot.
+>   2. the firmware notifes the system to enable already inserted memory.
 > 
-> The reclaim algorithm is smart in that it knows what pages are commonly
-> accessed. group A will get reclaimed more since those pages are not actively
-> referenced. reclaim on group_C will be harder.
-Why ? I think isolate_lru_page() removes SWAP_CLUSTER_MAX from each group.
+> To trigger "1", you have to open cover of server/pc. Do you open pc while the system
+> starts hibernation ? for usual people, no.
 
-> Simple experiments seem to show that.
+You're right, this won't happen very often.  We're trying to close a
+theoretical hole that hasn't ever been observed in practice.  But, we
+don't exactly leave races in code just because we haven't observed them.
+I think this is a classic race.
+
+If we don't close it now, then someone doing some really weirdo hotplug
+is going to run into it at some point.  Who knows what tomorrow's
+hardware/firmware will do?
+
+> To trigger "2", the user have special console to tell firmware "enable this memory".
+> Such firmware console or users have to know "the system works well." And, more important,
+> when the system is suspended, the firmware can't do hotplug because the kernel is sleeping.
+> So, such firmware console or operator have to know the system status.
 > 
-please remember the problem as problem and put that in TODO or FIXME, at least.
-or add explanation "why this works well" in logical text.
-As Andrew Morton said, vaildation for LRU management tend to need long time.
+> Am I missing some ? Current linux can know PCI/USB hotplug while the
+> system is suspended ?
 
+* echo 'disk' > /sys/power/state
+* count number of pages to write to disk
+* turn all interrupts off
+* copy pages to disk
+* power down
 
-> >>> I'd like to show some other possible implementation of
-> >>> try_to_free_mem_cgroup_pages() if I can.
-> >>>
-> >> Elaborate please!
-> >>
-> > ok. but, at least, please add
-> >   - per-subtree hierarchy flag.
-> >   - cgroup_lock to walk list of cgroups somewhere.
-> > 
-> > I already sent my version "shared LRU" just as a hint for you.
-> > It is something extreme but contains something good, I think.
-> > 
-> >>> Anyway, I have to merge this with mem+swap controller.
-> >> Cool! I'll send you an updated version.
-> >>
-> > 
-> > Synchronized LRU patch may help you.
-> 
-> Let me get a good working version against current -mm and then we'll integrate
-> our patches.
-> 
-A patch set I posted yesterday doesn't work ?
-If not, please wait until next mmotm comes out.
+I think the race we're trying to close is the one between when we count
+pages and when we turn interrupts off.  I assume that there is a reason
+that we don't do the *entire* hibernation process with interrupts off,
+probably because it would "lock" the system up for too long, and can
+even possibly fail.
 
--Kame
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
