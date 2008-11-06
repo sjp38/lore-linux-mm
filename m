@@ -1,43 +1,78 @@
-Date: Thu, 6 Nov 2008 13:28:55 +0100
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: [PATCH] hibernation should work ok with memory hotplug
-Message-ID: <20081106122855.GA1549@ucw.cz>
-References: <20081029105956.GA16347@atrey.karlin.mff.cuni.cz> <200810291325.01481.rjw@sisk.pl> <20081103125108.46d0639e.akpm@linux-foundation.org>
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA6CiNQC023955
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 6 Nov 2008 21:44:23 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id DFEF845DD80
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA42245DD7C
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FE691DB803B
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 563041DB803A
+	for <linux-mm@kvack.org>; Thu,  6 Nov 2008 21:44:22 +0900 (JST)
+Message-ID: <29542.10.75.179.61.1225975461.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20081106202534.80e5cf0a.nishimura@mxp.nes.nec.co.jp>
+References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com><20081105172141.1a12dc23.kamezawa.hiroyu@jp.fujitsu.com>
+    <20081106202534.80e5cf0a.nishimura@mxp.nes.nec.co.jp>
+Date: Thu, 6 Nov 2008 21:44:21 +0900 (JST)
+Subject: Re: [RFC][PATCH 4/6] memcg : swap cgroup
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081103125108.46d0639e.akpm@linux-foundation.org>
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-kernel@vger.kernel.org, linux-pm@lists.osdl.org, Matt Tolentino <matthew.e.tolentino@intel.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon 2008-11-03 12:51:08, Andrew Morton wrote:
-> On Wed, 29 Oct 2008 13:25:00 +0100
-> "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
-> 
-> > On Wednesday, 29 of October 2008, Pavel Machek wrote:
-> > > 
-> > > hibernation + memory hotplug was disabled in kconfig because we could
-> > > not handle hibernation + sparse mem at some point. It seems to work
-> > > now, so I guess we can enable it.
-> > 
-> > OK, if "it seems to work now" means that it has been tested and confirmed to
-> > work, no objection from me.
-> 
-> yes, that was not a terribly confidence-inspiring commit message.
-> 
-> 3947be1969a9ce455ec30f60ef51efb10e4323d1 said "For now, disable memory
-> hotplug when swsusp is enabled.  There's a lot of churn there right
-> now.  We'll fix it up properly once it calms down." which is also
-> rather rubbery.  
+Daisuke Nishimura said:
+> On Wed, 5 Nov 2008 17:21:41 +0900, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> Note1: In this, we use pointer to record information and this means
+>>       8bytes per swap entry. I think we can reduce this when we
+>>       create "id of cgroup" in the range of 0-65535 or 0-255.
+>>
+>> Note2: array of swap_cgroup is allocated from HIGHMEM. maybe good for
+>> x86-32.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>>  include/linux/page_cgroup.h |   35 +++++++
+>>  mm/page_cgroup.c            |  201
+>> ++++++++++++++++++++++++++++++++++++++++++++
+>>  mm/swapfile.c               |    8 +
+>>  3 files changed, 244 insertions(+)
+>>
+> Is there any reason why they are defined not in memcontrol.[ch]
+> but in page_cgroup.[ch]?
+>
+no strong reason. just because this is not core logic for acccounting.
+do you want to see this in memcontrol.c ?
 
-I was not terribly confident. Sorry about that.
+>> +void swap_cgroup_swapoff(int type)
+>> +{
+>> +	int i;
+>> +	struct swap_cgroup_ctrl *ctrl;
+>> +
+>> +	if (!do_swap_account)
+>> +		return;
+>> +
+>> +	mutex_lock(&swap_cgroup_mutex);
+>> +	if (ctrl->map) {
+>> +		ctrl = &swap_cgroup_ctrl[type];
+> This line should be before "if (ctrl->map)"(otherwise "ctrl" will be
+> undefined!).
+>
+Oh....maybe refresh mis...brame me.
 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
