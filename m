@@ -1,28 +1,36 @@
-Date: Thu, 6 Nov 2008 09:04:54 -0600 (CST)
+Date: Thu, 6 Nov 2008 09:05:46 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 7/7] cpu alloc: page allocator conversion
-In-Reply-To: <20081106115113.0D38.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0811060904030.3595@quilx.com>
-References: <20081105231634.133252042@quilx.com> <20081105231650.526116017@quilx.com>
- <20081106115113.0D38.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [patch 4/7] cpu ops: Core piece for generic atomic per cpu
+ operations
+In-Reply-To: <20081106035821.GA2373@disturbed>
+Message-ID: <Pine.LNX.4.64.0811060905280.3595@quilx.com>
+References: <20081105231634.133252042@quilx.com> <20081105231648.462808759@quilx.com>
+ <20081106035821.GA2373@disturbed>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, travis@sgi.com, Stephen Rothwell <sfr@canb.auug.org.au>, Vegard Nossum <vegard.nossum@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, travis@sgi.com, Stephen Rothwell <sfr@canb.auug.org.au>, Vegard Nossum <vegard.nossum@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Nov 2008, KOSAKI Motohiro wrote:
+On Thu, 6 Nov 2008, Dave Chinner wrote:
 
-> > -		free_zone_pagesets(cpu);
-> > +		process_zones(cpu);
-> >  		break;
+> On Wed, Nov 05, 2008 at 05:16:38PM -0600, Christoph Lameter wrote:
+> > +
+> > +#define __CPU_CMPXCHG(var, old, new)		\
+> > +({						\
+> > +	typeof(obj) x;				\
+> > +	typeof(obj) *p = THIS_CPU(&(obj));	\
+> > +	x = *p;					\
+> > +	if (x == (old))				\
+> > +		*p = (new);			\
+> > +	(x);					\
+> > +})
 >
-> Why do you drop cpu unplug code?
+> I don't think that will compile - s/obj/var/ perhaps?
 
-Because it does not do anything. Percpu areas are traditionally allocated
-for each possible cpu not for each online cpu.
+Correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
