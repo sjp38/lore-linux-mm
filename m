@@ -1,106 +1,38 @@
-Date: Thu, 6 Nov 2008 16:46:45 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into pcp
-Message-ID: <20081106164644.GA14012@csn.ul.ie>
-References: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [linux-pm] [PATCH] hibernation should work ok with memory
+	hotplug
+From: Nigel Cunningham <ncunningham@crca.org.au>
+In-Reply-To: <Pine.LNX.4.44L0.0811060947250.2456-100000@iolanthe.rowland.org>
+References: <Pine.LNX.4.44L0.0811060947250.2456-100000@iolanthe.rowland.org>
+Content-Type: text/plain
+Date: Fri, 07 Nov 2008 07:46:46 +1100
+Message-Id: <1226004406.6876.5.camel@nigel-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Matt Tolentino <matthew.e.tolentino@intel.com>, linux-pm@lists.osdl.org, Dave Hansen <haveblue@us.ibm.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, pavel@suse.cz, Mel Gorman <mel@skynet.ie>, Andy Whitcroft <apw@shadowen.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 06, 2008 at 09:16:58AM +0900, KOSAKI Motohiro wrote:
-> MIGRATE_RESERVE mean that the page is for emergency.
-> So it shouldn't be cached in pcp.
+Hi.
+
+On Thu, 2008-11-06 at 09:48 -0500, Alan Stern wrote:
+> On Thu, 6 Nov 2008, Nigel Cunningham wrote:
 > 
-
-It doesn't necessarily mean it's for emergencys. MIGRATE_RESERVE is one
-or more pageblocks at the beginning of the zone. While it's possible
-that the minimum page reserve for GFP_ATOMIC is located here, it's not
-mandatory.
-
-What MIGRATE_RESERVE can help is high-order atomic allocations used by
-some network drivers (a wireless one is what led to MIGRATE_RESERVE). As
-they are high-order allocations, they would be returned to the buddy
-allocator anyway.
-
-What your patch may help is the situation where the system is under intense
-memory pressure, is dipping routinely into the lowmem reserves and mixing
-with high-order atomic allocations. This seems a bit extreme.
-
-> otherwise, the system have unnecessary memory starvation risk
-> because other cpu can't use this emergency pages.
+> > Remember that when we hibernate (assuming we don't then suspend to ram),
+> > the power is fully off. Resuming starts off like a fresh boot.
 > 
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Mel Gorman <mel@csn.ul.ie>
-> CC: Christoph Lameter <cl@linux-foundation.org>
-> 
+> That simply is not true.  On ACPI systems, hibernation goes into the S4 
+> state.  Power fully off is S5.
 
-This patch seems functionally sound but as Christoph points out, this
-adds another branch to the fast path. Now, I ran some tests and those that
-completed didn't show any problems but adding branches in the fast path can
-eventually lead to hard-to-detect performance problems.
+For the purposes of our discussion, it was a good enough description.
+Nevertheless, you're right - if we do everything in a fully ACPI spec
+compliant way, there will still be some power around. Of course we don't
+always do that (can use S4 or S5).
 
-Do you have a situation in mind that this patch fixes up?
+Regards,
 
-Thanks
-
-> ---
->  mm/page_alloc.c |   12 +++++++++++-
->  1 file changed, 11 insertions(+), 1 deletion(-)
-> 
-> Index: b/mm/page_alloc.c
-> ===================================================================
-> --- a/mm/page_alloc.c	2008-11-06 06:01:15.000000000 +0900
-> +++ b/mm/page_alloc.c	2008-11-06 06:27:41.000000000 +0900
-> @@ -1002,6 +1002,7 @@ static void free_hot_cold_page(struct pa
->  	struct zone *zone = page_zone(page);
->  	struct per_cpu_pages *pcp;
->  	unsigned long flags;
-> +	int migratetype = get_pageblock_migratetype(page);
->  
->  	if (PageAnon(page))
->  		page->mapping = NULL;
-> @@ -1018,16 +1019,25 @@ static void free_hot_cold_page(struct pa
->  	pcp = &zone_pcp(zone, get_cpu())->pcp;
->  	local_irq_save(flags);
->  	__count_vm_event(PGFREE);
-> +
-> +	set_page_private(page, migratetype);
-> +
-> +	/* the page for emergency shouldn't be cached */
-> +	if (migratetype == MIGRATE_RESERVE) {
-> +		free_one_page(zone, page, 0);
-> +		goto out;
-> +	}
->  	if (cold)
->  		list_add_tail(&page->lru, &pcp->list);
->  	else
->  		list_add(&page->lru, &pcp->list);
-> -	set_page_private(page, get_pageblock_migratetype(page));
->  	pcp->count++;
->  	if (pcp->count >= pcp->high) {
->  		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
->  		pcp->count -= pcp->batch;
->  	}
-> +
-> +out:
->  	local_irq_restore(flags);
->  	put_cpu();
->  }
-> 
-> 
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
