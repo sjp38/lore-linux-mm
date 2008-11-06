@@ -1,46 +1,19 @@
-Date: Thu, 6 Nov 2008 15:51:32 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] vmap: cope with vm_unmap_aliases before
-	vmalloc_init()
-Message-ID: <20081106145132.GH13023@elte.hu>
-References: <49010D41.1080305@goop.org> <4911EB5C.4030901@goop.org> <20081106100234.GM4890@elte.hu> <200811062141.01437.nickpiggin@yahoo.com.au>
+Date: Thu, 6 Nov 2008 08:56:19 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into
+ pcp
+In-Reply-To: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0811060856020.3595@quilx.com>
+References: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200811062141.01437.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-
-> On Thursday 06 November 2008 21:02, Ingo Molnar wrote:
-> > * Jeremy Fitzhardinge <jeremy@goop.org> wrote:
-> > > Jeremy Fitzhardinge wrote:
-> > >> Xen can end up calling vm_unmap_aliases() before vmalloc_init() has
-> > >> been called.  In this case its safe to make it a simple no-op.
-> > >>
-> > >> Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
-> > >
-> > > Ping?  Nick, Ingo: do you want to pick these up, or shall I send them to
-> > > Linus myself?
-> >
-> > i've applied them to tip/core/urgent and will send them to Linus
-> > unless Nick or Andrew has objections.
-> 
-> Thanks, yeah ack from me on those. I'm generally expecting Andrew to 
-> pick up and merge mm patches, but I guess he wasn't cc'ed this time. 
-> Anyway, if Ingo gets them upstream, that would be fine too.
-
-linux-mm was Cc:-ed - but the crux of the changes was in Xen code, so 
-i guess Andrew was looking at me and i was looking at him, expecting 
-the other guy to do the work ;-)
-
-anyway, it's all queued up and tested now.
-
-	Ingo
+And the fastpath gets even more complex. Sigh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
