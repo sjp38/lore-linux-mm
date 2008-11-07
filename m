@@ -1,10 +1,10 @@
-Date: Fri, 7 Nov 2008 17:53:03 +0900
+Date: Fri, 7 Nov 2008 18:02:48 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 2/6] memcg: handle swap cache
-Message-Id: <20081107175303.1d5c8a29.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 5/6] memcg: mem+swap controller
+Message-Id: <20081107180248.39251a80.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081105172316.354c00fb.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081105172316.354c00fb.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,283 +14,204 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 5 Nov 2008 17:20:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> SwapCache support for memory resource controller (memcg)
+On Wed, 5 Nov 2008 17:23:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Mem+Swap controller core.
 > 
-> Before mem+swap controller, memcg itself should handle SwapCache in proper way.
+> This patch implements per cgroup limit for usage of memory+swap.
+> However there are SwapCache, double counting of swap-cache and
+> swap-entry is avoided.
 > 
-> In current memcg, SwapCache is just leaked and the user can create tons of
-> SwapCache. This is a leak of account and should be handled.
+> Mem+Swap controller works as following.
+>   - memory usage is limited by memory.limit_in_bytes.
+>   - memory + swap usage is limited by memory.memsw_limit_in_bytes.
 > 
-> SwapCache accounting is done as following.
 > 
->   charge (anon)
-> 	- charged when it's mapped.
-> 	  (because of readahead, charge at add_to_swap_cache() is not sane)
->   uncharge (anon)
-> 	- uncharged when it's dropped from swapcache and fully unmapped.
-> 	  means it's not uncharged at unmap.
-> 	  Note: delete from swap cache at swap-in is done after rmap information
-> 	        is established.
->   charge (shmem)
-> 	- charged at swap-in. this prevents charge at add_to_page_cache().
+> This has following benefits.
+>   - A user can limit total resource usage of mem+swap.
 > 
->   uncharge (shmem)
-> 	- uncharged when it's dropped from swapcache and not on shmem's
-> 	  radix-tree.
+>     Without this, because memory resource controller doesn't take care of
+>     usage of swap, a process can exhaust all the swap (by memory leak.)
+>     We can avoid this case.
 > 
->   at migration, check against 'old page' is modified to handle shmem.
+>     And Swap is shared resource but it cannot be reclaimed (goes back to memory)
+>     until it's used. This characteristic can be trouble when the memory
+>     is divided into some parts by cpuset or memcg.
+>     Assume group A and group B.
+>     After some application executes, the system can be..
+>     
+>     Group A -- very large free memory space but occupy 99% of swap.
+>     Group B -- under memory shortage but cannot use swap...it's nearly full.
 > 
-> Comparing to the old version discussed (and caused troubles), we have
-> advantages of
->   - PCG_USED bit.
->   - simple migrating handling.
+>     Ability to set appropriate swap limit for each group is required.
+>       
+> Maybe someone wonder "why not swap but mem+swap ?"
 > 
-> So, situation is much easier than several months ago, maybe.
+>   - The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
+>     to move account from memory to swap...there is no change in usage of
+>     mem+swap.
 > 
-> Changelog (v1) -> (v2)
->   - use lock_page() when we handle unlocked SwapCache.
+>     In other words, when we want to limit the usage of swap without affecting
+>     global LRU, mem+swap limit is better than just limiting swap.
 > 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-I tested this version under swap in/out activity with page migration/rmdir,
-and it worked w/o errors for more than 24 hours.
+> Accounting target information is stored in swap_cgroup which is
+> per swap entry record.
+> 
+> Charge is done as following.
+>   map
+>     - charge  page and memsw.
+> 
+>   unmap
+>     - uncharge page/memsw if not SwapCache.
+> 
+>   swap-out (__delete_from_swap_cache)
+>     - uncharge page
+>     - record mem_cgroup information to swap_cgroup.
+> 
+>   swap-in (do_swap_page)
+>     - charged as page and memsw.
+>       record in swap_cgroup is cleared.
+>       memsw accounting is decremented.
+> 
+>   swap-free (swap_free())
+>     - if swap entry is freed, memsw is uncharged by PAGE_SIZE.
+> 
+> 
+> After this, usual memory resource controller handles SwapCache.
+> (It was lacked(ignored) feature in current memcg but must be handled.)
+> 
+SwapCache has been handled in [2/6] already :)
 
-	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+(snip)
+> @@ -514,12 +534,25 @@ static int __mem_cgroup_try_charge(struc
+>  		css_get(&mem->css);
+>  	}
+>  
+> +	while (1) {
+> +		int ret;
+> +		bool noswap = false;
+>  
+> -	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+> +		ret = res_counter_charge(&mem->res, PAGE_SIZE);
+> +		if (likely(!ret)) {
+> +			if (!do_swap_account)
+> +				break;
+> +			ret = res_counter_charge(&mem->memsw, PAGE_SIZE);
+> +			if (likely(!ret))
+> +				break;
+> +			/* mem+swap counter fails */
+> +			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> +			noswap = true;
+> +		}
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto nomem;
+>  
+> -		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+> +		if (try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap))
+>  			continue;
+>  
+>  		/*
+I have two comment about try_charge.
+
+1. It would be better if possible to avoid charging memsw at swapin (and uncharging
+   it again at mem_cgroup_cache_charge_swapin/mem_cgroup_commit_charge_swapin).
+   How about adding a new argument "charge_memsw" ? (it has many args already now...)
+2. Should we use swap when exceeding mem.limit but mem.limit == memsw.limit ?
+
+(snip)
+>  void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+> @@ -838,6 +947,7 @@ void mem_cgroup_cancel_charge_swapin(str
+>  	if (!mem)
+>  		return;
+>  	res_counter_uncharge(&mem->res, PAGE_SIZE);
+> +	res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+>  	css_put(&mem->css);
+>  }
+>  
+"if (do_swap_account)" is needed before uncharging memsw.
+
+(snip)
+>  static struct cftype mem_cgroup_files[] = {
+>  	{
+>  		.name = "usage_in_bytes",
+> -		.private = RES_USAGE,
+> +		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
+>  		.read_u64 = mem_cgroup_read,
+>  	},
+>  	{
+>  		.name = "max_usage_in_bytes",
+> -		.private = RES_MAX_USAGE,
+> +		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
+>  		.trigger = mem_cgroup_reset,
+>  		.read_u64 = mem_cgroup_read,
+>  	},
+>  	{
+>  		.name = "limit_in_bytes",
+> -		.private = RES_LIMIT,
+> +		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
+>  		.write_string = mem_cgroup_write,
+>  		.read_u64 = mem_cgroup_read,
+>  	},
+>  	{
+>  		.name = "failcnt",
+> -		.private = RES_FAILCNT,
+> +		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
+>  		.trigger = mem_cgroup_reset,
+>  		.read_u64 = mem_cgroup_read,
+>  	},
+> @@ -1317,6 +1541,31 @@ static struct cftype mem_cgroup_files[] 
+>  		.name = "stat",
+>  		.read_map = mem_control_stat_show,
+>  	},
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> +	{
+> +		.name = "memsw.usage_in_bytes",
+> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
+> +		.read_u64 = mem_cgroup_read,
+> +	},
+> +	{
+> +		.name = "memsw.max_usage_in_bytes",
+> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
+> +		.trigger = mem_cgroup_reset,
+> +		.read_u64 = mem_cgroup_read,
+> +	},
+> +	{
+> +		.name = "memsw.limit_in_bytes",
+> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
+> +		.write_string = mem_cgroup_write,
+> +		.read_u64 = mem_cgroup_read,
+> +	},
+> +	{
+> +		.name = "memsw.failcnt",
+> +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
+> +		.trigger = mem_cgroup_reset,
+> +		.read_u64 = mem_cgroup_read,
+> +	},
+> +#endif
+>  };
+>  
+IMHO, it would be better to define those "memsw.*" files as memsw_cgroup_files[],
+and change mem_cgroup_populate() like:
+
+static int mem_cgroup_populate(struct cgroup_subsys *ss,
+				struct cgroup *cont)
+{
+	int ret;
+
+	ret = cgroup_add_files(cont, ss, mem_cgroup_files,
+					ARRAY_SIZE(mem_cgroup_files));
+	if (!ret && do_swap_account)
+		ret = cgroup_add_files(cont, ss, memsw_cgroup_files,
+					ARRAY_SIZE(memsw_cgroup_files));
+
+	return ret;
+}
+
+so that those files appear only when swap accounting is enabled.
 
 
 Thanks,
 Daisuke Nishimura.
-
-> ---
->  Documentation/controllers/memory.txt |    5 ++
->  include/linux/swap.h                 |   16 ++++++++
->  mm/memcontrol.c                      |   67 +++++++++++++++++++++++++++++++----
->  mm/shmem.c                           |   18 ++++++++-
->  mm/swap_state.c                      |    1 
->  5 files changed, 99 insertions(+), 8 deletions(-)
-> 
-> Index: mmotm-2.6.28-rc2+/mm/memcontrol.c
-> ===================================================================
-> --- mmotm-2.6.28-rc2+.orig/mm/memcontrol.c
-> +++ mmotm-2.6.28-rc2+/mm/memcontrol.c
-> @@ -21,6 +21,7 @@
->  #include <linux/memcontrol.h>
->  #include <linux/cgroup.h>
->  #include <linux/mm.h>
-> +#include <linux/pagemap.h>
->  #include <linux/smp.h>
->  #include <linux/page-flags.h>
->  #include <linux/backing-dev.h>
-> @@ -140,6 +141,7 @@ enum charge_type {
->  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
->  	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
->  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
-> +	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
->  	NR_CHARGE_TYPE,
->  };
->  
-> @@ -781,6 +783,33 @@ int mem_cgroup_cache_charge(struct page 
->  				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
->  }
->  
-> +#ifdef CONFIG_SWAP
-> +int mem_cgroup_cache_charge_swapin(struct page *page,
-> +			struct mm_struct *mm, gfp_t mask, bool locked)
-> +{
-> +	int ret = 0;
-> +
-> +	if (mem_cgroup_subsys.disabled)
-> +		return 0;
-> +	if (unlikely(!mm))
-> +		mm = &init_mm;
-> +	if (!locked)
-> +		lock_page(page);
-> +	/*
-> +	 * If not locked, the page can be dropped from SwapCache until
-> +	 * we reach here.
-> +	 */
-> +	if (PageSwapCache(page)) {
-> +		ret = mem_cgroup_charge_common(page, mm, mask,
-> +				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
-> +	}
-> +	if (!locked)
-> +		unlock_page(page);
-> +
-> +	return ret;
-> +}
-> +#endif
-> +
->  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
->  {
->  	struct page_cgroup *pc;
-> @@ -818,6 +847,9 @@ __mem_cgroup_uncharge_common(struct page
->  	if (mem_cgroup_subsys.disabled)
->  		return;
->  
-> +	if (PageSwapCache(page))
-> +		return;
-> +
->  	/*
->  	 * Check if our page_cgroup is valid
->  	 */
-> @@ -826,12 +858,26 @@ __mem_cgroup_uncharge_common(struct page
->  		return;
->  
->  	lock_page_cgroup(pc);
-> -	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED && page_mapped(page))
-> -	     || !PageCgroupUsed(pc)) {
-> -		/* This happens at race in zap_pte_range() and do_swap_page()*/
-> -		unlock_page_cgroup(pc);
-> -		return;
-> +
-> +	if (!PageCgroupUsed(pc))
-> +		goto unlock_out;
-> +
-> +	switch(ctype) {
-> +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
-> +		if (page_mapped(page))
-> +			goto unlock_out;
-> +		break;
-> +	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
-> +		if (!PageAnon(page)) {	/* Shared memory */
-> +			if (page->mapping && !page_is_file_cache(page))
-> +				goto unlock_out;
-> +		} else if (page_mapped(page)) /* Anon */
-> +				goto unlock_out;
-> +		break;
-> +	default:
-> +		break;
->  	}
-> +
->  	ClearPageCgroupUsed(pc);
->  	mem = pc->mem_cgroup;
->  
-> @@ -845,6 +891,10 @@ __mem_cgroup_uncharge_common(struct page
->  	css_put(&mem->css);
->  
->  	return;
-> +
-> +unlock_out:
-> +	unlock_page_cgroup(pc);
-> +	return;
->  }
->  
->  void mem_cgroup_uncharge_page(struct page *page)
-> @@ -864,6 +914,11 @@ void mem_cgroup_uncharge_cache_page(stru
->  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
->  }
->  
-> +void mem_cgroup_uncharge_swapcache(struct page *page)
-> +{
-> +	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
-> +}
-> +
->  /*
->   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
->   * page belongs to.
-> @@ -921,7 +976,7 @@ void mem_cgroup_end_migration(struct mem
->  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
->  
->  	/* unused page is not on radix-tree now. */
-> -	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
-> +	if (unused)
->  		__mem_cgroup_uncharge_common(unused, ctype);
->  
->  	pc = lookup_page_cgroup(target);
-> Index: mmotm-2.6.28-rc2+/mm/swap_state.c
-> ===================================================================
-> --- mmotm-2.6.28-rc2+.orig/mm/swap_state.c
-> +++ mmotm-2.6.28-rc2+/mm/swap_state.c
-> @@ -119,6 +119,7 @@ void __delete_from_swap_cache(struct pag
->  	total_swapcache_pages--;
->  	__dec_zone_page_state(page, NR_FILE_PAGES);
->  	INC_CACHE_INFO(del_total);
-> +	mem_cgroup_uncharge_swapcache(page);
->  }
->  
->  /**
-> Index: mmotm-2.6.28-rc2+/include/linux/swap.h
-> ===================================================================
-> --- mmotm-2.6.28-rc2+.orig/include/linux/swap.h
-> +++ mmotm-2.6.28-rc2+/include/linux/swap.h
-> @@ -332,6 +332,22 @@ static inline void disable_swap_token(vo
->  	put_swap_token(swap_token_mm);
->  }
->  
-> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
-> +extern int mem_cgroup_cache_charge_swapin(struct page *page,
-> +				struct mm_struct *mm, gfp_t mask, bool locked);
-> +extern void mem_cgroup_uncharge_swapcache(struct page *page);
-> +#else
-> +static inline
-> +int mem_cgroup_cache_charge_swapin(struct page *page,
-> +				struct mm_struct *mm, gfp_t mask, bool locked)
-> +{
-> +	return 0;
-> +}
-> +static inline void mem_cgroup_uncharge_swapcache(struct page *page)
-> +{
-> +}
-> +#endif
-> +
->  #else /* CONFIG_SWAP */
->  
->  #define total_swap_pages			0
-> Index: mmotm-2.6.28-rc2+/mm/shmem.c
-> ===================================================================
-> --- mmotm-2.6.28-rc2+.orig/mm/shmem.c
-> +++ mmotm-2.6.28-rc2+/mm/shmem.c
-> @@ -920,8 +920,12 @@ found:
->  	error = 1;
->  	if (!inode)
->  		goto out;
-> -	/* Charge page using GFP_HIGHUSER_MOVABLE while we can wait */
-> -	error = mem_cgroup_cache_charge(page, current->mm, GFP_HIGHUSER_MOVABLE);
-> +	/*
-> +         * Charge page using GFP_HIGHUSER_MOVABLE while we can wait.
-> +         * charged back to the user(not to caller) when swap account is used.
-> +         */
-> +	error = mem_cgroup_cache_charge_swapin(page,
-> +			current->mm, GFP_HIGHUSER_MOVABLE, true);
->  	if (error)
->  		goto out;
->  	error = radix_tree_preload(GFP_KERNEL);
-> @@ -1258,6 +1262,16 @@ repeat:
->  				goto repeat;
->  			}
->  			wait_on_page_locked(swappage);
-> +			/*
-> +			 * We want to avoid charge at add_to_page_cache().
-> +			 * charge against this swap cache here.
-> +			 */
-> +			if (mem_cgroup_cache_charge_swapin(swappage,
-> +						current->mm, gfp, false)) {
-> +				page_cache_release(swappage);
-> +				error = -ENOMEM;
-> +				goto failed;
-> +			}
->  			page_cache_release(swappage);
->  			goto repeat;
->  		}
-> Index: mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
-> ===================================================================
-> --- mmotm-2.6.28-rc2+.orig/Documentation/controllers/memory.txt
-> +++ mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
-> @@ -137,6 +137,11 @@ behind this approach is that a cgroup th
->  page will eventually get charged for it (once it is uncharged from
->  the cgroup that brought it in -- this will happen on memory pressure).
->  
-> +Exception: When you do swapoff and make swapped-out pages of shmem(tmpfs) to
-> +be backed into memory in force, charges for pages are accounted against the
-> +caller of swapoff rather than the users of shmem.
-> +
-> +
->  2.4 Reclaim
->  
->  Each cgroup maintains a per cgroup LRU that consists of an active
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
