@@ -1,60 +1,52 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA71DLrr028025
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 7 Nov 2008 10:13:22 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B39B245DD7D
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 10:13:21 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 821F145DD78
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 10:13:21 +0900 (JST)
-Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B1831DB803C
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 10:13:21 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 14EF41DB803A
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 10:13:21 +0900 (JST)
-Date: Fri, 7 Nov 2008 10:12:45 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 7/6] memcg: add atribute (for change bahavior
- ofrmdir)
-Message-Id: <20081107101245.2ac46e75.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <6941.10.75.179.62.1225981828.squirrel@webmail-b.css.fujitsu.com>
+Date: Fri, 7 Nov 2008 10:19:05 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 4/6] memcg : swap cgroup
+Message-Id: <20081107101905.268533fb.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <29542.10.75.179.61.1225975461.squirrel@webmail-b.css.fujitsu.com>
 References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
-	<49129493.9070103@linux.vnet.ibm.com>
-	<20081106194153.220157ec.kamezawa.hiroyu@jp.fujitsu.com>
-	<4912F53A.2070407@linux.vnet.ibm.com>
-	<6941.10.75.179.62.1225981828.squirrel@webmail-b.css.fujitsu.com>
+	<20081105172141.1a12dc23.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081106202534.80e5cf0a.nishimura@mxp.nes.nec.co.jp>
+	<29542.10.75.179.61.1225975461.squirrel@webmail-b.css.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Nov 2008 23:30:28 +0900 (JST)
-"KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> Balbir Singh said:
-> > KAMEZAWA Hiroyuki wrote:
-> >> BTW, cost of movement itself is not far from cost for force_empty.
+On Thu, 6 Nov 2008 21:44:21 +0900 (JST), "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Daisuke Nishimura said:
+> > On Wed, 5 Nov 2008 17:21:41 +0900, KAMEZAWA Hiroyuki
+> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >> Note1: In this, we use pointer to record information and this means
+> >>       8bytes per swap entry. I think we can reduce this when we
+> >>       create "id of cgroup" in the range of 0-65535 or 0-255.
 > >>
-> >> If you can't find why "forget" is bad, please consider one more day.
+> >> Note2: array of swap_cgroup is allocated from HIGHMEM. maybe good for
+> >> x86-32.
+> >>
+> >> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> >>
+> >>  include/linux/page_cgroup.h |   35 +++++++
+> >>  mm/page_cgroup.c            |  201
+> >> ++++++++++++++++++++++++++++++++++++++++++++
+> >>  mm/swapfile.c               |    8 +
+> >>  3 files changed, 244 insertions(+)
+> >>
+> > Is there any reason why they are defined not in memcontrol.[ch]
+> > but in page_cgroup.[ch]?
 > >
-> > The attributes seem quite reasonable, I've taken a quick look, not done a
-> > full
-> > review or test.
-> >
-> Thanks, I'll go ahead in this direction.
+> no strong reason. just because this is not core logic for acccounting.
+> do you want to see this in memcontrol.c ?
 > 
-It seems Andrew picked account_move patch into his queue. I'll post this as
-add-on to mmotm, in the next week. patch-for-test can be posted in hours if
-I work well...
+I just felt strange just because they are not "page_cgroup".
+I don't have any strong request to move them to memcontrol.c.
+
 
 Thanks,
--Kame
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
