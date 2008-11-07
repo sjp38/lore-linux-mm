@@ -1,23 +1,30 @@
-Date: Fri, 7 Nov 2008 12:43:06 -0600 (CST)
+Date: Fri, 7 Nov 2008 12:45:20 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 7/7] cpu alloc: page allocator conversion
-In-Reply-To: <20081107093137.F84D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0811071242560.5387@quilx.com>
-References: <20081106115113.0D38.KOSAKI.MOTOHIRO@jp.fujitsu.com>
- <Pine.LNX.4.64.0811060904030.3595@quilx.com> <20081107093137.F84D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into
+ pcp
+In-Reply-To: <20081107112722.GE13786@csn.ul.ie>
+Message-ID: <Pine.LNX.4.64.0811071244330.5387@quilx.com>
+References: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+ <20081106164644.GA14012@csn.ul.ie> <20081107104224.1631057e.kamezawa.hiroyu@jp.fujitsu.com>
+ <20081107104242.GC13786@csn.ul.ie> <20081107200251.15e9851a.kamezawa.hiroyu@jp.fujitsu.com>
+ <20081107112722.GE13786@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, Pekka Enberg <penberg@cs.helsinki.fi>, Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, travis@sgi.com, Stephen Rothwell <sfr@canb.auug.org.au>, Vegard Nossum <vegard.nossum@gmail.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Nov 2008, KOSAKI Motohiro wrote:
+On Fri, 7 Nov 2008, Mel Gorman wrote:
 
-> However, if cpu-unplug happend, any pages in pcp should flush to buddy (I think).
+> Oh, do you mean splitting the list instead of searching? This is how it was
+> originally implement and shot down on the grounds it increased the size of
+> a per-cpu structure.
 
-Right. They are not?
+The situation may be better with the cpu_alloc stuff. The big pcp array in
+struct zone for all possible processors will be gone and thus the memory
+requirements will be less.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
