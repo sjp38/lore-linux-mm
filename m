@@ -1,27 +1,27 @@
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA79Dc5u001438
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA79KAOG004142
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 7 Nov 2008 18:13:39 +0900
+	Fri, 7 Nov 2008 18:20:11 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F1B145DD7D
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:13:38 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BE0F45DD7A
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:20:10 +0900 (JST)
 Received: from s7.gw.fujitsu.co.jp (s7.gw.fujitsu.co.jp [10.0.50.97])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79E5045DD7B
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:13:38 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 41FA745DD80
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:20:09 +0900 (JST)
 Received: from s7.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 61355E08005
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:13:38 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CAEEE08002
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:13:38 +0900 (JST)
-Date: Fri, 7 Nov 2008 18:13:03 +0900
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FAE9E08002
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:20:09 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s7.gw.fujitsu.co.jp (Postfix) with ESMTP id 12B841DB8040
+	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 18:20:07 +0900 (JST)
+Date: Fri, 7 Nov 2008 18:19:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 2/6] memcg: handle swap cache
-Message-Id: <20081107181303.7dd232fd.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081107175303.1d5c8a29.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 5/6] memcg: mem+swap controller
+Message-Id: <20081107181932.94e6f307.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081107180248.39251a80.nishimura@mxp.nes.nec.co.jp>
 References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081107175303.1d5c8a29.nishimura@mxp.nes.nec.co.jp>
+	<20081105172316.354c00fb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081107180248.39251a80.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -31,56 +31,220 @@ To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Nov 2008 17:53:03 +0900
+On Fri, 7 Nov 2008 18:02:48 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> On Wed, 5 Nov 2008 17:20:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > SwapCache support for memory resource controller (memcg)
+> On Wed, 5 Nov 2008 17:23:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > Mem+Swap controller core.
 > > 
-> > Before mem+swap controller, memcg itself should handle SwapCache in proper way.
+> > This patch implements per cgroup limit for usage of memory+swap.
+> > However there are SwapCache, double counting of swap-cache and
+> > swap-entry is avoided.
 > > 
-> > In current memcg, SwapCache is just leaked and the user can create tons of
-> > SwapCache. This is a leak of account and should be handled.
+> > Mem+Swap controller works as following.
+> >   - memory usage is limited by memory.limit_in_bytes.
+> >   - memory + swap usage is limited by memory.memsw_limit_in_bytes.
 > > 
-> > SwapCache accounting is done as following.
 > > 
-> >   charge (anon)
-> > 	- charged when it's mapped.
-> > 	  (because of readahead, charge at add_to_swap_cache() is not sane)
-> >   uncharge (anon)
-> > 	- uncharged when it's dropped from swapcache and fully unmapped.
-> > 	  means it's not uncharged at unmap.
-> > 	  Note: delete from swap cache at swap-in is done after rmap information
-> > 	        is established.
-> >   charge (shmem)
-> > 	- charged at swap-in. this prevents charge at add_to_page_cache().
+> > This has following benefits.
+> >   - A user can limit total resource usage of mem+swap.
 > > 
-> >   uncharge (shmem)
-> > 	- uncharged when it's dropped from swapcache and not on shmem's
-> > 	  radix-tree.
+> >     Without this, because memory resource controller doesn't take care of
+> >     usage of swap, a process can exhaust all the swap (by memory leak.)
+> >     We can avoid this case.
 > > 
-> >   at migration, check against 'old page' is modified to handle shmem.
+> >     And Swap is shared resource but it cannot be reclaimed (goes back to memory)
+> >     until it's used. This characteristic can be trouble when the memory
+> >     is divided into some parts by cpuset or memcg.
+> >     Assume group A and group B.
+> >     After some application executes, the system can be..
+> >     
+> >     Group A -- very large free memory space but occupy 99% of swap.
+> >     Group B -- under memory shortage but cannot use swap...it's nearly full.
 > > 
-> > Comparing to the old version discussed (and caused troubles), we have
-> > advantages of
-> >   - PCG_USED bit.
-> >   - simple migrating handling.
+> >     Ability to set appropriate swap limit for each group is required.
+> >       
+> > Maybe someone wonder "why not swap but mem+swap ?"
 > > 
-> > So, situation is much easier than several months ago, maybe.
+> >   - The global LRU(kswapd) can swap out arbitrary pages. Swap-out means
+> >     to move account from memory to swap...there is no change in usage of
+> >     mem+swap.
 > > 
-> > Changelog (v1) -> (v2)
-> >   - use lock_page() when we handle unlocked SwapCache.
+> >     In other words, when we want to limit the usage of swap without affecting
+> >     global LRU, mem+swap limit is better than just limiting swap.
 > > 
-> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> I tested this version under swap in/out activity with page migration/rmdir,
-> and it worked w/o errors for more than 24 hours.
+> > Accounting target information is stored in swap_cgroup which is
+> > per swap entry record.
+> > 
+> > Charge is done as following.
+> >   map
+> >     - charge  page and memsw.
+> > 
+> >   unmap
+> >     - uncharge page/memsw if not SwapCache.
+> > 
+> >   swap-out (__delete_from_swap_cache)
+> >     - uncharge page
+> >     - record mem_cgroup information to swap_cgroup.
+> > 
+> >   swap-in (do_swap_page)
+> >     - charged as page and memsw.
+> >       record in swap_cgroup is cleared.
+> >       memsw accounting is decremented.
+> > 
+> >   swap-free (swap_free())
+> >     - if swap entry is freed, memsw is uncharged by PAGE_SIZE.
+> > 
+> > 
+> > After this, usual memory resource controller handles SwapCache.
+> > (It was lacked(ignored) feature in current memcg but must be handled.)
+> > 
+> SwapCache has been handled in [2/6] already :)
 > 
-> 	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-Thank you!
+yes. I'll rewrite this.
 
+
+> (snip)
+> > @@ -514,12 +534,25 @@ static int __mem_cgroup_try_charge(struc
+> >  		css_get(&mem->css);
+> >  	}
+> >  
+> > +	while (1) {
+> > +		int ret;
+> > +		bool noswap = false;
+> >  
+> > -	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+> > +		ret = res_counter_charge(&mem->res, PAGE_SIZE);
+> > +		if (likely(!ret)) {
+> > +			if (!do_swap_account)
+> > +				break;
+> > +			ret = res_counter_charge(&mem->memsw, PAGE_SIZE);
+> > +			if (likely(!ret))
+> > +				break;
+> > +			/* mem+swap counter fails */
+> > +			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > +			noswap = true;
+> > +		}
+> >  		if (!(gfp_mask & __GFP_WAIT))
+> >  			goto nomem;
+> >  
+> > -		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+> > +		if (try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap))
+> >  			continue;
+> >  
+> >  		/*
+> I have two comment about try_charge.
+> 
+> 1. It would be better if possible to avoid charging memsw at swapin (and uncharging
+>    it again at mem_cgroup_cache_charge_swapin/mem_cgroup_commit_charge_swapin).
+>    How about adding a new argument "charge_memsw" ? (it has many args already now...)
+
+Hmm, maybe possible and good. I'll cosider this again.
+
+> 2. Should we use swap when exceeding mem.limit but mem.limit == memsw.limit ?
+> 
+I'd like to put that special case into "TODO" list. Hmm...
+maybe set noswap=true in that case is enough. but we have to be careful.
+
+
+> (snip)
+> >  void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+> > @@ -838,6 +947,7 @@ void mem_cgroup_cancel_charge_swapin(str
+> >  	if (!mem)
+> >  		return;
+> >  	res_counter_uncharge(&mem->res, PAGE_SIZE);
+> > +	res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+> >  	css_put(&mem->css);
+> >  }
+> >  
+> "if (do_swap_account)" is needed before uncharging memsw.
+> 
+good catch !
+
+> (snip)
+> >  static struct cftype mem_cgroup_files[] = {
+> >  	{
+> >  		.name = "usage_in_bytes",
+> > -		.private = RES_USAGE,
+> > +		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
+> >  		.read_u64 = mem_cgroup_read,
+> >  	},
+> >  	{
+> >  		.name = "max_usage_in_bytes",
+> > -		.private = RES_MAX_USAGE,
+> > +		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
+> >  		.trigger = mem_cgroup_reset,
+> >  		.read_u64 = mem_cgroup_read,
+> >  	},
+> >  	{
+> >  		.name = "limit_in_bytes",
+> > -		.private = RES_LIMIT,
+> > +		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
+> >  		.write_string = mem_cgroup_write,
+> >  		.read_u64 = mem_cgroup_read,
+> >  	},
+> >  	{
+> >  		.name = "failcnt",
+> > -		.private = RES_FAILCNT,
+> > +		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
+> >  		.trigger = mem_cgroup_reset,
+> >  		.read_u64 = mem_cgroup_read,
+> >  	},
+> > @@ -1317,6 +1541,31 @@ static struct cftype mem_cgroup_files[] 
+> >  		.name = "stat",
+> >  		.read_map = mem_control_stat_show,
+> >  	},
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> > +	{
+> > +		.name = "memsw.usage_in_bytes",
+> > +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
+> > +		.read_u64 = mem_cgroup_read,
+> > +	},
+> > +	{
+> > +		.name = "memsw.max_usage_in_bytes",
+> > +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_MAX_USAGE),
+> > +		.trigger = mem_cgroup_reset,
+> > +		.read_u64 = mem_cgroup_read,
+> > +	},
+> > +	{
+> > +		.name = "memsw.limit_in_bytes",
+> > +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_LIMIT),
+> > +		.write_string = mem_cgroup_write,
+> > +		.read_u64 = mem_cgroup_read,
+> > +	},
+> > +	{
+> > +		.name = "memsw.failcnt",
+> > +		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_FAILCNT),
+> > +		.trigger = mem_cgroup_reset,
+> > +		.read_u64 = mem_cgroup_read,
+> > +	},
+> > +#endif
+> >  };
+> >  
+> IMHO, it would be better to define those "memsw.*" files as memsw_cgroup_files[],
+> and change mem_cgroup_populate() like:
+> 
+> static int mem_cgroup_populate(struct cgroup_subsys *ss,
+> 				struct cgroup *cont)
+> {
+> 	int ret;
+> 
+> 	ret = cgroup_add_files(cont, ss, mem_cgroup_files,
+> 					ARRAY_SIZE(mem_cgroup_files));
+> 	if (!ret && do_swap_account)
+> 		ret = cgroup_add_files(cont, ss, memsw_cgroup_files,
+> 					ARRAY_SIZE(memsw_cgroup_files));
+> 
+> 	return ret;
+> }
+> 
+> so that those files appear only when swap accounting is enabled.
+> 
+
+Nice idea. I'll try that. 
+
+Thanks,
 -Kame
 
 --
