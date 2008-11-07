@@ -1,125 +1,296 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mA74bFxO015112
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 7 Nov 2008 13:37:16 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id BA3D545DE3E
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 13:37:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D36445DE51
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 13:37:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6BDEA1DB8040
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 13:37:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B9541E08003
-	for <linux-mm@kvack.org>; Fri,  7 Nov 2008 13:37:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into pcp
-In-Reply-To: <20081106164644.GA14012@csn.ul.ie>
-References: <20081106091431.0D2A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081106164644.GA14012@csn.ul.ie>
-Message-Id: <20081107093127.F84A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Fri, 7 Nov 2008 17:53:03 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 2/6] memcg: handle swap cache
+Message-Id: <20081107175303.1d5c8a29.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081105171637.1b393333.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081105172009.d9541e27.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Fri,  7 Nov 2008 13:37:14 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "menage@google.com" <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel, Cristoph,
-
-Thank you for interesting comment!
-
-
-> > MIGRATE_RESERVE mean that the page is for emergency.
-> > So it shouldn't be cached in pcp.
+On Wed, 5 Nov 2008 17:20:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> SwapCache support for memory resource controller (memcg)
 > 
-> It doesn't necessarily mean it's for emergencys. MIGRATE_RESERVE is one
-> or more pageblocks at the beginning of the zone. While it's possible
-> that the minimum page reserve for GFP_ATOMIC is located here, it's not
-> mandatory.
+> Before mem+swap controller, memcg itself should handle SwapCache in proper way.
 > 
-> What MIGRATE_RESERVE can help is high-order atomic allocations used by
-> some network drivers (a wireless one is what led to MIGRATE_RESERVE). As
-> they are high-order allocations, they would be returned to the buddy
-> allocator anyway.
-
-yup.
-my patch is meaningless for high order allocation because high order allocation
-don't use pcp.
-
-
-> What your patch may help is the situation where the system is under intense
-> memory pressure, is dipping routinely into the lowmem reserves and mixing
-> with high-order atomic allocations. This seems a bit extreme.
-
-not so extreame.
-
-The linux page reclaim can't process in interrupt context.
-Sl network subsystem and driver often use MIGRATE_RESERVE memory although
-system have many reclaimable memory.
-
-At that time, any task in process context can use high order allocation.
-
-
-> > otherwise, the system have unnecessary memory starvation risk
-> > because other cpu can't use this emergency pages.
-> > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > CC: Mel Gorman <mel@csn.ul.ie>
-> > CC: Christoph Lameter <cl@linux-foundation.org>
-> > 
+> In current memcg, SwapCache is just leaked and the user can create tons of
+> SwapCache. This is a leak of account and should be handled.
 > 
-> This patch seems functionally sound but as Christoph points out, this
-> adds another branch to the fast path. Now, I ran some tests and those that
-> completed didn't show any problems but adding branches in the fast path can
-> eventually lead to hard-to-detect performance problems.
+> SwapCache accounting is done as following.
 > 
-> Do you have a situation in mind that this patch fixes up?
+>   charge (anon)
+> 	- charged when it's mapped.
+> 	  (because of readahead, charge at add_to_swap_cache() is not sane)
+>   uncharge (anon)
+> 	- uncharged when it's dropped from swapcache and fully unmapped.
+> 	  means it's not uncharged at unmap.
+> 	  Note: delete from swap cache at swap-in is done after rmap information
+> 	        is established.
+>   charge (shmem)
+> 	- charged at swap-in. this prevents charge at add_to_page_cache().
+> 
+>   uncharge (shmem)
+> 	- uncharged when it's dropped from swapcache and not on shmem's
+> 	  radix-tree.
+> 
+>   at migration, check against 'old page' is modified to handle shmem.
+> 
+> Comparing to the old version discussed (and caused troubles), we have
+> advantages of
+>   - PCG_USED bit.
+>   - simple migrating handling.
+> 
+> So, situation is much easier than several months ago, maybe.
+> 
+> Changelog (v1) -> (v2)
+>   - use lock_page() when we handle unlocked SwapCache.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+I tested this version under swap in/out activity with page migration/rmdir,
+and it worked w/o errors for more than 24 hours.
 
-Ah, sorry for my description is too poor.
-This isn't real workload issue, it is jsut 
-
-Actually, I plan to rework to pcp because following pcp list searching 
-in fast path is NOT fast.
-
-In general, list searching often cause L1 cache miss, therefore it shouldn't be
-used in fast path.
-
-
-static struct page *buffered_rmqueue(struct zone *preferred_zone,
-                        struct zone *zone, int order, gfp_t gfp_flags)
-{
-(snip)
-                /* Find a page of the appropriate migrate type */
-                if (cold) {
-                        list_for_each_entry_reverse(page, &pcp->list, lru)
-                                if (page_private(page) == migratetype)
-                                        break;
-                } else {
-                        list_for_each_entry(page, &pcp->list, lru)
-                                if (page_private(page) == migratetype)
-                                        break;
-                }
-
-
-Therefore, I'd like to make per migratetype pcp list.
-However, MIGRATETYPE_RESEVE list isn't useful because caller never need reserve type.
-it is only internal attribute.
-
-So I thought "dropping reserve type page in pcp" patch is useful although it is sololy used.
-Then, I posted it sololy for hear other developer opinion.
-
-Actually, current pcp is NOT fast, therefore the discussion of the 
-number of branches isn't meaningful.
-the discussion of the number of branches is only meaningful when the fast path can
-process at N*branches level time, but current pcp is more slow.
+	Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+	Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
 
+Thanks,
+Daisuke Nishimura.
 
+> ---
+>  Documentation/controllers/memory.txt |    5 ++
+>  include/linux/swap.h                 |   16 ++++++++
+>  mm/memcontrol.c                      |   67 +++++++++++++++++++++++++++++++----
+>  mm/shmem.c                           |   18 ++++++++-
+>  mm/swap_state.c                      |    1 
+>  5 files changed, 99 insertions(+), 8 deletions(-)
+> 
+> Index: mmotm-2.6.28-rc2+/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.28-rc2+.orig/mm/memcontrol.c
+> +++ mmotm-2.6.28-rc2+/mm/memcontrol.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/memcontrol.h>
+>  #include <linux/cgroup.h>
+>  #include <linux/mm.h>
+> +#include <linux/pagemap.h>
+>  #include <linux/smp.h>
+>  #include <linux/page-flags.h>
+>  #include <linux/backing-dev.h>
+> @@ -140,6 +141,7 @@ enum charge_type {
+>  	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+>  	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+>  	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+> +	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
+>  	NR_CHARGE_TYPE,
+>  };
+>  
+> @@ -781,6 +783,33 @@ int mem_cgroup_cache_charge(struct page 
+>  				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+>  }
+>  
+> +#ifdef CONFIG_SWAP
+> +int mem_cgroup_cache_charge_swapin(struct page *page,
+> +			struct mm_struct *mm, gfp_t mask, bool locked)
+> +{
+> +	int ret = 0;
+> +
+> +	if (mem_cgroup_subsys.disabled)
+> +		return 0;
+> +	if (unlikely(!mm))
+> +		mm = &init_mm;
+> +	if (!locked)
+> +		lock_page(page);
+> +	/*
+> +	 * If not locked, the page can be dropped from SwapCache until
+> +	 * we reach here.
+> +	 */
+> +	if (PageSwapCache(page)) {
+> +		ret = mem_cgroup_charge_common(page, mm, mask,
+> +				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
+> +	}
+> +	if (!locked)
+> +		unlock_page(page);
+> +
+> +	return ret;
+> +}
+> +#endif
+> +
+>  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+>  {
+>  	struct page_cgroup *pc;
+> @@ -818,6 +847,9 @@ __mem_cgroup_uncharge_common(struct page
+>  	if (mem_cgroup_subsys.disabled)
+>  		return;
+>  
+> +	if (PageSwapCache(page))
+> +		return;
+> +
+>  	/*
+>  	 * Check if our page_cgroup is valid
+>  	 */
+> @@ -826,12 +858,26 @@ __mem_cgroup_uncharge_common(struct page
+>  		return;
+>  
+>  	lock_page_cgroup(pc);
+> -	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED && page_mapped(page))
+> -	     || !PageCgroupUsed(pc)) {
+> -		/* This happens at race in zap_pte_range() and do_swap_page()*/
+> -		unlock_page_cgroup(pc);
+> -		return;
+> +
+> +	if (!PageCgroupUsed(pc))
+> +		goto unlock_out;
+> +
+> +	switch(ctype) {
+> +	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
+> +		if (page_mapped(page))
+> +			goto unlock_out;
+> +		break;
+> +	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
+> +		if (!PageAnon(page)) {	/* Shared memory */
+> +			if (page->mapping && !page_is_file_cache(page))
+> +				goto unlock_out;
+> +		} else if (page_mapped(page)) /* Anon */
+> +				goto unlock_out;
+> +		break;
+> +	default:
+> +		break;
+>  	}
+> +
+>  	ClearPageCgroupUsed(pc);
+>  	mem = pc->mem_cgroup;
+>  
+> @@ -845,6 +891,10 @@ __mem_cgroup_uncharge_common(struct page
+>  	css_put(&mem->css);
+>  
+>  	return;
+> +
+> +unlock_out:
+> +	unlock_page_cgroup(pc);
+> +	return;
+>  }
+>  
+>  void mem_cgroup_uncharge_page(struct page *page)
+> @@ -864,6 +914,11 @@ void mem_cgroup_uncharge_cache_page(stru
+>  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+>  }
+>  
+> +void mem_cgroup_uncharge_swapcache(struct page *page)
+> +{
+> +	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
+> +}
+> +
+>  /*
+>   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+>   * page belongs to.
+> @@ -921,7 +976,7 @@ void mem_cgroup_end_migration(struct mem
+>  		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+>  
+>  	/* unused page is not on radix-tree now. */
+> -	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
+> +	if (unused)
+>  		__mem_cgroup_uncharge_common(unused, ctype);
+>  
+>  	pc = lookup_page_cgroup(target);
+> Index: mmotm-2.6.28-rc2+/mm/swap_state.c
+> ===================================================================
+> --- mmotm-2.6.28-rc2+.orig/mm/swap_state.c
+> +++ mmotm-2.6.28-rc2+/mm/swap_state.c
+> @@ -119,6 +119,7 @@ void __delete_from_swap_cache(struct pag
+>  	total_swapcache_pages--;
+>  	__dec_zone_page_state(page, NR_FILE_PAGES);
+>  	INC_CACHE_INFO(del_total);
+> +	mem_cgroup_uncharge_swapcache(page);
+>  }
+>  
+>  /**
+> Index: mmotm-2.6.28-rc2+/include/linux/swap.h
+> ===================================================================
+> --- mmotm-2.6.28-rc2+.orig/include/linux/swap.h
+> +++ mmotm-2.6.28-rc2+/include/linux/swap.h
+> @@ -332,6 +332,22 @@ static inline void disable_swap_token(vo
+>  	put_swap_token(swap_token_mm);
+>  }
+>  
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +extern int mem_cgroup_cache_charge_swapin(struct page *page,
+> +				struct mm_struct *mm, gfp_t mask, bool locked);
+> +extern void mem_cgroup_uncharge_swapcache(struct page *page);
+> +#else
+> +static inline
+> +int mem_cgroup_cache_charge_swapin(struct page *page,
+> +				struct mm_struct *mm, gfp_t mask, bool locked)
+> +{
+> +	return 0;
+> +}
+> +static inline void mem_cgroup_uncharge_swapcache(struct page *page)
+> +{
+> +}
+> +#endif
+> +
+>  #else /* CONFIG_SWAP */
+>  
+>  #define total_swap_pages			0
+> Index: mmotm-2.6.28-rc2+/mm/shmem.c
+> ===================================================================
+> --- mmotm-2.6.28-rc2+.orig/mm/shmem.c
+> +++ mmotm-2.6.28-rc2+/mm/shmem.c
+> @@ -920,8 +920,12 @@ found:
+>  	error = 1;
+>  	if (!inode)
+>  		goto out;
+> -	/* Charge page using GFP_HIGHUSER_MOVABLE while we can wait */
+> -	error = mem_cgroup_cache_charge(page, current->mm, GFP_HIGHUSER_MOVABLE);
+> +	/*
+> +         * Charge page using GFP_HIGHUSER_MOVABLE while we can wait.
+> +         * charged back to the user(not to caller) when swap account is used.
+> +         */
+> +	error = mem_cgroup_cache_charge_swapin(page,
+> +			current->mm, GFP_HIGHUSER_MOVABLE, true);
+>  	if (error)
+>  		goto out;
+>  	error = radix_tree_preload(GFP_KERNEL);
+> @@ -1258,6 +1262,16 @@ repeat:
+>  				goto repeat;
+>  			}
+>  			wait_on_page_locked(swappage);
+> +			/*
+> +			 * We want to avoid charge at add_to_page_cache().
+> +			 * charge against this swap cache here.
+> +			 */
+> +			if (mem_cgroup_cache_charge_swapin(swappage,
+> +						current->mm, gfp, false)) {
+> +				page_cache_release(swappage);
+> +				error = -ENOMEM;
+> +				goto failed;
+> +			}
+>  			page_cache_release(swappage);
+>  			goto repeat;
+>  		}
+> Index: mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
+> ===================================================================
+> --- mmotm-2.6.28-rc2+.orig/Documentation/controllers/memory.txt
+> +++ mmotm-2.6.28-rc2+/Documentation/controllers/memory.txt
+> @@ -137,6 +137,11 @@ behind this approach is that a cgroup th
+>  page will eventually get charged for it (once it is uncharged from
+>  the cgroup that brought it in -- this will happen on memory pressure).
+>  
+> +Exception: When you do swapoff and make swapped-out pages of shmem(tmpfs) to
+> +be backed into memory in force, charges for pages are accounted against the
+> +caller of swapoff rather than the users of shmem.
+> +
+> +
+>  2.4 Reclaim
+>  
+>  Each cgroup maintains a per cgroup LRU that consists of an active
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
