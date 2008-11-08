@@ -1,69 +1,54 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id mA89oGfj019969
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 20:50:16 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA89o6Nk3981312
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 20:50:07 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA89o0Yn010886
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 20:50:01 +1100
-Message-ID: <491560C0.50400@linux.vnet.ibm.com>
-Date: Sat, 08 Nov 2008 15:19:52 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][mm] [PATCH 4/4] Memory cgroup hierarchy feature selector
- (v2)
-References: <20081108091009.32236.26177.sendpatchset@localhost.localdomain> <20081108091113.32236.12390.sendpatchset@localhost.localdomain> <49155E45.3030704@cn.fujitsu.com>
-In-Reply-To: <49155E45.3030704@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Date: Sat, 8 Nov 2008 16:00:48 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 0/9] vmalloc fixes and improvements
+Message-ID: <20081108150048.GA2969@cmpxchg.org>
+References: <20081108021512.686515000@suse.de> <alpine.LFD.2.00.0811072109550.3468@nehalem.linux-foundation.org> <20081108054144.GB24308@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081108054144.GB24308@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, linux-mm@kvack.org, glommer@redhat.com, rjw@sisk.pl
 List-ID: <linux-mm.kvack.org>
 
-Li Zefan wrote:
->> +static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->> +					u64 val)
->> +{
->> +	int retval = 0;
->> +	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
->> +
->> +	if (val == 1) {
->> +		if (list_empty(&cont->children))
+On Sat, Nov 08, 2008 at 06:41:44AM +0100, Nick Piggin wrote:
+> On Fri, Nov 07, 2008 at 09:13:38PM -0800, Linus Torvalds wrote:
+> > 
+> > 
+> > On Sat, 8 Nov 2008, npiggin@suse.de wrote:
+> > > 
+> > > The following patches are a set of fixes and improvements for the vmap
+> > > layer.
+> > 
+> > They seem seriously buggered.
+> > 
+> > Patches that seem to be authorted by others (judging by sign-off) have no 
+> > such attribution. And because you apparently use some sh*t-for-emailer, 
+> > the patches that _are_ yours are missing your name, because it just says
+> > 
+> > 	From: npiggin@suse.de
+> > 
+> > without any "Nick Piggin" there.
+> > 
+> > I'd suggest fixing your emailer scripts regardless, but a "From: " at the 
+> > top of the body would fix both the attribution to others, and give you a 
+> > name too.
 > 
-> cgroup_lock should be held before checking cont->children.
-> 
+> I thought when there is no From in the body, then it defaults to the first
+> Signed-off-by:. At least Andrew's scripts IIRC have got that right? (unless
+> it is Andrew fixing it manually).
 
-Good point, I'll look at that aspect
+I thought just the last From: line in the raw email text, including
+both headers and body.  So it defaults to the header which your mua
+sets automatically or you override it with an extra From:-line in the
+body to attribute authorship to somebody else.
 
->> +			mem->use_hierarchy = val;
->> +		else
->> +			retval = -EBUSY;
->> +	} else if (val == 0) {
-> 
-> And code duplicate.
+But you apperently just need to set a --from switch in .quiltrc's
+QUILT_MAIL_ARGS.
 
-Yes, this can be optimized better. I'll fix that in v3.
-
-> 
->> +		if (list_empty(&cont->children))
->> +			mem->use_hierarchy nn= val;
->> +		else
->> +			retval = -EBUSY;
->> +	} else
->> +		retval = -EINVAL;
->> +
->> +	return retval;
->> +}
->> +
-> 
-
-
--- 
-	Balbir
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
