@@ -1,38 +1,73 @@
-Message-Id: <20081108021512.686515000@suse.de>
-Date: Sat, 08 Nov 2008 13:15:12 +1100
+Message-Id: <20081108022013.989723000@nick.local0.net>
+References: <20081108021512.686515000@suse.de>
+Date: Sat, 08 Nov 2008 13:15:17 +1100
 From: npiggin@suse.de
-Subject: [patch 0/9] vmalloc fixes and improvements
+Subject: [patch 5/9] mm: vmalloc improve vmallocinfo
+Content-Disposition: inline; filename=mm-vmalloc-vmallocinfo-improve.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, torvalds@linux-foundation.org
 Cc: linux-mm@kvack.org, glommer@redhat.com, rjw@sisk.pl
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+If we do that, output of files like /proc/vmallocinfo will show things like
+"vmalloc_32", "vmalloc_user", or whomever the caller was as the caller. This
+info is not as useful as the real caller of the allocation.
 
-The following patches are a set of fixes and improvements for the vmap
-layer.
+So, proposal is to call __vmalloc_node node directly, with matching parameters
+to save the caller information
 
-Patches 1-3 fix "[Bug #11903] regression: vmalloc easily fail", and these
-should go upstream for 2.6.28. They've been tested and shown to fix the
-problem, and I've tested them here on my XFS stress test as well. The
-off-by-one bug, I tested and verified in a userspace test harness (it
-doesn't actually cause any corruption, but just suboptimal use of space).
+Signed-off-by: Glauber Costa <glommer@redhat.com>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+ mm/vmalloc.c |   12 ++++++++----
+ 1 files changed, 8 insertions(+), 4 deletions(-)
 
-Patches 4,5 are improvements to information exported to user. Not very risky,
-but not urgent either.
-
-Patches 6-9 improve locking, guard page scheme, put guard pages under
-CONFIG_DEBUG_PAGEALLOC, and add a non-lazy-flush mode for
-CONFIG_DEBUG_PAGEALLOC to catch use-after-free better. These are more
-intrusive improvements. I'd like to see them merged, but they can happily
-wait for next merge window.
-
-Andrew, it's probably best if you take care of sending these upstream?
-
-Thanks,
-Nick
+Index: linux-2.6/mm/vmalloc.c
+===================================================================
+--- linux-2.6.orig/mm/vmalloc.c
++++ linux-2.6/mm/vmalloc.c
+@@ -1356,7 +1356,8 @@ void *vmalloc_user(unsigned long size)
+ 	struct vm_struct *area;
+ 	void *ret;
  
+-	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
++	ret = __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
++			     PAGE_KERNEL, -1, __builtin_return_address(0));
+ 	if (ret) {
+ 		area = find_vm_area(ret);
+ 		area->flags |= VM_USERMAP;
+@@ -1401,7 +1402,8 @@ EXPORT_SYMBOL(vmalloc_node);
+ 
+ void *vmalloc_exec(unsigned long size)
+ {
+-	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC);
++	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
++			      -1, __builtin_return_address(0));
+ }
+ 
+ #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
+@@ -1421,7 +1423,8 @@ void *vmalloc_exec(unsigned long size)
+  */
+ void *vmalloc_32(unsigned long size)
+ {
+-	return __vmalloc(size, GFP_VMALLOC32, PAGE_KERNEL);
++	return __vmalloc_node(size, GFP_VMALLOC32, PAGE_KERNEL,
++			      -1, __builtin_return_address(0));
+ }
+ EXPORT_SYMBOL(vmalloc_32);
+ 
+@@ -1437,7 +1440,8 @@ void *vmalloc_32_user(unsigned long size
+ 	struct vm_struct *area;
+ 	void *ret;
+ 
+-	ret = __vmalloc(size, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL);
++	ret = __vmalloc_node(size, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
++			     -1, __builtin_return_address(0));
+ 	if (ret) {
+ 		area = find_vm_area(ret);
+ 		area->flags |= VM_USERMAP;
+
 -- 
 
 --
