@@ -1,64 +1,81 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA899vv7005753
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:09:57 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA89AL1G145320
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:10:21 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA89AKgK009704
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:10:21 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA899sTU028305
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:09:54 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA89AhBO118216
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:10:43 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA89ADjB004669
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:10:14 -0700
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Sat, 08 Nov 2008 14:40:09 +0530
-Message-Id: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
-Subject: [RFC][mm][PATCH 0/4] Memory cgroup hierarchy introduction (v2)
+Date: Sat, 08 Nov 2008 14:40:27 +0530
+Message-Id: <20081108091027.32236.56400.sendpatchset@localhost.localdomain>
+In-Reply-To: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
+References: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
+Subject: [RFC][mm] [PATCH 1/4] Memory cgroup hierarchy documentation (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch follows several iterations of the memory controller hierarchy
-patches. The hardwall approach by Kamezawa-San[1]. Version 1 of this patchset
-at [2].
 
-The current approach is based on [2] and has the following properties
-
-1. Hierarchies are very natural in a filesystem like the cgroup filesystem.
-   A multi-tree hierarchy has been supported for a long time in filesystems.
-   When the feature is turned on, we honor hierarchies such that the root
-   accounts for resource usage of all children and limits can be set at
-   any point in the hierarchy. Any memory cgroup is limited by limits
-   along the hierarchy. The total usage of all children of a node cannot
-   exceed the limit of the node.
-2. The hierarchy feature is selectable and off by default
-3. Hierarchies are expensive and the trade off is depth versus performance.
-   Hierarchies can also be completely turned off.
-
-The patches are against 2.6.28-rc2-mm1 and were tested in a KVM instance
-with SMP and swap turned on.
+Documentation updates for hierarchy support
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
-v2..v1
-======
-1. The hierarchy is now selectable per-subtree
-2. The features file has been renamed to use_hierarchy
-3. Reclaim now holds cgroup lock and the reclaim does recursive walk and reclaim
+ Documentation/controllers/memory.txt |   37 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
 
-Series
-------
-
-memcg-hierarchy-documentation.patch
-resource-counters-hierarchy-support.patch
-memcg-hierarchical-reclaim.patch
-memcg-add-hierarchy-selector.patch
-
-Reviews? Comments?
-
-References
-
-1. http://linux.derkeiler.com/Mailing-Lists/Kernel/2008-06/msg05417.html
-2. http://kerneltrap.org/mailarchive/linux-kernel/2008/4/19/1513644/thread
+diff -puN Documentation/controllers/memory.txt~memcg-hierarchy-documentation Documentation/controllers/memory.txt
+--- linux-2.6.28-rc2/Documentation/controllers/memory.txt~memcg-hierarchy-documentation	2008-11-08 14:09:29.000000000 +0530
++++ linux-2.6.28-rc2-balbir/Documentation/controllers/memory.txt	2008-11-08 14:09:29.000000000 +0530
+@@ -245,6 +245,43 @@ cgroup might have some charge associated
+ tasks have migrated away from it. Such charges are automatically dropped at
+ rmdir() if there are no tasks.
+ 
++5. Hierarchy support
++
++The memory controller supports a deep hierarchy and hierarchical accounting.
++The hierarchy is created by creating the appropriate cgroups in the
++cgroup filesystem. Consider for example, the following cgroup filesystem
++hierarchy
++
++		root
++	     /  |   \
++           /	|    \
++	  a	b	c
++			| \
++			|  \
++			d   e
++
++In the diagram above, with hierarchical accounting enabled, all memory
++usage of e, is accounted to its ancestors up until the root (i.e, c and root),
++that has memory.use_hierarchy enabled.  If one of the ancestors goes over its
++limit, the reclaim algorithm reclaims from the tasks in the ancestor and the
++children of the ancestor.
++
++5.1 Enabling hierarchical accounting and reclaim
++
++The memory controller by default disables the hierarchy feature. Support
++can be enabled by writing 1 to memory.use_hierarchy file of the root cgroup
++
++# echo 1 > memory.use_hierarchy
++
++The feature can be disabled by
++
++# echo 0 > memory.use_hierarchy
++
++NOTE1: Enabling/disabling will fail if the cgroup already has other
++cgroups created below it.
++
++NOTE2: This feature can be enabled/disabled per subtree.
++
+ 5. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+_
 
 -- 
 	Balbir
