@@ -1,111 +1,226 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA89AgN5014510
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:10:42 -0700
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA89BU2H147096
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:11:30 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA89BUCq011002
-	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 02:11:30 -0700
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mA898eqk028490
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 04:08:40 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mA89B9h9123316
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 04:11:09 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mA89B84l028640
+	for <linux-mm@kvack.org>; Sat, 8 Nov 2008 04:11:09 -0500
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Sat, 08 Nov 2008 14:41:13 +0530
-Message-Id: <20081108091113.32236.12390.sendpatchset@localhost.localdomain>
+Date: Sat, 08 Nov 2008 14:41:00 +0530
+Message-Id: <20081108091100.32236.89666.sendpatchset@localhost.localdomain>
 In-Reply-To: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
 References: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
-Subject: [RFC][mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v2)
+Subject: [RFC][mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v2)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Don't enable multiple hierarchy support by default. This patch introduces
-a features element that can be set to enable the nested depth hierarchy
-feature. This feature can only be enabled when the cgroup for which the
-feature this is enabled, has no children.
+This patch introduces hierarchical reclaim. When an ancestor goes over its
+limit, the charging routine points to the parent that is above its limit.
+The reclaim process then starts from the last scanned child of the ancestor
+and reclaims until the ancestor goes below its limit.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/memcontrol.c |   43 ++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 42 insertions(+), 1 deletion(-)
+ mm/memcontrol.c |  152 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 128 insertions(+), 24 deletions(-)
 
-diff -puN mm/memcontrol.c~memcg-add-hierarchy-selector mm/memcontrol.c
---- linux-2.6.28-rc2/mm/memcontrol.c~memcg-add-hierarchy-selector	2008-11-08 14:09:33.000000000 +0530
-+++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-08 14:10:53.000000000 +0530
-@@ -137,6 +137,11 @@ struct mem_cgroup {
- 	 * reclaimed from.
+diff -puN mm/memcontrol.c~memcg-hierarchical-reclaim mm/memcontrol.c
+--- linux-2.6.28-rc2/mm/memcontrol.c~memcg-hierarchical-reclaim	2008-11-08 14:09:32.000000000 +0530
++++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-08 14:09:32.000000000 +0530
+@@ -132,6 +132,11 @@ struct mem_cgroup {
+ 	 * statistics.
  	 */
- 	struct mem_cgroup *last_scanned_child;
+ 	struct mem_cgroup_stat stat;
 +	/*
-+	 * Should the accounting and control be hierarchical, per subtree?
++	 * While reclaiming in a hiearchy, we cache the last child we
++	 * reclaimed from.
 +	 */
-+	unsigned long use_hierarchy;
-+
++	struct mem_cgroup *last_scanned_child;
  };
  static struct mem_cgroup init_mem_cgroup;
  
-@@ -1079,6 +1084,33 @@ out:
- 	return ret;
+@@ -467,6 +472,124 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	return nr_taken;
  }
  
-+static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
++static struct mem_cgroup *
++mem_cgroup_from_res_counter(struct res_counter *counter)
 +{
-+	return mem_cgroup_from_cont(cont)->use_hierarchy;
++	return container_of(counter, struct mem_cgroup, res);
 +}
 +
-+static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
-+					u64 val)
++/*
++ * Dance down the hierarchy if needed to reclaim memory. We remember the
++ * last child we reclaimed from, so that we don't end up penalizing
++ * one child extensively based on its position in the children list.
++ *
++ * root_mem is the original ancestor that we've been reclaim from.
++ */
++static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *mem,
++						struct mem_cgroup *root_mem,
++						gfp_t gfp_mask)
 +{
-+	int retval = 0;
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	struct cgroup *cg_current, *cgroup;
++	struct mem_cgroup *mem_child;
++	int ret = 0;
 +
-+	if (val == 1) {
-+		if (list_empty(&cont->children))
-+			mem->use_hierarchy = val;
-+		else
-+			retval = -EBUSY;
-+	} else if (val == 0) {
-+		if (list_empty(&cont->children))
-+			mem->use_hierarchy = val;
-+		else
-+			retval = -EBUSY;
-+	} else
-+		retval = -EINVAL;
++	/*
++	 * Reclaim unconditionally and don't check for return value.
++	 * We need to reclaim in the current group and down the tree.
++	 * One might think about checking for children before reclaiming,
++	 * but there might be left over accounting, even after children
++	 * have left.
++	 */
++	try_to_free_mem_cgroup_pages(mem, gfp_mask);
 +
-+	return retval;
++	if (res_counter_check_under_limit(&root_mem->res))
++		return 0;
++
++	if (list_empty(&mem->css.cgroup->children))
++		return 0;
++
++	/*
++	 * Scan all children under the mem_cgroup mem
++	 */
++	if (!mem->last_scanned_child)
++		cgroup = list_first_entry(&mem->css.cgroup->children,
++				struct cgroup, sibling);
++	else
++		cgroup = mem->last_scanned_child->css.cgroup;
++
++	cg_current = cgroup;
++	cgroup_lock();
++
++	do {
++		struct list_head *next;
++
++		mem_child = mem_cgroup_from_cont(cgroup);
++		cgroup_unlock();
++
++		ret = mem_cgroup_hierarchical_reclaim(mem_child, root_mem,
++							gfp_mask);
++		mem->last_scanned_child = mem_child;
++
++		cgroup_lock();
++		if (res_counter_check_under_limit(&root_mem->res)) {
++			ret = 0;
++			goto done;
++		}
++
++		/*
++		 * Since we gave up the lock, it is time to
++		 * start from last cgroup
++		 */
++		cgroup = mem->last_scanned_child->css.cgroup;
++		next = cgroup->sibling.next;
++
++		if (next == &cg_current->parent->children)
++			cgroup = list_first_entry(&mem->css.cgroup->children,
++							struct cgroup, sibling);
++		else
++			cgroup = container_of(next, struct cgroup, sibling);
++	} while (cgroup != cg_current);
++
++done:
++	cgroup_unlock();
++	return ret;
 +}
 +
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- {
- 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
-@@ -1213,6 +1245,11 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
-+	{
-+		.name = "use_hierarchy",
-+		.write_u64 = mem_cgroup_hierarchy_write,
-+		.read_u64 = mem_cgroup_hierarchy_read,
-+	},
- };
++/*
++ * Charge memory cgroup mem and check if it is over its limit. If so, reclaim
++ * from mem.
++ */
++static int mem_cgroup_charge_and_reclaim(struct mem_cgroup *mem, gfp_t gfp_mask)
++{
++	int ret = 0;
++	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
++	struct res_counter *fail_res;
++	struct mem_cgroup *mem_over_limit;
++
++	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
++		if (!(gfp_mask & __GFP_WAIT))
++			goto out;
++
++		/*
++		 * Is one of our ancestors over their limit?
++		 */
++		if (fail_res)
++			mem_over_limit = mem_cgroup_from_res_counter(fail_res);
++		else
++			mem_over_limit = mem;
++
++		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit,
++							mem_over_limit,
++							gfp_mask);
++
++		if (!nr_retries--) {
++			mem_cgroup_out_of_memory(mem, gfp_mask);
++			goto out;
++		}
++	}
++out:
++	return ret;
++}
  
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1289,9 +1326,13 @@ mem_cgroup_create(struct cgroup_subsys *
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		if (!mem)
- 			return ERR_PTR(-ENOMEM);
-+		mem->use_hierarchy = parent->use_hierarchy;
+ /**
+  * mem_cgroup_try_charge - get charge of PAGE_SIZE.
+@@ -484,8 +607,7 @@ int mem_cgroup_try_charge(struct mm_stru
+ 			gfp_t gfp_mask, struct mem_cgroup **memcg)
+ {
+ 	struct mem_cgroup *mem;
+-	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-	struct res_counter *fail_res;
++
+ 	/*
+ 	 * We always charge the cgroup the mm_struct belongs to.
+ 	 * The mm_struct's mem_cgroup changes on task migration if the
+@@ -510,29 +632,9 @@ int mem_cgroup_try_charge(struct mm_stru
+ 		css_get(&mem->css);
  	}
  
--	res_counter_init(&mem->res, parent ? &parent->res : NULL);
-+	if (parent && parent->use_hierarchy)
-+		res_counter_init(&mem->res, &parent->res);
-+	else
-+		res_counter_init(&mem->res, NULL);
++	if (mem_cgroup_charge_and_reclaim(mem, gfp_mask))
++		goto nomem;
  
- 	for_each_node_state(node, N_POSSIBLE)
+-	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
+-		if (!(gfp_mask & __GFP_WAIT))
+-			goto nomem;
+-
+-		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+-			continue;
+-
+-		/*
+-		 * try_to_free_mem_cgroup_pages() might not give us a full
+-		 * picture of reclaim. Some pages are reclaimed and might be
+-		 * moved to swap cache or just unmapped from the cgroup.
+-		 * Check the limit again to see if the reclaim reduced the
+-		 * current usage of the cgroup before giving up
+-		 */
+-		if (res_counter_check_under_limit(&mem->res))
+-			continue;
+-
+-		if (!nr_retries--) {
+-			mem_cgroup_out_of_memory(mem, gfp_mask);
+-			goto nomem;
+-		}
+-	}
+ 	return 0;
+ nomem:
+ 	css_put(&mem->css);
+@@ -1195,6 +1297,8 @@ mem_cgroup_create(struct cgroup_subsys *
  		if (alloc_mem_cgroup_per_zone_info(mem, node))
+ 			goto free_out;
+ 
++	mem->last_scanned_child = NULL;
++
+ 	return &mem->css;
+ free_out:
+ 	for_each_node_state(node, N_POSSIBLE)
 _
 
 -- 
