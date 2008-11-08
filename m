@@ -1,72 +1,61 @@
-Message-Id: <20081108022013.989723000@nick.local0.net>
+Message-Id: <20081108022013.669674000@nick.local0.net>
 References: <20081108021512.686515000@suse.de>
-Date: Sat, 08 Nov 2008 13:15:17 +1100
+Date: Sat, 08 Nov 2008 13:15:14 +1100
 From: npiggin@suse.de
-Subject: [patch 5/9] mm: vmalloc improve vmallocinfo
-Content-Disposition: inline; filename=mm-vmalloc-vmallocinfo-improve.patch
+Subject: [patch 2/9] mm: vmalloc failure flush fix
+Content-Disposition: inline; filename=mm-vmalloc-flush-fix.patch
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org, torvalds@linux-foundation.org
 Cc: linux-mm@kvack.org, glommer@redhat.com, rjw@sisk.pl
 List-ID: <linux-mm.kvack.org>
 
-If we do that, output of files like /proc/vmallocinfo will show things like
-"vmalloc_32", "vmalloc_user", or whomever the caller was as the caller. This
-info is not as useful as the real caller of the allocation.
-
-So, proposal is to call __vmalloc_node node directly, with matching parameters
-to save the caller information
-
-Signed-off-by: Glauber Costa <glommer@redhat.com>
+An initial vmalloc failure should start off a synchronous flush of lazy
+areas, in case someone is in progress flushing them already, which could
+cause us to return an allocation failure even if there is plenty of KVA
+free.
+ 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- mm/vmalloc.c |   12 ++++++++----
- 1 files changed, 8 insertions(+), 4 deletions(-)
-
 Index: linux-2.6/mm/vmalloc.c
 ===================================================================
 --- linux-2.6.orig/mm/vmalloc.c
 +++ linux-2.6/mm/vmalloc.c
-@@ -1356,7 +1356,8 @@ void *vmalloc_user(unsigned long size)
- 	struct vm_struct *area;
- 	void *ret;
- 
--	ret = __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
-+	ret = __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO,
-+			     PAGE_KERNEL, -1, __builtin_return_address(0));
- 	if (ret) {
- 		area = find_vm_area(ret);
- 		area->flags |= VM_USERMAP;
-@@ -1401,7 +1402,8 @@ EXPORT_SYMBOL(vmalloc_node);
- 
- void *vmalloc_exec(unsigned long size)
- {
--	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC);
-+	return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL_EXEC,
-+			      -1, __builtin_return_address(0));
+@@ -522,13 +522,24 @@ static void __purge_vmap_area_lazy(unsig
  }
  
- #if defined(CONFIG_64BIT) && defined(CONFIG_ZONE_DMA32)
-@@ -1421,7 +1423,8 @@ void *vmalloc_exec(unsigned long size)
+ /*
++ * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
++ * is already purging.
++ */
++static void try_purge_vmap_area_lazy(void)
++{
++	unsigned long start = ULONG_MAX, end = 0;
++
++	__purge_vmap_area_lazy(&start, &end, 0, 0);
++}
++
++/*
+  * Kick off a purge of the outstanding lazy areas.
   */
- void *vmalloc_32(unsigned long size)
+ static void purge_vmap_area_lazy(void)
  {
--	return __vmalloc(size, GFP_VMALLOC32, PAGE_KERNEL);
-+	return __vmalloc_node(size, GFP_VMALLOC32, PAGE_KERNEL,
-+			      -1, __builtin_return_address(0));
+ 	unsigned long start = ULONG_MAX, end = 0;
+ 
+-	__purge_vmap_area_lazy(&start, &end, 0, 0);
++	__purge_vmap_area_lazy(&start, &end, 1, 0);
  }
- EXPORT_SYMBOL(vmalloc_32);
  
-@@ -1437,7 +1440,8 @@ void *vmalloc_32_user(unsigned long size
- 	struct vm_struct *area;
- 	void *ret;
+ /*
+@@ -539,7 +550,7 @@ static void free_unmap_vmap_area(struct 
+ 	va->flags |= VM_LAZY_FREE;
+ 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
+ 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
+-		purge_vmap_area_lazy();
++		try_purge_vmap_area_lazy();
+ }
  
--	ret = __vmalloc(size, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL);
-+	ret = __vmalloc_node(size, GFP_VMALLOC32 | __GFP_ZERO, PAGE_KERNEL,
-+			     -1, __builtin_return_address(0));
- 	if (ret) {
- 		area = find_vm_area(ret);
- 		area->flags |= VM_USERMAP;
+ static struct vmap_area *find_vmap_area(unsigned long addr)
 
 -- 
 
