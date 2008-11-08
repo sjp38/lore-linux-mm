@@ -1,41 +1,49 @@
-Date: Fri, 7 Nov 2008 21:13:38 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 8 Nov 2008 06:41:44 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch 0/9] vmalloc fixes and improvements
-In-Reply-To: <20081108021512.686515000@suse.de>
-Message-ID: <alpine.LFD.2.00.0811072109550.3468@nehalem.linux-foundation.org>
-References: <20081108021512.686515000@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20081108054144.GB24308@wotan.suse.de>
+References: <20081108021512.686515000@suse.de> <alpine.LFD.2.00.0811072109550.3468@nehalem.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.0811072109550.3468@nehalem.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: npiggin@suse.de
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, glommer@redhat.com, rjw@sisk.pl
 List-ID: <linux-mm.kvack.org>
 
-
-On Sat, 8 Nov 2008, npiggin@suse.de wrote:
+On Fri, Nov 07, 2008 at 09:13:38PM -0800, Linus Torvalds wrote:
 > 
-> The following patches are a set of fixes and improvements for the vmap
-> layer.
+> 
+> On Sat, 8 Nov 2008, npiggin@suse.de wrote:
+> > 
+> > The following patches are a set of fixes and improvements for the vmap
+> > layer.
+> 
+> They seem seriously buggered.
+> 
+> Patches that seem to be authorted by others (judging by sign-off) have no 
+> such attribution. And because you apparently use some sh*t-for-emailer, 
+> the patches that _are_ yours are missing your name, because it just says
+> 
+> 	From: npiggin@suse.de
+> 
+> without any "Nick Piggin" there.
+> 
+> I'd suggest fixing your emailer scripts regardless, but a "From: " at the 
+> top of the body would fix both the attribution to others, and give you a 
+> name too.
 
-They seem seriously buggered.
+I thought when there is no From in the body, then it defaults to the first
+Signed-off-by:. At least Andrew's scripts IIRC have got that right? (unless
+it is Andrew fixing it manually).
 
-Patches that seem to be authorted by others (judging by sign-off) have no 
-such attribution. And because you apparently use some sh*t-for-emailer, 
-the patches that _are_ yours are missing your name, because it just says
+ 
+> PLEASE. Missing authorship attribution is seriously screwed up. Don't do 
+> it.
 
-	From: npiggin@suse.de
-
-without any "Nick Piggin" there.
-
-I'd suggest fixing your emailer scripts regardless, but a "From: " at the 
-top of the body would fix both the attribution to others, and give you a 
-name too.
-
-PLEASE. Missing authorship attribution is seriously screwed up. Don't do 
-it.
-
-			Linus
+Don't merge them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
