@@ -1,9 +1,9 @@
-Message-Id: <20081110133840.706570000@suse.de>
+Message-Id: <20081110133840.557025000@suse.de>
 References: <20081110133515.011510000@suse.de>
-Date: Tue, 11 Nov 2008 00:35:17 +1100
+Date: Tue, 11 Nov 2008 00:35:16 +1100
 From: npiggin@suse.de
-Subject: [patch 2/7] mm: vmalloc failure flush fix
-Content-Disposition: inline; filename=mm-vmalloc-flush-fix.patch
+Subject: [patch 1/7] mm: vmalloc allocator off by one
+Content-Disposition: inline; filename=mm-vmalloc-gap-fix.patch
 Sender: owner-linux-mm@kvack.org
 From: Nick Piggin <npiggin@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,10 +11,8 @@ To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, glommer@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-An initial vmalloc failure should start off a synchronous flush of lazy
-areas, in case someone is in progress flushing them already, which could
-cause us to return an allocation failure even if there is plenty of KVA
-free.
+Fix off by one bug in the KVA allocator that can leave gaps in the
+address space.
  
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
@@ -22,41 +20,15 @@ Index: linux-2.6/mm/vmalloc.c
 ===================================================================
 --- linux-2.6.orig/mm/vmalloc.c
 +++ linux-2.6/mm/vmalloc.c
-@@ -522,13 +522,24 @@ static void __purge_vmap_area_lazy(unsig
- }
+@@ -362,7 +362,7 @@ retry:
+ 				goto found;
+ 		}
  
- /*
-+ * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
-+ * is already purging.
-+ */
-+static void try_purge_vmap_area_lazy(void)
-+{
-+	unsigned long start = ULONG_MAX, end = 0;
-+
-+	__purge_vmap_area_lazy(&start, &end, 0, 0);
-+}
-+
-+/*
-  * Kick off a purge of the outstanding lazy areas.
-  */
- static void purge_vmap_area_lazy(void)
- {
- 	unsigned long start = ULONG_MAX, end = 0;
+-		while (addr + size >= first->va_start && addr + size <= vend) {
++		while (addr + size > first->va_start && addr + size <= vend) {
+ 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
  
--	__purge_vmap_area_lazy(&start, &end, 0, 0);
-+	__purge_vmap_area_lazy(&start, &end, 1, 0);
- }
- 
- /*
-@@ -539,7 +550,7 @@ static void free_unmap_vmap_area(struct 
- 	va->flags |= VM_LAZY_FREE;
- 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
- 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
--		purge_vmap_area_lazy();
-+		try_purge_vmap_area_lazy();
- }
- 
- static struct vmap_area *find_vmap_area(unsigned long addr)
+ 			n = rb_next(&first->rb_node);
 
 -- 
 
