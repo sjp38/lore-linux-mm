@@ -1,34 +1,28 @@
-Message-Id: <20081110133840.557025000@suse.de>
-References: <20081110133515.011510000@suse.de>
-Date: Tue, 11 Nov 2008 00:35:16 +1100
+Message-Id: <20081110133515.011510000@suse.de>
+Date: Tue, 11 Nov 2008 00:35:15 +1100
 From: npiggin@suse.de
-Subject: [patch 1/7] mm: vmalloc allocator off by one
-Content-Disposition: inline; filename=mm-vmalloc-gap-fix.patch
+Subject: [patch 0/7] vmalloc fixes and improvements #2
 Sender: owner-linux-mm@kvack.org
-From: Nick Piggin <npiggin@suse.de>
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, glommer@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Fix off by one bug in the KVA allocator that can leave gaps in the
-address space.
- 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -362,7 +362,7 @@ retry:
- 				goto found;
- 		}
- 
--		while (addr + size >= first->va_start && addr + size <= vend) {
-+		while (addr + size > first->va_start && addr + size <= vend) {
- 			addr = ALIGN(first->va_end + PAGE_SIZE, align);
- 
- 			n = rb_next(&first->rb_node);
+Hopefully got attribution right.
+
+Patches 1-3 fix "[Bug #11903] regression: vmalloc easily fail", and these
+should go upstream for 2.6.28. They've been tested and shown to fix the
+problem, and I've tested them here on my XFS stress test as well. The
+off-by-one bug, I tested and verified in a userspace test harness (it
+doesn't actually cause any corruption, but just suboptimal use of space).
+
+Patches 4,5 are improvements to information exported to user. Not very risky,
+but not urgent either.
+
+Patches 6,7 improve locking and debugging modes a bit. I have not included
+the changes to guard pages this time. They need a bit more explanation and
+code review to justify. And probably some more philosophical discussions on
+the mm list...
 
 -- 
 
