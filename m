@@ -1,91 +1,78 @@
-Date: Tue, 11 Nov 2008 15:03:45 -0700
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver
-Message-ID: <20081111150345.7fff8ff2@bike.lwn.net>
-In-Reply-To: <1226409701-14831-4-git-send-email-ieidus@redhat.com>
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
-	<1226409701-14831-2-git-send-email-ieidus@redhat.com>
-	<1226409701-14831-3-git-send-email-ieidus@redhat.com>
-	<1226409701-14831-4-git-send-email-ieidus@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Date: Tue, 11 Nov 2008 23:17:53 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
+	one page into another
+Message-ID: <20081111221753.GK10818@random.random>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <1226409701-14831-3-git-send-email-ieidus@redhat.com> <20081111114555.eb808843.akpm@linux-foundation.org> <20081111210655.GG10818@random.random> <Pine.LNX.4.64.0811111522150.27767@quilx.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0811111522150.27767@quilx.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Izik Eidus <ieidus@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-I don't claim to begin to really understand the deep VM side of this
-patch, but I can certainly pick nits as I work through it...sorry for
-the lack of anything more substantive.
+On Tue, Nov 11, 2008 at 03:26:57PM -0600, Christoph Lameter wrote:
+> On Tue, 11 Nov 2008, Andrea Arcangeli wrote:
+> 
+> > btw, page_migration likely is buggy w.r.t. o_direct too (and now
+> > unfixable with gup_fast until the 2.4 brlock is added around it or
+> > similar) if it does the same thing but without any page_mapcount vs
+> > page_count check.
+> 
+> Details please?
 
-> +static struct list_head slots;
+  spin_lock_irq(&mapping->tree_lock);
 
-Some of these file-static variable names seem a little..terse...
+  pslot = radix_tree_lookup_slot(&mapping->page_tree,
+			page_index(page));
 
-> +#define PAGECMP_OFFSET 128
-> +#define PAGEHASH_SIZE (PAGECMP_OFFSET ? PAGECMP_OFFSET : PAGE_SIZE)
-> +/* hash the page */
-> +static void page_hash(struct page *page, unsigned char *digest)
+			expected_count = 2 + !!PagePrivate(page);
+			if (page_count(page) != expected_count ||
 
-So is this really saying that you only hash the first 128 bytes, relying on
-full compares for the rest?  I assume there's a perfectly good reason for
-doing it that way, but it's not clear to me from reading the code.  Do you
-gain performance which is not subsequently lost in the (presumably) higher
-number of hash collisions?
+this page_count check done with only the tree_lock won't prevent a
+task to start O_DIRECT after page_count has been read in the above line.
 
-> +static int ksm_scan_start(struct ksm_scan *ksm_scan, int scan_npages,
-> +			  int max_npages)
-> +{
-> +	struct ksm_mem_slot *slot;
-> +	struct page *page[1];
-> +	int val;
-> +	int ret = 0;
-> +
-> +	down_read(&slots_lock);
-> +
-> +	scan_update_old_index(ksm_scan);
-> +
-> +	while (scan_npages > 0 && max_npages > 0) {
+If a thread starts O_DIRECT on the page, and the o_direct is still in
+flight by the time you copy the page to the new page, the read will
+not be represented fully in the newpage leading to userland data
+corruption.
 
-Should this loop maybe check kthread_run too?  It seems like you could loop
-for a long time after kthread_run has been set to zero.
+> > page_migration does too much for us, so us calling into migrate.c may
+> > not be ideal. It has to convert a fresh page to a VM page. In KSM we
+> > don't convert the newpage to be a VM page, we just replace the anon
+> > page with another page. The new page in the KSM case is not a page
+> > known by the VM, not in the lru etc...
+> 
+> A VM page as opposed to pages not in the VM? ???
 
-> +static int ksm_dev_open(struct inode *inode, struct file *filp)
-> +{
-> +	try_module_get(THIS_MODULE);
-> +	return 0;
-> +}
-> +
-> +static int ksm_dev_release(struct inode *inode, struct file *filp)
-> +{
-> +	module_put(THIS_MODULE);
-> +	return 0;
-> +}
-> +
-> +static struct file_operations ksm_chardev_ops = {
-> +	.open           = ksm_dev_open,
-> +	.release        = ksm_dev_release,
-> +	.unlocked_ioctl = ksm_dev_ioctl,
-> +	.compat_ioctl   = ksm_dev_ioctl,
-> +};
+Yes, you migrate old VM pages to new VM pages. We replace VM pages
+with unknown stuff called KSM pages. So in the inner function where you
+replace the pte-migration-placeholder with a pte pointing to the
+newpage, you also rightfully do unconditional stuff we can't be doing
+like page_add_*_rmap. It's VM pages you're dealing with. Not for us.
 
-Why do you roll your own module reference counting?  Is there a reason you
-don't just set .owner and let the VFS handle it?
+> page migration requires the page to be on the LRU. That could be changed
+> if you have a different means of isolating a page from its page tables.
 
-Given that the KSM_REGISTER_MEMORY_REGION ioctl() creates unswappable
-memory, should there be some sort of capability check done there?  A check
-for starting/stopping the thread might also make sense.  Or is that
-expected to be handled via permissions on /dev/ksm?
+Yes we'd need to change those bits to be able to use migrate.c.
 
-Actually, it occurs to me that there's no sanity checks on any of the
-values passed in by ioctl().  What happens if the user tells KSM to scan a
-bogus range of memory?
+> Define a regular VM page? A page on the LRU?
 
-Any benchmarks on the runtime cost of having KSM running?
+Yes, pages owned, allocated and worked on by the VM. So they can be
+swapped, collected, migrated etc... You can't possibly migrate a
+device driver page for example and infact those device driver pages
+can't be migrated either.
 
-jon
+The KSM page initially is a driver page, later we'd like to teach the
+VM how to swap it by introducing rmap methods and adding it to the
+LRU. As long as it's only anonymous memory that we're sharing/cloning,
+we won't have to patch pagecache radix tree and other stuff. BTW, if
+we ever decice to clone pagecache we could generate immense metadata
+ram overhead in the radix tree with just a single page of data. All
+issues that don't exist for anon ram.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
