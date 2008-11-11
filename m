@@ -1,328 +1,242 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAB2AAlK005091
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAB356f0009378
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 11 Nov 2008 11:10:10 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A26245DD7C
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 11:10:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2425B45DD81
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 11:10:10 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 09D111DB803F
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 11:10:10 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AFF01DB8038
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 11:10:09 +0900 (JST)
-Date: Tue, 11 Nov 2008 11:09:34 +0900
+	Tue, 11 Nov 2008 12:05:07 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77BCF45DE51
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 12:05:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52C1945DE50
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 12:05:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 368CD1DB8044
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 12:05:06 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C54461DB803E
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 12:05:05 +0900 (JST)
+Date: Tue, 11 Nov 2008 12:04:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: 2.6.28-rc4 mem_cgroup_charge_common panic
-Message-Id: <20081111110934.d41fa8db.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081111101440.f531021d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1226353408.8805.12.camel@badari-desktop>
-	<20081111101440.f531021d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][mm] [PATCH 2/4] Memory cgroup resource counters for
+ hierarchy (v2)
+Message-Id: <20081111120427.bbb64a44.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081108091047.32236.22994.sendpatchset@localhost.localdomain>
+References: <20081108091009.32236.26177.sendpatchset@localhost.localdomain>
+	<20081108091047.32236.22994.sendpatchset@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Nov 2008 10:14:40 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Sat, 08 Nov 2008 14:40:47 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Mon, 10 Nov 2008 13:43:28 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
 > 
-> > Hi KAME,
-> > 
-> > Thank you for the fix for online/offline page_cgroup panic.
-> > 
-> > While running memory offline/online tests ran into another
-> > mem_cgroup panic.
-> > 
+> Add support for building hierarchies in resource counters. Cgroups allows us
+> to build a deep hierarchy, but we currently don't link the resource counters
+> belonging to the memory controller control groups, in the same fashion
+> as the corresponding cgroup entries in the cgroup hierarchy. This patch
+> provides the infrastructure for resource counters that have the same hiearchy
+> as their cgroup counter parts.
 > 
-> Hm, should I avoid freeing mem_cgroup at memory Offline ?
-> (memmap is also not free AFAIK.)
+> These set of patches are based on the resource counter hiearchy patches posted
+> by Pavel Emelianov.
 > 
-> Anyway, I'll dig this. thanks.
+> NOTE: Building hiearchies is expensive, deeper hierarchies imply charging
+> the all the way up to the root. It is known that hiearchies are expensive,
+> so the user needs to be careful and aware of the trade-offs before creating
+> very deep ones.
 > 
-it seems not the same kind of bug..
+Do you have numbers ?
 
-Could you give me disassemble of mem_cgroup_charge_common() ?
-(I'm not sure I can read ppc asm but I want to know what is "0x20"
- of fault address....)
 
-As first impression, it comes from page migration..
-rc4's page migration handler of memcg handles *usual* path but not so good.
 
-new migration code of memcg in mmotm is much better, I think.
-Could you try mmotm if you have time ?
+
+
+
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  include/linux/res_counter.h |    8 ++++++--
+>  kernel/res_counter.c        |   42 ++++++++++++++++++++++++++++++++++--------
+>  mm/memcontrol.c             |    9 ++++++---
+>  3 files changed, 46 insertions(+), 13 deletions(-)
+> 
+> diff -puN include/linux/res_counter.h~resource-counters-hierarchy-support include/linux/res_counter.h
+> --- linux-2.6.28-rc2/include/linux/res_counter.h~resource-counters-hierarchy-support	2008-11-08 14:09:31.000000000 +0530
+> +++ linux-2.6.28-rc2-balbir/include/linux/res_counter.h	2008-11-08 14:09:31.000000000 +0530
+> @@ -43,6 +43,10 @@ struct res_counter {
+>  	 * the routines below consider this to be IRQ-safe
+>  	 */
+>  	spinlock_t lock;
+> +	/*
+> +	 * Parent counter, used for hierarchial resource accounting
+> +	 */
+> +	struct res_counter *parent;
+>  };
+>  
+>  /**
+> @@ -87,7 +91,7 @@ enum {
+>   * helpers for accounting
+>   */
+>  
+> -void res_counter_init(struct res_counter *counter);
+> +void res_counter_init(struct res_counter *counter, struct res_counter *parent);
+>  
+>  /*
+>   * charge - try to consume more resource.
+> @@ -103,7 +107,7 @@ void res_counter_init(struct res_counter
+>  int __must_check res_counter_charge_locked(struct res_counter *counter,
+>  		unsigned long val);
+>  int __must_check res_counter_charge(struct res_counter *counter,
+> -		unsigned long val);
+> +		unsigned long val, struct res_counter **limit_fail_at);
+>  
+>  /*
+>   * uncharge - tell that some portion of the resource is released
+> diff -puN kernel/res_counter.c~resource-counters-hierarchy-support kernel/res_counter.c
+> --- linux-2.6.28-rc2/kernel/res_counter.c~resource-counters-hierarchy-support	2008-11-08 14:09:31.000000000 +0530
+> +++ linux-2.6.28-rc2-balbir/kernel/res_counter.c	2008-11-08 14:09:31.000000000 +0530
+> @@ -15,10 +15,11 @@
+>  #include <linux/uaccess.h>
+>  #include <linux/mm.h>
+>  
+> -void res_counter_init(struct res_counter *counter)
+> +void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+>  {
+>  	spin_lock_init(&counter->lock);
+>  	counter->limit = (unsigned long long)LLONG_MAX;
+> +	counter->parent = parent;
+>  }
+>  
+>  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+> @@ -34,14 +35,34 @@ int res_counter_charge_locked(struct res
+>  	return 0;
+>  }
+>  
+> -int res_counter_charge(struct res_counter *counter, unsigned long val)
+> +int res_counter_charge(struct res_counter *counter, unsigned long val,
+> +			struct res_counter **limit_fail_at)
+>  {
+>  	int ret;
+>  	unsigned long flags;
+> +	struct res_counter *c, *u;
+>  
+> -	spin_lock_irqsave(&counter->lock, flags);
+> -	ret = res_counter_charge_locked(counter, val);
+> -	spin_unlock_irqrestore(&counter->lock, flags);
+> +	*limit_fail_at = NULL;
+> +	local_irq_save(flags);
+> +	for (c = counter; c != NULL; c = c->parent) {
+> +		spin_lock(&c->lock);
+> +		ret = res_counter_charge_locked(c, val);
+> +		spin_unlock(&c->lock);
+> +		if (ret < 0) {
+> +			*limit_fail_at = c;
+> +			goto undo;
+> +		}
+> +	}
+> +	ret = 0;
+> +	goto done;
+> +undo:
+> +	for (u = counter; u != c; u = u->parent) {
+> +		spin_lock(&u->lock);
+> +		res_counter_uncharge_locked(u, val);
+> +		spin_unlock(&u->lock);
+> +	}
+> +done:
+> +	local_irq_restore(flags);
+>  	return ret;
+>  }
+>  
+IMHO, dividing function into
+
+  - res_counter_charge() for res_counter which doesn't need hierarchy.
+  - res_counter_charge_hierarchy() fro res_counter with hierarch.
+
+will reduce footprint of other users than memcg. 
+
+All users of res_counter is forced to use hierarchy version ?
 
 Thanks,
 -Kame
 
 
-> -Kame
+> @@ -56,10 +77,15 @@ void res_counter_uncharge_locked(struct 
+>  void res_counter_uncharge(struct res_counter *counter, unsigned long val)
+>  {
+>  	unsigned long flags;
+> +	struct res_counter *c;
+>  
+> -	spin_lock_irqsave(&counter->lock, flags);
+> -	res_counter_uncharge_locked(counter, val);
+> -	spin_unlock_irqrestore(&counter->lock, flags);
+> +	local_irq_save(flags);
+> +	for (c = counter; c != NULL; c = c->parent) {
+> +		spin_lock(&c->lock);
+> +		res_counter_uncharge_locked(c, val);
+> +		spin_unlock(&c->lock);
+> +	}
+> +	local_irq_restore(flags);
+>  }
+>  
+>  
+> diff -puN mm/memcontrol.c~resource-counters-hierarchy-support mm/memcontrol.c
+> --- linux-2.6.28-rc2/mm/memcontrol.c~resource-counters-hierarchy-support	2008-11-08 14:09:31.000000000 +0530
+> +++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-08 14:09:31.000000000 +0530
+> @@ -485,6 +485,7 @@ int mem_cgroup_try_charge(struct mm_stru
+>  {
+>  	struct mem_cgroup *mem;
+>  	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> +	struct res_counter *fail_res;
+>  	/*
+>  	 * We always charge the cgroup the mm_struct belongs to.
+>  	 * The mm_struct's mem_cgroup changes on task migration if the
+> @@ -510,7 +511,7 @@ int mem_cgroup_try_charge(struct mm_stru
+>  	}
+>  
+>  
+> -	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+> +	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto nomem;
+>  
+> @@ -1175,18 +1176,20 @@ static void mem_cgroup_free(struct mem_c
+>  static struct cgroup_subsys_state *
+>  mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  {
+> -	struct mem_cgroup *mem;
+> +	struct mem_cgroup *mem, *parent;
+>  	int node;
+>  
+>  	if (unlikely((cont->parent) == NULL)) {
+>  		mem = &init_mem_cgroup;
+> +		parent = NULL;
+>  	} else {
+>  		mem = mem_cgroup_alloc();
+> +		parent = mem_cgroup_from_cont(cont->parent);
+>  		if (!mem)
+>  			return ERR_PTR(-ENOMEM);
+>  	}
+>  
+> -	res_counter_init(&mem->res);
+> +	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+>  
+>  	for_each_node_state(node, N_POSSIBLE)
+>  		if (alloc_mem_cgroup_per_zone_info(mem, node))
+> _
 > 
-> > Thanks,
-> > Badari
-> > 
-> > Unable to handle kernel paging request for data at address 0x00000020
-> > Faulting instruction address: 0xc0000000001055e4
-> > Oops: Kernel access of bad area, sig: 11 [#2]
-> > SMP NR_CPUS=32 NUMA pSeries
-> > Modules linked in:
-> > NIP: c0000000001055e4 LR: c00000000010557c CTR: c0000000000bfb74
-> > REGS: c0000000f6c7f1b0 TRAP: 0300   Tainted: G      D     (2.6.28-rc4)
-> > MSR: 8000000000009032 <EE,ME,IR,DR>  CR: 44044422  XER: 20000018
-> > DAR: 0000000000000020, DSISR: 0000000042000000
-> > TASK = c0000000f6c56cc0[4610] 'crash' THREAD: c0000000f6c7c000 CPU: 0
-> > GPR00: c0000000e910b560 c0000000f6c7f430 c000000000b36fc0 0000000000000001 
-> > GPR04: c000000005355278 0000000000000001 0000000000000000 0000000000000000 
-> > GPR08: c000000005355290 0000000000000018 c0000000e910b558 c0000000e910b548 
-> > GPR12: 0000000000000000 c000000000b58300 00000400001ca30a 0000000000000000 
-> > GPR16: 0000000000000000 0000000000000006 c0000000d43cb5c0 c0000000e66d0b88 
-> > GPR20: 0000000000000004 0000000000000000 c0000000e64c6180 0000000000000000 
-> > GPR24: 00000000000000d0 0000000000000005 c000000000bac418 0000000000000001 
-> > GPR28: c0000000e910b538 c000000005355278 c000000000aacad8 c0000000f6c7f430 
-> > NIP [c0000000001055e4] .mem_cgroup_charge_common+0x26c/0x330
-> > LR [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > Call Trace:
-> > [c0000000f6c7f430] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330 (unreliable)
-> > [c0000000f6c7f4f0] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000f6c7f590] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000f6c7f640] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000f6c7f6e0] [c000000000144348] .mpage_readpages+0xc8/0x170
-> > [c0000000f6c7f810] [c000000000182e68] .reiserfs_readpages+0x50/0x78
-> > [c0000000f6c7f8b0] [c0000000000cee80] .__do_page_cache_readahead+0x174/0x280
-> > [c0000000f6c7f980] [c0000000000cf6e0] .do_page_cache_readahead+0xa4/0xd0
-> > [c0000000f6c7fa20] [c0000000000c5274] .filemap_fault+0x198/0x420
-> > [c0000000f6c7fb00] [c0000000000d9660] .__do_fault+0xb8/0x664
-> > [c0000000f6c7fc10] [c0000000000dbcc4] .handle_mm_fault+0x1ec/0xaf4
-> > [c0000000f6c7fd00] [c0000000005a8b10] .do_page_fault+0x384/0x570
-> > [c0000000f6c7fe30] [c00000000000517c] handle_page_fault+0x20/0x5c
-> > Instruction dump:
-> > 794a26e4 391d0018 38a00001 7d6be214 7d5c5214 7fa4eb78 e92b0048 380a0008 
-> > 39290001 f92b0048 60000000 e92a0008 <f9090008> f93d0018 f8080008 f90a0008 
-> > ---[ end trace aaa19ed35042c148 ]---
-> > BUG: soft lockup - CPU#1 stuck for 61s! [udevd:1249]
-> > Modules linked in:
-> > NIP: c0000000005a69fc LR: c0000000005a69f4 CTR: c0000000000bfb74
-> > REGS: c0000000e7f9b040 TRAP: 0901   Tainted: G      D     (2.6.28-rc4)
-> > MSR: 8000000000009032 <EE,ME,IR,DR>  CR: 80004424  XER: 20000018
-> > TASK = c0000000e9b5ccc0[1249] 'udevd' THREAD: c0000000e7f98000 CPU: 1
-> > GPR00: 00000000c0000000 c0000000e7f9b2c0 c000000000b36fc0 0000000000000001 
-> > GPR04: c00000000010557c c0000000000bfb74 0000000000000000 0000000000000000 
-> > GPR08: c000000000bd7700 00000000c0000000 00000000004d3000 c0000000007296c0 
-> > GPR12: 000000000000d032 c000000000b58500 
-> > NIP [c0000000005a69fc] ._spin_lock_irqsave+0x84/0xd4
-> > LR [c0000000005a69f4] ._spin_lock_irqsave+0x7c/0xd4
-> > Call Trace:
-> > [c0000000e7f9b2c0] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e7f9b360] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e7f9b420] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000e7f9b4c0] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000e7f9b570] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000e7f9b610] [c0000000000c2c34] .__grab_cache_page+0x6c/0xb4
-> > [c0000000e7f9b6b0] [c000000000187628] .reiserfs_write_begin+0xb0/0x2bc
-> > [c0000000e7f9b790] [c0000000000c38a8] .generic_file_buffered_write+0x150/0x354
-> > [c0000000e7f9b8d0] [c0000000000c40a8] .__generic_file_aio_write_nolock+0x384/0x3fc
-> > [c0000000e7f9b9d0] [c0000000000c41b0] .generic_file_aio_write+0x90/0x128
-> > [c0000000e7f9ba90] [c0000000001093a4] .do_sync_write+0xe0/0x148
-> > [c0000000e7f9bc30] [c000000000188868] .reiserfs_file_write+0x8c/0xd4
-> > [c0000000e7f9bcd0] [c000000000109d00] .vfs_write+0xf0/0x1c4
-> > [c0000000e7f9bd80] [c00000000010a69c] .sys_write+0x6c/0xb8
-> > [c0000000e7f9be30] [c00000000000852c] syscall_exit+0x0/0x40
-> > Instruction dump:
-> > 40a2fff0 4c00012c 2fa90000 41be0050 8b8d01da 2fbd0000 38600000 419e0008 
-> > 7fa3eb78 4ba65179 60000000 7c210b78 <801b0000> 2fa00000 40befff4 7c421378 
-> > RCU detected CPU 1 stall (t=4299517593/1725750 jiffies)
-> > Call Trace:
-> > [c0000000e7f9aa00] [c0000000000102a4] .show_stack+0x94/0x198 (unreliable)
-> > [c0000000e7f9aab0] [c0000000000103d0] .dump_stack+0x28/0x3c
-> > [c0000000e7f9ab30] [c0000000000b1020] .__rcu_pending+0xa8/0x2c4
-> > [c0000000e7f9abd0] [c0000000000b1288] .rcu_pending+0x4c/0xa0
-> > [c0000000e7f9ac60] [c000000000076a8c] .update_process_times+0x50/0xa8
-> > [c0000000e7f9ad00] [c000000000095e88] .tick_sched_timer+0xb0/0x100
-> > [c0000000e7f9adb0] [c00000000008ae98] .__run_hrtimer+0xa4/0x13c
-> > [c0000000e7f9ae50] [c00000000008c0b8] .hrtimer_interrupt+0x128/0x200
-> > [c0000000e7f9af30] [c00000000002858c] .timer_interrupt+0xc0/0x11c
-> > [c0000000e7f9afd0] [c000000000003710] decrementer_common+0x110/0x180
-> > --- Exception: 901 at ._spin_lock_irqsave+0x84/0xd4
-> >     LR = ._spin_lock_irqsave+0x7c/0xd4
-> > [c0000000e7f9b2c0] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e7f9b360] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e7f9b420] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000e7f9b4c0] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000e7f9b570] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000e7f9b610] [c0000000000c2c34] .__grab_cache_page+0x6c/0xb4
-> > [c0000000e7f9b6b0] [c000000000187628] .reiserfs_write_begin+0xb0/0x2bc
-> > [c0000000e7f9b790] [c0000000000c38a8] .generic_file_buffered_write+0x150/0x354
-> > [c0000000e7f9b8d0] [c0000000000c40a8] .__generic_file_aio_write_nolock+0x384/0x3fc
-> > [c0000000e7f9b9d0] [c0000000000c41b0] .generic_file_aio_write+0x90/0x128
-> > [c0000000e7f9ba90] [c0000000001093a4] .do_sync_write+0xe0/0x148
-> > [c0000000e7f9bc30] [c000000000188868] .reiserfs_file_write+0x8c/0xd4
-> > [c0000000e7f9bcd0] [c000000000109d00] .vfs_write+0xf0/0x1c4
-> > [c0000000e7f9bd80] [c00000000010a69c] .sys_write+0x6c/0xb8
-> > [c0000000e7f9be30] [c00000000000852c] syscall_exit+0x0/0x40
-> > RCU detected CPU 1 stall (t=4299525093/1733250 jiffies)
-> > Call Trace:
-> > [c0000000e7f9aa00] [c0000000000102a4] .show_stack+0x94/0x198 (unreliable)
-> > [c0000000e7f9aab0] [c0000000000103d0] .dump_stack+0x28/0x3c
-> > [c0000000e7f9ab30] [c0000000000b1020] .__rcu_pending+0xa8/0x2c4
-> > [c0000000e7f9abd0] [c0000000000b1288] .rcu_pending+0x4c/0xa0
-> > [c0000000e7f9ac60] [c000000000076a8c] .update_process_times+0x50/0xa8
-> > [c0000000e7f9ad00] [c000000000095e88] .tick_sched_timer+0xb0/0x100
-> > [c0000000e7f9adb0] [c00000000008ae98] .__run_hrtimer+0xa4/0x13c
-> > [c0000000e7f9ae50] [c00000000008c0b8] .hrtimer_interrupt+0x128/0x200
-> > [c0000000e7f9af30] [c00000000002858c] .timer_interrupt+0xc0/0x11c
-> > [c0000000e7f9afd0] [c000000000003710] decrementer_common+0x110/0x180
-> > --- Exception: 901 at ._spin_lock_irqsave+0x84/0xd4
-> >     LR = ._spin_lock_irqsave+0x7c/0xd4
-> > [c0000000e7f9b2c0] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e7f9b360] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e7f9b420] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000e7f9b4c0] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000e7f9b570] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000e7f9b610] [c0000000000c2c34] .__grab_cache_page+0x6c/0xb4
-> > [c0000000e7f9b6b0] [c000000000187628] .reiserfs_write_begin+0xb0/0x2bc
-> > [c0000000e7f9b790] [c0000000000c38a8] .generic_file_buffered_write+0x150/0x354
-> > [c0000000e7f9b8d0] [c0000000000c40a8] .__generic_file_aio_write_nolock+0x384/0x3fc
-> > [c0000000e7f9b9d0] [c0000000000c41b0] .generic_file_aio_write+0x90/0x128
-> > [c0000000e7f9ba90] [c0000000001093a4] .do_sync_write+0xe0/0x148
-> > [c0000000e7f9bc30] [c000000000188868] .reiserfs_file_write+0x8c/0xd4
-> > [c0000000e7f9bcd0] [c000000000109d00] .vfs_write+0xf0/0x1c4
-> > [c0000000e7f9bd80] [c00000000010a69c] .sys_write+0x6c/0xb8
-> > [c0000000e7f9be30] [c00000000000852c] syscall_exit+0x0/0x40
-> > RCU detected CPU 1 stall (t=4299532593/1740750 jiffies)
-> > Call Trace:
-> > [c0000000e7f9aa00] [c0000000000102a4] .show_stack+0x94/0x198 (unreliable)
-> > [c0000000e7f9aab0] [c0000000000103d0] .dump_stack+0x28/0x3c
-> > [c0000000e7f9ab30] [c0000000000b1020] .__rcu_pending+0xa8/0x2c4
-> > [c0000000e7f9abd0] [c0000000000b1288] .rcu_pending+0x4c/0xa0
-> > [c0000000e7f9ac60] [c000000000076a8c] .update_process_times+0x50/0xa8
-> > [c0000000e7f9ad00] [c000000000095e88] .tick_sched_timer+0xb0/0x100
-> > [c0000000e7f9adb0] [c00000000008ae98] .__run_hrtimer+0xa4/0x13c
-> > [c0000000e7f9ae50] [c00000000008c0b8] .hrtimer_interrupt+0x128/0x200
-> > [c0000000e7f9af30] [c00000000002858c] .timer_interrupt+0xc0/0x11c
-> > [c0000000e7f9afd0] [c000000000003710] decrementer_common+0x110/0x180
-> > --- Exception: 901 at ._spin_lock_irqsave+0x84/0xd4
-> >     LR = ._spin_lock_irqsave+0x7c/0xd4
-> > [c0000000e7f9b2c0] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e7f9b360] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e7f9b420] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000e7f9b4c0] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000e7f9b570] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000e7f9b610] [c0000000000c2c34] .__grab_cache_page+0x6c/0xb4
-> > [c0000000e7f9b6b0] [c000000000187628] .reiserfs_write_begin+0xb0/0x2bc
-> > [c0000000e7f9b790] [c0000000000c38a8] .generic_file_buffered_write+0x150/0x354
-> > [c0000000e7f9b8d0] [c0000000000c40a8] .__generic_file_aio_write_nolock+0x384/0x3fc
-> > [c0000000e7f9b9d0] [c0000000000c41b0] .generic_file_aio_write+0x90/0x128
-> > [c0000000e7f9ba90] [c0000000001093a4] .do_sync_write+0xe0/0x148
-> > [c0000000e7f9bc30] [c000000000188868] .reiserfs_file_write+0x8c/0xd4
-> > [c0000000e7f9bcd0] [c000000000109d00] .vfs_write+0xf0/0x1c4
-> > [c0000000e7f9bd80] [c00000000010a69c] .sys_write+0x6c/0xb8
-> > [c0000000e7f9be30] [c00000000000852c] syscall_exit+0x0/0x40
-> > Unable to handle kernel paging request for data at address 0x00000008
-> > Faulting instruction address: 0xc0000000001055e4
-> > Oops: Kernel access of bad area, sig: 11 [#3]
-> > SMP NR_CPUS=32 NUMA pSeries
-> > Modules linked in:
-> > NIP: c0000000001055e4 LR: c00000000010557c CTR: c0000000000bfb74
-> > REGS: c0000000f6c87720 TRAP: 0300   Tainted: G      D     (2.6.28-rc4)
-> > MSR: 8000000000009032 <EE,ME,IR,DR>  CR: 28044482  XER: 20000010
-> > DAR: 0000000000000008, DSISR: 0000000042000000
-> > TASK = c0000000f6bdecc0[4614] 'sshd' THREAD: c0000000f6c84000 CPU: 3
-> > GPR00: c0000000e9009150 c0000000f6c879a0 c000000000b36fc0 0000000000000001 
-> > GPR04: c000000005355688 0000000000000001 0000000000000001 0000000000000000 
-> > GPR08: c0000000053556a0 0000000000000000 c0000000e9009148 c0000000e9009140 
-> > GPR12: 0000000000000000 c000000000b58900 00000400000382d0 0000000000000006 
-> > GPR16: 0000000000000000 0000000000000001 0000000000000001 c0000000e612e818 
-> > GPR20: 00000fffffdba4e0 0000040000744d98 c0000000e66d2138 0000000000000001 
-> > GPR24: 00000000000000d0 0000000000000005 c000000000bac418 0000000000000001 
-> > GPR28: c0000000e9009138 c000000005355688 c000000000aacad8 c0000000f6c879a0 
-> > NIP [c0000000001055e4] .mem_cgroup_charge_common+0x26c/0x330
-> > LR [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > Call Trace:
-> > [c0000000f6c879a0] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330 (unreliable)
-> > [c0000000f6c87a60] [c0000000001057e4] .mem_cgroup_charge+0x9c/0xc8
-> > [c0000000f6c87b00] [c0000000000d96fc] .__do_fault+0x154/0x664
-> > [c0000000f6c87c10] [c0000000000dbcc4] .handle_mm_fault+0x1ec/0xaf4
-> > [c0000000f6c87d00] [c0000000005a8b10] .do_page_fault+0x384/0x570
-> > [c0000000f6c87e30] [c00000000000517c] handle_page_fault+0x20/0x5c
-> > Instruction dump:
-> > 794a26e4 391d0018 38a00001 7d6be214 7d5c5214 7fa4eb78 e92b0048 380a0008 
-> > 39290001 f92b0048 60000000 e92a0008 <f9090008> f93d0018 f8080008 f90a0008 
-> > ---[ end trace aaa19ed35042c148 ]---
-> > RCU detected CPU 1 stall (t=4299540093/1748250 jiffies)
-> > Call Trace:
-> > [c0000000e7f9aa00] [c0000000000102a4] .show_stack+0x94/0x198 (unreliable)
-> > [c0000000e7f9aab0] [c0000000000103d0] .dump_stack+0x28/0x3c
-> > [c0000000e7f9ab30] [c0000000000b1020] .__rcu_pending+0xa8/0x2c4
-> > [c0000000e7f9abd0] [c0000000000b1288] .rcu_pending+0x4c/0xa0
-> > [c0000000e7f9ac60] [c000000000076a8c] .update_process_times+0x50/0xa8
-> > [c0000000e7f9ad00] [c000000000095e88] .tick_sched_timer+0xb0/0x100
-> > [c0000000e7f9adb0] [c00000000008ae98] .__run_hrtimer+0xa4/0x13c
-> > [c0000000e7f9ae50] [c00000000008c0b8] .hrtimer_interrupt+0x128/0x200
-> > [c0000000e7f9af30] [c00000000002858c] .timer_interrupt+0xc0/0x11c
-> > [c0000000e7f9afd0] [c000000000003710] decrementer_common+0x110/0x180
-> > --- Exception: 901 at ._spin_lock_irqsave+0x84/0xd4
-> >     LR = ._spin_lock_irqsave+0x7c/0xd4
-> > [c0000000e7f9b2c0] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e7f9b360] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e7f9b420] [c000000000105c70] .mem_cgroup_cache_charge+0x130/0x154
-> > [c0000000e7f9b4c0] [c0000000000c29bc] .add_to_page_cache_locked+0x64/0x18c
-> > [c0000000e7f9b570] [c0000000000c2b64] .add_to_page_cache_lru+0x80/0xe4
-> > [c0000000e7f9b610] [c0000000000c2c34] .__grab_cache_page+0x6c/0xb4
-> > [c0000000e7f9b6b0] [c000000000187628] .reiserfs_write_begin+0xb0/0x2bc
-> > [c0000000e7f9b790] [c0000000000c38a8] .generic_file_buffered_write+0x150/0x354
-> > [c0000000e7f9b8d0] [c0000000000c40a8] .__generic_file_aio_write_nolock+0x384/0x3fc
-> > [c0000000e7f9b9d0] [c0000000000c41b0] .generic_file_aio_write+0x90/0x128
-> > [c0000000e7f9ba90] [c0000000001093a4] .do_sync_write+0xe0/0x148
-> > [c0000000e7f9bc30] [c000000000188868] .reiserfs_file_write+0x8c/0xd4
-> > [c0000000e7f9bcd0] [c000000000109d00] .vfs_write+0xf0/0x1c4
-> > [c0000000e7f9bd80] [c00000000010a69c] .sys_write+0x6c/0xb8
-> > [c0000000e7f9be30] [c00000000000852c] syscall_exit+0x0/0x40
-> > BUG: soft lockup - CPU#0 stuck for 61s! [sshd:3665]
-> > Modules linked in:
-> > NIP: c0000000005a69fc LR: c0000000005a69f4 CTR: c0000000000bfb74
-> > REGS: c0000000e667f6c0 TRAP: 0901   Tainted: G      D     (2.6.28-rc4)
-> > MSR: 8000000000009032 <EE,ME,IR,DR>  CR: 88004484  XER: 20000010
-> > TASK = c0000000e9905980[3665] 'sshd' THREAD: c0000000e667c000 CPU: 0
-> > GPR00: 0000000080000000 c0000000e667f940 c000000000b36fc0 0000000000000001 
-> > GPR04: c00000000010557c c0000000000bfb74 0000000000000001 0000000000000000 
-> > GPR08: c000000000bd7700 0000000080000000 00000000004cc000 c0000000007296c0 
-> > GPR12: 0000000000000000 c000000000b58300 
-> > NIP [c0000000005a69fc] ._spin_lock_irqsave+0x84/0xd4
-> > LR [c0000000005a69f4] ._spin_lock_irqsave+0x7c/0xd4
-> > Call Trace:
-> > [c0000000e667f940] [c0000000005a69a0] ._spin_lock_irqsave+0x28/0xd4 (unreliable)
-> > [c0000000e667f9e0] [c00000000010557c] .mem_cgroup_charge_common+0x204/0x330
-> > [c0000000e667faa0] [c0000000001057e4] .mem_cgroup_charge+0x9c/0xc8
-> > [c0000000e667fb40] [c0000000000da170] .do_wp_page+0x564/0x8ec
-> > [c0000000e667fc10] [c0000000000dc500] .handle_mm_fault+0xa28/0xaf4
-> > [c0000000e667fd00] [c0000000005a8b10] .do_page_fault+0x384/0x570
-> > [c0000000e667fe30] [c00000000000517c] handle_page_fault+0x20/0x5c
-> > Instruction dump:
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> > 
-> 
+> -- 
+> 	Balbir
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
 
 --
