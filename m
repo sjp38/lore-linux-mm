@@ -1,115 +1,114 @@
-Message-ID: <4919E62F.1020104@redhat.com>
-Date: Tue, 11 Nov 2008 22:08:15 +0200
-From: Izik Eidus <ieidus@redhat.com>
+Date: Tue, 11 Nov 2008 21:38:06 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/4] rmap: add page_wrprotect() function,
+Message-ID: <20081111203806.GE10818@random.random>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <20081111113948.f38b9e95.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>	<20081111103051.979aea57.akpm@linux-foundation.org>	<4919D370.7080301@redhat.com>	<20081111111110.decc0f06.akpm@linux-foundation.org>	<4919DA7F.5090106@redhat.com> <20081111113247.c2b0f1ac.akpm@linux-foundation.org> <4919E293.6040600@redhat.com>
-In-Reply-To: <4919E293.6040600@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081111113948.f38b9e95.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: avi@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com
+Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-Izik Eidus wrote:
-> Andrew Morton wrote:
->> On Tue, 11 Nov 2008 21:18:23 +0200
->> Izik Eidus <ieidus@redhat.com> wrote:
->>
->>  
->>>> hm.
->>>>
->>>> There has been the occasional discussion about idenfifying all-zeroes
->>>> pages and scavenging them, repointing them at the zero page.  Could
->>>> this infrastructure be used for that?  (And how much would we gain 
->>>> from
->>>> it?)
->>>>
->>>> [I'm looking for reasons why this is more than a 
->>>> muck-up-the-vm-for-kvm
->>>> thing here ;) ]
->>>>       
->>
->> ^^ this?
->>
->>  
->>> KSM is separate driver , it doesn't change anything in the VM but 
->>> adding two helper functions.
->>>     
->>
->> What, you mean I should actually read the code?   Oh well, OK.
->>   
-> Andrea i think what is happening here is my fault
-Sorry, meant to write here Andrew :-)
-> i will try to give here much more information about KSM:
-> first the bad things:
-> KSM shared pages are right now (we have patch that can change it but 
-> we want to wait with it) unswappable
-> this mean that the entire memory of the guest is swappable but the 
-> pages that are shared are not.
-> (when the pages are splited back by COW they become anonymous again 
-> with the help of do_wp_page()
-> the reason that the pages are not swappable is beacuse the way the 
-> Linux Rmap is working, this not allow us to create nonlinear anonymous 
-> pages
-> (we dont want to use nonlinear vma for kvm, as it will make swapping 
-> for kvm very slow)
-> the reason that ksm pages need to have nonlinear reverse mapping is 
-> that for one guest identical page can be found in whole diffrent 
-> offset than other guest have it
-> (this is from the userspace VM point of view)
->
-> the rest is quite simple:
-> it is walking over the entire guest memory (or only some of it) and 
-> scan for identical pages using hash table
-> it merge the pages into one single write protected page
->
-> numbers for ksm is something that i have just for desktops and just 
-> the numbers i gave you
-> what is do know is:
-> big overcommit like 300% is possible just when you take into account 
-> that some of the guest memory will be free
-> we are sharing mostly the DLLs/ KERNEL / ZERO pages, for the DLLS and 
-> KERNEL PAGEs this pages likely will never break
-> but ZERO pages will be break when windows will allocate them and will 
-> come back when windows will free the memory.
-> (i wouldnt suggest 300% overcommit for servers workload, beacuse you 
-> can end up swapping in that case,
-> but for desktops after runing in production and passed some seiroes qa 
-> tress tests it seems like 300% is a real number that can be use)
->
-> i just ran test on two fedora 8 guests and got that results (using 
-> GNOME in both of them)
-> 9959 root      15   0  730m 537m 281m S    8  3.4   0:44.28 
-> kvm                                                                            
->
-> 9956 root      15   0  730m 537m 246m S    4  3.4   0:41.43 kvm
-> as you can see the physical sharing was 281mb and 246mb (kernel pages 
-> are counted as shared)
-> there is small lie in this numbers beacuse pages that was shared 
-> across two guests and was splited by writing from guest number 1 will 
-> still have 1 refernce count to it
-> and will still be kernel page (untill the other guest (num 2) will 
-> write to it as well)
->
->
-> anyway i am willing to make much better testing or everything that 
-> needed for this patchs to be merged.
-> (just tell me what and i will do it)
->
-> beside that you should know that patch 4 is not a must, it is just 
-> nice optimization...
->
-> thanks.
->
-> -- 
-> To unsubscribe from this list: send the line "unsubscribe 
-> linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+On Tue, Nov 11, 2008 at 11:39:48AM -0800, Andrew Morton wrote:
+> > +static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
+> > +			      int *odirect_sync)
+> > +{
+> > +	struct mm_struct *mm = vma->vm_mm;
+> > +	unsigned long address;
+> > +	pte_t *pte;
+> > +	spinlock_t *ptl;
+> > +	int ret = 0;
+> > +
+> > +	address = vma_address(page, vma);
+> > +	if (address == -EFAULT)
+> > +		goto out;
+> > +
+> > +	pte = page_check_address(page, mm, address, &ptl, 0);
+> > +	if (!pte)
+> > +		goto out;
+> > +
+> > +	if (pte_write(*pte)) {
+> > +		pte_t entry;
+> > +
+> > +		if (page_mapcount(page) != page_count(page)) {
+> > +			*odirect_sync = 0;
+> > +			goto out_unlock;
+> > +		}
+> > +		flush_cache_page(vma, address, pte_pfn(*pte));
+> > +		entry = ptep_clear_flush_notify(vma, address, pte);
+> > +		entry = pte_wrprotect(entry);
+> > +		set_pte_at(mm, address, pte, entry);
+> > +	}
+> > +	ret = 1;
+> > +
+> > +out_unlock:
+> > +	pte_unmap_unlock(pte, ptl);
+> > +out:
+> > +	return ret;
+> > +}
+> 
+> OK.  I think.  We need to find a way of provoking Hugh to look at it.
+
+Yes. Please focus on the page_mapcount != page_count, which is likely
+missing from migrate.c too and in turn page migration currently breaks
+O_DIRECT like fork() is buggy as well as discussed here:
+
+http://marc.info/?l=linux-mm&m=122236799302540&w=2
+http://marc.info/?l=linux-mm&m=122524107519182&w=2
+http://marc.info/?l=linux-mm&m=122581116713932&w=2
+
+The fix implemented in ksm currently handles older kernels (like
+rhel/sles) not current mainline that does
+get_user_pages_fast. get_user_pages_fast is unfixable yet (see my last
+email to Nick above asking for a way to block gup_fast).
+
+The fix proposed by Nick plus my additional fix, should stop the
+corruption in fork the same way the above check fixes it for ksm. But
+todate gup_fast remains unfixable.
+
+> > +static int page_wrprotect_file(struct page *page, int *odirect_sync)
+> > +{
+> > +	struct address_space *mapping;
+> > +	struct prio_tree_iter iter;
+> > +	struct vm_area_struct *vma;
+> > +	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+> > +	int ret = 0;
+> > +
+> > +	mapping = page_mapping(page);
+> 
+> What pins *mapping in memory?  Usually this is done by requiring that
+> the caller has locked the page.  But no such precondition is documented
+> here.
+
+Looks buggy but we never call it from ksm 8). I guess Izik added it
+for completeness when preparing for mainline submission. We've the
+option to get rid of page_wrprotect_file entirely and only implement a
+page_wrprotect_anon! Otherwise we can add a BUG_ON(!PageLocked(page))
+before the above page_mapping to protect against truncate.
+
+> > + * set all the ptes pointed to a page as read only,
+> > + * odirect_sync is set to 0 in case we cannot protect against race with odirect
+> > + * return the number of ptes that were set as read only
+> > + * (ptes that were read only before this function was called are couned as well)
+> > + */
+> 
+> But it isn't.
+
+What isn't?
+
+> I don't understand this odirect_sync thing.  What race?  Please expand
+> this comment to make the function of odirect_sync more understandable.
+
+I should have answered this one with the above 3 links.
+
+> What do you think about making all this new code dependent upon some
+> CONFIG_ switch which CONFIG_KVM can select?
+
+I like that too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
