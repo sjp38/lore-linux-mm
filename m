@@ -1,7 +1,7 @@
-Date: Tue, 11 Nov 2008 15:25:27 -0700
+Date: Tue, 11 Nov 2008 15:30:28 -0700
 From: Jonathan Corbet <corbet@lwn.net>
 Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver
-Message-ID: <20081111152527.3c55bd6d@bike.lwn.net>
+Message-ID: <20081111153028.422b301a@bike.lwn.net>
 In-Reply-To: <491A0483.3010504@redhat.com>
 References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
 	<1226409701-14831-2-git-send-email-ieidus@redhat.com>
@@ -18,41 +18,46 @@ To: Izik Eidus <ieidus@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+[Let's see if I can get through the rest without premature sends...]
+
 On Wed, 12 Nov 2008 00:17:39 +0200
 Izik Eidus <ieidus@redhat.com> wrote:
 
-> >> +static int ksm_dev_open(struct inode *inode, struct file *filp)
-> >> +{
-> >> +	try_module_get(THIS_MODULE);
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +static int ksm_dev_release(struct inode *inode, struct file *filp)
-> >> +{
-> >> +	module_put(THIS_MODULE);
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +static struct file_operations ksm_chardev_ops = {
-> >> +	.open           = ksm_dev_open,
-> >> +	.release        = ksm_dev_release,
-> >> +	.unlocked_ioctl = ksm_dev_ioctl,
-> >> +	.compat_ioctl   = ksm_dev_ioctl,
-> >> +};
-> >>       
-> >
-> > Why do you roll your own module reference counting?  Is there a
-> > reason you don't just set .owner and let the VFS handle it?
+> > Actually, it occurs to me that there's no sanity checks on any of
+> > the values passed in by ioctl().  What happens if the user tells
+> > KSM to scan a bogus range of memory?
 > >     
 > 
-> Yes, I am taking get_task_mm() if the module will be removed before i 
-> free the mms, things will go wrong
+> Well get_user_pages() run in context of the process, therefore it
+> should fail in "bogus range of memory"
 
-But...if you set .owner, the VFS will do the try_module_get() *before*
-calling into your module (as an added bonus, it will actually check the
-return value too).  All you've succeeded in doing here is adding a
-microscopic race to the module reference counting; otherwise the end
-result is the same.
+But it will fail in a totally silent and mysterious way.  Doesn't it
+seem better to verify the values when you can return a meaningful error
+code to the caller?
+
+The other ioctl() calls have the same issue; you can start the thread
+with nonsensical values for the number of pages to scan and the sleep
+time.
+
+> 
+> > Any benchmarks on the runtime cost of having KSM running?
+> >     
+> 
+> This one is problematic, ksm can take anything from 0% to 100% cpu
+> its all depend on how fast you run it.
+> it have 3 parameters:
+> number of pages to scan before it go to sleep
+> maximum number of pages to merge while we scanning the above pages 
+> (merging is expensive)
+> time to sleep (when runing from userspace using /dev/ksm, we actually
+> do it there (userspace)
+
+What about things like cache effects from scanning all those pages?  My
+guess is that, if you're trying to run dozens of Windows guests, cache
+usage is not at the top of your list of concerns, but I could be
+wrong.  Usually am...
+
+Thanks,
 
 jon
 
