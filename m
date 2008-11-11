@@ -1,60 +1,42 @@
-Message-ID: <4919D7DE.4000508@redhat.com>
-Date: Tue, 11 Nov 2008 21:07:10 +0200
+Message-ID: <4919D83C.20807@redhat.com>
+Date: Tue, 11 Nov 2008 21:08:44 +0200
 From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <20081111103051.979aea57.akpm@linux-foundation.org>
-In-Reply-To: <20081111103051.979aea57.akpm@linux-foundation.org>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <20081111103051.979aea57.akpm@linux-foundation.org> <4919D370.7080301@redhat.com>
+In-Reply-To: <4919D370.7080301@redhat.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
+To: Avi Kivity <avi@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> On Tue, 11 Nov 2008 15:21:37 +0200 Izik Eidus <ieidus@redhat.com> wrote:
+Avi Kivity wrote:
+> Andrew Morton wrote:
+>> The whole approach seems wrong to me.  The kernel lost track of these
+>> pages and then we run around post-facto trying to fix that up again. 
+>> Please explain (for the changelog) why the kernel cannot get this right
+>> via the usual sharing, refcounting and COWing approaches.
+>>   
 >
->   
->> KSM is a linux driver that allows dynamicly sharing identical memory pages
->> between one or more processes.
->>
->> unlike tradtional page sharing that is made at the allocation of the
->> memory, ksm do it dynamicly after the memory was created.
->> Memory is periodically scanned; identical pages are identified and merged.
->> the sharing is unnoticeable by the process that use this memory.
->> (the shared pages are marked as readonly, and in case of write
->> do_wp_page() take care to create new copy of the page)
->>
->> this driver is very useful for KVM as in cases of runing multiple guests
->> operation system of the same type, many pages are sharable.
->> this driver can be useful by OpenVZ as well.
->>     
->
-> These benefits should be quantified, please.  Also any benefits to any
-> other workloads should be identified and quantified.
->   
-Sure,
-we have used KSM in production for about half year and the numbers that 
-came from our QA is:
-using KSM for desktop (KSM was tested just for windows desktop workload) 
-you can run as many as
-52 windows xp with 1 giga ram each on server with just 16giga ram. (this 
-is more than 300% overcommit)
-the reason is that most of the kernel/dlls of this guests is shared and 
-in addition we are sharing the windows zero
-(windows keep making all its free memory as zero, so every time windows 
-release memory we take the page back to the host)
-there is slide that give this numbers you can find at:
-http://kvm.qumranet.com/kvmwiki/KvmForum2008?action=AttachFile&do=get&target=kdf2008_3.pdf 
-(slide 27)
-beside more i gave presentation about ksm that can be found at:
-http://kvm.qumranet.com/kvmwiki/KvmForum2008?action=AttachFile&do=get&target=kdf2008_12.pdf
+> For kvm, the kernel never knew those pages were shared.  They are 
+> loaded from independent (possibly compressed and encrypted) disk 
+> images.  These images are different; but some pages happen to be the 
+> same because they came from the same installation media.
 
-if more numbers are wanted for other workloads i can test it.
-(the idea of ksm is to run it slowly slowy at low priority and let it 
-merge pages when no one need the cpu)
+As Avi said, in kvm we cannot know how the guest is going to map its 
+pages, we have nothing to do but to scan for the identical pages
+(you can have pages that are shared that are in whole different offset 
+inside the guest)
+
+>
+> For OpenVZ the situation is less clear, but if you allow users to 
+> independently upgrade their chroots you will eventually arrive at the 
+> same scenario (unless of course you apply the same merging strategy at 
+> the filesystem level).
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
