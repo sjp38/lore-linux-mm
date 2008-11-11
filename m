@@ -1,35 +1,77 @@
-Date: Wed, 12 Nov 2008 00:25:13 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
-	one page into another
-Message-ID: <20081111232513.GS10818@random.random>
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <1226409701-14831-3-git-send-email-ieidus@redhat.com> <20081111114555.eb808843.akpm@linux-foundation.org> <20081111210655.GG10818@random.random> <Pine.LNX.4.64.0811111522150.27767@quilx.com> <20081111221753.GK10818@random.random> <Pine.LNX.4.64.0811111626520.29222@quilx.com> <20081111231722.GR10818@random.random>
+Message-ID: <491A1AF3.20609@cs.columbia.edu>
+Date: Tue, 11 Nov 2008 18:53:23 -0500
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
+Subject: Re: [RFC v9][PATCH 05/13] Dump memory address space
+References: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu> <1226335060-7061-6-git-send-email-orenl@cs.columbia.edu> <20081111164517.GA15999@us.ibm.com>
+In-Reply-To: <20081111164517.GA15999@us.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081111231722.GR10818@random.random>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
+To: "Serge E. Hallyn" <serue@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 12, 2008 at 12:17:22AM +0100, Andrea Arcangeli wrote:
-> We don't have to check the page_count vs mapcount later in
-> replace_page because we know if anybody started an O_DIRECT read from
-> disk, it would have triggered a cow, and the pte_same check that we
-> have to do for other reasons would take care of bailing out the
-> replace_page.
 
-Ah, for completeness: above I didn't mention the case of O_DIRECT
-writes to disk, because we never need to care about those. They're
-never a problem. If the page is replaced and the cpu writes to the
-page and by doing so triggers a cow that lead to the CPU write to go
-in a different page (not the one under dma) it'll be like if the write
-to disk completed before the cpu overwritten the page, so result is
-undefined. I don't think we've to define the case of somebody doing a
-direct read from a location where there's still an o_direct write in
-flight either.
+Serge E. Hallyn wrote:
+> Quoting Oren Laadan (orenl@cs.columbia.edu):
+>> +/**
+>> + * cr_fill_fname - return pathname of a given file
+>> + * @path: path name
+>> + * @root: relative root
+>> + * @buf: buffer for pathname
+>> + * @n: buffer length (in) and pathname length (out)
+>> + */
+>> +static char *
+>> +cr_fill_fname(struct path *path, struct path *root, char *buf, int *n)
+>> +{
+>> +	struct path tmp = *root;
+>> +	char *fname;
+>> +
+>> +	BUG_ON(!buf);
+>> +	fname = __d_path(path, &tmp, buf, *n);
+>> +	if (!IS_ERR(fname))
+>> +		*n = (buf + (*n) - fname);
+>> +	/*
+>> +	 * FIXME: if __d_path() changed these, it must have stepped out of
+>> +	 * init's namespace. Since currently we require a unified namespace
+>> +	 * within the container: simply fail.
+>> +	 */
+>> +	if (tmp.mnt != root->mnt || tmp.dentry != root->dentry)
+>> +		fname = ERR_PTR(-EBADF);
+> 
+> ...
+> 
+>> +static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
+>> +{
+>> +	ctx->root_pid = pid;
+>> +
+>> +	/*
+>> +	 * assume checkpointer is in container's root vfs
+>> +	 * FIXME: this works for now, but will change with real containers
+>> +	 */
+>> +	ctx->vfsroot = &current->fs->root;
+>> +	path_get(ctx->vfsroot);
+> 
+> Hi Oren,
+> 
+> Is there really any good reason to use current->fs->root rather
+> than ctx->root_task->fs->root here?
+
+Oops, that's a leftover from before supporting external checkpoint.
+Will fix.
+
+> 
+> The way I'm testing, the checkpointer is in fact in a different
+> container, so the root passed into cr_fill_fname() is different
+> from the container's root, so cr_fill_fname() always returns me
+> -EBADF.
+> 
+
+Thanks,
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
