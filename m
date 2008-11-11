@@ -1,10 +1,12 @@
-Date: Tue, 11 Nov 2008 11:39:48 -0800
+Date: Tue, 11 Nov 2008 11:45:55 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] rmap: add page_wrprotect() function,
-Message-Id: <20081111113948.f38b9e95.akpm@linux-foundation.org>
-In-Reply-To: <1226409701-14831-2-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
+ one page into another
+Message-Id: <20081111114555.eb808843.akpm@linux-foundation.org>
+In-Reply-To: <1226409701-14831-3-git-send-email-ieidus@redhat.com>
 References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
 	<1226409701-14831-2-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-3-git-send-email-ieidus@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -14,151 +16,139 @@ To: Izik Eidus <ieidus@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Nov 2008 15:21:38 +0200
+On Tue, 11 Nov 2008 15:21:39 +0200
 Izik Eidus <ieidus@redhat.com> wrote:
 
 > From: Izik Eidus <izike@qumranet.com>
 > 
-> this function is useful for cases you want to compare page and know
-> that its value wont change during you compare it.
+> this function is needed in cases you want to change the userspace
+> virtual mapping into diffrent physical page,
+
+Not sure that I understand that description.  We want to replace a live
+page in an anonymous VMA with a different one?
+
+It looks that way.
+
+page migration already kinda does that.  Is there common ground?
+
+> KSM need this for merging the identical pages.
 > 
-> this function is working by walking over the whole rmap of a page
-> and mark every pte related to the page as write_protect.
+> this function is working by removing the oldpage from the rmap and
+> calling put_page on it, and by setting the virtual address pte
+> to point into the new page.
+> (note that the new page (the page that we change the pte to map to)
+> cannot be anonymous page)
 > 
-> the odirect_sync paramter is used to notify the caller of
-> page_wrprotect() if one pte or more was not marked readonly
-> in order to avoid race with odirect.
 
-The grammar is a bit mangled.  Missing apostrophes.  Sentences start
-with capital letters.
+I don't understand the restrictions on anonymous pages.  Please expand
+the changelog so that reviewers can understand the reasons for this
+restriction.
 
-Yeah, it's a nit, but we don't actually gain anything from deliberately
-mangling the language.
 
->
-> ...
->
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -576,6 +576,103 @@ int page_mkclean(struct page *page)
->  }
->  EXPORT_SYMBOL_GPL(page_mkclean);
+> ---
+>  include/linux/mm.h |    3 ++
+>  mm/memory.c        |   68 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 71 insertions(+), 0 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ffee2f7..4da7fa8 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1207,6 +1207,9 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>  			unsigned long pfn);
 >  
-> +static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
-> +			      int *odirect_sync)
+> +int replace_page(struct vm_area_struct *vma, struct page *oldpage,
+> +		 struct page *newpage, pte_t orig_pte, pgprot_t prot);
+> +
+>  struct page *follow_page(struct vm_area_struct *, unsigned long address,
+>  			unsigned int foll_flags);
+>  #define FOLL_WRITE	0x01	/* check pte is writable */
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 164951c..b2c542c 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1472,6 +1472,74 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>  }
+>  EXPORT_SYMBOL(vm_insert_mixed);
+>  
+> +/**
+> + * replace _page - replace the pte mapping related to vm area between two pages
+
+s/replace _page/replace_page/
+
+> + * (from oldpage to newpage)
+> + * NOTE: you should take into consideration the impact on the VM when replacing
+> + * anonymous pages with kernel non swappable pages.
+> + */
+
+This _is_ a kerneldoc comment, but kernedoc comments conventionally
+document the arguments and the return value also.
+
+> +int replace_page(struct vm_area_struct *vma, struct page *oldpage,
+> +		 struct page *newpage, pte_t orig_pte, pgprot_t prot)
 > +{
 > +	struct mm_struct *mm = vma->vm_mm;
-> +	unsigned long address;
-> +	pte_t *pte;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *ptep;
 > +	spinlock_t *ptl;
-> +	int ret = 0;
+> +	unsigned long addr;
+> +	int ret;
 > +
-> +	address = vma_address(page, vma);
-> +	if (address == -EFAULT)
+> +	BUG_ON(PageAnon(newpage));
+> +
+> +	ret = -EFAULT;
+> +	addr = page_address_in_vma(oldpage, vma);
+> +	if (addr == -EFAULT)
 > +		goto out;
 > +
-> +	pte = page_check_address(page, mm, address, &ptl, 0);
-> +	if (!pte)
+> +	pgd = pgd_offset(mm, addr);
+> +	if (!pgd_present(*pgd))
 > +		goto out;
 > +
-> +	if (pte_write(*pte)) {
-> +		pte_t entry;
+> +	pud = pud_offset(pgd, addr);
+> +	if (!pud_present(*pud))
+> +		goto out;
 > +
-> +		if (page_mapcount(page) != page_count(page)) {
-> +			*odirect_sync = 0;
-> +			goto out_unlock;
-> +		}
-> +		flush_cache_page(vma, address, pte_pfn(*pte));
-> +		entry = ptep_clear_flush_notify(vma, address, pte);
-> +		entry = pte_wrprotect(entry);
-> +		set_pte_at(mm, address, pte, entry);
+> +	pmd = pmd_offset(pud, addr);
+> +	if (!pmd_present(*pmd))
+> +		goto out;
+> +
+> +	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	if (!ptep)
+> +		goto out;
+> +
+> +	if (!pte_same(*ptep, orig_pte)) {
+> +		pte_unmap_unlock(ptep, ptl);
+> +		goto out;
 > +	}
-> +	ret = 1;
 > +
-> +out_unlock:
-> +	pte_unmap_unlock(pte, ptl);
+> +	ret = 0;
+> +	get_page(newpage);
+> +	page_add_file_rmap(newpage);
+> +
+> +	flush_cache_page(vma, addr, pte_pfn(*ptep));
+> +	ptep_clear_flush(vma, addr, ptep);
+> +	set_pte_at(mm, addr, ptep, mk_pte(newpage, prot));
+> +
+> +	page_remove_rmap(oldpage, vma);
+> +	if (PageAnon(oldpage)) {
+> +		dec_mm_counter(mm, anon_rss);
+> +		inc_mm_counter(mm, file_rss);
+> +	}
+> +	put_page(oldpage);
+> +
+> +	pte_unmap_unlock(ptep, ptl);
+> +
 > +out:
 > +	return ret;
 > +}
+> +EXPORT_SYMBOL(replace_page);
 
-OK.  I think.  We need to find a way of provoking Hugh to look at it.
-
-> +static int page_wrprotect_file(struct page *page, int *odirect_sync)
-> +{
-> +	struct address_space *mapping;
-> +	struct prio_tree_iter iter;
-> +	struct vm_area_struct *vma;
-> +	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> +	int ret = 0;
-> +
-> +	mapping = page_mapping(page);
-
-What pins *mapping in memory?  Usually this is done by requiring that
-the caller has locked the page.  But no such precondition is documented
-here.
-
-> +	if (!mapping)
-> +		return ret;
-> +
-> +	spin_lock(&mapping->i_mmap_lock);
-> +
-> +	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
-> +		ret += page_wrprotect_one(page, vma, odirect_sync);
-> +
-> +	spin_unlock(&mapping->i_mmap_lock);
-> +
-> +	return ret;
-> +}
-> +
-> +static int page_wrprotect_anon(struct page *page, int *odirect_sync)
-> +{
-> +	struct vm_area_struct *vma;
-> +	struct anon_vma *anon_vma;
-> +	int ret = 0;
-> +
-> +	anon_vma = page_lock_anon_vma(page);
-> +	if (!anon_vma)
-> +		return ret;
-> +
-> +	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-> +		ret += page_wrprotect_one(page, vma, odirect_sync);
-> +
-> +	page_unlock_anon_vma(anon_vma);
-> +
-> +	return ret;
-> +}
-> +
-> +/**
-
-This token means "this is a kerneldoc comment".
-
-> + * set all the ptes pointed to a page as read only,
-> + * odirect_sync is set to 0 in case we cannot protect against race with odirect
-> + * return the number of ptes that were set as read only
-> + * (ptes that were read only before this function was called are couned as well)
-> + */
-
-But it isn't.
-
-I don't understand this odirect_sync thing.  What race?  Please expand
-this comment to make the function of odirect_sync more understandable.
-
-> +int page_wrprotect(struct page *page, int *odirect_sync)
-> +{
-> +	int ret =0;
-> +
-> +	*odirect_sync = 1;
-> +	if (PageAnon(page))
-> +		ret = page_wrprotect_anon(page, odirect_sync);
-> +	else
-> +		ret = page_wrprotect_file(page, odirect_sync);
-> +
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(page_wrprotect);
-
-What do you think about making all this new code dependent upon some
-CONFIG_ switch which CONFIG_KVM can select?
+Again, we could make the presence of this code selectable by subsystems
+which want it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
