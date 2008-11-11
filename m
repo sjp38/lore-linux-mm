@@ -1,58 +1,64 @@
-Message-ID: <491A07D4.2020001@redhat.com>
-Date: Wed, 12 Nov 2008 00:31:48 +0200
-From: Izik Eidus <ieidus@redhat.com>
+Message-ID: <491A08D0.9030502@redhat.com>
+Date: Wed, 12 Nov 2008 00:36:00 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>	<1226409701-14831-2-git-send-email-ieidus@redhat.com>	<1226409701-14831-3-git-send-email-ieidus@redhat.com>	<1226409701-14831-4-git-send-email-ieidus@redhat.com>	<20081111150345.7fff8ff2@bike.lwn.net>	<491A0483.3010504@redhat.com> <20081111152527.3c55bd6d@bike.lwn.net>
-In-Reply-To: <20081111152527.3c55bd6d@bike.lwn.net>
+Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
+ one page into another
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <1226409701-14831-3-git-send-email-ieidus@redhat.com> <20081111114555.eb808843.akpm@linux-foundation.org> <20081111210655.GG10818@random.random> <Pine.LNX.4.64.0811111522150.27767@quilx.com> <4919FB95.4060105@redhat.com> <Pine.LNX.4.64.0811111544350.28346@quilx.com>
+In-Reply-To: <Pine.LNX.4.64.0811111544350.28346@quilx.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, izike@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-Jonathan Corbet wrote:
-> On Wed, 12 Nov 2008 00:17:39 +0200
-> Izik Eidus <ieidus@redhat.com> wrote:
+Christoph Lameter wrote:
+> On Tue, 11 Nov 2008, Avi Kivity wrote:
 >
 >   
->>>> +static int ksm_dev_open(struct inode *inode, struct file *filp)
->>>> +{
->>>> +	try_module_get(THIS_MODULE);
->>>> +	return 0;
->>>> +}
->>>> +
->>>> +static int ksm_dev_release(struct inode *inode, struct file *filp)
->>>> +{
->>>> +	module_put(THIS_MODULE);
->>>> +	return 0;
->>>> +}
->>>> +
->>>> +static struct file_operations ksm_chardev_ops = {
->>>> +	.open           = ksm_dev_open,
->>>> +	.release        = ksm_dev_release,
->>>> +	.unlocked_ioctl = ksm_dev_ioctl,
->>>> +	.compat_ioctl   = ksm_dev_ioctl,
->>>> +};
->>>>       
->>>>         
->>> Why do you roll your own module reference counting?  Is there a
->>> reason you don't just set .owner and let the VFS handle it?
->>>     
+>> Christoph Lameter wrote:
+>>     
+>>> page migration requires the page to be on the LRU. That could be changed
+>>> if you have a different means of isolating a page from its page tables.
+>>>
 >>>       
->> Yes, I am taking get_task_mm() if the module will be removed before i 
->> free the mms, things will go wrong
+>> Isn't rmap the means of isolating a page from its page tables?  I guess I'm
+>> misunderstanding something.
 >>     
 >
-> But...if you set .owner, the VFS will do the try_module_get() *before*
-> calling into your module (as an added bonus, it will actually check the
-> return value too).  
-Ohhh i see what you mean
-you are right i had at least needed to check for the return value of 
-try_module_get(),
-anyway will check this issue for V2.
+> In order to migrate a page one first has to make sure that userspace and
+> the kernel cannot access the page in any way. User space must be made to
+> generate page faults and all kernel references must be accounted for and
+> not be in use.
+>
+> The user space portion involves changing the page tables so that faults
+> are generated.
+>
+> The kernel portion isolates the page from the LRU (to exempt it from
+> kernel reclaim handling etc).
+>
+>   
+
+Thanks.
+
+> Only then can the page and its metadata be copied to a new location.
+>
+> Guess you already have the LRU portion done. So you just need the user
+> space isolation portion?
+>   
+
+We don't want to limit all faults, just writes.  So we write protect the 
+page before merging.
+
+What do you mean by page metadata?  obviously the dirty bit (Izik?), 
+accessed bit and position in the LRU are desirable (the last is quite 
+difficult for ksm -- the page occupied *two* positions in the LRU).
+
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
