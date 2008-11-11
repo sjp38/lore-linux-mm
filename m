@@ -1,64 +1,53 @@
-Message-ID: <491A08D0.9030502@redhat.com>
-Date: Wed, 12 Nov 2008 00:36:00 +0200
-From: Avi Kivity <avi@redhat.com>
+Message-ID: <491A0957.9060606@redhat.com>
+Date: Wed, 12 Nov 2008 00:38:15 +0200
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
- one page into another
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <1226409701-14831-3-git-send-email-ieidus@redhat.com> <20081111114555.eb808843.akpm@linux-foundation.org> <20081111210655.GG10818@random.random> <Pine.LNX.4.64.0811111522150.27767@quilx.com> <4919FB95.4060105@redhat.com> <Pine.LNX.4.64.0811111544350.28346@quilx.com>
-In-Reply-To: <Pine.LNX.4.64.0811111544350.28346@quilx.com>
+Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>	<1226409701-14831-2-git-send-email-ieidus@redhat.com>	<1226409701-14831-3-git-send-email-ieidus@redhat.com>	<1226409701-14831-4-git-send-email-ieidus@redhat.com>	<20081111150345.7fff8ff2@bike.lwn.net>	<491A0483.3010504@redhat.com> <20081111153028.422b301a@bike.lwn.net>
+In-Reply-To: <20081111153028.422b301a@bike.lwn.net>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, izike@qumranet.com
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> On Tue, 11 Nov 2008, Avi Kivity wrote:
+Jonathan Corbet wrote:
+> [Let's see if I can get through the rest without premature sends...]
+>
+> On Wed, 12 Nov 2008 00:17:39 +0200
+> Izik Eidus <ieidus@redhat.com> wrote:
 >
 >   
->> Christoph Lameter wrote:
->>     
->>> page migration requires the page to be on the LRU. That could be changed
->>> if you have a different means of isolating a page from its page tables.
->>>
+>>> Actually, it occurs to me that there's no sanity checks on any of
+>>> the values passed in by ioctl().  What happens if the user tells
+>>> KSM to scan a bogus range of memory?
+>>>     
 >>>       
->> Isn't rmap the means of isolating a page from its page tables?  I guess I'm
->> misunderstanding something.
+>> Well get_user_pages() run in context of the process, therefore it
+>> should fail in "bogus range of memory"
 >>     
 >
-> In order to migrate a page one first has to make sure that userspace and
-> the kernel cannot access the page in any way. User space must be made to
-> generate page faults and all kernel references must be accounted for and
-> not be in use.
->
-> The user space portion involves changing the page tables so that faults
-> are generated.
->
-> The kernel portion isolates the page from the LRU (to exempt it from
-> kernel reclaim handling etc).
+> But it will fail in a totally silent and mysterious way.  Doesn't it
+> seem better to verify the values when you can return a meaningful error
+> code to the caller?
 >
 >   
 
-Thanks.
+Well I dont mind insert it (the above for sure is not a bug)
+but even with that, the user can still free the memory that he gave to us
+so this check if "nice to have check", we have nothing to do but to relay on
+get_user_pages return value :)
 
-> Only then can the page and its metadata be copied to a new location.
->
-> Guess you already have the LRU portion done. So you just need the user
-> space isolation portion?
+> The other ioctl() calls have the same issue; you can start the thread
+> with nonsensical values for the number of pages to scan and the sleep
+> time.
 >   
 
-We don't want to limit all faults, just writes.  So we write protect the 
-page before merging.
+well about this i agree, here it make alot of logic to check the values!
 
-What do you mean by page metadata?  obviously the dirty bit (Izik?), 
-accessed bit and position in the LRU are desirable (the last is quite 
-difficult for ksm -- the page occupied *two* positions in the LRU).
 
--- 
-I have a truly marvellous patch that fixes the bug which this
-signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
