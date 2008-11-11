@@ -1,89 +1,91 @@
-Date: Tue, 11 Nov 2008 23:03:12 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Date: Tue, 11 Nov 2008 15:03:45 -0700
+From: Jonathan Corbet <corbet@lwn.net>
 Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver
-Message-ID: <20081111220312.GJ10818@random.random>
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com> <1226409701-14831-2-git-send-email-ieidus@redhat.com> <1226409701-14831-3-git-send-email-ieidus@redhat.com> <1226409701-14831-4-git-send-email-ieidus@redhat.com> <20081111123851.3d944f21.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081111123851.3d944f21.akpm@linux-foundation.org>
+Message-ID: <20081111150345.7fff8ff2@bike.lwn.net>
+In-Reply-To: <1226409701-14831-4-git-send-email-ieidus@redhat.com>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-2-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-3-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-4-git-send-email-ieidus@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
+To: Izik Eidus <ieidus@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 11, 2008 at 12:38:51PM -0800, Andrew Morton wrote:
-> Please fully document that interface in the changelog so that we can
-> review your decisions here.  This is by far the most important
-> consideration - we can change all the code, but interfaces are for
-> ever.
+I don't claim to begin to really understand the deep VM side of this
+patch, but I can certainly pick nits as I work through it...sorry for
+the lack of anything more substantive.
 
-Yes, this is the most important point in my view. Even after we make
-the ksm pages swappable it'll remain an invisible change to anybody
-but us (it'll work better under VM pressure, but that's about it).
+> +static struct list_head slots;
 
-> uh-oh, ioctls.
+Some of these file-static variable names seem a little..terse...
 
-Yes, it's all ioctl based. In very short, it assigns the task and
-memory region to scan, and allows to start/stop the kernel thread that
-does the scan while selecting how many pages to execute per scan and
-how many scans to execute per second. The more pages per scan and the
-more scans per second, the higher cpu utilization of the kernel thread.
+> +#define PAGECMP_OFFSET 128
+> +#define PAGEHASH_SIZE (PAGECMP_OFFSET ? PAGECMP_OFFSET : PAGE_SIZE)
+> +/* hash the page */
+> +static void page_hash(struct page *page, unsigned char *digest)
 
-It would also be possible to submit ksm in a way that has no API at
-all (besides kernel module params tunable later by sysfs to set
-pages-per-scan and scan-frequency). Doing that would allow us to defer
-the API decisions. But then all anonymous memory in the system will be
-scanned unconditionally even if there may be little to share for
-certain tasks. It would perform quite well, usually the sharable part
-is the largest part so the rest wouldn't generate an huge amount of
-cpu waste. There's some ram waste too, as some memory has to be
-allocated for every page we want to possibly share.
+So is this really saying that you only hash the first 128 bytes, relying on
+full compares for the rest?  I assume there's a perfectly good reason for
+doing it that way, but it's not clear to me from reading the code.  Do you
+gain performance which is not subsequently lost in the (presumably) higher
+number of hash collisions?
 
-In some ways removing the API would make it simpler to use for non
-virtualization environments where they may want to enable it
-system-wide.
+> +static int ksm_scan_start(struct ksm_scan *ksm_scan, int scan_npages,
+> +			  int max_npages)
+> +{
+> +	struct ksm_mem_slot *slot;
+> +	struct page *page[1];
+> +	int val;
+> +	int ret = 0;
+> +
+> +	down_read(&slots_lock);
+> +
+> +	scan_update_old_index(ksm_scan);
+> +
+> +	while (scan_npages > 0 && max_npages > 0) {
 
-> ooh, a comment!
+Should this loop maybe check kthread_run too?  It seems like you could loop
+for a long time after kthread_run has been set to zero.
 
-8)
+> +static int ksm_dev_open(struct inode *inode, struct file *filp)
+> +{
+> +	try_module_get(THIS_MODULE);
+> +	return 0;
+> +}
+> +
+> +static int ksm_dev_release(struct inode *inode, struct file *filp)
+> +{
+> +	module_put(THIS_MODULE);
+> +	return 0;
+> +}
+> +
+> +static struct file_operations ksm_chardev_ops = {
+> +	.open           = ksm_dev_open,
+> +	.release        = ksm_dev_release,
+> +	.unlocked_ioctl = ksm_dev_ioctl,
+> +	.compat_ioctl   = ksm_dev_ioctl,
+> +};
 
-> > +		kpage = alloc_page(GFP_KERNEL |  __GFP_HIGHMEM);
-> 
-> Stray whitepace.
-> 
-> Replace with GFP_HIGHUSER.
+Why do you roll your own module reference counting?  Is there a reason you
+don't just set .owner and let the VFS handle it?
 
-So not a cleanup, but an improvement (I agree highuser is better, this
-isn't by far any higher-priority kernel alloc and it deserves to have
-lower prio in the watermarks).
+Given that the KSM_REGISTER_MEMORY_REGION ioctl() creates unswappable
+memory, should there be some sort of capability check done there?  A check
+for starting/stopping the thread might also make sense.  Or is that
+expected to be handled via permissions on /dev/ksm?
 
-> The term "shared memory" has specific meanings in Linux/Unix.  I'm
-> suspecting that its use here was inappropriate but I have insufficient
-> information to be able to suggest alternatives.
+Actually, it occurs to me that there's no sanity checks on any of the
+values passed in by ioctl().  What happens if the user tells KSM to scan a
+bogus range of memory?
 
-We could call it create_shared_anonymous_memory but then what if it
-ever becomes capable of sharing pagecache too? (I doubt it will, not
-in the short term at least ;)
+Any benchmarks on the runtime cost of having KSM running?
 
-Usually when we do these kind of tricks we use the word cloning, so
-perhaps also create_cloned_memory_area, so you can later say cloned
-anonymous memory or cloned shared memory page instead of just KSM
-page. But then this module would become KCM and not KSM 8). Perhaps we
-should just go recursive and use create_ksm_memory_area.
-
-> Generally: this review was rather a waste of your time and of mine
-> because the code is inadequately documented.
-
-Well, this was a great review considering how little the code was
-documented, definitely not a waste of time on our end, it was very
-helpful and the good thing is I don't see any controversial stuff.
-
-The two inner loops are the core of the ksm scan, and they're aren't
-very simple I've to say. Documenting won't be trivial but it's surely
-possible, Izik already working on it I think! Apologies if any time
-was wasted on your side!!
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
