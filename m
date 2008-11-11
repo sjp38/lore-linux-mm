@@ -1,290 +1,120 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mABCYGBw028856
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 05:34:16 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mABCYgRQ146148
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 05:34:42 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mABCYCnF012168
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 05:34:13 -0700
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mABCVJVr014264
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:31:19 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mABCZANd141778
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:35:10 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mABCYu2U004668
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:34:56 -0500
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 11 Nov 2008 18:04:17 +0530
-Message-Id: <20081111123417.6566.52629.sendpatchset@balbir-laptop>
+Date: Tue, 11 Nov 2008 18:04:48 +0530
+Message-Id: <20081111123448.6566.55973.sendpatchset@balbir-laptop>
 In-Reply-To: <20081111123314.6566.54133.sendpatchset@balbir-laptop>
 References: <20081111123314.6566.54133.sendpatchset@balbir-laptop>
-Subject: [RFC][mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v3)
+Subject: [RFC][mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v3)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces hierarchical reclaim. When an ancestor goes over its
-limit, the charging routine points to the parent that is above its limit.
-The reclaim process then starts from the last scanned child of the ancestor
-and reclaims until the ancestor goes below its limit.
+Don't enable multiple hierarchy support by default. This patch introduces
+a features element that can be set to enable the nested depth hierarchy
+feature. This feature can only be enabled when the cgroup for which the
+feature this is enabled, has no children.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- mm/memcontrol.c |  179 +++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 152 insertions(+), 27 deletions(-)
+ mm/memcontrol.c |   52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)
 
-diff -puN mm/memcontrol.c~memcg-hierarchical-reclaim mm/memcontrol.c
---- linux-2.6.28-rc2/mm/memcontrol.c~memcg-hierarchical-reclaim	2008-11-11 17:51:56.000000000 +0530
-+++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-11 17:51:56.000000000 +0530
-@@ -132,6 +132,11 @@ struct mem_cgroup {
- 	 * statistics.
+diff -puN mm/memcontrol.c~memcg-add-hierarchy-selector mm/memcontrol.c
+--- linux-2.6.28-rc2/mm/memcontrol.c~memcg-add-hierarchy-selector	2008-11-11 17:51:57.000000000 +0530
++++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-11 17:51:57.000000000 +0530
+@@ -137,6 +137,11 @@ struct mem_cgroup {
+ 	 * reclaimed from. Protected by cgroup_lock()
  	 */
- 	struct mem_cgroup_stat stat;
+ 	struct mem_cgroup *last_scanned_child;
 +	/*
-+	 * While reclaiming in a hiearchy, we cache the last child we
-+	 * reclaimed from. Protected by cgroup_lock()
++	 * Should the accounting and control be hierarchical, per subtree?
 +	 */
-+	struct mem_cgroup *last_scanned_child;
++	unsigned long use_hierarchy;
++
  };
  static struct mem_cgroup init_mem_cgroup;
  
-@@ -467,6 +472,126 @@ unsigned long mem_cgroup_isolate_pages(u
- 	return nr_taken;
+@@ -1093,6 +1098,42 @@ out:
+ 	return ret;
  }
  
-+static struct mem_cgroup *
-+mem_cgroup_from_res_counter(struct res_counter *counter)
++static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
 +{
-+	return container_of(counter, struct mem_cgroup, res);
++	return mem_cgroup_from_cont(cont)->use_hierarchy;
 +}
 +
-+/*
-+ * Dance down the hierarchy if needed to reclaim memory. We remember the
-+ * last child we reclaimed from, so that we don't end up penalizing
-+ * one child extensively based on its position in the children list.
-+ *
-+ * root_mem is the original ancestor that we've been reclaim from.
-+ */
-+static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *mem,
-+						struct mem_cgroup *root_mem,
-+						gfp_t gfp_mask)
++static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
++					u64 val)
 +{
-+	struct cgroup *cg_current, *cgroup;
-+	struct mem_cgroup *mem_child;
-+	int ret = 0;
++	int retval = 0;
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++	struct cgroup *parent = cont->parent;
++	struct mem_cgroup *parent_mem = NULL;
++
++	if (parent)
++		parent_mem = mem_cgroup_from_cont(parent);
 +
 +	/*
-+	 * Reclaim unconditionally and don't check for return value.
-+	 * We need to reclaim in the current group and down the tree.
-+	 * One might think about checking for children before reclaiming,
-+	 * but there might be left over accounting, even after children
-+	 * have left.
++	 * If parent's use_hiearchy is set, we can't make any modifications
++	 * in the child subtrees. If it is unset, then the change can
++	 * occur, provided the current cgroup has no children.
++	 *
++	 * For the root cgroup, parent_mem is NULL, we allow value to be
++	 * set if there are no children.
 +	 */
-+	try_to_free_mem_cgroup_pages(mem, gfp_mask);
-+
-+	if (res_counter_check_under_limit(&root_mem->res))
-+		return 0;
-+
-+	cgroup_lock();
-+
-+	if (list_empty(&mem->css.cgroup->children)) {
-+		cgroup_unlock();
-+		return 0;
-+	}
-+
-+	/*
-+	 * Scan all children under the mem_cgroup mem
-+	 */
-+	if (!mem->last_scanned_child)
-+		cgroup = list_first_entry(&mem->css.cgroup->children,
-+				struct cgroup, sibling);
-+	else
-+		cgroup = mem->last_scanned_child->css.cgroup;
-+
-+	cg_current = cgroup;
-+
-+	do {
-+		struct list_head *next;
-+
-+		mem_child = mem_cgroup_from_cont(cgroup);
-+		cgroup_unlock();
-+
-+		ret = mem_cgroup_hierarchical_reclaim(mem_child, root_mem,
-+							gfp_mask);
-+		cgroup_lock();
-+		mem->last_scanned_child = mem_child;
-+		if (res_counter_check_under_limit(&root_mem->res)) {
-+			ret = 0;
-+			goto done;
-+		}
-+
-+		/*
-+		 * Since we gave up the lock, it is time to
-+		 * start from last cgroup
-+		 */
-+		cgroup = mem->last_scanned_child->css.cgroup;
-+		next = cgroup->sibling.next;
-+
-+		if (next == &cg_current->parent->children)
-+			cgroup = list_first_entry(&mem->css.cgroup->children,
-+							struct cgroup, sibling);
++	if (!parent_mem || (!parent_mem->use_hierarchy &&
++				(val == 1 || val == 0))) {
++		if (list_empty(&cont->children))
++			mem->use_hierarchy = val;
 +		else
-+			cgroup = container_of(next, struct cgroup, sibling);
-+	} while (cgroup != cg_current);
++			retval = -EBUSY;
++	} else
++		retval = -EINVAL;
 +
-+done:
-+	cgroup_unlock();
-+	return ret;
++	return retval;
 +}
 +
-+/*
-+ * Charge memory cgroup mem and check if it is over its limit. If so, reclaim
-+ * from mem.
-+ */
-+static int mem_cgroup_charge_and_reclaim(struct mem_cgroup *mem, gfp_t gfp_mask)
-+{
-+	int ret = 0;
-+	unsigned long nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct res_counter *fail_res;
-+	struct mem_cgroup *mem_over_limit;
-+
-+	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
-+		if (!(gfp_mask & __GFP_WAIT))
-+			goto out;
-+
-+		/*
-+		 * Is one of our ancestors over their limit?
-+		 */
-+		if (fail_res)
-+			mem_over_limit = mem_cgroup_from_res_counter(fail_res);
-+		else
-+			mem_over_limit = mem;
-+
-+		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit,
-+							mem_over_limit,
-+							gfp_mask);
-+
-+		if (!nr_retries--) {
-+			mem_cgroup_out_of_memory(mem, gfp_mask);
-+			goto out;
-+		}
-+	}
-+out:
-+	return ret;
-+}
- 
- /**
-  * mem_cgroup_try_charge - get charge of PAGE_SIZE.
-@@ -484,8 +609,7 @@ int mem_cgroup_try_charge(struct mm_stru
- 			gfp_t gfp_mask, struct mem_cgroup **memcg)
+ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
  {
- 	struct mem_cgroup *mem;
--	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
--	struct res_counter *fail_res;
-+
- 	/*
- 	 * We always charge the cgroup the mm_struct belongs to.
- 	 * The mm_struct's mem_cgroup changes on task migration if the
-@@ -510,29 +634,9 @@ int mem_cgroup_try_charge(struct mm_stru
- 		css_get(&mem->css);
+ 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
+@@ -1227,6 +1268,11 @@ static struct cftype mem_cgroup_files[] 
+ 		.name = "stat",
+ 		.read_map = mem_control_stat_show,
+ 	},
++	{
++		.name = "use_hierarchy",
++		.write_u64 = mem_cgroup_hierarchy_write,
++		.read_u64 = mem_cgroup_hierarchy_read,
++	},
+ };
+ 
+ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+@@ -1303,9 +1349,13 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		if (!mem)
+ 			return ERR_PTR(-ENOMEM);
++		mem->use_hierarchy = parent->use_hierarchy;
  	}
  
-+	if (mem_cgroup_charge_and_reclaim(mem, gfp_mask))
-+		goto nomem;
+-	res_counter_init(&mem->res, parent ? &parent->res : NULL);
++	if (parent && parent->use_hierarchy)
++		res_counter_init(&mem->res, &parent->res);
++	else
++		res_counter_init(&mem->res, NULL);
  
--	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE, &fail_res))) {
--		if (!(gfp_mask & __GFP_WAIT))
--			goto nomem;
--
--		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
--			continue;
--
--		/*
--		 * try_to_free_mem_cgroup_pages() might not give us a full
--		 * picture of reclaim. Some pages are reclaimed and might be
--		 * moved to swap cache or just unmapped from the cgroup.
--		 * Check the limit again to see if the reclaim reduced the
--		 * current usage of the cgroup before giving up
--		 */
--		if (res_counter_check_under_limit(&mem->res))
--			continue;
--
--		if (!nr_retries--) {
--			mem_cgroup_out_of_memory(mem, gfp_mask);
--			goto nomem;
--		}
--	}
- 	return 0;
- nomem:
- 	css_put(&mem->css);
-@@ -945,7 +1049,7 @@ static void mem_cgroup_force_empty_list(
-  * make mem_cgroup's charge to be 0 if there is no task.
-  * This enables deleting this mem_cgroup.
-  */
--static int mem_cgroup_force_empty(struct mem_cgroup *mem)
-+static int mem_cgroup_force_empty(struct mem_cgroup *mem, bool cgroup_locked)
- {
- 	int ret = -EBUSY;
- 	int node, zid;
-@@ -959,8 +1063,20 @@ static int mem_cgroup_force_empty(struct
- 	while (mem->res.usage > 0) {
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
-+
-+		/*
-+		 * We need to give up the cgroup lock if it is held, since
-+		 * it creates the potential for deadlock. cgroup_mutex should
-+		 * be acquired after cpu_hotplug lock. In this path, we
-+		 * acquire the cpu_hotplug lock after acquiring the cgroup_mutex
-+		 * Giving it up should be OK
-+		 */
-+		if (cgroup_locked)
-+			cgroup_unlock();
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
-+		if (cgroup_locked)
-+			cgroup_lock();
- 		for_each_node_state(node, N_POSSIBLE)
- 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
- 				struct mem_cgroup_per_zone *mz;
-@@ -1025,7 +1141,7 @@ static int mem_cgroup_reset(struct cgrou
- 
- static int mem_force_empty_write(struct cgroup *cont, unsigned int event)
- {
--	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont));
-+	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), false);
- }
- 
- static const struct mem_cgroup_stat_desc {
-@@ -1195,6 +1311,8 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	for_each_node_state(node, N_POSSIBLE)
  		if (alloc_mem_cgroup_per_zone_info(mem, node))
- 			goto free_out;
- 
-+	mem->last_scanned_child = NULL;
-+
- 	return &mem->css;
- free_out:
- 	for_each_node_state(node, N_POSSIBLE)
-@@ -1208,7 +1326,7 @@ static void mem_cgroup_pre_destroy(struc
- 					struct cgroup *cont)
- {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
--	mem_cgroup_force_empty(mem);
-+	mem_cgroup_force_empty(mem, true);
- }
- 
- static void mem_cgroup_destroy(struct cgroup_subsys *ss,
-@@ -1217,6 +1335,13 @@ static void mem_cgroup_destroy(struct cg
- 	int node;
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
- 
-+	if (cont->parent) {
-+		struct mem_cgroup *parent_mem =
-+			mem_cgroup_from_cont(cont->parent);
-+		if (parent_mem->last_scanned_child == mem)
-+			parent_mem->last_scanned_child = NULL;
-+	}
-+
- 	for_each_node_state(node, N_POSSIBLE)
- 		free_mem_cgroup_per_zone_info(mem, node);
- 
 _
 
 -- 
