@@ -1,134 +1,78 @@
-Date: Tue, 11 Nov 2008 14:42:24 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into pcp
-Message-ID: <20081111144224.GA7826@csn.ul.ie>
-References: <20081107093127.F84A.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081107104726.GD13786@csn.ul.ie> <20081111221059.8B44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mABGj0vu006534
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 09:45:00 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mABGjNjc153090
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 09:45:32 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mABGineW000960
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 09:44:50 -0700
+Date: Tue, 11 Nov 2008 10:45:17 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v9][PATCH 05/13] Dump memory address space
+Message-ID: <20081111164517.GA15999@us.ibm.com>
+References: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu> <1226335060-7061-6-git-send-email-orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081111221059.8B44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <1226335060-7061-6-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 11, 2008 at 10:39:40PM +0900, KOSAKI Motohiro wrote:
-> > > > What your patch may help is the situation where the system is under intense
-> > > > memory pressure, is dipping routinely into the lowmem reserves and mixing
-> > > > with high-order atomic allocations. This seems a bit extreme.
-> > > 
-> > > not so extreame.
-> > > 
-> > > The linux page reclaim can't process in interrupt context.
-> > > Sl network subsystem and driver often use MIGRATE_RESERVE memory although
-> > > system have many reclaimable memory.
-> > > 
-> > 
-> > Why are they often using MIGRATE_RESERVE, have you confirmed that? For that
-> > to be happening, it implies that either memory is under intense pressure and
-> > free pages are often below watermarks due to interrupt contexts or they are
-> > frequently allocating high-order pages in interrupt context. Normal order-0
-> > allocations should be getting satisified from elsewhere as if the free page
-> > counts are low, they would be direct reclaiming and that will likely be
-> > outside of the MIGRATE_RESERVE areas.
-> 
-> if inserting printk() in MIGRATE_RESERVE, I can observe MIGRATE_RESERVE
-> page alloc easily although heavy workload don't run.
-> but, there aren't my point.
-> 
+Quoting Oren Laadan (orenl@cs.columbia.edu):
+> +/**
+> + * cr_fill_fname - return pathname of a given file
+> + * @path: path name
+> + * @root: relative root
+> + * @buf: buffer for pathname
+> + * @n: buffer length (in) and pathname length (out)
+> + */
+> +static char *
+> +cr_fill_fname(struct path *path, struct path *root, char *buf, int *n)
+> +{
+> +	struct path tmp = *root;
+> +	char *fname;
+> +
+> +	BUG_ON(!buf);
+> +	fname = __d_path(path, &tmp, buf, *n);
+> +	if (!IS_ERR(fname))
+> +		*n = (buf + (*n) - fname);
+> +	/*
+> +	 * FIXME: if __d_path() changed these, it must have stepped out of
+> +	 * init's namespace. Since currently we require a unified namespace
+> +	 * within the container: simply fail.
+> +	 */
+> +	if (tmp.mnt != root->mnt || tmp.dentry != root->dentry)
+> +		fname = ERR_PTR(-EBADF);
 
-That's interesting. What is the size of a pageblock on your system and
-is min_free_kbytes aligned to that value? If it's not aligned, it would
-explain why MIGRATE_RESERVE pages are being used before the watermarks
-are hit.
+...
 
-> ok, I guess my patch description was too poor (and a bit pointless).
-> So, I retry it.
-> 
-> (1) in general principal, the system should effort to avoid oom rather than
->     performance if memory shortage happend.
->     MIGRATE_RESERVE directly indicate memory shortage happend.
->     and pcp caching can prevent another cpu allocation.
+> +static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
+> +{
+> +	ctx->root_pid = pid;
+> +
+> +	/*
+> +	 * assume checkpointer is in container's root vfs
+> +	 * FIXME: this works for now, but will change with real containers
+> +	 */
+> +	ctx->vfsroot = &current->fs->root;
+> +	path_get(ctx->vfsroot);
 
-MIGRATE_RESERVE does not directly indicate a memory shortage has
-occured. Bear in mind that a number of pageblocks are marked
-MIGRATE_RESERVE based on the value of the watermarks. In general, the
-minimum number of pages kept free will be in the MIGRATE_RESERVE blocks
-but it is not mandatory.
+Hi Oren,
 
-> (2) MIGRATE_RESERVE is never searched by buffered_rmqueue() because 
->     allocflags_to_migratetype() never return MIGRATE_RESERVE.
->     it doesn't work as cache.
->     IOW, it don't help to increase performance.
+Is there really any good reason to use current->fs->root rather
+than ctx->root_task->fs->root here?
 
-This is true. If MIGRATE_RESERVE pages are routinely being used and placed
-on the pcp lists, the lists are not being used to their full potential
-and your patch would make sense.
+The way I'm testing, the checkpointer is in fact in a different
+container, so the root passed into cr_fill_fname() is different
+from the container's root, so cr_fill_fname() always returns me
+-EBADF.
 
-> (3) if the system pass MIGRATE_RESERVE to free_hot_cold_page() continously,
->     pcp queueing can reduce the number of grabing zone->lock.
->     However, it is rate. because MIGRATE_RESERVE is emergency memory,
-
-Again, MIGRATE_RESERVE is not emergency memory.
-
->     and it is often used interupt context processing.
->     continuous emergency memory allocation in interrupt context isn't so sane.
-> 
-> Then, unqueueing MIGRATE_RESERVE page doesn't cause performance degression
-> and, it can (a bit) increase realibility and I think merit is much over demerit.
-> 
-
-I'm now inclined to agree if you have shown that MIGRATE_RESERVE pages are
-routinely ending up on the PCP lists.
-
-> 
-> 
-> 
-> > > static struct page *buffered_rmqueue(struct zone *preferred_zone,
-> > >                         struct zone *zone, int order, gfp_t gfp_flags)
-> > > {
-> > > (snip)
-> > >                 /* Find a page of the appropriate migrate type */
-> > >                 if (cold) {
-> > >                         list_for_each_entry_reverse(page, &pcp->list, lru)
-> > >                                 if (page_private(page) == migratetype)
-> > >                                         break;
-> > >                 } else {
-> > >                         list_for_each_entry(page, &pcp->list, lru)
-> > >                                 if (page_private(page) == migratetype)
-> > >                                         break;
-> > >                 }
-> > > 
-> > > Therefore, I'd like to make per migratetype pcp list.
-> > 
-> > That was actually how it was originally implemented and later moved to a list
-> > search. It got shot down on the grounds a per-cpu structure increased in size.
-> 
-> Yup, I believe at that time your decision is right.
-> However, I think the condision was changed (or to be able to change).
-> 
->  (1) legacy pcp implementation deeply relate to struct zone size.
->      and, to blow up struct zone size cause performance degression
->      because cache miss increasing.
->      However, it solved cristoph's cpu-alloc patch
-> 
-
-Indeed.
-
->  (2) legacy pcp doesn't have total number of pages restriction.
->      So, increasing lists directly cause number of pages in pcp.
->      it can cause oom problem on large numa environment.
->      However, I think we can implement total number of pages restriction.
-> 
-
-Yes although knowing what the right size for each of the lists should be
-so that the overall PCP lists are not huge is a tricky one.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+thanks,
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
