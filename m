@@ -1,124 +1,186 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mABCVJVr014264
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:31:19 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mABCZANd141778
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:35:10 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mABCYu2U004668
-	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 07:34:56 -0500
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Tue, 11 Nov 2008 18:04:48 +0530
-Message-Id: <20081111123448.6566.55973.sendpatchset@balbir-laptop>
-In-Reply-To: <20081111123314.6566.54133.sendpatchset@balbir-laptop>
-References: <20081111123314.6566.54133.sendpatchset@balbir-laptop>
-Subject: [RFC][mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v3)
+From: Izik Eidus <ieidus@redhat.com>
+Subject: [PATCH 0/4] ksm - dynamic page sharing driver for linux
+Date: Tue, 11 Nov 2008 15:21:37 +0200
+Message-Id: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Don't enable multiple hierarchy support by default. This patch introduces
-a features element that can be set to enable the nested depth hierarchy
-feature. This feature can only be enabled when the cgroup for which the
-feature this is enabled, has no children.
+KSM is a linux driver that allows dynamicly sharing identical memory pages
+between one or more processes.
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+unlike tradtional page sharing that is made at the allocation of the
+memory, ksm do it dynamicly after the memory was created.
+Memory is periodically scanned; identical pages are identified and merged.
+the sharing is unnoticeable by the process that use this memory.
+(the shared pages are marked as readonly, and in case of write
+do_wp_page() take care to create new copy of the page)
 
- mm/memcontrol.c |   52 +++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 51 insertions(+), 1 deletion(-)
+this driver is very useful for KVM as in cases of runing multiple guests
+operation system of the same type, many pages are sharable.
+this driver can be useful by OpenVZ as well.
 
-diff -puN mm/memcontrol.c~memcg-add-hierarchy-selector mm/memcontrol.c
---- linux-2.6.28-rc2/mm/memcontrol.c~memcg-add-hierarchy-selector	2008-11-11 17:51:57.000000000 +0530
-+++ linux-2.6.28-rc2-balbir/mm/memcontrol.c	2008-11-11 17:51:57.000000000 +0530
-@@ -137,6 +137,11 @@ struct mem_cgroup {
- 	 * reclaimed from. Protected by cgroup_lock()
- 	 */
- 	struct mem_cgroup *last_scanned_child;
-+	/*
-+	 * Should the accounting and control be hierarchical, per subtree?
-+	 */
-+	unsigned long use_hierarchy;
-+
- };
- static struct mem_cgroup init_mem_cgroup;
+KSM right now scan just memory that was registered to used by it, it
+does not
+scan the whole system memory (this can be changed, but the changes to
+find
+identical pages in normal linux system that doesnt run multiple guests)
+
+KSM can run as kernel thread or as userspace application (or both (it is
+allowed to run more than one scanner in a time)).
+
+example for how to control the kernel thread:
+
+
+ksmctl.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include "ksm.h"
+
+int main(int argc, char *argv[])
+{
+	int fd;
+	int used = 0;
+	int fd_start;
+	struct ksm_kthread_info info;
+	
+
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s {start npages sleep | stop |
+			info}\n", argv[0]);
+		exit(1);
+	}
+
+	fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
+	if (fd == -1) {
+		fprintf(stderr, "could not open /dev/ksm\n");
+		exit(1);
+	}
+
+	if (!strncmp(argv[1], "start", strlen(argv[1]))) {
+		used = 1;
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s start npages_to_scan",
+				argv[0]);
+			fprintf(stderr, "npages_max_merge sleep\n");
+			exit(1);
+		}
+		info.pages_to_scan = atoi(argv[2]);
+		info.max_pages_to_merge = atoi(argv[3]);
+		info.sleep = atoi(argv[4]);
+		info.running = 1;
+
+		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
+		if (fd_start == -1) {
+			fprintf(stderr, "KSM_START_KTHREAD failed\n");
+			exit(1);
+		}
+		printf("created scanner\n");
+	}
+
+	if (!strncmp(argv[1], "stop", strlen(argv[1]))) {
+		used = 1;
+		info.running = 0;
+		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
+		if (fd_start == -1) {
+			fprintf(stderr, "KSM_START_STOP_KTHREAD failed\n");
+			exit(1);
+		}
+		printf("stopped scanner\n");
+	}
+
+	if (!strncmp(argv[1], "info", strlen(argv[1]))) {
+		used = 1;
+		fd_start = ioctl(fd, KSM_GET_INFO_KTHREAD, &info);
+		if (fd_start == -1) {
+			fprintf(stderr, "KSM_GET_INFO_KTHREAD failed\n");
+			exit(1);
+		}
+		printf("running %d, pages_to_scan %d pages_max_merge %d",
+			info.running, info.pages_to_scan,
+			info.max_pages_to_merge);
+		printf("sleep_time %d\n", info.sleep);
+	}
+
+	if (!used)
+		fprintf(stderr, "unknown command %s\n", argv[1]);
+
+	return 0;
+}
+
+
+example of how to register qemu to ksm (or any userspace application)
+
+diff --git a/qemu/vl.c b/qemu/vl.c
+index 4721fdd..7785bf9 100644
+--- a/qemu/vl.c
++++ b/qemu/vl.c
+@@ -21,6 +21,7 @@
+  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+  * DEALINGS IN
+  * THE SOFTWARE.
+  */
++#include "ksm.h"
+ #include "hw/hw.h"
+ #include "hw/boards.h"
+ #include "hw/usb.h"
+@@ -5799,6 +5800,37 @@ static void termsig_setup(void)
  
-@@ -1093,6 +1098,42 @@ out:
- 	return ret;
- }
+ #endif
  
-+static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
++int ksm_register_memory(void)
 +{
-+	return mem_cgroup_from_cont(cont)->use_hierarchy;
++    int fd;
++    int ksm_fd;
++    int r = 1;
++    struct ksm_memory_region ksm_region;
++
++    fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
++    if (fd == -1)
++        goto out;
++
++    ksm_fd = ioctl(fd, KSM_CREATE_SHARED_MEMORY_AREA);
++    if (ksm_fd == -1)
++        goto out_free;
++
++    ksm_region.npages = phys_ram_size / TARGET_PAGE_SIZE;
++    ksm_region.addr = phys_ram_base;
++    r = ioctl(ksm_fd, KSM_REGISTER_MEMORY_REGION, &ksm_region);
++    if (r)
++        goto out_free1;
++
++    return r;
++
++out_free1:
++    close(ksm_fd);
++out_free:
++    close(fd);
++out:
++    return r;
 +}
 +
-+static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
-+					u64 val)
-+{
-+	int retval = 0;
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-+	struct cgroup *parent = cont->parent;
-+	struct mem_cgroup *parent_mem = NULL;
-+
-+	if (parent)
-+		parent_mem = mem_cgroup_from_cont(parent);
-+
-+	/*
-+	 * If parent's use_hiearchy is set, we can't make any modifications
-+	 * in the child subtrees. If it is unset, then the change can
-+	 * occur, provided the current cgroup has no children.
-+	 *
-+	 * For the root cgroup, parent_mem is NULL, we allow value to be
-+	 * set if there are no children.
-+	 */
-+	if (!parent_mem || (!parent_mem->use_hierarchy &&
-+				(val == 1 || val == 0))) {
-+		if (list_empty(&cont->children))
-+			mem->use_hierarchy = val;
-+		else
-+			retval = -EBUSY;
-+	} else
-+		retval = -EINVAL;
-+
-+	return retval;
-+}
-+
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ int main(int argc, char **argv)
  {
- 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
-@@ -1227,6 +1268,11 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
-+	{
-+		.name = "use_hierarchy",
-+		.write_u64 = mem_cgroup_hierarchy_write,
-+		.read_u64 = mem_cgroup_hierarchy_read,
-+	},
- };
+ #ifdef CONFIG_GDBSTUB
+@@ -6735,6 +6767,8 @@ int main(int argc, char **argv)
+     /* init the dynamic translator */
+     cpu_exec_init_all(tb_size * 1024 * 1024);
  
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1303,9 +1349,13 @@ mem_cgroup_create(struct cgroup_subsys *
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		if (!mem)
- 			return ERR_PTR(-ENOMEM);
-+		mem->use_hierarchy = parent->use_hierarchy;
- 	}
++    ksm_register_memory();
++
+     bdrv_init();
  
--	res_counter_init(&mem->res, parent ? &parent->res : NULL);
-+	if (parent && parent->use_hierarchy)
-+		res_counter_init(&mem->res, &parent->res);
-+	else
-+		res_counter_init(&mem->res, NULL);
- 
- 	for_each_node_state(node, N_POSSIBLE)
- 		if (alloc_mem_cgroup_per_zone_info(mem, node))
-_
-
--- 
-	Balbir
+     /* we always create the cdrom drive, even if no disk is there */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
