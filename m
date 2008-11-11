@@ -1,186 +1,128 @@
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 0/4] ksm - dynamic page sharing driver for linux
-Date: Tue, 11 Nov 2008 15:21:37 +0200
-Message-Id: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 2/4] Add replace_page(), change the mapping of pte from one page into another
+Date: Tue, 11 Nov 2008 15:21:39 +0200
+Message-Id: <1226409701-14831-3-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1226409701-14831-2-git-send-email-ieidus@redhat.com>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
+ <1226409701-14831-2-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
+From: Izik Eidus <izike@qumranet.com>
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com
+Cc: linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, Izik Eidus <izike@qumranet.com>
 List-ID: <linux-mm.kvack.org>
 
-KSM is a linux driver that allows dynamicly sharing identical memory pages
-between one or more processes.
+this function is needed in cases you want to change the userspace
+virtual mapping into diffrent physical page,
+KSM need this for merging the identical pages.
 
-unlike tradtional page sharing that is made at the allocation of the
-memory, ksm do it dynamicly after the memory was created.
-Memory is periodically scanned; identical pages are identified and merged.
-the sharing is unnoticeable by the process that use this memory.
-(the shared pages are marked as readonly, and in case of write
-do_wp_page() take care to create new copy of the page)
+this function is working by removing the oldpage from the rmap and
+calling put_page on it, and by setting the virtual address pte
+to point into the new page.
+(note that the new page (the page that we change the pte to map to)
+cannot be anonymous page)
 
-this driver is very useful for KVM as in cases of runing multiple guests
-operation system of the same type, many pages are sharable.
-this driver can be useful by OpenVZ as well.
+Signed-off-by: Izik Eidus <izike@qumranet.com>
+---
+ include/linux/mm.h |    3 ++
+ mm/memory.c        |   68 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 0 deletions(-)
 
-KSM right now scan just memory that was registered to used by it, it
-does not
-scan the whole system memory (this can be changed, but the changes to
-find
-identical pages in normal linux system that doesnt run multiple guests)
-
-KSM can run as kernel thread or as userspace application (or both (it is
-allowed to run more than one scanner in a time)).
-
-example for how to control the kernel thread:
-
-
-ksmctl.c
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include "ksm.h"
-
-int main(int argc, char *argv[])
-{
-	int fd;
-	int used = 0;
-	int fd_start;
-	struct ksm_kthread_info info;
-	
-
-	if (argc < 2) {
-		fprintf(stderr, "usage: %s {start npages sleep | stop |
-			info}\n", argv[0]);
-		exit(1);
-	}
-
-	fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
-	if (fd == -1) {
-		fprintf(stderr, "could not open /dev/ksm\n");
-		exit(1);
-	}
-
-	if (!strncmp(argv[1], "start", strlen(argv[1]))) {
-		used = 1;
-		if (argc < 5) {
-			fprintf(stderr, "usage: %s start npages_to_scan",
-				argv[0]);
-			fprintf(stderr, "npages_max_merge sleep\n");
-			exit(1);
-		}
-		info.pages_to_scan = atoi(argv[2]);
-		info.max_pages_to_merge = atoi(argv[3]);
-		info.sleep = atoi(argv[4]);
-		info.running = 1;
-
-		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
-		if (fd_start == -1) {
-			fprintf(stderr, "KSM_START_KTHREAD failed\n");
-			exit(1);
-		}
-		printf("created scanner\n");
-	}
-
-	if (!strncmp(argv[1], "stop", strlen(argv[1]))) {
-		used = 1;
-		info.running = 0;
-		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
-		if (fd_start == -1) {
-			fprintf(stderr, "KSM_START_STOP_KTHREAD failed\n");
-			exit(1);
-		}
-		printf("stopped scanner\n");
-	}
-
-	if (!strncmp(argv[1], "info", strlen(argv[1]))) {
-		used = 1;
-		fd_start = ioctl(fd, KSM_GET_INFO_KTHREAD, &info);
-		if (fd_start == -1) {
-			fprintf(stderr, "KSM_GET_INFO_KTHREAD failed\n");
-			exit(1);
-		}
-		printf("running %d, pages_to_scan %d pages_max_merge %d",
-			info.running, info.pages_to_scan,
-			info.max_pages_to_merge);
-		printf("sleep_time %d\n", info.sleep);
-	}
-
-	if (!used)
-		fprintf(stderr, "unknown command %s\n", argv[1]);
-
-	return 0;
-}
-
-
-example of how to register qemu to ksm (or any userspace application)
-
-diff --git a/qemu/vl.c b/qemu/vl.c
-index 4721fdd..7785bf9 100644
---- a/qemu/vl.c
-+++ b/qemu/vl.c
-@@ -21,6 +21,7 @@
-  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-  * DEALINGS IN
-  * THE SOFTWARE.
-  */
-+#include "ksm.h"
- #include "hw/hw.h"
- #include "hw/boards.h"
- #include "hw/usb.h"
-@@ -5799,6 +5800,37 @@ static void termsig_setup(void)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ffee2f7..4da7fa8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1207,6 +1207,9 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
  
- #endif
++int replace_page(struct vm_area_struct *vma, struct page *oldpage,
++		 struct page *newpage, pte_t orig_pte, pgprot_t prot);
++
+ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ 			unsigned int foll_flags);
+ #define FOLL_WRITE	0x01	/* check pte is writable */
+diff --git a/mm/memory.c b/mm/memory.c
+index 164951c..b2c542c 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1472,6 +1472,74 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vm_insert_mixed);
  
-+int ksm_register_memory(void)
++/**
++ * replace _page - replace the pte mapping related to vm area between two pages
++ * (from oldpage to newpage)
++ * NOTE: you should take into consideration the impact on the VM when replacing
++ * anonymous pages with kernel non swappable pages.
++ */
++int replace_page(struct vm_area_struct *vma, struct page *oldpage,
++		 struct page *newpage, pte_t orig_pte, pgprot_t prot)
 +{
-+    int fd;
-+    int ksm_fd;
-+    int r = 1;
-+    struct ksm_memory_region ksm_region;
++	struct mm_struct *mm = vma->vm_mm;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep;
++	spinlock_t *ptl;
++	unsigned long addr;
++	int ret;
 +
-+    fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
-+    if (fd == -1)
-+        goto out;
++	BUG_ON(PageAnon(newpage));
 +
-+    ksm_fd = ioctl(fd, KSM_CREATE_SHARED_MEMORY_AREA);
-+    if (ksm_fd == -1)
-+        goto out_free;
++	ret = -EFAULT;
++	addr = page_address_in_vma(oldpage, vma);
++	if (addr == -EFAULT)
++		goto out;
 +
-+    ksm_region.npages = phys_ram_size / TARGET_PAGE_SIZE;
-+    ksm_region.addr = phys_ram_base;
-+    r = ioctl(ksm_fd, KSM_REGISTER_MEMORY_REGION, &ksm_region);
-+    if (r)
-+        goto out_free1;
++	pgd = pgd_offset(mm, addr);
++	if (!pgd_present(*pgd))
++		goto out;
 +
-+    return r;
++	pud = pud_offset(pgd, addr);
++	if (!pud_present(*pud))
++		goto out;
 +
-+out_free1:
-+    close(ksm_fd);
-+out_free:
-+    close(fd);
++	pmd = pmd_offset(pud, addr);
++	if (!pmd_present(*pmd))
++		goto out;
++
++	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	if (!ptep)
++		goto out;
++
++	if (!pte_same(*ptep, orig_pte)) {
++		pte_unmap_unlock(ptep, ptl);
++		goto out;
++	}
++
++	ret = 0;
++	get_page(newpage);
++	page_add_file_rmap(newpage);
++
++	flush_cache_page(vma, addr, pte_pfn(*ptep));
++	ptep_clear_flush(vma, addr, ptep);
++	set_pte_at(mm, addr, ptep, mk_pte(newpage, prot));
++
++	page_remove_rmap(oldpage, vma);
++	if (PageAnon(oldpage)) {
++		dec_mm_counter(mm, anon_rss);
++		inc_mm_counter(mm, file_rss);
++	}
++	put_page(oldpage);
++
++	pte_unmap_unlock(ptep, ptl);
++
 +out:
-+    return r;
++	return ret;
 +}
++EXPORT_SYMBOL(replace_page);
 +
- int main(int argc, char **argv)
- {
- #ifdef CONFIG_GDBSTUB
-@@ -6735,6 +6767,8 @@ int main(int argc, char **argv)
-     /* init the dynamic translator */
-     cpu_exec_init_all(tb_size * 1024 * 1024);
- 
-+    ksm_register_memory();
-+
-     bdrv_init();
- 
-     /* we always create the cdrom drive, even if no disk is there */
+ /*
+  * maps a range of physical memory into the requested pages. the old
+  * mappings are removed. any references to nonexistent pages results
+-- 
+1.6.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
