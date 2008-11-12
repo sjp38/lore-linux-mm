@@ -1,33 +1,87 @@
-Date: Tue, 11 Nov 2008 15:56:11 -0800
+Date: Tue, 11 Nov 2008 16:00:46 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/7] cpu alloc stage 2
-Message-Id: <20081111155611.93b978df.akpm@linux-foundation.org>
-In-Reply-To: <20081105231634.133252042@quilx.com>
-References: <20081105231634.133252042@quilx.com>
+Subject: Re: [PATCH -v2] mm: more likely reclaim MADV_SEQUENTIAL mappings
+Message-Id: <20081111160046.3dca031f.akpm@linux-foundation.org>
+In-Reply-To: <20081106095513.GA4639@cmpxchg.org>
+References: <20081106095513.GA4639@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: penberg@cs.helsinki.fi, linux-kernel@vger.kernel.org, linux-mm@kvack.org, travis@sgi.com, sfr@canb.auug.org.au, vegard.nossum@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, npiggin@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 05 Nov 2008 17:16:34 -0600
-Christoph Lameter <cl@linux-foundation.org> wrote:
+On Thu, 6 Nov 2008 10:55:13 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> The second stage of the cpu_alloc patchset can be pulled from
+> File pages mapped only in sequentially read mappings are perfect
+> reclaim canditates.
 > 
-> git.kernel.org/pub/scm/linux/kernel/git/christoph/work.git cpu_alloc_stage2
+> This patch makes these mappings behave like weak references, their
+> pages will be reclaimed unless they have a strong reference from a
+> normal mapping as well.
 > 
-> Stage 2 includes the conversion of the page allocator
-> and slub allocator to the use of the cpu allocator.
+> It changes the reclaim and the unmap path where they check if the page
+> has been referenced.  In both cases, accesses through sequentially
+> read mappings will be ignored.
 > 
-> It also includes the core of the atomic vs. interrupt cpu ops and uses those
-> for the vm statistics.
+> Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Nick Piggin <npiggin@suse.de>
+> ---
+> 
+> II: add likely()s to mitigate the extra branches a bit as to Nick's
+>     suggestion
+> 
+> Benchmark results from KOSAKI Motohiro:
+> 
+>     http://marc.info/?l=linux-mm&m=122485301925098&w=2
+> 
+>  mm/memory.c |    3 ++-
+>  mm/rmap.c   |   13 +++++++++++--
+>  2 files changed, 13 insertions(+), 3 deletions(-)
+> 
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -337,8 +337,17 @@ static int page_referenced_one(struct pa
+>  		goto out_unmap;
+>  	}
+>  
+> -	if (ptep_clear_flush_young_notify(vma, address, pte))
+> -		referenced++;
+> +	if (ptep_clear_flush_young_notify(vma, address, pte)) {
+> +		/*
+> +		 * Don't treat a reference through a sequentially read
+> +		 * mapping as such.  If the page has been used in
+> +		 * another mapping, we will catch it; if this other
+> +		 * mapping is already gone, the unmap path will have
+> +		 * set PG_referenced or activated the page.
+> +		 */
+> +		if (likely(!VM_SequentialReadHint(vma)))
+> +			referenced++;
+> +	}
+>  
+>  	/* Pretend the page is referenced if the task has the
+>  	   swap token and is in the middle of a page fault. */
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -759,7 +759,8 @@ static unsigned long zap_pte_range(struc
+>  			else {
+>  				if (pte_dirty(ptent))
+>  					set_page_dirty(page);
+> -				if (pte_young(ptent))
+> +				if (pte_young(ptent) &&
+> +				    likely(!VM_SequentialReadHint(vma)))
+>  					mark_page_accessed(page);
+>  				file_rss--;
+>  			}
 
-It all looks very nice to me.  It's a shame about the lack of any
-commonality with local_t though.
+Of course, in the majority of cases those applications which are
+performing sequential reads will have forgotten to call
+madvise(MADV_SEQUENTIAL).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
