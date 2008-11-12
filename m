@@ -1,93 +1,97 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAC4uU3x017695
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 12 Nov 2008 13:56:31 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CD8BE45DE3D
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 13:56:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D64D1EF085
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 13:56:30 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FD79E08001
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 13:56:30 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D7691DB803E
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 13:56:25 +0900 (JST)
-Date: Wed, 12 Nov 2008 13:55:48 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] [BUGFIX]cgroup: fix potential deadlock in pre_destroy.
-Message-Id: <20081112135548.74503b7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <491A6163.4040100@linux.vnet.ibm.com>
-References: <20081112133002.15c929c3.kamezawa.hiroyu@jp.fujitsu.com>
-	<491A6163.4040100@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mAC52UYd011297
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 22:02:30 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAC53M33092410
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 22:03:22 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAC52rA9010374
+	for <linux-mm@kvack.org>; Tue, 11 Nov 2008 22:02:53 -0700
+Date: Tue, 11 Nov 2008 23:03:19 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v9][PATCH 00/13] Kernel based checkpoint/restart
+Message-ID: <20081112050319.GA3687@us.ibm.com>
+References: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Nov 2008 10:23:55 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > Balbir, Paul, Li, How about this ?
-> > =
-> > As Balbir pointed out, memcg's pre_destroy handler has potential deadlock.
-> > 
-> > It has following lock sequence.
-> > 
-> > 	cgroup_mutex (cgroup_rmdir)
-> > 	    -> pre_destroy
-> > 		-> mem_cgroup_pre_destroy
-> > 			-> force_empty
-> > 			   -> lru_add_drain_all->
-> > 			      -> schedule_work_on_all_cpus
-> >                                  -> get_online_cpus -> cpuhotplug.lock.
-> > 
-> > But, cpuset has following.
-> > 	cpu_hotplug.lock (call notifier)
-> > 		-> cgroup_mutex. (within notifier)
-> > 
-> > Then, this lock sequence should be fixed.
-> > 
-> > Considering how pre_destroy works, it's not necessary to holding
-> > cgroup_mutex() while calling it. 
-> > 
-> > As side effect, we don't have to wait at this mutex while memcg's force_empty
-> > works.(it can be long when there are tons of pages.)
-> > 
-> > Note: memcg is an only user of pre_destroy, now.
-> > 
+Quoting Oren Laadan (orenl@cs.columbia.edu):
+> Checkpoint-restart (c/r): v9 adds support for multiple processes.
+> (rebase to v2.6.28-rc3).
 > 
-> I thought about this and it seems promising. My concern is that with
-> cgroup_mutex given, the state of cgroup within pre-destroy will be
-> unpredictable. I suspect, if pre-destory really needs cgroup_mutex, we can hold
-> it within pre-destroy.
-> 
-I agree.
+> We'd like to see these make their way into -mm. All comments have
+> been addressed in this version. Please pull at least the first 11
+> patches, as they are similar to before.
 
-> BTW, your last check, does not seem right
-> 
-> +	if (atomic_read(&cgrp->count)
-> +	    || list_empty(&cgrp->children)
-> 
-> Why should list_empty() result in EBUSY, shouldn't it be !list_empty()?
-> 
-> +	    || cgroup_has_css_refs(cgrp)) {
->
-Oh, my bad...
+With the trivial fix to patch 5 I sent earlier, I've been running the
+following e2loop.sh for a few hours with no problems (the counter is at
+2412).  Also did 500 concurrent checkpoints of the same process.
 
-will fix soon.
+Oren, can you re-post an updated patch 5?
 
-Thanks,
--Kame
+Andrew, would you mind (once Oren reposts patch 5) giving the
+first 11 patches a chance in -mm?
 
+thanks,
+-serge
 
+===============
+e2loop.sh:
+===============
+cnt=1
+/usr/src/ns_exec -m /root/e2 &
+while [ 1 ]; do
+        /usr/src/cr `pidof e2` o.$cnt
+        kill -9 `pidof e2`
+        echo 5 > /root/e2out
+        cntin=`cat /root/e2out`
+        echo "i reset e2out to $cntin"
+        #/usr/src/rstr < /root/o.$cnt &
+        /usr/src/ns_exec -m /usr/src/rstr /root/o.$cnt &
+        cnt=$((cnt+1))
+        sleep 10
+        cntin=`cat /root/e2out`
+        echo "cnt is $cnt, e2out has $cntin"
+done
 
+===============
+e2.c:
+===============
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int main()
+{
+	int cnt=0;
+	FILE *f;
+	char fnam[20];
+
+	close(0); close(1); close(2); close(3);
+	f = fopen("e2out", "r");
+	if (!f)
+		cnt = 1;
+	else {
+		fscanf(f, "%d", &cnt);
+		fclose(f);
+	}
+	for (;;) {
+		sleep(5);
+		f = fopen("e2out", "w");
+		if (!f)
+			return 1;
+		fprintf(f, "%d", ++cnt);
+		fclose(f);
+	}
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
