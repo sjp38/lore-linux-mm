@@ -1,49 +1,62 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAC41xm4016642
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:01:59 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAC40uQE2125834
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:00:56 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAC40lYF023354
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:00:47 +1100
-Message-ID: <491A54EB.3020500@linux.vnet.ibm.com>
-Date: Wed, 12 Nov 2008 09:30:43 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [RFC][mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v3)
-References: <20081111123314.6566.54133.sendpatchset@balbir-laptop> <20081111123417.6566.52629.sendpatchset@balbir-laptop> <20081112125204.a92816cc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081112125204.a92816cc.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Wed, 12 Nov 2008 13:17:01 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [RFC][PATCH 4/6] memcg: swap cgroup for remembering account
+Message-Id: <20081112131701.dbb7d003.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20081112122949.d17bbc7f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081112122949.d17bbc7f.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Tue, 11 Nov 2008 18:04:17 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
->> +
->> +		/*
->> +		 * We need to give up the cgroup lock if it is held, since
->> +		 * it creates the potential for deadlock. cgroup_mutex should
->> +		 * be acquired after cpu_hotplug lock. In this path, we
->> +		 * acquire the cpu_hotplug lock after acquiring the cgroup_mutex
->> +		 * Giving it up should be OK
->> +		 */
->> +		if (cgroup_locked)
->> +			cgroup_unlock();
-> 
-> nice catch. I'll post a fix to this as its own patch. 
+> +/**
+> + * lookup_swap_cgroup - lookup mem_cgroup tied to swap entry
+> + * @ent: swap entry to be looked up.
+> + *
+> + * Returns pointer to mem_cgroup at success. NULL at failure.
+> + */
+> +struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+> +{
+> +	int type = swp_type(ent);
+> +	unsigned long flags;
+> +	unsigned long offset = swp_offset(ent);
+> +	unsigned long idx = offset / SC_PER_PAGE;
+> +	unsigned long pos = offset & SC_POS_MASK;
+> +	struct swap_cgroup_ctrl *ctrl;
+> +	struct page *mappage;
+> +	struct swap_cgroup *sc;
+> +	struct mem_cgroup *ret;
+> +
+> +	if (!do_swap_account)
+> +		return NULL;
+> +
+> +	ctrl = &swap_cgroup_ctrl[type];
+> +
+> +	mappage = ctrl->map[idx];
+> +
+> +	spin_lock_irqsave(&ctrl->lock, flags);
+> +	sc = kmap_atomic(mappage, KM_USER0);
+> +	sc += pos;
+> +	ret = sc->val;
+> +	kunmap_atomic(mapppage, KM_USER0);
+s/mapppage/mappage
 
-Sure, feel free to add my signed-off-by on it.
+I don't know why I didn't notice this while testing previous version.
 
--- 
-	Balbir
+
+Thanks,
+Daisuke Nishimura.
+
+> +	spin_unlock_irqrestore(&ctrl->lock, flags);
+> +	return ret;
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
