@@ -1,74 +1,1049 @@
-Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
-	one page into another
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <Pine.LNX.4.64.0811121412130.31606@quilx.com>
-References: <1226409701-14831-3-git-send-email-ieidus@redhat.com>
-	 <20081111114555.eb808843.akpm@linux-foundation.org>
-	 <20081111210655.GG10818@random.random>
-	 <Pine.LNX.4.64.0811111522150.27767@quilx.com>
-	 <20081111221753.GK10818@random.random>
-	 <Pine.LNX.4.64.0811111626520.29222@quilx.com>
-	 <20081111231722.GR10818@random.random>
-	 <Pine.LNX.4.64.0811111823030.31625@quilx.com>
-	 <20081112022701.GT10818@random.random>
-	 <Pine.LNX.4.64.0811112109390.10501@quilx.com>
-	 <20081112173258.GX10818@random.random>
-	 <Pine.LNX.4.64.0811121412130.31606@quilx.com>
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e34.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mACMEbZB012052
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:14:37 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mACMF2Qs112668
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:15:02 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mACMF1aa014792
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:15:02 -0700
+Subject: Re: [PATCH] [REPOST #2] mm: show node to memory section
+	relationship with symlinks in sysfs
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20081103234808.GA13716@us.ibm.com>
+References: <20081103234808.GA13716@us.ibm.com>
 Content-Type: text/plain
-Date: Wed, 12 Nov 2008 17:09:03 -0500
-Message-Id: <1226527744.7560.93.camel@lts-notebook>
+Date: Wed, 12 Nov 2008 14:16:15 -0800
+Message-Id: <1226528175.4835.18.camel@badari-desktop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
+To: Gary Hade <garyhade@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-11-12 at 14:27 -0600, Christoph Lameter wrote:
-> On Wed, 12 Nov 2008, Andrea Arcangeli wrote:
+On Mon, 2008-11-03 at 15:48 -0800, Gary Hade wrote:
+> Show node to memory section relationship with symlinks in sysfs
 > 
-> > On Tue, Nov 11, 2008 at 09:10:45PM -0600, Christoph Lameter wrote:
-> > > get_user_pages() cannot get to it since the pagetables have already been
-> > > modified. If get_user_pages runs then the fault handling will occur
-> > > which will block the thread until migration is complete.
-> >
-> > migrate.c does nothing for ptes pointing to swap entries and
-> > do_swap_page won't wait for them either. Assume follow_page in
+> Add /sys/devices/system/node/nodeX/memoryY symlinks for all
+> the memory sections located on nodeX.  For example:
+> /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
+> indicates that memory section 135 resides on node1.
 > 
-> If a anonymous page is a swap page then it has a mapping.
-> migrate_page_move_mapping() will lock the radix tree and ensure that no
-> additional reference (like done by do_swap_page) is established during
-> migration.
-
-So, it's Nick's reference freezing you asked about in response to my
-mail that prevents do_swap_page() from getting another reference on the
-page in the swap cache just after migrate_page_move_mapping() checks the
-ref count and replaces the slot with new swap pte.  Radix tree lock just
-prevents other threads from modifying the slot, right?  [Hmmm, looks
-like we need to update the reference to "write lock" in the comments on
-the 'deref_slot() and _replace_slot() definitions in radix-tree.h.]  
-
-Therefore, do_swap_page() will either get the old page and raise the ref
-before migration check, or it will [possibly loop in find_get_page() and
-then] get the new page.
-
-Migration will bail out, for this pass anyway, in the former case.  In
-the second case, do_swap_page() will wait on the new page lock until
-migration completes, deferring any direct IO. 
-
-Or am I still missing something?
-
+> Also revises documentation to cover this change as well as updating
+> Documentation/ABI/testing/sysfs-devices-memory to include descriptions
+> of memory hotremove files 'phys_device', 'phys_index', and 'state'
+> that were previously not described there.
 > 
-> > However it's not exactly the same bug as the one in fork, I was
-> > talking about before, it's also not o_direct specific. Still
+> In addition to it always being a good policy to provide users with
+> the maximum possible amount of physical location information for
+> resources that can be hot-added and/or hot-removed, the following
+> are some (but likely not all) of the user benefits provided by
+> this change.
+> Immediate:
+>   - Provides information needed to determine the specific node
+>     on which a defective DIMM is located.  This will reduce system
+>     downtime when the node or defective DIMM is swapped out.
+>   - Prevents unintended onlining of a memory section that was 
+>     previously offlined due to a defective DIMM.  This could happen
+>     during node hot-add when the user or node hot-add assist script
+>     onlines _all_ offlined sections due to user or script inability
+>     to identify the specific memory sections located on the hot-added
+>     node.  The consequences of reintroducing the defective memory
+>     could be ugly.
+>   - Provides information needed to vary the amount and distribution
+>     of memory on specific nodes for testing or debugging purposes.
+> Future:
+>   - Will provide information needed to identify the memory
+>     sections that need to be offlined prior to physical removal
+>     of a specific node.
 > 
-> So far I have seen wild ideas not bugs.
+> Symlink creation during boot was tested on 2-node x86_64, 2-node
+> ppc64, and 2-node ia64 systems.  Symlink creation during physical
+> memory hot-add tested on a 2-node x86_64 system.
+> 
+> Supersedes the "mm: show memory section to node relationship in sysfs"
+> patch posted on 05 Sept 2008 which created node ID containing 'node'
+> files in /sys/devices/system/memory/memoryX instead of symlinks.
+> Changed from files to symlinks due to feedback that symlinks were
+> more consistent with the sysfs way.
+> 
+> Supersedes the "mm: show node to memory section relationship with
+> symlinks in sysfs" patch posted on 29 Sept 2008 to address a Yasunori
+> Goto reported problem where an incorrect symlink was created due to
+> a range of uninitialized pages at the beginning of a section.  This
+> problem which produced a symlink in /sys/devices/system/node/node0
+> that incorrectly referenced a mem section located on node1 is corrected
+> in this version.  This version also covers the case were a mem section
+> could span multiple nodes.
+> 
+> Supersedes the "mm: show node to memory section relationship with
+> symlinks in sysfs" patch posted on 09 Oct 2008 to add the Andrew
+> Morton requested usefulness information and update to apply cleanly
+> to 2.6.28-rc3 and 2.6-git.  Code is unchanged.
+> 
+> Signed-off-by: Gary Hade <garyhade@us.ibm.com>
+> Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
+> 
 
-Maybe not so wild, given the complexity of these interactions... 
+Hi Gary,
 
-Later,
-Lee
+While testing latest mmtom (which has this patch) ran into an issue
+with sysfs files. What I noticed was, with this patch "memoryXX"
+directories in /sys/devices/system/memory/ are not getting cleaned up.
+Backing out the patch seems to fix the problem. 
+
+When I tried to remove 64 blocks of memory, empty  directories are
+stayed around. (look at memory151 - memory215). This is causing OOPS
+while trying to add memory block again. I think this could be because 
+of the symlink added from node directory.  Can you look ?
+
+Thanks,
+Badari
+
+.
+./memory0
+./memory0/phys_index
+./memory0/state
+./memory0/phys_device
+./memory0/removable
+./memory1
+./memory1/phys_index
+./memory1/state
+./memory1/phys_device
+./memory1/removable
+./memory2
+./memory2/phys_index
+./memory2/state
+./memory2/phys_device
+./memory2/removable
+./memory3
+./memory3/phys_index
+./memory3/state
+./memory3/phys_device
+./memory3/removable
+./memory4
+./memory4/phys_index
+./memory4/state
+./memory4/phys_device
+./memory4/removable
+./memory5
+./memory5/phys_index
+./memory5/state
+./memory5/phys_device
+./memory5/removable
+./memory6
+./memory6/phys_index
+./memory6/state
+./memory6/phys_device
+./memory6/removable
+./memory7
+./memory7/phys_index
+./memory7/state
+./memory7/phys_device
+./memory7/removable
+./memory8
+./memory8/phys_index
+./memory8/state
+./memory8/phys_device
+./memory8/removable
+./memory9
+./memory9/phys_index
+./memory9/state
+./memory9/phys_device
+./memory9/removable
+./memory10
+./memory10/phys_index
+./memory10/state
+./memory10/phys_device
+./memory10/removable
+./memory11
+./memory11/phys_index
+./memory11/state
+./memory11/phys_device
+./memory11/removable
+./memory12
+./memory12/phys_index
+./memory12/state
+./memory12/phys_device
+./memory12/removable
+./memory13
+./memory13/phys_index
+./memory13/state
+./memory13/phys_device
+./memory13/removable
+./memory14
+./memory14/phys_index
+./memory14/state
+./memory14/phys_device
+./memory14/removable
+./memory15
+./memory15/phys_index
+./memory15/state
+./memory15/phys_device
+./memory15/removable
+./memory16
+./memory16/phys_index
+./memory16/state
+./memory16/phys_device
+./memory16/removable
+./memory17
+./memory17/phys_index
+./memory17/state
+./memory17/phys_device
+./memory17/removable
+./memory18
+./memory18/phys_index
+./memory18/state
+./memory18/phys_device
+./memory18/removable
+./memory19
+./memory19/phys_index
+./memory19/state
+./memory19/phys_device
+./memory19/removable
+./memory20
+./memory20/phys_index
+./memory20/state
+./memory20/phys_device
+./memory20/removable
+./memory21
+./memory21/phys_index
+./memory21/state
+./memory21/phys_device
+./memory21/removable
+./memory22
+./memory22/phys_index
+./memory22/state
+./memory22/phys_device
+./memory22/removable
+./memory23
+./memory23/phys_index
+./memory23/state
+./memory23/phys_device
+./memory23/removable
+./memory24
+./memory24/phys_index
+./memory24/state
+./memory24/phys_device
+./memory24/removable
+./memory25
+./memory25/phys_index
+./memory25/state
+./memory25/phys_device
+./memory25/removable
+./memory26
+./memory26/phys_index
+./memory26/state
+./memory26/phys_device
+./memory26/removable
+./memory27
+./memory27/phys_index
+./memory27/state
+./memory27/phys_device
+./memory27/removable
+./memory28
+./memory28/phys_index
+./memory28/state
+./memory28/phys_device
+./memory28/removable
+./memory29
+./memory29/phys_index
+./memory29/state
+./memory29/phys_device
+./memory29/removable
+./memory30
+./memory30/phys_index
+./memory30/state
+./memory30/phys_device
+./memory30/removable
+./memory31
+./memory31/phys_index
+./memory31/state
+./memory31/phys_device
+./memory31/removable
+./memory32
+./memory32/phys_index
+./memory32/state
+./memory32/phys_device
+./memory32/removable
+./memory33
+./memory33/phys_index
+./memory33/state
+./memory33/phys_device
+./memory33/removable
+./memory34
+./memory34/phys_index
+./memory34/state
+./memory34/phys_device
+./memory34/removable
+./memory35
+./memory35/phys_index
+./memory35/state
+./memory35/phys_device
+./memory35/removable
+./memory36
+./memory36/phys_index
+./memory36/state
+./memory36/phys_device
+./memory36/removable
+./memory37
+./memory37/phys_index
+./memory37/state
+./memory37/phys_device
+./memory37/removable
+./memory38
+./memory38/phys_index
+./memory38/state
+./memory38/phys_device
+./memory38/removable
+./memory39
+./memory39/phys_index
+./memory39/state
+./memory39/phys_device
+./memory39/removable
+./memory40
+./memory40/phys_index
+./memory40/state
+./memory40/phys_device
+./memory40/removable
+./memory41
+./memory41/phys_index
+./memory41/state
+./memory41/phys_device
+./memory41/removable
+./memory42
+./memory42/phys_index
+./memory42/state
+./memory42/phys_device
+./memory42/removable
+./memory43
+./memory43/phys_index
+./memory43/state
+./memory43/phys_device
+./memory43/removable
+./memory44
+./memory44/phys_index
+./memory44/state
+./memory44/phys_device
+./memory44/removable
+./memory45
+./memory45/phys_index
+./memory45/state
+./memory45/phys_device
+./memory45/removable
+./memory46
+./memory46/phys_index
+./memory46/state
+./memory46/phys_device
+./memory46/removable
+./memory47
+./memory47/phys_index
+./memory47/state
+./memory47/phys_device
+./memory47/removable
+./memory48
+./memory48/phys_index
+./memory48/state
+./memory48/phys_device
+./memory48/removable
+./memory49
+./memory49/phys_index
+./memory49/state
+./memory49/phys_device
+./memory49/removable
+./memory50
+./memory50/phys_index
+./memory50/state
+./memory50/phys_device
+./memory50/removable
+./memory51
+./memory51/phys_index
+./memory51/state
+./memory51/phys_device
+./memory51/removable
+./memory52
+./memory52/phys_index
+./memory52/state
+./memory52/phys_device
+./memory52/removable
+./memory53
+./memory53/phys_index
+./memory53/state
+./memory53/phys_device
+./memory53/removable
+./memory54
+./memory54/phys_index
+./memory54/state
+./memory54/phys_device
+./memory54/removable
+./memory55
+./memory55/phys_index
+./memory55/state
+./memory55/phys_device
+./memory55/removable
+./memory56
+./memory56/phys_index
+./memory56/state
+./memory56/phys_device
+./memory56/removable
+./memory57
+./memory57/phys_index
+./memory57/state
+./memory57/phys_device
+./memory57/removable
+./memory58
+./memory58/phys_index
+./memory58/state
+./memory58/phys_device
+./memory58/removable
+./memory59
+./memory59/phys_index
+./memory59/state
+./memory59/phys_device
+./memory59/removable
+./memory60
+./memory60/phys_index
+./memory60/state
+./memory60/phys_device
+./memory60/removable
+./memory61
+./memory61/phys_index
+./memory61/state
+./memory61/phys_device
+./memory61/removable
+./memory62
+./memory62/phys_index
+./memory62/state
+./memory62/phys_device
+./memory62/removable
+./memory63
+./memory63/phys_index
+./memory63/state
+./memory63/phys_device
+./memory63/removable
+./memory64
+./memory64/phys_index
+./memory64/state
+./memory64/phys_device
+./memory64/removable
+./memory65
+./memory65/phys_index
+./memory65/state
+./memory65/phys_device
+./memory65/removable
+./memory66
+./memory66/phys_index
+./memory66/state
+./memory66/phys_device
+./memory66/removable
+./memory67
+./memory67/phys_index
+./memory67/state
+./memory67/phys_device
+./memory67/removable
+./memory68
+./memory68/phys_index
+./memory68/state
+./memory68/phys_device
+./memory68/removable
+./memory69
+./memory69/phys_index
+./memory69/state
+./memory69/phys_device
+./memory69/removable
+./memory70
+./memory70/phys_index
+./memory70/state
+./memory70/phys_device
+./memory70/removable
+./memory71
+./memory71/phys_index
+./memory71/state
+./memory71/phys_device
+./memory71/removable
+./memory72
+./memory72/phys_index
+./memory72/state
+./memory72/phys_device
+./memory72/removable
+./memory73
+./memory73/phys_index
+./memory73/state
+./memory73/phys_device
+./memory73/removable
+./memory74
+./memory74/phys_index
+./memory74/state
+./memory74/phys_device
+./memory74/removable
+./memory75
+./memory75/phys_index
+./memory75/state
+./memory75/phys_device
+./memory75/removable
+./memory76
+./memory76/phys_index
+./memory76/state
+./memory76/phys_device
+./memory76/removable
+./memory77
+./memory77/phys_index
+./memory77/state
+./memory77/phys_device
+./memory77/removable
+./memory78
+./memory78/phys_index
+./memory78/state
+./memory78/phys_device
+./memory78/removable
+./memory79
+./memory79/phys_index
+./memory79/state
+./memory79/phys_device
+./memory79/removable
+./memory80
+./memory80/phys_index
+./memory80/state
+./memory80/phys_device
+./memory80/removable
+./memory81
+./memory81/phys_index
+./memory81/state
+./memory81/phys_device
+./memory81/removable
+./memory82
+./memory82/phys_index
+./memory82/state
+./memory82/phys_device
+./memory82/removable
+./memory83
+./memory83/phys_index
+./memory83/state
+./memory83/phys_device
+./memory83/removable
+./memory84
+./memory84/phys_index
+./memory84/state
+./memory84/phys_device
+./memory84/removable
+./memory85
+./memory85/phys_index
+./memory85/state
+./memory85/phys_device
+./memory85/removable
+./memory86
+./memory86/phys_index
+./memory86/state
+./memory86/phys_device
+./memory86/removable
+./memory87
+./memory87/phys_index
+./memory87/state
+./memory87/phys_device
+./memory87/removable
+./memory88
+./memory88/phys_index
+./memory88/state
+./memory88/phys_device
+./memory88/removable
+./memory89
+./memory89/phys_index
+./memory89/state
+./memory89/phys_device
+./memory89/removable
+./memory90
+./memory90/phys_index
+./memory90/state
+./memory90/phys_device
+./memory90/removable
+./memory91
+./memory91/phys_index
+./memory91/state
+./memory91/phys_device
+./memory91/removable
+./memory92
+./memory92/phys_index
+./memory92/state
+./memory92/phys_device
+./memory92/removable
+./memory93
+./memory93/phys_index
+./memory93/state
+./memory93/phys_device
+./memory93/removable
+./memory94
+./memory94/phys_index
+./memory94/state
+./memory94/phys_device
+./memory94/removable
+./memory95
+./memory95/phys_index
+./memory95/state
+./memory95/phys_device
+./memory95/removable
+./memory96
+./memory96/phys_index
+./memory96/state
+./memory96/phys_device
+./memory96/removable
+./memory97
+./memory97/phys_index
+./memory97/state
+./memory97/phys_device
+./memory97/removable
+./memory98
+./memory98/phys_index
+./memory98/state
+./memory98/phys_device
+./memory98/removable
+./memory99
+./memory99/phys_index
+./memory99/state
+./memory99/phys_device
+./memory99/removable
+./memory100
+./memory100/phys_index
+./memory100/state
+./memory100/phys_device
+./memory100/removable
+./memory101
+./memory101/phys_index
+./memory101/state
+./memory101/phys_device
+./memory101/removable
+./memory102
+./memory102/phys_index
+./memory102/state
+./memory102/phys_device
+./memory102/removable
+./memory103
+./memory103/phys_index
+./memory103/state
+./memory103/phys_device
+./memory103/removable
+./memory104
+./memory104/phys_index
+./memory104/state
+./memory104/phys_device
+./memory104/removable
+./memory105
+./memory105/phys_index
+./memory105/state
+./memory105/phys_device
+./memory105/removable
+./memory106
+./memory106/phys_index
+./memory106/state
+./memory106/phys_device
+./memory106/removable
+./memory107
+./memory107/phys_index
+./memory107/state
+./memory107/phys_device
+./memory107/removable
+./memory108
+./memory108/phys_index
+./memory108/state
+./memory108/phys_device
+./memory108/removable
+./memory109
+./memory109/phys_index
+./memory109/state
+./memory109/phys_device
+./memory109/removable
+./memory110
+./memory110/phys_index
+./memory110/state
+./memory110/phys_device
+./memory110/removable
+./memory111
+./memory111/phys_index
+./memory111/state
+./memory111/phys_device
+./memory111/removable
+./memory112
+./memory112/phys_index
+./memory112/state
+./memory112/phys_device
+./memory112/removable
+./memory113
+./memory113/phys_index
+./memory113/state
+./memory113/phys_device
+./memory113/removable
+./memory114
+./memory114/phys_index
+./memory114/state
+./memory114/phys_device
+./memory114/removable
+./memory115
+./memory115/phys_index
+./memory115/state
+./memory115/phys_device
+./memory115/removable
+./memory116
+./memory116/phys_index
+./memory116/state
+./memory116/phys_device
+./memory116/removable
+./memory117
+./memory117/phys_index
+./memory117/state
+./memory117/phys_device
+./memory117/removable
+./memory118
+./memory118/phys_index
+./memory118/state
+./memory118/phys_device
+./memory118/removable
+./memory119
+./memory119/phys_index
+./memory119/state
+./memory119/phys_device
+./memory119/removable
+./memory120
+./memory120/phys_index
+./memory120/state
+./memory120/phys_device
+./memory120/removable
+./memory121
+./memory121/phys_index
+./memory121/state
+./memory121/phys_device
+./memory121/removable
+./memory122
+./memory122/phys_index
+./memory122/state
+./memory122/phys_device
+./memory122/removable
+./memory123
+./memory123/phys_index
+./memory123/state
+./memory123/phys_device
+./memory123/removable
+./memory124
+./memory124/phys_index
+./memory124/state
+./memory124/phys_device
+./memory124/removable
+./memory125
+./memory125/phys_index
+./memory125/state
+./memory125/phys_device
+./memory125/removable
+./memory126
+./memory126/phys_index
+./memory126/state
+./memory126/phys_device
+./memory126/removable
+./memory127
+./memory127/phys_index
+./memory127/state
+./memory127/phys_device
+./memory127/removable
+./memory128
+./memory128/phys_index
+./memory128/state
+./memory128/phys_device
+./memory128/removable
+./memory129
+./memory129/phys_index
+./memory129/state
+./memory129/phys_device
+./memory129/removable
+./memory130
+./memory130/phys_index
+./memory130/state
+./memory130/phys_device
+./memory130/removable
+./memory131
+./memory131/phys_index
+./memory131/state
+./memory131/phys_device
+./memory131/removable
+./memory132
+./memory132/phys_index
+./memory132/state
+./memory132/phys_device
+./memory132/removable
+./memory133
+./memory133/phys_index
+./memory133/state
+./memory133/phys_device
+./memory133/removable
+./memory134
+./memory134/phys_index
+./memory134/state
+./memory134/phys_device
+./memory134/removable
+./memory135
+./memory135/phys_index
+./memory135/state
+./memory135/phys_device
+./memory135/removable
+./memory136
+./memory136/phys_index
+./memory136/state
+./memory136/phys_device
+./memory136/removable
+./memory137
+./memory137/phys_index
+./memory137/state
+./memory137/phys_device
+./memory137/removable
+./memory138
+./memory138/phys_index
+./memory138/state
+./memory138/phys_device
+./memory138/removable
+./memory139
+./memory139/phys_index
+./memory139/state
+./memory139/phys_device
+./memory139/removable
+./memory140
+./memory140/phys_index
+./memory140/state
+./memory140/phys_device
+./memory140/removable
+./memory141
+./memory141/phys_index
+./memory141/state
+./memory141/phys_device
+./memory141/removable
+./memory142
+./memory142/phys_index
+./memory142/state
+./memory142/phys_device
+./memory142/removable
+./memory143
+./memory143/phys_index
+./memory143/state
+./memory143/phys_device
+./memory143/removable
+./memory144
+./memory144/phys_index
+./memory144/state
+./memory144/phys_device
+./memory144/removable
+./memory145
+./memory145/phys_index
+./memory145/state
+./memory145/phys_device
+./memory145/removable
+./memory146
+./memory146/phys_index
+./memory146/state
+./memory146/phys_device
+./memory146/removable
+./memory147
+./memory147/phys_index
+./memory147/state
+./memory147/phys_device
+./memory147/removable
+./memory148
+./memory148/phys_index
+./memory148/state
+./memory148/phys_device
+./memory148/removable
+./memory149
+./memory149/phys_index
+./memory149/state
+./memory149/phys_device
+./memory149/removable
+./memory150
+./memory150/phys_index
+./memory150/state
+./memory150/phys_device
+./memory150/removable
+./memory151
+./memory151/phys_index
+./memory151/state
+./memory151/phys_device
+./memory151/removable
+./memory152
+./memory152/phys_index
+./memory152/state
+./memory152/phys_device
+./memory152/removable
+./memory153
+./memory252
+./memory252/phys_index
+./memory252/state
+./memory252/phys_device
+./memory252/removable
+./memory154
+./memory253
+./memory253/phys_index
+./memory253/state
+./memory253/phys_device
+./memory253/removable
+./memory155
+./memory156
+./memory254
+./memory254/phys_index
+./memory254/state
+./memory254/phys_device
+./memory254/removable
+./memory157
+./memory255
+./memory255/phys_index
+./memory255/state
+./memory255/phys_device
+./memory255/removable
+./memory158
+./memory159
+./memory160
+./memory161
+./memory162
+./memory163
+./memory164
+./memory165
+./memory166
+./memory167
+./memory168
+./memory169
+./memory170
+./memory171
+./memory172
+./memory173
+./memory174
+./memory175
+./memory176
+./memory177
+./memory178
+./memory179
+./memory180
+./memory181
+./memory182
+./memory183
+./memory184
+./memory185
+./memory186
+./memory187
+./memory188
+./memory189
+./memory190
+./memory191
+./memory192
+./memory193
+./memory194
+./memory195
+./memory196
+./memory197
+./memory198
+./memory199
+./memory200
+./memory201
+./memory202
+./memory203
+./memory204
+./memory205
+./memory206
+./memory207
+./memory208
+./memory209
+./memory210
+./memory211
+./memory212
+./memory213
+./memory214
+./memory215
+./memory216
+./memory216/phys_index
+./memory216/state
+./memory216/phys_device
+./memory216/removable
+./memory217
+./memory218
+./memory218/phys_index
+./memory218/state
+./memory218/phys_device
+./memory218/removable
+./memory219
+./memory219/phys_index
+./memory219/state
+./memory219/phys_device
+./memory219/removable
+./memory220
+./memory220/phys_index
+./memory220/state
+./memory220/phys_device
+./memory220/removable
+./memory221
+./memory221/phys_index
+./memory221/state
+./memory221/phys_device
+./memory221/removable
+./memory222
+./memory222/phys_index
+./memory222/state
+./memory222/phys_device
+./memory222/removable
+./memory223
+./memory223/phys_index
+./memory223/state
+./memory223/phys_device
+./memory223/removable
+./memory224
+./memory224/phys_index
+./memory224/state
+./memory224/phys_device
+./memory224/removable
+./memory225
+./memory225/phys_index
+./memory225/state
+./memory225/phys_device
+./memory225/removable
+./memory226
+./memory226/phys_index
+./memory226/state
+./memory226/phys_device
+./memory226/removable
+./memory227
+./memory227/phys_index
+./memory227/state
+./memory227/phys_device
+./memory227/removable
+./memory228
+./memory228/phys_index
+./memory228/state
+./memory228/phys_device
+./memory228/removable
+./memory229
+./memory229/phys_index
+./memory229/state
+./memory229/phys_device
+./memory229/removable
+./memory230
+./memory230/phys_index
+./memory230/state
+./memory230/phys_device
+./memory230/removable
+./memory231
+./memory231/phys_index
+./memory231/state
+./memory231/phys_device
+./memory231/removable
+./memory232
+./memory232/phys_index
+./memory232/state
+./memory232/phys_device
+./memory232/removable
+./memory233
+./memory233/phys_index
+./memory233/state
+./memory233/phys_device
+./memory233/removable
+./memory234
+./memory234/phys_index
+./memory234/state
+./memory234/phys_device
+./memory234/removable
+./probe
+./block_size_bytes
 
 
 --
