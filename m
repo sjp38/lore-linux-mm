@@ -1,54 +1,56 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAC3qgeW024040
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 12 Nov 2008 12:52:42 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E41545DD79
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:52:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 365F845DD77
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:52:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CDE041DB803C
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:52:41 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E7291DB803A
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:52:41 +0900 (JST)
-Date: Wed, 12 Nov 2008 12:52:04 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v3)
-Message-Id: <20081112125204.a92816cc.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081111123417.6566.52629.sendpatchset@balbir-laptop>
-References: <20081111123314.6566.54133.sendpatchset@balbir-laptop>
-	<20081111123417.6566.52629.sendpatchset@balbir-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAC3x2V8031532
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 14:59:02 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAC40Wxi3416104
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:00:35 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAC40Nrc022856
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 15:00:24 +1100
+Message-ID: <491A54D5.4030006@linux.vnet.ibm.com>
+Date: Wed, 12 Nov 2008 09:30:21 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 0/6] memcg updates (12/Nov/2008)
+References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Nov 2008 18:04:17 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+KAMEZAWA Hiroyuki wrote:
+> Weekly updates on my queue.
+> 
+> Changes from previous (05/Nov)
+>  - added "free all at rmdir" patch.
+>  - fixed several bugs reported by Nishimura (Thanks!)
+>  - many style bugs are fixed.
+> 
+> Brief description:
+> [1/6].. free all at rmdir (and add attribute to memcg.)
+> [2/6].. handle swap cache
+> [3/6].. mem+swap controller kconfig
+> [4/6].. swap_cgroup
+> [5/6].. mem+swap controller
+> [6/6].. synchrinized LRU (unify lru lock.)
+> 
+> I think it's near to a month to test this mem+swap controller internally.
+> It's getting better. Making progress in step by step works good.
+> 
+> I'll send [1/6] and [2/6] to Andrew, tomorrow or weekend.(please do final check).
+> 
+> If no acks to [1/6] (I haven't got any ;), I'll postpone it and reschedule as [7/6].
 
-> +
-> +		/*
-> +		 * We need to give up the cgroup lock if it is held, since
-> +		 * it creates the potential for deadlock. cgroup_mutex should
-> +		 * be acquired after cpu_hotplug lock. In this path, we
-> +		 * acquire the cpu_hotplug lock after acquiring the cgroup_mutex
-> +		 * Giving it up should be OK
-> +		 */
-> +		if (cgroup_locked)
-> +			cgroup_unlock();
+Sorry, I have not looked at the patches yet, I am busy with the hierarchy
+patches and number extraction.
 
-nice catch. I'll post a fix to this as its own patch. 
-
-Thanks,
--Kame
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
