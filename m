@@ -1,38 +1,56 @@
-Date: Tue, 11 Nov 2008 21:10:45 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
- one page into another
-In-Reply-To: <20081112022701.GT10818@random.random>
-Message-ID: <Pine.LNX.4.64.0811112109390.10501@quilx.com>
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
- <1226409701-14831-2-git-send-email-ieidus@redhat.com>
- <1226409701-14831-3-git-send-email-ieidus@redhat.com>
- <20081111114555.eb808843.akpm@linux-foundation.org> <20081111210655.GG10818@random.random>
- <Pine.LNX.4.64.0811111522150.27767@quilx.com> <20081111221753.GK10818@random.random>
- <Pine.LNX.4.64.0811111626520.29222@quilx.com> <20081111231722.GR10818@random.random>
- <Pine.LNX.4.64.0811111823030.31625@quilx.com> <20081112022701.GT10818@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAC3Qi7p014853
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 12 Nov 2008 12:26:46 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D9E1E45DD77
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:26:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B437C45DD76
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:26:43 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9421DB803F
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:26:43 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 54ED91DB8037
+	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:26:43 +0900 (JST)
+Date: Wed, 12 Nov 2008 12:26:06 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/6] memcg updates (12/Nov/2008)
+Message-Id: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, avi@redhat.com, izike@qumranet.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Nov 2008, Andrea Arcangeli wrote:
+Weekly updates on my queue.
 
-> So are you checking if there's an unresolved reference only in the
-> very place I just quoted in the previous email? If answer is yes: what
-> should prevent get_user_pages from running in parallel from another
-> thread? get_user_pages will trigger a minor fault and get the elevated
-> reference just after you read page_count. To you it looks like there
-> is no o_direct in progress when you proceed to the core of migration
-> code, but in effect o_direct just started a moment after you read the
-> page count.
+Changes from previous (05/Nov)
+ - added "free all at rmdir" patch.
+ - fixed several bugs reported by Nishimura (Thanks!)
+ - many style bugs are fixed.
 
-get_user_pages() cannot get to it since the pagetables have already been
-modified. If get_user_pages runs then the fault handling will occur
-which will block the thread until migration is complete.
+Brief description:
+[1/6].. free all at rmdir (and add attribute to memcg.)
+[2/6].. handle swap cache
+[3/6].. mem+swap controller kconfig
+[4/6].. swap_cgroup
+[5/6].. mem+swap controller
+[6/6].. synchrinized LRU (unify lru lock.)
+
+I think it's near to a month to test this mem+swap controller internally.
+It's getting better. Making progress in step by step works good.
+
+I'll send [1/6] and [2/6] to Andrew, tomorrow or weekend.(please do final check).
+
+If no acks to [1/6] (I haven't got any ;), I'll postpone it and reschedule as [7/6].
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
