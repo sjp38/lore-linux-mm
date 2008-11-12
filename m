@@ -1,65 +1,41 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAC3XqiO017507
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 12 Nov 2008 12:33:52 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D8E82AEA81
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:33:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B0BF1EF083
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:33:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 369931DB803C
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:33:52 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E65E31DB803A
-	for <linux-mm@kvack.org>; Wed, 12 Nov 2008 12:33:51 +0900 (JST)
-Date: Wed, 12 Nov 2008 12:33:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/6] memcg updates (12/Nov/2008)
-Message-Id: <20081112123315.3edcc39f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 12 Nov 2008 04:45:04 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 0/7] vmalloc fixes and improvements #2
+Message-ID: <20081112034504.GE26053@wotan.suse.de>
+References: <20081110133515.011510000@suse.de> <20081111182523.GB20481@poweredge.glommer>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081111182523.GB20481@poweredge.glommer>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>
+To: Glauber Costa <glommer@redhat.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, torvalds@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Nov 2008 12:26:06 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Tue, Nov 11, 2008 at 04:25:23PM -0200, Glauber Costa wrote:
+> On Tue, Nov 11, 2008 at 12:35:15AM +1100, npiggin@suse.de wrote:
+> > Hopefully got attribution right.
+> > 
+> > Patches 1-3 fix "[Bug #11903] regression: vmalloc easily fail", and these
+> > should go upstream for 2.6.28. They've been tested and shown to fix the
+> > problem, and I've tested them here on my XFS stress test as well. The
+> > off-by-one bug, I tested and verified in a userspace test harness (it
+> > doesn't actually cause any corruption, but just suboptimal use of space).
+> > 
+> > Patches 4,5 are improvements to information exported to user. Not very risky,
+> > but not urgent either.
+> > 
+> > Patches 6,7 improve locking and debugging modes a bit. I have not included
+> > the changes to guard pages this time. They need a bit more explanation and
+> > code review to justify. And probably some more philosophical discussions on
+> > the mm list...
+> > 
+> > -- 
+> 
+> ok, news on this one inclusion?
 
-> Weekly updates on my queue.
-> 
-> Changes from previous (05/Nov)
->  - added "free all at rmdir" patch.
->  - fixed several bugs reported by Nishimura (Thanks!)
->  - many style bugs are fixed.
-> 
-> Brief description:
-> [1/6].. free all at rmdir (and add attribute to memcg.)
-> [2/6].. handle swap cache
-> [3/6].. mem+swap controller kconfig
-> [4/6].. swap_cgroup
-> [5/6].. mem+swap controller
-> [6/6].. synchrinized LRU (unify lru lock.)
-> 
-> I think it's near to a month to test this mem+swap controller internally.
-> It's getting better. Making progress in step by step works good.
-> 
-> I'll send [1/6] and [2/6] to Andrew, tomorrow or weekend.(please do final check).
-> 
-> If no acks to [1/6] (I haven't got any ;), I'll postpone it and reschedule as [7/6].
-> 
-Ah, sorry. 
-All are based on "The mm-of-the-moment snapshot 2008-11-10-14-54".
-
-
-Thanks,
--Kame
+Just waiting on Andrew. It won't get lost :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
