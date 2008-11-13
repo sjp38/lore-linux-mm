@@ -1,159 +1,97 @@
-Message-ID: <491C038F.5020007@redhat.com>
-Date: Thu, 13 Nov 2008 12:38:07 +0200
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
- one page into another
-References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>	<1226409701-14831-2-git-send-email-ieidus@redhat.com>	<1226409701-14831-3-git-send-email-ieidus@redhat.com>	<20081111114555.eb808843.akpm@linux-foundation.org>	<4919F1C0.2050009@redhat.com>	<Pine.LNX.4.64.0811111520590.27767@quilx.com>	<4919F7EE.3070501@redhat.com>	<Pine.LNX.4.64.0811111527500.27767@quilx.com>	<20081111222421.GL10818@random.random>	<20081112111931.0e40c27d.kamezawa.hiroyu@jp.fujitsu.com>	<491AAA84.5040801@redhat.com>	<491AB9D0.7060802@qumranet.com> <20081113151129.35c17962.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081113151129.35c17962.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mADBSZID001524
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 13 Nov 2008 20:28:36 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id CCA7445DD7C
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:28:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AAB9845DD7A
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:28:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F6CC1DB803E
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:28:35 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 439E31DB803B
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:28:35 +0900 (JST)
+Date: Thu, 13 Nov 2008 20:27:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [BUGFIX][PATCH] memory hotplug: fix notiier chain return value (Was
+ Re: 2.6.28-rc4 mem_cgroup_charge_common panic)
+Message-Id: <20081113202758.2f12915a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1226353408.8805.12.camel@badari-desktop>
+References: <1226353408.8805.12.camel@badari-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Izik Eidus <izik@qumranet.com>, Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, izike@qumranet.com
+Return-Path: <owner-linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-=?ISO-8859-1?Q?=D7=A6=D7=99=D7=98=D7=95=D7=98?= KAMEZAWA Hiroyuki:
-Return-Path: <owner-linux-mm@kvack.org>
-X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
-X-Orcpt: rfc822;linux-mm-outgoing
-Original-Recipient: rfc822;linux-mm-outgoing
+Badari, I think you used SLUB. If so, page_cgroup's notifier callback was not
+called and newly allocated page's page_cgroup wasn't allocated.
+This is a fix. (notifier saw STOP_HERE flag added by slub's notifier.)
 
-> Thank you for answers.
->
-> On Wed, 12 Nov 2008 13:11:12 +0200
-> Izik Eidus <izik@qumranet.com> wrote:
->
->   
->> Avi Kivity wrote:
->>     
->>> KAMEZAWA Hiroyuki wrote:
->>>       
->>>> Can I make a question ? (I'm working for memory cgroup.)
->>>>
->>>> Now, we do charge to anonymous page when
->>>>   - charge(+1) when it's mapped firstly (mapcount 0->1)
->>>>   - uncharge(-1) it's fully unmapped (mapcount 1->0) vir 
->>>> page_remove_rmap().
->>>>
->>>> My quesion is
->>>>  - PageKSM pages are not necessary to be tracked by memory cgroup ?
->>>>         
->> When we reaplacing page using page_replace() we have:
->> oldpage - > anonymous page that is going to be replaced by newpage
->> newpage -> kernel allocated page (KsmPage)
->> so about oldpage we are calling page_remove_rmap() that will notify cgroup
->> and about newpage it wont be count inside cgroup beacuse it is file rmap 
->> page
->> (we are calling to page_add_file_rmap), so right now PageKSM wont ever 
->> be tracked by cgroup.
->>
->>     
-> If not in radix-tree, it's not tracked.
-> (But we don't want to track non-LRU pages which are not freeable.)
->   
+I'm now testing modified kernel, which does alloc/free page_cgroup by notifier.
+(Usually, all page_cgroups are from bootmem and not freed.
+ so, modified a bit for test)
 
-Yes.
+And I cannot reproduce panic. I think you do "real" memory hotplug other than
+online/offline and saw panic caused by this. 
 
->
->   
->>>>  - Can we know that "the page is just replaced and we don't necessary 
->>>> to do
->>>>    charge/uncharge".
->>>>         
->> The caller of page_replace does know it, the only problem is that 
->> page_remove_rmap()
->> automaticly change the cgroup for anonymous pages,
->> if we want it not to change the cgroup, we can:
->> increase the cgroup count before page_remove (but in that case what 
->> happen if we reach to the limit???)
->> give parameter to page_remove_rmap() that we dont want the cgroup to be 
->> changed.
->>     
->
-> Hmm, current mem cgroup works via page_cgroup struct to track pages.
->
->    page <-> page_cgroup has one-to-one relation ship.
->
-> So, "exchanging page" itself causes trouble. But I may be able to provide
-> necessary hooks to you as I did in page migraiton.
->   
+Is this slub's behavior intentional ? page_cgroup's notifier has lower priority
+than slub, now.
 
-But if we dont track KsmPages, and we call to page_remove_rmap() on the 
-anonymous page that we
-replace, why would it be a problem?
-(should everything be correct in that case???)
+Thanks,
+-Kame
+==
+notifier callback's notifier_from_errno() just works well in error
+route. (It adds mask for "stop here")
 
->   
->>>>  - annonymous page from KSM is worth to be tracked by memory cgroup ?
->>>>    (IOW, it's on LRU and can be swapped-out ?)
->>>>         
->> KSM have no anonymous pages (it share anonymous pages into KsmPAGE -> 
->> kernel allocated page without mapping)
->> so it isnt in LRU and it cannt be swapped, only when KsmPAGEs will be 
->> break by do_wp_page() the duplication will be able to swap.
->>
->>     
-> Ok, thank you for confirmation.
->
->   
->>>>   
->>>>         
->>> My feeling is that shared pages should be accounted as if they were 
->>> not shared; that is, a share page should be accounted for each process 
->>> that shares it.  Perhaps sharing within a cgroup should be counted as 
->>> 1 page for all the ptes pointing to it.
->>>
->>>
->>>       
->
-> If KSM pages are on radix-tree, it will be accounted automatically.
-> Now, we have "Unevictable" LRU and mlocked() pages are smartly isolated into its
-> own LRU. So, just doing
->
->  - inode's radix-tree
->  - make all pages mlocked.
->  - provide special page fault handler for your purpose
->   
+Hanlder should return NOTIFY_OK in explict way.
 
-Well in this version that i am going to merge the pages arent going to 
-be swappable,
-Latter after Ksm will get merged we will make the KsmPages swappable...
-so i think working with cgroups would be effective / useful only when 
-KsmPages will start be swappable...
-Do you agree?
-(What i am saying is that right now lets dont count the KsmPages inside 
-the cgroup, lets do it when KsmPages
-will be swappable)
+Signed-off-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/page_cgroup.c |    5 ++++-
+ mm/slub.c        |    6 ++++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
 
-If you feel this pages should be counted in the cgroup i have no problem 
-to do it via hooks like page migration is doing.
+Index: mmotm-2.6.28-Nov10/mm/slub.c
+===================================================================
+--- mmotm-2.6.28-Nov10.orig/mm/slub.c
++++ mmotm-2.6.28-Nov10/mm/slub.c
+@@ -3220,8 +3220,10 @@ static int slab_memory_callback(struct n
+ 	case MEM_CANCEL_OFFLINE:
+ 		break;
+ 	}
+-
+-	ret = notifier_from_errno(ret);
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
+ 	return ret;
+ }
+ 
+Index: mmotm-2.6.28-Nov10/mm/page_cgroup.c
+===================================================================
+--- mmotm-2.6.28-Nov10.orig/mm/page_cgroup.c
++++ mmotm-2.6.28-Nov10/mm/page_cgroup.c
+@@ -216,7 +216,10 @@ static int page_cgroup_callback(struct n
+ 		break;
+ 	}
+ 
+-	ret = notifier_from_errno(ret);
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
+ 
+ 	return ret;
+ }
 
-thanks.
-
-> is simple one. But ok, whatever implementation you'll do, I have to check it
-> and consider whether it should be tracked or not. Then, add codes to memcg to
-> track it or ignore it or comments on your patches ;)
->
-> It's helpful to add me to CC: when you post this set again.
->   
-
-Sure will.
-
-> Thanks,
-> -Kame
->
->
->
->
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
