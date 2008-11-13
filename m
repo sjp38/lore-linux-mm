@@ -1,121 +1,108 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e5.ny.us.ibm.com (8.13.8/8.13.8) with ESMTP id mADGsBkO007975
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:54:11 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mADGsAlJ177366
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:54:10 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mADGs9mO020685
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:54:10 -0500
-Date: Thu, 13 Nov 2008 08:54:02 -0800
-From: Gary Hade <garyhade@us.ibm.com>
-Subject: Re: [PATCH] [REPOST #2] mm: show node to memory section
-	relationship with symlinks in sysfs
-Message-ID: <20081113165402.GA7084@us.ibm.com>
-References: <20081103234808.GA13716@us.ibm.com> <1226528175.4835.18.camel@badari-desktop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1226528175.4835.18.camel@badari-desktop>
+	by e1.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mADH9lmV018546
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:09:47 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mADH9sq7173850
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:09:54 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mADH9cp3004359
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:09:38 -0500
+Subject: Re: [BUGFIX][PATCH] memory hotplug: fix notiier chain return value
+	(Was Re: 2.6.28-rc4 mem_cgroup_charge_common panic)
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <20081113202758.2f12915a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <1226353408.8805.12.camel@badari-desktop>
+	 <20081113202758.2f12915a.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Thu, 13 Nov 2008 09:11:09 -0800
+Message-Id: <1226596269.4835.21.camel@badari-desktop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: Gary Hade <garyhade@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 12, 2008 at 02:16:15PM -0800, Badari Pulavarty wrote:
-> On Mon, 2008-11-03 at 15:48 -0800, Gary Hade wrote:
-> > Show node to memory section relationship with symlinks in sysfs
-> > 
-> > Add /sys/devices/system/node/nodeX/memoryY symlinks for all
-> > the memory sections located on nodeX.  For example:
-> > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> > indicates that memory section 135 resides on node1.
-> > 
-> > Also revises documentation to cover this change as well as updating
-> > Documentation/ABI/testing/sysfs-devices-memory to include descriptions
-> > of memory hotremove files 'phys_device', 'phys_index', and 'state'
-> > that were previously not described there.
-> > 
-> > In addition to it always being a good policy to provide users with
-> > the maximum possible amount of physical location information for
-> > resources that can be hot-added and/or hot-removed, the following
-> > are some (but likely not all) of the user benefits provided by
-> > this change.
-> > Immediate:
-> >   - Provides information needed to determine the specific node
-> >     on which a defective DIMM is located.  This will reduce system
-> >     downtime when the node or defective DIMM is swapped out.
-> >   - Prevents unintended onlining of a memory section that was 
-> >     previously offlined due to a defective DIMM.  This could happen
-> >     during node hot-add when the user or node hot-add assist script
-> >     onlines _all_ offlined sections due to user or script inability
-> >     to identify the specific memory sections located on the hot-added
-> >     node.  The consequences of reintroducing the defective memory
-> >     could be ugly.
-> >   - Provides information needed to vary the amount and distribution
-> >     of memory on specific nodes for testing or debugging purposes.
-> > Future:
-> >   - Will provide information needed to identify the memory
-> >     sections that need to be offlined prior to physical removal
-> >     of a specific node.
-> > 
-> > Symlink creation during boot was tested on 2-node x86_64, 2-node
-> > ppc64, and 2-node ia64 systems.  Symlink creation during physical
-> > memory hot-add tested on a 2-node x86_64 system.
-> > 
-> > Supersedes the "mm: show memory section to node relationship in sysfs"
-> > patch posted on 05 Sept 2008 which created node ID containing 'node'
-> > files in /sys/devices/system/memory/memoryX instead of symlinks.
-> > Changed from files to symlinks due to feedback that symlinks were
-> > more consistent with the sysfs way.
-> > 
-> > Supersedes the "mm: show node to memory section relationship with
-> > symlinks in sysfs" patch posted on 29 Sept 2008 to address a Yasunori
-> > Goto reported problem where an incorrect symlink was created due to
-> > a range of uninitialized pages at the beginning of a section.  This
-> > problem which produced a symlink in /sys/devices/system/node/node0
-> > that incorrectly referenced a mem section located on node1 is corrected
-> > in this version.  This version also covers the case were a mem section
-> > could span multiple nodes.
-> > 
-> > Supersedes the "mm: show node to memory section relationship with
-> > symlinks in sysfs" patch posted on 09 Oct 2008 to add the Andrew
-> > Morton requested usefulness information and update to apply cleanly
-> > to 2.6.28-rc3 and 2.6-git.  Code is unchanged.
-> > 
-> > Signed-off-by: Gary Hade <garyhade@us.ibm.com>
-> > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-> > 
-> 
-> Hi Gary,
-> 
-> While testing latest mmtom (which has this patch) ran into an issue
-> with sysfs files. What I noticed was, with this patch "memoryXX"
-> directories in /sys/devices/system/memory/ are not getting cleaned up.
-> Backing out the patch seems to fix the problem. 
-> 
-> When I tried to remove 64 blocks of memory, empty  directories are
-> stayed around. (look at memory151 - memory215). This is causing OOPS
-> while trying to add memory block again. I think this could be because 
-> of the symlink added from node directory.  Can you look ?
+On Thu, 2008-11-13 at 20:27 +0900, KAMEZAWA Hiroyuki wrote:
+> Badari, I think you used SLUB. If so, page_cgroup's notifier callback was not
+> called and newly allocated page's page_cgroup wasn't allocated.
+> This is a fix. (notifier saw STOP_HERE flag added by slub's notifier.)
 
-Badari, The call to unregister_mem_sect_under_nodes() in
-remove_memory_block() preceding the removal of the files in
-the memory section directory _should have_ removed all the
-symlinks referencing the memory section directory.  Did you
-happen to check to see if the symlinks to memory151-memory215
-were still present?
+No. I wasn't using SLUB.
 
-Gary
+ # egrep "SLUB|SLAB" .config
+CONFIG_SLAB=y
+# CONFIG_SLUB is not set
+CONFIG_SLABINFO=y
+# CONFIG_DEBUG_SLAB is not set
 
--- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+
+I can test the patch and let you know.
+
+Thanks,
+Badari
+
+> 
+> I'm now testing modified kernel, which does alloc/free page_cgroup by notifier.
+> (Usually, all page_cgroups are from bootmem and not freed.
+>  so, modified a bit for test)
+> 
+> And I cannot reproduce panic. I think you do "real" memory hotplug other than
+> online/offline and saw panic caused by this. 
+> 
+> Is this slub's behavior intentional ? page_cgroup's notifier has lower priority
+> than slub, now.
+> 
+> Thanks,
+> -Kame
+> ==
+> notifier callback's notifier_from_errno() just works well in error
+> route. (It adds mask for "stop here")
+> 
+> Hanlder should return NOTIFY_OK in explict way.
+> 
+> Signed-off-by:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/page_cgroup.c |    5 ++++-
+>  mm/slub.c        |    6 ++++--
+>  2 files changed, 8 insertions(+), 3 deletions(-)
+> 
+> Index: mmotm-2.6.28-Nov10/mm/slub.c
+> ===================================================================
+> --- mmotm-2.6.28-Nov10.orig/mm/slub.c
+> +++ mmotm-2.6.28-Nov10/mm/slub.c
+> @@ -3220,8 +3220,10 @@ static int slab_memory_callback(struct n
+>  	case MEM_CANCEL_OFFLINE:
+>  		break;
+>  	}
+> -
+> -	ret = notifier_from_errno(ret);
+> +	if (ret)
+> +		ret = notifier_from_errno(ret);
+> +	else
+> +		ret = NOTIFY_OK;
+>  	return ret;
+>  }
+> 
+> Index: mmotm-2.6.28-Nov10/mm/page_cgroup.c
+> ===================================================================
+> --- mmotm-2.6.28-Nov10.orig/mm/page_cgroup.c
+> +++ mmotm-2.6.28-Nov10/mm/page_cgroup.c
+> @@ -216,7 +216,10 @@ static int page_cgroup_callback(struct n
+>  		break;
+>  	}
+> 
+> -	ret = notifier_from_errno(ret);
+> +	if (ret)
+> +		ret = notifier_from_errno(ret);
+> +	else
+> +		ret = NOTIFY_OK;
+> 
+>  	return ret;
+>  }
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
