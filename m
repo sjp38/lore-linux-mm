@@ -1,66 +1,67 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAD2nmfi027048
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 13 Nov 2008 11:49:48 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7522445DD79
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:49:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 53C1745DD78
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:49:48 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3788B1DB803A
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:49:48 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E5C7A1DB803B
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 11:49:44 +0900 (JST)
-Date: Thu, 13 Nov 2008 11:49:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAD3DlF0030026
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:13:47 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAD3FF0v4624468
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:15:17 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAD3F5Ux013267
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:15:05 +1100
+Message-ID: <491B9BB3.6010701@linux.vnet.ibm.com>
+Date: Thu, 13 Nov 2008 08:44:59 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 1/6] memcg: free all at rmdir
-Message-Id: <20081113114908.42a6a8a7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081112160758.3dca0b22.akpm@linux-foundation.org>
-References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081112122656.c6e56248.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081112160758.3dca0b22.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com> <20081112122656.c6e56248.kamezawa.hiroyu@jp.fujitsu.com> <20081112160758.3dca0b22.akpm@linux-foundation.org> <20081113114908.42a6a8a7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081113114908.42a6a8a7.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, nishimura@mxp.nes.nec.co.jp, menage@google.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Nov 2008 16:07:58 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
-> If we do this then we can make the above "keep" behaviour non-optional,
-> and the operator gets to choose whether or not to drop the caches
-> before doing the rmdir.
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 12 Nov 2008 16:07:58 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+>> If we do this then we can make the above "keep" behaviour non-optional,
+>> and the operator gets to choose whether or not to drop the caches
+>> before doing the rmdir.
+>>
+>> Plus, we get a new per-memcg drop_caches capability.  And it's a nicer
+>> interface, and it doesn't have the obvious races which on_rmdir has,
+>> etc.
+>>
+>> hm?
+>>
 > 
-> Plus, we get a new per-memcg drop_caches capability.  And it's a nicer
-> interface, and it doesn't have the obvious races which on_rmdir has,
-> etc.
+> Balbir, how would you want to do ?
 > 
-> hm?
+> I planned to post shrink_uage patch later (it's easy to be implemented) regardless
+> of acceptance of this patch.
 > 
+> So, I think we should add shrink_usage now and drop this is a way to go.
 
-Balbir, how would you want to do ?
+I am a bit concerned about dropping stuff at will later. Ubuntu 8.10 has memory
+controller enabled and we exposed memory.force_empty interface there and now
+we've dropped it (bad on our part). I think we should have deprecated it and
+dropped it later.
 
-I planned to post shrink_uage patch later (it's easy to be implemented) regardless
-of acceptance of this patch.
+> I think I can prepare patch soon. But I'd like to push handle-swap-cache patch
+> before introducing shrink_usage. 
+> 
+> Then, posting following 2 patch for this week is my current intention.
+>  [1/2] handle swap cache
+>  [2/2] shrink_usage patch (instead of this patch)
+> 
+> Objection ?
 
-So, I think we should add shrink_usage now and drop this is a way to go.
-I think I can prepare patch soon. But I'd like to push handle-swap-cache patch
-before introducing shrink_usage. 
+No.. just be wary of breaking API, please!
 
-Then, posting following 2 patch for this week is my current intention.
- [1/2] handle swap cache
- [2/2] shrink_usage patch (instead of this patch)
-
-Objection ?
-
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
