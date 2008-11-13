@@ -1,202 +1,136 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAD5rSaw002546
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAD6C7wP009908
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 13 Nov 2008 14:53:28 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CE21945DE56
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:53:27 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A38145DE54
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:53:27 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 691DBE08004
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:53:27 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 150141DB8041
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:53:27 +0900 (JST)
-Date: Thu, 13 Nov 2008 14:52:50 +0900
+	Thu, 13 Nov 2008 15:12:08 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C3A345DD81
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 15:12:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 528E345DD7B
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 15:12:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A7CFE08004
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 15:12:07 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 67F66E08014
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 15:12:06 +0900 (JST)
+Date: Thu, 13 Nov 2008 15:11:29 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: add  force_empty again in reasonable style.
-Message-Id: <20081113145250.3eecdc37.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 2/4] Add replace_page(), change the mapping of pte from
+ one page into another
+Message-Id: <20081113151129.35c17962.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <491AB9D0.7060802@qumranet.com>
+References: <1226409701-14831-1-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-2-git-send-email-ieidus@redhat.com>
+	<1226409701-14831-3-git-send-email-ieidus@redhat.com>
+	<20081111114555.eb808843.akpm@linux-foundation.org>
+	<4919F1C0.2050009@redhat.com>
+	<Pine.LNX.4.64.0811111520590.27767@quilx.com>
+	<4919F7EE.3070501@redhat.com>
+	<Pine.LNX.4.64.0811111527500.27767@quilx.com>
+	<20081111222421.GL10818@random.random>
+	<20081112111931.0e40c27d.kamezawa.hiroyu@jp.fujitsu.com>
+	<491AAA84.5040801@redhat.com>
+	<491AB9D0.7060802@qumranet.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: Izik Eidus <izik@qumranet.com>
+Cc: Avi Kivity <avi@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, chrisw@redhat.com, izike@qumranet.com
 List-ID: <linux-mm.kvack.org>
 
-tested on x86-64 box + mmotm-Nov10.
-after this, force_empty is not only for debug but for usual use.
+Thank you for answers.
+
+On Wed, 12 Nov 2008 13:11:12 +0200
+Izik Eidus <izik@qumranet.com> wrote:
+
+> Avi Kivity wrote:
+> > KAMEZAWA Hiroyuki wrote:
+> >> Can I make a question ? (I'm working for memory cgroup.)
+> >>
+> >> Now, we do charge to anonymous page when
+> >>   - charge(+1) when it's mapped firstly (mapcount 0->1)
+> >>   - uncharge(-1) it's fully unmapped (mapcount 1->0) vir 
+> >> page_remove_rmap().
+> >>
+> >> My quesion is
+> >>  - PageKSM pages are not necessary to be tracked by memory cgroup ?
+> When we reaplacing page using page_replace() we have:
+> oldpage - > anonymous page that is going to be replaced by newpage
+> newpage -> kernel allocated page (KsmPage)
+> so about oldpage we are calling page_remove_rmap() that will notify cgroup
+> and about newpage it wont be count inside cgroup beacuse it is file rmap 
+> page
+> (we are calling to page_add_file_rmap), so right now PageKSM wont ever 
+> be tracked by cgroup.
+> 
+If not in radix-tree, it's not tracked.
+(But we don't want to track non-LRU pages which are not freeable.)
+
+
+> >>  - Can we know that "the page is just replaced and we don't necessary 
+> >> to do
+> >>    charge/uncharge".
+> 
+> The caller of page_replace does know it, the only problem is that 
+> page_remove_rmap()
+> automaticly change the cgroup for anonymous pages,
+> if we want it not to change the cgroup, we can:
+> increase the cgroup count before page_remove (but in that case what 
+> happen if we reach to the limit???)
+> give parameter to page_remove_rmap() that we dont want the cgroup to be 
+> changed.
+
+Hmm, current mem cgroup works via page_cgroup struct to track pages.
+
+   page <-> page_cgroup has one-to-one relation ship.
+
+So, "exchanging page" itself causes trouble. But I may be able to provide
+necessary hooks to you as I did in page migraiton.
+
+> 
+> >>  - annonymous page from KSM is worth to be tracked by memory cgroup ?
+> >>    (IOW, it's on LRU and can be swapped-out ?)
+> 
+> KSM have no anonymous pages (it share anonymous pages into KsmPAGE -> 
+> kernel allocated page without mapping)
+> so it isnt in LRU and it cannt be swapped, only when KsmPAGEs will be 
+> break by do_wp_page() the duplication will be able to swap.
+> 
+Ok, thank you for confirmation.
+
+> >>   
+> >
+> > My feeling is that shared pages should be accounted as if they were 
+> > not shared; that is, a share page should be accounted for each process 
+> > that shares it.  Perhaps sharing within a cgroup should be counted as 
+> > 1 page for all the ptes pointing to it.
+> >
+> >
+
+If KSM pages are on radix-tree, it will be accounted automatically.
+Now, we have "Unevictable" LRU and mlocked() pages are smartly isolated into its
+own LRU. So, just doing
+
+ - inode's radix-tree
+ - make all pages mlocked.
+ - provide special page fault handler for your purpose
+
+is simple one. But ok, whatever implementation you'll do, I have to check it
+and consider whether it should be tracked or not. Then, add codes to memcg to
+track it or ignore it or comments on your patches ;)
+
+It's helpful to add me to CC: when you post this set again.
 
 Thanks,
 -Kame
-=
-By memcg-move-all-accounts-to-parent-at-rmdir.patch, there is no leak
-of memory usage and force_empty is removed. force_empty allows users to leak
-account. 
 
-This patch adds "force_empty" again, in reasonable style.
 
-memory.force_empty file works when
 
-  #echo 0 (or some) > memory.force_empty
-  and have following function.
 
-  1. only works when there are no task in this cgroup.
-  2. free all page under this cgroup as much as possible.
-  3. page which cannot be freed will be moved up to parent. (locked pages etc.)
-  4. Then, memcg will be empty after echo returns.
 
-This is much better behavior than old "force_empty" which just forget
-all accounts. This patch also check signal_pending() and above "echo"
-can be stopped by "Ctrl-C".
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
- Documentation/controllers/memory.txt |   27 +++++++++++++++++++++++----
- mm/memcontrol.c                      |   34 ++++++++++++++++++++++++++++++----
- 2 files changed, 53 insertions(+), 8 deletions(-)
-
-Index: mmotm-2.6.28-Nov10/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-Nov10.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-Nov10/mm/memcontrol.c
-@@ -1062,7 +1062,7 @@ static int mem_cgroup_force_empty_list(s
-  * make mem_cgroup's charge to be 0 if there is no task.
-  * This enables deleting this mem_cgroup.
-  */
--static int mem_cgroup_force_empty(struct mem_cgroup *mem)
-+static int mem_cgroup_force_empty(struct mem_cgroup *mem, bool free_all)
- {
- 	int ret;
- 	int node, zid, shrink;
-@@ -1071,12 +1071,17 @@ static int mem_cgroup_force_empty(struct
- 	css_get(&mem->css);
- 
- 	shrink = 0;
-+	/* should free all ? */
-+	if (free_all)
-+		goto try_to_free;
- move_account:
- 	while (mem->res.usage > 0) {
- 		ret = -EBUSY;
- 		if (atomic_read(&mem->css.cgroup->count) > 0)
- 			goto out;
--
-+		ret = -EINTR;
-+		if (signal_pending(current))
-+			goto out;
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
- 		ret = 0;
-@@ -1111,14 +1116,24 @@ try_to_free:
- 		ret = -EBUSY;
- 		goto out;
- 	}
-+	/* we call try-to-free pages for make this cgroup empty */
-+	lru_add_drain_all();
- 	/* try to free all pages in this cgroup */
- 	shrink = 1;
- 	while (nr_retries && mem->res.usage > 0) {
- 		int progress;
-+
-+		if (signal_pending(current)) {
-+			ret = -EINTR;
-+			goto out;
-+		}
- 		progress = try_to_free_mem_cgroup_pages(mem,
- 						  GFP_HIGHUSER_MOVABLE);
--		if (!progress)
-+		if (!progress) {
- 			nr_retries--;
-+			/* maybe some writeback is necessary */
-+			congestion_wait(WRITE, HZ/10);
-+		}
- 
- 	}
- 	/* try move_account...there may be some *locked* pages. */
-@@ -1128,6 +1143,12 @@ try_to_free:
- 	goto out;
- }
- 
-+int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
-+{
-+	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
-+}
-+
-+
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
- {
- 	return res_counter_read_u64(&mem_cgroup_from_cont(cont)->res,
-@@ -1225,6 +1246,7 @@ static int mem_control_stat_show(struct 
- 	return 0;
- }
- 
-+
- static struct cftype mem_cgroup_files[] = {
- 	{
- 		.name = "usage_in_bytes",
-@@ -1253,6 +1275,10 @@ static struct cftype mem_cgroup_files[] 
- 		.name = "stat",
- 		.read_map = mem_control_stat_show,
- 	},
-+	{
-+		.name = "force_empty",
-+		.trigger = mem_cgroup_force_empty_write,
-+	},
- };
- 
- static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
-@@ -1348,7 +1374,7 @@ static void mem_cgroup_pre_destroy(struc
- 					struct cgroup *cont)
- {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
--	mem_cgroup_force_empty(mem);
-+	mem_cgroup_force_empty(mem, false);
- }
- 
- static void mem_cgroup_destroy(struct cgroup_subsys *ss,
-Index: mmotm-2.6.28-Nov10/Documentation/controllers/memory.txt
-===================================================================
---- mmotm-2.6.28-Nov10.orig/Documentation/controllers/memory.txt
-+++ mmotm-2.6.28-Nov10/Documentation/controllers/memory.txt
-@@ -237,11 +237,30 @@ reclaimed.
- A cgroup can be removed by rmdir, but as discussed in sections 4.1 and 4.2, a
- cgroup might have some charge associated with it, even though all
- tasks have migrated away from it.
--Such charges are moved to its parent as much as possible and freed if parent
--is full. Both of RSS and CACHES are moved to parent.
--If both of them are busy, rmdir() returns -EBUSY.
-+Such charges are freed(at default) or moved to its parent. When moved,
-+both of RSS and CACHES are moved to parent.
-+If both of them are busy, rmdir() returns -EBUSY. See 5.1 Also.
- 
--5. TODO
-+5. Misc. interfaces.
-+
-+5.1 force_empty
-+  memory.force_empty interface is provided to make cgroup's memory usage empty.
-+  You can use this interface only when the cgroup has no tasks.
-+  When writing anything to this
-+
-+  # echo 0 > memory.force_empty
-+
-+  Almost all pages tracked by this memcg will be unmapped and freed. Some of
-+  pages cannot be freed because it's locked or in-use. Such pages are moved
-+  to parent and this cgroup will be empty. But this may return -EBUSY in
-+  some too busy case.
-+
-+  Typical usage of this interface is calling this before rmdir().
-+  Because rmdir() moves all pages to parent, some out-of-use page caches can be
-+  moved to the parent. If you want to avoid that, force_empty will be useful.
-+
-+
-+6. TODO
- 
- 1. Add support for accounting huge pages (as a separate controller)
- 2. Make per-cgroup scanner reclaim not-shared pages first
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
