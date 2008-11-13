@@ -1,75 +1,70 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAD3NIw5032356
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 13 Nov 2008 12:23:19 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AEA8B45DE4F
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:23:18 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E47245DE52
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:23:18 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5037B1DB8044
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:23:18 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 03A5E1DB8041
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 12:23:18 +0900 (JST)
-Date: Thu, 13 Nov 2008 12:22:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAD3RRUD027764
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:27:27 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAD3RLPK4833502
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:27:21 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAD3RCkF011579
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 14:27:12 +1100
+Message-ID: <491B9E8B.3080301@linux.vnet.ibm.com>
+Date: Thu, 13 Nov 2008 08:57:07 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 1/6] memcg: free all at rmdir
-Message-Id: <20081113122241.b77a0d14.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <491B9BB3.6010701@linux.vnet.ibm.com>
-References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081112122656.c6e56248.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081112160758.3dca0b22.akpm@linux-foundation.org>
-	<20081113114908.42a6a8a7.kamezawa.hiroyu@jp.fujitsu.com>
-	<491B9BB3.6010701@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20081112122606.76051530.kamezawa.hiroyu@jp.fujitsu.com> <20081112122656.c6e56248.kamezawa.hiroyu@jp.fujitsu.com> <20081112160758.3dca0b22.akpm@linux-foundation.org> <20081113114908.42a6a8a7.kamezawa.hiroyu@jp.fujitsu.com> <491B9BB3.6010701@linux.vnet.ibm.com> <20081113122241.b77a0d14.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081113122241.b77a0d14.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Nov 2008 08:44:59 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> KAMEZAWA Hiroyuki wrote:
-> > On Wed, 12 Nov 2008 16:07:58 -0800
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> >> If we do this then we can make the above "keep" behaviour non-optional,
-> >> and the operator gets to choose whether or not to drop the caches
-> >> before doing the rmdir.
-> >>
-> >> Plus, we get a new per-memcg drop_caches capability.  And it's a nicer
-> >> interface, and it doesn't have the obvious races which on_rmdir has,
-> >> etc.
-> >>
-> >> hm?
-> >>
-> > 
-> > Balbir, how would you want to do ?
-> > 
-> > I planned to post shrink_uage patch later (it's easy to be implemented) regardless
-> > of acceptance of this patch.
-> > 
-> > So, I think we should add shrink_usage now and drop this is a way to go.
+KAMEZAWA Hiroyuki wrote:
+> On Thu, 13 Nov 2008 08:44:59 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> I am a bit concerned about dropping stuff at will later. Ubuntu 8.10 has memory
-> controller enabled and we exposed memory.force_empty interface there and now
-> we've dropped it (bad on our part). I think we should have deprecated it and
-> dropped it later.
+>> KAMEZAWA Hiroyuki wrote:
+>>> On Wed, 12 Nov 2008 16:07:58 -0800
+>>> Andrew Morton <akpm@linux-foundation.org> wrote:
+>>>> If we do this then we can make the above "keep" behaviour non-optional,
+>>>> and the operator gets to choose whether or not to drop the caches
+>>>> before doing the rmdir.
+>>>>
+>>>> Plus, we get a new per-memcg drop_caches capability.  And it's a nicer
+>>>> interface, and it doesn't have the obvious races which on_rmdir has,
+>>>> etc.
+>>>>
+>>>> hm?
+>>>>
+>>> Balbir, how would you want to do ?
+>>>
+>>> I planned to post shrink_uage patch later (it's easy to be implemented) regardless
+>>> of acceptance of this patch.
+>>>
+>>> So, I think we should add shrink_usage now and drop this is a way to go.
+>> I am a bit concerned about dropping stuff at will later. Ubuntu 8.10 has memory
+>> controller enabled and we exposed memory.force_empty interface there and now
+>> we've dropped it (bad on our part). I think we should have deprecated it and
+>> dropped it later.
+>>
+> I *was* documented as "for debug only".
 > 
-I *was* documented as "for debug only".
 
-Hmm, adding force_empty again to do "shrink usage to 0" is another choice.
+I know, but I suspect users won't. I am not blaming you in person, just trying
+the find way to do such things. I think I've seen sysfs add a deprecated option
+and put all deprecated files there, they are only created if someone cares about
+them.
 
-ok?
+> Hmm, adding force_empty again to do "shrink usage to 0" is another choice.
 
-Thanks,
--Kame
+Yes, sounds reasonable.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
