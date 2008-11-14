@@ -1,53 +1,102 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mAE3eqHZ014524
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:40:52 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAE3fW22158924
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:41:32 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAE3fVP7003890
-	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:41:32 -0700
-Date: Thu, 13 Nov 2008 21:41:30 -0600
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC v9][PATCH 12/13] Checkpoint multiple processes
-Message-ID: <20081114034130.GA14171@us.ibm.com>
-References: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu> <1226335060-7061-13-git-send-email-orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1226335060-7061-13-git-send-email-orenl@cs.columbia.edu>
+Received: from ip02.eastlink.ca ([24.222.39.20])
+ by mta01.eastlink.ca (Sun Java System Messaging Server 6.2-4.03 (built Sep 22
+ 2005)) with ESMTP id <0KAB00IKQ25SDMI0@mta01.eastlink.ca> for
+ linux-mm@kvack.org; Fri, 14 Nov 2008 00:08:16 -0400 (AST)
+Date: Fri, 14 Nov 2008 00:08:16 -0400
+From: Peter Cordes <peter@cordes.ca>
+Subject: Re: [PATCH 2.6.28?] don't unlink an active swapfile
+In-reply-to: <Pine.LNX.4.64.0811140234300.5027@blonde.site>
+Message-id: <20081114040816.GS31127@cordes.ca>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7BIT
+Content-disposition: inline
+References: <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it>
+ <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org>
+ <Pine.LNX.4.64.0810171250410.22374@blonde.site>
+ <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu>
+ <Pine.LNX.4.64.0810182058120.7154@blonde.site>
+ <20081018204948.GA22140@infradead.org> <20081018205647.GA29946@1wt.eu>
+ <Pine.LNX.4.64.0811140234300.5027@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Christoph Hellwig <hch@infradead.org>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Oren Laadan (orenl@cs.columbia.edu):
-> Checkpointing of multiple processes works by recording the tasks tree
-> structure below a given task (usually this task is the container init).
-> 
-> For a given task, do a DFS scan of the tasks tree and collect them
-> into an array (keeping a reference to each task). Using DFS simplifies
-> the recreation of tasks either in user space or kernel space. For each
-> task collected, test if it can be checkpointed, and save its pid, tgid,
-> and ppid.
-> 
-> The actual work is divided into two passes: a first scan counts the
-> tasks, then memory is allocated and a second scan fills the array.
-> 
-> The logic is suitable for creation of processes during restart either
-> in userspace or by the kernel.
-> 
-> Currently we ignore threads and zombies, as well as session ids.
-> 
-> Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+On Fri, Nov 14, 2008 at 02:37:22AM +0000, Hugh Dickins wrote:
+> Peter Cordes is sorry that he rm'ed his swapfiles while they were in use,
+> he then had no pathname to swapoff.  It's a curious little oversight, but
+> not one worth a lot of hackery.
 
-Looks good.
+ Yeah, not a lot, but I'd say it's worth some.  On the system where I
+'rm -rf'ed part of a filesystem before cp -a, mkfs, cp -a, I was left
+unable to umount.  Plus, when I rebooted, Ubuntu's init scripts failed
+to even sync the disks during shutdown.  A recently-written file on
+the same XFS filesystem as the swap file ended up empty because of the
+unclean shutdown. :(  I don't know if remount ro would have been
+possible on a FS with an active swap file, but Ubuntu should have at
+least tried to sync when umount failed.
 
-Acked-by: Serge Hallyn <serue@us.ibm.com>
 
-thanks,
--serge
+>  Kudos to Willy Tarreau for turning this
+> around from a discussion of synthetic pathnames to how to prevent unlink.
+
+ Yeah, this is great; as a sysadmin, this produces exactly the right
+behaviour, IMHO.  It doesn't have any chance of leaving files marked
+immutable on disk after an unclean reboot, which was a fatal flaw in
+the idea of setting the i bit on swap files, either in swapon(8) or in
+the kernel.  That would introduce complexity for admins who would
+otherwise never have to think about this.  The new behaviour this adds
+should make sense to most admins;  They'll see
+rm: swapfile: permission denied
+or something, and should quickly realize that there must be something
+special about active swap files.  So it's discoverable (i.e.
+non-mysterious) behaviour.
+
+ This prevents running with a deleted swapfile, but I can't think of a
+case when that's useful, let alone worth the trouble of writing a new one every
+reboot.  (e.g. xfs's resvsp ioctl creates extents flagged as unwritten
+which can't be swapped on, so a swapfile would have to be actually
+written on most filesystems.)
+
+ And it doesn't add any size to the kernel binary, unlike my idea of
+having a /proc/something/fd link that one could swapoff, having
+sys_swapoff() fall back to parsing its argument as an integer index
+into a list of swap areas, or other ugly ideas...  :P
+
+ Thanks everyone for coming up with such a clever solution to the
+pitfall I found.
+
+> Mimic immutable: prohibit unlinking an active swapfile in may_delete()
+> (and don't worry my little head over the tiny race window).
+> 
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> ---
+> Perhaps this is too late for 2.6.28: your decision.
+> 
+>  fs/namei.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> --- 2.6.28-rc4/fs/namei.c	2008-10-24 09:28:19.000000000 +0100
+> +++ linux/fs/namei.c	2008-11-12 11:52:44.000000000 +0000
+> @@ -1378,7 +1378,7 @@ static int may_delete(struct inode *dir,
+>  	if (IS_APPEND(dir))
+>  		return -EPERM;
+>  	if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
+> -	    IS_IMMUTABLE(victim->d_inode))
+> +	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
+>  		return -EPERM;
+>  	if (isdir) {
+>  		if (!S_ISDIR(victim->d_inode->i_mode))
+
+-- 
+#define X(x,y) x##y
+Peter Cordes ;  e-mail: X(peter@cor , des.ca)
+
+"The gods confound the man who first found out how to distinguish the hours!
+ Confound him, too, who in this place set up a sundial, to cut and hack
+ my day so wretchedly into small pieces!" -- Plautus, 200 BC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
