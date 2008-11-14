@@ -1,102 +1,183 @@
-Received: from ip02.eastlink.ca ([24.222.39.20])
- by mta01.eastlink.ca (Sun Java System Messaging Server 6.2-4.03 (built Sep 22
- 2005)) with ESMTP id <0KAB00IKQ25SDMI0@mta01.eastlink.ca> for
- linux-mm@kvack.org; Fri, 14 Nov 2008 00:08:16 -0400 (AST)
-Date: Fri, 14 Nov 2008 00:08:16 -0400
-From: Peter Cordes <peter@cordes.ca>
-Subject: Re: [PATCH 2.6.28?] don't unlink an active swapfile
-In-reply-to: <Pine.LNX.4.64.0811140234300.5027@blonde.site>
-Message-id: <20081114040816.GS31127@cordes.ca>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7BIT
-Content-disposition: inline
-References: <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it>
- <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org>
- <Pine.LNX.4.64.0810171250410.22374@blonde.site>
- <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu>
- <Pine.LNX.4.64.0810182058120.7154@blonde.site>
- <20081018204948.GA22140@infradead.org> <20081018205647.GA29946@1wt.eu>
- <Pine.LNX.4.64.0811140234300.5027@blonde.site>
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAE4Bbt1024537
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 14 Nov 2008 13:11:37 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 87EE145DD7B
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 13:11:37 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6910D45DD7E
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 13:11:37 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46207E08002
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 13:11:37 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DC2701DB803E
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 13:11:36 +0900 (JST)
+Date: Fri, 14 Nov 2008 13:10:58 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: 2.6.28-rc4 mem_cgroup_charge_common panic
+Message-Id: <20081114131058.8d538481.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1226602404.29381.6.camel@badari-desktop>
+References: <1226353408.8805.12.camel@badari-desktop>
+	<20081111101440.f531021d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081111110934.d41fa8db.kamezawa.hiroyu@jp.fujitsu.com>
+	<1226527376.4835.8.camel@badari-desktop>
+	<20081113111702.9a5b6ce7.kamezawa.hiroyu@jp.fujitsu.com>
+	<1226602404.29381.6.camel@badari-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Christoph Hellwig <hch@infradead.org>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Badari Pulavarty <pbadari@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 14, 2008 at 02:37:22AM +0000, Hugh Dickins wrote:
-> Peter Cordes is sorry that he rm'ed his swapfiles while they were in use,
-> he then had no pathname to swapoff.  It's a curious little oversight, but
-> not one worth a lot of hackery.
-
- Yeah, not a lot, but I'd say it's worth some.  On the system where I
-'rm -rf'ed part of a filesystem before cp -a, mkfs, cp -a, I was left
-unable to umount.  Plus, when I rebooted, Ubuntu's init scripts failed
-to even sync the disks during shutdown.  A recently-written file on
-the same XFS filesystem as the swap file ended up empty because of the
-unclean shutdown. :(  I don't know if remount ro would have been
-possible on a FS with an active swap file, but Ubuntu should have at
-least tried to sync when umount failed.
-
-
->  Kudos to Willy Tarreau for turning this
-> around from a discussion of synthetic pathnames to how to prevent unlink.
-
- Yeah, this is great; as a sysadmin, this produces exactly the right
-behaviour, IMHO.  It doesn't have any chance of leaving files marked
-immutable on disk after an unclean reboot, which was a fatal flaw in
-the idea of setting the i bit on swap files, either in swapon(8) or in
-the kernel.  That would introduce complexity for admins who would
-otherwise never have to think about this.  The new behaviour this adds
-should make sense to most admins;  They'll see
-rm: swapfile: permission denied
-or something, and should quickly realize that there must be something
-special about active swap files.  So it's discoverable (i.e.
-non-mysterious) behaviour.
-
- This prevents running with a deleted swapfile, but I can't think of a
-case when that's useful, let alone worth the trouble of writing a new one every
-reboot.  (e.g. xfs's resvsp ioctl creates extents flagged as unwritten
-which can't be swapped on, so a swapfile would have to be actually
-written on most filesystems.)
-
- And it doesn't add any size to the kernel binary, unlike my idea of
-having a /proc/something/fd link that one could swapoff, having
-sys_swapoff() fall back to parsing its argument as an integer index
-into a list of swap areas, or other ugly ideas...  :P
-
- Thanks everyone for coming up with such a clever solution to the
-pitfall I found.
-
-> Mimic immutable: prohibit unlinking an active swapfile in may_delete()
-> (and don't worry my little head over the tiny race window).
+On Thu, 13 Nov 2008 10:53:24 -0800
+Badari Pulavarty <pbadari@us.ibm.com> wrote:
+> I tried mmtom + startpfn fix + this fix + notifier fix. Didn't help.
+> I am not using SLUB (using SLAB). Yes. I am testing "real" memory
+> remove (not just offline/online), since it executes more code of
+> freeing memmap etc.
 > 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> ---
-> Perhaps this is too late for 2.6.28: your decision.
+> Code that is panicing is list_add() in mem_cgroup_add_list().
+> I will debug it further.
 > 
->  fs/namei.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- 2.6.28-rc4/fs/namei.c	2008-10-24 09:28:19.000000000 +0100
-> +++ linux/fs/namei.c	2008-11-12 11:52:44.000000000 +0000
-> @@ -1378,7 +1378,7 @@ static int may_delete(struct inode *dir,
->  	if (IS_APPEND(dir))
->  		return -EPERM;
->  	if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
-> -	    IS_IMMUTABLE(victim->d_inode))
-> +	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
->  		return -EPERM;
->  	if (isdir) {
->  		if (!S_ISDIR(victim->d_inode->i_mode))
 
--- 
-#define X(x,y) x##y
-Peter Cordes ;  e-mail: X(peter@cor , des.ca)
+Considering difference between "real" memory hotplug and logical ones,
+I found this. I hope this fixes the bug.
+But I myself can't do test this..
 
-"The gods confound the man who first found out how to distinguish the hours!
- Confound him, too, who in this place set up a sundial, to cut and hack
- my day so wretchedly into small pieces!" -- Plautus, 200 BC
+Thanks,
+-Kame
+
+==
+Fixes for memcg/memory hotplug.
+
+
+While memory hotplug allocate/free memmap, page_cgroup doesn't free
+page_cgroup at OFFLINE when page_cgroup is allocated via bootomem.
+(Because freeing bootmem requires special care.)
+
+Then, if page_cgroup is allocated by bootmem and memmap is freed/allocated
+by memory hotplug, page_cgroup->page == page is no longer true and
+we have to update that.
+
+But current MEM_ONLINE handler doesn't check it and update page_cgroup->page
+if it's not necessary to allocate page_cgroup.
+
+And I noticed that MEM_ONLINE can be called against "part of section".
+So, freeing page_cgroup at CANCEL_ONLINE will cause trouble.
+(freeing used page_cgroup)
+Don't rollback at CANCEL. 
+
+One more, current memory hotplug notifier is stopped by slub
+because it sets NOTIFY_STOP_MASK to return vaule. So, page_cgroup's callback
+never be called. (low priority than slub now.)
+
+I think this slub's behavior is not intentional(BUG). and fixes it.
+
+
+Another way to be considered about page_cgroup allocation:
+  - free page_cgroup at OFFLINE even if it's from bootmem
+    and remove specieal handler. But it requires more changes.
+
+
+Signed-off-by: KAMEZAWA Hiruyoki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ mm/page_cgroup.c |   39 +++++++++++++++++++++++++++------------
+ mm/slub.c        |    6 ++++--
+ 2 files changed, 31 insertions(+), 14 deletions(-)
+
+Index: mmotm-2.6.28-Nov10/mm/page_cgroup.c
+===================================================================
+--- mmotm-2.6.28-Nov10.orig/mm/page_cgroup.c
++++ mmotm-2.6.28-Nov10/mm/page_cgroup.c
+@@ -104,18 +104,30 @@ int __meminit init_section_page_cgroup(u
+ 	unsigned long table_size;
+ 	int nid, index;
+ 
+-	if (section->page_cgroup)
+-		return 0;
++	if (!section->page_cgroup) {
+ 
+-	nid = page_to_nid(pfn_to_page(pfn));
+-	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-	if (slab_is_available()) {
+-		base = kmalloc_node(table_size, GFP_KERNEL, nid);
+-		if (!base)
+-			base = vmalloc_node(table_size, nid);
+-	} else {
+-		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
++		nid = page_to_nid(pfn_to_page(pfn));
++		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
++		if (slab_is_available()) {
++			base = kmalloc_node(table_size, GFP_KERNEL, nid);
++			if (!base)
++				base = vmalloc_node(table_size, nid);
++		} else {
++			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
++				table_size,
+ 				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++		}
++	} else {
++		/*
++ 		 * We don't have to allocate page_cgroup again, but
++		 * address of memmap may be changed. So, we have to initialize
++		 * again.
++		 */
++		base = section->page_cgroup + pfn;
++		table_size = 0;
++		/* check address of memmap is changed or not. */
++		if (base->page == pfn_to_page(pfn))
++			return 0;
+ 	}
+ 
+ 	if (!base) {
+@@ -204,19 +216,22 @@ static int page_cgroup_callback(struct n
+ 		ret = online_page_cgroup(mn->start_pfn,
+ 				   mn->nr_pages, mn->status_change_nid);
+ 		break;
+-	case MEM_CANCEL_ONLINE:
+ 	case MEM_OFFLINE:
+ 		offline_page_cgroup(mn->start_pfn,
+ 				mn->nr_pages, mn->status_change_nid);
+ 		break;
+ 	case MEM_GOING_OFFLINE:
++	case MEM_CANCEL_ONLINE:
+ 		break;
+ 	case MEM_ONLINE:
+ 	case MEM_CANCEL_OFFLINE:
+ 		break;
+ 	}
+ 
+-	ret = notifier_from_errno(ret);
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
+ 
+ 	return ret;
+ }
+Index: mmotm-2.6.28-Nov10/mm/slub.c
+===================================================================
+--- mmotm-2.6.28-Nov10.orig/mm/slub.c
++++ mmotm-2.6.28-Nov10/mm/slub.c
+@@ -3220,8 +3220,10 @@ static int slab_memory_callback(struct n
+ 	case MEM_CANCEL_OFFLINE:
+ 		break;
+ 	}
+-
+-	ret = notifier_from_errno(ret);
++	if (ret)
++		ret = notifier_from_errno(ret);
++	else
++		ret = NOTIFY_OK;
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
