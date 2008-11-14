@@ -1,39 +1,26 @@
-Date: Fri, 14 Nov 2008 18:02:26 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 2.6.28?] don't unlink an active swapfile
-In-Reply-To: <20081114173422.GA22868@infradead.org>
-Message-ID: <Pine.LNX.4.64.0811141758260.29362@blonde.site>
-References: <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it>
- <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org> <Pine.LNX.4.64.0810171250410.22374@blonde.site>
- <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu>
- <Pine.LNX.4.64.0810182058120.7154@blonde.site> <20081018204948.GA22140@infradead.org>
- <20081018205647.GA29946@1wt.eu> <Pine.LNX.4.64.0811140234300.5027@blonde.site>
- <20081114173422.GA22868@infradead.org>
+Message-ID: <491DBD9E.6030703@goop.org>
+Date: Fri, 14 Nov 2008 10:04:14 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/2] mm: implement remap_pfn_range with apply_to_page_range
+References: <491C61B1.10005@goop.org> <200811141417.35724.nickpiggin@yahoo.com.au> <491D0B2F.7050900@goop.org> <200811141835.17073.nickpiggin@yahoo.com.au>
+In-Reply-To: <200811141835.17073.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Willy Tarreau <w@1wt.eu>, Peter Cordes <peter@cordes.ca>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Nov 2008, Christoph Hellwig wrote:
-> On Fri, Nov 14, 2008 at 02:37:22AM +0000, Hugh Dickins wrote:
-> > Peter Cordes is sorry that he rm'ed his swapfiles while they were in use,
-> > he then had no pathname to swapoff.  It's a curious little oversight, but
-> > not one worth a lot of hackery.  Kudos to Willy Tarreau for turning this
-> > around from a discussion of synthetic pathnames to how to prevent unlink.
-> > Mimic immutable: prohibit unlinking an active swapfile in may_delete()
-> > (and don't worry my little head over the tiny race window).
-> 
-> Looks good (but I think I already said this before)
+Nick Piggin wrote:
+> No, adding a cycle here or an indirect function call there IMO is
+> not acceptable in core mm/ code without a good reason.
+>   
 
-Thanks.  Indeed you did.  I wondered whether to add an Acked-by in
-your name, but I think different people have understandably different
-positions on the etiquette of translating "Looks good" into "Acked-by";
-so not knowing your position, I just Cc'ed you again.
+<shrug> OK.
 
-Hugh
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
