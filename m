@@ -1,140 +1,161 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAE0p7mo012786
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 14 Nov 2008 09:51:08 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C74045DE53
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 09:51:07 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 73A0B45DE52
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 09:51:07 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C477E08002
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 09:51:07 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E50781DB8037
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 09:51:06 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max pages
-In-Reply-To: <20081113171208.6985638e@bree.surriel.com>
-References: <20081113171208.6985638e@bree.surriel.com>
-Message-Id: <20081114093301.03BC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 1/2] mm: implement remap_pfn_range with apply_to_page_range
+Date: Fri, 14 Nov 2008 13:19:56 +1100
+References: <491C61B1.10005@goop.org>
+In-Reply-To: <491C61B1.10005@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 14 Nov 2008 09:51:06 +0900 (JST)
+Content-Disposition: inline
+Message-Id: <200811141319.56713.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Friday 14 November 2008 04:19, Jeremy Fitzhardinge wrote:
+> remap_pte_range() just wants to apply a function over a range of ptes
+> corresponding to a virtual address range.  That's exactly what
+> apply_to_page_range() does, so use it.
 
-> Sometimes the VM spends the first few priority rounds rotating back
-> referenced pages and submitting IO.  Once we get to a lower priority,
-> sometimes the VM ends up freeing way too many pages.
-> 
-> The fix is relatively simple: in shrink_zone() we can check how many
-> pages we have already freed and break out of the loop.
-> 
-> However, in order to do this we do need to know how many pages we already
-> freed, so move nr_reclaimed into scan_control.
-> 
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+This isn't performance critical to anyone?
 
-Wow!
-Honestly, I prepared the similar patche recently.
+I see DRM, IB, GRU, other media and video drivers use it.
+
+It IS exactly what apply_to_page_range does, I grant you. But so does
+our traditional set of nested loops. So is there any particular reason
+to change it? You're not planning to change fork/exit next, are you? :)
 
 
-
-
+> Signed-off-by: Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 > ---
->  mm/vmscan.c |   60 ++++++++++++++++++++++++++++++------------------------------
->  1 file changed, 30 insertions(+), 30 deletions(-)
-> 
-> Index: linux-2.6.28-rc2-mm1/mm/vmscan.c
+>  mm/memory.c |   92
+> ++++++++++++----------------------------------------------- 1 file changed,
+> 20 insertions(+), 72 deletions(-)
+>
 > ===================================================================
-> --- linux-2.6.28-rc2-mm1.orig/mm/vmscan.c	2008-10-30 15:20:06.000000000 -0400
-> +++ linux-2.6.28-rc2-mm1/mm/vmscan.c	2008-11-13 17:08:35.000000000 -0500
-> @@ -53,6 +53,9 @@ struct scan_control {
->  	/* Incremented by the number of inactive pages that were scanned */
->  	unsigned long nr_scanned;
->  
-> +	/* Number of pages that were freed */
-> +	unsigned long nr_reclaimed;
-> +
->  	/* This context's GFP mask */
->  	gfp_t gfp_mask;
->  
-> @@ -1408,16 +1411,14 @@ static void get_scan_ratio(struct zone *
->  	percent[1] = 100 - percent[0];
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1472,69 +1472,20 @@
 >  }
->  
-> -
->  /*
->   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
->   */
-> -static unsigned long shrink_zone(int priority, struct zone *zone,
-> +static void shrink_zone(int priority, struct zone *zone,
->  				struct scan_control *sc)
+>  EXPORT_SYMBOL(vm_insert_mixed);
+>
+> -/*
+> - * maps a range of physical memory into the requested pages. the old
+> - * mappings are removed. any references to nonexistent pages results
+> - * in null mappings (currently treated as "copy-on-access")
+> - */
+> -static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
+> -			unsigned long addr, unsigned long end,
+> -			unsigned long pfn, pgprot_t prot)
+> +struct remap_data {
+> +	struct mm_struct *mm;
+> +	unsigned long pfn;
+> +	pgprot_t prot;
+> +};
+> +
+> +static int remap_area_pte_fn(pte_t *ptep, pgtable_t token,
+> +			     unsigned long addr, void *data)
 >  {
->  	unsigned long nr[NR_LRU_LISTS];
->  	unsigned long nr_to_scan;
-> -	unsigned long nr_reclaimed = 0;
->  	unsigned long percent[2];	/* anon @ 0; file @ 1 */
->  	enum lru_list l;
->  
-> @@ -1458,10 +1459,18 @@ static unsigned long shrink_zone(int pri
->  					(unsigned long)sc->swap_cluster_max);
->  				nr[l] -= nr_to_scan;
->  
-> -				nr_reclaimed += shrink_list(l, nr_to_scan,
-> +				sc->nr_reclaimed += shrink_list(l, nr_to_scan,
->  							zone, sc, priority);
->  			}
->  		}
-> +		/*
-> +		 * On large memory systems, scan >> priority can become
-> +		 * really large.  This is OK if we need to scan through
-> +		 * that many pages (referenced, dirty, etc), but make
-> +		 * sure to stop if we already freed enough.
-> +		 */
-> +		if (sc->nr_reclaimed > sc->swap_cluster_max)
-> +			break;
->  	}
-
-There is one risk.
-__alloc_pages_internal() has following code,
-
-        pages_reclaimed += did_some_progress;
-        do_retry = 0;
-        if (!(gfp_mask & __GFP_NORETRY)) {
-                if (order <= PAGE_ALLOC_COSTLY_ORDER) {
-                        do_retry = 1;
-                } else {
-                        if (gfp_mask & __GFP_REPEAT &&
-                                pages_reclaimed < (1 << order))
-                                        do_retry = 1;
-                }
-                if (gfp_mask & __GFP_NOFAIL)
-                        do_retry = 1;
-        }
-
-
-So, reclaim shortcutting can increase the possibility of page allocation 
-endless retry on high-order allocation.
-
-Yes, it is the theorical issue.
-But we should test it for avoid regression.
-
-
-Otherthing, looks good to me.
-
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
+> -	pte_t *pte;
+> -	spinlock_t *ptl;
+> +	struct remap_data *rmd = data;
+> +	pte_t pte = pte_mkspecial(pfn_pte(rmd->pfn++, rmd->prot));
+>
+> -	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+> -	if (!pte)
+> -		return -ENOMEM;
+> -	arch_enter_lazy_mmu_mode();
+> -	do {
+> -		BUG_ON(!pte_none(*pte));
+> -		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
+> -		pfn++;
+> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+> -	arch_leave_lazy_mmu_mode();
+> -	pte_unmap_unlock(pte - 1, ptl);
+> -	return 0;
+> -}
+> +	set_pte_at(rmd->mm, addr, ptep, pte);
+>
+> -static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
+> -			unsigned long addr, unsigned long end,
+> -			unsigned long pfn, pgprot_t prot)
+> -{
+> -	pmd_t *pmd;
+> -	unsigned long next;
+> -
+> -	pfn -= addr >> PAGE_SHIFT;
+> -	pmd = pmd_alloc(mm, pud, addr);
+> -	if (!pmd)
+> -		return -ENOMEM;
+> -	do {
+> -		next = pmd_addr_end(addr, end);
+> -		if (remap_pte_range(mm, pmd, addr, next,
+> -				pfn + (addr >> PAGE_SHIFT), prot))
+> -			return -ENOMEM;
+> -	} while (pmd++, addr = next, addr != end);
+> -	return 0;
+> -}
+> -
+> -static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
+> -			unsigned long addr, unsigned long end,
+> -			unsigned long pfn, pgprot_t prot)
+> -{
+> -	pud_t *pud;
+> -	unsigned long next;
+> -
+> -	pfn -= addr >> PAGE_SHIFT;
+> -	pud = pud_alloc(mm, pgd, addr);
+> -	if (!pud)
+> -		return -ENOMEM;
+> -	do {
+> -		next = pud_addr_end(addr, end);
+> -		if (remap_pmd_range(mm, pud, addr, next,
+> -				pfn + (addr >> PAGE_SHIFT), prot))
+> -			return -ENOMEM;
+> -	} while (pud++, addr = next, addr != end);
+>  	return 0;
+>  }
+>
+> @@ -1551,10 +1502,9 @@
+>  int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+>  		    unsigned long pfn, unsigned long size, pgprot_t prot)
+>  {
+> -	pgd_t *pgd;
+> -	unsigned long next;
+>  	unsigned long end = addr + PAGE_ALIGN(size);
+>  	struct mm_struct *mm = vma->vm_mm;
+> +	struct remap_data rmd;
+>  	int err;
+>
+>  	/*
+> @@ -1584,16 +1534,14 @@
+>  	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+>
+>  	BUG_ON(addr >= end);
+> -	pfn -= addr >> PAGE_SHIFT;
+> -	pgd = pgd_offset(mm, addr);
+> -	flush_cache_range(vma, addr, end);
+> -	do {
+> -		next = pgd_addr_end(addr, end);
+> -		err = remap_pud_range(mm, pgd, addr, next,
+> -				pfn + (addr >> PAGE_SHIFT), prot);
+> -		if (err)
+> -			break;
+> -	} while (pgd++, addr = next, addr != end);
+> +
+> +	rmd.mm = mm;
+> +	rmd.pfn = pfn;
+> +	rmd.prot = prot;
+> +
+> +	err = apply_to_page_range(mm, addr, end - addr,
+> +				  remap_area_pte_fn, &rmd);
+> +
+>  	return err;
+>  }
+>  EXPORT_SYMBOL(remap_pfn_range);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
