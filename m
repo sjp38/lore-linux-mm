@@ -1,34 +1,53 @@
-Date: Thu, 13 Nov 2008 19:27:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after
- swap_cluster_max pages
-Message-Id: <20081113192729.7d8eb133.akpm@linux-foundation.org>
-In-Reply-To: <20081113171208.6985638e@bree.surriel.com>
-References: <20081113171208.6985638e@bree.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mAE3eqHZ014524
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:40:52 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAE3fW22158924
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:41:32 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAE3fVP7003890
+	for <linux-mm@kvack.org>; Thu, 13 Nov 2008 20:41:32 -0700
+Date: Thu, 13 Nov 2008 21:41:30 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v9][PATCH 12/13] Checkpoint multiple processes
+Message-ID: <20081114034130.GA14171@us.ibm.com>
+References: <1226335060-7061-1-git-send-email-orenl@cs.columbia.edu> <1226335060-7061-13-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1226335060-7061-13-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Nov 2008 17:12:08 -0500 Rik van Riel <riel@redhat.com> wrote:
-
-> Sometimes the VM spends the first few priority rounds rotating back
-> referenced pages and submitting IO.  Once we get to a lower priority,
-> sometimes the VM ends up freeing way too many pages.
+Quoting Oren Laadan (orenl@cs.columbia.edu):
+> Checkpointing of multiple processes works by recording the tasks tree
+> structure below a given task (usually this task is the container init).
 > 
-> The fix is relatively simple: in shrink_zone() we can check how many
-> pages we have already freed and break out of the loop.
+> For a given task, do a DFS scan of the tasks tree and collect them
+> into an array (keeping a reference to each task). Using DFS simplifies
+> the recreation of tasks either in user space or kernel space. For each
+> task collected, test if it can be checkpointed, and save its pid, tgid,
+> and ppid.
 > 
-> However, in order to do this we do need to know how many pages we already
-> freed, so move nr_reclaimed into scan_control.
+> The actual work is divided into two passes: a first scan counts the
+> tasks, then memory is allocated and a second scan fills the array.
+> 
+> The logic is suitable for creation of processes during restart either
+> in userspace or by the kernel.
+> 
+> Currently we ignore threads and zombies, as well as session ids.
+> 
+> Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 
-There was a reason for not doing this, but I forget what it was.  It might require
-some changelog archeology.  iirc it was to do with balancing scanning rates
-between the various things which we scan.
+Looks good.
+
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+
+thanks,
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
