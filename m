@@ -1,70 +1,90 @@
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 1/2] mm: implement remap_pfn_range with apply_to_page_range
-Date: Fri, 14 Nov 2008 18:35:16 +1100
-References: <491C61B1.10005@goop.org> <200811141417.35724.nickpiggin@yahoo.com.au> <491D0B2F.7050900@goop.org>
-In-Reply-To: <491D0B2F.7050900@goop.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAEADV4a011716
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 14 Nov 2008 19:13:31 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E1C545DD7D
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:13:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DD19A45DD7A
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:13:29 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A7041DB803C
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:13:29 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D1781DB803B
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:13:26 +0900 (JST)
+Date: Fri, 14 Nov 2008 19:12:46 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/9] memcg updates (14/Nov/2008)
+Message-Id: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200811141835.17073.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, pbadari@us.ibm.com, jblunck@suse.de, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 14 November 2008 16:22, Jeremy Fitzhardinge wrote:
-> Nick Piggin wrote:
-> > On Friday 14 November 2008 13:56, Jeremy Fitzhardinge wrote:
-> >> Nick Piggin wrote:
-> >>> This isn't performance critical to anyone?
-> >>
-> >> The only difference should be between having the specialized code and an
-> >> indirect function call, no?
-> >
-> > Indirect function call per pte. It's going to be slower surely.
->
-> Yes, though changing the calling convention to handle (up to) a whole
-> page worth of ptes in one call would be fairly simple I think.
+Several patches are posted after last update (12/Nov),
+it's better to catch all up as series.
 
-Yep. And leaving it alone is even simpler and still faster :)
+All patchs are mm-of-the-moment snapshot 2008-11-13-17-22
+  http://userweb.kernel.org/~akpm/mmotm/
+(You may need to patch fs/dquota.c and fix kernel/auditsc.c CONFIG error)
+
+New ones are 1,2,3 and 9. 
+
+IMHO, patch 1-4 are ready to go. (but I want Ack from Balbir to 3/9)
+
+Contents:
+
+[1/9] .... fix memory online/offline with memcg.
+  This patch is for "real" memory hotplug. So, people who can test this
+  is limited, I think. I asked Badari to try this.
+  This fix itself is logically correct I think, but there may be other bugs..
+
+[2/9] .... reduce size of per-cpu allocation.
+  This is from Jan Blunck <jblunck@suse.de> and I picked it up and rewrote.
+  please test. This tries to reduce memory usage of mem_cgroup struct.
+
+[3/9] .... add force_empty again with proper implementation.
+  I removed "force_empty" by account_move patch in mmotm. But I asked not to
+  do that brutal removal of interface. I'm sorry.
+  This adds "force_empty", but implemntaion itself is much saner. After this,
+  force_empty is no longer "debug only" interface.
+
+[4/9] .... account swap-cache.
+  Before accounting swap, we have to handle swap-cache.
+  This patch have been test for a month and seems to works well. Still here
+  and waiting for bug fixes moved into..
+
+[5/9] .... mem+swap controller kconfig
+  Kconfig changes and macro for mem+swap controller.
+
+[6/9] .... swap cgroup.
+  For accounting swap, we have to prepare a strage for remembering swap.
+
+[7/9] .... mem+swap controller.
+  mem+swap controller core logic. I and Nishimura have been testing this
+  for a month. It's getting nicer.
+
+[8/9] .... synchronized LRU patch
+  remove mz->lru_lock and make use of zone->lru_lock. By this, we do not have to
+  duplicate vmscan's global LRU behavior in memcg.
+  I think I'm an only tester of this ;) but works well.
+
+[9/9] .... mem_cgroup_disabled() patch
+  Replacing if (mem_cgroup_subsys.disabled) to be if (mem_cgroup_disabled()).
+  Takahashi (dm-ioband team) posted their bio-cgroup interface working with
+  page_cgroup. This is cut out from his one.
+  Takahashi, If you ack me, send me Signed-off-by or Acked-by. I'll queue this.
+
+Thanks,
+-Kame
 
 
-> > It is accepted practice to (carefully) duplicate the page table walking
-> > functions in memory management code. I don't think that's a problem,
-> > there is already so many instances of them (just be sure to stick to
-> > exactly the same form and variable names, and any update or bugfix to
-> > any of them is trivially applicable to all).
->
-> I think that's pretty awful practice, frankly, and I'd much prefer there
-> to be a single iterator function which everyone uses.
-
-I think its pretty nice. It means you can make the loops fairly
-optimal even if they might have slightly different requirements
-(different arguments, latency breaks, copy_page_range etc).
-
-
-> The open-coded 
-> iterators everywhere just makes it completely impractical to even think
-> about other kinds of pagetable structures.  (Of course we have at least
-> two "general purpose" pagetable walkers now...)
-
-I think that's being way over dramatic. When switching to a
-different page table structure, I assure you that copying and
-pasting your new walking algorithm a few times will be the least
-of your worries :)
-
-It's not meant to be pluggable. Actually this came up last I think
-when the UNSW wanted to add page table accessors to abstract this.
-They came up with a good set of things, but in the end you can't
-justify slowing things down in these paths unless you actually have
-a replacement page table structure that gets you a *net win*. So
-far, I haven't heard from them again.
-
-No, adding a cycle here or an indirect function call there IMO is
-not acceptable in core mm/ code without a good reason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
