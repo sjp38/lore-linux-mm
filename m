@@ -1,23 +1,23 @@
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAEAEtM2014141
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAEAFxLd011109
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 14 Nov 2008 19:14:55 +0900
+	Fri, 14 Nov 2008 19:16:00 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0CB5345DD7E
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:14:55 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C044F45DD7C
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:15:59 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E00F545DD7D
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:14:54 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D66445DD78
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:15:59 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C5A281DB803E
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:14:54 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 709E01DB803B
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:14:54 +0900 (JST)
-Date: Fri, 14 Nov 2008 19:14:14 +0900
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 753311DB8037
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:15:59 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 25DE7E08001
+	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:15:56 +0900 (JST)
+Date: Fri, 14 Nov 2008 19:15:16 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 1/9] memcg: memory hotpluf fix for notifier callback.
-Message-Id: <20081114191414.dd74aebc.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 2/9] memcg : reduce size of mem_cgroup by using nr_cpu_ids.
+Message-Id: <20081114191516.dda13b88.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,131 +29,110 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, pbadari@us.ibm.com, jblunck@suse.de, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Fixes for memcg/memory hotplug.
+As  Jan Blunck <jblunck@suse.de> pointed out, allocating
+per-cpu stat for memcg to the size of NR_CPUS is not good.
 
+This patch changes mem_cgroup's cpustat allocation not based
+on NR_CPUS but based on nr_cpu_ids.
 
-While memory hotplug allocate/free memmap, page_cgroup doesn't free
-page_cgroup at OFFLINE when page_cgroup is allocated via bootomem.
-(Because freeing bootmem requires special care.)
+Changelog:
+ - fixed bugs in error path.
 
-Then, if page_cgroup is allocated by bootmem and memmap is freed/allocated
-by memory hotplug, page_cgroup->page == page is no longer true.
-
-But current MEM_ONLINE handler doesn't check it and update page_cgroup->page
-if it's not necessary to allocate page_cgroup.
-(This was not found because memmap is not freed if SPARSEMEM_VMEMMAP is y.)
-
-And I noticed that MEM_ONLINE can be called against "part of section".
-So, freeing page_cgroup at CANCEL_ONLINE will cause trouble.
-(freeing used page_cgroup)
-Don't rollback at CANCEL. 
-
-One more, current memory hotplug notifier is stopped by slub
-because it sets NOTIFY_STOP_MASK to return vaule. So, page_cgroup's callback
-never be called. (low priority than slub now.)
-
-I think this slub's behavior is not intentional(BUG). and fixes it.
-
-
-Another way to be considered about page_cgroup allocation:
-  - free page_cgroup at OFFLINE even if it's from bootmem
-    and remove specieal handler. But it requires more changes.
-
-
-Signed-off-by: KAMEZAWA Hiruyoki <kamezawa.hiroyu@jp.fujitsu.com>
+From: Jan Blunck <jblunck@suse.de>
+Reviewed-by: Li Zefan <lizf@cn.fujitsu.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
- mm/page_cgroup.c |   43 +++++++++++++++++++++++++++++--------------
- mm/slub.c        |    6 ++++--
- 2 files changed, 33 insertions(+), 16 deletions(-)
+ mm/memcontrol.c |   35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
 
-Index: mmotm-2.6.28-Nov13/mm/page_cgroup.c
+Index: mmotm-2.6.28-Nov13/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.28-Nov13.orig/mm/page_cgroup.c
-+++ mmotm-2.6.28-Nov13/mm/page_cgroup.c
-@@ -104,19 +104,29 @@ int __meminit init_section_page_cgroup(u
- 	unsigned long table_size;
- 	int nid, index;
+--- mmotm-2.6.28-Nov13.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Nov13/mm/memcontrol.c
+@@ -60,7 +60,7 @@ struct mem_cgroup_stat_cpu {
+ } ____cacheline_aligned_in_smp;
  
--	if (section->page_cgroup)
--		return 0;
--
--	nid = page_to_nid(pfn_to_page(pfn));
--
--	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
--	if (slab_is_available()) {
--		base = kmalloc_node(table_size, GFP_KERNEL, nid);
--		if (!base)
--			base = vmalloc_node(table_size, nid);
--	} else {
--		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
-+	if (!section->page_cgroup) {
-+		nid = page_to_nid(pfn_to_page(pfn));
-+		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-+		if (slab_is_available()) {
-+			base = kmalloc_node(table_size, GFP_KERNEL, nid);
-+			if (!base)
-+				base = vmalloc_node(table_size, nid);
-+		} else {
-+			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
-+				table_size,
- 				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-+		}
-+	} else {
-+		/*
-+ 		 * We don't have to allocate page_cgroup again, but
-+		 * address of memmap may be changed. So, we have to initialize
-+		 * again.
-+		 */
-+		base = section->page_cgroup + pfn;
-+		table_size = 0;
-+		/* check address of memmap is changed or not. */
-+		if (base->page == pfn_to_page(pfn))
-+			return 0;
- 	}
+ struct mem_cgroup_stat {
+-	struct mem_cgroup_stat_cpu cpustat[NR_CPUS];
++	struct mem_cgroup_stat_cpu cpustat[0];
+ };
  
- 	if (!base) {
-@@ -204,18 +214,23 @@ static int page_cgroup_callback(struct n
- 		ret = online_page_cgroup(mn->start_pfn,
- 				   mn->nr_pages, mn->status_change_nid);
- 		break;
--	case MEM_CANCEL_ONLINE:
- 	case MEM_OFFLINE:
- 		offline_page_cgroup(mn->start_pfn,
- 				mn->nr_pages, mn->status_change_nid);
- 		break;
-+	case MEM_CANCEL_ONLINE:
- 	case MEM_GOING_OFFLINE:
- 		break;
- 	case MEM_ONLINE:
- 	case MEM_CANCEL_OFFLINE:
- 		break;
- 	}
--	ret = notifier_from_errno(ret);
-+
-+	if (ret)
-+		ret = notifier_from_errno(ret);
-+	else
-+		ret = NOTIFY_OK;
-+
- 	return ret;
+ /*
+@@ -129,11 +129,10 @@ struct mem_cgroup {
+ 
+ 	int	prev_priority;	/* for recording reclaim priority */
+ 	/*
+-	 * statistics.
++	 * statistics. This must be placed at the end of memcg.
+ 	 */
+ 	struct mem_cgroup_stat stat;
+ };
+-static struct mem_cgroup init_mem_cgroup;
+ 
+ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+@@ -1292,23 +1291,30 @@ static void free_mem_cgroup_per_zone_inf
+ 	kfree(mem->info.nodeinfo[node]);
  }
  
-Index: mmotm-2.6.28-Nov13/mm/slub.c
-===================================================================
---- mmotm-2.6.28-Nov13.orig/mm/slub.c
-+++ mmotm-2.6.28-Nov13/mm/slub.c
-@@ -3220,8 +3220,10 @@ static int slab_memory_callback(struct n
- 	case MEM_CANCEL_OFFLINE:
- 		break;
- 	}
--
--	ret = notifier_from_errno(ret);
-+	if (ret)
-+		ret = notifier_from_errno(ret);
-+	else
-+		ret = NOTIFY_OK;
- 	return ret;
++static int mem_cgroup_size(void)
++{
++	int cpustat_size = nr_cpu_ids * sizeof(struct mem_cgroup_stat_cpu);
++	return sizeof(struct mem_cgroup) + cpustat_size;
++}
++
+ static struct mem_cgroup *mem_cgroup_alloc(void)
+ {
+ 	struct mem_cgroup *mem;
++	int size = mem_cgroup_size();
+ 
+-	if (sizeof(*mem) < PAGE_SIZE)
+-		mem = kmalloc(sizeof(*mem), GFP_KERNEL);
++	if (size < PAGE_SIZE)
++		mem = kmalloc(size, GFP_KERNEL);
+ 	else
+-		mem = vmalloc(sizeof(*mem));
++		mem = vmalloc(size);
+ 
+ 	if (mem)
+-		memset(mem, 0, sizeof(*mem));
++		memset(mem, 0, size);
+ 	return mem;
+ }
+ 
+ static void mem_cgroup_free(struct mem_cgroup *mem)
+ {
+-	if (sizeof(*mem) < PAGE_SIZE)
++	if (mem_cgroup_size() < PAGE_SIZE)
+ 		kfree(mem);
+ 	else
+ 		vfree(mem);
+@@ -1321,13 +1327,9 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	struct mem_cgroup *mem;
+ 	int node;
+ 
+-	if (unlikely((cont->parent) == NULL)) {
+-		mem = &init_mem_cgroup;
+-	} else {
+-		mem = mem_cgroup_alloc();
+-		if (!mem)
+-			return ERR_PTR(-ENOMEM);
+-	}
++	mem = mem_cgroup_alloc();
++	if (!mem)
++		return ERR_PTR(-ENOMEM);
+ 
+ 	res_counter_init(&mem->res);
+ 
+@@ -1339,8 +1341,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ free_out:
+ 	for_each_node_state(node, N_POSSIBLE)
+ 		free_mem_cgroup_per_zone_info(mem, node);
+-	if (cont->parent != NULL)
+-		mem_cgroup_free(mem);
++	mem_cgroup_free(mem);
+ 	return ERR_PTR(-ENOMEM);
  }
  
 
