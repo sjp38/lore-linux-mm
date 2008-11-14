@@ -1,26 +1,36 @@
-Message-ID: <491DBD9E.6030703@goop.org>
-Date: Fri, 14 Nov 2008 10:04:14 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Date: Fri, 14 Nov 2008 19:49:42 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH mmotm] mm: don't mark_page_accessed in shmem_fault
+Message-ID: <Pine.LNX.4.64.0811141944540.12769@blonde.site>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: implement remap_pfn_range with apply_to_page_range
-References: <491C61B1.10005@goop.org> <200811141417.35724.nickpiggin@yahoo.com.au> <491D0B2F.7050900@goop.org> <200811141835.17073.nickpiggin@yahoo.com.au>
-In-Reply-To: <200811141835.17073.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Johannes Weiner <hannes@saeurebad.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> No, adding a cycle here or an indirect function call there IMO is
-> not acceptable in core mm/ code without a good reason.
->   
+Following "mm: don't mark_page_accessed in fault path", which now
+places a mark_page_accessed() in zap_pte_range(), we should remove
+the mark_page_accessed() from shmem_fault().
 
-<shrug> OK.
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+You guessed it, follows mm-dont-mark_page_accessed-in-fault-path.patch
 
-    J
+ mm/shmem.c |    1 -
+ 1 file changed, 1 deletion(-)
+
+--- 2.6.28-rc4/mm/shmem.c	2008-11-02 23:17:56.000000000 +0000
++++ linux/mm/shmem.c	2008-11-14 19:06:54.000000000 +0000
+@@ -1444,7 +1444,6 @@ static int shmem_fault(struct vm_area_st
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+ 
+-	mark_page_accessed(vmf->page);
+ 	return ret | VM_FAULT_LOCKED;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
