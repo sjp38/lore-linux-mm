@@ -1,50 +1,47 @@
-Date: Fri, 14 Nov 2008 02:33:51 +0000 (GMT)
+Date: Fri, 14 Nov 2008 02:37:22 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 2.6.28?] let GFP_NOFS go to swap again
-Message-ID: <Pine.LNX.4.64.0811140232260.5027@blonde.site>
+Subject: [PATCH 2.6.28?] don't unlink an active swapfile
+In-Reply-To: <20081018205647.GA29946@1wt.eu>
+Message-ID: <Pine.LNX.4.64.0811140234300.5027@blonde.site>
+References: <bnlDw-5vQ-7@gated-at.bofh.it> <bnwpg-2EA-17@gated-at.bofh.it>
+ <bnJFK-3bu-7@gated-at.bofh.it> <bnR0A-4kq-1@gated-at.bofh.it>
+ <E1KqkZK-0001HO-WF@be1.7eggert.dyndns.org> <Pine.LNX.4.64.0810171250410.22374@blonde.site>
+ <20081018003117.GC26067@cordes.ca> <20081018051800.GO24654@1wt.eu>
+ <Pine.LNX.4.64.0810182058120.7154@blonde.site> <20081018204948.GA22140@infradead.org>
+ <20081018205647.GA29946@1wt.eu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
+Cc: Willy Tarreau <w@1wt.eu>, Christoph Hellwig <hch@infradead.org>, Peter Cordes <peter@cordes.ca>, Bodo Eggert <7eggert@gmx.de>, David Newall <davidn@davidnewall.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In the past, GFP_NOFS (but of course not GFP_NOIO) was allowed to reclaim
-by writing to swap.  That got partially broken in 2.6.23, when may_enter_fs
-initialization was moved up before the allocation of swap, so its
-PageSwapCache test was failing the first time around,
-
-Fix it by setting may_enter_fs when add_to_swap() succeeds with
-__GFP_IO.  In fact, check __GFP_IO before calling add_to_swap():
-allocating swap we're not ready to use just increases disk seeking.
+Peter Cordes is sorry that he rm'ed his swapfiles while they were in use,
+he then had no pathname to swapoff.  It's a curious little oversight, but
+not one worth a lot of hackery.  Kudos to Willy Tarreau for turning this
+around from a discussion of synthetic pathnames to how to prevent unlink.
+Mimic immutable: prohibit unlinking an active swapfile in may_delete()
+(and don't worry my little head over the tiny race window).
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
 Perhaps this is too late for 2.6.28: your decision.
 
- mm/vmscan.c |    3 +++
- 1 file changed, 3 insertions(+)
+ fs/namei.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- 2.6.28-rc4/mm/vmscan.c	2008-10-24 09:28:26.000000000 +0100
-+++ linux/mm/vmscan.c	2008-11-12 11:52:44.000000000 +0000
-@@ -623,6 +623,8 @@ static unsigned long shrink_page_list(st
- 		 * Try to allocate it some swap space here.
- 		 */
- 		if (PageAnon(page) && !PageSwapCache(page)) {
-+			if (!(sc->gfp_mask & __GFP_IO))
-+				goto keep_locked;
- 			switch (try_to_munlock(page)) {
- 			case SWAP_FAIL:		/* shouldn't happen */
- 			case SWAP_AGAIN:
-@@ -634,6 +636,7 @@ static unsigned long shrink_page_list(st
- 			}
- 			if (!add_to_swap(page, GFP_ATOMIC))
- 				goto activate_locked;
-+			may_enter_fs = 1;
- 		}
- #endif /* CONFIG_SWAP */
- 
+--- 2.6.28-rc4/fs/namei.c	2008-10-24 09:28:19.000000000 +0100
++++ linux/fs/namei.c	2008-11-12 11:52:44.000000000 +0000
+@@ -1378,7 +1378,7 @@ static int may_delete(struct inode *dir,
+ 	if (IS_APPEND(dir))
+ 		return -EPERM;
+ 	if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
+-	    IS_IMMUTABLE(victim->d_inode))
++	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
+ 		return -EPERM;
+ 	if (isdir) {
+ 		if (!S_ISDIR(victim->d_inode->i_mode))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
