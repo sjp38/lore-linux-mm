@@ -1,47 +1,64 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAEBcqxi028188
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 22:38:52 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAEBXMi2207458
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 22:33:23 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAEBXMRt026493
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 22:33:22 +1100
-Message-ID: <491D61FA.3050704@linux.vnet.ibm.com>
-Date: Fri, 14 Nov 2008 17:03:14 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <491D8CEC.5050106@redhat.com>
+Date: Fri, 14 Nov 2008 09:36:28 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9] memcg updates (14/Nov/2008)
-References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max
+ pages
+References: <20081113171208.6985638e@bree.surriel.com> <20081113192729.7d8eb133.akpm@linux-foundation.org>
+In-Reply-To: <20081113192729.7d8eb133.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, pbadari@us.ibm.com, jblunck@suse.de, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Several patches are posted after last update (12/Nov),
-> it's better to catch all up as series.
+Andrew Morton wrote:
+> On Thu, 13 Nov 2008 17:12:08 -0500 Rik van Riel <riel@redhat.com> wrote:
 > 
-> All patchs are mm-of-the-moment snapshot 2008-11-13-17-22
->   http://userweb.kernel.org/~akpm/mmotm/
-> (You may need to patch fs/dquota.c and fix kernel/auditsc.c CONFIG error)
+>> Sometimes the VM spends the first few priority rounds rotating back
+>> referenced pages and submitting IO.  Once we get to a lower priority,
+>> sometimes the VM ends up freeing way too many pages.
+>>
+>> The fix is relatively simple: in shrink_zone() we can check how many
+>> pages we have already freed and break out of the loop.
+>>
+>> However, in order to do this we do need to know how many pages we already
+>> freed, so move nr_reclaimed into scan_control.
 > 
-> New ones are 1,2,3 and 9. 
-> 
-> IMHO, patch 1-4 are ready to go. (but I want Ack from Balbir to 3/9)
+> There was a reason for not doing this, but I forget what it was.  It might require
+> some changelog archeology.  iirc it was to do with balancing scanning rates
+> between the various things which we scan.
 
-Hi, Kamezawa,
+I've seen worse symptoms without this code, though. Pretty
+much all 2.6 kernels show bad behaviour occasionally.
 
-Sorry to keep you waiting, I've been spending time on memcg hierarchy patches
-(testing, fixing, revisiting them). Hopefully, I'll find some time quickly.
+Sometimes the VM gets in such a state where multiple processes
+cannot find anything readily evictable, and they all end up
+at a lower priority level.
+
+This can cause them to evict more than half of everything from
+memory, before breaking out of the pageout loop and swapping
+things back in.  On my 2GB desktop, I've seen as much as 1200MB
+memory free due to such a swapout storm.  It is possible more is
+free at the top of the cycle, but X and gnome-terminal and top
+and everything else is stuck, so that's not actually visible :)
+
+I am not convinced that a scanning imbalance is more serious.
+
+Of course, one thing we could do is exempt kswapd from this check.
+During light reclaim, kswapd does most of the eviction so scanning
+should remain balanced.  Having one process fall down to a lower
+priority level is also not a big problem.
+
+As long as the direct reclaim processes do not also fall into the
+same trap, the situation should be manageable.
+
+Does that sound reasonable to you?
 
 -- 
-	Balbir
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
