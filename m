@@ -1,152 +1,121 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mAF08tNK015828
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:08:55 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAF08uXc165872
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:08:56 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAF08dRx010620
-	for <linux-mm@kvack.org>; Fri, 14 Nov 2008 19:08:40 -0500
-Date: Fri, 14 Nov 2008 16:08:44 -0800
-From: Gary Hade <garyhade@us.ibm.com>
-Subject: Re: [PATCH] [REPOST #2] mm: show node to memory section
-	relationship with symlinks in sysfs
-Message-ID: <20081115000844.GE7108@us.ibm.com>
-References: <20081103234808.GA13716@us.ibm.com> <1226528175.4835.18.camel@badari-desktop> <20081113165402.GA7084@us.ibm.com> <1226678717.16616.2.camel@badari-desktop> <20081114164125.GA7108@us.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081114164125.GA7108@us.ibm.com>
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAF30tOL022494
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 15 Nov 2008 12:00:55 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 579A945DD7A
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 12:00:55 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CFD245DD78
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 12:00:55 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DC421DB803B
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 12:00:55 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BBCE61DB8038
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 12:00:54 +0900 (JST)
+Date: Sat, 15 Nov 2008 12:00:15 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/9] memcg updates (14/Nov/2008)
+Message-Id: <20081115120015.22fa5720.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: Badari Pulavarty <pbadari@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Yasunori Goto <y-goto@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Chris McDermott <lcm@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, Greg KH <greg@kroah.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Nish Aravamudan <nish.aravamudan@gmail.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 14, 2008 at 08:41:25AM -0800, Gary Hade wrote:
-> On Fri, Nov 14, 2008 at 08:05:17AM -0800, Badari Pulavarty wrote:
-> > On Thu, 2008-11-13 at 08:54 -0800, Gary Hade wrote:
-> > > On Wed, Nov 12, 2008 at 02:16:15PM -0800, Badari Pulavarty wrote:
-> > > > On Mon, 2008-11-03 at 15:48 -0800, Gary Hade wrote:
-> > > > > Show node to memory section relationship with symlinks in sysfs
-> > > > > 
-> > > > > Add /sys/devices/system/node/nodeX/memoryY symlinks for all
-> > > > > the memory sections located on nodeX.  For example:
-> > > > > /sys/devices/system/node/node1/memory135 -> ../../memory/memory135
-> > > > > indicates that memory section 135 resides on node1.
-> > > > > 
-> > > > > Also revises documentation to cover this change as well as updating
-> > > > > Documentation/ABI/testing/sysfs-devices-memory to include descriptions
-> > > > > of memory hotremove files 'phys_device', 'phys_index', and 'state'
-> > > > > that were previously not described there.
-> > > > > 
-> > > > > In addition to it always being a good policy to provide users with
-> > > > > the maximum possible amount of physical location information for
-> > > > > resources that can be hot-added and/or hot-removed, the following
-> > > > > are some (but likely not all) of the user benefits provided by
-> > > > > this change.
-> > > > > Immediate:
-> > > > >   - Provides information needed to determine the specific node
-> > > > >     on which a defective DIMM is located.  This will reduce system
-> > > > >     downtime when the node or defective DIMM is swapped out.
-> > > > >   - Prevents unintended onlining of a memory section that was 
-> > > > >     previously offlined due to a defective DIMM.  This could happen
-> > > > >     during node hot-add when the user or node hot-add assist script
-> > > > >     onlines _all_ offlined sections due to user or script inability
-> > > > >     to identify the specific memory sections located on the hot-added
-> > > > >     node.  The consequences of reintroducing the defective memory
-> > > > >     could be ugly.
-> > > > >   - Provides information needed to vary the amount and distribution
-> > > > >     of memory on specific nodes for testing or debugging purposes.
-> > > > > Future:
-> > > > >   - Will provide information needed to identify the memory
-> > > > >     sections that need to be offlined prior to physical removal
-> > > > >     of a specific node.
-> > > > > 
-> > > > > Symlink creation during boot was tested on 2-node x86_64, 2-node
-> > > > > ppc64, and 2-node ia64 systems.  Symlink creation during physical
-> > > > > memory hot-add tested on a 2-node x86_64 system.
-> > > > > 
-> > > > > Supersedes the "mm: show memory section to node relationship in sysfs"
-> > > > > patch posted on 05 Sept 2008 which created node ID containing 'node'
-> > > > > files in /sys/devices/system/memory/memoryX instead of symlinks.
-> > > > > Changed from files to symlinks due to feedback that symlinks were
-> > > > > more consistent with the sysfs way.
-> > > > > 
-> > > > > Supersedes the "mm: show node to memory section relationship with
-> > > > > symlinks in sysfs" patch posted on 29 Sept 2008 to address a Yasunori
-> > > > > Goto reported problem where an incorrect symlink was created due to
-> > > > > a range of uninitialized pages at the beginning of a section.  This
-> > > > > problem which produced a symlink in /sys/devices/system/node/node0
-> > > > > that incorrectly referenced a mem section located on node1 is corrected
-> > > > > in this version.  This version also covers the case were a mem section
-> > > > > could span multiple nodes.
-> > > > > 
-> > > > > Supersedes the "mm: show node to memory section relationship with
-> > > > > symlinks in sysfs" patch posted on 09 Oct 2008 to add the Andrew
-> > > > > Morton requested usefulness information and update to apply cleanly
-> > > > > to 2.6.28-rc3 and 2.6-git.  Code is unchanged.
-> > > > > 
-> > > > > Signed-off-by: Gary Hade <garyhade@us.ibm.com>
-> > > > > Signed-off-by: Badari Pulavarty <pbadari@us.ibm.com>
-> > > > > 
-> > > > 
-> > > > Hi Gary,
-> > > > 
-> > > > While testing latest mmtom (which has this patch) ran into an issue
-> > > > with sysfs files. What I noticed was, with this patch "memoryXX"
-> > > > directories in /sys/devices/system/memory/ are not getting cleaned up.
-> > > > Backing out the patch seems to fix the problem. 
-> > > > 
-> > > > When I tried to remove 64 blocks of memory, empty  directories are
-> > > > stayed around. (look at memory151 - memory215). This is causing OOPS
-> > > > while trying to add memory block again. I think this could be because 
-> > > > of the symlink added from node directory.  Can you look ?
-> > > 
-> > > Badari, The call to unregister_mem_sect_under_nodes() in
-> > > remove_memory_block() preceding the removal of the files in
-> > > the memory section directory _should have_ removed all the
-> > > symlinks referencing the memory section directory.  Did you
-> > > happen to check to see if the symlinks to memory151-memory215
-> > > were still present?
-> > > 
-> > > Gary
-> > > 
-> > 
-> > Hi Gary,
-> > 
-> > As discussed earlier, patch is leaving an extra reference on the
-> > memoryX directory. Needs a kobject_put() to match the reference
-> > you get in find_memory_block().
+On Fri, 14 Nov 2008 19:12:46 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> Several patches are posted after last update (12/Nov),
+> it's better to catch all up as series.
 > 
-> Badari, Thanks again for finding that!
+> All patchs are mm-of-the-moment snapshot 2008-11-13-17-22
+>   http://userweb.kernel.org/~akpm/mmotm/
+> (You may need to patch fs/dquota.c and fix kernel/auditsc.c CONFIG error)
 > 
-> > 
-> > Could you update the patch and resend it ?
+> New ones are 1,2,3 and 9. 
 > 
-> Will do.
+> IMHO, patch 1-4 are ready to go. (but I want Ack from Balbir to 3/9)
+> 
+Reduced CCs.
 
-I just posted a replacement patch with subject line
-  [PATCH] [REPOST #3] mm: show node to memory section relationship
-                      with symlinks in sysfs
-In addition to addressing the memory section directory removal problem
-it also contains a change to correct a 'for' loop early termination
-problem that I noticed while debugging the directory removal problem.
+Hi folks, I noticed that all 9 pathces here are now in mmotm.
+Thank you for all your patient help! and
+please try "mm-of-the-moment snapshot 2008-11-14-17-14" 
+Now, mem+swap controller is available there.
 
-Andrew, If it would be better from a -mm standpoint for me to give
-you a small patch that would apply on top of instead of replacing
-the bad one, just let me know.
+My concern is architecture other than x86-64. It seems I and Nishimura use
+x86-64 in main test. So, test in other archtecuthre is very welcome.
 
-Thanks,
-Gary
+I have no patches in my queue and wondering how to start
+  - shrink usage
+  - dirty ratio for memcg.
+  - help Balbir's hierarchy.
+works. (But I may have to clean up/optimize codes before going further.)
 
--- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+and Balbir, the world is changed after synchronized-LRU patch ([8/9]).
+please see it. 
+
+Thanks!
+-Kame
+
+
+
+> Contents:
+> 
+> [1/9] .... fix memory online/offline with memcg.
+>   This patch is for "real" memory hotplug. So, people who can test this
+>   is limited, I think. I asked Badari to try this.
+>   This fix itself is logically correct I think, but there may be other bugs..
+> 
+> [2/9] .... reduce size of per-cpu allocation.
+>   This is from Jan Blunck <jblunck@suse.de> and I picked it up and rewrote.
+>   please test. This tries to reduce memory usage of mem_cgroup struct.
+> 
+> [3/9] .... add force_empty again with proper implementation.
+>   I removed "force_empty" by account_move patch in mmotm. But I asked not to
+>   do that brutal removal of interface. I'm sorry.
+>   This adds "force_empty", but implemntaion itself is much saner. After this,
+>   force_empty is no longer "debug only" interface.
+> 
+> [4/9] .... account swap-cache.
+>   Before accounting swap, we have to handle swap-cache.
+>   This patch have been test for a month and seems to works well. Still here
+>   and waiting for bug fixes moved into..
+> 
+> [5/9] .... mem+swap controller kconfig
+>   Kconfig changes and macro for mem+swap controller.
+> 
+> [6/9] .... swap cgroup.
+>   For accounting swap, we have to prepare a strage for remembering swap.
+> 
+> [7/9] .... mem+swap controller.
+>   mem+swap controller core logic. I and Nishimura have been testing this
+>   for a month. It's getting nicer.
+> 
+> [8/9] .... synchronized LRU patch
+>   remove mz->lru_lock and make use of zone->lru_lock. By this, we do not have to
+>   duplicate vmscan's global LRU behavior in memcg.
+>   I think I'm an only tester of this ;) but works well.
+> 
+> [9/9] .... mem_cgroup_disabled() patch
+>   Replacing if (mem_cgroup_subsys.disabled) to be if (mem_cgroup_disabled()).
+>   Takahashi (dm-ioband team) posted their bio-cgroup interface working with
+>   page_cgroup. This is cut out from his one.
+>   Takahashi, If you ack me, send me Signed-off-by or Acked-by. I'll queue this.
+> 
+> Thanks,
+> -Kame
+> 
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
