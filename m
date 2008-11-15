@@ -1,117 +1,131 @@
-Date: Sat, 15 Nov 2008 18:38:59 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: evict streaming IO cache first
-Message-Id: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAFAVYm7024185
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 15 Nov 2008 19:31:34 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C0C845DD7A
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 19:31:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E73C45DD76
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 19:31:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F00F1DB803F
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 19:31:34 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AA4211DB8037
+	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 19:31:33 +0900 (JST)
+Message-ID: <41265.10.75.179.62.1226745093.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20081115183721.cfc1b80b.d-nishimura@mtf.biglobe.ne.jp>
+References: <20081115183721.cfc1b80b.d-nishimura@mtf.biglobe.ne.jp>
+Date: Sat, 15 Nov 2008 19:31:33 +0900 (JST)
+Subject: Re: [PATCH mmotm] memcg: make resize limit hold mutex
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Gene Heskett <gene.heskett@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: nishimura@mxp.nes.nec.co.jp
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, d-nishimura@mtf.biglobe.ne.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Daisuke Nishimura said:
+>
+> This patch define a new mutex and make both mem_cgroup_resize_limit and
+> mem_cgroup_memsw_resize_limit hold it to remove spin_lock_irqsave.
+>
+Thanks,
 
-I think we need this patch at 2.6.28.
-Can this thinking get acception?
+>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+<snip>
+> -	while (res_counter_set_limit(&memcg->res, val)) {
+> +	while (retry_count) {
+>  		if (signal_pending(current)) {
+>  			ret = -EINTR;
+>  			break;
+>  		}
+> -		if (!retry_count) {
+> -			ret = -EBUSY;
+> -			break;
+> +		/*
+> +		 * Rather than hide all in some function, I do this in
+> +		 * open coded manner. You see what this really does.
+> +		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+> +		 */
+> +		if (do_swap_account) {
+> +			mutex_lock(&set_limit_mutex);
+> +			memswlimit = res_counter_read_u64(&memcg->memsw,
+> +							RES_LIMIT);
+> +			if (memswlimit < val) {
+> +				ret = -EINVAL;
+> +				mutex_unlock(&set_limit_mutex);
+> +				break;
+> +			}
+> +			ret = res_counter_set_limit(&memcg->res, val);
+> +			mutex_unlock(&set_limit_mutex);
+>  		}
 
+Maybe !do_swap_account case is not handled.
+I think in !do_swap_account case, memsw.limit is inifinite.
+So, just removing this "if" is ok.
 
---------------------------------------------------
-From: Rik van Riel <riel@redhat.com>
+No objection to your direction, could you fix ?
 
-Gene Heskett reported 2.6.28-rc3 often make unnecessary swap-out
-on his system(4GB mem, 2GB swap).
-and He has had to do a "swapoff -a; swapon -a" daily to clear the swap.
+Thanks,
+-Kame
 
-
-Actually, When there is a lot of streaming IO (or lite memory pressure workload)
-going on, we do not want to scan or evict pages from the working set.  
-The old VM used to skip any mapped page, but still evict indirect blocks and
-other data that is useful to cache.
-
-This patch adds logic to skip scanning the anon lists and
-the active file list if most of the file pages are on the
-inactive file list (where streaming IO pages live), while
-at the lowest scanning priority.
-
-If the system is not doing a lot of streaming IO, eg. the
-system is running a database workload, then more often used
-file pages will be on the active file list and this logic
-is automatically disabled.
-
-
-IOW, Large server apparently doesn't need this patch. but
-desktop or small server need it.
-
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Ackted-by: Gene Heskett <gene.heskett@gmail.com>
-Tested-by: Gene Heskett <gene.heskett@gmail.com>
----
- include/linux/mmzone.h |    1 +
- mm/vmscan.c            |   18 ++++++++++++++++--
- 2 files changed, 17 insertions(+), 2 deletions(-)
-
-Index: b/include/linux/mmzone.h
-===================================================================
---- a/include/linux/mmzone.h	2008-11-10 16:10:34.000000000 +0900
-+++ b/include/linux/mmzone.h	2008-11-10 16:12:20.000000000 +0900
-@@ -453,6 +453,7 @@ static inline int zone_is_oom_locked(con
-  * queues ("queue_length >> 12") during an aging round.
-  */
- #define DEF_PRIORITY 12
-+#define PRIO_CACHE_ONLY (DEF_PRIORITY+1)
- 
- /* Maximum number of zones on a zonelist */
- #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c	2008-11-10 16:10:34.000000000 +0900
-+++ b/mm/vmscan.c	2008-11-10 16:11:30.000000000 +0900
-@@ -1443,6 +1443,20 @@ static unsigned long shrink_zone(int pri
- 		}
- 	}
- 
-+	/*
-+	 * If there is a lot of sequential IO going on, most of the
-+	 * file pages will be on the inactive file list.  We start
-+	 * out by reclaiming those pages, without putting pressure on
-+	 * the working set.  We only do this if the bulk of the file pages
-+	 * are not in the working set (on the active file list).
-+	 */
-+	if (priority == PRIO_CACHE_ONLY &&
-+			(nr[LRU_INACTIVE_FILE] > nr[LRU_ACTIVE_FILE]))
-+		for_each_evictable_lru(l)
-+			/* Scan only the inactive_file list. */
-+			if (l != LRU_INACTIVE_FILE)
-+				nr[l] = 0;
-+
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
- 		for_each_evictable_lru(l) {
-@@ -1573,7 +1587,7 @@ static unsigned long do_try_to_free_page
- 		}
- 	}
- 
--	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-+	for (priority = PRIO_CACHE_ONLY; priority >= 0; priority--) {
- 		sc->nr_scanned = 0;
- 		if (!priority)
- 			disable_swap_token();
-@@ -1735,7 +1749,7 @@ loop_again:
- 	for (i = 0; i < pgdat->nr_zones; i++)
- 		temp_priority[i] = DEF_PRIORITY;
- 
--	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
-+	for (priority = PRIO_CACHE_ONLY; priority >= 0; priority--) {
- 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 		unsigned long lru_pages = 0;
- 
-
-
-
+> +
+> +		if (!ret)
+> +			break;
+> +
+>  		progress = try_to_free_mem_cgroup_pages(memcg,
+>  				GFP_HIGHUSER_MOVABLE, false);
+>  		if (!progress)
+> @@ -1180,7 +1195,6 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup
+> *memcg,
+>  				unsigned long long val)
+>  {
+>  	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
+> -	unsigned long flags;
+>  	u64 memlimit, oldusage, curusage;
+>  	int ret;
+>
+> @@ -1197,19 +1211,20 @@ int mem_cgroup_resize_memsw_limit(struct
+> mem_cgroup *memcg,
+>  		 * open coded manner. You see what this really does.
+>  		 * We have to guarantee mem->res.limit < mem->memsw.limit.
+>  		 */
+> -		spin_lock_irqsave(&memcg->res.lock, flags);
+> -		memlimit = memcg->res.limit;
+> +		mutex_lock(&set_limit_mutex);
+> +		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+>  		if (memlimit > val) {
+> -			spin_unlock_irqrestore(&memcg->res.lock, flags);
+>  			ret = -EINVAL;
+> +			mutex_unlock(&set_limit_mutex);
+>  			break;
+>  		}
+>  		ret = res_counter_set_limit(&memcg->memsw, val);
+> -		oldusage = memcg->memsw.usage;
+> -		spin_unlock_irqrestore(&memcg->res.lock, flags);
+> +		mutex_unlock(&set_limit_mutex);
+>
+>  		if (!ret)
+>  			break;
+> +
+> +		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  		try_to_free_mem_cgroup_pages(memcg, GFP_HIGHUSER_MOVABLE, true);
+>  		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  		if (curusage >= oldusage)
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 
 --
