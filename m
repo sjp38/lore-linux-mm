@@ -1,48 +1,39 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id mAF9KP3m004107
-	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 14:50:25 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAF9KQZY3207194
-	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 14:50:26 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id mAF9KPeB003221
-	for <linux-mm@kvack.org>; Sat, 15 Nov 2008 14:50:25 +0530
-Message-ID: <491E942B.2080102@linux.vnet.ibm.com>
-Date: Sat, 15 Nov 2008 14:49:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Date: Sat, 15 Nov 2008 09:28:37 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 1/2] mm: implement remap_pfn_range with apply_to_page_range
+In-Reply-To: <491DBD9E.6030703@goop.org>
+Message-ID: <Pine.LNX.4.64.0811150914080.16789@blonde.site>
+References: <491C61B1.10005@goop.org> <200811141417.35724.nickpiggin@yahoo.com.au>
+ <491D0B2F.7050900@goop.org> <200811141835.17073.nickpiggin@yahoo.com.au>
+ <491DBD9E.6030703@goop.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9] memcg updates (14/Nov/2008)
-References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com> <20081115120015.22fa5720.kamezawa.hiroyu@jp.fujitsu.com> <491E795D.5070507@linux.vnet.ibm.com> <2754.10.75.179.61.1226740560.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <2754.10.75.179.61.1226740560.squirrel@webmail-b.css.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Pallipadi, Venkatesh" <venkatesh.pallipadi@intel.com>, Johannes Weiner <hannes@cmpxchg.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> Balbir Singh said:
->> KAMEZAWA Hiroyuki wrote:
->> Time to resynchronize the patches! I've taken a cursory look, not done a
->> detailed review of those patches. Help with hierarchy would be nice, I've
->> got
->> most of the patches nailed down, except for resynchronization with mmotm.
->>
-> I have no other patches now and I'd like to use time for testing and
-> reviewing. So, it's nice time to resynchronize patches, yes.
+On Fri, 14 Nov 2008, Jeremy Fitzhardinge wrote:
+> Nick Piggin wrote:
+> > No, adding a cycle here or an indirect function call there IMO is
+> > not acceptable in core mm/ code without a good reason.
 > 
-> Okay, let's start hierarchy support first. I'll stop "new feature" work
-> for a while.
+> <shrug> OK.
 
-OKAY, let me post v4 and then we'll synchronize the patchset. I would like to
-review/test as well after hierarchy and then implement soft limits. Soft limits
-will allow us to over commit mem cgroup, which is a very useful feature.
+I'm with Nick on this: admittedly remap_pfn_range() is a borderline
+case (since it has no latency breaks at present), but it is a core
+mm function, and I'd prefer we leave it as is unless good reason.
 
--- 
-	Balbir
+So, no hurry, but I'd prefer 
+
+mm-implement-remap_pfn_range-with-apply_to_page_range.patch
+mm-remap_pfn_range-restore-missing-flush.patch
+
+to be removed from mmotm - and don't I deserve that,
+just for actually reading the mm-commits boilerplate ;-?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
