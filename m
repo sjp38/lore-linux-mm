@@ -1,167 +1,118 @@
-Date: Sat, 15 Nov 2008 18:37:21 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: [PATCH mmotm] memcg: make resize limit hold mutex
-Message-Id: <20081115183721.cfc1b80b.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: Sat, 15 Nov 2008 18:38:59 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm: evict streaming IO cache first
+Message-Id: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, d-nishimura@mtf.biglobe.ne.jp
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Gene Heskett <gene.heskett@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-mem_cgroup_resize_memsw_limit() try to hold memsw.lock while holding
-res.lock, so below message is showed when trying to write
-memory.memsw.limit_in_bytes file.
+Hi Andrew,
+
+I think we need this patch at 2.6.28.
+Can this thinking get acception?
 
 
-    [ INFO: possible recursive locking detected ]
-    2.6.28-rc4-mm1-mmotm-2008-11-14-20-50-ef4e17ef #1
-    -
-    bash/4406 is trying to acquire lock:
-     (&counter->lock){....}, at: [<c0498408>] mem_cgroup_resize_memsw_limit+0x8d/0x113
-    
-    but task is already holding lock:
-     (&counter->lock){....}, at: [<c04983d6>] mem_cgroup_resize_memsw_limit+0x5b/0x113
-    
-    other info that might help us debug this:
-    1 lock held by bash/4406:
-     #0:  (&counter->lock){....}, at: [<c04983d6>] mem_cgroup_resize_memsw_limit+0x5b/0x113
-    
-    stack backtrace:
-    Pid: 4406, comm: bash Not tainted 2.6.28-rc4-mm1-mmotm-2008-11-14-20-50-ef4e17ef #1
-    Call Trace:
-     [<c066e60f>] ? printk+0xf/0x18
-     [<c044d0c0>] __lock_acquire+0xc67/0x1353
-     [<c044d793>] ? __lock_acquire+0x133a/0x1353
-     [<c044d81c>] lock_acquire+0x70/0x97
-     [<c0498408>] ? mem_cgroup_resize_memsw_limit+0x8d/0x113
-     [<c0671519>] _spin_lock_irqsave+0x3a/0x6d
-     [<c0498408>] ? mem_cgroup_resize_memsw_limit+0x8d/0x113
-     [<c0498408>] mem_cgroup_resize_memsw_limit+0x8d/0x113
-     [<c0518a6c>] ? memparse+0x14/0x66
-     [<c0498594>] mem_cgroup_write+0x4a/0x50
-     [<c045e063>] cgroup_file_write+0x181/0x1c6
-     [<c0449e43>] ? lock_release_holdtime+0x1a/0x168
-     [<c04ec725>] ? security_file_permission+0xf/0x11
-     [<c049b5f0>] ? rw_verify_area+0x76/0x97
-     [<c045dee2>] ? cgroup_file_write+0x0/0x1c6
-     [<c049bce6>] vfs_write+0x8a/0x12e
-     [<c049be23>] sys_write+0x3b/0x60
-     [<c0403867>] sysenter_do_call+0x12/0x3f
+--------------------------------------------------
+From: Rik van Riel <riel@redhat.com>
+
+Gene Heskett reported 2.6.28-rc3 often make unnecessary swap-out
+on his system(4GB mem, 2GB swap).
+and He has had to do a "swapoff -a; swapon -a" daily to clear the swap.
 
 
-This patch define a new mutex and make both mem_cgroup_resize_limit and
-mem_cgroup_memsw_resize_limit hold it to remove spin_lock_irqsave.
+Actually, When there is a lot of streaming IO (or lite memory pressure workload)
+going on, we do not want to scan or evict pages from the working set.  
+The old VM used to skip any mapped page, but still evict indirect blocks and
+other data that is useful to cache.
+
+This patch adds logic to skip scanning the anon lists and
+the active file list if most of the file pages are on the
+inactive file list (where streaming IO pages live), while
+at the lowest scanning priority.
+
+If the system is not doing a lot of streaming IO, eg. the
+system is running a database workload, then more often used
+file pages will be on the active file list and this logic
+is automatically disabled.
 
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+IOW, Large server apparently doesn't need this patch. but
+desktop or small server need it.
+
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Ackted-by: Gene Heskett <gene.heskett@gmail.com>
+Tested-by: Gene Heskett <gene.heskett@gmail.com>
 ---
-This patch can be applied after memcg-add-mem_cgroup_disabled-fix.patch.
+ include/linux/mmzone.h |    1 +
+ mm/vmscan.c            |   18 ++++++++++++++++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)
 
- mm/memcontrol.c |   45 ++++++++++++++++++++++++++++++---------------
- 1 files changed, 30 insertions(+), 15 deletions(-)
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h	2008-11-10 16:10:34.000000000 +0900
++++ b/include/linux/mmzone.h	2008-11-10 16:12:20.000000000 +0900
+@@ -453,6 +453,7 @@ static inline int zone_is_oom_locked(con
+  * queues ("queue_length >> 12") during an aging round.
+  */
+ #define DEF_PRIORITY 12
++#define PRIO_CACHE_ONLY (DEF_PRIORITY+1)
+ 
+ /* Maximum number of zones on a zonelist */
+ #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c	2008-11-10 16:10:34.000000000 +0900
++++ b/mm/vmscan.c	2008-11-10 16:11:30.000000000 +0900
+@@ -1443,6 +1443,20 @@ static unsigned long shrink_zone(int pri
+ 		}
+ 	}
+ 
++	/*
++	 * If there is a lot of sequential IO going on, most of the
++	 * file pages will be on the inactive file list.  We start
++	 * out by reclaiming those pages, without putting pressure on
++	 * the working set.  We only do this if the bulk of the file pages
++	 * are not in the working set (on the active file list).
++	 */
++	if (priority == PRIO_CACHE_ONLY &&
++			(nr[LRU_INACTIVE_FILE] > nr[LRU_ACTIVE_FILE]))
++		for_each_evictable_lru(l)
++			/* Scan only the inactive_file list. */
++			if (l != LRU_INACTIVE_FILE)
++				nr[l] = 0;
++
+ 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+ 					nr[LRU_INACTIVE_FILE]) {
+ 		for_each_evictable_lru(l) {
+@@ -1573,7 +1587,7 @@ static unsigned long do_try_to_free_page
+ 		}
+ 	}
+ 
+-	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
++	for (priority = PRIO_CACHE_ONLY; priority >= 0; priority--) {
+ 		sc->nr_scanned = 0;
+ 		if (!priority)
+ 			disable_swap_token();
+@@ -1735,7 +1749,7 @@ loop_again:
+ 	for (i = 0; i < pgdat->nr_zones; i++)
+ 		temp_priority[i] = DEF_PRIORITY;
+ 
+-	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
++	for (priority = PRIO_CACHE_ONLY; priority >= 0; priority--) {
+ 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 		unsigned long lru_pages = 0;
+ 
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 09ce42a..1ea62d8 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -35,6 +35,7 @@
- #include <linux/vmalloc.h>
- #include <linux/mm_inline.h>
- #include <linux/page_cgroup.h>
-+#include <linux/mutex.h>
- #include "internal.h"
- 
- #include <asm/uaccess.h>
-@@ -1147,27 +1148,41 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
- 	return 0;
- }
- 
-+static DEFINE_MUTEX(set_limit_mutex);
- int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
- {
- 
- 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
- 	int progress;
-+	u64 memswlimit;
- 	int ret = 0;
- 
--	if (do_swap_account) {
--		if (val > memcg->memsw.limit)
--			return -EINVAL;
--	}
--
--	while (res_counter_set_limit(&memcg->res, val)) {
-+	while (retry_count) {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
- 			break;
- 		}
--		if (!retry_count) {
--			ret = -EBUSY;
--			break;
-+		/*
-+		 * Rather than hide all in some function, I do this in
-+		 * open coded manner. You see what this really does.
-+		 * We have to guarantee mem->res.limit < mem->memsw.limit.
-+		 */
-+		if (do_swap_account) {
-+			mutex_lock(&set_limit_mutex);
-+			memswlimit = res_counter_read_u64(&memcg->memsw,
-+							RES_LIMIT);
-+			if (memswlimit < val) {
-+				ret = -EINVAL;
-+				mutex_unlock(&set_limit_mutex);
-+				break;
-+			}
-+			ret = res_counter_set_limit(&memcg->res, val);
-+			mutex_unlock(&set_limit_mutex);
- 		}
-+
-+		if (!ret)
-+			break;
-+
- 		progress = try_to_free_mem_cgroup_pages(memcg,
- 				GFP_HIGHUSER_MOVABLE, false);
- 		if (!progress)
-@@ -1180,7 +1195,6 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 				unsigned long long val)
- {
- 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
--	unsigned long flags;
- 	u64 memlimit, oldusage, curusage;
- 	int ret;
- 
-@@ -1197,19 +1211,20 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		 * open coded manner. You see what this really does.
- 		 * We have to guarantee mem->res.limit < mem->memsw.limit.
- 		 */
--		spin_lock_irqsave(&memcg->res.lock, flags);
--		memlimit = memcg->res.limit;
-+		mutex_lock(&set_limit_mutex);
-+		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
- 		if (memlimit > val) {
--			spin_unlock_irqrestore(&memcg->res.lock, flags);
- 			ret = -EINVAL;
-+			mutex_unlock(&set_limit_mutex);
- 			break;
- 		}
- 		ret = res_counter_set_limit(&memcg->memsw, val);
--		oldusage = memcg->memsw.usage;
--		spin_unlock_irqrestore(&memcg->res.lock, flags);
-+		mutex_unlock(&set_limit_mutex);
- 
- 		if (!ret)
- 			break;
-+
-+		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		try_to_free_mem_cgroup_pages(memcg, GFP_HIGHUSER_MOVABLE, true);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		if (curusage >= oldusage)
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
