@@ -1,38 +1,33 @@
-Date: Sun, 16 Nov 2008 16:38:56 +0900 (JST)
+Date: Sun, 16 Nov 2008 16:43:10 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max pages
-In-Reply-To: <20081113171208.6985638e@bree.surriel.com>
-References: <20081113171208.6985638e@bree.surriel.com>
-Message-Id: <20081116163316.F205.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081114091828.48fc4b67.akpm@linux-foundation.org>
+References: <491D8CEC.5050106@redhat.com> <20081114091828.48fc4b67.akpm@linux-foundation.org>
+Message-Id: <20081116163915.F208.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-One more point.
-
-> Sometimes the VM spends the first few priority rounds rotating back
-> referenced pages and submitting IO.  Once we get to a lower priority,
-> sometimes the VM ends up freeing way too many pages.
+> > Of course, one thing we could do is exempt kswapd from this check.
+> > During light reclaim, kswapd does most of the eviction so scanning
+> > should remain balanced.  Having one process fall down to a lower
+> > priority level is also not a big problem.
+> > 
+> > As long as the direct reclaim processes do not also fall into the
+> > same trap, the situation should be manageable.
+> > 
+> > Does that sound reasonable to you?
 > 
-> The fix is relatively simple: in shrink_zone() we can check how many
-> pages we have already freed and break out of the loop.
-> 
-> However, in order to do this we do need to know how many pages we already
-> freed, so move nr_reclaimed into scan_control.
+> I'll need to find some time to go dig through the changelogs.  
 
-IIRC, Balbir-san explained the implemetation of the memcgroup 
-force cache dropping feature need non bail out at the past reclaim 
-throttring discussion.
+as far as I tried, git database doesn't have that changelogs.
+FWIW, I guess it is more old.
 
-I am not sure about this still right or not (iirc, memcgroup implemetation
-was largely changed).
-
-Balbir-san, Could you comment to this patch?
 
 
 
