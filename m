@@ -1,32 +1,36 @@
-Date: Sun, 16 Nov 2008 21:28:08 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] mm: evict streaming IO cache first
-In-Reply-To: <49208E9A.5080801@redhat.com>
-Message-ID: <Pine.LNX.4.64.0811162126550.17921@blonde.site>
-References: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
- <20081115210039.537f59f5.akpm@linux-foundation.org>
- <alpine.LFD.2.00.0811161013270.3468@nehalem.linux-foundation.org>
- <49208E9A.5080801@redhat.com>
+From: Helge Deller <deller@gmx.de>
+Subject: [PATCH, 2.6.28-rc5] unitialized return value in mm/mlock.c: __mlock_vma_pages_range()
+Date: Mon, 17 Nov 2008 00:30:57 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200811170030.58246.deller@gmx.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Gene Heskett <gene.heskett@gmail.com>
+To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, Kyle Mc Martin <kyle@hera.kernel.org>, linux-parisc@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 16 Nov 2008, Rik van Riel wrote:
-> 
-> I wonder if the "do not do mark_page_accessed at page fault time"
-> patch is triggering the current troublesome behaviour in the VM,
-> because actively used file pages are not moved out of the way of
-> the VM - which leads get_scan_ratio to believe that we are already
-> hitting the working set on the file side and should also start
-> scanning the anon LRUs.
+Fix an unitialized return value when compiling on parisc (with CONFIG_UNEVICTABLE_LRU=y):
+	mm/mlock.c: In function `__mlock_vma_pages_range':
+	mm/mlock.c:165: warning: `ret' might be used uninitialized in this function
 
-That patch is only in the -mm tree, not in 2.6.28-rc.
+Signed-off-by: Helge Deller <deller@gmx.de>
 
-Hugh
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -162,7 +162,7 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
+ 	unsigned long addr = start;
+ 	struct page *pages[16]; /* 16 gives a reasonable batch */
+ 	int nr_pages = (end - start) / PAGE_SIZE;
+-	int ret;
++	int ret = 0;
+ 	int gup_flags = 0;
+ 
+ 	VM_BUG_ON(start & ~PAGE_MASK);
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
