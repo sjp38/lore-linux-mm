@@ -1,193 +1,54 @@
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e34.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mAHLSZU2005129
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:28:35 -0700
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAHLT5Me159958
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:29:05 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAHLT4la031350
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:29:05 -0700
-Subject: Re: 2.6.28-rc4 mem_cgroup_charge_common panic
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <20081114131058.8d538481.kamezawa.hiroyu@jp.fujitsu.com>
-References: <1226353408.8805.12.camel@badari-desktop>
-	 <20081111101440.f531021d.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20081111110934.d41fa8db.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1226527376.4835.8.camel@badari-desktop>
-	 <20081113111702.9a5b6ce7.kamezawa.hiroyu@jp.fujitsu.com>
-	 <1226602404.29381.6.camel@badari-desktop>
-	 <20081114131058.8d538481.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Mon, 17 Nov 2008 13:30:08 -0800
-Message-Id: <1226957408.17897.1.camel@badari-desktop>
+Date: Mon, 17 Nov 2008 13:31:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Large stack usage in fs code (especially for PPC64)
+Message-Id: <20081117133137.616cf287.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.0811171320330.18283@nehalem.linux-foundation.org>
+References: <alpine.DEB.1.10.0811171508300.8722@gandalf.stny.rr.com>
+	<20081117130856.92e41cd3.akpm@linux-foundation.org>
+	<alpine.LFD.2.00.0811171320330.18283@nehalem.linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, paulus@samba.org, benh@kernel.crashing.org, linuxppc-dev@ozlabs.org, mingo@elte.hu, tglx@linutronix.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-11-14 at 13:10 +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 13 Nov 2008 10:53:24 -0800
-> Badari Pulavarty <pbadari@us.ibm.com> wrote:
-> > I tried mmtom + startpfn fix + this fix + notifier fix. Didn't help.
-> > I am not using SLUB (using SLAB). Yes. I am testing "real" memory
-> > remove (not just offline/online), since it executes more code of
-> > freeing memmap etc.
+On Mon, 17 Nov 2008 13:23:23 -0800 (PST)
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> 
+> 
+> On Mon, 17 Nov 2008, Andrew Morton wrote:
 > > 
-> > Code that is panicing is list_add() in mem_cgroup_add_list().
-> > I will debug it further.
+> > Far be it from me to apportion blame, but THIS IS ALL LINUS'S FAULT!!!!! :)
 > > 
+> > I fixed this six years ago.  See http://lkml.org/lkml/2002/6/17/68
 > 
-> Considering difference between "real" memory hotplug and logical ones,
-> I found this. I hope this fixes the bug.
-> But I myself can't do test this..
+> Btw, in that thread I also said:
 > 
-> Thanks,
-> -Kame
+>   "If we have 64kB pages, such architectures will have to have a bigger 
+>    kernel stack. Which they will have, simply by virtue of having the very 
+>    same bigger page. So that problem kind of solves itself."
+> 
+> and that may still be the "right" solution - if somebody is so insane that 
+> they want 64kB pages, then they might as well have a 64kB kernel stack as 
+> well. 
+
+I'd have thought so, but I'm sure we're about to hear how important an
+optimisation the smaller stacks are ;)
+
+> Trust me, the kernel stack isn't where you blow your memory with a 64kB 
+> page. You blow all your memory on the memory fragmentation of your page 
+> cache. I did the stats for the kernel source tree a long time ago, and I 
+> think you wasted something like 4GB of RAM with a 64kB page size.
 > 
 
-Kame,
-
-With this patch I am able to run tests without any issues.
-
-Sorry for delayed response, I wanted to make sure test runs fine over
-the weekend.
-
-Tested-by: Badari Pulavarty <pbadari@us.ibm.com>
-
-Thanks,
-Badari
-
-
-> ==
-> Fixes for memcg/memory hotplug.
-> 
-> 
-> While memory hotplug allocate/free memmap, page_cgroup doesn't free
-> page_cgroup at OFFLINE when page_cgroup is allocated via bootomem.
-> (Because freeing bootmem requires special care.)
-> 
-> Then, if page_cgroup is allocated by bootmem and memmap is freed/allocated
-> by memory hotplug, page_cgroup->page == page is no longer true and
-> we have to update that.
-> 
-> But current MEM_ONLINE handler doesn't check it and update page_cgroup->page
-> if it's not necessary to allocate page_cgroup.
-> 
-> And I noticed that MEM_ONLINE can be called against "part of section".
-> So, freeing page_cgroup at CANCEL_ONLINE will cause trouble.
-> (freeing used page_cgroup)
-> Don't rollback at CANCEL. 
-> 
-> One more, current memory hotplug notifier is stopped by slub
-> because it sets NOTIFY_STOP_MASK to return vaule. So, page_cgroup's callback
-> never be called. (low priority than slub now.)
-> 
-> I think this slub's behavior is not intentional(BUG). and fixes it.
-> 
-> 
-> Another way to be considered about page_cgroup allocation:
->   - free page_cgroup at OFFLINE even if it's from bootmem
->     and remove specieal handler. But it requires more changes.
-> 
-> 
-> Signed-off-by: KAMEZAWA Hiruyoki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> ---
->  mm/page_cgroup.c |   39 +++++++++++++++++++++++++++------------
->  mm/slub.c        |    6 ++++--
->  2 files changed, 31 insertions(+), 14 deletions(-)
-> 
-> Index: mmotm-2.6.28-Nov10/mm/page_cgroup.c
-> ===================================================================
-> --- mmotm-2.6.28-Nov10.orig/mm/page_cgroup.c
-> +++ mmotm-2.6.28-Nov10/mm/page_cgroup.c
-> @@ -104,18 +104,30 @@ int __meminit init_section_page_cgroup(u
->  	unsigned long table_size;
->  	int nid, index;
-> 
-> -	if (section->page_cgroup)
-> -		return 0;
-> +	if (!section->page_cgroup) {
-> 
-> -	nid = page_to_nid(pfn_to_page(pfn));
-> -	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-> -	if (slab_is_available()) {
-> -		base = kmalloc_node(table_size, GFP_KERNEL, nid);
-> -		if (!base)
-> -			base = vmalloc_node(table_size, nid);
-> -	} else {
-> -		base = __alloc_bootmem_node_nopanic(NODE_DATA(nid), table_size,
-> +		nid = page_to_nid(pfn_to_page(pfn));
-> +		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-> +		if (slab_is_available()) {
-> +			base = kmalloc_node(table_size, GFP_KERNEL, nid);
-> +			if (!base)
-> +				base = vmalloc_node(table_size, nid);
-> +		} else {
-> +			base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
-> +				table_size,
->  				PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-> +		}
-> +	} else {
-> +		/*
-> + 		 * We don't have to allocate page_cgroup again, but
-> +		 * address of memmap may be changed. So, we have to initialize
-> +		 * again.
-> +		 */
-> +		base = section->page_cgroup + pfn;
-> +		table_size = 0;
-> +		/* check address of memmap is changed or not. */
-> +		if (base->page == pfn_to_page(pfn))
-> +			return 0;
->  	}
-> 
->  	if (!base) {
-> @@ -204,19 +216,22 @@ static int page_cgroup_callback(struct n
->  		ret = online_page_cgroup(mn->start_pfn,
->  				   mn->nr_pages, mn->status_change_nid);
->  		break;
-> -	case MEM_CANCEL_ONLINE:
->  	case MEM_OFFLINE:
->  		offline_page_cgroup(mn->start_pfn,
->  				mn->nr_pages, mn->status_change_nid);
->  		break;
->  	case MEM_GOING_OFFLINE:
-> +	case MEM_CANCEL_ONLINE:
->  		break;
->  	case MEM_ONLINE:
->  	case MEM_CANCEL_OFFLINE:
->  		break;
->  	}
-> 
-> -	ret = notifier_from_errno(ret);
-> +	if (ret)
-> +		ret = notifier_from_errno(ret);
-> +	else
-> +		ret = NOTIFY_OK;
-> 
->  	return ret;
->  }
-> Index: mmotm-2.6.28-Nov10/mm/slub.c
-> ===================================================================
-> --- mmotm-2.6.28-Nov10.orig/mm/slub.c
-> +++ mmotm-2.6.28-Nov10/mm/slub.c
-> @@ -3220,8 +3220,10 @@ static int slab_memory_callback(struct n
->  	case MEM_CANCEL_OFFLINE:
->  		break;
->  	}
-> -
-> -	ret = notifier_from_errno(ret);
-> +	if (ret)
-> +		ret = notifier_from_errno(ret);
-> +	else
-> +		ret = NOTIFY_OK;
->  	return ret;
->  }
-> 
-> 
+Yup.  That being said, the younger me did assert that "this is a neater
+implementation anyway".  If we can implement those loops without
+needing those on-stack temporary arrays then things probably are better
+overall.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
