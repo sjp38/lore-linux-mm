@@ -1,207 +1,1543 @@
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 1/4] Rmap: Add page_wrprotect() function.
-Date: Mon, 17 Nov 2008 04:20:29 +0200
-Message-Id: <1226888432-3662-2-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 3/4] add ksm kernel shared memory driver.
+Date: Mon, 17 Nov 2008 04:20:31 +0200
+Message-Id: <1226888432-3662-4-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1226888432-3662-3-git-send-email-ieidus@redhat.com>
 References: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
+ <1226888432-3662-2-git-send-email-ieidus@redhat.com>
+ <1226888432-3662-3-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net, ieidus@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-this patch add new function called page_wrprotect(),
-page_wrprotect() is used to take a page and mark all the pte that
-point into it as readonly.
+Ksm is driver that allow merging identical pages between one or more
+applications in way unvisible to the application that use it.
+Pages that are merged are marked as readonly and are COWed when any
+application try to change them.
 
-The function is working by walking the rmap of the page, and setting
-each pte realted to the page as readonly.
+Ksm is used for cases where using fork() is not suitable,
+one of this cases is where the pages of the application keep changing
+dynamicly and the application cannot know in advance what pages are
+going to be identical.
 
-The odirect_sync parameter is used to protect against possible races
-with odirect while we are marking the pte as readonly,
-as noted by Andrea Arcanglei:
+Ksm works by walking over the memory pages of the applications it
+scan in order to find identical pages.
+It uses a hash table to find in effective way the identical pages.
 
-"While thinking at get_user_pages_fast I figured another worse way
-things can go wrong with ksm and o_direct: think a thread writing
-constantly to the last 512bytes of a page, while another thread read
-and writes to/from the first 512bytes of the page. We can lose
-O_DIRECT reads, the very moment we mark any pte wrprotected..."
+When ksm finds two identical pages, it marks them as readonly and merges
+them into single one page,
+after the pages are marked as readonly and merged into one page, linux
+will treat this pages as normal copy_on_write pages and will fork them
+when write access will happen to them.
+
+Ksm scan just memory areas that were registred to be scanned by it.
+
+Ksm api:
+
+KSM_GET_API_VERSION:
+Give the userspace the api version of the module.
+
+KSM_CREATE_SHARED_MEMORY_AREA:
+Create shared memory reagion fd, that latter allow the user to register
+the memory region to scan by using:
+KSM_REGISTER_MEMORY_REGION and KSM_REMOVE_MEMORY_REGION
+
+KSM_CREATE_SCAN:
+Create the ksm scanner fd, that latter allow the user to create
+userspace context scanner that is running by the KSM_SCAN ioctl.
+
+KSM_START_STOP_KTHREAD:
+Return information about the kernel thread, the inforamtion is returned
+using the ksm_kthread_info structure:
+ksm_kthread_info:
+__u32 sleep:
+        number of microsecoends to sleep between each iteration of
+scanning.
+
+__u32 pages_to_scan:
+        number of pages to scan for each iteration of scanning.
+
+__u32 max_pages_to_merge:
+        maximum number of pages to merge in each iteration of scanning
+        (so even if there are still more pages to scan, we stop this
+iteration)
+
+__u32 flags:
+       flags to control ksmd (right now just ksm_control_flags_run
+			      available)
+
+KSM_REGISTER_MEMORY_REGION:
+Register userspace virtual address range to be scanned by ksm.
+This ioctl is using the ksm_memory_region structure:
+ksm_memory_region:
+__u32 npages;
+         number of pages to share inside this memory region.
+__u32 pad;
+__u64 addr:
+        the begining of the virtual address of this region.
+
+KSM_REMOVE_MEMORY_REGION:
+Remove memory region from ksm.
+
+KSM_SCAN:
+Tell to ksm start to scan number of pages,
+this ioctl is using the ksm_user_scan structure:
+ksm_user_scan:
+__u32 pages_to_scan:
+        number of pages to scan in this iteration of scanning.
+__u32 max_pages_to_merge:
+        maximum number of pages to merge in this iteration of scanning
+        (so even if there are still more pages to scan,
+	 we stop this iteration)
+__u32 flags:
+        flags to control ksm scaning (right now just
+                                      ksm_control_flags_run
+                                      available)
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
 ---
- include/linux/rmap.h |   11 ++++
- mm/rmap.c            |  129 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 140 insertions(+), 0 deletions(-)
+ drivers/Kconfig            |    6 +
+ include/linux/ksm.h        |   79 +++
+ include/linux/miscdevice.h |    1 +
+ mm/Kconfig                 |    3 +
+ mm/Makefile                |    1 +
+ mm/ksm.c                   | 1289 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 1379 insertions(+), 0 deletions(-)
+ create mode 100644 include/linux/ksm.h
+ create mode 100644 mm/ksm.c
 
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 89f0564..795ac1b 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -121,6 +121,10 @@ static inline int try_to_munlock(struct page *page)
- }
- #endif
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index 2f557f5..a55d49f 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -107,4 +107,10 @@ source "drivers/uio/Kconfig"
+ source "drivers/xen/Kconfig"
  
-+#ifdef CONFIG_PAGE_SHARING
-+int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
+ source "drivers/staging/Kconfig"
++
++config PAGE_SHARING
++	bool "KSM page sharing driver support"
++	depends on CRYPTO_SHA1
++	help
++		ksm is a driver for merging identical pages between applciations
+ endmenu
+diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+new file mode 100644
+index 0000000..60198f5
+--- /dev/null
++++ b/include/linux/ksm.h
+@@ -0,0 +1,79 @@
++#ifndef __LINUX_KSM_H
++#define __LINUX_KSM_H
++
++/*
++ * Userspace interface for /dev/ksm - kvm shared memory
++ */
++
++#include <linux/types.h>
++#include <linux/ioctl.h>
++
++#define KSM_API_VERSION 1
++
++#define ksm_control_flags_run 1
++
++/* for KSM_REGISTER_MEMORY_REGION */
++struct ksm_memory_region {
++	__u32 npages; /* number of pages to share */
++	__u32 pad;
++	__u64 addr; /* the begining of the virtual address */
++};
++
++struct ksm_user_scan {
++	__u32 pages_to_scan;
++	__u32 max_pages_to_merge;
++	__u32 flags; /* control flags */
++};
++
++struct ksm_kthread_info {
++	__u32 sleep; /* number of microsecoends to sleep */
++	__u32 pages_to_scan; /* number of pages to scan */
++	__u32 max_pages_to_merge; /* maximum number of pages to merge */
++	__u32 flags; /* control flags */
++};
++
++#define KSMIO 0xAB
++
++/* ioctls for /dev/ksm */
++
++#define KSM_GET_API_VERSION              _IO(KSMIO,   0x00)
++/*
++ * KSM_CREATE_SHARED_MEMORY_AREA - create the shared memory reagion fd
++ */
++#define KSM_CREATE_SHARED_MEMORY_AREA    _IO(KSMIO,   0x01) /* return SMA fd */
++/*
++ * KSM_CREATE_SCAN - create the scanner fd
++ */
++#define KSM_CREATE_SCAN                  _IO(KSMIO,   0x02) /* return SCAN fd */
++/*
++ * KSM_START_STOP_KTHREAD - control the kernel thread scanning speed
++ * (can stop the kernel thread from working by setting running = 0)
++ */
++#define KSM_START_STOP_KTHREAD		 _IOW(KSMIO,  0x03,\
++					      struct ksm_kthread_info)
++/*
++ * KSM_GET_INFO_KTHREAD - return information about the kernel thread
++ * scanning speed.
++ */
++#define KSM_GET_INFO_KTHREAD		 _IOW(KSMIO,  0x04,\
++					      struct ksm_kthread_info)
++
++
++/* ioctls for SMA fds */
++
++/*
++ * KSM_REGISTER_MEMORY_REGION - register virtual address memory area to be
++ * scanned by kvm.
++ */
++#define KSM_REGISTER_MEMORY_REGION       _IOW(KSMIO,  0x20,\
++					      struct ksm_memory_region)
++/*
++ * KSM_REMOVE_MEMORY_REGION - remove virtual address memory area from ksm.
++ */
++#define KSM_REMOVE_MEMORY_REGION         _IO(KSMIO,   0x21)
++
++/* ioctls for SCAN fds */
++#define KSM_SCAN                         _IOW(KSMIO,  0x40,\
++					      struct ksm_user_scan)
++
 +#endif
+diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
+index 26433ec..adc2435 100644
+--- a/include/linux/miscdevice.h
++++ b/include/linux/miscdevice.h
+@@ -30,6 +30,7 @@
+ #define TUN_MINOR	     200
+ #define	HPET_MINOR	     228
+ #define KVM_MINOR            232
++#define KSM_MINOR            233
+ 
+ struct device;
+ 
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 5b5790f..8879485 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -222,3 +222,6 @@ config UNEVICTABLE_LRU
+ 
+ config MMU_NOTIFIER
+ 	bool
 +
- #else	/* !CONFIG_MMU */
- 
- #define anon_vma_init()		do {} while (0)
-@@ -135,6 +139,13 @@ static inline int page_mkclean(struct page *page)
- 	return 0;
- }
- 
-+#ifdef CONFIG_PAGE_SHARING
-+static inline int page_wrprotect(struct page *page, int *odirect_sync,
-+				 int count_offset)
++config PAGE_SHARING
++	bool
+diff --git a/mm/Makefile b/mm/Makefile
+index c06b45a..7f740c5 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -26,6 +26,7 @@ obj-$(CONFIG_TMPFS_POSIX_ACL) += shmem_acl.o
+ obj-$(CONFIG_TINY_SHMEM) += tiny-shmem.o
+ obj-$(CONFIG_SLOB) += slob.o
+ obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
++obj-$(CONFIG_PAGE_SHARING) += ksm.o
+ obj-$(CONFIG_SLAB) += slab.o
+ obj-$(CONFIG_SLUB) += slub.o
+ obj-$(CONFIG_MEMORY_HOTPLUG) += memory_hotplug.o
+diff --git a/mm/ksm.c b/mm/ksm.c
+new file mode 100644
+index 0000000..707be52
+--- /dev/null
++++ b/mm/ksm.c
+@@ -0,0 +1,1289 @@
++/*
++ * Memory merging driver for Linux
++ *
++ * This module enables dynamic sharing of identical pages found in different
++ * memory areas, even if they are not shared by fork()
++ *
++ * Copyright (C) 2008 Red Hat, Inc.
++ * Authors:
++ *	Izik Eidus
++ *	Andrea Arcangeli
++ *	Chris Wright
++ *
++ * This work is licensed under the terms of the GNU GPL, version 2.
++ */
++
++#include <linux/module.h>
++#include <linux/errno.h>
++#include <linux/mm.h>
++#include <linux/fs.h>
++#include <linux/miscdevice.h>
++#include <linux/vmalloc.h>
++#include <linux/file.h>
++#include <linux/mman.h>
++#include <linux/sched.h>
++#include <linux/rwsem.h>
++#include <linux/pagemap.h>
++#include <linux/sched.h>
++#include <linux/rmap.h>
++#include <linux/spinlock.h>
++#include <linux/jhash.h>
++#include <linux/delay.h>
++#include <linux/kthread.h>
++#include <linux/wait.h>
++#include <linux/anon_inodes.h>
++#include <linux/ksm.h>
++#include <linux/crypto.h>
++#include <linux/scatterlist.h>
++#include <linux/random.h>
++#include <linux/slab.h>
++#include <linux/swap.h>
++#include <crypto/sha.h>
++
++#include <asm/tlbflush.h>
++
++MODULE_AUTHOR("Red Hat, Inc.");
++MODULE_LICENSE("GPL");
++
++static int page_hash_size;
++module_param(page_hash_size, int, 0);
++MODULE_PARM_DESC(page_hash_size, "Hash table size for the pages checksum");
++
++static int rmap_hash_size;
++module_param(rmap_hash_size, int, 0);
++MODULE_PARM_DESC(rmap_hash_size, "Hash table size for the reverse mapping");
++
++static int sha1_hash_size;
++module_param(sha1_hash_size, int, 0);
++MODULE_PARM_DESC(sha1_hash_size, "Hash table size for the sha1 caching");
++
++/*
++ * ksm_mem_slot - hold information for an userspace scanning range
++ * (the scanning for this region will be from addr untill addr +
++ *  npages * PAGE_SIZE inside mm)
++ */
++struct ksm_mem_slot {
++	struct list_head link;
++	struct list_head sma_link;
++	struct mm_struct *mm;
++	unsigned long addr;	/* the begining of the virtual address */
++	int npages;		/* number of pages to share */
++};
++
++/*
++ * ksm_sma - shared memory area, each process have its own sma that contain the
++ * information about the slots that it own
++ */
++struct ksm_sma {
++	struct list_head sma_slots;
++};
++
++/**
++ * struct ksm_scan - cursor for scanning
++ * @slot_index: the current slot we are scanning
++ * @page_index: the page inside the sma that is currently being scanned
++ *
++ * ksm uses it to know what are the next pages it need to scan
++ */
++struct ksm_scan {
++	struct ksm_mem_slot *slot_index;
++	unsigned long page_index;
++};
++
++/*
++ * Few notes about ksm scanning progress (make it easier to understand the
++ * structures below):
++ *
++ * In order to reduce excessive scanning, pages are sorted into the hash
++ * table, page_hash.  After a page is inserted into the hash table, its
++ * contents may have changed.  In this case, ksm must remove the page from
++ * the hash table and potentially rehash it.  Ksm uses a reverse mapping,
++ * rmap_hash, to efficiently manage this.
++ */
++
++/*
++ * page_hash_item - object of the page_hash hash table
++ * (it is holding the mm_struct and address of the page)
++ */
++struct page_hash_item {
++	struct hlist_node link;
++	struct mm_struct *mm;
++	unsigned long addr;
++};
++
++/*
++ * rmap_item - object of the rmap_hash hash table
++ * (it is holding the previous hash value (oldindex),
++ *  and pointer into the page_hash_item)
++ */
++struct rmap_item {
++	struct hlist_node link;
++	struct page_hash_item *page_hash_item;
++	unsigned long oldindex; /* old hash value */
++};
++
++/*
++ * Few notes about the sha1 caching:
++ *
++ * After ksm find two identical pages it computes the first 128 bytes sha1
++ * value of this pages and check if they are identical,
++ * to speedup this operation ksm use caching for the sha1 values.
++ * The caching take into account three fundamental assumptions into account:
++ * 1) PageKSM are only allocated by KSM (we are safe even if the user give to us
++ * virtual address of file backed memory, beacuse cmp_and_merge_page will be
++ * called just for anonymous pages)
++ * 2) PageKSM are always write protect
++ * 3) PageKSM cant be free without we will notice it before check the sha1 val
++ * and it cannot be swapped away.
++ */
++
++struct sha1_item {
++	unsigned char sha1val[SHA1_DIGEST_SIZE];
++	unsigned long pfn;
++};
++
++/*
++ * slots is linked list that hold all the memory regions that were registred
++ * to be scanned.
++ */
++static LIST_HEAD(slots);
++static DECLARE_RWSEM(slots_lock);
++
++static DEFINE_MUTEX(sha1_lock);
++
++static int npages_hash;
++/* page_hash hash table */
++static struct hlist_head *page_hash_items;
++static int nrmaps_hash;
++/* rmap_hash hash table */
++static struct hlist_head *rmap_hash;
++static int nsha1s_hash;
++static struct sha1_item *sha1_hash;
++
++static struct kmem_cache *page_hash_item_cache;
++static struct kmem_cache *rmap_item_cache;
++
++static int kthread_sleep; /* sleep time of the kernel thread */
++static int kthread_pages_to_scan; /* npages to scan for the kernel thread */
++static int kthread_max_npages; /* max pages to merge for the kernel thread */
++static struct ksm_scan kthread_ksm_scan;
++static int ksmd_flags;
++static struct task_struct *kthread;
++static DECLARE_WAIT_QUEUE_HEAD(kthread_wait);
++static DECLARE_RWSEM(kthread_lock);
++static struct crypto_hash *tfm;
++static unsigned char hmac_key[SHA1_DIGEST_SIZE];
++static DEFINE_MUTEX(tfm_mutex);
++
++/*
++ * ksm scanners can run parallel, this lock protect the page_hash and rmap_hash
++ * hash tables.
++ */
++static DEFINE_SPINLOCK(hash_lock);
++
++static int ksm_tfm_init(void)
 +{
-+	return 0;
-+}
-+#endif
- 
- #endif	/* CONFIG_MMU */
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 1099394..4c6fed3 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -576,6 +576,135 @@ int page_mkclean(struct page *page)
- }
- EXPORT_SYMBOL_GPL(page_mkclean);
- 
-+#ifdef CONFIG_PAGE_SHARING
++	struct crypto_hash *hash;
++	int rc = 0;
 +
-+static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
-+			      int *odirect_sync, int count_offset)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+	unsigned long address;
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+	int ret = 0;
-+
-+	address = vma_address(page, vma);
-+	if (address == -EFAULT)
++	mutex_lock(&tfm_mutex);
++	if (tfm)
 +		goto out;
 +
-+	pte = page_check_address(page, mm, address, &ptl, 0);
-+	if (!pte)
++	/* Must be called from user context before starting any scanning */
++	hash = crypto_alloc_hash("hmac(sha1)", 0, CRYPTO_ALG_ASYNC);
++	if (IS_ERR(hash)) {
++		rc = PTR_ERR(hash);
 +		goto out;
-+
-+	if (pte_write(*pte)) {
-+		pte_t entry;
-+
-+		/*
-+		 * Check that no O_DIRECT or similar I/O is in progress on the
-+		 * page
-+		 */
-+		if ((page_mapcount(page) + count_offset) != page_count(page)) {
-+			*odirect_sync = 0;
-+			goto out_unlock;
-+		}
-+		flush_cache_page(vma, address, pte_pfn(*pte));
-+		entry = ptep_clear_flush_notify(vma, address, pte);
-+		entry = pte_wrprotect(entry);
-+		set_pte_at(mm, address, pte, entry);
 +	}
-+	ret = 1;
 +
-+out_unlock:
-+	pte_unmap_unlock(pte, ptl);
++	get_random_bytes(hmac_key, sizeof(hmac_key));
++
++	rc = crypto_hash_setkey(hash, hmac_key, SHA1_DIGEST_SIZE);
++	if (rc) {
++		crypto_free_hash(hash);
++		goto out;
++	}
++	tfm = hash;
++out:
++	mutex_unlock(&tfm_mutex);
++	return rc;
++}
++
++static int ksm_slab_init(void)
++{
++	int ret = -ENOMEM;
++
++	page_hash_item_cache = KMEM_CACHE(page_hash_item, 0);
++	if (!page_hash_item_cache)
++		goto out;
++
++	rmap_item_cache = KMEM_CACHE(rmap_item, 0);
++	if (!rmap_item_cache)
++		goto out_free;
++	return 0;
++
++out_free:
++	kmem_cache_destroy(page_hash_item_cache);
 +out:
 +	return ret;
 +}
 +
-+static int page_wrprotect_file(struct page *page, int *odirect_sync,
-+			       int count_offset)
++static void ksm_slab_free(void)
 +{
-+	struct address_space *mapping;
-+	struct prio_tree_iter iter;
-+	struct vm_area_struct *vma;
-+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	int ret = 0;
++	kmem_cache_destroy(rmap_item_cache);
++	kmem_cache_destroy(page_hash_item_cache);
++}
 +
-+	mapping = page_mapping(page);
-+	if (!mapping)
-+		return ret;
++static inline struct page_hash_item *alloc_page_hash_item(void)
++{
 +
-+	spin_lock(&mapping->i_mmap_lock);
++	return  kmem_cache_zalloc(page_hash_item_cache, GFP_KERNEL);
++}
 +
-+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
-+		ret += page_wrprotect_one(page, vma, odirect_sync,
-+					  count_offset);
++static inline void free_page_hash_item(struct page_hash_item *page_hash_item)
++{
++	kmem_cache_free(page_hash_item_cache, page_hash_item);
++}
 +
-+	spin_unlock(&mapping->i_mmap_lock);
++static inline struct rmap_item *alloc_rmap_item(void)
++{
++	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
++}
 +
++static inline void free_rmap_item(struct rmap_item *rmap_item)
++{
++	kmem_cache_free(rmap_item_cache, rmap_item);
++}
++
++/*
++ * PageKsm - this type of pages are the write protected pages that ksm map
++ * into multiple vmas (this is the "shared page")
++ * this page was allocated using alloc_page(), every pte that pointing to it
++ * is always write protected (therefore its data content cant ever be changed)
++ * and this page cant be swapped.
++ */
++static inline int PageKsm(struct page *page)
++{
++	return !PageAnon(page);
++}
++
++static int page_hash_init(void)
++{
++	if (!page_hash_size) {
++		page_hash_size = nr_free_buffer_pages();
++		page_hash_size /= 10;
++	}
++	npages_hash = page_hash_size;
++	page_hash_items = vmalloc(npages_hash * sizeof(struct page_hash_item));
++	if (!page_hash_items)
++		return -ENOMEM;
++
++	memset(page_hash_items, 0, npages_hash * sizeof(struct page_hash_item));
++	return 0;
++}
++
++static void page_hash_free(void)
++{
++	int i;
++	struct hlist_head *bucket;
++	struct hlist_node *node, *n;
++	struct page_hash_item *page_hash_item;
++
++	for (i = 0; i < npages_hash; ++i) {
++		bucket = &page_hash_items[i];
++		hlist_for_each_entry_safe(page_hash_item, node, n, bucket, link) {
++			hlist_del(&page_hash_item->link);
++			free_page_hash_item(page_hash_item);
++		}
++	}
++	vfree(page_hash_items);
++}
++
++static int rmap_hash_init(void)
++{
++	if (!rmap_hash_size) {
++		rmap_hash_size = nr_free_buffer_pages();
++		rmap_hash_size /= 10;
++	}
++	nrmaps_hash = rmap_hash_size;
++	rmap_hash = vmalloc(nrmaps_hash * sizeof(struct hlist_head));
++	if (!rmap_hash)
++		return -ENOMEM;
++	memset(rmap_hash, 0, nrmaps_hash * sizeof(struct hlist_head));
++	return 0;
++}
++
++static void rmap_hash_free(void)
++{
++	int i;
++	struct hlist_head *bucket;
++	struct hlist_node *node, *n;
++	struct rmap_item *rmap_item;
++
++	for (i = 0; i < nrmaps_hash; ++i) {
++		bucket = &rmap_hash[i];
++		hlist_for_each_entry_safe(rmap_item, node, n, bucket, link) {
++			hlist_del(&rmap_item->link);
++			free_rmap_item(rmap_item);
++		}
++	}
++	vfree(rmap_hash);
++}
++
++static int sha1_hash_init(void)
++{
++	if (!sha1_hash_size) {
++		sha1_hash_size = nr_free_buffer_pages();
++		sha1_hash_size /= 32;
++	}
++	nsha1s_hash = sha1_hash_size;
++	sha1_hash = vmalloc(nsha1s_hash * sizeof(struct sha1_item));
++	if (!sha1_hash)
++		return -ENOMEM;
++	memset(sha1_hash, 0, nsha1s_hash * sizeof(struct sha1_item));
++	return 0;
++}
++
++static void sha1_hash_free(void)
++{
++	vfree(sha1_hash);
++}
++
++static inline u32 calc_hash_index(struct page *page)
++{
++	u32 hash;
++	void *addr = kmap_atomic(page, KM_USER0);
++	hash = jhash(addr, PAGE_SIZE, 17);
++	kunmap_atomic(addr, KM_USER0);
++	return hash % npages_hash;
++}
++
++static void remove_page_from_hash(struct mm_struct *mm, unsigned long addr)
++{
++	struct rmap_item *rmap_item;
++	struct hlist_head *bucket;
++	struct hlist_node *node, *n;
++
++	bucket = &rmap_hash[addr % nrmaps_hash];
++	hlist_for_each_entry_safe(rmap_item, node, n, bucket, link) {
++		if (mm == rmap_item->page_hash_item->mm &&
++		    rmap_item->page_hash_item->addr == addr) {
++			hlist_del(&rmap_item->page_hash_item->link);
++			free_page_hash_item(rmap_item->page_hash_item);
++			hlist_del(&rmap_item->link);
++			free_rmap_item(rmap_item);
++			return;
++		}
++	}
++}
++
++static int ksm_sma_ioctl_register_memory_region(struct ksm_sma *ksm_sma,
++						struct ksm_memory_region *mem)
++{
++	struct ksm_mem_slot *slot;
++	int ret = -EPERM;
++
++	slot = kzalloc(sizeof(struct ksm_mem_slot), GFP_KERNEL);
++	if (!slot) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	slot->mm = get_task_mm(current);
++	if (!slot->mm)
++		goto out_free;
++	slot->addr = mem->addr;
++	slot->npages = mem->npages;
++
++	down_write(&slots_lock);
++
++	list_add_tail(&slot->link, &slots);
++	list_add_tail(&slot->sma_link, &ksm_sma->sma_slots);
++
++	up_write(&slots_lock);
++	return 0;
++
++out_free:
++	kfree(slot);
++out:
 +	return ret;
 +}
 +
-+static int page_wrprotect_anon(struct page *page, int *odirect_sync,
-+			       int count_offset)
++static void remove_mm_from_hash(struct mm_struct *mm)
++{
++	struct ksm_mem_slot *slot;
++	int pages_count;
++
++	list_for_each_entry(slot, &slots, link)
++		if (slot->mm == mm)
++			break;
++	BUG_ON(!slot);
++
++	spin_lock(&hash_lock);
++	for (pages_count = 0; pages_count < slot->npages; ++pages_count)
++		remove_page_from_hash(mm, slot->addr + pages_count * PAGE_SIZE);
++	spin_unlock(&hash_lock);
++	list_del(&slot->link);
++}
++
++static int ksm_sma_ioctl_remove_memory_region(struct ksm_sma *ksm_sma)
++{
++	struct ksm_mem_slot *slot, *node;
++
++	down_write(&slots_lock);
++	list_for_each_entry_safe(slot, node, &ksm_sma->sma_slots, sma_link) {
++		remove_mm_from_hash(slot->mm);
++		mmput(slot->mm);
++		list_del(&slot->sma_link);
++		kfree(slot);
++	}
++	up_write(&slots_lock);
++	return 0;
++}
++
++static int ksm_sma_release(struct inode *inode, struct file *filp)
++{
++	struct ksm_sma *ksm_sma = filp->private_data;
++	int r;
++
++	r = ksm_sma_ioctl_remove_memory_region(ksm_sma);
++	kfree(ksm_sma);
++	return r;
++}
++
++static long ksm_sma_ioctl(struct file *filp,
++			  unsigned int ioctl, unsigned long arg)
++{
++	struct ksm_sma *sma = filp->private_data;
++	void __user *argp = (void __user *)arg;
++	int r = EINVAL;
++
++	switch (ioctl) {
++	case KSM_REGISTER_MEMORY_REGION: {
++		struct ksm_memory_region ksm_memory_region;
++
++		r = -EFAULT;
++		if (copy_from_user(&ksm_memory_region, argp,
++				   sizeof(ksm_memory_region)))
++			goto out;
++		r = ksm_sma_ioctl_register_memory_region(sma,
++							 &ksm_memory_region);
++		break;
++	}
++	case KSM_REMOVE_MEMORY_REGION:
++		r = ksm_sma_ioctl_remove_memory_region(sma);
++		break;
++	}
++
++out:
++	return r;
++}
++
++static int insert_page_to_hash(struct ksm_scan *ksm_scan,
++			       unsigned long hash_index,
++			       struct page_hash_item *page_hash_item,
++			       struct rmap_item *rmap_item)
++{
++	struct ksm_mem_slot *slot;
++	struct hlist_head *bucket;
++
++	slot = ksm_scan->slot_index;
++	page_hash_item->addr = slot->addr + ksm_scan->page_index * PAGE_SIZE;
++	page_hash_item->mm = slot->mm;
++	bucket = &page_hash_items[hash_index];
++	hlist_add_head(&page_hash_item->link, bucket);
++
++	rmap_item->page_hash_item = page_hash_item;
++	rmap_item->oldindex = hash_index;
++	bucket = &rmap_hash[page_hash_item->addr % nrmaps_hash];
++	hlist_add_head(&rmap_item->link, bucket);
++	return 0;
++}
++
++/*
++ * update_hash - check the previoes hash value of the page and if it was changed
++ * since the last time we compute it it remove it from the hash table.
++ */
++static void update_hash(struct ksm_scan *ksm_scan,
++		       unsigned long hash_index)
++{
++	struct rmap_item *rmap_item;
++	struct ksm_mem_slot *slot;
++	struct hlist_head *bucket;
++	struct hlist_node *node, *n;
++	unsigned long addr;
++
++	slot = ksm_scan->slot_index;
++	addr = slot->addr + ksm_scan->page_index * PAGE_SIZE;
++	bucket = &rmap_hash[addr % nrmaps_hash];
++	hlist_for_each_entry_safe(rmap_item, node, n, bucket, link) {
++		if (slot->mm == rmap_item->page_hash_item->mm &&
++		    rmap_item->page_hash_item->addr == addr) {
++			if (hash_index != rmap_item->oldindex) {
++				hlist_del(&rmap_item->page_hash_item->link);
++				free_page_hash_item(rmap_item->page_hash_item);
++				hlist_del(&rmap_item->link);
++				free_rmap_item(rmap_item);
++			}
++			return;
++		}
++	}
++}
++
++static unsigned long addr_in_vma(struct vm_area_struct *vma, struct page *page)
++{
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	unsigned long addr;
++
++	addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
++	if (unlikely(addr < vma->vm_start || addr >= vma->vm_end))
++		return -EFAULT;
++	return addr;
++}
++
++static pte_t *get_pte(struct mm_struct *mm, unsigned long addr)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *ptep = NULL;
++
++	pgd = pgd_offset(mm, addr);
++	if (!pgd_present(*pgd))
++		goto out;
++
++	pud = pud_offset(pgd, addr);
++	if (!pud_present(*pud))
++		goto out;
++
++	pmd = pmd_offset(pud, addr);
++	if (!pmd_present(*pmd))
++		goto out;
++
++	ptep = pte_offset_map(pmd, addr);
++out:
++	return ptep;
++}
++
++static int is_present_pte(struct mm_struct *mm, unsigned long addr)
++{
++	pte_t *ptep;
++
++	ptep = get_pte(mm, addr);
++	if (!ptep)
++		return 0;
++
++	if (pte_present(*ptep))
++		return 1;
++	return 0;
++}
++
++#define PAGEHASH_LEN 128
++/* hash the page */
++static void page_hash(struct page *page, unsigned char *digest)
++{
++	struct scatterlist sg;
++	struct hash_desc desc;
++
++	sg_init_table(&sg, 1);
++	sg_set_page(&sg, page, PAGEHASH_LEN, 0);
++	desc.tfm = tfm;
++	desc.flags = 0;
++	crypto_hash_digest(&desc, &sg, PAGEHASH_LEN, digest);
++}
++
++/* pages_identical
++ * calculate sha1 hash of each page, compare results,
++ * and return 1 if identical, 0 otherwise.
++ */
++static int pages_identical(struct page *oldpage, struct page *newpage, int new)
++{
++	int r;
++	unsigned char old_digest[SHA1_DIGEST_SIZE];
++	struct sha1_item *sha1_item;
++
++	page_hash(oldpage, old_digest);
++	/*
++	 * If new = 1, it is never safe to use the sha1 value that is
++	 * inside the cache, the reason is that the page can be released
++	 * and then recreated and have diffrent sha1 value.
++	 * (swapping as for now is not an issue, because KsmPages cannot be
++	 * swapped)
++	 */
++	mutex_lock(&sha1_lock);
++	if (new) {
++		sha1_item = &sha1_hash[page_to_pfn(newpage) % nsha1s_hash];
++		page_hash(newpage, sha1_item->sha1val);
++		sha1_item->pfn = page_to_pfn(newpage);
++	} else {
++		sha1_item = &sha1_hash[page_to_pfn(newpage) % nsha1s_hash];
++		if (sha1_item->pfn != page_to_pfn(newpage)) {
++			page_hash(newpage, sha1_item->sha1val);
++			sha1_item->pfn = page_to_pfn(newpage);
++		}
++	}
++	r = !memcmp(old_digest, sha1_item->sha1val, SHA1_DIGEST_SIZE);
++	mutex_unlock(&sha1_lock);
++	if (r) {
++		char *old_addr, *new_addr;
++		old_addr = kmap_atomic(oldpage, KM_USER0);
++		new_addr = kmap_atomic(newpage, KM_USER1);
++		r = !memcmp(old_addr+PAGEHASH_LEN, new_addr+PAGEHASH_LEN,
++			    PAGE_SIZE-PAGEHASH_LEN);
++		kunmap_atomic(old_addr, KM_USER0);
++		kunmap_atomic(new_addr, KM_USER1);
++	}
++	return r;
++}
++
++/*
++ * try_to_merge_one_page - take two pages and merge them into one
++ * note:
++ * oldpage should be anon page while newpage should be file mapped page
++ *
++ * this function return 0 if the pages were merged, 1 otherwise.
++ */
++static int try_to_merge_one_page(struct mm_struct *mm,
++				 struct vm_area_struct *vma,
++				 struct page *oldpage,
++				 struct page *newpage,
++				 pgprot_t newprot,
++				 int new)
++{
++	int ret = 1;
++	int odirect_sync;
++	unsigned long page_addr_in_vma;
++	pte_t orig_pte, *orig_ptep;
++
++	get_page(newpage);
++	get_page(oldpage);
++
++	down_read(&mm->mmap_sem);
++
++	page_addr_in_vma = addr_in_vma(vma, oldpage);
++	if (page_addr_in_vma == -EFAULT)
++		goto out_unlock;
++
++	orig_ptep = get_pte(mm, page_addr_in_vma);
++	if (!orig_ptep)
++		goto out_unlock;
++	orig_pte = *orig_ptep;
++	if (!pte_present(orig_pte))
++		goto out_unlock;
++	if (page_to_pfn(oldpage) != pte_pfn(orig_pte))
++		goto out_unlock;
++	/*
++	 * we need the page lock to read a stable PageSwapCache in
++	 * page_wrprotect()
++	 */
++	if (!trylock_page(oldpage))
++		goto out_unlock;
++	/*
++	 * page_wrprotect check if the page is swapped or in swap cache,
++	 * in the future we might want to run here if_present_pte and then
++	 * swap_free
++	 */
++	if (!page_wrprotect(oldpage, &odirect_sync, 2)) {
++		unlock_page(oldpage);
++		goto out_unlock;
++	}
++	unlock_page(oldpage);
++	if (!odirect_sync)
++		goto out_unlock;
++
++	orig_pte = pte_wrprotect(orig_pte);
++
++	if (pages_identical(oldpage, newpage, new))
++		ret = replace_page(vma, oldpage, newpage, orig_pte, newprot);
++
++out_unlock:
++	up_read(&mm->mmap_sem);
++	put_page(oldpage);
++	put_page(newpage);
++	return ret;
++}
++
++/*
++ * try_to_merge_two_pages - take two identical pages and prepare them to be
++ * merged into one page.
++ *
++ * this function return 0 if we successfully mapped two identical pages into one
++ * page, 1 otherwise.
++ * (note in case we created KsmPage and mapped one page into it but the second
++ *  page was not mapped we consider it as a failure and return 1)
++ */
++static int try_to_merge_two_pages(struct mm_struct *mm1, struct page *page1,
++				  struct mm_struct *mm2, struct page *page2,
++				  unsigned long addr1, unsigned long addr2)
 +{
 +	struct vm_area_struct *vma;
-+	struct anon_vma *anon_vma;
-+	int ret = 0;
-+
-+	anon_vma = page_lock_anon_vma(page);
-+	if (!anon_vma)
-+		return ret;
++	pgprot_t prot;
++	int ret = 1;
 +
 +	/*
-+	 * If the page is inside the swap cache, its _count number was
-+	 * increased by one, therefore we have to increase count_offset by one.
++	 * If page2 isn't shared (it isn't PageKsm) we have to allocate a new
++	 * file mapped page and make the two ptes of mm1(page1) and mm2(page2)
++	 * point to it.  If page2 is shared, we can just make the pte of
++	 * mm1(page1) point to page2
 +	 */
-+	if (PageSwapCache(page))
-+		count_offset++;
++	if (PageKsm(page2)) {
++		vma = find_vma(mm1, addr1);
++		if (!vma)
++			return ret;
++		prot = vma->vm_page_prot;
++		pgprot_val(prot) &= ~VM_WRITE;
++		ret = try_to_merge_one_page(mm1, vma, page1, page2, prot, 0);
++	} else {
++		struct page *kpage;
 +
-+	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
-+		ret += page_wrprotect_one(page, vma, odirect_sync,
-+					  count_offset);
++		kpage = alloc_page(GFP_HIGHUSER);
++		if (!kpage)
++			return ret;
++		vma = find_vma(mm1, addr1);
++		if (!vma) {
++			put_page(kpage);
++			return ret;
++		}
++		prot = vma->vm_page_prot;
++		pgprot_val(prot) &= ~VM_WRITE;
 +
-+	page_unlock_anon_vma(anon_vma);
++		copy_user_highpage(kpage, page1, addr1, vma);
++		ret = try_to_merge_one_page(mm1, vma, page1, kpage, prot, 1);
 +
++		if (!ret) {
++			vma = find_vma(mm2, addr2);
++			if (!vma) {
++				put_page(kpage);
++				ret = 1;
++				return ret;
++			}
++
++			prot = vma->vm_page_prot;
++			pgprot_val(prot) &= ~VM_WRITE;
++
++			ret = try_to_merge_one_page(mm2, vma, page2, kpage,
++						    prot, 0);
++		}
++		put_page(kpage);
++	}
 +	return ret;
++}
++
++/*
++ * cmp_and_merge_page - take a page computes its hash value and check if there
++ * is similar hash value to different page,
++ * in case we find that there is similar hash to different page we call to
++ * try_to_merge_two_pages().
++ */
++static int cmp_and_merge_page(struct ksm_scan *ksm_scan, struct page *page)
++{
++	struct hlist_head *bucket;
++	struct hlist_node *node, *n;
++	struct page_hash_item *page_hash_item;
++	struct ksm_mem_slot *slot;
++	unsigned long hash_index;
++	unsigned long addr;
++	int used = 0;
++
++	hash_index = calc_hash_index(page);
++	bucket = &page_hash_items[hash_index];
++
++	slot = ksm_scan->slot_index;
++	addr = slot->addr + ksm_scan->page_index * PAGE_SIZE;
++
++	spin_lock(&hash_lock);
++	/*
++	 * update_hash must be called every time because there is a chance
++	 * that the data in the page has changed since the page was inserted
++	 * into the hash table, by calling to this we are avoiding inserting
++	 * the page more than once to our hash table.
++	 */
++	update_hash(ksm_scan, hash_index);
++	spin_unlock(&hash_lock);
++
++	hlist_for_each_entry_safe(page_hash_item, node, n, bucket, link) {
++		int npages;
++		struct page *hash_page[1];
++
++		if (slot->mm == page_hash_item->mm && addr == page_hash_item->addr) {
++			used = 1;
++			continue;
++		}
++
++		down_read(&page_hash_item->mm->mmap_sem);
++		/*
++		 * If the page is swapped out or in swap cache we don't want to
++		 * scan it (it is just for performance).
++		 */
++		if (!is_present_pte(page_hash_item->mm, page_hash_item->addr)) {
++			up_read(&page_hash_item->mm->mmap_sem);
++			continue;
++		}
++		npages = get_user_pages(current, page_hash_item->mm,
++					page_hash_item->addr,
++					1, 0, 0, hash_page, NULL);
++		up_read(&page_hash_item->mm->mmap_sem);
++		if (npages != 1)
++			break;
++
++		/* Recalculate the page's hash index in case it has changed. */
++		if (calc_hash_index(hash_page[0]) == hash_index) {
++			int ret;
++
++			ret = try_to_merge_two_pages(slot->mm, page,
++						     page_hash_item->mm,
++						     hash_page[0], addr,
++						     page_hash_item->addr);
++			if (!ret) {
++				put_page(hash_page[0]);
++				return 1;
++			}
++		}
++		put_page(hash_page[0]);
++	}
++	/* If node is NULL and used=0, the page is not in the hash table. */
++	if (!node && !used) {
++		struct page_hash_item *page_hash_item;
++		struct rmap_item *rmap_item;
++
++		page_hash_item = alloc_page_hash_item();
++		if (!page_hash_item)
++			goto out;
++
++		rmap_item = alloc_rmap_item();
++		if (!rmap_item) {
++			free_page_hash_item(page_hash_item);
++			goto out;
++		}
++
++		spin_lock(&hash_lock);
++		update_hash(ksm_scan, hash_index);
++		insert_page_to_hash(ksm_scan, hash_index, page_hash_item, rmap_item);
++		spin_unlock(&hash_lock);
++	}
++out:
++	return 0;
++}
++
++/* return -EAGAIN - no slots registered, nothing to be done */
++static int scan_get_next_index(struct ksm_scan *ksm_scan, int nscan)
++{
++	struct ksm_mem_slot *slot;
++
++	if (list_empty(&slots))
++		return -EAGAIN;
++
++	slot = ksm_scan->slot_index;
++
++	/* Are there pages left in this slot to scan? */
++	if ((slot->npages - ksm_scan->page_index - nscan) > 0) {
++		ksm_scan->page_index += nscan;
++		return 0;
++	}
++
++	list_for_each_entry_from(slot, &slots, link) {
++		if (slot == ksm_scan->slot_index)
++			continue;
++		ksm_scan->page_index = 0;
++		ksm_scan->slot_index = slot;
++		return 0;
++	}
++
++	/* look like we finished scanning the whole memory, starting again */
++	ksm_scan->page_index = 0;
++	ksm_scan->slot_index = list_first_entry(&slots,
++						struct ksm_mem_slot, link);
++	return 0;
++}
++
++/*
++ * update slot_index - make sure ksm_scan will point to vaild data,
++ * it is possible that by the time we are here the data that ksm_scan was
++ * pointed to was released so we have to call this function every time after
++ * taking the slots_lock
++ */
++static void scan_update_old_index(struct ksm_scan *ksm_scan)
++{
++	struct ksm_mem_slot *slot;
++
++	if (list_empty(&slots))
++		return;
++
++	list_for_each_entry(slot, &slots, link) {
++		if (ksm_scan->slot_index == slot)
++			return;
++	}
++
++	ksm_scan->slot_index = list_first_entry(&slots,
++						struct ksm_mem_slot, link);
++	ksm_scan->page_index = 0;
 +}
 +
 +/**
-+ * page_wrprotect - set all ptes pointing to a page as readonly
-+ * @page:         the page to set as readonly
-+ * @odirect_sync: boolean value that is set to 0 when some of the ptes were not
-+ *                marked as readonly beacuse page_wrprotect_one() was not able
-+ *                to mark this ptes as readonly without opening window to a race
-+ *                with odirect
-+ * @count_offset: number of times page_wrprotect() caller had called get_page()
-+ *                on the page
++ * ksm_scan_start - the ksm scanner main worker function.
++ * @ksm_scan -    the scanner.
++ * @scan_npages - number of pages we are want to scan before we return from this
++ * @function.
++ * @max_npages -  number of maximum pages we allow to merge before we return from
++ *                this function (so even if there are more pages to scan from
++ *                scan_npages if we passed the max_npages value we will return
++ *                from this function)
 + *
-+ * returns the number of ptes which were marked as readonly.
-+ * (ptes that were readonly before this function was called are counted as well)
++ * (this function can be called from the kernel thread scanner, or from 
++ *  userspace ioctl context scanner)
++ *
++ *  The function return -EAGAIN in case there are not slots to scan.
 + */
-+int page_wrprotect(struct page *page, int *odirect_sync, int count_offset)
++static int ksm_scan_start(struct ksm_scan *ksm_scan, int scan_npages,
++			  int max_npages)
 +{
++	struct ksm_mem_slot *slot;
++	struct page *page[1];
++	int val;
 +	int ret = 0;
 +
-+	/*
-+	 * Page lock is needed for anon pages for the PageSwapCache check,
-+	 * and for page_mapping for filebacked pages
-+	 */
-+	BUG_ON(!PageLocked(page));
++	down_read(&slots_lock);
 +
-+	*odirect_sync = 1;
-+	if (PageAnon(page))
-+		ret = page_wrprotect_anon(page, odirect_sync, count_offset);
-+	else
-+		ret = page_wrprotect_file(page, odirect_sync, count_offset);
++	scan_update_old_index(ksm_scan);
 +
++	while (scan_npages > 0 && max_npages > 0) {
++		ret = scan_get_next_index(ksm_scan, 1);
++		if (ret)
++			goto out;
++
++		slot = ksm_scan->slot_index;
++		down_read(&slot->mm->mmap_sem);
++		/*
++		 * If the page is swapped out or in swap cache, we don't want to
++		 * scan it (it is just for performance).
++		 */
++		if (is_present_pte(slot->mm, slot->addr +
++				   ksm_scan->page_index * PAGE_SIZE)) {
++			val = get_user_pages(current, slot->mm, slot->addr +
++					     ksm_scan->page_index * PAGE_SIZE ,
++					      1, 0, 0, page, NULL);
++			up_read(&slot->mm->mmap_sem);
++			if (val == 1) {
++				if (!PageKsm(page[0]))
++					max_npages -=
++					cmp_and_merge_page(ksm_scan, page[0]);
++				put_page(page[0]);
++			}
++		} else
++			up_read(&slot->mm->mmap_sem);
++		scan_npages--;
++	}
++
++	scan_get_next_index(ksm_scan, 1);
++out:
++	up_read(&slots_lock);
 +	return ret;
 +}
-+EXPORT_SYMBOL(page_wrprotect);
 +
-+#endif
++static int ksm_scan_ioctl_start(struct ksm_scan *ksm_scan,
++				struct ksm_user_scan *scan)
++{
++	if (!(scan->flags & ksm_control_flags_run))
++		return 0;
 +
- /**
-  * __page_set_anon_rmap - setup new anonymous rmap
-  * @page:	the page to add the mapping to
++	return ksm_scan_start(ksm_scan, scan->pages_to_scan,
++			      scan->max_pages_to_merge);
++}
++
++static int ksm_scan_release(struct inode *inode, struct file *filp)
++{
++	struct ksm_scan *ksm_scan = filp->private_data;
++
++	kfree(ksm_scan);
++	return 0;
++}
++
++static long ksm_scan_ioctl(struct file *filp,
++			   unsigned int ioctl, unsigned long arg)
++{
++	struct ksm_scan *ksm_scan = filp->private_data;
++	void __user *argp = (void __user *)arg;
++	int r = EINVAL;
++
++	switch (ioctl) {
++	case KSM_SCAN: {
++		struct ksm_user_scan scan;
++
++		r = -EFAULT;
++		if (copy_from_user(&scan, argp,
++				   sizeof(struct ksm_user_scan)))
++			break;
++
++		r = ksm_scan_ioctl_start(ksm_scan, &scan);
++	}
++	}
++	return r;
++}
++
++static struct file_operations ksm_sma_fops = {
++	.release        = ksm_sma_release,
++	.unlocked_ioctl = ksm_sma_ioctl,
++	.compat_ioctl   = ksm_sma_ioctl,
++};
++
++static int ksm_dev_ioctl_create_shared_memory_area(void)
++{
++	int fd = -1;
++	struct ksm_sma *ksm_sma;
++
++	ksm_sma = kmalloc(sizeof(struct ksm_sma), GFP_KERNEL);
++	if (!ksm_sma)
++		goto out;
++
++	INIT_LIST_HEAD(&ksm_sma->sma_slots);
++
++	fd = anon_inode_getfd("ksm-sma", &ksm_sma_fops, ksm_sma, 0);
++	if (fd < 0)
++		goto out_free;
++
++	return fd;
++out_free:
++	kfree(ksm_sma);
++out:
++	return fd;
++}
++
++static struct file_operations ksm_scan_fops = {
++	.release        = ksm_scan_release,
++	.unlocked_ioctl = ksm_scan_ioctl,
++	.compat_ioctl   = ksm_scan_ioctl,
++};
++
++static struct ksm_scan *ksm_scan_create(void)
++{
++	return kzalloc(sizeof(struct ksm_scan), GFP_KERNEL);
++}
++
++static int ksm_dev_ioctl_create_scan(void)
++{
++	int fd;
++	struct ksm_scan *ksm_scan;
++
++	if (!tfm) {
++		fd = ksm_tfm_init();
++		if (fd)
++			goto out;
++	}
++
++	fd = -ENOMEM;
++	ksm_scan = ksm_scan_create();
++	if (!ksm_scan)
++		goto out;
++
++	fd = anon_inode_getfd("ksm-scan", &ksm_scan_fops, ksm_scan, 0);
++	if (fd < 0)
++		goto out_free;
++	return fd;
++
++out_free:
++	kfree(ksm_scan);
++out:
++	return fd;
++}
++
++/*
++ * ksm_dev_ioctl_start_stop_kthread - control the kernel thread scanning running
++ * speed.
++ * This function allow us to control on the time the kernel thread will sleep
++ * how many pages it will scan between sleep and sleep, and how many pages it
++ * will maximum merge between sleep and sleep.
++ */
++static int ksm_dev_ioctl_start_stop_kthread(struct ksm_kthread_info *info)
++{
++	int rc = 0;
++
++	/* Make sure crypto tfm is initialized before starting scanning */
++	if (info->flags & ksm_control_flags_run && !tfm) {
++		rc = ksm_tfm_init();
++		if (rc)
++			goto out;
++	}
++
++	down_write(&kthread_lock);
++
++	if (info->flags & ksm_control_flags_run) {
++		if (!info->pages_to_scan || !info->max_pages_to_merge) {
++			rc = EPERM;
++			up_write(&kthread_lock);
++			goto out;
++		}
++	}
++
++	kthread_sleep = info->sleep;
++	kthread_pages_to_scan = info->pages_to_scan;
++	kthread_max_npages = info->max_pages_to_merge;
++	ksmd_flags = info->flags;
++
++	up_write(&kthread_lock);
++
++	if (ksmd_flags & ksm_control_flags_run)
++		wake_up_interruptible(&kthread_wait);
++
++out:
++	return rc;
++}
++
++/*
++ * ksm_dev_ioctl_get_info_kthread - write into info the scanning information
++ * of the ksm kernel thread
++ */
++static void ksm_dev_ioctl_get_info_kthread(struct ksm_kthread_info *info)
++{
++	down_read(&kthread_lock);
++
++	info->sleep = kthread_sleep;
++	info->pages_to_scan = kthread_pages_to_scan;
++	info->max_pages_to_merge = kthread_max_npages;
++	info->flags = ksmd_flags;
++
++	up_read(&kthread_lock);
++}
++
++static long ksm_dev_ioctl(struct file *filp,
++			  unsigned int ioctl, unsigned long arg)
++{
++	void __user *argp = (void __user *)arg;
++	long r = -EINVAL;
++
++	switch (ioctl) {
++	case KSM_GET_API_VERSION:
++		r = KSM_API_VERSION;
++		break;
++	case KSM_CREATE_SHARED_MEMORY_AREA:
++		r = ksm_dev_ioctl_create_shared_memory_area();
++		break;
++	case KSM_CREATE_SCAN:
++		r = ksm_dev_ioctl_create_scan();
++		break;
++	case KSM_START_STOP_KTHREAD: {
++		struct ksm_kthread_info info;
++
++		r = -EFAULT;
++		if (copy_from_user(&info, argp,
++				   sizeof(struct ksm_kthread_info)))
++			break;
++
++		r = ksm_dev_ioctl_start_stop_kthread(&info);
++		break;
++		}
++	case KSM_GET_INFO_KTHREAD: {
++		struct ksm_kthread_info info;
++
++		ksm_dev_ioctl_get_info_kthread(&info);
++		r = -EFAULT;
++		if (copy_to_user(argp, &info,
++				 sizeof(struct ksm_kthread_info)))
++			break;
++		r = 0;
++		break;
++	}
++	default:
++		break;
++	}
++	return r;
++}
++
++static struct file_operations ksm_chardev_ops = {
++	.unlocked_ioctl = ksm_dev_ioctl,
++	.compat_ioctl   = ksm_dev_ioctl,
++	.owner          = THIS_MODULE,
++};
++
++static struct miscdevice ksm_dev = {
++	KSM_MINOR,
++	"ksm",
++	&ksm_chardev_ops,
++};
++
++int kthread_ksm_scan_thread(void *nothing)
++{
++	while (!kthread_should_stop()) {
++		if (ksmd_flags & ksm_control_flags_run) {
++			down_read(&kthread_lock);
++			ksm_scan_start(&kthread_ksm_scan,
++				       kthread_pages_to_scan,
++				       kthread_max_npages);
++			up_read(&kthread_lock);
++			schedule_timeout_interruptible(
++					usecs_to_jiffies(kthread_sleep));
++		} else
++			wait_event_interruptible(kthread_wait,
++					ksmd_flags & ksm_control_flags_run ||
++					kthread_should_stop());
++	}
++	return 0;
++}
++
++static int __init ksm_init(void)
++{
++	int r;
++
++	r = ksm_slab_init();
++	if (r)
++		goto out;
++
++	r = page_hash_init();
++	if (r)
++		goto out_free1;
++
++	r = rmap_hash_init();
++	if (r)
++		goto out_free2;
++
++	r = sha1_hash_init();
++	if (r)
++		goto out_free3;
++
++	spin_lock_init(&hash_lock);
++
++	kthread = kthread_run(kthread_ksm_scan_thread, NULL, "kksmd");
++	if (IS_ERR(kthread)) {
++		printk(KERN_ERR "ksm: creating kthread failed\n");
++		r = PTR_ERR(kthread);
++		goto out_free4;
++	}
++
++	r = misc_register(&ksm_dev);
++	if (r) {
++		printk(KERN_ERR "ksm: misc device register failed\n");
++		goto out_free5;
++	}
++
++	printk(KERN_WARNING "ksm loaded\n");
++	return 0;
++
++out_free5:
++	kthread_stop(kthread);
++out_free4:
++	sha1_hash_free();
++out_free3:
++	rmap_hash_free();
++out_free2:
++	page_hash_free();
++out_free1:
++	ksm_slab_free();
++out:
++	return r;
++}
++
++static void __exit ksm_exit(void)
++{
++	misc_deregister(&ksm_dev);
++	ksmd_flags = ksm_control_flags_run;
++	kthread_stop(kthread);
++	if (tfm)
++		crypto_free_hash(tfm);
++	sha1_hash_free();
++	rmap_hash_free();
++	page_hash_free();
++	ksm_slab_free();
++}
++
++module_init(ksm_init)
++module_exit(ksm_exit)
 -- 
 1.6.0.3
 
