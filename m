@@ -1,73 +1,76 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAH0EtZQ032719
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAH0dDBP010422
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 17 Nov 2008 09:14:55 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC2A445DE54
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:14:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E29245DE51
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:14:54 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 257951DB803E
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:14:54 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 93E351DB803F
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:14:53 +0900 (JST)
-Date: Mon, 17 Nov 2008 09:14:13 +0900
+	Mon, 17 Nov 2008 09:39:14 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EC7C2AEA81
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:39:13 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (s8.gw.fujitsu.co.jp [10.0.50.98])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 545711EF082
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:39:13 +0900 (JST)
+Received: from s8.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id 38A7C1DB803E
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:39:13 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s8.gw.fujitsu.co.jp (Postfix) with ESMTP id E9A2F1DB8038
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 09:39:12 +0900 (JST)
+Date: Mon, 17 Nov 2008 09:38:32 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] memcg: handle swap caches build fix
-Message-Id: <20081117091413.4a123b7d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0811162046080.5813@blonde.site>
-References: <Pine.LNX.4.64.0811162046080.5813@blonde.site>
+Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after
+ swap_cluster_max pages
+Message-Id: <20081117093832.f383bd61.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081116163316.F205.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20081113171208.6985638e@bree.surriel.com>
+	<20081116163316.F205.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-2022-JP
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 16 Nov 2008 20:52:22 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+On Sun, 16 Nov 2008 16:38:56 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> Fix to build error when CONFIG_SHMEM=y but CONFIG_SWAP is not set:
-> mm/shmem.c: In function ‘shmem_unuse_inode’:
-> mm/shmem.c:927: error: implicit declaration of function ‘mem_cgroup_cache_charge_swapin’
+> One more point.
 > 
-> Yes, there's a lot of code in mm/shmem.c which only comes into play when
-> CONFIG_SWAP=y: better than this quick fix would be to restructure shmem.c
-> with all swap stuff in a separate file; that's on my mind, but now is not
-> the moment for it.
+> > Sometimes the VM spends the first few priority rounds rotating back
+> > referenced pages and submitting IO.  Once we get to a lower priority,
+> > sometimes the VM ends up freeing way too many pages.
+> > 
+> > The fix is relatively simple: in shrink_zone() we can check how many
+> > pages we have already freed and break out of the loop.
+> > 
+> > However, in order to do this we do need to know how many pages we already
+> > freed, so move nr_reclaimed into scan_control.
 > 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> IIRC, Balbir-san explained the implemetation of the memcgroup 
+> force cache dropping feature need non bail out at the past reclaim 
+> throttring discussion.
+> 
+> I am not sure about this still right or not (iirc, memcgroup implemetation
+> was largely changed).
+> 
+> Balbir-san, Could you comment to this patch?
+> 
+> 
+I'm not Balbir-san but there is no "force-cache-dropping" feature now.
+(I have no plan to do that.)
 
-Thanks! (>_<
+But, mem+swap controller will need to modify reclaim path to do "cache drop
+first" becasue the amount of "mem+swap" will not change when "mem+swap" hit
+limit. It's now set "sc.may_swap" to 0.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Hmm, I hope memcg is a silver bullet to this kind of special? workload in
+long term.
 
-> ---
-> Fix should follow or be merged into memcg-handle-swap-caches.patch
-> 
->  include/linux/swap.h |    6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> --- mmotm/include/linux/swap.h	2008-11-16 17:33:25.000000000 +0000
-> +++ linux/include/linux/swap.h	2008-11-16 20:18:27.000000000 +0000
-> @@ -442,6 +442,12 @@ static inline swp_entry_t get_swap_page(
->  #define has_swap_token(x) 0
->  #define disable_swap_token() do { } while(0)
->  
-> +static inline int mem_cgroup_cache_charge_swapin(struct page *page,
-> +			struct mm_struct *mm, gfp_t mask, bool locked)
-> +{
-> +	return 0;
-> +}
-> +
->  #endif /* CONFIG_SWAP */
->  #endif /* __KERNEL__*/
->  #endif /* _LINUX_SWAP_H */
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
