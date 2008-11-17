@@ -1,75 +1,53 @@
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAH3jPUC014160
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:45:25 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAH3hrot2875520
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:43:53 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAH3held027802
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:43:40 +1100
-Message-ID: <4920E869.9030501@linux.vnet.ibm.com>
-Date: Mon, 17 Nov 2008 09:13:37 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id mAH4eTCL000971
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:29 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAH4eTjw1241168
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:29 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id mAH4e43b021040
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:05 +0530
+Date: Mon, 17 Nov 2008 10:10:08 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Fix typo in swap cgroup message
+Message-ID: <20081117044008.GA25269@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max
- pages
-References: <20081113171208.6985638e@bree.surriel.com> <20081116163316.F205.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081117093832.f383bd61.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081117093832.f383bd61.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Sun, 16 Nov 2008 16:38:56 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
->> One more point.
->>
->>> Sometimes the VM spends the first few priority rounds rotating back
->>> referenced pages and submitting IO.  Once we get to a lower priority,
->>> sometimes the VM ends up freeing way too many pages.
->>>
->>> The fix is relatively simple: in shrink_zone() we can check how many
->>> pages we have already freed and break out of the loop.
->>>
->>> However, in order to do this we do need to know how many pages we already
->>> freed, so move nr_reclaimed into scan_control.
->> IIRC, Balbir-san explained the implemetation of the memcgroup 
->> force cache dropping feature need non bail out at the past reclaim 
->> throttring discussion.
->>
+There is a typo in the spelling of buffers (buffres) and the message is
+not very clear either. Fix the message and typo (hopefully not introducing
+any new ones ;) )
 
-Yes, for we used that for force_empty() in the past, but see below
+Cc: Hugh Dickins <hugh@veritas.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
 
->> I am not sure about this still right or not (iirc, memcgroup implemetation
->> was largely changed).
->>
->> Balbir-san, Could you comment to this patch?
->>
->>
-> I'm not Balbir-san but there is no "force-cache-dropping" feature now.
-> (I have no plan to do that.)
-> 
-> But, mem+swap controller will need to modify reclaim path to do "cache drop
-> first" becasue the amount of "mem+swap" will not change when "mem+swap" hit
-> limit. It's now set "sc.may_swap" to 0.
-> 
+ mm/page_cgroup.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Yes, there have been several changes to force_empty() and its meaning, including
-movement of accounts. Since you've made most of the recent changes, your
-comments are very relevant.
-
-> Hmm, I hope memcg is a silver bullet to this kind of special? workload in
-> long term.
-
-:-) From my perspective, hierarchy, soft limits (sharing memory when there is no
-contention), some form of over commit support and getting swappiness to work
-correctly are very important for memcg.
+diff -puN mm/page_cgroup.c~fix-typo-swap-cgroup mm/page_cgroup.c
+--- linux-2.6.28-rc4/mm/page_cgroup.c~fix-typo-swap-cgroup	2008-11-16 20:03:28.000000000 +0530
++++ linux-2.6.28-rc4-balbir/mm/page_cgroup.c	2008-11-17 09:59:43.000000000 +0530
+@@ -423,7 +423,8 @@ int swap_cgroup_swapon(int type, unsigne
+ 	mutex_unlock(&swap_cgroup_mutex);
+ 
+ 	printk(KERN_INFO
+-		"swap_cgroup: uses %ld bytes vmalloc and %ld bytes buffres\n",
++		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
++		" and %ld bytes to hold mem_cgroup pointers on swap\n",
+ 		array_size, length * PAGE_SIZE);
+ 	printk(KERN_INFO
+ 	"swap_cgroup can be disabled by noswapaccount boot option.\n");
+_
 
 -- 
 	Balbir
