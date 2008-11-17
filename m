@@ -1,56 +1,44 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id mAH4eTCL000971
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:29 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAH4eTjw1241168
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:29 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id mAH4e43b021040
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 10:10:05 +0530
-Date: Mon, 17 Nov 2008 10:10:08 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Fix typo in swap cgroup message
-Message-ID: <20081117044008.GA25269@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Message-ID: <4920F70D.9030100@cn.fujitsu.com>
+Date: Mon, 17 Nov 2008 12:46:05 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Subject: Re: [mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v4)
+References: <20081116081034.25166.7586.sendpatchset@balbir-laptop> <20081116081105.25166.54820.sendpatchset@balbir-laptop>
+In-Reply-To: <20081116081105.25166.54820.sendpatchset@balbir-laptop>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-There is a typo in the spelling of buffers (buffres) and the message is
-not very clear either. Fix the message and typo (hopefully not introducing
-any new ones ;) )
+> +	/*
+> +	 * If parent's use_hiearchy is set, we can't make any modifications
+> +	 * in the child subtrees. If it is unset, then the change can
+> +	 * occur, provided the current cgroup has no children.
+> +	 *
+> +	 * For the root cgroup, parent_mem is NULL, we allow value to be
+> +	 * set if there are no children.
+> +	 */
+> +	if (!parent_mem || (!parent_mem->use_hierarchy &&
+> +				(val == 1 || val == 0))) {
 
-Cc: Hugh Dickins <hugh@veritas.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Pavel Emelyanov <xemul@openvz.org>
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
+Should be :
 
- mm/page_cgroup.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+if ((!parent_mem || !parent_mem->use_hierarchy) &&
+    (val == 1 || val == 0)) {
 
-diff -puN mm/page_cgroup.c~fix-typo-swap-cgroup mm/page_cgroup.c
---- linux-2.6.28-rc4/mm/page_cgroup.c~fix-typo-swap-cgroup	2008-11-16 20:03:28.000000000 +0530
-+++ linux-2.6.28-rc4-balbir/mm/page_cgroup.c	2008-11-17 09:59:43.000000000 +0530
-@@ -423,7 +423,8 @@ int swap_cgroup_swapon(int type, unsigne
- 	mutex_unlock(&swap_cgroup_mutex);
- 
- 	printk(KERN_INFO
--		"swap_cgroup: uses %ld bytes vmalloc and %ld bytes buffres\n",
-+		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
-+		" and %ld bytes to hold mem_cgroup pointers on swap\n",
- 		array_size, length * PAGE_SIZE);
- 	printk(KERN_INFO
- 	"swap_cgroup can be disabled by noswapaccount boot option.\n");
-_
-
--- 
-	Balbir
+> +		if (list_empty(&cont->children))
+> +			mem->use_hierarchy = val;
+> +		else
+> +			retval = -EBUSY;
+> +	} else
+> +		retval = -EINVAL;
+> +	cgroup_unlock();
+> +
+> +	return retval;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
