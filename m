@@ -1,61 +1,49 @@
-Received: by wa-out-1112.google.com with SMTP id j37so1388344waf.22
-        for <linux-mm@kvack.org>; Mon, 17 Nov 2008 00:32:32 -0800 (PST)
-Message-ID: <2f11576a0811170032i6548e03die47f9e341f3ef9a@mail.gmail.com>
-Date: Mon, 17 Nov 2008 17:32:32 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] mm: evict streaming IO cache first
-In-Reply-To: <20081117172202.343e1b35.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 18 Nov 2008 00:27:19 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: [PATCH mmotm] memcg: fix argument for kunmap_atomic
+Message-Id: <20081118002719.532ce4cf.d-nishimura@mtf.biglobe.ne.jp>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20081115210039.537f59f5.akpm@linux-foundation.org>
-	 <alpine.LFD.2.00.0811161013270.3468@nehalem.linux-foundation.org>
-	 <49208E9A.5080801@redhat.com>
-	 <20081116204720.1b8cbe18.akpm@linux-foundation.org>
-	 <20081117153012.51ece88f.kamezawa.hiroyu@jp.fujitsu.com>
-	 <2f11576a0811162239w58555c6dq8a61ec184b22bd52@mail.gmail.com>
-	 <20081117155417.5cc63907.kamezawa.hiroyu@jp.fujitsu.com>
-	 <2f11576a0811162303t51609098o6cd765c04d791581@mail.gmail.com>
-	 <20081117172202.343e1b35.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Gene Heskett <gene.heskett@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, nishimura@mxp.nes.nec.co.jp, d-nishimura@mtf.biglobe.ne.jp
 List-ID: <linux-mm.kvack.org>
 
->> > How about resetting zone->recent_scanned/rotated to be some value calculated from
->> > INACTIVE_ANON/INACTIVE_FILE at some time (when the system is enough idle) ?
->>
->> in get_scan_ratio()
->>
-> But active/inactive ratio (and mapped_ratio) is not handled there.
+kunmap_atomic() should take kmapped address as argument.
 
-Yes.
-I think akpm pointed out just this point.
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+This patch is fix for memcg-swap-cgroup-for-remembering-usage.patch
 
+ mm/page_cgroup.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-> Follwoing 2 will return the same scan ratio.
-> ==case 1==
->  active_anon = 480M
->  inactive_anon = 32M
->  active_file = 2M
->  inactive_file = 510M
->
-> ==case 2==
->  active_anon = 480M
->  inactive_anon = 32M
->  active_file = 480M
->  inactive_file = 32M
-> ==
-
-Yes.
-the patch handle this situation by special priority.
-
-
-Umm..
-Perhaps, I am missing your point?
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index b0ea401..9c6ead1 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -350,7 +350,7 @@ struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
+ 	sc += pos;
+ 	old = sc->val;
+ 	sc->val = mem;
+-	kunmap_atomic(mappage, KM_USER0);
++	kunmap_atomic((void *)sc, KM_USER0);
+ 	spin_unlock_irqrestore(&ctrl->lock, flags);
+ 	return old;
+ }
+@@ -384,7 +384,7 @@ struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+ 	sc = kmap_atomic(mappage, KM_USER0);
+ 	sc += pos;
+ 	ret = sc->val;
+-	kunmap_atomic(mappage, KM_USER0);
++	kunmap_atomic((void *)sc, KM_USER0);
+ 	spin_unlock_irqrestore(&ctrl->lock, flags);
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
