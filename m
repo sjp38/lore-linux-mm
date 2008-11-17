@@ -1,186 +1,209 @@
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
-Date: Mon, 17 Nov 2008 04:20:28 +0200
-Message-Id: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 1/4] Rmap: Add page_wrprotect() function.
+Date: Mon, 17 Nov 2008 04:20:29 +0200
+Message-Id: <1226888432-3662-2-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
+References: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net, ieidus@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-(From v1 to v2 the main change is much more documentation)
+this patch add new function called page_wrprotect(),
+page_wrprotect() is used to take a page and mark all the pte that
+point into it as readonly.
 
-KSM is a linux driver that allows dynamicly sharing identical memory
-pages between one or more processes.
+The function is working by walking the rmap of the page, and setting
+each pte realted to the page as readonly.
 
-Unlike tradtional page sharing that is made at the allocation of the
-memory, ksm do it dynamicly after the memory was created.
-Memory is periodically scanned; identical pages are identified and
-merged.
-The sharing is unnoticeable by the process that use this memory.
-(the shared pages are marked as readonly, and in case of write
-do_wp_page() take care to create new copy of the page)
+The odirect_sync parameter is used to protect against possible races
+with odirect while we are marking the pte as readonly,
+as noted by Andrea Arcanglei:
 
-This driver is very useful for KVM as in cases of runing multiple guests
-operation system of the same type.
-(For desktop work loads we have achived more than x2 memory overcommit
-(more like x3))
+"While thinking at get_user_pages_fast I figured another worse way
+things can go wrong with ksm and o_direct: think a thread writing
+constantly to the last 512bytes of a page, while another thread read
+and writes to/from the first 512bytes of the page. We can lose
+O_DIRECT reads, the very moment we mark any pte wrprotected..."
 
-This driver have found users other than KVM, for example CERN,
-Fons Rademakers:
-"on many-core machines we run one large detector simulation program per core.
-These simulation programs are identical but run each in their own process and
-need about 2 - 2.5 GB RAM.
-We typically buy machines with 2GB RAM per core and so have a problem to run
-one of these programs per core.
-Of the 2 - 2.5 GB about 700MB is identical data in the form of magnetic field
-maps, detector geometry, etc.
-Currently people have been trying to start one program, initialize the geometry
-and field maps and then fork it N times, to have the data shared.
-With KSM this would be done automatically by the system so it sounded extremely
-attractive when Andrea presented it."
+Signed-off-by: Izik Eidus <ieidus@redhat.com>
+---
+ include/linux/rmap.h |   11 ++++
+ mm/rmap.c            |  129 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 140 insertions(+), 0 deletions(-)
 
-(We have are already started to test KSM on their systems...)
-
-KSM can run as kernel thread or as userspace application or both
-
-example for how to control the kernel thread:
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include "ksm.h"
-
-int main(int argc, char *argv[])
-{
-	int fd;
-	int used = 0;
-	int fd_start;
-	struct ksm_kthread_info info;
-	
-
-	if (argc < 2) {
-		fprintf(stderr,
-			"usage: %s {start npages sleep | stop | info}\n",
-			argv[0]);
-		exit(1);
-	}
-
-	fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
-	if (fd == -1) {
-		fprintf(stderr, "could not open /dev/ksm\n");
-		exit(1);
-	}
-
-	if (!strncmp(argv[1], "start", strlen(argv[1]))) {
-		used = 1;
-		if (argc < 4) {
-			fprintf(stderr,
-		    "usage: %s start npages_to_scan max_pages_to_merge sleep\n",
-		    argv[0]);
-			exit(1);
-		}
-		info.pages_to_scan = atoi(argv[2]);
-		info.max_pages_to_merge = atoi(argv[3]);
-		info.sleep = atoi(argv[4]);
-		info.flags = ksm_control_flags_run;
-
-		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
-		if (fd_start == -1) {
-			fprintf(stderr, "KSM_START_KTHREAD failed\n");
-			exit(1);
-		}
-		printf("created scanner\n");
-	}
-
-	if (!strncmp(argv[1], "stop", strlen(argv[1]))) {
-		used = 1;
-		info.flags = 0;
-		fd_start = ioctl(fd, KSM_START_STOP_KTHREAD, &info);
-		printf("stopped scanner\n");
-	}
-
-	if (!strncmp(argv[1], "info", strlen(argv[1]))) {
-		used = 1;
-		ioctl(fd, KSM_GET_INFO_KTHREAD, &info);
-	 printf("flags %d, pages_to_scan %d npages_merge %d, sleep_time %d\n",
-	 info.flags, info.pages_to_scan, info.max_pages_to_merge, info.sleep);
-	}
-
-	if (!used)
-		fprintf(stderr, "unknown command %s\n", argv[1]);
-
-	return 0;
-}
-
-example of how to register qemu to ksm (or any userspace application)
-
-diff --git a/qemu/vl.c b/qemu/vl.c
-index 4721fdd..7785bf9 100644
---- a/qemu/vl.c
-+++ b/qemu/vl.c
-@@ -21,6 +21,7 @@
-  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-  * DEALINGS IN
-  * THE SOFTWARE.
-  */
-+#include "ksm.h"
- #include "hw/hw.h"
- #include "hw/boards.h"
- #include "hw/usb.h"
-@@ -5799,6 +5800,37 @@ static void termsig_setup(void)
- 
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 89f0564..795ac1b 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -121,6 +121,10 @@ static inline int try_to_munlock(struct page *page)
+ }
  #endif
  
-+int ksm_register_memory(void)
++#ifdef CONFIG_PAGE_SHARING
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
++#endif
++
+ #else	/* !CONFIG_MMU */
+ 
+ #define anon_vma_init()		do {} while (0)
+@@ -135,6 +139,13 @@ static inline int page_mkclean(struct page *page)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_PAGE_SHARING
++static inline int page_wrprotect(struct page *page, int *odirect_sync,
++				 int count_offset)
 +{
-+    int fd;
-+    int ksm_fd;
-+    int r = 1;
-+    struct ksm_memory_region ksm_region;
++	return 0;
++}
++#endif
+ 
+ #endif	/* CONFIG_MMU */
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1099394..4c6fed3 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -576,6 +576,135 @@ int page_mkclean(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(page_mkclean);
+ 
++#ifdef CONFIG_PAGE_SHARING
 +
-+    fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
-+    if (fd == -1)
-+        goto out;
++static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
++			      int *odirect_sync, int count_offset)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int ret = 0;
 +
-+    ksm_fd = ioctl(fd, KSM_CREATE_SHARED_MEMORY_AREA);
-+    if (ksm_fd == -1)
-+        goto out_free;
++	address = vma_address(page, vma);
++	if (address == -EFAULT)
++		goto out;
 +
-+    ksm_region.npages = phys_ram_size / TARGET_PAGE_SIZE;
-+    ksm_region.addr = phys_ram_base;
-+    r = ioctl(ksm_fd, KSM_REGISTER_MEMORY_REGION, &ksm_region);
-+    if (r)
-+        goto out_free1;
++	pte = page_check_address(page, mm, address, &ptl, 0);
++	if (!pte)
++		goto out;
 +
-+    return r;
++	if (pte_write(*pte)) {
++		pte_t entry;
 +
-+out_free1:
-+    close(ksm_fd);
-+out_free:
-+    close(fd);
++		/*
++		 * Check that no O_DIRECT or similar I/O is in progress on the
++		 * page
++		 */
++		if ((page_mapcount(page) + count_offset) != page_count(page)) {
++			*odirect_sync = 0;
++			goto out_unlock;
++		}
++		flush_cache_page(vma, address, pte_pfn(*pte));
++		entry = ptep_clear_flush_notify(vma, address, pte);
++		entry = pte_wrprotect(entry);
++		set_pte_at(mm, address, pte, entry);
++	}
++	ret = 1;
++
++out_unlock:
++	pte_unmap_unlock(pte, ptl);
 +out:
-+    return r;
++	return ret;
 +}
 +
- int main(int argc, char **argv)
- {
- #ifdef CONFIG_GDBSTUB
-@@ -6735,6 +6767,8 @@ int main(int argc, char **argv)
-     /* init the dynamic translator */
-     cpu_exec_init_all(tb_size * 1024 * 1024);
- 
-+    ksm_register_memory();
++static int page_wrprotect_file(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct address_space *mapping;
++	struct prio_tree_iter iter;
++	struct vm_area_struct *vma;
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	int ret = 0;
 +
-     bdrv_init();
- 
-     /* we always create the cdrom drive, even if no disk is there */
++	mapping = page_mapping(page);
++	if (!mapping)
++		return ret;
++
++	spin_lock(&mapping->i_mmap_lock);
++
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	spin_unlock(&mapping->i_mmap_lock);
++
++	return ret;
++}
++
++static int page_wrprotect_anon(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct vm_area_struct *vma;
++	struct anon_vma *anon_vma;
++	int ret = 0;
++
++	anon_vma = page_lock_anon_vma(page);
++	if (!anon_vma)
++		return ret;
++
++	/*
++	 * If the page is inside the swap cache, its _count number was
++	 * increased by one, therefore we have to increase count_offset by one.
++	 */
++	if (PageSwapCache(page))
++		count_offset++;
++
++	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	page_unlock_anon_vma(anon_vma);
++
++	return ret;
++}
++
++/**
++ * page_wrprotect - set all ptes pointing to a page as readonly
++ * @page:         the page to set as readonly
++ * @odirect_sync: boolean value that is set to 0 when some of the ptes were not
++ *                marked as readonly beacuse page_wrprotect_one() was not able
++ *                to mark this ptes as readonly without opening window to a race
++ *                with odirect
++ * @count_offset: number of times page_wrprotect() caller had called get_page()
++ *                on the page
++ *
++ * returns the number of ptes which were marked as readonly.
++ * (ptes that were readonly before this function was called are counted as well)
++ */
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset)
++{
++	int ret = 0;
++
++	/*
++	 * Page lock is needed for anon pages for the PageSwapCache check,
++	 * and for page_mapping for filebacked pages
++	 */
++	BUG_ON(!PageLocked(page));
++
++	*odirect_sync = 1;
++	if (PageAnon(page))
++		ret = page_wrprotect_anon(page, odirect_sync, count_offset);
++	else
++		ret = page_wrprotect_file(page, odirect_sync, count_offset);
++
++	return ret;
++}
++EXPORT_SYMBOL(page_wrprotect);
++
++#endif
++
+ /**
+  * __page_set_anon_rmap - setup new anonymous rmap
+  * @page:	the page to add the mapping to
+-- 
+1.6.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
