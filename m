@@ -1,73 +1,59 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAH5VGnv031466
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 17 Nov 2008 14:31:16 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 08EAD45DE4E
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:16 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D76DE45DE52
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B359DE0800B
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 54876E08001
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
-Date: Mon, 17 Nov 2008 14:30:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Fix typo in swap cgroup message
-Message-Id: <20081117143035.58e7aa62.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081117044008.GA25269@balbir.in.ibm.com>
-References: <20081117044008.GA25269@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH] mm: evict streaming IO cache first
+Date: Mon, 17 Nov 2008 17:19:31 +1100
+References: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com> <49208E9A.5080801@redhat.com> <20081116204720.1b8cbe18.akpm@linux-foundation.org>
+In-Reply-To: <20081116204720.1b8cbe18.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200811171719.31936.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Gene Heskett <gene.heskett@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Nov 2008 10:10:08 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Monday 17 November 2008 15:47, Andrew Morton wrote:
+> On Sun, 16 Nov 2008 16:20:26 -0500 Rik van Riel <riel@redhat.com> wrote:
 
-> 
-> There is a typo in the spelling of buffers (buffres) and the message is
-> not very clear either. Fix the message and typo (hopefully not introducing
-> any new ones ;) )
-> 
-(>_< thanks, I found my private aspell dict includes "buffres"...
+> > I will take a look at producing smoother self tuning behaviour
+> > in get_scan_ratio(), with logic along these lines:
+> > - the more file pages are inactive, the more eviction should
+> >    focus on file pages, because we are not eating away at the
+> >    working set yet
+> > - the more file pages are active, the more there needs to be
+> >    a balance between file and anon scanning, because we are
+> >    starting to get to the working sets for both
+>
+> hm.  I wonder if it would be prohibitive to say "hey, we did the wrong
+> thing in that scanning pass - rewind and try it again".  Probably it
+> would be.
+>
+> Anyway, we need to do something.
+>
+> Shouldn't get_scan_ratio() be handling this case already?
 
--Kame
+I have a patch that was actually for the old vmscan logic that I
+found really helps prevent working set get paged out. Actually
+the old vmscan behaviour wasn't any good either at preventing
+unmapped pagecache from being evicted, which is the main thing I
+was trying to fix (eg. keep git tree in cache while doing other
+use-once IO).
 
-> Cc: Hugh Dickins <hugh@veritas.com>
-> Cc: Li Zefan <lizf@cn.fujitsu.com>
-> Cc: Pavel Emelyanov <xemul@openvz.org>
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  mm/page_cgroup.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff -puN mm/page_cgroup.c~fix-typo-swap-cgroup mm/page_cgroup.c
-> --- linux-2.6.28-rc4/mm/page_cgroup.c~fix-typo-swap-cgroup	2008-11-16 20:03:28.000000000 +0530
-> +++ linux-2.6.28-rc4-balbir/mm/page_cgroup.c	2008-11-17 09:59:43.000000000 +0530
-> @@ -423,7 +423,8 @@ int swap_cgroup_swapon(int type, unsigne
->  	mutex_unlock(&swap_cgroup_mutex);
->  
->  	printk(KERN_INFO
-> -		"swap_cgroup: uses %ld bytes vmalloc and %ld bytes buffres\n",
-> +		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
-> +		" and %ld bytes to hold mem_cgroup pointers on swap\n",
->  		array_size, length * PAGE_SIZE);
->  	printk(KERN_INFO
->  	"swap_cgroup can be disabled by noswapaccount boot option.\n");
-> _
-> 
-> -- 
-> 	Balbir
-> 
+It ended up working really well, but I suspect it would still fall
+over in the case where you were trying to populate your caches with
+the git tree *while* the streaming IO is happening (if those pages
+don't have a chance to get touched again for a while, they'll look
+like use-once IO to the vm)... but still no worse than current
+behaviour.
+
+I need to forward port it to the new system, however...
+
+But this would be a pretty big change and I can't see how it could
+be appropriate for -rc6. Aren't we allergic to even single-line
+changes in vmscan without seemingly multi-year "testing" phases? :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
