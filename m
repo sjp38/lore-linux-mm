@@ -1,49 +1,73 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id mAH4oWTM023229
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 15:50:33 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAH4o5qu273380
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 15:50:05 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mAH4o4GQ013071
-	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 15:50:05 +1100
-Message-ID: <4920F7F7.6050601@linux.vnet.ibm.com>
-Date: Mon, 17 Nov 2008 10:19:59 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-MIME-Version: 1.0
-Subject: Re: [mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v4)
-References: <20081116081034.25166.7586.sendpatchset@balbir-laptop> <20081116081105.25166.54820.sendpatchset@balbir-laptop> <4920F70D.9030100@cn.fujitsu.com>
-In-Reply-To: <4920F70D.9030100@cn.fujitsu.com>
-Content-Type: text/plain; charset=GB2312
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAH5VGnv031466
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 17 Nov 2008 14:31:16 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 08EAD45DE4E
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:16 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D76DE45DE52
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B359DE0800B
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 54876E08001
+	for <linux-mm@kvack.org>; Mon, 17 Nov 2008 14:31:15 +0900 (JST)
+Date: Mon, 17 Nov 2008 14:30:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Fix typo in swap cgroup message
+Message-Id: <20081117143035.58e7aa62.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081117044008.GA25269@balbir.in.ibm.com>
+References: <20081117044008.GA25269@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-Li Zefan wrote:
->> +	/*
->> +	 * If parent's use_hiearchy is set, we can't make any modifications
->> +	 * in the child subtrees. If it is unset, then the change can
->> +	 * occur, provided the current cgroup has no children.
->> +	 *
->> +	 * For the root cgroup, parent_mem is NULL, we allow value to be
->> +	 * set if there are no children.
->> +	 */
->> +	if (!parent_mem || (!parent_mem->use_hierarchy &&
->> +				(val == 1 || val == 0))) {
-> 
-> Should be :
-> 
-> if ((!parent_mem || !parent_mem->use_hierarchy) &&
->     (val == 1 || val == 0)) {
+On Mon, 17 Nov 2008 10:10:08 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Yes, we need to validate values for root cgroup as well. Thanks for the comments
+> 
+> There is a typo in the spelling of buffers (buffres) and the message is
+> not very clear either. Fix the message and typo (hopefully not introducing
+> any new ones ;) )
+> 
+(>_< thanks, I found my private aspell dict includes "buffres"...
 
--- 
-	Balbir
+-Kame
+
+> Cc: Hugh Dickins <hugh@veritas.com>
+> Cc: Li Zefan <lizf@cn.fujitsu.com>
+> Cc: Pavel Emelyanov <xemul@openvz.org>
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  mm/page_cgroup.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff -puN mm/page_cgroup.c~fix-typo-swap-cgroup mm/page_cgroup.c
+> --- linux-2.6.28-rc4/mm/page_cgroup.c~fix-typo-swap-cgroup	2008-11-16 20:03:28.000000000 +0530
+> +++ linux-2.6.28-rc4-balbir/mm/page_cgroup.c	2008-11-17 09:59:43.000000000 +0530
+> @@ -423,7 +423,8 @@ int swap_cgroup_swapon(int type, unsigne
+>  	mutex_unlock(&swap_cgroup_mutex);
+>  
+>  	printk(KERN_INFO
+> -		"swap_cgroup: uses %ld bytes vmalloc and %ld bytes buffres\n",
+> +		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
+> +		" and %ld bytes to hold mem_cgroup pointers on swap\n",
+>  		array_size, length * PAGE_SIZE);
+>  	printk(KERN_INFO
+>  	"swap_cgroup can be disabled by noswapaccount boot option.\n");
+> _
+> 
+> -- 
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
