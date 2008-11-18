@@ -1,76 +1,73 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAI1Ghg0023289
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 18 Nov 2008 10:16:43 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 83BE945DD72
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2008 10:16:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 52FD745DD6C
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2008 10:16:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 39FC11DB803A
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2008 10:16:43 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E4D601DB8040
-	for <linux-mm@kvack.org>; Tue, 18 Nov 2008 10:16:42 +0900 (JST)
-Date: Tue, 18 Nov 2008 10:16:01 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] memcg: fix argument for kunmap_atomic
-Message-Id: <20081118101601.58a4f41e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081118002719.532ce4cf.d-nishimura@mtf.biglobe.ne.jp>
-References: <20081118002719.532ce4cf.d-nishimura@mtf.biglobe.ne.jp>
+Date: Tue, 18 Nov 2008 18:07:21 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH mmotm] memcg: unmap KM_USER0 at shmem_map_and_free_swp if
+ do_swap_account
+Message-Id: <20081118180721.cb2fe744.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: nishimura@mxp.nes.nec.co.jp
-Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, Hugh Dickins <hugh@veritas.com>, Li Zefan <lizf@cn.fujitsu.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Nov 2008 00:27:19 +0900
-Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> wrote:
+memswap controller uses KM_USER0 at swap_cgroup_record and lookup_swap_cgroup.
 
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> kunmap_atomic() should take kmapped address as argument.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+But delete_from_swap_cache, which eventually calls swap_cgroup_record, can be
+called with KM_USER0 mapped in case of shmem.
 
-I have to adimit test was not enough...Sigh..
+So it should be unmapped before calling it.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+After this patch, I think memswap controller of x86_32 will be
+on the same level with that of x86_64.
 
-> ---
-> This patch is fix for memcg-swap-cgroup-for-remembering-usage.patch
-> 
->  mm/page_cgroup.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index b0ea401..9c6ead1 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -350,7 +350,7 @@ struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
->  	sc += pos;
->  	old = sc->val;
->  	sc->val = mem;
-> -	kunmap_atomic(mappage, KM_USER0);
-> +	kunmap_atomic((void *)sc, KM_USER0);
->  	spin_unlock_irqrestore(&ctrl->lock, flags);
->  	return old;
->  }
-> @@ -384,7 +384,7 @@ struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
->  	sc = kmap_atomic(mappage, KM_USER0);
->  	sc += pos;
->  	ret = sc->val;
-> -	kunmap_atomic(mappage, KM_USER0);
-> +	kunmap_atomic((void *)sc, KM_USER0);
->  	spin_unlock_irqrestore(&ctrl->lock, flags);
->  	return ret;
->  }
-> 
+ mm/shmem.c |   23 +++++++++++++++++++++++
+ 1 files changed, 23 insertions(+), 0 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index bee8612..7aebc1b 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -171,6 +171,28 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+ 		vm_unacct_memory(VM_ACCT(size));
+ }
+ 
++#if defined(CONFIG_CGROUP_MEM_RES_CTLR_SWAP) && defined(CONFIG_HIGHMEM)
++/*
++ * memswap controller uses KM_USER0, so dir should be unmapped
++ * before calling delete_from_swap_cache.
++ */
++static inline void swap_cgroup_map_prepare(struct page ***dir)
++{
++	if (!do_swap_account)
++		return;
++
++	if (*dir) {
++		shmem_dir_unmap(*dir);
++		*dir = NULL;
++	}
++}
++#else
++static inline void swap_cgroup_map_prepare(struct page ***dir)
++{
++	return;
++}
++#endif
++
+ /*
+  * ... whereas tmpfs objects are accounted incrementally as
+  * pages are allocated, in order to allow huge sparse files.
+@@ -479,6 +501,7 @@ static int shmem_map_and_free_swp(struct page *subdir, int offset,
+ 		int size = limit - offset;
+ 		if (size > LATENCY_LIMIT)
+ 			size = LATENCY_LIMIT;
++		swap_cgroup_map_prepare(dir);
+ 		freed += shmem_free_swp(ptr+offset, ptr+offset+size,
+ 							punch_lock);
+ 		if (need_resched()) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
