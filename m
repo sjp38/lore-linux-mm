@@ -1,36 +1,133 @@
-Date: Tue, 18 Nov 2008 16:56:57 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH mmotm] memcg: avoid using buggy kmap at swap_cgroup 
-In-Reply-To: <Pine.LNX.4.64.0811181629070.417@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811181653290.3506@blonde.site>
-References: <20081118180721.cb2fe744.nishimura@mxp.nes.nec.co.jp><20081118182637.97ae0e48.kamezawa.hiroyu@jp.fujitsu.com><20081118192135.300803ec.nishimura@mxp.nes.nec.co.jp><20081118210838.c99887fd.nishimura@mxp.nes.nec.co.jp><Pine.LNX.4.64.0811181234430.9680@blonde.site>
-    <20081119001756.0a31b11e.d-nishimura@mtf.biglobe.ne.jp>
- <6023.10.75.179.61.1227024730.squirrel@webmail-b.css.fujitsu.com>
- <Pine.LNX.4.64.0811181629070.417@blonde.site>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 18 Nov 2008 15:28:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mm] [PATCH 4/4] Memory cgroup hierarchy feature selector (v4)
+Message-Id: <20081118152833.98125cdd.akpm@linux-foundation.org>
+In-Reply-To: <20081116081105.25166.54820.sendpatchset@balbir-laptop>
+References: <20081116081034.25166.7586.sendpatchset@balbir-laptop>
+	<20081116081105.25166.54820.sendpatchset@balbir-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelianov <xemul@openvz.org>, LiZefan <lizf@cn.fujitsu.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, yamamoto@valinux.co.jp, menage@google.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, rientjes@google.com, xemul@openvz.org, dhaval@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 18 Nov 2008, Hugh Dickins wrote:
-> On Wed, 19 Nov 2008, KAMEZAWA Hiroyuki wrote:
-> 
-> >  2. later, add kmap_atomic + HighMem buffer support in explicit style.
-> >     maybe KM_BOUNCE_READ...can be used.....
-> 
-> It's hardly appropriate (there's no bouncing here), and you could only
-> use it if you disable interrupts.  Oh, you do disable interrupts:
-> why's that?
+On Sun, 16 Nov 2008 13:41:05 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-In fact, why do you even need the spinlock?  I can see that you would
-need it if in future you reduce the size of the elements of the array
-from pointers; but at present, aren't you already in trouble if there's
-a race on the pointer?
+> 
+> Don't enable multiple hierarchy support by default. This patch introduces
+> a features element that can be set to enable the nested depth hierarchy
+> feature. This feature can only be enabled when the cgroup for which the
+> feature this is enabled, has no children.
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  mm/memcontrol.c |   61 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 57 insertions(+), 4 deletions(-)
+> 
+> diff -puN mm/memcontrol.c~memcg-add-hierarchy-selector mm/memcontrol.c
+> --- linux-2.6.28-rc4/mm/memcontrol.c~memcg-add-hierarchy-selector	2008-11-16 13:19:33.000000000 +0530
+> +++ linux-2.6.28-rc4-balbir/mm/memcontrol.c	2008-11-16 13:19:33.000000000 +0530
+> @@ -148,6 +148,10 @@ struct mem_cgroup {
+>  	 * reclaimed from. Protected by cgroup_lock()
+>  	 */
+>  	struct mem_cgroup *last_scanned_child;
+> +	/*
+> +	 * Should the accounting and control be hierarchical, per subtree?
+> +	 */
+> +	unsigned long use_hierarchy;
 
-Hugh
+This field is a boolean, but it is declared as an unsigned long and is
+accessed from userspace via an API which returns a u64.  This all seems
+ripe for a cleanup..
+
+>  	int		obsolete;
+>  	atomic_t	refcnt;
+> @@ -1527,6 +1531,44 @@ int mem_cgroup_force_empty_write(struct 
+>  }
+>  
+>  
+> +static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
+> +{
+> +	return mem_cgroup_from_cont(cont)->use_hierarchy;
+> +}
+> +
+> +static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+> +					u64 val)
+> +{
+> +	int retval = 0;
+> +	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+> +	struct cgroup *parent = cont->parent;
+> +	struct mem_cgroup *parent_mem = NULL;
+> +
+> +	if (parent)
+> +		parent_mem = mem_cgroup_from_cont(parent);
+> +
+> +	cgroup_lock();
+> +	/*
+> +	 * If parent's use_hiearchy is set, we can't make any modifications
+> +	 * in the child subtrees. If it is unset, then the change can
+> +	 * occur, provided the current cgroup has no children.
+> +	 *
+> +	 * For the root cgroup, parent_mem is NULL, we allow value to be
+> +	 * set if there are no children.
+> +	 */
+> +	if (!parent_mem || (!parent_mem->use_hierarchy &&
+> +				(val == 1 || val == 0))) {
+
+One part of this test permits any value, but the other part restricts
+values to 0 or 1.
+
+> +		if (list_empty(&cont->children))
+> +			mem->use_hierarchy = val;
+> +		else
+> +			retval = -EBUSY;
+> +	} else
+> +		retval = -EINVAL;
+> +	cgroup_unlock();
+> +
+> +	return retval;
+> +}
+> +
+>  static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+>  {
+>  	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+> @@ -1690,6 +1732,11 @@ static struct cftype mem_cgroup_files[] 
+>  		.name = "force_empty",
+>  		.trigger = mem_cgroup_force_empty_write,
+>  	},
+> +	{
+> +		.name = "use_hierarchy",
+> +		.write_u64 = mem_cgroup_hierarchy_write,
+> +		.read_u64 = mem_cgroup_hierarchy_read,
+> +	},
+>  };
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+> @@ -1865,12 +1912,18 @@ mem_cgroup_create(struct cgroup_subsys *
+>  	if (cont->parent == NULL) {
+>  		enable_swap_cgroup();
+>  		parent = NULL;
+> -	} else
+> +	} else {
+>  		parent = mem_cgroup_from_cont(cont->parent);
+> +		mem->use_hierarchy = parent->use_hierarchy;
+> +	}
+>  
+> - 	res_counter_init(&mem->res, parent ? &parent->res : NULL);
+> -	res_counter_init(&mem->memsw, parent ? &parent->memsw : NULL);
+> -
+> +	if (parent && parent->use_hierarchy) {
+> +		res_counter_init(&mem->res, &parent->res);
+> +		res_counter_init(&mem->memsw, &parent->memsw);
+> +	} else {
+> +		res_counter_init(&mem->res, NULL);
+> +		res_counter_init(&mem->memsw, NULL);
+> +	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
