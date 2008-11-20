@@ -1,88 +1,62 @@
-Date: Thu, 20 Nov 2008 01:16:16 +0000 (GMT)
+Date: Thu, 20 Nov 2008 01:17:31 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 3/7] mm: remove GFP_HIGHUSER_PAGECACHE
+Subject: [PATCH 4/7] mm: add Set,ClearPageSwapCache stubs
 In-Reply-To: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811200115050.19216@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811200116270.19216@blonde.site>
 References: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-GFP_HIGHUSER_PAGECACHE is just an alias for GFP_HIGHUSER_MOVABLE,
-making that harder to track down: remove it, and its out-of-work
-brothers GFP_NOFS_PAGECACHE and GFP_USER_PAGECACHE.
-
-Since we're making that improvement to hotremove_migrate_alloc(),
-I think we can now also remove one of the "o"s from its comment.
+If we add NOOP stubs for SetPageSwapCache() and ClearPageSwapCache(),
+then we can remove the #ifdef CONFIG_SWAPs from mm/migrate.c.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
 
- fs/inode.c          |    4 ++--
- include/linux/gfp.h |    6 ------
- mm/memory_hotplug.c |    9 +++------
- 3 files changed, 5 insertions(+), 14 deletions(-)
+ include/linux/page-flags.h |    1 +
+ mm/migrate.c               |    4 ----
+ 2 files changed, 1 insertion(+), 4 deletions(-)
 
---- mmclean2/fs/inode.c	2008-11-19 15:25:12.000000000 +0000
-+++ mmclean3/fs/inode.c	2008-11-19 15:26:16.000000000 +0000
-@@ -164,7 +164,7 @@ struct inode *inode_init_always(struct s
- 	mapping->a_ops = &empty_aops;
- 	mapping->host = inode;
- 	mapping->flags = 0;
--	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
-+	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
- 	mapping->assoc_mapping = NULL;
- 	mapping->backing_dev_info = &default_backing_dev_info;
- 	mapping->writeback_index = 0;
-@@ -599,7 +599,7 @@ EXPORT_SYMBOL_GPL(inode_add_to_lists);
-  *	@sb: superblock
-  *
-  *	Allocates a new inode for given superblock. The default gfp_mask
-- *	for allocations related to inode->i_mapping is GFP_HIGHUSER_PAGECACHE.
-+ *	for allocations related to inode->i_mapping is GFP_HIGHUSER_MOVABLE.
-  *	If HIGHMEM pages are unsuitable or it is known that pages allocated
-  *	for the page cache are not reclaimable or migratable,
-  *	mapping_set_gfp_mask() must be called with suitable flags on the
---- mmclean2/include/linux/gfp.h	2008-11-19 15:25:12.000000000 +0000
-+++ mmclean3/include/linux/gfp.h	2008-11-19 15:26:16.000000000 +0000
-@@ -70,12 +70,6 @@ struct vm_area_struct;
- #define GFP_HIGHUSER_MOVABLE	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
- 				 __GFP_HARDWALL | __GFP_HIGHMEM | \
- 				 __GFP_MOVABLE)
--#define GFP_NOFS_PAGECACHE	(__GFP_WAIT | __GFP_IO | __GFP_MOVABLE)
--#define GFP_USER_PAGECACHE	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
--				 __GFP_HARDWALL | __GFP_MOVABLE)
--#define GFP_HIGHUSER_PAGECACHE	(__GFP_WAIT | __GFP_IO | __GFP_FS | \
--				 __GFP_HARDWALL | __GFP_HIGHMEM | \
--				 __GFP_MOVABLE)
+--- mmclean3/include/linux/page-flags.h	2008-11-19 15:25:12.000000000 +0000
++++ mmclean4/include/linux/page-flags.h	2008-11-19 15:26:18.000000000 +0000
+@@ -230,6 +230,7 @@ PAGEFLAG_FALSE(HighMem)
+ PAGEFLAG(SwapCache, swapcache)
+ #else
+ PAGEFLAG_FALSE(SwapCache)
++	SETPAGEFLAG_NOOP(SwapCache) CLEARPAGEFLAG_NOOP(SwapCache)
+ #endif
  
- #ifdef CONFIG_NUMA
- #define GFP_THISNODE	(__GFP_THISNODE | __GFP_NOWARN | __GFP_NORETRY)
---- mmclean2/mm/memory_hotplug.c	2008-11-19 15:25:12.000000000 +0000
-+++ mmclean3/mm/memory_hotplug.c	2008-11-19 15:26:16.000000000 +0000
-@@ -626,15 +626,12 @@ int scan_lru_pages(unsigned long start, 
- }
+ #ifdef CONFIG_UNEVICTABLE_LRU
+--- mmclean3/mm/migrate.c	2008-11-19 15:26:13.000000000 +0000
++++ mmclean4/mm/migrate.c	2008-11-19 15:26:18.000000000 +0000
+@@ -300,12 +300,10 @@ static int migrate_page_move_mapping(str
+ 	 * Now we know that no one else is looking at the page.
+ 	 */
+ 	get_page(newpage);	/* add cache reference */
+-#ifdef CONFIG_SWAP
+ 	if (PageSwapCache(page)) {
+ 		SetPageSwapCache(newpage);
+ 		set_page_private(newpage, page_private(page));
+ 	}
+-#endif
  
- static struct page *
--hotremove_migrate_alloc(struct page *page,
--			unsigned long private,
--			int **x)
-+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
- {
--	/* This should be improoooooved!! */
--	return alloc_page(GFP_HIGHUSER_PAGECACHE);
-+	/* This should be improooooved!! */
-+	return alloc_page(GFP_HIGHUSER_MOVABLE);
- }
+ 	radix_tree_replace_slot(pslot, newpage);
  
--
- #define NR_OFFLINE_AT_ONCE_PAGES	(256)
- static int
- do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+@@ -373,9 +371,7 @@ static void migrate_page_copy(struct pag
+ 
+ 	mlock_migrate_page(newpage, page);
+ 
+-#ifdef CONFIG_SWAP
+ 	ClearPageSwapCache(page);
+-#endif
+ 	ClearPagePrivate(page);
+ 	set_page_private(page, 0);
+ 	/* page->mapping contains a flag for PageAnon() */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
