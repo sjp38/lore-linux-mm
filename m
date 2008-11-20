@@ -1,65 +1,93 @@
-Date: Thu, 20 Nov 2008 18:58:49 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 3/7] mm: remove GFP_HIGHUSER_PAGECACHE
-In-Reply-To: <20081120164304.GA9777@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0811201821170.31078@blonde.site>
-References: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
- <Pine.LNX.4.64.0811200115050.19216@blonde.site> <20081120164304.GA9777@csn.ul.ie>
+Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
+	by smtp-out.google.com with ESMTP id mAKM3dvx019066
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:40 -0800
+Received: from wf-out-1314.google.com (wfd26.prod.google.com [10.142.4.26])
+	by spaceape14.eur.corp.google.com with ESMTP id mAKM3bVx003754
+	for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:38 -0800
+Received: by wf-out-1314.google.com with SMTP id 26so690489wfd.13
+        for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:36 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 20 Nov 2008 14:03:36 -0800
+Message-ID: <604427e00811201403k26e4bf93tdb2dee9506756a82@mail.gmail.com>
+Subject: Make the get_user_pages interruptible
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Nov 2008, Mel Gorman wrote:
-> On Thu, Nov 20, 2008 at 01:16:16AM +0000, Hugh Dickins wrote:
-> > GFP_HIGHUSER_PAGECACHE is just an alias for GFP_HIGHUSER_MOVABLE,
-> > making that harder to track down: remove it, and its out-of-work
-> > brothers GFP_NOFS_PAGECACHE and GFP_USER_PAGECACHE.
-> 
-> The use of GFP_HIGHUSER_PAGECACHE instead of GFP_HIGHUSER_MOVABLE was a
-> deliberate decision at the time. I do not have an exact patch to point
+make get_user_pages interruptible
+The initial implementation of checking TIF_MEMDIE covers the cases of OOM
+killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
+return immediately. This patch includes:
 
-I realize it didn't happen by accident!
+1. add the case that the SIGKILL is sent by user processes. The process can
+try to get_user_pages() unlimited memory even if a user process has sent a
+SIGKILL to it(maybe a monitor find the process exceed its memory limit and
+try to kill it). In the old implementation, the SIGKILL won't be handled
+until the get_user_pages() returns.
 
-> you at but the intention behind GFP_HIGHUSER_PAGECACHE was that it be
-> self-documenting. i.e. one could easily find what GFP placement decisions
-> have been made for page-cache allocations.
+2. change the return value to be ERESTARTSYS. It makes no sense to return
+ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
+Considering the general convention for a system call interrupted by a
+signal is ERESTARTNOSYS, so the current return value is consistant to that.
 
-I see it as self-obscuring, not self-documenting: of course pagecache
-pages will normally be allocated with the GFP mask for pagecache pages,
-but what is that?  Ah, it's GFP_HIGHUSER_MOVABLE.
+Signed-off-by:	Paul Menage <menage@google.com>
+		Ying Han <yinghan@google.com>
 
-Please let's not go down the road, I mean, let's retrace our steps
-up the road, of assigning a unique GFP name for every use of pages.
 
-> So, I'm happy with GFP_NOFS_PAGECACHE and GFP_USER_PAGECACHE going away and
-> it makes perfect sense. GFP_HIGHUSER_PAGECACHE I'm not as keen on backing
-> out. I like it's self-documenting aspect but aliases sometimes make peoples
-> teeth itch.
+ include/linux/sched.h         |    1 +
+ kernel/signal.c               |    2 +-
+ mm/memory.c                   |    9 +-
 
-(No, what made my teeth itch was "is this safe?" in memory.c ;)
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index b483f39..f2a5cac 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1795,6 +1795,7 @@ extern void flush_signals(struct task_struct *);
+ extern void ignore_signals(struct task_struct *);
+ extern void flush_signal_handlers(struct task_struct *, int force_default);
+ extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t
++extern int sigkill_pending(struct task_struct *tsk);
 
-> If it's really hated, then could a comment to the affect of
-> "Marked movable for a page cache allocation" be placed near the call-sites
-> instead?
+ static inline int dequeue_signal_lock(struct task_struct *tsk, sigset_t *mask
+ {
+diff --git a/kernel/signal.c b/kernel/signal.c
+index 105217d..f3f154e 100644
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -1497,7 +1497,7 @@ static inline int may_ptrace_stop(void)
+  * Return nonzero if there is a SIGKILL that should be waking us up.
+  * Called with the siglock held.
+  */
+-static int sigkill_pending(struct task_struct *tsk)
++int sigkill_pending(struct task_struct *tsk)
+ {
+ 	return	sigismember(&tsk->pending.signal, SIGKILL) ||
+ 		sigismember(&tsk->signal->shared_pending.signal, SIGKILL);
+diff --git a/mm/memory.c b/mm/memory.c
+index 164951c..157ea3b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1218,12 +1218,11 @@ int __get_user_pages(struct task_struct *tsk, struct m
+ 			struct page *page;
 
-I'd prefer not.
+ 			/*
+-			 * If tsk is ooming, cut off its access to large memory
+-			 * allocations. It has a pending SIGKILL, but it can't
+-			 * be processed until returning to user space.
++			 * If we have a pending SIGKILL, don't keep
++			 * allocating memory.
+ 			 */
+-			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
+-				return i ? i : -ENOMEM;
++			if (sigkill_pending(current))
++				return -ERESTARTSYS;
 
-The only places where GFP_HIGHUSER_PAGECACHE appeared
-were the mapping_set_gfp_mask when initializing an inode, and
-hotremove_migrate_alloc().  The latter allocating for anonymous
-pages also, like most places where GFP_HIGHUSER_MOVABLE is specified.
-
-But I'd better not complain that it's not obvious to me which
-should be marked with your comment and which not: you'll point to
-that as evidence that we're missing out on the self-documentation!
-
-Perhaps the problem is that nobody else has been following your lead.
-
-Hugh
+ 			if (write)
+ 				foll_flags |= FOLL_WRITE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
