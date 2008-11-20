@@ -1,60 +1,45 @@
-Date: Thu, 20 Nov 2008 01:24:20 +0000 (GMT)
+Date: Thu, 20 Nov 2008 01:26:58 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 7/7] mm: make page_lock_anon_vma static
-In-Reply-To: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811200122520.19216@blonde.site>
+Subject: Re: [PATCH 1/7] mm: remove cgroup_mm_owner_callbacks
+In-Reply-To: <6599ad830811191723v3c346a17kf5ae5494987373c1@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0811200125100.21820@blonde.site>
 References: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
+ <Pine.LNX.4.64.0811200110180.19216@blonde.site>
+ <6599ad830811191723v3c346a17kf5ae5494987373c1@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-page_lock_anon_vma() and page_unlock_anon_vma() were made available to
-show_page_path() in vmscan.c; but now that has been removed, make them
-static in rmap.c again, they're better kept private if possible.
+On Wed, 19 Nov 2008, Paul Menage wrote:
+> On Wed, Nov 19, 2008 at 5:11 PM, Hugh Dickins <hugh@veritas.com> wrote:
+> >
+> >  assign_new_owner:
+> >        BUG_ON(c == p);
+> >        get_task_struct(c);
+> > -       read_unlock(&tasklist_lock);
+> > -       down_write(&mm->mmap_sem);
+> >        /*
+> >         * The task_lock protects c->mm from changing.
+> >         * We always want mm->owner->mm == mm
+> >         */
+> >        task_lock(c);
+> > +       /*
+> > +        * Delay read_unlock() till we have the task_lock()
+> > +        * to ensure that c does not slip away underneath us
+> > +        */
+> > +       read_unlock(&tasklist_lock);
+> 
+> How can c slip away when we've done get_task_struct(c) earlier?
 
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
----
+I don't know, I did vaguely wonder the same myself: just putting
+this back to how it was before (including that comment),
+maybe Balbir can enlighten us.
 
- include/linux/rmap.h |    3 ---
- mm/rmap.c            |    4 ++--
- 2 files changed, 2 insertions(+), 5 deletions(-)
-
---- mmclean6/include/linux/rmap.h	2008-10-24 09:28:24.000000000 +0100
-+++ mmclean7/include/linux/rmap.h	2008-11-19 15:26:33.000000000 +0000
-@@ -63,9 +63,6 @@ void anon_vma_unlink(struct vm_area_stru
- void anon_vma_link(struct vm_area_struct *);
- void __anon_vma_link(struct vm_area_struct *);
- 
--extern struct anon_vma *page_lock_anon_vma(struct page *page);
--extern void page_unlock_anon_vma(struct anon_vma *anon_vma);
--
- /*
-  * rmap interfaces called when adding or removing pte of page
-  */
---- mmclean6/mm/rmap.c	2008-11-19 15:26:28.000000000 +0000
-+++ mmclean7/mm/rmap.c	2008-11-19 15:26:33.000000000 +0000
-@@ -193,7 +193,7 @@ void __init anon_vma_init(void)
-  * Getting a lock on a stable anon_vma from a page off the LRU is
-  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
-  */
--struct anon_vma *page_lock_anon_vma(struct page *page)
-+static struct anon_vma *page_lock_anon_vma(struct page *page)
- {
- 	struct anon_vma *anon_vma;
- 	unsigned long anon_mapping;
-@@ -213,7 +213,7 @@ out:
- 	return NULL;
- }
- 
--void page_unlock_anon_vma(struct anon_vma *anon_vma)
-+static void page_unlock_anon_vma(struct anon_vma *anon_vma)
- {
- 	spin_unlock(&anon_vma->lock);
- 	rcu_read_unlock();
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
