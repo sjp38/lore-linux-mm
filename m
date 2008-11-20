@@ -1,40 +1,48 @@
-Date: Wed, 19 Nov 2008 17:58:19 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Corruption with O_DIRECT and unaligned user buffers
-Message-ID: <20081119165819.GE19209@random.random>
-References: <491DAF8E.4080506@quantum.com> <200811191526.00036.nickpiggin@yahoo.com.au>
+Date: Thu, 20 Nov 2008 01:10:07 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH 0/7] mm: cleanups
+Message-ID: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200811191526.00036.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 19, 2008 at 03:25:59PM +1100, Nick Piggin wrote:
-> The solution either involves synchronising forks and get_user_pages,
-> or probably better, to do copy on fork rather than COW in the case
-> that we detect a page is subject to get_user_pages. The trick is in
-> the details :)
+Here's a batch of 7 mm cleanups, intended for 2.6.29: just assorted
+things that have been annoying me.  Three or four slightly more
+interesting batches should follow in the days ahead.
 
-We already have a patch that works.
+Though most of the testing has been against 2.6.28-rc5 and its
+precursors, these patches are diffed to slot in to the mmotm series
+just before "mmend": that is, before the "memcgroup" changes,
+with which there's one trivial clash on 5/7.
 
-The only trouble here is get_user_pages_fast, it breaks the fix for
-fork, the current ksm (that is safe against get_user_pages but can't
-be safe against get_user_pages_fast) and even migrate.c
-memory-corrupts against O_DIRECT after the introduction of
-get_user_pages_fast.
-
-So I recommend focusing on how to fix get_user_pages_fast for any of
-the 3 broken pieces, then hopefully the same fix will work for the
-other two.
-
-fork is special in that it even breaks against get_user_pages but
-again we've a fix for that. The only problem without a solution is how
-to serialize against get_user_pages_fast. A brlock was my proposal,
-not nice but still better than backing out get_user_pages_fast.
+ Documentation/filesystems/Locking |    6 -----
+ Documentation/filesystems/vfs.txt |   13 ++++++++---
+ fs/buffer.c                       |   12 ++++------
+ fs/inode.c                        |    4 +--
+ include/linux/cgroup.h            |   14 -----------
+ include/linux/fs.h                |   10 --------
+ include/linux/gfp.h               |    6 -----
+ include/linux/page-flags.h        |    1 
+ include/linux/rmap.h              |    3 --
+ include/linux/swap.h              |    2 -
+ kernel/cgroup.c                   |   33 ----------------------------
+ kernel/exit.c                     |   16 +++++--------
+ mm/memory.c                       |    6 -----
+ mm/memory_hotplug.c               |    9 ++-----
+ mm/migrate.c                      |    9 +------
+ mm/page-writeback.c               |   27 +++++++++-------------
+ mm/page_io.c                      |    4 +--
+ mm/rmap.c                         |   11 ++++++---
+ mm/shmem.c                        |    2 -
+ mm/swap.c                         |   19 ----------------
+ mm/swap_state.c                   |   19 +++++++---------
+ mm/swapfile.c                     |    8 ++----
+ mm/vmscan.c                       |   24 +++++++++-----------
+ 23 files changed, 76 insertions(+), 182 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
