@@ -1,58 +1,35 @@
-Received: by nf-out-0910.google.com with SMTP id c10so200621nfd.6
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2008 01:44:45 -0800 (PST)
-Message-ID: <5e93dcec0811200144m1c6837bn28392e2d5f4277bd@mail.gmail.com>
-Date: Thu, 20 Nov 2008 18:44:45 +0900
-From: "Ryota OZAKI" <ozaki.ryota@gmail.com>
-Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
-In-Reply-To: <49252A54.6010602@redhat.com>
+Date: Thu, 20 Nov 2008 06:15:57 -0800 (PST)
+From: Catalin CIONTU <cciontu@yahoo.com>
+Reply-To: cciontu@yahoo.com
+Subject: linux memory mgmt system question
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
-Content-Disposition: inline
-References: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
-	 <5e93dcec0811192344l3813867egcc6b5a3c666142b9@mail.gmail.com>
-	 <492527DF.1080602@redhat.com> <49252A54.6010602@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Message-ID: <396532.97722.qm@web56504.mail.re3.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Izik Eidus <ieidus@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-MjAwOC8xMS8yMCBJemlrIEVpZHVzIDxpZWlkdXNAcmVkaGF0LmNvbT46Cj4g16bXmdeY15XXmCBJ
-emlrIEVpZHVzOgo+Pgo+PiDXpteZ15jXldeYIFJ5b3RhIE9aQUtJOgo+Pj4KPj4+IEhpIEl6aWss
-Cj4+Pgo+Pj4gSSd2ZSB0cmllZCB5b3VyIHBhdGNoIHNldCwgYnV0IGtzbSBkb2Vzbid0IHdvcmsg
-aW4gbXkgbWFjaGluZS4KPj4+Cj4+PiBJIGNvbXBpbGVkIGxpbnV4IHBhdGNoZWQgd2l0aCB0aGUg
-Zm91ciBwYXRjaGVzIGFuZCBjb25maWd1cmVkIHdpdGggS1NNCj4+PiBhbmQgS1ZNIGVuYWJsZWQu
-IEFmdGVyIGJvb3Qgd2l0aCB0aGUgbGludXgsIEkgcnVuIHR3byBWTXMgcnVubmluZyBsaW51eAo+
-Pj4gdXNpbmcgUUVNVSB3aXRoIGEgcGF0Y2ggaW4geW91ciBtYWlsIGFuZCBzdGFydGVkIEtTTSBz
-Y2FubmVyIHdpdGggeW91cgo+Pj4gc2NyaXB0LCB0aGVuIHRoZSBob3N0IGxpbnV4IGNhdXNlZCBw
-YW5pYyB3aXRoIHRoZSBmb2xsb3dpbmcgb29wcy4KPj4+Cj4+Cj4+IFllcyB5b3UgYXJlIHJpZ2h0
-LCB3ZSBhcmUgbWlzc2luZyBwdGVfdW5tYXAocHRlKTsgaW4gZ2V0X3B0ZSgpIQo+PiB0aGF0IHdp
-bGwgZWZmZWN0IGp1c3QgMzJiaXRzIHdpdGggaGlnaG1lbSBzbyB0aGlzIHdoeSB5b3Ugc2VlIGl0
-Cj4+IHRoYW5rcyBmb3IgdGhlIHJlcG9ydGluZywgaSB3aWxsIGZpeCBpdCBmb3IgdjMKPj4KPj4g
-YmVsb3cgcGF0Y2ggc2hvdWxkIGZpeCBpdCAoaSBjYW50IHRlc3QgaXQgbm93LCB3aWxsIHRlc3Qg
-aXQgZm9yIHYzKQo+Pgo+PiBjYW4geW91IHJlcG9ydCBpZiBpdCBmaXggeW91ciBwcm9ibGVtPyB0
-aGFua3MKPj4KPiBUaGlua2luZyBhYm91dCB3aGF0IGkganVzdCBkaWQsIGl0IGlzIHdyb25nLAo+
-IHRoaXMgcGF0Y2ggaXMgdGhlIHJpZ2h0IG9uZSAoc3RpbGwgd2FzbnQgdGVzdGVkKSwgYnV0IGlm
-IHlvdSBhcmUgZ29pbmcgdG8KPiBhcHBseSBzb21ldGhpbmcgdGhlbiB1c2UgdGhpcyBvbmUuCgpH
-cmVhdCEgQXBwbGllZCB0aGUgMm5kIHBhdGNoLCBrc20gd29ya3Mgd2l0aCBib3RoIEhJR0hNRU0g
-ZW5hYmxlZCBhbmQgZGlzYWJsZWQuCgpUaGFua3MgZm9yIHlvdXIgcXVpY2sgcmVzcG9uc2UsCiAg
-b3pha2ktcgoKPgo+IHRoYW5rcwo+Cj4gZGlmZiAtLWdpdCBhL21tL2tzbS5jIGIvbW0va3NtLmMK
-PiBpbmRleCA3MDdiZTUyLi5jODQyYzI5IDEwMDY0NAo+IC0tLSBhL21tL2tzbS5jCj4gKysrIGIv
-bW0va3NtLmMKPiBAQCAtNTY5LDE0ICs1NjksMTYgQEAgb3V0Ogo+ICBzdGF0aWMgaW50IGlzX3By
-ZXNlbnRfcHRlKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB1bnNpZ25lZCBsb25nIGFkZHIpCj4gIHsK
-PiAgICAgICAgcHRlX3QgKnB0ZXA7Cj4gKyAgICAgICBpbnQgcjsKPgo+ICAgICAgICBwdGVwID0g
-Z2V0X3B0ZShtbSwgYWRkcik7Cj4gICAgICAgIGlmICghcHRlcCkKPiAgICAgICAgICAgICAgICBy
-ZXR1cm4gMDsKPgo+IC0gICAgICAgaWYgKHB0ZV9wcmVzZW50KCpwdGVwKSkKPiAtICAgICAgICAg
-ICAgICAgcmV0dXJuIDE7Cj4gLSAgICAgICByZXR1cm4gMDsKPiArICAgICAgIHIgPSBwdGVfcHJl
-c2VudCgqcHRlcCk7Cj4gKyAgICAgICBwdGVfdW5tYXAocHRlcCk7Cj4gKwo+ICsgICAgICAgcmV0
-dXJuIHI7Cj4gIH0KPgo+ICAjZGVmaW5lIFBBR0VIQVNIX0xFTiAxMjgKPiBAQCAtNjY5LDYgKzY3
-MSw3IEBAIHN0YXRpYyBpbnQgdHJ5X3RvX21lcmdlX29uZV9wYWdlKHN0cnVjdCBtbV9zdHJ1Y3Qg
-Km1tLAo+ICAgICAgICBpZiAoIW9yaWdfcHRlcCkKPiAgICAgICAgICAgICAgICBnb3RvIG91dF91
-bmxvY2s7Cj4gICAgICAgIG9yaWdfcHRlID0gKm9yaWdfcHRlcDsKPiArICAgICAgIHB0ZV91bm1h
-cChvcmlnX3B0ZXApOwo+ICAgICAgICBpZiAoIXB0ZV9wcmVzZW50KG9yaWdfcHRlKSkKPiAgICAg
-ICAgICAgICAgICBnb3RvIG91dF91bmxvY2s7Cj4gICAgICAgIGlmIChwYWdlX3RvX3BmbihvbGRw
-YWdlKSAhPSBwdGVfcGZuKG9yaWdfcHRlKSkKPgo+Cg==
+> Hi,
+> 
+> 1. Firstly, we want to know if 'free' is the best
+> tool that could give us the most accurate numbers with re to
+> used/free memory and swap. If not, what would be that tool
+> we could rely on?
+> 2. Are there any exceptions that may "fool" free
+> utility (inaccurate numbers would be returned), that we
+> would need to be aware of? For example, could things like
+> huge TLB pages being enabled have an impact on the numbers
+> reported by free utility?
+> 
+> Could you please advise? Thanks a lot.
+> 
+> 
+> Regards,
+> catalin.
+
+
+      
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
