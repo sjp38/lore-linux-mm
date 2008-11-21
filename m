@@ -1,93 +1,80 @@
-Received: from spaceape14.eur.corp.google.com (spaceape14.eur.corp.google.com [172.28.16.148])
-	by smtp-out.google.com with ESMTP id mAKM3dvx019066
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:40 -0800
-Received: from wf-out-1314.google.com (wfd26.prod.google.com [10.142.4.26])
-	by spaceape14.eur.corp.google.com with ESMTP id mAKM3bVx003754
-	for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:38 -0800
-Received: by wf-out-1314.google.com with SMTP id 26so690489wfd.13
-        for <linux-mm@kvack.org>; Thu, 20 Nov 2008 14:03:36 -0800 (PST)
+Message-ID: <49261F87.50209@cn.fujitsu.com>
+Date: Fri, 21 Nov 2008 10:40:07 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Date: Thu, 20 Nov 2008 14:03:36 -0800
-Message-ID: <604427e00811201403k26e4bf93tdb2dee9506756a82@mail.gmail.com>
-Subject: Make the get_user_pages interruptible
-From: Ying Han <yinghan@google.com>
+Subject: Re: [PATCH 7/9] memcg : mem+swap controlelr core
+References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com> <20081114191949.926bf99d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081114191949.926bf99d.kamezawa.hiroyu@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, pbadari@us.ibm.com, jblunck@suse.de, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-make get_user_pages interruptible
-The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-return immediately. This patch includes:
+> @@ -513,12 +531,25 @@ static int __mem_cgroup_try_charge(struc
+>  		css_get(&mem->css);
+>  	}
+>  
+> +	while (1) {
 
-1. add the case that the SIGKILL is sent by user processes. The process can
-try to get_user_pages() unlimited memory even if a user process has sent a
-SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-try to kill it). In the old implementation, the SIGKILL won't be handled
-until the get_user_pages() returns.
+This loop will never break out if memory.limit_in_bytes is too low.
 
-2. change the return value to be ERESTARTSYS. It makes no sense to return
-ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-Considering the general convention for a system call interrupted by a
-signal is ERESTARTNOSYS, so the current return value is consistant to that.
+Actually, when I set the limit to 0 and moved a task into the cgroup and let
+the task allocate a page, then the whole system froze, and I had to reset
+my machine.
 
-Signed-off-by:	Paul Menage <menage@google.com>
-		Ying Han <yinghan@google.com>
+And small memory.limit will make the process stuck:
+# mkdir /memcg/0
+# echo 40K > /memcg/0/memory.limit_in_bytes
+# echo $$ > tasks
+# ls
+(stuck)
 
+(another console)
+# echo 100K > /memcg/0/memory.limit_in_bytes
+(then the above 'ls' can continue)
 
- include/linux/sched.h         |    1 +
- kernel/signal.c               |    2 +-
- mm/memory.c                   |    9 +-
+> +		int ret;
+> +		bool noswap = false;
+>  
+> -	while (unlikely(res_counter_charge(&mem->res, PAGE_SIZE))) {
+> +		ret = res_counter_charge(&mem->res, PAGE_SIZE);
+> +		if (likely(!ret)) {
+> +			if (!do_swap_account)
+> +				break;
+> +			ret = res_counter_charge(&mem->memsw, PAGE_SIZE);
+> +			if (likely(!ret))
+> +				break;
+> +			/* mem+swap counter fails */
+> +			res_counter_uncharge(&mem->res, PAGE_SIZE);
+> +			noswap = true;
+> +		}
+>  		if (!(gfp_mask & __GFP_WAIT))
+>  			goto nomem;
+>  
+> -		if (try_to_free_mem_cgroup_pages(mem, gfp_mask))
+> +		if (try_to_free_mem_cgroup_pages(mem, gfp_mask, noswap))
+>  			continue;
+>  
+>  		/*
+> @@ -527,8 +558,13 @@ static int __mem_cgroup_try_charge(struc
+>  		 * moved to swap cache or just unmapped from the cgroup.
+>  		 * Check the limit again to see if the reclaim reduced the
+>  		 * current usage of the cgroup before giving up
+> +		 *
+>  		 */
+> -		if (res_counter_check_under_limit(&mem->res))
+> +		if (!do_swap_account &&
+> +			res_counter_check_under_limit(&mem->res))
+> +			continue;
+> +		if (do_swap_account &&
+> +			res_counter_check_under_limit(&mem->memsw))
+>  			continue;
+>  
+>  		if (!nr_retries--) {
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b483f39..f2a5cac 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1795,6 +1795,7 @@ extern void flush_signals(struct task_struct *);
- extern void ignore_signals(struct task_struct *);
- extern void flush_signal_handlers(struct task_struct *, int force_default);
- extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t
-+extern int sigkill_pending(struct task_struct *tsk);
-
- static inline int dequeue_signal_lock(struct task_struct *tsk, sigset_t *mask
- {
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 105217d..f3f154e 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1497,7 +1497,7 @@ static inline int may_ptrace_stop(void)
-  * Return nonzero if there is a SIGKILL that should be waking us up.
-  * Called with the siglock held.
-  */
--static int sigkill_pending(struct task_struct *tsk)
-+int sigkill_pending(struct task_struct *tsk)
- {
- 	return	sigismember(&tsk->pending.signal, SIGKILL) ||
- 		sigismember(&tsk->signal->shared_pending.signal, SIGKILL);
-diff --git a/mm/memory.c b/mm/memory.c
-index 164951c..157ea3b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1218,12 +1218,11 @@ int __get_user_pages(struct task_struct *tsk, struct m
- 			struct page *page;
-
- 			/*
--			 * If tsk is ooming, cut off its access to large memory
--			 * allocations. It has a pending SIGKILL, but it can't
--			 * be processed until returning to user space.
-+			 * If we have a pending SIGKILL, don't keep
-+			 * allocating memory.
- 			 */
--			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
--				return i ? i : -ENOMEM;
-+			if (sigkill_pending(current))
-+				return -ERESTARTSYS;
-
- 			if (write)
- 				foll_flags |= FOLL_WRITE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
