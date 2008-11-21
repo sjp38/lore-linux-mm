@@ -1,31 +1,23 @@
-From: Petr Tesarik <ptesarik@suse.cz>
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max pages
-Date: Fri, 21 Nov 2008 12:59:30 +0100
-References: <20081113171208.6985638e@bree.surriel.com> <20081119165443.GB26749@csn.ul.ie>
-In-Reply-To: <20081119165443.GB26749@csn.ul.ie>
+Date: Fri, 21 Nov 2008 10:29:09 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: linux memory mgmt system question
+In-Reply-To: <396532.97722.qm@web56504.mail.re3.yahoo.com>
+Message-ID: <Pine.LNX.4.64.0811211027210.26758@quilx.com>
+References: <396532.97722.qm@web56504.mail.re3.yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200811211259.30760.ptesarik@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Catalin CIONTU <cciontu@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dne Wednesday 19 of November 2008 17:54:44 Mel Gorman napsal(a):
->[...]
-> I was going to ask if it was easier to go OOM now, but even under very high
-> stress, we should be making forward progress. It's just in smaller steps so
-> I can't see it causing a problem.
+The numbers returned by free are numbers that describe the state of the
+memory for the OS. The OS can increase the amount of free memory at
+any time by reclaiming memory from the disk cache, processes and other
+operating system structures.
 
-Actually, I had to apply a very similar patch the other day to reduce the time 
-the system was unresponsive because of the OOM-killer, so I tested OOM 
-situations quite a lot, and it did not cause any problem.
-
-Petr Tesarik
+Why do you need these numbers?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
