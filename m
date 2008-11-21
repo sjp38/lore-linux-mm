@@ -1,76 +1,79 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mALA4YaA003379
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 21 Nov 2008 19:04:34 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4DB0345DE51
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 19:04:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A05D45DE4F
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 19:04:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E2A11DB8043
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 19:04:34 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id BA8071DB803E
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 19:04:33 +0900 (JST)
-Date: Fri, 21 Nov 2008 19:03:39 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/2] memcg: fix reclaim result checks.
-Message-Id: <20081121190339.65f453a6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081121185829.e04c8116.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081114191246.4f69ff31.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081114191949.926bf99d.kamezawa.hiroyu@jp.fujitsu.com>
-	<49261F87.50209@cn.fujitsu.com>
-	<20081121185829.e04c8116.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Fri, 21 Nov 2008 10:46:02 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 3/7] mm: remove GFP_HIGHUSER_PAGECACHE
+Message-ID: <20081121104601.GA27744@csn.ul.ie>
+References: <Pine.LNX.4.64.0811200108230.19216@blonde.site> <Pine.LNX.4.64.0811200115050.19216@blonde.site> <20081120164304.GA9777@csn.ul.ie> <Pine.LNX.4.64.0811201821170.31078@blonde.site>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0811201821170.31078@blonde.site>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, pbadari@us.ibm.com, jblunck@suse.de, taka@valinux.co.jp, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, npiggin@suse.de
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-check_under_limit logic was wrong and this check should be against
-mem_over_limit rather than mem.
+On Thu, Nov 20, 2008 at 06:58:49PM +0000, Hugh Dickins wrote:
+> On Thu, 20 Nov 2008, Mel Gorman wrote:
+> > On Thu, Nov 20, 2008 at 01:16:16AM +0000, Hugh Dickins wrote:
+> > > GFP_HIGHUSER_PAGECACHE is just an alias for GFP_HIGHUSER_MOVABLE,
+> > > making that harder to track down: remove it, and its out-of-work
+> > > brothers GFP_NOFS_PAGECACHE and GFP_USER_PAGECACHE.
+> > 
+> > The use of GFP_HIGHUSER_PAGECACHE instead of GFP_HIGHUSER_MOVABLE was a
+> > deliberate decision at the time. I do not have an exact patch to point
+> 
+> I realize it didn't happen by accident!
+> 
+> > you at but the intention behind GFP_HIGHUSER_PAGECACHE was that it be
+> > self-documenting. i.e. one could easily find what GFP placement decisions
+> > have been made for page-cache allocations.
+> 
+> I see it as self-obscuring, not self-documenting: of course pagecache
+> pages will normally be allocated with the GFP mask for pagecache pages,
+> but what is that?  Ah, it's GFP_HIGHUSER_MOVABLE.
+> 
+> Please let's not go down the road, I mean, let's retrace our steps
+> up the road, of assigning a unique GFP name for every use of pages.
+> 
 
-Reported-by: Li Zefan <lizf@cn.fujitsu.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- mm/memcontrol.c |   16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+Hmm.... Ok. Whatever sense it made when there was NOFS and USER
+variants, it doesn't help as much when there is only one variant now and
+used in two fairly-obvious callsites.
 
-Index: mmotm-2.6.28-Nov20/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-Nov20.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-Nov20/mm/memcontrol.c
-@@ -714,17 +714,17 @@ static int __mem_cgroup_try_charge(struc
- 		 * current usage of the cgroup before giving up
- 		 *
- 		 */
--		if (!do_swap_account &&
--			res_counter_check_under_limit(&mem->res))
--			continue;
--		if (do_swap_account &&
--			res_counter_check_under_limit(&mem->memsw))
--			continue;
-+		if (do_swap_account) {
-+			if (res_counter_check_under_limit(&mem_over_limit->res) &&
-+			    res_counter_check_under_limit(&mem_over_limit->memsw))
-+				continue;
-+		} else if (res_counter_check_under_limit(&mem_over_limit->res))
-+				continue;
- 
- 		if (!nr_retries--) {
- 			if (oom) {
--				mem_cgroup_out_of_memory(mem, gfp_mask);
--				mem->last_oom_jiffies = jiffies;
-+				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-+				mem_over_limit->last_oom_jiffies = jiffies;
- 			}
- 			goto nomem;
- 		}
+> > So, I'm happy with GFP_NOFS_PAGECACHE and GFP_USER_PAGECACHE going away and
+> > it makes perfect sense. GFP_HIGHUSER_PAGECACHE I'm not as keen on backing
+> > out. I like it's self-documenting aspect but aliases sometimes make peoples
+> > teeth itch.
+> 
+> (No, what made my teeth itch was "is this safe?" in memory.c ;)
+> 
+> > If it's really hated, then could a comment to the affect of
+> > "Marked movable for a page cache allocation" be placed near the call-sites
+> > instead?
+> 
+> I'd prefer not.
+> 
+> The only places where GFP_HIGHUSER_PAGECACHE appeared
+> were the mapping_set_gfp_mask when initializing an inode, and
+> hotremove_migrate_alloc().  The latter allocating for anonymous
+> pages also, like most places where GFP_HIGHUSER_MOVABLE is specified.
+> 
+> But I'd better not complain that it's not obvious to me which
+> should be marked with your comment and which not: you'll point to
+> that as evidence that we're missing out on the self-documentation!
+> 
+> Perhaps the problem is that nobody else has been following your lead.
+> 
+
+You've convinced me. Thanks.
+
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
