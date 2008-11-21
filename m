@@ -1,70 +1,39 @@
-Date: Fri, 21 Nov 2008 14:50:43 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Date: Fri, 21 Nov 2008 15:24:12 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: Make the get_user_pages interruptible
-Message-Id: <20081121145043.0e4b2bf9.akpm@linux-foundation.org>
 In-Reply-To: <604427e00811201403k26e4bf93tdb2dee9506756a82@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.0811211520450.16413@chino.kir.corp.google.com>
 References: <604427e00811201403k26e4bf93tdb2dee9506756a82@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, rientjes@google.com, rohitseth@google.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Nov 2008 14:03:36 -0800
-Ying Han <yinghan@google.com> wrote:
+On Thu, 20 Nov 2008, Ying Han wrote:
 
-> make get_user_pages interruptible
-> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-> return immediately. This patch includes:
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index b483f39..f2a5cac 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1795,6 +1795,7 @@ extern void flush_signals(struct task_struct *);
+>  extern void ignore_signals(struct task_struct *);
+>  extern void flush_signal_handlers(struct task_struct *, int force_default);
+>  extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t
+> +extern int sigkill_pending(struct task_struct *tsk);
 > 
-> 1. add the case that the SIGKILL is sent by user processes. The process can
-> try to get_user_pages() unlimited memory even if a user process has sent a
-> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-> try to kill it). In the old implementation, the SIGKILL won't be handled
-> until the get_user_pages() returns.
-> 
-> 2. change the return value to be ERESTARTSYS. It makes no sense to return
-> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-> Considering the general convention for a system call interrupted by a
-> signal is ERESTARTNOSYS, so the current return value is consistant to that.
-> 
-> Signed-off-by:	Paul Menage <menage@google.com>
-> 		Ying Han <yinghan@google.com>
-> 
-> 
+>  static inline int dequeue_signal_lock(struct task_struct *tsk, sigset_t *mask
+>  {
 
-This isn't right?
+I can't git apply this because it appears as though your email client has 
+truncated long lines (see dequeue_signal above).
 
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1218,12 +1218,11 @@ int __get_user_pages(struct task_struct *tsk, struct m
->  			struct page *page;
-> 
->  			/*
-> -			 * If tsk is ooming, cut off its access to large memory
-> -			 * allocations. It has a pending SIGKILL, but it can't
-> -			 * be processed until returning to user space.
-> +			 * If we have a pending SIGKILL, don't keep
-> +			 * allocating memory.
->  			 */
-> -			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
-> -				return i ? i : -ENOMEM;
-> +			if (sigkill_pending(current))
-> +				return -ERESTARTSYS;
-> 
->  			if (write)
->  				foll_flags |= FOLL_WRITE;
-
-If this function has already put some page*'s into *pages, they will be
-leaked.  The function fails to release those pages and it does not
-provide sufficient information to callers to allow them to release the
-pages.
-
-I thought I already mentioned that last time I saw this patch?
+Your headers look like you're using the gmail GUI to send patches, and 
+that client has its own section in Documentation/email-clients.txt.  If 
+the instructions don't happen to work for you, please fix that section 
+once you've troubleshooted the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
