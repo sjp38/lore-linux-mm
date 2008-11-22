@@ -1,92 +1,56 @@
-Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
-	by smtp-out.google.com with ESMTP id mAM05e7X023872
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:05:40 -0800
-Received: from rv-out-0506.google.com (rvbk40.prod.google.com [10.140.87.40])
-	by spaceape7.eur.corp.google.com with ESMTP id mAM05bG6003797
-	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:05:38 -0800
-Received: by rv-out-0506.google.com with SMTP id k40so1397208rvb.19
-        for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:05:37 -0800 (PST)
+Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
+	by smtp-out.google.com with ESMTP id mAM06Za3029620
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:06:35 -0800
+Received: from rv-out-0506.google.com (rvbg37.prod.google.com [10.140.83.37])
+	by zps77.corp.google.com with ESMTP id mAM06XRe015959
+	for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:06:34 -0800
+Received: by rv-out-0506.google.com with SMTP id g37so1188615rvb.23
+        for <linux-mm@kvack.org>; Fri, 21 Nov 2008 16:06:33 -0800 (PST)
 MIME-Version: 1.0
-Date: Fri, 21 Nov 2008 16:05:37 -0800
-Message-ID: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>
-Subject: [PATCH][V2] Make get_user_pages interruptible
+In-Reply-To: <alpine.DEB.2.00.0811211520450.16413@chino.kir.corp.google.com>
+References: <604427e00811201403k26e4bf93tdb2dee9506756a82@mail.gmail.com>
+	 <alpine.DEB.2.00.0811211520450.16413@chino.kir.corp.google.com>
+Date: Fri, 21 Nov 2008 16:06:33 -0800
+Message-ID: <604427e00811211606v15e70bf8i3bde488f75dc08a3@mail.gmail.com>
+Subject: Re: Make the get_user_pages interruptible
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, akpm <akpm@linux-foundation.org>, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-make get_user_pages interruptible
-The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-return immediately. This patch includes:
+David, i resent the patch with change in another thread.
 
-1. add the case that the SIGKILL is sent by user processes. The process can
-try to get_user_pages() unlimited memory even if a user process has sent a
-SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-try to kill it). In the old implementation, the SIGKILL won't be handled
-until the get_user_pages() returns.
+thanks
+--Ying
 
-2. change the return value to be ERESTARTSYS. It makes no sense to return
-ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-Considering the general convention for a system call interrupted by a
-signal is ERESTARTNOSYS, so the current return value is consistant to that.
-
-Signed-off-by:	Paul Menage <menage@google.com>
-		      Ying Han <yinghan@google.com>
-
-include/linux/sched.h         |    1 +
-kernel/signal.c                   |    2 +-
-mm/memory.c                   |    9 +-
-
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b483f39..f9c6a8a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1790,6 +1790,7 @@ extern void sched_dead(struct task_struct *p);
- extern int in_group_p(gid_t);
- extern int in_egroup_p(gid_t);
-
-+extern int sigkill_pending(struct task_struct *tsk);
- extern void proc_caches_init(void);
- extern void flush_signals(struct task_struct *);
- extern void ignore_signals(struct task_struct *);
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 105217d..f3f154e 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1497,7 +1497,7 @@ static inline int may_ptrace_stop(void)
-  * Return nonzero if there is a SIGKILL that should be waking us up.
-  * Called with the siglock held.
-  */
--static int sigkill_pending(struct task_struct *tsk)
-+int sigkill_pending(struct task_struct *tsk)
- {
- 	return	sigismember(&tsk->pending.signal, SIGKILL) ||
- 		sigismember(&tsk->signal->shared_pending.signal, SIGKILL);
-diff --git a/mm/memory.c b/mm/memory.c
-index 164951c..5d3db5e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1218,12 +1218,11 @@ int __get_user_pages(struct task_struct *tsk, struct m
- 			struct page *page;
-
- 			/*
--			 * If tsk is ooming, cut off its access to large memory
--			 * allocations. It has a pending SIGKILL, but it can't
--			 * be processed until returning to user space.
-+			 * If we have a pending SIGKILL, don't keep
-+			 * allocating memory.
- 			 */
--			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
--				return i ? i : -ENOMEM;
-+			if (sigkill_pending(current))
-+				return i ? i : -ERESTARTSYS;
-
- 			if (write)
- 				foll_flags |= FOLL_WRITE;
+On Fri, Nov 21, 2008 at 3:24 PM, David Rientjes <rientjes@google.com> wrote:
+> On Thu, 20 Nov 2008, Ying Han wrote:
+>
+>> diff --git a/include/linux/sched.h b/include/linux/sched.h
+>> index b483f39..f2a5cac 100644
+>> --- a/include/linux/sched.h
+>> +++ b/include/linux/sched.h
+>> @@ -1795,6 +1795,7 @@ extern void flush_signals(struct task_struct *);
+>>  extern void ignore_signals(struct task_struct *);
+>>  extern void flush_signal_handlers(struct task_struct *, int force_default);
+>>  extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t
+>> +extern int sigkill_pending(struct task_struct *tsk);
+>>
+>>  static inline int dequeue_signal_lock(struct task_struct *tsk, sigset_t *mask
+>>  {
+>
+> I can't git apply this because it appears as though your email client has
+> truncated long lines (see dequeue_signal above).
+>
+> Your headers look like you're using the gmail GUI to send patches, and
+> that client has its own section in Documentation/email-clients.txt.  If
+> the instructions don't happen to work for you, please fix that section
+> once you've troubleshooted the problem.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
