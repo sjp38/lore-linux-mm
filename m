@@ -1,45 +1,26 @@
-Message-ID: <49283A05.1060009@redhat.com>
-Date: Sat, 22 Nov 2008 11:57:41 -0500
-From: Rik van Riel <riel@redhat.com>
+Date: Sat, 22 Nov 2008 12:07:11 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH][V2] Make get_user_pages interruptible
+In-Reply-To: <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.0811220152300.18236@chino.kir.corp.google.com>
+References: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>  <alpine.DEB.2.00.0811211618160.20523@chino.kir.corp.google.com> <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max
- pages
-References: <20081116163915.F208.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081115235410.2d2c76de.akpm@linux-foundation.org> <20081122191258.26B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20081122191258.26B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
+On Fri, 21 Nov 2008, Paul Menage wrote:
 
-> Rik, sorry, I nak current your patch. 
-> because it don't fix old akpm issue.
+> No, I didn't exactly write it originally - the only thing I added in
+> our kernel was the use of sigkill_pending() rather than checking for
+> TIF_MEMDIE.
+> 
 
-You are right.  We do need to keep pressure between zones
-equivalent to the size of the zones (or more precisely, to
-the number of pages the zones have on their LRU lists).
-
-However, having dozens of direct reclaim tasks all getting
-to the lower priority levels can be disastrous, causing
-extraordinarily large amounts of memory to be swapped out
-and minutes-long stalls to applications.
-
-I think we can come up with a middle ground here:
-- always let kswapd continue its rounds
-- have direct reclaim tasks continue when priority == DEF_PRIORITY
-- break out of the loop for direct reclaim tasks, when
-   priority < DEF_PRIORITY and enough pages have been freed
-
-Does that sound like it would mostly preserve memory pressure
-between zones, while avoiding the worst of the worst when it
-comes to excessive page eviction?
-
--- 
-All rights reversed.
+That's what this patch does, its title just appears to be wrong since it 
+was already interruptible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
