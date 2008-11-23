@@ -1,8 +1,8 @@
-Date: Sun, 23 Nov 2008 21:55:11 +0000 (GMT)
+Date: Sun, 23 Nov 2008 21:56:04 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 1/8] mm: gup persist for write permission
+Subject: [PATCH 2/8] mm: wp lock page before deciding cow
 In-Reply-To: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811232154120.4142@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811232155180.4142@blonde.site>
 References: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,44 +12,56 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Robin Holt <holt@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-do_wp_page()'s VM_FAULT_WRITE return value tells __get_user_pages() that
-COW has been done if necessary, though it may be leaving the pte without
-write permission - for the odd case of forced writing to a readonly vma
-for ptrace.  At present GUP then retries the follow_page() without asking
-for write permission, to escape an endless loop when forced.
+An application may rely on get_user_pages() to give it pages writable
+from userspace and shared with a driver, GUP breaking COW if necessary.
+It may mprotect() the pages' writability, off and on, from time to time.
 
-But an application may be relying on GUP to guarantee a writable page
-which won't be COWed again when written from userspace, whereas a race
-here might leave a readonly pte in place?  Change the VM_FAULT_WRITE
-handling to ask follow_page() for write permission again, except in
-that odd case of forced writing to a readonly vma.
+Normally this works fine (so long as the app does not fork); but just
+occasionally, under memory pressure, a readonly pte in a newly writable
+area is COWed unnecessarily, breaking the link with the driver: because
+do_wp_page() does trylock_page, and falls back to COW whenever that fails.
 
+For reliable behaviour in the unshared case, when the trylock_page fails,
+now unlock pagetable, lock page and relock pagetable, before deciding
+whether Copy-On-Write is really necessary.
+
+Reported-by: Zhou Yingchao
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
+This is not the patch I posted in June: in the end I decided it better just
+to relock page as Nick suggested, than impose subtle ordering constraints
+elsewhere; and also realized that page migration spoilt my optimizations.
 
- mm/memory.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
+ mm/memory.c |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
---- swapfree0/mm/memory.c	2008-11-19 15:26:28.000000000 +0000
-+++ swapfree1/mm/memory.c	2008-11-21 18:50:41.000000000 +0000
-@@ -1251,9 +1251,15 @@ int __get_user_pages(struct task_struct 
- 				 * do_wp_page has broken COW when necessary,
- 				 * even if maybe_mkwrite decided not to set
- 				 * pte_write. We can thus safely do subsequent
--				 * page lookups as if they were reads.
-+				 * page lookups as if they were reads. But only
-+				 * do so when looping for pte_write is futile:
-+				 * in some cases userspace may also be wanting
-+				 * to write to the gotten user page, which a
-+				 * read fault here might prevent (a readonly
-+				 * page might get reCOWed by userspace write).
- 				 */
--				if (ret & VM_FAULT_WRITE)
-+				if ((ret & VM_FAULT_WRITE) &&
-+				    !(vma->vm_flags & VM_WRITE))
- 					foll_flags &= ~FOLL_WRITE;
- 
- 				cond_resched();
+--- swapfree1/mm/memory.c	2008-11-21 18:50:41.000000000 +0000
++++ swapfree2/mm/memory.c	2008-11-21 18:50:43.000000000 +0000
+@@ -1819,10 +1819,21 @@ static int do_wp_page(struct mm_struct *
+ 	 * not dirty accountable.
+ 	 */
+ 	if (PageAnon(old_page)) {
+-		if (trylock_page(old_page)) {
+-			reuse = can_share_swap_page(old_page);
+-			unlock_page(old_page);
++		if (!trylock_page(old_page)) {
++			page_cache_get(old_page);
++			pte_unmap_unlock(page_table, ptl);
++			lock_page(old_page);
++			page_table = pte_offset_map_lock(mm, pmd, address,
++							 &ptl);
++			if (!pte_same(*page_table, orig_pte)) {
++				unlock_page(old_page);
++				page_cache_release(old_page);
++				goto unlock;
++			}
++			page_cache_release(old_page);
+ 		}
++		reuse = can_share_swap_page(old_page);
++		unlock_page(old_page);
+ 	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
+ 					(VM_WRITE|VM_SHARED))) {
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
