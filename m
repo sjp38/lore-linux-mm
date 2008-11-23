@@ -1,76 +1,66 @@
-Date: Sun, 23 Nov 2008 22:05:09 +0000 (GMT)
+Date: Sun, 23 Nov 2008 22:07:31 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 7/8] mm: remove gfp_mask from add_to_swap
+Subject: [PATCH 8/8] mm: add add_to_swap stub
 In-Reply-To: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811232204041.4142@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811232205180.4142@blonde.site>
 References: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove gfp_mask argument from add_to_swap(): it's misleading because its
-only caller, shrink_page_list(), is not atomic at that point; and in due
-course (implementing discard) we'll sometimes want to allocate some memory
-with GFP_NOIO (as is used in swap_writepage) when allocating swap.
+If we add a failing stub for add_to_swap(),
+then we can remove the #ifdef CONFIG_SWAP from mm/vmscan.c.
 
-No change to the gfp_mask passed down to add_to_swap_cache(): still use
-__GFP_HIGH without __GFP_WAIT (with nomemalloc and nowarn as before):
-though it's not obvious if that's the best combination to ask for here.
+This was intended as a source cleanup, but looking more closely, it turns
+out that the !CONFIG_SWAP case was going to keep_locked for an anonymous
+page, whereas now it goes to the more suitable activate_locked, like the
+CONFIG_SWAP nr_swap_pages 0 case.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
+Shouldn't PageSwapBacked pages be made PageUnevictable
+when CONFIG_UNEVICTABLE_LRU but !CONFIG_SWAP?
 
- include/linux/swap.h |    2 +-
- mm/swap_state.c      |    4 ++--
- mm/vmscan.c          |    2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ include/linux/swap.h |    5 +++++
+ mm/vmscan.c          |    2 --
+ 2 files changed, 5 insertions(+), 2 deletions(-)
 
---- swapfree6/include/linux/swap.h	2008-11-21 18:50:50.000000000 +0000
-+++ swapfree7/include/linux/swap.h	2008-11-21 18:51:05.000000000 +0000
-@@ -281,7 +281,7 @@ extern void end_swap_bio_read(struct bio
- extern struct address_space swapper_space;
- #define total_swapcache_pages  swapper_space.nrpages
- extern void show_swap_cache_info(void);
--extern int add_to_swap(struct page *, gfp_t);
-+extern int add_to_swap(struct page *);
- extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
- extern void __delete_from_swap_cache(struct page *);
- extern void delete_from_swap_cache(struct page *);
---- swapfree6/mm/swap_state.c	2008-11-21 18:50:50.000000000 +0000
-+++ swapfree7/mm/swap_state.c	2008-11-21 18:51:05.000000000 +0000
-@@ -128,7 +128,7 @@ void __delete_from_swap_cache(struct pag
-  * Allocate swap space for the page and add the page to the
-  * swap cache.  Caller needs to hold the page lock. 
-  */
--int add_to_swap(struct page * page, gfp_t gfp_mask)
-+int add_to_swap(struct page *page)
- {
- 	swp_entry_t entry;
- 	int err;
-@@ -153,7 +153,7 @@ int add_to_swap(struct page * page, gfp_
- 		 * Add it to the swap cache and mark it dirty
- 		 */
- 		err = add_to_swap_cache(page, entry,
--				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
-+				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+--- swapfree7/include/linux/swap.h	2008-11-21 18:51:05.000000000 +0000
++++ swapfree8/include/linux/swap.h	2008-11-21 18:51:08.000000000 +0000
+@@ -374,6 +374,11 @@ static inline struct page *lookup_swap_c
+ 	return NULL;
+ }
  
- 		switch (err) {
- 		case 0:				/* Success */
---- swapfree6/mm/vmscan.c	2008-11-21 18:51:01.000000000 +0000
-+++ swapfree7/mm/vmscan.c	2008-11-21 18:51:05.000000000 +0000
-@@ -673,7 +673,7 @@ static unsigned long shrink_page_list(st
- 		if (PageAnon(page) && !PageSwapCache(page)) {
- 			if (!(sc->gfp_mask & __GFP_IO))
- 				goto keep_locked;
--			if (!add_to_swap(page, GFP_ATOMIC))
-+			if (!add_to_swap(page))
++static inline int add_to_swap(struct page *page)
++{
++	return 0;
++}
++
+ static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
+ 							gfp_t gfp_mask)
+ {
+--- swapfree7/mm/vmscan.c	2008-11-21 18:51:05.000000000 +0000
++++ swapfree8/mm/vmscan.c	2008-11-21 18:51:08.000000000 +0000
+@@ -665,7 +665,6 @@ static unsigned long shrink_page_list(st
+ 					referenced && page_mapping_inuse(page))
+ 			goto activate_locked;
+ 
+-#ifdef CONFIG_SWAP
+ 		/*
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+@@ -677,7 +676,6 @@ static unsigned long shrink_page_list(st
  				goto activate_locked;
  			may_enter_fs = 1;
  		}
+-#endif /* CONFIG_SWAP */
+ 
+ 		mapping = page_mapping(page);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
