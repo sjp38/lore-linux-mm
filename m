@@ -1,46 +1,40 @@
-Date: Sun, 23 Nov 2008 18:51:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH] radix-tree: document wrap-around issue of
-	radix_tree_next_hole()
-Message-ID: <20081123105155.GA14524@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Sun, 23 Nov 2008 10:24:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+Message-Id: <20081123102453.f549da39.akpm@linux-foundation.org>
+In-Reply-To: <20081123091843.GK30453@elte.hu>
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com>
+	<20081123091843.GK30453@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Trivial Patch Monkey <trivial@kernel.org>
-Cc: Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Waychison <mikew@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-And some 80-line cleanups.
+On Sun, 23 Nov 2008 10:18:44 +0100 Ingo Molnar <mingo@elte.hu> wrote:
 
-Signed-off-by: Wu Fengguang <wfg@linux.intel.com>
----
- lib/radix-tree.c |   11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+> * Ying Han <yinghan@google.com> wrote:
+> 
+> > page fault retry with NOPAGE_RETRY
+> 
+> Interesting patch.
 
---- linux-2.6.orig/lib/radix-tree.c
-+++ linux-2.6/lib/radix-tree.c
-@@ -640,13 +640,14 @@ EXPORT_SYMBOL(radix_tree_tag_get);
-  *
-  *	Returns: the index of the hole if found, otherwise returns an index
-  *	outside of the set specified (in which case 'return - index >= max_scan'
-- *	will be true).
-+ *	will be true). In rare cases of index wrap-around, 0 will be returned.
-  *
-  *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-- *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
-- *	tree at a single point in time. For example, if a hole is created at index
-- *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
-- *	covering both indexes may return 10 if called under rcu_read_lock.
-+ *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-+ *	the tree at a single point in time. For example, if a hole is created
-+ *	at index 5, then subsequently a hole is created at index 10,
-+ *	radix_tree_next_hole covering both indexes may return 10 if called
-+ *	under rcu_read_lock.
-  */
- unsigned long radix_tree_next_hole(struct radix_tree_root *root,
- 				unsigned long index, unsigned long max_scan)
+<a grey call stirs>
+
+ahhh...  I thought this all sounded familiar.  It surfaced a couple of
+years ago, and this was my summary of the intent at the time:
+
+http://lkml.indiana.edu/hypermail/linux/kernel/0609.1/2106.html
+
+It all went round and round for a while, but I don't think anything got
+merged.  In fact I can't even find Ben's original little spufs/cell
+NOPAGE_RETRY code in the tree, an I thought we merged that.  Confused.
+
+The questions are, of course: does this new code address the issues
+which were raised at that time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
