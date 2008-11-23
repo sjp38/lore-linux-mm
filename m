@@ -1,84 +1,102 @@
-Date: Sun, 23 Nov 2008 22:11:07 +0000 (GMT)
+Date: Sun, 23 Nov 2008 22:18:02 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH] memcg: memswap controller core swapcache fixes
-In-Reply-To: <Pine.LNX.4.64.0811232156120.4142@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811232208380.6437@blonde.site>
-References: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
- <Pine.LNX.4.64.0811232156120.4142@blonde.site>
+Subject: Re: [PATCH 8/7] mm: further cleanup page_add_new_anon_rmap
+In-Reply-To: <4929D175.2000200@redhat.com>
+Message-ID: <Pine.LNX.4.64.0811232213250.6885@blonde.site>
+References: <Pine.LNX.4.64.0811200108230.19216@blonde.site>
+ <Pine.LNX.4.64.0811200120160.19216@blonde.site> <Pine.LNX.4.64.0811232148430.3617@blonde.site>
+ <4929D175.2000200@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Two SwapCache bug fixes to mmotm's memcg-memswap-controller-core.patch:
+On Sun, 23 Nov 2008, Rik van Riel wrote:
+> Hugh Dickins wrote:
+> > Moving lru_cache_add_active_or_unevictable() into page_add_new_anon_rmap()
+> > was good but done stupidly: we should SetPageSwapBacked() there too; and
+> > we know for sure that this anonymous, swap-backed page is not file cache.
+> 
+> True, but ...
+> 
+> > 	if (page_evictable(page, vma))
+> > -		lru_cache_add_lru(page, LRU_ACTIVE +
+> > page_is_file_cache(page));
+> > +		lru_cache_add_lru(page, LRU_ACTIVE);
+> 
+> Then you will want to s/LRU_ACTIVE/LRU_ACTIVE_ANON/ here.
 
-One bug is independent of my current changes: there is no guarantee that
-the page passed to mem_cgroup_try_charge_swapin() is still in SwapCache.
+I thought it was deeply ingrained that LRU_ACTIVE == LRU_ACTIVE_ANON?
+But it certainly looks better as you suggest, thanks - updated patch:
 
-The other bug is a consequence of my changes, but the fix is okay without
-them: mem_cgroup_commit_charge_swapin() expects swp_entry in page->private,
-but now reuse_swap_page() (formerly can_share_swap_page()) might already
-have done delete_from_swap_cache(): move commit_charge_swapin() earlier.
+
+[PATCH 8/7] mm: further cleanup page_add_new_anon_rmap
+
+Moving lru_cache_add_active_or_unevictable() into page_add_new_anon_rmap()
+was good but stupid: we can and should SetPageSwapBacked() there too; and
+we know for sure that this anonymous, swap-backed page is not file cache.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
----
+___
+I suspect Nick might like to change it to __SetPageSwapBacked later.
 
- mm/memcontrol.c |    8 ++++++++
- mm/memory.c     |   15 +++++++++++++--
- 2 files changed, 21 insertions(+), 2 deletions(-)
+ mm/memory.c |    3 ---
+ mm/rmap.c   |    6 +++---
+ 2 files changed, 3 insertions(+), 6 deletions(-)
 
---- mmotm.orig/mm/memcontrol.c	2008-11-23 21:03:48.000000000 +0000
-+++ mmotm/mm/memcontrol.c	2008-11-23 21:06:12.000000000 +0000
-@@ -847,6 +847,14 @@ int mem_cgroup_try_charge_swapin(struct 
- 	if (!do_swap_account)
- 		goto charge_cur_mm;
- 
-+	/*
-+	 * A racing thread's fault, or swapoff, may have already updated
-+	 * the pte, and even removed page from swap cache: return success
-+	 * to go on to do_swap_page()'s pte_same() test, which should fail.
-+	 */
-+	if (!PageSwapCache(page))
-+		return 0;
-+
- 	ent.val = page_private(page);
- 
- 	mem = lookup_swap_cgroup(ent);
---- mmotm.orig/mm/memory.c	2008-11-23 21:03:48.000000000 +0000
-+++ mmotm/mm/memory.c	2008-11-23 21:06:12.000000000 +0000
-@@ -2361,8 +2361,20 @@ static int do_swap_page(struct mm_struct
- 		goto out_nomap;
- 	}
- 
--	/* The page isn't present yet, go ahead with the fault. */
-+	/*
-+	 * The page isn't present yet, go ahead with the fault.
-+	 *
-+	 * Be careful about the sequence of operations here.
-+	 * To get its accounting right, reuse_swap_page() must be called
-+	 * while the page is counted on swap but not yet in mapcount i.e.
-+	 * before page_add_anon_rmap() and swap_free(); try_to_free_swap()
-+	 * must be called after the swap_free(), or it will never succeed.
-+	 * And mem_cgroup_commit_charge_swapin(), which uses the swp_entry
-+	 * in page->private, must be called before reuse_swap_page(),
-+	 * which may delete_from_swap_cache().
-+	 */
- 
-+	mem_cgroup_commit_charge_swapin(page, ptr);
+--- mmclean7/mm/memory.c	2008-11-19 15:26:28.000000000 +0000
++++ mmclean8/mm/memory.c	2008-11-22 19:02:35.000000000 +0000
+@@ -1919,7 +1919,6 @@ gotten:
+ 		 * thread doing COW.
+ 		 */
+ 		ptep_clear_flush_notify(vma, address, page_table);
+-		SetPageSwapBacked(new_page);
+ 		page_add_new_anon_rmap(new_page, vma, address);
+ 		set_pte_at(mm, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
+@@ -2415,7 +2414,6 @@ static int do_anonymous_page(struct mm_s
+ 	if (!pte_none(*page_table))
+ 		goto release;
  	inc_mm_counter(mm, anon_rss);
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if (write_access && reuse_swap_page(page)) {
-@@ -2373,7 +2385,6 @@ static int do_swap_page(struct mm_struct
- 	flush_icache_page(vma, page);
- 	set_pte_at(mm, address, page_table, pte);
- 	page_add_anon_rmap(page, vma, address);
--	mem_cgroup_commit_charge_swapin(page, ptr);
+-	SetPageSwapBacked(page);
+ 	page_add_new_anon_rmap(page, vma, address);
+ 	set_pte_at(mm, address, page_table, entry);
  
- 	swap_free(entry);
- 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+@@ -2563,7 +2561,6 @@ static int __do_fault(struct mm_struct *
+ 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 		if (anon) {
+ 			inc_mm_counter(mm, anon_rss);
+-			SetPageSwapBacked(page);
+ 			page_add_new_anon_rmap(page, vma, address);
+ 		} else {
+ 			inc_mm_counter(mm, file_rss);
+--- mmclean7/mm/rmap.c	2008-11-19 15:26:33.000000000 +0000
++++ mmclean8/mm/rmap.c	2008-11-22 19:02:35.000000000 +0000
+@@ -47,7 +47,6 @@
+ #include <linux/rmap.h>
+ #include <linux/rcupdate.h>
+ #include <linux/module.h>
+-#include <linux/mm_inline.h>
+ #include <linux/kallsyms.h>
+ #include <linux/memcontrol.h>
+ #include <linux/mmu_notifier.h>
+@@ -673,10 +672,11 @@ void page_add_new_anon_rmap(struct page 
+ 	struct vm_area_struct *vma, unsigned long address)
+ {
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+-	atomic_set(&page->_mapcount, 0); /* elevate count by 1 (starts at -1) */
++	SetPageSwapBacked(page);
++	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+ 	__page_set_anon_rmap(page, vma, address);
+ 	if (page_evictable(page, vma))
+-		lru_cache_add_lru(page, LRU_ACTIVE + page_is_file_cache(page));
++		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
+ 	else
+ 		add_page_to_unevictable_list(page);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
