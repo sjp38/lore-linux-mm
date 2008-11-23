@@ -1,69 +1,46 @@
-Date: Sun, 23 Nov 2008 11:49:36 +0100 (CET)
-From: Julia Lawall <julia@diku.dk>
-Subject: [PATCH 5/5] mm/page_alloc.c: Eliminate NULL test and memset after
- alloc_bootmem
-Message-ID: <Pine.LNX.4.64.0811231148580.28343@ask.diku.dk>
+Date: Sun, 23 Nov 2008 18:51:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] radix-tree: document wrap-around issue of
+	radix_tree_next_hole()
+Message-ID: <20081123105155.GA14524@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-From: Julia Lawall <julia@diku.dk>
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
+To: Trivial Patch Monkey <trivial@kernel.org>
+Cc: Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-As noted by Akinobu Mita in patch b1fceac2b9e04d278316b2faddf276015fc06e3b,
-alloc_bootmem and related functions never return NULL and always return a
-zeroed region of memory.  Thus a NULL test or memset after calls to these
-functions is unnecessary.
+And some 80-line cleanups.
 
-This was fixed using the following semantic patch.
-(http://www.emn.fr/x-info/coccinelle/)
-
-// <smpl>
-@@
-expression E;
-statement S;
-@@
-
-E = \(alloc_bootmem\|alloc_bootmem_low\|alloc_bootmem_pages\|alloc_bootmem_low_pages\|alloc_bootmem_node\|alloc_bootmem_low_pages_node\|alloc_bootmem_pages_node\)(...)
-... when != E
-(
-- BUG_ON (E == NULL);
-|
-- if (E == NULL) S
-)
-
-@@
-expression E,E1;
-@@
-
-E = \(alloc_bootmem\|alloc_bootmem_low\|alloc_bootmem_pages\|alloc_bootmem_low_pages\|alloc_bootmem_node\|alloc_bootmem_low_pages_node\|alloc_bootmem_pages_node\)(...)
-... when != E
-- memset(E,0,E1);
-// </smpl>
-
-Signed-off-by: Julia Lawall <julia@diku.dk>
+Signed-off-by: Wu Fengguang <wfg@linux.intel.com>
 ---
+ lib/radix-tree.c |   11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
- mm/page_alloc.c |    4 +---
- 1 files changed, 1 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d8ac014..5040299 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3381,10 +3381,8 @@ static void __init setup_usemap(struct pglist_data *pgdat,
- {
- 	unsigned long usemapsize = usemap_size(zonesize);
- 	zone->pageblock_flags = NULL;
--	if (usemapsize) {
-+	if (usemapsize)
- 		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
--		memset(zone->pageblock_flags, 0, usemapsize);
--	}
- }
- #else
- static void inline setup_usemap(struct pglist_data *pgdat,
+--- linux-2.6.orig/lib/radix-tree.c
++++ linux-2.6/lib/radix-tree.c
+@@ -640,13 +640,14 @@ EXPORT_SYMBOL(radix_tree_tag_get);
+  *
+  *	Returns: the index of the hole if found, otherwise returns an index
+  *	outside of the set specified (in which case 'return - index >= max_scan'
+- *	will be true).
++ *	will be true). In rare cases of index wrap-around, 0 will be returned.
+  *
+  *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+- *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
+- *	tree at a single point in time. For example, if a hole is created at index
+- *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
+- *	covering both indexes may return 10 if called under rcu_read_lock.
++ *	radix_tree_gang_lookup, this will not atomically search a snapshot of
++ *	the tree at a single point in time. For example, if a hole is created
++ *	at index 5, then subsequently a hole is created at index 10,
++ *	radix_tree_next_hole covering both indexes may return 10 if called
++ *	under rcu_read_lock.
+  */
+ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+ 				unsigned long index, unsigned long max_scan)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
