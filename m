@@ -1,26 +1,42 @@
-Date: Sat, 22 Nov 2008 12:07:11 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH][V2] Make get_user_pages interruptible
-In-Reply-To: <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.0811220152300.18236@chino.kir.corp.google.com>
-References: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>  <alpine.DEB.2.00.0811211618160.20523@chino.kir.corp.google.com> <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 23 Nov 2008 10:31:16 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [BUGFIX][PATCH mmotm] memcg: fix for hierarchical reclaim
+Message-Id: <20081123103116.5dffa39a.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <4928113B.8090504@linux.vnet.ibm.com>
+References: <20081122114446.42ddca46.d-nishimura@mtf.biglobe.ne.jp>
+	<4928113B.8090504@linux.vnet.ibm.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>, Rohit Seth <rohitseth@google.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Nov 2008, Paul Menage wrote:
-
-> No, I didn't exactly write it originally - the only thing I added in
-> our kernel was the use of sigkill_pending() rather than checking for
-> TIF_MEMDIE.
+On Sat, 22 Nov 2008 19:33:39 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> Daisuke Nishimura wrote:
+> > mem_cgroup_from_res_counter should handle both mem->res and mem->memsw.
+> > This bug leads to NULL pointer dereference BUG at mem_cgroup_calc_reclaim.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
+> Thanks for catching this, could you please point me to the steps to reproduce
+> the problem
+> 
+You can see this BUG when you are exceeding memory.memsw.limit_in_bytes
+and trying to free pages.
 
-That's what this patch does, its title just appears to be wrong since it 
-was already interruptible.
+When exceeding memory.memsw.limit_in_bytes, fail_res points to
+mem_cgroup.memsw, not to mem_cgroup.res.
+So, mem_cgroup_hierarchical_reclaim() would be called with
+invalid mem_cgroup.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
