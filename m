@@ -1,83 +1,69 @@
-Date: Sun, 23 Nov 2008 18:44:31 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: [BUGFIX(resend)][PATCH mmotm] memcg: fix for hierarchical reclaim
-Message-Id: <20081123184431.92f13d85.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20081122114446.42ddca46.d-nishimura@mtf.biglobe.ne.jp>
-References: <20081122114446.42ddca46.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sun, 23 Nov 2008 11:49:36 +0100 (CET)
+From: Julia Lawall <julia@diku.dk>
+Subject: [PATCH 5/5] mm/page_alloc.c: Eliminate NULL test and memset after
+ alloc_bootmem
+Message-ID: <Pine.LNX.4.64.0811231148580.28343@ask.diku.dk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+From: Julia Lawall <julia@diku.dk>
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp, nishimura@mxp.nes.nec.co.jp
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-mem_cgroup_from_res_counter should handle both mem->res and mem->memsw.
+As noted by Akinobu Mita in patch b1fceac2b9e04d278316b2faddf276015fc06e3b,
+alloc_bootmem and related functions never return NULL and always return a
+zeroed region of memory.  Thus a NULL test or memset after calls to these
+functions is unnecessary.
 
-When exceeding memory.memsw.limit_in_bytes, fail_res points to
-mem_cgroup.memsw, not to mem_cgroup.res.
-So, mem_cgroup_hierarchical_reclaim() would be called with
-invalid mem_cgroup.
+This was fixed using the following semantic patch.
+(http://www.emn.fr/x-info/coccinelle/)
 
-This bug leads to NULL pointer dereference BUG at mem_cgroup_calc_reclaim.
+// <smpl>
+@@
+expression E;
+statement S;
+@@
 
+E = \(alloc_bootmem\|alloc_bootmem_low\|alloc_bootmem_pages\|alloc_bootmem_low_pages\|alloc_bootmem_node\|alloc_bootmem_low_pages_node\|alloc_bootmem_pages_node\)(...)
+... when != E
+(
+- BUG_ON (E == NULL);
+|
+- if (E == NULL) S
+)
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+@@
+expression E,E1;
+@@
+
+E = \(alloc_bootmem\|alloc_bootmem_low\|alloc_bootmem_pages\|alloc_bootmem_low_pages\|alloc_bootmem_node\|alloc_bootmem_low_pages_node\|alloc_bootmem_pages_node\)(...)
+... when != E
+- memset(E,0,E1);
+// </smpl>
+
+Signed-off-by: Julia Lawall <julia@diku.dk>
 ---
-This is fix for memory-cgroup-hierarchical-reclaim-v4.patch.
 
- mm/memcontrol.c |   23 +++++++++--------------
- 1 files changed, 9 insertions(+), 14 deletions(-)
+ mm/page_alloc.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d177ed7..ac445cf 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -468,11 +468,8 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
- 	return nr_taken;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d8ac014..5040299 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3381,10 +3381,8 @@ static void __init setup_usemap(struct pglist_data *pgdat,
+ {
+ 	unsigned long usemapsize = usemap_size(zonesize);
+ 	zone->pageblock_flags = NULL;
+-	if (usemapsize) {
++	if (usemapsize)
+ 		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
+-		memset(zone->pageblock_flags, 0, usemapsize);
+-	}
  }
- 
--static struct mem_cgroup *
--mem_cgroup_from_res_counter(struct res_counter *counter)
--{
--	return container_of(counter, struct mem_cgroup, res);
--}
-+#define mem_cgroup_from_res_counter(counter, member)	\
-+	container_of(counter, struct mem_cgroup, member)
- 
- /*
-  * This routine finds the DFS walk successor. This routine should be
-@@ -665,18 +662,16 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 			/* mem+swap counter fails */
- 			res_counter_uncharge(&mem->res, PAGE_SIZE);
- 			noswap = true;
--		}
-+			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-+									memsw);
-+		} else
-+			/* mem counter fails */
-+			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-+									res);
-+
- 		if (!(gfp_mask & __GFP_WAIT))
- 			goto nomem;
- 
--		/*
--		 * Is one of our ancestors over their limit?
--		 */
--		if (fail_res)
--			mem_over_limit = mem_cgroup_from_res_counter(fail_res);
--		else
--			mem_over_limit = mem;
--
- 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
- 							noswap);
- 
+ #else
+ static void inline setup_usemap(struct pglist_data *pgdat,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
