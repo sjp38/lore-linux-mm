@@ -1,42 +1,41 @@
-Date: Sun, 23 Nov 2008 10:31:16 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id mAN7F99n004354
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2008 12:45:09 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mAN7Ea9P3981458
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2008 12:44:36 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id mAN7F8T4024796
+	for <linux-mm@kvack.org>; Sun, 23 Nov 2008 12:45:09 +0530
+Message-ID: <492902F8.1060806@linux.vnet.ibm.com>
+Date: Sun, 23 Nov 2008 12:45:04 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+MIME-Version: 1.0
 Subject: Re: [BUGFIX][PATCH mmotm] memcg: fix for hierarchical reclaim
-Message-Id: <20081123103116.5dffa39a.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <4928113B.8090504@linux.vnet.ibm.com>
 References: <20081122114446.42ddca46.d-nishimura@mtf.biglobe.ne.jp>
-	<4928113B.8090504@linux.vnet.ibm.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20081122114446.42ddca46.d-nishimura@mtf.biglobe.ne.jp>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp, nishimura@mxp.nes.nec.co.jp
+To: nishimura@mxp.nes.nec.co.jp
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, Li Zefan <lizf@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, d-nishimura@mtf.biglobe.ne.jp
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 Nov 2008 19:33:39 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> Daisuke Nishimura wrote:
-> > mem_cgroup_from_res_counter should handle both mem->res and mem->memsw.
-> > This bug leads to NULL pointer dereference BUG at mem_cgroup_calc_reclaim.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Daisuke Nishimura wrote:
+> mem_cgroup_from_res_counter should handle both mem->res and mem->memsw.
+> This bug leads to NULL pointer dereference BUG at mem_cgroup_calc_reclaim.
 > 
-> Thanks for catching this, could you please point me to the steps to reproduce
-> the problem
-> 
-You can see this BUG when you are exceeding memory.memsw.limit_in_bytes
-and trying to free pages.
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+> This is fix for memory-cgroup-hierarchical-reclaim-v4.patch.
 
-When exceeding memory.memsw.limit_in_bytes, fail_res points to
-mem_cgroup.memsw, not to mem_cgroup.res.
-So, mem_cgroup_hierarchical_reclaim() would be called with
-invalid mem_cgroup.
+Tested-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-
-Thanks,
-Daisuke Nishimura.
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
