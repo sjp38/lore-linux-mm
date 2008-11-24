@@ -1,113 +1,60 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAOCwaaP004484
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 24 Nov 2008 21:58:36 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 141AE45DE51
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 21:58:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id DDC3E45DE4F
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 21:58:35 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C7DCA1DB803F
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 21:58:35 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B6FE1DB803A
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 21:58:35 +0900 (JST)
-Date: Mon, 24 Nov 2008 21:57:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: memswap controller core swapcache fixes
-Message-Id: <20081124215750.2356b4c6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0811241154130.11615@blonde.site>
+Date: Mon, 24 Nov 2008 13:49:39 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 8/8] mm: add add_to_swap stub
+In-Reply-To: <4929DF54.8050104@redhat.com>
+Message-ID: <Pine.LNX.4.64.0811241340140.17541@blonde.site>
 References: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
-	<Pine.LNX.4.64.0811232156120.4142@blonde.site>
-	<Pine.LNX.4.64.0811232208380.6437@blonde.site>
-	<20081124144344.d2703a60.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081124151542.3c1a4c88.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0811241154130.11615@blonde.site>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.64.0811232205180.4142@blonde.site> <4929DF54.8050104@redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Lee Schermerhorn <lee.schermerhorn@hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Nov 2008 12:29:54 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+On Sun, 23 Nov 2008, Rik van Riel wrote:
+> Hugh Dickins wrote:
+> > 
+> > This was intended as a source cleanup, but looking more closely, it turns
+> > out that the !CONFIG_SWAP case was going to keep_locked for an anonymous
+> > page, whereas now it goes to the more suitable activate_locked, like the
+> > CONFIG_SWAP nr_swap_pages 0 case.
+> 
+> If there is no swap space available, we will not scan the
+> anon pages at all.
 
-> On Mon, 24 Nov 2008, KAMEZAWA Hiroyuki wrote:
-> > On Mon, 24 Nov 2008 14:43:44 +0900
-> > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > On Sun, 23 Nov 2008 22:11:07 +0000 (GMT)
-> > > Hugh Dickins <hugh@veritas.com> wrote:
-> > > > +	/*
-> > > > +	 * A racing thread's fault, or swapoff, may have already updated
-> > > > +	 * the pte, and even removed page from swap cache: return success
-> > > > +	 * to go on to do_swap_page()'s pte_same() test, which should fail.
-> > > > +	 */
-> > > > +	if (!PageSwapCache(page))
-> > > > +		return 0;
-> > > > +
-> > > >  	ent.val = page_private(page);
-> > 
-> > I think 
-> > ==
-> > 	if (!PageSwapCache(page))
-> > 		goto charge_cur_mm;
-> > ==
-> > is better.
-> > 
-> > In following case,
-> > ==
-> > 	CPUA				CPUB
-> > 				    remove_from_swapcache
-> > 	lock_page()                 <==========================(*)
-> > 	try_charge_swapin()          
-> > 	....
-> > 	commit_charge()
-> > ==
-> > At (*), the page may be fully unmapped and not charged
-> > (and PCG_USED bit is cleared.)
-> > If so, returing without any charge here means leak of charge.
-> > 
-> > Even if *charged* here,
-> >   - mem_cgroup_cancel_charge_swapin (handles !pte_same() case.)
-> >   - mem_cgroup_commit_charge_swapin (handles page is doubly charged case.)
-> > 
-> > try-commit-cancel is introduced to handle this kind of case and bug in my code
-> > is accessing page->private without checking PageSwapCache().
-> 
-> I've not studied your charging regime at all, but I think either
-> my way or yours should work.
-> 
-> There shouldn't be a leak of charge with my patch, because CPUB cannot
-> remove the page from swapcache until all references to that swap have
-> been removed: so do_swap_page's (second) pte_same test will fail, and
-> it'll goto out_nomap.
-> 
-> With my patch, no charge was made, ptr was left NULL and no uncharge
-> will be made: it was easier for me to see that way.  Doing it your
-> way, ptr will be set and charged and there will be uncharging to do.
-> 
-Thank you for confirmation.
-I have no objection to your way. 
-I'd like to have review-all-again time.
+Ah, yes, you explained that to me already a few months ago: sorry.
 
--Kame
+I thought it might be the case, but didn't spot where, so actually
+ran !CONFIG_SWAP, counting how many add_to_swap()s occurred, before
+sending in the patch - I wasn't sure how big a deal to make of the
+keep_locked issue in the comment.
 
-> But your way does look better, given that above we've already done
-> 	if (!do_swap_account)
-> 		goto charge_cur_mm;
-> It looks rather suspicious to "return 0" in some cases after that.
+On one run I _did_ see a flurry of add_to_swap()s, but wasn't able
+to reproduce it - found it hard to get the balance right between
+trying to swap and OOMing, and my test wasn't very inventive.
+
+It didn't seem worth pursuing further at the time, but now you say
+"we will not scan the anon pages at all", I wonder if I ought to
+try to reproduce it, to see how we came to be trying add_to_swap()
+in that case?  Or is there a corner case you know of, and it's not
+worth worrying further?
+
 > 
-> Which of us should update the patch to Andrew?  I'd prefer you
-> to do it, since you understand the charging and uncharging,
-> but I can send it if you're busy.
+> Hmm, maybe we need a special simplified get_scan_ratio()
+> for !CONFIG_SWAP?
+
+But without adding #ifdef CONFIG_SWAPs back in: patch follows.
+
 > 
-> Hugh
+> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
 > 
+> Acked-by: Rik van Riel <riel@redhat.com>
+
+Thanks a lot for looking at these.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
