@@ -1,48 +1,35 @@
-Subject: [RFC PATCH] slab: __GFP_NOWARN not being propagated from mempool_alloc()
-Message-Id: <E1L4jMt-0006OW-5J@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Mon, 24 Nov 2008 22:53:19 +0100
+Date: Tue, 25 Nov 2008 00:47:33 +0200 (EET)
+From: Pekka J Enberg <penberg@cs.helsinki.fi>
+Subject: Re: [RFC PATCH] slab: __GFP_NOWARN not being propagated from
+ mempool_alloc()
+In-Reply-To: <E1L4jMt-0006OW-5J@pomaz-ex.szeredi.hu>
+Message-ID: <Pine.LNX.4.64.0811250038030.11825@melkki.cs.Helsinki.FI>
+References: <E1L4jMt-0006OW-5J@pomaz-ex.szeredi.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, david@fromorbit.com, peterz@infradead.org, linux-kernel@vger.kernel.org
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-mm@kvack.org, cl@linux-foundation.org, david@fromorbit.com, peterz@infradead.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-We see page allocation failure warnings on the mempool_alloc() path.
-See this lkml posting for example:
+On Mon, 24 Nov 2008, Miklos Szeredi wrote:
+> We see page allocation failure warnings on the mempool_alloc() path.
+> See this lkml posting for example:
+> 
+> http://lkml.org/lkml/2008/10/27/100
+> 
+> The cause is that on NUMA, alloc_slabmgmt() clears __GFP_NOWARN,
+> together with __GFP_THISNODE and __GFP_NORETRY.  But AFAICS it really
+> only wants to clear __GFP_THISNODE.
+> 
+> Does this patch looks good?
 
-http://lkml.org/lkml/2008/10/27/100
+Yes, it does but looking at mm/slab.c history I think we want something 
+like the following instead. Christoph?
 
-The cause is that on NUMA, alloc_slabmgmt() clears __GFP_NOWARN,
-together with __GFP_THISNODE and __GFP_NORETRY.  But AFAICS it really
-only wants to clear __GFP_THISNODE.
+P.S. First one to test it gets a fabulous prize of a Tested-by tag in the 
+patch description! How cool is that?
 
-Does this patch looks good?
-
-Warning: it's completely untested.
-
-Miklos
----
- mm/slab.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2008-10-24 12:40:34.000000000 +0200
-+++ linux-2.6/mm/slab.c	2008-11-24 22:17:04.000000000 +0100
-@@ -2609,7 +2609,8 @@ static struct slab *alloc_slabmgmt(struc
- 	if (OFF_SLAB(cachep)) {
- 		/* Slab management obj is off-slab. */
- 		slabp = kmem_cache_alloc_node(cachep->slabp_cache,
--					      local_flags & ~GFP_THISNODE, nodeid);
-+					      local_flags & ~__GFP_THISNODE,
-+					      nodeid);
- 		if (!slabp)
- 			return NULL;
- 	} else {
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+		Pekka
