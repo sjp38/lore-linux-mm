@@ -1,40 +1,35 @@
-Message-ID: <492AFE04.10404@redhat.com>
-Date: Mon, 24 Nov 2008 14:18:28 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max
- pages
-References: <20081116163915.F208.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <20081115235410.2d2c76de.akpm@linux-foundation.org>	 <20081122191258.26B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <49283A05.1060009@redhat.com> <2f11576a0811241112p494b28a6p720da1d60ac3438c@mail.gmail.com>
-In-Reply-To: <2f11576a0811241112p494b28a6p720da1d60ac3438c@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Mon, 24 Nov 2008 11:24:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH][V2] Make get_user_pages interruptible
+Message-Id: <20081124112443.5a2e0885.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0811241859160.3700@blonde.site>
+References: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>
+	<alpine.DEB.2.00.0811211618160.20523@chino.kir.corp.google.com>
+	<6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
+	<alpine.DEB.2.00.0811220152300.18236@chino.kir.corp.google.com>
+	<604427e00811240938n5eca39cetb37b4a63f20a0854@mail.gmail.com>
+	<Pine.LNX.4.64.0811241859160.3700@blonde.site>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: yinghan@google.com, rientjes@google.com, menage@google.com, linux-mm@kvack.org, rohitseth@google.com, riel@redhat.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
+On Mon, 24 Nov 2008 19:15:16 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
 
-> 1. reclaim 32 page from ZONE_HIGHMEM
-> 2. reclaim 32 page from ZONE_NORMAL
-> 3. reclaim 32 page from ZONE_DMA
-> 4. exit reclaim
-> 5. another task call page alloc and it cause try_to_free_pages()
-> 6. reclaim 32 page from ZONE_HIGHMEM
-> 7. reclaim 32 page from ZONE_NORMAL
-> 8. reclaim 32 page from ZONE_DMA
-
->> - have direct reclaim tasks continue when priority == DEF_PRIORITY
+> The linux-mm list has a tiresome habit of removing one line at the top.
 > 
-> disagreed.
-> it cause above bad scenario, I think.
+> For a year or so I used to wonder why Christoph Lameter sent so many
+> empty messages in response to patches: at last I realized he was
+> sending a single-line Acked-by: which linux-mm kindly removed.
+> 
+> I grow tired of it, but forget who to report it to: Rik is sure to know.
 
-I think I did not explain it clearly.  Let me illustrate
-with a new patch.  (one moment :))
-
--- 
-All rights reversed.
+Benjamin LaHaise <bcrl@kvack.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
