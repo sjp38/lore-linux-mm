@@ -1,50 +1,59 @@
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id mAOK2qdx021141
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 12:02:53 -0800
-Received: from rv-out-0708.google.com (rvfb17.prod.google.com [10.140.179.17])
-	by spaceape11.eur.corp.google.com with ESMTP id mAOK2crj027121
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 12:02:51 -0800
-Received: by rv-out-0708.google.com with SMTP id b17so2440089rvf.40
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2008 12:02:50 -0800 (PST)
+Received: by ey-out-1920.google.com with SMTP id 21so1137603eyc.44
+        for <linux-mm@kvack.org>; Mon, 24 Nov 2008 12:05:31 -0800 (PST)
+Message-ID: <154e089b0811241205m293b5824of0fa753c1f8c33a6@mail.gmail.com>
+Date: Mon, 24 Nov 2008 21:05:31 +0100
+From: "Hannes Eder" <hannes@hanneseder.net>
+Subject: [PATCH] hugetlb: fix sparse warnings
 MIME-Version: 1.0
-In-Reply-To: <604427e00811211731l40898486r1a58e4940f3859e9@mail.gmail.com>
-References: <604427e00811211731l40898486r1a58e4940f3859e9@mail.gmail.com>
-Date: Mon, 24 Nov 2008 12:02:50 -0800
-Message-ID: <6599ad830811241202o74312a18m84ed86a5f4393086@mail.gmail.com>
-Subject: Re: [PATCH][V3]Make get_user_pages interruptible
-From: Paul Menage <menage@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 21, 2008 at 5:31 PM, Ying Han <yinghan@google.com> wrote:
-> From: Paul Menage <menage@google.com>
+Fix the following sparse warnings:
 
-This patch is getting further and further from my original internal
-changes, so I'm not sure that a From: line from me is appropriate.
+  mm/hugetlb.c:375:3: warning: returning void-valued expression
+  mm/hugetlb.c:408:3: warning: returning void-valued expression
 
->                         */
-> -                       if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
-> -                               return i ? i : -ENOMEM;
-> +                       if (unlikely(sigkill_pending(tsk)))
-> +                               return i ? i : -ERESTARTSYS;
+Signed-off-by: Hannes Eder <hannes@hanneseder.net>
+---
+ mm/hugetlb.c |   12 ++++++++----
+ 1 files changed, 8 insertions(+), 4 deletions(-)
 
-You've changed the check from sigkill_pending(current) to sigkill_pending(tsk).
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6058b53..56e1406 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -371,8 +371,10 @@ static void clear_huge_page(struct page *page,
+ {
+ 	int i;
 
-I originally made that sigkill_pending(current) since we want to avoid
-tasks entering an unkillable state just because they're doing
-get_user_pages() on a system that's short of memory. Admittedly for
-the main case that we care about, mlock() (or an mmap() with
-MCL_FUTURE set) then tsk==current, but philosophically it seems to me
-to be more correct to do the check against current than tsk, since
-current is the thing that's actually allocating the memory. But maybe
-it would be better to check both?
+-	if (unlikely(sz > MAX_ORDER_NR_PAGES))
+-		return clear_gigantic_page(page, addr, sz);
++	if (unlikely(sz > MAX_ORDER_NR_PAGES)) {
++		clear_gigantic_page(page, addr, sz);
++		return;
++	}
 
-Paul
+ 	might_sleep();
+ 	for (i = 0; i < sz/PAGE_SIZE; i++) {
+@@ -404,8 +406,10 @@ static void copy_huge_page(struct page *dst,
+struct page *src,
+ 	int i;
+ 	struct hstate *h = hstate_vma(vma);
+
+-	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES))
+-		return copy_gigantic_page(dst, src, addr, vma);
++	if (unlikely(pages_per_huge_page(h) > MAX_ORDER_NR_PAGES)) {
++		copy_gigantic_page(dst, src, addr, vma);
++		return;
++	}
+
+ 	might_sleep();
+ 	for (i = 0; i < pages_per_huge_page(h); i++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
