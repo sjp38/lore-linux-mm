@@ -1,85 +1,63 @@
-Received: by wf-out-1314.google.com with SMTP id 28so2370569wfc.11
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2008 11:12:12 -0800 (PST)
-Message-ID: <2f11576a0811241112p494b28a6p720da1d60ac3438c@mail.gmail.com>
-Date: Tue, 25 Nov 2008 04:12:12 +0900
-From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max pages
-In-Reply-To: <49283A05.1060009@redhat.com>
+Date: Mon, 24 Nov 2008 19:15:16 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH][V2] Make get_user_pages interruptible
+In-Reply-To: <604427e00811240938n5eca39cetb37b4a63f20a0854@mail.gmail.com>
+Message-ID: <Pine.LNX.4.64.0811241859160.3700@blonde.site>
+References: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>
+ <alpine.DEB.2.00.0811211618160.20523@chino.kir.corp.google.com>
+ <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
+ <alpine.DEB.2.00.0811220152300.18236@chino.kir.corp.google.com>
+ <604427e00811240938n5eca39cetb37b4a63f20a0854@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20081116163915.F208.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20081115235410.2d2c76de.akpm@linux-foundation.org>
-	 <20081122191258.26B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <49283A05.1060009@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ying Han <yinghan@google.com>
+Cc: David Rientjes <rientjes@google.com>, Paul Menage <menage@google.com>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>, Rohit Seth <rohitseth@google.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
->> Rik, sorry, I nak current your patch. because it don't fix old akpm issue.
->
-> You are right.  We do need to keep pressure between zones
-> equivalent to the size of the zones (or more precisely, to
-> the number of pages the zones have on their LRU lists).
+On Mon, 24 Nov 2008, Ying Han wrote:
+> --Ying
+> 
+> On Sat, Nov 22, 2008 at 12:07 PM, David Rientjes <rientjes@google.com> wrote:
+> > On Fri, 21 Nov 2008, Paul Menage wrote:
+> >
+> >> No, I didn't exactly write it originally - the only thing I added in
+> >> our kernel was the use of sigkill_pending() rather than checking for
+> >> TIF_MEMDIE.
+> >>
+> >
+> > That's what this patch does, its title just appears to be wrong since it
+> > was already interruptible.
+> >
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Oh, sorry.
-you are right. but I talked about reverse thing.
+The linux-mm list has a tiresome habit of removing one line at the top.
 
-1. shrink_zones() doesn't have any shortcut exiting way.
-    it always call all zone's shrink_zone()
-2. balance_pgdat also doesn't have shortcut.
+For a year or so I used to wonder why Christoph Lameter sent so many
+empty messages in response to patches: at last I realized he was
+sending a single-line Acked-by: which linux-mm kindly removed.
 
-simple shrink_zone() shortcut and lite memory pressure cause following
-bad scenario.
+I grow tired of it, but forget who to report it to: Rik is sure to know.
 
-1. reclaim 32 page from ZONE_HIGHMEM
-2. reclaim 32 page from ZONE_NORMAL
-3. reclaim 32 page from ZONE_DMA
-4. exit reclaim
-5. another task call page alloc and it cause try_to_free_pages()
-6. reclaim 32 page from ZONE_HIGHMEM
-7. reclaim 32 page from ZONE_NORMAL
-8. reclaim 32 page from ZONE_DMA
+Ah, looking at the raw mailbox, I see
 
-oops, all zone reclaimed the same pages although ZONE_HIGHMEM have
-much memory than ZONE_DMA.
-IOW, ZONE_DMA's reclaim scanning rate is much than ZONE_HIGHMEM largely.
+...
+X-Loop:	owner-majordomo@kvack.org
+David:	I made the two fixes and posted another thread as [PATCH][V3]
+X-OriginalArrivalTime: 24 Nov 2008 17:39:37.0205 (UTC) FILETIME=[9EEC5A50:01C94E5B]
+...
 
-it isn't intentionally.
+so it looks as if a first line with a colon gets treated as header.
 
+Of course, in your case, it serves you right for top-posting ;)
 
-
-Actually, try_to_free_pages don't need pressure fairness. it is the
-role of the balance_pgdat().
-
-
-> However, having dozens of direct reclaim tasks all getting
-> to the lower priority levels can be disastrous, causing
-> extraordinarily large amounts of memory to be swapped out
-> and minutes-long stalls to applications.
-
-agreed.
-
->
-> I think we can come up with a middle ground here:
-> - always let kswapd continue its rounds
-
-agreed.
-
-> - have direct reclaim tasks continue when priority == DEF_PRIORITY
-
-disagreed.
-it cause above bad scenario, I think.
-
-> - break out of the loop for direct reclaim tasks, when
->  priority < DEF_PRIORITY and enough pages have been freed
->
-> Does that sound like it would mostly preserve memory pressure
-> between zones, while avoiding the worst of the worst when it
-> comes to excessive page eviction?
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
