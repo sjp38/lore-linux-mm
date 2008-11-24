@@ -1,63 +1,40 @@
-Date: Mon, 24 Nov 2008 19:15:16 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH][V2] Make get_user_pages interruptible
-In-Reply-To: <604427e00811240938n5eca39cetb37b4a63f20a0854@mail.gmail.com>
-Message-ID: <Pine.LNX.4.64.0811241859160.3700@blonde.site>
-References: <604427e00811211605j20fd00bby1bac86b4cc3c380b@mail.gmail.com>
- <alpine.DEB.2.00.0811211618160.20523@chino.kir.corp.google.com>
- <6599ad830811211818g5ade68cua396713be94f80dc@mail.gmail.com>
- <alpine.DEB.2.00.0811220152300.18236@chino.kir.corp.google.com>
- <604427e00811240938n5eca39cetb37b4a63f20a0854@mail.gmail.com>
+Message-ID: <492AFE04.10404@redhat.com>
+Date: Mon, 24 Nov 2008 14:18:28 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH -mm] vmscan: bail out of page reclaim after swap_cluster_max
+ pages
+References: <20081116163915.F208.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <20081115235410.2d2c76de.akpm@linux-foundation.org>	 <20081122191258.26B0.KOSAKI.MOTOHIRO@jp.fujitsu.com>	 <49283A05.1060009@redhat.com> <2f11576a0811241112p494b28a6p720da1d60ac3438c@mail.gmail.com>
+In-Reply-To: <2f11576a0811241112p494b28a6p720da1d60ac3438c@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: David Rientjes <rientjes@google.com>, Paul Menage <menage@google.com>, linux-mm@kvack.org, akpm <akpm@linux-foundation.org>, Rohit Seth <rohitseth@google.com>, Rik van Riel <riel@redhat.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Nov 2008, Ying Han wrote:
-> --Ying
+KOSAKI Motohiro wrote:
+
+> 1. reclaim 32 page from ZONE_HIGHMEM
+> 2. reclaim 32 page from ZONE_NORMAL
+> 3. reclaim 32 page from ZONE_DMA
+> 4. exit reclaim
+> 5. another task call page alloc and it cause try_to_free_pages()
+> 6. reclaim 32 page from ZONE_HIGHMEM
+> 7. reclaim 32 page from ZONE_NORMAL
+> 8. reclaim 32 page from ZONE_DMA
+
+>> - have direct reclaim tasks continue when priority == DEF_PRIORITY
 > 
-> On Sat, Nov 22, 2008 at 12:07 PM, David Rientjes <rientjes@google.com> wrote:
-> > On Fri, 21 Nov 2008, Paul Menage wrote:
-> >
-> >> No, I didn't exactly write it originally - the only thing I added in
-> >> our kernel was the use of sigkill_pending() rather than checking for
-> >> TIF_MEMDIE.
-> >>
-> >
-> > That's what this patch does, its title just appears to be wrong since it
-> > was already interruptible.
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> disagreed.
+> it cause above bad scenario, I think.
 
-The linux-mm list has a tiresome habit of removing one line at the top.
+I think I did not explain it clearly.  Let me illustrate
+with a new patch.  (one moment :))
 
-For a year or so I used to wonder why Christoph Lameter sent so many
-empty messages in response to patches: at last I realized he was
-sending a single-line Acked-by: which linux-mm kindly removed.
-
-I grow tired of it, but forget who to report it to: Rik is sure to know.
-
-Ah, looking at the raw mailbox, I see
-
-...
-X-Loop:	owner-majordomo@kvack.org
-David:	I made the two fixes and posted another thread as [PATCH][V3]
-X-OriginalArrivalTime: 24 Nov 2008 17:39:37.0205 (UTC) FILETIME=[9EEC5A50:01C94E5B]
-...
-
-so it looks as if a first line with a colon gets treated as header.
-
-Of course, in your case, it serves you right for top-posting ;)
-
-Hugh
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
