@@ -1,37 +1,29 @@
-Date: Tue, 25 Nov 2008 15:43:54 -0800
+Date: Tue, 25 Nov 2008 15:54:22 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH][V4]Make get_user_pages interruptible
-Message-Id: <20081125154354.001a6ae0.akpm@linux-foundation.org>
-In-Reply-To: <1227605300.1566.17.camel@penberg-laptop>
-References: <604427e00811241521t3e75650ft48bc60cdfb16df0e@mail.gmail.com>
-	<1227605300.1566.17.camel@penberg-laptop>
+Subject: Re: [PATCH] memcg reclaim shouldn't change zone->recent_rotated
+ statics.
+Message-Id: <20081125155422.6ab07caf.akpm@linux-foundation.org>
+In-Reply-To: <20081125121842.26C5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20081125121842.26C5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: yinghan@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, rientjes@google.com, rohitseth@google.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Nov 2008 11:28:20 +0200
-Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+On Tue, 25 Nov 2008 12:22:53 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-> ___You might want to add an explanation why we check both 'tsk' and
-> 'current' in either in the patch description or as a comment, though. Or
-> just add a link to the mailing list archives in the description or
-> something.
+> +	if (scan_global_lru(sc))
 
-As a code comment, I'd suggest.
+mutter.  scan_global_lru() is a terrible function name.  Anyone reading
+that code would expect that this function, umm, scans the global LRU.
 
-> > Signed-off-by:	Paul Menage <menage@google.com>
-> > Singed-off-by:	Ying Han <yinghan@google.com>
->   ^^^^^^
-> 
-> I'm sure you have a beautiful singing voice but from legal point of
-> view, it's probably better to just sign it off. ;-)
-
-That's my favorite typo.
+gcc has a nice convention wherein such functions have a name ending in
+"_p" (for "predicate").  Don't do this :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
