@@ -1,63 +1,50 @@
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP3MsuW000844
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP45mJ8017910
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 25 Nov 2008 12:22:54 +0900
+	Tue, 25 Nov 2008 13:05:48 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 472A045DD7D
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C5B6645DD82
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:05:47 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 259A445DD7C
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0F5A45DD7C
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:05:47 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EE521DB803A
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B71CA1DB8037
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:53 +0900 (JST)
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 860F71DB803B
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:05:47 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 082E61DB8040
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:05:47 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] memcg reclaim shouldn't change zone->recent_rotated statics.
-Message-Id: <20081125121842.26C5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH/RFC] - support inheritance of mlocks across fork/exec
+In-Reply-To: <1227561707.6937.61.camel@lts-notebook>
+References: <1227561707.6937.61.camel@lts-notebook>
+Message-Id: <20081125130424.26CB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 25 Nov 2008 12:22:53 +0900 (JST)
+Date: Tue, 25 Nov 2008 13:05:46 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+> PATCH/RFC - support inheritance of mlocks across fork/exec
+> 
+> Against;  2.6.28-rc5-mmotm-081121
+> 
+> Add support for mlockall(MCL_INHERIT|MCL_RECURSIVE):
+> 	MCL_CURRENT|MCL_INHERIT - inherit memory locks across fork()
+> 	MCL_FUTURE|MCL_INHERIT - inherit "MCL_FUTURE" semantics across
+> 	fork() and exec().
+> 	MCL_RECURSIVE - inherit across future generations.
+> 
+> In support of a "lock prefix command"--e.g., mlock <cmd> <args> ...
 
-this is a trivial bugfix.
-I think this is not serious bug.
-but if memcgroup reclaim change zone statics, global reclaim can confusion a bit.
+I don't review yet, but I believe this patch is useful for mlock related kernel test.
 
-
-================================================
-memcg reclaim shouldn't change zone->recent_rotated statics.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c	2008-11-24 06:20:24.000000000 +0900
-+++ b/mm/vmscan.c	2008-11-25 01:29:16.000000000 +0900
-@@ -1254,7 +1254,8 @@ static void shrink_active_list(unsigned 
- 	 * This helps balance scan pressure between file and anonymous
- 	 * pages in get_scan_ratio.
- 	 */
--	zone->recent_rotated[!!file] += pgmoved;
-+	if (scan_global_lru(sc))
-+		zone->recent_rotated[!!file] += pgmoved;
- 
- 	/*
- 	 * Move the pages to the [file or anon] inactive list.
+I plan to review it tommorow.
+thanks.
 
 
 --
