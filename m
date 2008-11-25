@@ -1,57 +1,58 @@
-Date: Tue, 25 Nov 2008 21:35:02 +0000 (GMT)
+Date: Tue, 25 Nov 2008 21:36:11 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 0/9] swapfile: cleanups and solidstate mods
-Message-ID: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+Subject: [PATCH 1/9] swapfile: swapon needs larger size type
+In-Reply-To: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811252135140.17555@blonde.site>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's a batch of 9 mm patches, intended for 2.6.29: a minor bugfix
-and some cleanups in swapfile.c, before improving the behaviour of
-swap on solidstate, by implementing discard and better nonrotational
-allocation.  Hopefully.  I don't have a device which reports either
-capability, so have merely hacked it for testing.
+sys_swapon()'s swapfilesize (better renamed swapfilepages) is declared
+as an int, but should be an unsigned long like the maxpages it's compared
+against: on 64-bit (with 4kB pages) a swapfile of 2^44 bytes was rejected
+with "Swap area shorter than signature indicates".
 
-I'll send all the patches to linux-mm,
-but add linux-kernel and a panel of experts in for the last four.
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+mkswap needs its own fixes for this: I'll be sending to Karel.
 
-Though most of the testing has been against 2.6.28-rc6 and its
-precursors, these patches are diffed to slot in to the mmotm series
-after my previous patches, just before "mmend".
+ mm/swapfile.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
- include/linux/swap.h |   14 -
- mm/swapfile.c        |  449 +++++++++++++++++++++++++++++------------
- 2 files changed, 330 insertions(+), 133 deletions(-)
-
-The reindentation of sys_swapon() in 4/9 does clash with
-memcg-swap-cgroup-for-remembering-usage.patch
-Please replace its final hunk by these two hunks
-(the second hunk fixes freeing of resources on error):
-
-@@ -1821,6 +1825,11 @@ asmlinkage long sys_swapon(const char __
- 		}
- 		swap_map[page_nr] = SWAP_MAP_BAD;
+--- swapfile0/mm/swapfile.c	2008-11-24 13:27:00.000000000 +0000
++++ swapfile1/mm/swapfile.c	2008-11-25 12:41:17.000000000 +0000
+@@ -1452,7 +1452,7 @@ asmlinkage long sys_swapon(const char __
+ 	int nr_extents = 0;
+ 	sector_t span;
+ 	unsigned long maxpages = 1;
+-	int swapfilesize;
++	unsigned long swapfilepages;
+ 	unsigned short *swap_map = NULL;
+ 	struct page *page = NULL;
+ 	struct inode *inode = NULL;
+@@ -1530,7 +1530,7 @@ asmlinkage long sys_swapon(const char __
+ 		goto bad_swap;
  	}
-+
-+	error = swap_cgroup_swapon(type, maxpages);
-+	if (error)
-+		goto bad_swap;
-+
- 	nr_good_pages = swap_header->info.last_page -
- 			swap_header->info.nr_badpages -
- 			1 /* header page */;
-@@ -1893,6 +1902,7 @@ bad_swap:
- 		bd_release(bdev);
- 	}
- 	destroy_swap_extents(p);
-+	swap_cgroup_swapoff(type);
- bad_swap_2:
- 	spin_lock(&swap_lock);
- 	p->swap_file = NULL;
+ 
+-	swapfilesize = i_size_read(inode) >> PAGE_SHIFT;
++	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
+ 
+ 	/*
+ 	 * Read the swap header.
+@@ -1607,7 +1607,7 @@ asmlinkage long sys_swapon(const char __
+ 		error = -EINVAL;
+ 		if (!maxpages)
+ 			goto bad_swap;
+-		if (swapfilesize && maxpages > swapfilesize) {
++		if (swapfilepages && maxpages > swapfilepages) {
+ 			printk(KERN_WARNING
+ 			       "Swap area shorter than signature indicates\n");
+ 			goto bad_swap;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
