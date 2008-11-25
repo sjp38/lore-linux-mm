@@ -1,79 +1,55 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP4Uw6P022687
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 25 Nov 2008 13:30:58 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B4AB945DE4F
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:30:57 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A63745DD72
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:30:57 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E0AC1DB8037
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:30:57 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 32CE61DB8041
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:30:57 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: make vread() and vwrite() declaration
-In-Reply-To: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081125132959.26E2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 25 Nov 2008 13:30:56 +0900 (JST)
+Subject: Re: [PATCH][V4]Make get_user_pages interruptible
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <604427e00811241521t3e75650ft48bc60cdfb16df0e@mail.gmail.com>
+References: <604427e00811241521t3e75650ft48bc60cdfb16df0e@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Date: Tue, 25 Nov 2008 11:28:20 +0200
+Message-Id: <1227605300.1566.17.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, akpm <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Sparse output following warnings.
+On Mon, 2008-11-24 at 15:21 -0800, Ying Han wrote:
+> From: Ying Han <yinghan@google.com>
+> 
+> make get_user_pages interruptible
+> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
+> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
+> return immediately. This patch includes:
+> 
+> 1. add the case that the SIGKILL is sent by user processes. The process can
+> try to get_user_pages() unlimited memory even if a user process has sent a
+> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
+> try to kill it). In the old implementation, the SIGKILL won't be handled
+> until the get_user_pages() returns.
+> 
+> 2. change the return value to be ERESTARTSYS. It makes no sense to return
+> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
+> Considering the general convention for a system call interrupted by a
+> signal is ERESTARTNOSYS, so the current return value is consistant to that.
 
-mm/vmalloc.c:1436:6: warning: symbol 'vread' was not declared. Should it be static?
-mm/vmalloc.c:1474:6: warning: symbol 'vwrite' was not declared. Should it be static?
+Looks good to me (but I'm not the maintainer of this particular piece of
+code).
 
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-However, it is used by /dev/kmem. fixed here.
+i>>?You might want to add an explanation why we check both 'tsk' and
+'current' in either in the patch description or as a comment, though. Or
+just add a link to the mailing list archives in the description or
+something.
 
+> Signed-off-by:	Paul Menage <menage@google.com>
+> Singed-off-by:	Ying Han <yinghan@google.com>
+  ^^^^^^
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- drivers/char/mem.c      |    3 ---
- include/linux/vmalloc.h |    4 ++++
- 2 files changed, 4 insertions(+), 3 deletions(-)
+I'm sure you have a beautiful singing voice but from legal point of
+view, it's probably better to just sign it off. ;-)
 
-Index: b/drivers/char/mem.c
-===================================================================
---- a/drivers/char/mem.c	2008-11-05 01:10:59.000000000 +0900
-+++ b/drivers/char/mem.c	2008-11-22 22:09:49.000000000 +0900
-@@ -425,9 +425,6 @@ static ssize_t read_oldmem(struct file *
- }
- #endif
- 
--extern long vread(char *buf, char *addr, unsigned long count);
--extern long vwrite(char *buf, char *addr, unsigned long count);
--
- #ifdef CONFIG_DEVKMEM
- /*
-  * This function reads the *virtual* memory as seen by the kernel.
-Index: b/include/linux/vmalloc.h
-===================================================================
---- a/include/linux/vmalloc.h	2008-11-05 01:11:55.000000000 +0900
-+++ b/include/linux/vmalloc.h	2008-11-22 22:09:28.000000000 +0900
-@@ -97,6 +97,10 @@ extern void unmap_kernel_range(unsigned 
- extern struct vm_struct *alloc_vm_area(size_t size);
- extern void free_vm_area(struct vm_struct *area);
- 
-+/* for /dev/kmem */
-+extern long vread(char *buf, char *addr, unsigned long count);
-+extern long vwrite(char *buf, char *addr, unsigned long count);
-+
- /*
-  *	Internals.  Dont't use..
-  */
-
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
