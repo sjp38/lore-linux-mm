@@ -1,212 +1,175 @@
-Date: Tue, 25 Nov 2008 21:39:11 +0000 (GMT)
+Date: Tue, 25 Nov 2008 21:40:11 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 4/9] swapfile: remove v0 SWAP-SPACE message
+Subject: [PATCH 5/9] swapfile: rearrange scan and swap_info
 In-Reply-To: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811252137590.17555@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811252139180.17555@blonde.site>
 References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The kernel has not supported v0 SWAP-SPACE since 2.5.22: I think we can now
-safely drop its "version 0 swap is no longer supported" message - just say
-"Unable to find swap-space signature" as usual.  This removes one level of
-indentation from a stretch of sys_swapon().
+Before making functional changes, rearrange scan_swap_map() to simplify
+subsequent diffs.  Actually, there is one functional change in there:
+leave cluster_nr negative while scanning for a new cluster - resetting
+it early increased the likelihood that when we have difficulty finding
+a free cluster, another task may come in and try doing exactly the same
+- just a waste of cpu.
 
-I'd have liked to be specific, saying "Unable to find SWAPSPACE2 signature",
-but it's just too confusing that the version 1 signature shows the number 2.
-
-Irrelevant nearby cleanup: kmap(page) already gives page_address(page).
+Before making functional changes, rearrange struct swap_info_struct
+slightly: flags will be needed as an unsigned long (for wait_on_bit),
+next is a good int to pair with prio, old_block_size is uninteresting
+so shift it to the end.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
-This reindentation clashes with memcg-swap-cgroup-for-remembering-usage.patch
-See the [PATCH 0/9] message for two hunks to replace its final hunk.
 
- mm/swapfile.c |  146 +++++++++++++++++++++---------------------------
- 1 file changed, 65 insertions(+), 81 deletions(-)
+ include/linux/swap.h |    8 ++--
+ mm/swapfile.c        |   66 ++++++++++++++++++++++-------------------
+ 2 files changed, 41 insertions(+), 33 deletions(-)
 
---- swapfile3/mm/swapfile.c	2008-11-25 12:41:24.000000000 +0000
-+++ swapfile4/mm/swapfile.c	2008-11-25 12:41:26.000000000 +0000
-@@ -1447,7 +1447,6 @@ asmlinkage long sys_swapon(const char __
- 	int i, prev;
- 	int error;
- 	union swap_header *swap_header = NULL;
--	int swap_header_version;
- 	unsigned int nr_good_pages = 0;
- 	int nr_extents = 0;
- 	sector_t span;
-@@ -1544,101 +1543,86 @@ asmlinkage long sys_swapon(const char __
- 		error = PTR_ERR(page);
- 		goto bad_swap;
- 	}
--	kmap(page);
--	swap_header = page_address(page);
-+	swap_header = kmap(page);
+--- swapfile4/include/linux/swap.h	2008-11-25 12:41:19.000000000 +0000
++++ swapfile5/include/linux/swap.h	2008-11-25 12:41:31.000000000 +0000
+@@ -133,14 +133,14 @@ enum {
+  * The in-memory structure used to track swap areas.
+  */
+ struct swap_info_struct {
+-	unsigned int flags;
++	unsigned long flags;
+ 	int prio;			/* swap priority */
++	int next;			/* next entry on swap list */
+ 	struct file *swap_file;
+ 	struct block_device *bdev;
+ 	struct list_head extent_list;
+ 	struct swap_extent *curr_swap_extent;
+-	unsigned old_block_size;
+-	unsigned short * swap_map;
++	unsigned short *swap_map;
+ 	unsigned int lowest_bit;
+ 	unsigned int highest_bit;
+ 	unsigned int cluster_next;
+@@ -148,7 +148,7 @@ struct swap_info_struct {
+ 	unsigned int pages;
+ 	unsigned int max;
+ 	unsigned int inuse_pages;
+-	int next;			/* next entry on swap list */
++	unsigned int old_block_size;
+ };
  
--	if (!memcmp("SWAP-SPACE",swap_header->magic.magic,10))
--		swap_header_version = 1;
--	else if (!memcmp("SWAPSPACE2",swap_header->magic.magic,10))
--		swap_header_version = 2;
--	else {
-+	if (memcmp("SWAPSPACE2", swap_header->magic.magic, 10)) {
- 		printk(KERN_ERR "Unable to find swap-space signature\n");
- 		error = -EINVAL;
- 		goto bad_swap;
- 	}
+ struct swap_list_t {
+--- swapfile4/mm/swapfile.c	2008-11-25 12:41:26.000000000 +0000
++++ swapfile5/mm/swapfile.c	2008-11-25 12:41:31.000000000 +0000
+@@ -89,7 +89,8 @@ void swap_unplug_io_fn(struct backing_de
  
--	switch (swap_header_version) {
--	case 1:
--		printk(KERN_ERR "version 0 swap is no longer supported. "
--			"Use mkswap -v1 %s\n", name);
-+	/* swap partition endianess hack... */
-+	if (swab32(swap_header->info.version) == 1) {
-+		swab32s(&swap_header->info.version);
-+		swab32s(&swap_header->info.last_page);
-+		swab32s(&swap_header->info.nr_badpages);
-+		for (i = 0; i < swap_header->info.nr_badpages; i++)
-+			swab32s(&swap_header->info.badpages[i]);
-+	}
-+	/* Check the swap header's sub-version */
-+	if (swap_header->info.version != 1) {
-+		printk(KERN_WARNING
-+		       "Unable to handle swap header version %d\n",
-+		       swap_header->info.version);
- 		error = -EINVAL;
- 		goto bad_swap;
--	case 2:
--		/* swap partition endianess hack... */
--		if (swab32(swap_header->info.version) == 1) {
--			swab32s(&swap_header->info.version);
--			swab32s(&swap_header->info.last_page);
--			swab32s(&swap_header->info.nr_badpages);
--			for (i = 0; i < swap_header->info.nr_badpages; i++)
--				swab32s(&swap_header->info.badpages[i]);
--		}
--		/* Check the swap header's sub-version and the size of
--                   the swap file and bad block lists */
--		if (swap_header->info.version != 1) {
--			printk(KERN_WARNING
--			       "Unable to handle swap header version %d\n",
--			       swap_header->info.version);
--			error = -EINVAL;
--			goto bad_swap;
--		}
-+	}
+ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
+ {
+-	unsigned long offset, last_in_cluster;
++	unsigned long offset;
++	unsigned long last_in_cluster;
+ 	int latency_ration = LATENCY_LIMIT;
  
--		p->lowest_bit  = 1;
--		p->cluster_next = 1;
-+	p->lowest_bit  = 1;
-+	p->cluster_next = 1;
+ 	/*
+@@ -103,10 +104,13 @@ static inline unsigned long scan_swap_ma
+ 	 */
  
--		/*
--		 * Find out how many pages are allowed for a single swap
--		 * device. There are two limiting factors: 1) the number of
--		 * bits for the swap offset in the swp_entry_t type and
--		 * 2) the number of bits in the a swap pte as defined by
--		 * the different architectures. In order to find the
--		 * largest possible bit mask a swap entry with swap type 0
--		 * and swap offset ~0UL is created, encoded to a swap pte,
--		 * decoded to a swp_entry_t again and finally the swap
--		 * offset is extracted. This will mask all the bits from
--		 * the initial ~0UL mask that can't be encoded in either
--		 * the swp_entry_t or the architecture definition of a
--		 * swap pte.
--		 */
--		maxpages = swp_offset(pte_to_swp_entry(swp_entry_to_pte(swp_entry(0,~0UL)))) - 1;
--		if (maxpages > swap_header->info.last_page)
--			maxpages = swap_header->info.last_page;
--		p->highest_bit = maxpages - 1;
-+	/*
-+	 * Find out how many pages are allowed for a single swap
-+	 * device. There are two limiting factors: 1) the number of
-+	 * bits for the swap offset in the swp_entry_t type and
-+	 * 2) the number of bits in the a swap pte as defined by
-+	 * the different architectures. In order to find the
-+	 * largest possible bit mask a swap entry with swap type 0
-+	 * and swap offset ~0UL is created, encoded to a swap pte,
-+	 * decoded to a swp_entry_t again and finally the swap
-+	 * offset is extracted. This will mask all the bits from
-+	 * the initial ~0UL mask that can't be encoded in either
-+	 * the swp_entry_t or the architecture definition of a
-+	 * swap pte.
-+	 */
-+	maxpages = swp_offset(pte_to_swp_entry(
-+			swp_entry_to_pte(swp_entry(0, ~0UL)))) - 1;
-+	if (maxpages > swap_header->info.last_page)
-+		maxpages = swap_header->info.last_page;
-+	p->highest_bit = maxpages - 1;
- 
--		error = -EINVAL;
--		if (!maxpages)
--			goto bad_swap;
--		if (swapfilepages && maxpages > swapfilepages) {
--			printk(KERN_WARNING
--			       "Swap area shorter than signature indicates\n");
--			goto bad_swap;
--		}
--		if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
--			goto bad_swap;
--		if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
--			goto bad_swap;
-+	error = -EINVAL;
-+	if (!maxpages)
-+		goto bad_swap;
-+	if (swapfilepages && maxpages > swapfilepages) {
-+		printk(KERN_WARNING
-+		       "Swap area shorter than signature indicates\n");
-+		goto bad_swap;
-+	}
-+	if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
-+		goto bad_swap;
-+	if (swap_header->info.nr_badpages > MAX_SWAP_BADPAGES)
-+		goto bad_swap;
- 
--		/* OK, set up the swap map and apply the bad block list */
--		swap_map = vmalloc(maxpages * sizeof(short));
--		if (!swap_map) {
--			error = -ENOMEM;
--			goto bad_swap;
--		}
-+	/* OK, set up the swap map and apply the bad block list */
-+	swap_map = vmalloc(maxpages * sizeof(short));
-+	if (!swap_map) {
-+		error = -ENOMEM;
-+		goto bad_swap;
-+	}
- 
--		error = 0;
--		memset(swap_map, 0, maxpages * sizeof(short));
--		for (i = 0; i < swap_header->info.nr_badpages; i++) {
--			int page_nr = swap_header->info.badpages[i];
--			if (page_nr <= 0 || page_nr >= swap_header->info.last_page)
--				error = -EINVAL;
--			else
--				swap_map[page_nr] = SWAP_MAP_BAD;
--		}
--		nr_good_pages = swap_header->info.last_page -
--				swap_header->info.nr_badpages -
--				1 /* header page */;
--		if (error)
-+	memset(swap_map, 0, maxpages * sizeof(short));
-+	for (i = 0; i < swap_header->info.nr_badpages; i++) {
-+		int page_nr = swap_header->info.badpages[i];
-+		if (page_nr <= 0 || page_nr >= swap_header->info.last_page) {
-+			error = -EINVAL;
- 			goto bad_swap;
+ 	si->flags += SWP_SCANNING;
+-	if (unlikely(!si->cluster_nr)) {
+-		si->cluster_nr = SWAPFILE_CLUSTER - 1;
+-		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER)
+-			goto lowest;
++	offset = si->cluster_next;
++
++	if (unlikely(!si->cluster_nr--)) {
++		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
++			si->cluster_nr = SWAPFILE_CLUSTER - 1;
++			goto checks;
 +		}
-+		swap_map[page_nr] = SWAP_MAP_BAD;
- 	}
-+	nr_good_pages = swap_header->info.last_page -
-+			swap_header->info.nr_badpages -
-+			1 /* header page */;
+ 		spin_unlock(&swap_lock);
  
- 	if (nr_good_pages) {
- 		swap_map[0] = SWAP_MAP_BAD;
+ 		offset = si->lowest_bit;
+@@ -118,43 +122,47 @@ static inline unsigned long scan_swap_ma
+ 				last_in_cluster = offset + SWAPFILE_CLUSTER;
+ 			else if (offset == last_in_cluster) {
+ 				spin_lock(&swap_lock);
+-				si->cluster_next = offset-SWAPFILE_CLUSTER+1;
+-				goto cluster;
++				offset -= SWAPFILE_CLUSTER - 1;
++				si->cluster_next = offset;
++				si->cluster_nr = SWAPFILE_CLUSTER - 1;
++				goto checks;
+ 			}
+ 			if (unlikely(--latency_ration < 0)) {
+ 				cond_resched();
+ 				latency_ration = LATENCY_LIMIT;
+ 			}
+ 		}
++
++		offset = si->lowest_bit;
+ 		spin_lock(&swap_lock);
+-		goto lowest;
++		si->cluster_nr = SWAPFILE_CLUSTER - 1;
+ 	}
+ 
+-	si->cluster_nr--;
+-cluster:
+-	offset = si->cluster_next;
+-	if (offset > si->highest_bit)
+-lowest:		offset = si->lowest_bit;
+-checks:	if (!(si->flags & SWP_WRITEOK))
++checks:
++	if (!(si->flags & SWP_WRITEOK))
+ 		goto no_page;
+ 	if (!si->highest_bit)
+ 		goto no_page;
+-	if (!si->swap_map[offset]) {
+-		if (offset == si->lowest_bit)
+-			si->lowest_bit++;
+-		if (offset == si->highest_bit)
+-			si->highest_bit--;
+-		si->inuse_pages++;
+-		if (si->inuse_pages == si->pages) {
+-			si->lowest_bit = si->max;
+-			si->highest_bit = 0;
+-		}
+-		si->swap_map[offset] = 1;
+-		si->cluster_next = offset + 1;
+-		si->flags -= SWP_SCANNING;
+-		return offset;
++	if (offset > si->highest_bit)
++		offset = si->lowest_bit;
++	if (si->swap_map[offset])
++		goto scan;
++
++	if (offset == si->lowest_bit)
++		si->lowest_bit++;
++	if (offset == si->highest_bit)
++		si->highest_bit--;
++	si->inuse_pages++;
++	if (si->inuse_pages == si->pages) {
++		si->lowest_bit = si->max;
++		si->highest_bit = 0;
+ 	}
++	si->swap_map[offset] = 1;
++	si->cluster_next = offset + 1;
++	si->flags -= SWP_SCANNING;
++	return offset;
+ 
++scan:
+ 	spin_unlock(&swap_lock);
+ 	while (++offset <= si->highest_bit) {
+ 		if (!si->swap_map[offset]) {
+@@ -167,7 +175,7 @@ checks:	if (!(si->flags & SWP_WRITEOK))
+ 		}
+ 	}
+ 	spin_lock(&swap_lock);
+-	goto lowest;
++	goto checks;
+ 
+ no_page:
+ 	si->flags -= SWP_SCANNING;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
