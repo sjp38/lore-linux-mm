@@ -1,62 +1,60 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP4PvOb026114
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP4Qg2O006994
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 25 Nov 2008 13:25:57 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 18A9045DE4E
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:57 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C626745DE4F
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A06271DB8038
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:56 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 527ED1DB803F
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:56 +0900 (JST)
+	Tue, 25 Nov 2008 13:26:42 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 75DAE45DE50
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:26:42 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E2C545DE51
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:26:42 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E27EE1DB803E
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:26:41 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 892471DB8045
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:26:41 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: make maddr __iomem 
+Subject: [PATCH] mm: make mem_cgroup_resize_limit() static
 In-Reply-To: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 References: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081125132501.26D3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20081125132556.26D6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 25 Nov 2008 13:25:55 +0900 (JST)
+Date: Tue, 25 Nov 2008 13:26:40 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-sparse output following warnings.
+Sparse output following warnings.
 
-mm/memory.c:2936:8: warning: incorrect type in assignment (different address spaces)
-mm/memory.c:2936:8:    expected void *maddr
-mm/memory.c:2936:8:    got void [noderef] <asn:2>
-
+mm/memcontrol.c:782:5: warning: symbol 'mem_cgroup_resize_limit' was not declared. Should it be static?
 
 cleanup here.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/memory.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memcontrol.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Index: b/mm/memory.c
+Index: b/mm/memcontrol.c
 ===================================================================
---- a/mm/memory.c	2008-11-05 01:11:44.000000000 +0900
-+++ b/mm/memory.c	2008-11-22 21:56:31.000000000 +0900
-@@ -2922,7 +2922,7 @@ int generic_access_phys(struct vm_area_s
- {
- 	resource_size_t phys_addr;
- 	unsigned long prot = 0;
--	void *maddr;
-+	void __iomem *maddr;
- 	int offset = addr & (PAGE_SIZE-1);
+--- a/mm/memcontrol.c	2008-11-05 01:11:45.000000000 +0900
++++ b/mm/memcontrol.c	2008-11-22 22:23:12.000000000 +0900
+@@ -779,7 +779,8 @@ int mem_cgroup_shrink_usage(struct mm_st
+ 	return 0;
+ }
  
- 	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
+-int mem_cgroup_resize_limit(struct mem_cgroup *memcg, unsigned long long val)
++static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
++				   unsigned long long val)
+ {
+ 
+ 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
 
 
 --
