@@ -1,45 +1,58 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP4O4TH005831
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP4P0Lh006190
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 25 Nov 2008 13:24:04 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0539B45DE52
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:03 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 719D045DE4E
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:02 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 50F841DB803E
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:02 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6414C1DB8047
-	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:01 +0900 (JST)
+	Tue, 25 Nov 2008 13:25:00 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2ADA945DE5B
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 052BC45DD82
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:25:00 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CB4891DB8044
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:59 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 396791DB803F
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 13:24:59 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: mm: various sparse warning fix
-Message-Id: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [PATCH] mm: make init_section_page_cgroup() static
+In-Reply-To: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20081125131942.26CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-Id: <20081125132405.26D0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 25 Nov 2008 13:24:00 +0900 (JST)
+Date: Tue, 25 Nov 2008 13:24:58 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Sparse output following warning.
 
-This patch series doesn't have any functional change.
-and I think it is not so serious.
+mm/page_cgroup.c:100:15: warning: symbol 'init_section_page_cgroup' was not declared. Should it be static?
 
-However, many developer often check sparse warnings because
-it is required from Documentation/SubmitChecklist.
-Therefore, too many warnings can decrease development efficiency.
+cleanup here.
 
-and, all patch independent each other.
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_cgroup.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-
-
+Index: b/mm/page_cgroup.c
+===================================================================
+--- a/mm/page_cgroup.c	2008-11-05 01:11:45.000000000 +0900
++++ b/mm/page_cgroup.c	2008-11-22 22:24:06.000000000 +0900
+@@ -97,7 +97,7 @@ struct page_cgroup *lookup_page_cgroup(s
+ 	return section->page_cgroup + pfn;
+ }
+ 
+-int __meminit init_section_page_cgroup(unsigned long pfn)
++static int __meminit init_section_page_cgroup(unsigned long pfn)
+ {
+ 	struct mem_section *section;
+ 	struct page_cgroup *base, *pc;
 
 
 --
