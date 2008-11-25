@@ -1,95 +1,64 @@
-Received: from wpaz37.hot.corp.google.com (wpaz37.hot.corp.google.com [172.24.198.101])
-	by smtp-out.google.com with ESMTP id mAONLsSV025774
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 15:21:54 -0800
-Received: from wf-out-1314.google.com (wfa28.prod.google.com [10.142.1.28])
-	by wpaz37.hot.corp.google.com with ESMTP id mAONLqSw032573
-	for <linux-mm@kvack.org>; Mon, 24 Nov 2008 15:21:53 -0800
-Received: by wf-out-1314.google.com with SMTP id 28so2475893wfa.16
-        for <linux-mm@kvack.org>; Mon, 24 Nov 2008 15:21:52 -0800 (PST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAP3MsuW000844
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 25 Nov 2008 12:22:54 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 472A045DD7D
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 259A445DD7C
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EE521DB803A
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:54 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B71CA1DB8037
+	for <linux-mm@kvack.org>; Tue, 25 Nov 2008 12:22:53 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] memcg reclaim shouldn't change zone->recent_rotated statics.
+Message-Id: <20081125121842.26C5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Date: Mon, 24 Nov 2008 15:21:52 -0800
-Message-ID: <604427e00811241521t3e75650ft48bc60cdfb16df0e@mail.gmail.com>
-Subject: [PATCH][V4]Make get_user_pages interruptible
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Nov 2008 12:22:53 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Menage <menage@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, akpm <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-From: Ying Han <yinghan@google.com>
+Hi
 
-make get_user_pages interruptible
-The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-return immediately. This patch includes:
+this is a trivial bugfix.
+I think this is not serious bug.
+but if memcgroup reclaim change zone statics, global reclaim can confusion a bit.
 
-1. add the case that the SIGKILL is sent by user processes. The process can
-try to get_user_pages() unlimited memory even if a user process has sent a
-SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-try to kill it). In the old implementation, the SIGKILL won't be handled
-until the get_user_pages() returns.
 
-2. change the return value to be ERESTARTSYS. It makes no sense to return
-ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-Considering the general convention for a system call interrupted by a
-signal is ERESTARTNOSYS, so the current return value is consistant to that.
+================================================
+memcg reclaim shouldn't change zone->recent_rotated statics.
 
-Signed-off-by:	Paul Menage <menage@google.com>
-Singed-off-by:	Ying Han <yinghan@google.com>
 
-include/linux/sched.h         |    1 +
-kernel/signal.c               |    2 +-
-mm/memory.c                   |    9 +-
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index b483f39..f9c6a8a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1790,6 +1790,7 @@ extern void sched_dead(struct task_struct *p);
- extern int in_group_p(gid_t);
- extern int in_egroup_p(gid_t);
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c	2008-11-24 06:20:24.000000000 +0900
++++ b/mm/vmscan.c	2008-11-25 01:29:16.000000000 +0900
+@@ -1254,7 +1254,8 @@ static void shrink_active_list(unsigned 
+ 	 * This helps balance scan pressure between file and anonymous
+ 	 * pages in get_scan_ratio.
+ 	 */
+-	zone->recent_rotated[!!file] += pgmoved;
++	if (scan_global_lru(sc))
++		zone->recent_rotated[!!file] += pgmoved;
+ 
+ 	/*
+ 	 * Move the pages to the [file or anon] inactive list.
 
-+extern int sigkill_pending(struct task_struct *tsk);
- extern void proc_caches_init(void);
- extern void flush_signals(struct task_struct *);
- extern void ignore_signals(struct task_struct *);
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 105217d..f3f154e 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1497,7 +1497,7 @@ static inline int may_ptrace_stop(void)
-  * Return nonzero if there is a SIGKILL that should be waking us up.
-  * Called with the siglock held.
-  */
--static int sigkill_pending(struct task_struct *tsk)
-+int sigkill_pending(struct task_struct *tsk)
- {
- 	return	sigismember(&tsk->pending.signal, SIGKILL) ||
- 		sigismember(&tsk->signal->shared_pending.signal, SIGKILL);
-diff --git a/mm/memory.c b/mm/memory.c
-index 164951c..482820a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1218,12 +1218,12 @@ int __get_user_pages(struct task_struct *tsk, struct m
- 			struct page *page;
-
- 			/*
--			 * If tsk is ooming, cut off its access to large memory
--			 * allocations. It has a pending SIGKILL, but it can't
--			 * be processed until returning to user space.
-+			 * If we have a pending SIGKILL, don't keep
-+			 * allocating memory.
- 			 */
--			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
--				return i ? i : -ENOMEM;
-+			if (unlikely(sigkill_pending(current) ||
-+					sigkill_pending(tsk)))
-+				return i ? i : -ERESTARTSYS;
-
- 			if (write)
- 				foll_flags |= FOLL_WRITE;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
