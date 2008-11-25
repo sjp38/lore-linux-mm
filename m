@@ -1,8 +1,8 @@
-Date: Tue, 25 Nov 2008 21:36:11 +0000 (GMT)
+Date: Tue, 25 Nov 2008 21:37:02 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 1/9] swapfile: swapon needs larger size type
+Subject: [PATCH 2/9] swapfile: remove SWP_ACTIVE mask
 In-Reply-To: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
-Message-ID: <Pine.LNX.4.64.0811252135140.17555@blonde.site>
+Message-ID: <Pine.LNX.4.64.0811252136180.17555@blonde.site>
 References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,47 +12,45 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-sys_swapon()'s swapfilesize (better renamed swapfilepages) is declared
-as an int, but should be an unsigned long like the maxpages it's compared
-against: on 64-bit (with 4kB pages) a swapfile of 2^44 bytes was rejected
-with "Swap area shorter than signature indicates".
+Remove the SWP_ACTIVE mask: it just obscures the SWP_WRITEOK flag.
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
-mkswap needs its own fixes for this: I'll be sending to Karel.
 
- mm/swapfile.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/swap.h |    1 -
+ mm/swapfile.c        |    4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
 
---- swapfile0/mm/swapfile.c	2008-11-24 13:27:00.000000000 +0000
-+++ swapfile1/mm/swapfile.c	2008-11-25 12:41:17.000000000 +0000
-@@ -1452,7 +1452,7 @@ asmlinkage long sys_swapon(const char __
- 	int nr_extents = 0;
- 	sector_t span;
- 	unsigned long maxpages = 1;
--	int swapfilesize;
-+	unsigned long swapfilepages;
- 	unsigned short *swap_map = NULL;
- 	struct page *page = NULL;
- 	struct inode *inode = NULL;
-@@ -1530,7 +1530,7 @@ asmlinkage long sys_swapon(const char __
- 		goto bad_swap;
- 	}
+--- swapfile1/include/linux/swap.h	2008-11-24 13:27:00.000000000 +0000
++++ swapfile2/include/linux/swap.h	2008-11-25 12:41:19.000000000 +0000
+@@ -120,7 +120,6 @@ struct swap_extent {
+ enum {
+ 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
+ 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
+-	SWP_ACTIVE	= (SWP_USED | SWP_WRITEOK),
+ 					/* add others here before... */
+ 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
+ };
+--- swapfile1/mm/swapfile.c	2008-11-25 12:41:17.000000000 +0000
++++ swapfile2/mm/swapfile.c	2008-11-25 12:41:19.000000000 +0000
+@@ -1222,7 +1222,7 @@ asmlinkage long sys_swapoff(const char _
+ 	spin_lock(&swap_lock);
+ 	for (type = swap_list.head; type >= 0; type = swap_info[type].next) {
+ 		p = swap_info + type;
+-		if ((p->flags & SWP_ACTIVE) == SWP_ACTIVE) {
++		if (p->flags & SWP_WRITEOK) {
+ 			if (p->swap_file->f_mapping == mapping)
+ 				break;
+ 		}
+@@ -1665,7 +1665,7 @@ asmlinkage long sys_swapon(const char __
+ 	else
+ 		p->prio = --least_priority;
+ 	p->swap_map = swap_map;
+-	p->flags = SWP_ACTIVE;
++	p->flags |= SWP_WRITEOK;
+ 	nr_swap_pages += nr_good_pages;
+ 	total_swap_pages += nr_good_pages;
  
--	swapfilesize = i_size_read(inode) >> PAGE_SHIFT;
-+	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
- 
- 	/*
- 	 * Read the swap header.
-@@ -1607,7 +1607,7 @@ asmlinkage long sys_swapon(const char __
- 		error = -EINVAL;
- 		if (!maxpages)
- 			goto bad_swap;
--		if (swapfilesize && maxpages > swapfilesize) {
-+		if (swapfilepages && maxpages > swapfilepages) {
- 			printk(KERN_WARNING
- 			       "Swap area shorter than signature indicates\n");
- 			goto bad_swap;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
