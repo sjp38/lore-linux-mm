@@ -1,48 +1,37 @@
-Date: Tue, 25 Nov 2008 15:26:51 -0800
+Date: Tue, 25 Nov 2008 15:43:54 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH/RFC] - support inheritance of mlocks across fork/exec
-Message-Id: <20081125152651.b4c3c18f.akpm@linux-foundation.org>
-In-Reply-To: <1227561707.6937.61.camel@lts-notebook>
-References: <1227561707.6937.61.camel@lts-notebook>
+Subject: Re: [PATCH][V4]Make get_user_pages interruptible
+Message-Id: <20081125154354.001a6ae0.akpm@linux-foundation.org>
+In-Reply-To: <1227605300.1566.17.camel@penberg-laptop>
+References: <604427e00811241521t3e75650ft48bc60cdfb16df0e@mail.gmail.com>
+	<1227605300.1566.17.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux-mm@kvack.org, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com, a.p.zijlstra@chello.nl
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: yinghan@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, menage@google.com, rientjes@google.com, rohitseth@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Nov 2008 16:21:46 -0500
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Tue, 25 Nov 2008 11:28:20 +0200
+Pekka Enberg <penberg@cs.helsinki.fi> wrote:
 
-> PATCH/RFC - support inheritance of mlocks across fork/exec
+> ___You might want to add an explanation why we check both 'tsk' and
+> 'current' in either in the patch description or as a comment, though. Or
+> just add a link to the mailing list archives in the description or
+> something.
 
-Linux actually used to do this by mistake.  We fixed it in
-2.3.<mumble>, iirc.
+As a code comment, I'd suggest.
 
-> Against;  2.6.28-rc5-mmotm-081121
+> > Signed-off-by:	Paul Menage <menage@google.com>
+> > Singed-off-by:	Ying Han <yinghan@google.com>
+>   ^^^^^^
 > 
-> Add support for mlockall(MCL_INHERIT|MCL_RECURSIVE):
-> 	MCL_CURRENT|MCL_INHERIT - inherit memory locks across fork()
-> 	MCL_FUTURE|MCL_INHERIT - inherit "MCL_FUTURE" semantics across
-> 	fork() and exec().
-> 	MCL_RECURSIVE - inherit across future generations.
-> 
-> In support of a "lock prefix command"--e.g., mlock <cmd> <args> ...
+> I'm sure you have a beautiful singing voice but from legal point of
+> view, it's probably better to just sign it off. ;-)
 
-I spent some time scratching my head over what "MCL_RECURSIVE - inherit
-across future generations" means, then decided that I shouldn't need to
-scratch.
-
-This patch should get wider attention than just linux-mm denizens,
-methinks.
-
-So can you please beef up the MCL_RECURSIVE description, then resend
-the patch, also cc'ing linux-kernel@vger.kernel.org,
-linux-api@vger.kernel.org and linux-arch@vger.kernel.org?
-
-Thanks.
+That's my favorite typo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
