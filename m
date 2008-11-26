@@ -1,121 +1,60 @@
-Date: Wed, 26 Nov 2008 18:17:57 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RESEND:PATCH] [ARM] clearpage: provide our own clear_user_highpage()
-In-Reply-To: <20081126171321.GA4719@dyn-67.arm.linux.org.uk>
-Message-ID: <Pine.LNX.4.64.0811261811180.5305@blonde.site>
-References: <20081126171321.GA4719@dyn-67.arm.linux.org.uk>
+Message-ID: <492DAA24.8040100@google.com>
+Date: Wed, 26 Nov 2008 11:57:24 -0800
+From: Mike Waychison <mikew@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de>
+In-Reply-To: <20081126123246.GB23649@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk+lkml@arm.linux.org.uk>
-Cc: linux-arch@vger.kernel.org, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Nov 2008, Russell King wrote:
+Nick Piggin wrote:
+> On Tue, Nov 25, 2008 at 10:42:47AM -0800, Ying Han wrote:
+>>>> The patch flags current->flags to PF_FAULT_MAYRETRY as identify that
+>>>> the caller can tolerate the retry in the filemap_fault call patch.
+>>>>
+>>>> Benchmark is done by mmap in huge file and spaw 64 thread each
+>>>> faulting in pages in reverse order, the the result shows 8%
+>>>> porformance hit with the patch.
+>>> I suspect we also want to see the cases where this change helps?
+>> i am working on more benchmark to show performance improvement.
+> 
+> Can't you share the actual improvement you see inside Google?
+> 
+> Google must be doing something funky with threads, because both
+> this patch and their new malloc allocator apparently were due to
+> mmap_sem contention problems, right?
 
-> I've not had any response to this, so in liu of any response by this
-> coming weekend, I'm going to assume that everyone's happy with this
-> change (at which point it's going to become buried under a lot of
-> merges with other trees.)
-> 
-> ----- Forwarded message from Russell King <rmk+lkml@arm.linux.org.uk> -----
-> 
-> Date: Thu, 20 Nov 2008 17:50:17 +0000
-> From: Russell King <rmk+lkml@arm.linux.org.uk>
-> To: linux-arch@vger.kernel.org,
-> 	Linux Kernel List <linux-kernel@vger.kernel.org>,
-> 	linux-mm@kvack.org
-> Subject: [PATCH] [ARM] clearpage: provide our own clear_user_highpage()
-> 
-> This patch is part of a larger ARM specific patch set cleaning up
-> aliasing VIPT cache support.
-> 
-> With aliasing VIPT cache support, our implementation of clear_user_page()
-> and copy_user_page() sets up a temporary kernel space mapping such that
-> we have the same cache colour as the userspace page.  This avoids having
-> to consider any userspace aliases from this operation.
-> 
-> However, when highmem is enabled, kmap_atomic() have to setup mappings.
-> The copy_user_highpage() and clear_user_highpage() call these functions
-> before delegating the copies to copy_user_page() and clear_user_page().
-> 
-> The effect of this is that each of the *_user_highpage() functions setup
-> their own kmap mapping, followed by the *_user_page() functions setting
-> up another mapping.  This is rather wasteful.
-> 
-> Thankfully, copy_user_highpage() can be overriden by architectures by
-> defining __HAVE_ARCH_COPY_USER_HIGHPAGE.  However, replacement of 
-> clear_user_highpage() is more difficult because its inline definition
-> is not conditional.  It seems that you're expected to define
-> __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE and provide a replacement
-> __alloc_zeroed_user_highpage() implementation instead.
-> 
-> The allocation itself is fine, so we don't want to override that.  What
-> we really want to do is to override clear_user_highpage() with our own
-> version which doesn't kmap_atomic() unnecessarily.
-> 
-> However, there are two drivers (drivers/media/video/videobuf-dma-sg.c
-> and drivers/staging/go7007/go7007-v4l2.c) which want to provide non-
-> highmem clear_user_page()'d pages to userspace.
-> 
-> Requiring an architecture to provide __alloc_zeroed_user_highpage(),
-> a sub-optimal clear_user_page(), and keep the sub-optimal
-> clear_user_highpage() around seems rather silly and potentially
-> error prone.
-> 
-> So, what this patch below does is allow clear_user_highpage() itself
-> to be overriden by architectures, so that they can provide just one
-> implementation.
-> 
-> What needs to follow on from this is converting those two drivers to
-> use clear_user_highpage() instead of clear_user_page() - that should
-> be a trivial patch.
-> 
-> Are there any objections to this approach?  Can I get any acked-by's
-> from any MM folk for the include/linux/highmem.h change?
+One of the big improvements we see with this patch is the ability to 
+read out files in /proc/pid much faster.  Consider the following events:
 
-Looks eminently sensible to me, and the #define clear_user_highpage
-style you've chosen is indeed our favoured technique these days.
+- an application has a high count of threads sleeping with 
+read_lock(mmap_sem) held in the fault path (on the order of hundreds).
+- one of the threads in the application then blocks in 
+write_lock(mmap_sem) in the mmap()/munmap() paths
+- now our monitoring software tries to read some of the /proc/pid files 
+and blocks behind the waiting writer due to the fairness of the rwsems. 
+  This basically has to wait for all faults ahead of the reader to 
+terminate (and let go of the reader lock) and then the writer to have a 
+go at mmap_sem.   This can take an extremely long time.
 
-I expect we might want to get away from that mixture of __HAVE_ARCH..
-and #define actual_function_name all in the same highmem.h, but
-no reason why you should have to be the one to do such cleanup.
+This patch helps a lot in this case as it keeps the writer from waiting 
+behind all the waiting readers, so it executes much faster.
 
-> From: Russell King <rmk+lkml@arm.linux.org.uk>
-> Date: Mon, 17 Nov 2008 14:08:49 +0000
-> Subject: Re: [PATCH] [ARM] clearpage: provide our own clear_user_highpage()
 > 
-> From: Russell King <rmk@dyn-67.arm.linux.org.uk>
+> That was before the kernel and glibc got together to fix the stupid
+> mmap_sem problem in malloc (shown up in that FreeBSD MySQL thread);
+> and before private futexes. I would be interested to know if Google
+> still has problems that require this patch...
 > 
-> For similar reasons as copy_user_page(), we want to avoid the
-> additional kmap_atomic if it's unnecessary.
-> 
-> Signed-off-by: Russell King <rmk+kernel@arm.linux.org.uk>
 
-Acked-by: Hugh Dickins <hugh@veritas.com>
-
-> --- a/include/linux/highmem.h
-> +++ b/include/linux/highmem.h
-> @@ -63,12 +63,14 @@ static inline void *kmap_atomic(struct page *page, enum km_type idx)
->  #endif /* CONFIG_HIGHMEM */
->  
->  /* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
-> +#ifndef clear_user_highpage
->  static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
->  {
->  	void *addr = kmap_atomic(page, KM_USER0);
->  	clear_user_page(addr, vaddr, page);
->  	kunmap_atomic(addr, KM_USER0);
->  }
-> +#endif
->  
->  #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
->  /**
-> 
-> ----- End forwarded message -----
-> 
-> ----- End forwarded message -----
+I'm not very familiar with the 'malloc' problem in glibc.  Was this just 
+overhead in heap growth/shrinkage causing problems?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
