@@ -1,67 +1,39 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAQ2Ov6x017510
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 26 Nov 2008 11:24:58 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FBE145DD7F
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2008 11:24:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A56045DD78
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2008 11:24:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 51D9F1DB8041
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2008 11:24:54 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8F7B1DB8038
-	for <linux-mm@kvack.org>; Wed, 26 Nov 2008 11:24:53 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: bail out of page reclaim after swap_cluster_max pages
-In-Reply-To: <20081124145057.4211bd46@bree.surriel.com>
-References: <20081124145057.4211bd46@bree.surriel.com>
-Message-Id: <20081126112329.3CB2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 25 Nov 2008 20:38:16 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH 8/9] swapfile: swapon randomize if nonrot
+Message-ID: <20081126033815.GF25548@parisc-linux.org>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site> <Pine.LNX.4.64.0811252140230.17555@blonde.site> <Pine.LNX.4.64.0811252146090.20455@blonde.site> <20081125172039.c9a35460.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 26 Nov 2008 11:24:52 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081125172039.c9a35460.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, dwmw2@infradead.org, jens.axboe@oracle.com, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> +		/*
-> +		 * On large memory systems, scan >> priority can become
-> +		 * really large. This is fine for the starting priority;
-> +		 * we want to put equal scanning pressure on each zone.
-> +		 * However, if the VM has a harder time of freeing pages,
-> +		 * with multiple processes reclaiming pages, the total
-> +		 * freeing target can get unreasonably large.
-> +		 */
-> +		if (sc->nr_reclaimed > sc->swap_cluster_max &&
-> +			sc->priority < DEF_PRIORITY && !current_is_kswapd())
-> +			break;
+On Tue, Nov 25, 2008 at 05:20:39PM -0800, Andrew Morton wrote:
+> On Tue, 25 Nov 2008 21:46:56 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
+> 
+> > But how to get my SD card, accessed by USB card reader, reported as NONROT?
+> 
+> Dunno.  udev rules, perhaps?
 
-typo.
-this patch can't compile.
+I didn't see patch 8/9, but the 'non-rotating' bit is in word 217 of the
+inquiry data.  Unfortunately, Jeff insisted that we only report the
+contents of that bit for devices claiming ATA-8 support, which is
+ridiculous as even the Intel SSDs only claim conformance to ATA-7.
 
----
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I notice that Jens was allowed to ignore Jeff's insane requirement and
+doesn't have to check ATA revision at all.
 
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1469,7 +1469,7 @@ static void shrink_zone(int priority, st
- 		 * freeing target can get unreasonably large.
- 		 */
- 		if (sc->nr_reclaimed > sc->swap_cluster_max &&
--		    sc->priority < DEF_PRIORITY && !current_is_kswapd())
-+		    priority < DEF_PRIORITY && !current_is_kswapd())
- 			break;
- 	}
- 
-
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
