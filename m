@@ -1,39 +1,114 @@
-Date: Tue, 25 Nov 2008 20:38:16 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH 8/9] swapfile: swapon randomize if nonrot
-Message-ID: <20081126033815.GF25548@parisc-linux.org>
-References: <Pine.LNX.4.64.0811252132580.17555@blonde.site> <Pine.LNX.4.64.0811252140230.17555@blonde.site> <Pine.LNX.4.64.0811252146090.20455@blonde.site> <20081125172039.c9a35460.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081125172039.c9a35460.akpm@linux-foundation.org>
+Date: Wed, 26 Nov 2008 11:14:47 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v4)
+Message-Id: <20081126111447.106ec275.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <492C1345.9090201@linux.vnet.ibm.com>
+References: <20081116081034.25166.7586.sendpatchset@balbir-laptop>
+	<20081116081055.25166.85066.sendpatchset@balbir-laptop>
+	<20081125205832.38f8c365.nishimura@mxp.nes.nec.co.jp>
+	<492C1345.9090201@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hugh@veritas.com>, dwmw2@infradead.org, jens.axboe@oracle.com, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 25, 2008 at 05:20:39PM -0800, Andrew Morton wrote:
-> On Tue, 25 Nov 2008 21:46:56 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
+On Tue, 25 Nov 2008 20:31:25 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> Daisuke Nishimura wrote:
+> > Hi.
+> > 
+> > Unfortunately, trying to hold cgroup_mutex at reclaim causes dead lock.
+> > 
+> > For example, when attaching a task to some cpuset directory(memory_migrate=on),
+> > 
+> >     cgroup_tasks_write (hold cgroup_mutex)
+> >         attach_task_by_pid
+> >             cgroup_attach_task
+> >                 cpuset_attach
+> >                     cpuset_migrate_mm
+> >                         :
+> >                         unmap_and_move
+> >                             mem_cgroup_prepare_migration
+> >                                 mem_cgroup_try_charge
+> >                                     mem_cgroup_hierarchical_reclaim
+> > 
 > 
-> > But how to get my SD card, accessed by USB card reader, reported as NONROT?
+> Did lockdep complain about it?
 > 
-> Dunno.  udev rules, perhaps?
+I haven't understood lockdep so well, but I got logs like this:
 
-I didn't see patch 8/9, but the 'non-rotating' bit is in word 217 of the
-inquiry data.  Unfortunately, Jeff insisted that we only report the
-contents of that bit for devices claiming ATA-8 support, which is
-ridiculous as even the Intel SSDs only claim conformance to ATA-7.
+===
+INFO: task move.sh:17710 blocked for more than 480 seconds.
+"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+move.sh       D ffff88010e1c76c0     0 17710  17597
+ ffff8800bd9edf00 0000000000000046 0000000000000000 0000000000000000
+ ffff8803afbc0000 ffff8800bd9ee270 0000000e00000000 000000010a54459c
+ ffffffffffffffff ffffffffffffffff ffffffffffffffff 7fffffffffffffff
+Call Trace:
+ [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
+ [<ffffffff804cb357>] mutex_lock_nested+0x180/0x2a2
+ [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
+ [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
+ [<ffffffff802aed9c>] __mem_cgroup_try_charge+0x27a/0x2de
+ [<ffffffff802afdfd>] mem_cgroup_prepare_migration+0x6c/0xa5
+ [<ffffffff802ad97f>] migrate_pages+0x10c/0x4a0
+ [<ffffffff802ad9c8>] migrate_pages+0x155/0x4a0
+ [<ffffffff802a14cb>] new_node_page+0x0/0x2f
+ [<ffffffff802a1adb>] check_range+0x300/0x325
+ [<ffffffff802a2374>] do_migrate_pages+0x1a5/0x1f1
+ [<ffffffff8026d272>] cpuset_migrate_mm+0x30/0x93
+ [<ffffffff8026d29c>] cpuset_migrate_mm+0x5a/0x93
+ [<ffffffff8026df41>] cpuset_attach+0x93/0xa6
+ [<ffffffff8026ae1b>] cgroup_attach_task+0x395/0x3e1
+ [<ffffffff8026af61>] cgroup_tasks_write+0xfa/0x11d
+ [<ffffffff8026aea0>] cgroup_tasks_write+0x39/0x11d
+ [<ffffffff8026b5aa>] cgroup_file_write+0xef/0x216
+ [<ffffffff802b2968>] vfs_write+0xad/0x136
+ [<ffffffff802b2dfe>] sys_write+0x45/0x6e
+ [<ffffffff8020bdab>] system_call_fastpath+0x16/0x1b
+INFO: lockdep is turned off.
+===
 
-I notice that Jens was allowed to ignore Jeff's insane requirement and
-doesn't have to check ATA revision at all.
+And other processes trying to hold cgroup_mutex are also stuck.
 
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+> 1. We could probably move away from cgroup_mutex to a memory controller specific
+> mutex.
+> 2. We could give up cgroup_mutex before migrate_mm, since it seems like we'll
+> hold the cgroup lock for long and holding it during reclaim will definitely be
+> visible to users trying to create/delete nodes.
+> 
+> I prefer to do (2), I'll look at the code more closely
+> 
+I basically agree, but I think we should also consider mpol_rebind_mm.
+
+mpol_rebind_mm, which can be called from cpuset_attach, does down_write(mm->mmap_sem),
+which means down_write(mm->mmap_sem) can be called under cgroup_mutex.
+OTOH, page fault path does down_read(mm->mmap_sem) and can call mem_cgroup_try_charge,
+which means mutex_lock(cgroup_mutex) can be called under down_read(mm->mmap_sem).
+
+> > I think similar problem can also happen when removing memcg's directory.
+> > 
+> 
+> Why removing a directory? memcg (now) marks the directory as obsolete and we
+> check for obsolete directories and get/put references.
+> 
+I don't think so.
+    
+    mem_cgroup_pre_destroy (make mem->obsolete = 1)
+        mem_cgroup_force_empty(mem, **FALSE**)
+            mem_cgroup_force_empty_list
+                mem_cgroup_move_parent
+                    __mem_cgroup_try_charge
+
+hmm, but looking more closely, cgroup_call_pre_destroy is called
+outside of cgroup_mutex, so this problem doesn't happen at rmdir probably.
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
