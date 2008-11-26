@@ -1,30 +1,30 @@
-Received: by wf-out-1314.google.com with SMTP id 28so370266wfc.11
-        for <linux-mm@kvack.org>; Wed, 26 Nov 2008 00:05:06 -0800 (PST)
-Message-ID: <84144f020811260005s2e54e05fy45e14c6ab3b7c3f@mail.gmail.com>
-Date: Wed, 26 Nov 2008 10:05:06 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [PATCH] Fix comment on #endif
-In-Reply-To: <1227622099.15127.8.camel@plop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <1227622099.15127.8.camel@plop>
+Subject: Re: [RFC PATCH] slab: __GFP_NOWARN not being propagated from
+	mempool_alloc()
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <Pine.LNX.4.64.0811251258010.18908@quilx.com>
+References: <E1L4jMt-0006OW-5J@pomaz-ex.szeredi.hu>
+	 <Pine.LNX.4.64.0811250038030.11825@melkki.cs.Helsinki.FI>
+	 <Pine.LNX.4.64.0811251258010.18908@quilx.com>
+Content-Type: text/plain; charset=UTF-8
+Date: Wed, 26 Nov 2008 10:10:21 +0200
+Message-Id: <1227687021.31128.3.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pascal Terjan <pterjan@mandriva.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org, david@fromorbit.com, peterz@infradead.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 25, 2008 at 4:08 PM, Pascal Terjan <pterjan@mandriva.com> wrote:
-> This #endif in slab.h is described as closing the inner block while it's for
-> the big CONFIG_NUMA one. That makes reading the code a bit harder.
->
-> This trivial patch fixes the comment.
->
-> Signed-off-by: Pascal Terjan <pterjan@mandriva.com>
+On Tue, 25 Nov 2008, Pekka J Enberg wrote:
+> > Yes, it does but looking at mm/slab.c history I think we want something
+> > like the following instead. Christoph?
 
-Applied, thanks!
+i>>?On Tue, 2008-11-25 at 12:58 -0600, Christoph Lameter wrote:
+> Right.
+
+OK, even though no tester showed up, I went ahead and merged my version
+of the patch as it's a pretty obvious one-liner fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
