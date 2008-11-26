@@ -1,37 +1,39 @@
-In-reply-to: <1227687021.31128.3.camel@penberg-laptop> (message from Pekka
-	Enberg on Wed, 26 Nov 2008 10:10:21 +0200)
-Subject: Re: [RFC PATCH] slab: __GFP_NOWARN not being propagated from
-	mempool_alloc()
-References: <E1L4jMt-0006OW-5J@pomaz-ex.szeredi.hu>
-	 <Pine.LNX.4.64.0811250038030.11825@melkki.cs.Helsinki.FI>
-	 <Pine.LNX.4.64.0811251258010.18908@quilx.com> <1227687021.31128.3.camel@penberg-laptop>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <E1L5H2E-0001Ro-Da@pomaz-ex.szeredi.hu>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Wed, 26 Nov 2008 10:50:14 +0100
+Date: Wed, 26 Nov 2008 13:32:46 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+Message-ID: <20081126123246.GB23649@wotan.suse.de>
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: penberg@cs.helsinki.fi
-Cc: cl@linux-foundation.org, miklos@szeredi.hu, linux-mm@kvack.org, david@fromorbit.com, peterz@infradead.org, linux-kernel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, Mike Waychison <mikew@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Nov 2008, Pekka Enberg wrote:
-> On Tue, 25 Nov 2008, Pekka J Enberg wrote:
-> > > Yes, it does but looking at mm/slab.c history I think we want something
-> > > like the following instead. Christoph?
-> 
-> i>>?On Tue, 2008-11-25 at 12:58 -0600, Christoph Lameter wrote:
-> > Right.
-> 
-> OK, even though no tester showed up, I went ahead and merged my version
-> of the patch as it's a pretty obvious one-liner fix.
+On Tue, Nov 25, 2008 at 10:42:47AM -0800, Ying Han wrote:
+> >> The patch flags current->flags to PF_FAULT_MAYRETRY as identify that
+> >> the caller can tolerate the retry in the filemap_fault call patch.
+> >>
+> >> Benchmark is done by mmap in huge file and spaw 64 thread each
+> >> faulting in pages in reverse order, the the result shows 8%
+> >> porformance hit with the patch.
+> >
+> > I suspect we also want to see the cases where this change helps?
+> i am working on more benchmark to show performance improvement.
 
-Thanks.  I merged your version in the suse tree as well, so there'll
-be lots of testers :)
+Can't you share the actual improvement you see inside Google?
 
-Miklos
+Google must be doing something funky with threads, because both
+this patch and their new malloc allocator apparently were due to
+mmap_sem contention problems, right?
+
+That was before the kernel and glibc got together to fix the stupid
+mmap_sem problem in malloc (shown up in that FreeBSD MySQL thread);
+and before private futexes. I would be interested to know if Google
+still has problems that require this patch...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
