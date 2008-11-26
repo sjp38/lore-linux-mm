@@ -1,114 +1,86 @@
-Date: Wed, 26 Nov 2008 11:14:47 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [mm] [PATCH 3/4] Memory cgroup hierarchical reclaim (v4)
-Message-Id: <20081126111447.106ec275.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <492C1345.9090201@linux.vnet.ibm.com>
-References: <20081116081034.25166.7586.sendpatchset@balbir-laptop>
-	<20081116081055.25166.85066.sendpatchset@balbir-laptop>
-	<20081125205832.38f8c365.nishimura@mxp.nes.nec.co.jp>
-	<492C1345.9090201@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 26 Nov 2008 06:02:46 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 6/9] swapfile: swapon use discard (trim)
+In-Reply-To: <20081125171748.57450cb5.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0811260530570.26081@blonde.site>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+ <Pine.LNX.4.64.0811252140230.17555@blonde.site> <20081125171748.57450cb5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, nishimura@mxp.nes.nec.co.jp
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: dwmw2@infradead.org, jens.axboe@oracle.com, matthew@wil.cx, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Nov 2008 20:31:25 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> Daisuke Nishimura wrote:
-> > Hi.
+On Tue, 25 Nov 2008, Andrew Morton wrote:
+> On Tue, 25 Nov 2008 21:44:34 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
+> 
+> > When adding swap, all the old data on swap can be forgotten: sys_swapon()
+> > discard all but the header page of the swap partition (or every extent
+> > but the header of the swap file), to give a solidstate swap device the
+> > opportunity to optimize its wear-levelling.
 > > 
-> > Unfortunately, trying to hold cgroup_mutex at reclaim causes dead lock.
-> > 
-> > For example, when attaching a task to some cpuset directory(memory_migrate=on),
-> > 
-> >     cgroup_tasks_write (hold cgroup_mutex)
-> >         attach_task_by_pid
-> >             cgroup_attach_task
-> >                 cpuset_attach
-> >                     cpuset_migrate_mm
-> >                         :
-> >                         unmap_and_move
-> >                             mem_cgroup_prepare_migration
-> >                                 mem_cgroup_try_charge
-> >                                     mem_cgroup_hierarchical_reclaim
-> > 
+> > If that succeeds, note SWP_DISCARDABLE for later use, and report it
+> > with a "D" at the right end of the kernel's "Adding ... swap" message.
+> > Perhaps something should be shown in /proc/swaps (swapon -s), but we
+> > have to be more cautious before making any addition to that format.
 > 
-> Did lockdep complain about it?
+> When reading the above text it's a bit hard to tell whether it's
+> talking about "this is how things are at present" or "this is how
+> things are after the patch".  This is fairly common with Hugh
+> changelogs.
+
+;)  Sorry about that - yes, that's often true.  In this case, it's
+all talking about how things are after the patch.  I think it's that
+first sentence which bothers you - "all the old data on swap can be
+forgotten".  In this case, I'm meaning "it's a good idea to let the
+device know that it can forget about all the old data"; but it's easy
+to imagine another patch coming from me in which the same sentence
+would mean "we've got a terrible data-loss bug, such that all the
+data already written to swap gets erased".  Let's hope I didn't
+implement the latter.
+
+> > +static int discard_swap(struct swap_info_struct *si)
+> > +{
+> > +	struct swap_extent *se;
+> > +	int err = 0;
+> > +
+> > +	list_for_each_entry(se, &si->extent_list, list) {
+> > +		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
+> > +		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
 > 
-I haven't understood lockdep so well, but I got logs like this:
-
-===
-INFO: task move.sh:17710 blocked for more than 480 seconds.
-"echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-move.sh       D ffff88010e1c76c0     0 17710  17597
- ffff8800bd9edf00 0000000000000046 0000000000000000 0000000000000000
- ffff8803afbc0000 ffff8800bd9ee270 0000000e00000000 000000010a54459c
- ffffffffffffffff ffffffffffffffff ffffffffffffffff 7fffffffffffffff
-Call Trace:
- [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
- [<ffffffff804cb357>] mutex_lock_nested+0x180/0x2a2
- [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
- [<ffffffff802ae9f0>] mem_cgroup_get_first_node+0x29/0x8a
- [<ffffffff802aed9c>] __mem_cgroup_try_charge+0x27a/0x2de
- [<ffffffff802afdfd>] mem_cgroup_prepare_migration+0x6c/0xa5
- [<ffffffff802ad97f>] migrate_pages+0x10c/0x4a0
- [<ffffffff802ad9c8>] migrate_pages+0x155/0x4a0
- [<ffffffff802a14cb>] new_node_page+0x0/0x2f
- [<ffffffff802a1adb>] check_range+0x300/0x325
- [<ffffffff802a2374>] do_migrate_pages+0x1a5/0x1f1
- [<ffffffff8026d272>] cpuset_migrate_mm+0x30/0x93
- [<ffffffff8026d29c>] cpuset_migrate_mm+0x5a/0x93
- [<ffffffff8026df41>] cpuset_attach+0x93/0xa6
- [<ffffffff8026ae1b>] cgroup_attach_task+0x395/0x3e1
- [<ffffffff8026af61>] cgroup_tasks_write+0xfa/0x11d
- [<ffffffff8026aea0>] cgroup_tasks_write+0x39/0x11d
- [<ffffffff8026b5aa>] cgroup_file_write+0xef/0x216
- [<ffffffff802b2968>] vfs_write+0xad/0x136
- [<ffffffff802b2dfe>] sys_write+0x45/0x6e
- [<ffffffff8020bdab>] system_call_fastpath+0x16/0x1b
-INFO: lockdep is turned off.
-===
-
-And other processes trying to hold cgroup_mutex are also stuck.
-
-> 1. We could probably move away from cgroup_mutex to a memory controller specific
-> mutex.
-> 2. We could give up cgroup_mutex before migrate_mm, since it seems like we'll
-> hold the cgroup lock for long and holding it during reclaim will definitely be
-> visible to users trying to create/delete nodes.
+> I trust we don't have any shift overflows here.
 > 
-> I prefer to do (2), I'll look at the code more closely
-> 
-I basically agree, but I think we should also consider mpol_rebind_mm.
+> It's a bit dissonant to see a pgoff_t with "blocks" in its name.  But
+> swap is like that..
 
-mpol_rebind_mm, which can be called from cpuset_attach, does down_write(mm->mmap_sem),
-which means down_write(mm->mmap_sem) can be called under cgroup_mutex.
-OTOH, page fault path does down_read(mm->mmap_sem) and can call mem_cgroup_try_charge,
-which means mutex_lock(cgroup_mutex) can be called under down_read(mm->mmap_sem).
+In fact we don't have a shift overflow there, but you've such a good eye.
 
-> > I think similar problem can also happen when removing memcg's directory.
-> > 
-> 
-> Why removing a directory? memcg (now) marks the directory as obsolete and we
-> check for obsolete directories and get/put references.
-> 
-I don't think so.
-    
-    mem_cgroup_pre_destroy (make mem->obsolete = 1)
-        mem_cgroup_force_empty(mem, **FALSE**)
-            mem_cgroup_force_empty_list
-                mem_cgroup_move_parent
-                    __mem_cgroup_try_charge
+I noticed that "pgoff_t nr_blocks" line just as I was about to send off
+the patches, and had a little worry about it.  By that time I was at
+the stage that if I went into the patch and changed a few pgoff_ts
+to sector_ts at the last minute, likelihood was I'd screw something
+up badly, in one CONFIG combination or another, and if I delayed
+it'd be tomorrow.
 
-hmm, but looking more closely, cgroup_call_pre_destroy is called
-outside of cgroup_mutex, so this problem doesn't happen at rmdir probably.
+It would be good to make that change when built and tested,
+just for reassurance.  There isn't a shift overflow as it stands,
+but the reasons are too contingent for my liking: on 64-bit there
+isn't an issue because pgoff_t is as big as sector_t; on 32-bit,
+it's because a swp_entry_t is an unsigned long, and it has to
+contain five bits for the "type" (which of the 30 or 32 swapfiles
+is addressed), and the pages-to-sectors shift is less than 5 on
+all 32-bit machines for the foreseeable future.  Oh, and it also
+relies on the fact that by the time we're setting up swap extents,
+we've already curtailed the size to what's usable by a swp_entry_t,
+if that's less than the size given in the swap header.
 
+So, not actually a bug there, but certainly a source of anxiety,
+better eliminated.
 
-Thanks,
-Daisuke Nishimura.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
