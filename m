@@ -1,60 +1,70 @@
-Date: Thu, 27 Nov 2008 11:38:06 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [PATCH] radix-tree: document wrap-around issue of
- radix_tree_next_hole()
-In-Reply-To: <20081123105155.GA14524@localhost>
-Message-ID: <alpine.LNX.1.10.0811271137240.19853@jikos.suse.cz>
-References: <20081123105155.GA14524@localhost>
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mARAeegW022439
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 27 Nov 2008 19:40:40 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1755D45DD72
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2008 19:40:40 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id ED1D645DE4E
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2008 19:40:39 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C96D01DB8037
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2008 19:40:39 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 87281E08001
+	for <linux-mm@kvack.org>; Thu, 27 Nov 2008 19:40:39 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 1/2] mm: pagecache allocation gfp fixes
+In-Reply-To: <1227781737.25160.3.camel@penberg-laptop>
+References: <20081127101837.GJ28285@wotan.suse.de> <1227781737.25160.3.camel@penberg-laptop>
+Message-Id: <20081127193943.3CF3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 27 Nov 2008 19:40:38 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Trivial Patch Monkey <trivial@kernel.org>, Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 23 Nov 2008, Wu Fengguang wrote:
-
-> And some 80-line cleanups.
+> > Frustratingly, gfp_t is really divided into two classes of flags. One are the
+> > context dependent ones (can we sleep? can we enter filesystem? block subsystem?
+> > should we use some extra reserves, etc.). The other ones are the type of memory
+> > required and depend on how the algorithm is implemented rather than the point
+> > at which the memory is allocated (highmem? dma memory? etc).
+> > 
+> > Some of functions which allocate a page and add it to page cache take a gfp_t,
+> > but sometimes those functions or their callers aren't really doing the right
+> > thing: when allocating pagecache page, the memory type should be
+> > mapping_gfp_mask(mapping). When allocating radix tree nodes, the memory type
+> > should be kernel mapped (not highmem) memory. The gfp_t argument should only
+> > really be needed for context dependent options.
+> > 
+> > This patch doesn't really solve that tangle in a nice way, but it does attempt
+> > to fix a couple of bugs. find_or_create_page changes its radix-tree allocation
+> > to only include the main context dependent flags in order so the pagecache
+> > page may be allocated from arbitrary types of memory without affecting the
+> > radix-tree. Then grab_cache_page_nowait() is changed to allocate radix-tree
+> > nodes with GFP_NOFS, because it is not supposed to reenter the filesystem.
+> > 
+> > Filesystems should be careful about exactly what semantics they want and what
+> > they get when fiddling with gfp_t masks to allocate pagecache. One should be
+> > as liberal as possible with the type of memory that can be used, and same
+> > for the the context specific flags.
+> > 
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
 > 
-> Signed-off-by: Wu Fengguang <wfg@linux.intel.com>
-> ---
->  lib/radix-tree.c |   11 ++++++-----
->  1 file changed, 6 insertions(+), 5 deletions(-)
+> Looks good to me.
 > 
-> --- linux-2.6.orig/lib/radix-tree.c
-> +++ linux-2.6/lib/radix-tree.c
-> @@ -640,13 +640,14 @@ EXPORT_SYMBOL(radix_tree_tag_get);
->   *
->   *	Returns: the index of the hole if found, otherwise returns an index
->   *	outside of the set specified (in which case 'return - index >= max_scan'
-> - *	will be true).
-> + *	will be true). In rare cases of index wrap-around, 0 will be returned.
->   *
->   *	radix_tree_next_hole may be called under rcu_read_lock. However, like
-> - *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
-> - *	tree at a single point in time. For example, if a hole is created at index
-> - *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
-> - *	covering both indexes may return 10 if called under rcu_read_lock.
-> + *	radix_tree_gang_lookup, this will not atomically search a snapshot of
-> + *	the tree at a single point in time. For example, if a hole is created
-> + *	at index 5, then subsequently a hole is created at index 10,
-> + *	radix_tree_next_hole covering both indexes may return 10 if called
-> + *	under rcu_read_lock.
->   */
->  unsigned long radix_tree_next_hole(struct radix_tree_root *root,
->  				unsigned long index, unsigned long max_scan)
-> 
+> Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-I don't see this applied in any of the publically visible trees, so I have 
-taken this into -trivial. Please let me know if it has been through any 
-other channel already.
+me too.
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Thanks,
 
--- 
-Jiri Kosina
-SUSE Labs
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
