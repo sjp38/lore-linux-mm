@@ -1,7 +1,7 @@
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v10][PATCH 10/13] External checkpoint of a task other than ourself
-Date: Wed, 26 Nov 2008 20:04:41 -0500
-Message-Id: <1227747884-14150-11-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v10][PATCH 01/13] Create syscalls: sys_checkpoint, sys_restart
+Date: Wed, 26 Nov 2008 20:04:32 -0500
+Message-Id: <1227747884-14150-2-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
 References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -10,200 +10,190 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Now we can do "external" checkpoint, i.e. act on another task.
+Create trivial sys_checkpoint and sys_restore system calls. They will
+enable to checkpoint and restart an entire container, to and from a
+checkpoint image file descriptor.
 
-sys_checkpoint() now looks up the target pid (in our namespace) and
-checkpoints that corresponding task. That task should be the root of
-a container.
+The syscalls take a file descriptor (for the image file) and flags as
+arguments. For sys_checkpoint the first argument identifies the target
+container; for sys_restart it will identify the checkpoint image.
 
-sys_restart() remains the same, as the restart is always done in the
-context of the restarting task.
+A checkpoint, much like a process coredump, dumps the state of multiple
+processes at once, including the state of the container. The checkpoint
+image is written to (and read from) the file descriptor directly from
+the kernel. This way the data is generated and then pushed out naturally
+as resources and tasks are scanned to save their state. This is the
+approach taken by, e.g., Zap and OpenVZ.
 
-Changelog[v10]:
-  - Grab vfs root of container init, rather than current process
+By using a return value and not a file descriptor, we can distinguish
+between a return from checkpoint, a return from restart (in case of a
+checkpoint that includes self, i.e. a task checkpointing its own
+container, or itself), and an error condition, in a manner analogous
+to a fork() call.
+
+We don't use copyin()/copyout() because it requires holding the entire
+image in user space, and does not make sense for restart.  Also, we
+don't use a pipe, pseudo-fs file and the like, because they work by
+generating data on demand as the user pulls it (unless the entire
+image is buffered in the kernel) and would require more complex logic.
+They also would significantly complicate checkpoint that includes self.
+
+Changelog[v5]:
+  - Config is 'def_bool n' by default
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
- checkpoint/checkpoint.c    |   75 ++++++++++++++++++++++++++++++++++++++++++--
- checkpoint/restart.c       |    4 +-
- checkpoint/sys.c           |    6 +++
- include/linux/checkpoint.h |    2 +
- 4 files changed, 82 insertions(+), 5 deletions(-)
+ arch/x86/include/asm/unistd_32.h   |    2 +
+ arch/x86/kernel/syscall_table_32.S |    2 +
+ checkpoint/Kconfig                 |   11 +++++++++
+ checkpoint/Makefile                |    5 ++++
+ checkpoint/sys.c                   |   41 ++++++++++++++++++++++++++++++++++++
+ include/linux/syscalls.h           |    2 +
+ init/Kconfig                       |    2 +
+ kernel/sys_ni.c                    |    4 +++
+ 8 files changed, 69 insertions(+), 0 deletions(-)
+ create mode 100644 checkpoint/Kconfig
+ create mode 100644 checkpoint/Makefile
+ create mode 100644 checkpoint/sys.c
 
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index ae1952b..08719ba 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -10,6 +10,7 @@
+diff --git a/arch/x86/include/asm/unistd_32.h b/arch/x86/include/asm/unistd_32.h
+index f2bba78..a5f9e09 100644
+--- a/arch/x86/include/asm/unistd_32.h
++++ b/arch/x86/include/asm/unistd_32.h
+@@ -338,6 +338,8 @@
+ #define __NR_dup3		330
+ #define __NR_pipe2		331
+ #define __NR_inotify_init1	332
++#define __NR_checkpoint		333
++#define __NR_restart		334
  
- #include <linux/version.h>
- #include <linux/sched.h>
-+#include <linux/ptrace.h>
- #include <linux/time.h>
- #include <linux/fs.h>
- #include <linux/file.h>
-@@ -224,6 +225,13 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
- {
- 	int ret;
+ #ifdef __KERNEL__
  
-+	/* TODO: verity that the task is frozen (unless self) */
+diff --git a/arch/x86/kernel/syscall_table_32.S b/arch/x86/kernel/syscall_table_32.S
+index d44395f..5543136 100644
+--- a/arch/x86/kernel/syscall_table_32.S
++++ b/arch/x86/kernel/syscall_table_32.S
+@@ -332,3 +332,5 @@ ENTRY(sys_call_table)
+ 	.long sys_dup3			/* 330 */
+ 	.long sys_pipe2
+ 	.long sys_inotify_init1
++	.long sys_checkpoint
++	.long sys_restart
+diff --git a/checkpoint/Kconfig b/checkpoint/Kconfig
+new file mode 100644
+index 0000000..ffaa635
+--- /dev/null
++++ b/checkpoint/Kconfig
+@@ -0,0 +1,11 @@
++config CHECKPOINT_RESTART
++	prompt "Enable checkpoint/restart (EXPERIMENTAL)"
++	def_bool n
++	depends on X86_32 && EXPERIMENTAL
++	help
++	  Application checkpoint/restart is the ability to save the
++	  state of a running application so that it can later resume
++	  its execution from the time at which it was checkpointed.
 +
-+	if (t->state == TASK_DEAD) {
-+		pr_warning("c/r: task may not be in state TASK_DEAD\n");
-+		return -EAGAIN;
-+	}
++	  Turning this option on will enable checkpoint and restart
++	  functionality in the kernel.
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+new file mode 100644
+index 0000000..07d018b
+--- /dev/null
++++ b/checkpoint/Makefile
+@@ -0,0 +1,5 @@
++#
++# Makefile for linux checkpoint/restart.
++#
 +
- 	ret = cr_write_task_struct(ctx, t);
- 	cr_debug("task_struct: ret %d\n", ret);
- 	if (ret < 0)
-@@ -246,15 +254,76 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
- 	return ret;
- }
- 
--static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
-+static int cr_get_container(struct cr_ctx *ctx, pid_t pid)
- {
-+	struct task_struct *task = NULL;
-+	struct nsproxy *nsproxy = NULL;
-+	int err = -ESRCH;
-+
- 	ctx->root_pid = pid;
- 
-+	read_lock(&tasklist_lock);
-+	task = find_task_by_vpid(pid);
-+	if (task)
-+		get_task_struct(task);
-+	read_unlock(&tasklist_lock);
-+
-+	if (!task)
-+		goto out;
-+
-+#if 0	/* enable to use containers */
-+	if (!is_container_init(task)) {
-+		err = -EINVAL;
-+		goto out;
-+	}
-+#endif
-+
-+	if (!ptrace_may_access(task, PTRACE_MODE_READ)) {
-+		err = -EPERM;
-+		goto out;
-+	}
-+
-+	rcu_read_lock();
-+	if (task_nsproxy(task)) {
-+		nsproxy = task_nsproxy(task);
-+		get_nsproxy(nsproxy);
-+	}
-+	rcu_read_unlock();
-+
-+	if (!nsproxy)
-+		goto out;
-+
-+	/* TODO: verify that the container is frozen */
-+
-+	ctx->root_task = task;
-+	ctx->root_nsproxy = nsproxy;
-+
-+	return 0;
-+
-+ out:
-+	if (task)
-+		put_task_struct(task);
-+	return err;
-+}
-+
-+/* setup checkpoint-specific parts of ctx */
-+static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
-+{
-+	int ret;
-+
-+	ret = cr_get_container(ctx, pid);
-+	if (ret < 0)
-+		return ret;
-+
- 	/*
- 	 * assume checkpointer is in container's root vfs
- 	 * FIXME: this works for now, but will change with real containers
- 	 */
--	ctx->vfsroot = &current->fs->root;
-+	task_lock(ctx->root_task);
-+	ctx->vfsroot = &ctx->root_task->fs->root;
-+	task_unlock(ctx->root_task);
-+	if (!ctx->vfsroot)
-+		return -EAGAIN;
- 	path_get(ctx->vfsroot);
- 
- 	return 0;
-@@ -270,7 +339,7 @@ int do_checkpoint(struct cr_ctx *ctx, pid_t pid)
- 	ret = cr_write_head(ctx);
- 	if (ret < 0)
- 		goto out;
--	ret = cr_write_task(ctx, current);
-+	ret = cr_write_task(ctx, ctx->root_task);
- 	if (ret < 0)
- 		goto out;
- 	ret = cr_write_tail(ctx);
-diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index 22e7995..f4f737d 100644
---- a/checkpoint/restart.c
-+++ b/checkpoint/restart.c
-@@ -277,7 +277,7 @@ static int cr_read_task(struct cr_ctx *ctx)
- }
- 
- /* setup restart-specific parts of ctx */
--static int cr_ctx_restart(struct cr_ctx *ctx)
-+static int cr_ctx_restart(struct cr_ctx *ctx, pid_t pid)
- {
- 	return 0;
- }
-@@ -286,7 +286,7 @@ int do_restart(struct cr_ctx *ctx, pid_t pid)
- {
- 	int ret;
- 
--	ret = cr_ctx_restart(ctx);
-+	ret = cr_ctx_restart(ctx, pid);
- 	if (ret < 0)
- 		goto out;
- 	ret = cr_read_head(ctx);
++obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o
 diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-index b640bee..dfe63ca 100644
---- a/checkpoint/sys.c
+new file mode 100644
+index 0000000..375129c
+--- /dev/null
 +++ b/checkpoint/sys.c
-@@ -9,6 +9,7 @@
-  */
- 
- #include <linux/sched.h>
-+#include <linux/nsproxy.h>
- #include <linux/kernel.h>
- #include <linux/fs.h>
- #include <linux/file.h>
-@@ -142,6 +143,11 @@ static void cr_ctx_free(struct cr_ctx *ctx)
- 	cr_pgarr_free(ctx);
- 	cr_objhash_free(ctx);
- 
-+	if (ctx->root_nsproxy)
-+		put_nsproxy(ctx->root_nsproxy);
-+	if (ctx->root_task)
-+		put_task_struct(ctx->root_task);
+@@ -0,0 +1,41 @@
++/*
++ *  Generic container checkpoint-restart
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
 +
- 	kfree(ctx);
- }
++#include <linux/sched.h>
++#include <linux/kernel.h>
++
++/**
++ * sys_checkpoint - checkpoint a container
++ * @pid: pid of the container init(1) process
++ * @fd: file to which dump the checkpoint image
++ * @flags: checkpoint operation flags
++ *
++ * Returns positive identifier on success, 0 when returning from restart
++ * or negative value on error
++ */
++asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
++{
++	pr_debug("sys_checkpoint not implemented yet\n");
++	return -ENOSYS;
++}
++/**
++ * sys_restart - restart a container
++ * @crid: checkpoint image identifier
++ * @fd: file from which read the checkpoint image
++ * @flags: restart operation flags
++ *
++ * Returns negative value on error, or otherwise returns in the realm
++ * of the original checkpoint
++ */
++asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
++{
++	pr_debug("sys_restart not implemented yet\n");
++	return -ENOSYS;
++}
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index d6ff145..edc218b 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -622,6 +622,8 @@ asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+ asmlinkage long sys_eventfd(unsigned int count);
+ asmlinkage long sys_eventfd2(unsigned int count, int flags);
+ asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
++asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags);
++asmlinkage long sys_restart(int crid, int fd, unsigned long flags);
  
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 2675410..93fea2f 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -19,6 +19,8 @@ struct cr_ctx {
- 	int crid;		/* unique checkpoint id */
+ int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
  
- 	pid_t root_pid;		/* container identifier */
-+	struct task_struct *root_task;	/* container root task */
-+	struct nsproxy *root_nsproxy;	/* container root nsproxy */
+diff --git a/init/Kconfig b/init/Kconfig
+index 86b00c5..743e2ad 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -814,6 +814,8 @@ config MARKERS
  
- 	unsigned long flags;
- 	unsigned long oflags;	/* restart: old flags */
+ source "arch/Kconfig"
+ 
++source "checkpoint/Kconfig"
++
+ endmenu		# General setup
+ 
+ config HAVE_GENERIC_DMA_COHERENT
+diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+index a77b27b..e4e289e 100644
+--- a/kernel/sys_ni.c
++++ b/kernel/sys_ni.c
+@@ -174,3 +174,7 @@ cond_syscall(compat_sys_timerfd_settime);
+ cond_syscall(compat_sys_timerfd_gettime);
+ cond_syscall(sys_eventfd);
+ cond_syscall(sys_eventfd2);
++
++/* checkpoint/restart */
++cond_syscall(sys_checkpoint);
++cond_syscall(sys_restart);
 -- 
 1.5.4.3
 
