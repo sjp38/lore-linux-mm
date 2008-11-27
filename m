@@ -1,93 +1,60 @@
-Subject: Re: [patch 1/2] mm: pagecache allocation gfp fixes
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20081127101837.GJ28285@wotan.suse.de>
-References: <20081127093401.GE28285@wotan.suse.de>
-	 <84144f020811270152i5d5c50a8i9dbd78aa4a7da646@mail.gmail.com>
-	 <20081127101837.GJ28285@wotan.suse.de>
-Date: Thu, 27 Nov 2008 12:28:57 +0200
-Message-Id: <1227781737.25160.3.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Thu, 27 Nov 2008 11:38:06 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] radix-tree: document wrap-around issue of
+ radix_tree_next_hole()
+In-Reply-To: <20081123105155.GA14524@localhost>
+Message-ID: <alpine.LNX.1.10.0811271137240.19853@jikos.suse.cz>
+References: <20081123105155.GA14524@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Trivial Patch Monkey <trivial@kernel.org>, Nick Piggin <npiggin@suse.de>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-11-27 at 11:18 +0100, Nick Piggin wrote:
-> On Thu, Nov 27, 2008 at 11:52:40AM +0200, Pekka Enberg wrote:
-> > > -               err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
-> > > +               err = add_to_page_cache_lru(page, mapping, index,
-> > > +                       (gfp_mask & (__GFP_FS|__GFP_IO|__GFP_WAIT|__GFP_HIGH)));
-> > 
-> > Can we use GFP_RECLAIM_MASK here? I mean, surely we need to pass
-> > __GFP_NOFAIL, for example, down to radix_tree_preload() et al?
-> 
-> Updated patch.
-> 
-> --
-> Frustratingly, gfp_t is really divided into two classes of flags. One are the
-> context dependent ones (can we sleep? can we enter filesystem? block subsystem?
-> should we use some extra reserves, etc.). The other ones are the type of memory
-> required and depend on how the algorithm is implemented rather than the point
-> at which the memory is allocated (highmem? dma memory? etc).
-> 
-> Some of functions which allocate a page and add it to page cache take a gfp_t,
-> but sometimes those functions or their callers aren't really doing the right
-> thing: when allocating pagecache page, the memory type should be
-> mapping_gfp_mask(mapping). When allocating radix tree nodes, the memory type
-> should be kernel mapped (not highmem) memory. The gfp_t argument should only
-> really be needed for context dependent options.
-> 
-> This patch doesn't really solve that tangle in a nice way, but it does attempt
-> to fix a couple of bugs. find_or_create_page changes its radix-tree allocation
-> to only include the main context dependent flags in order so the pagecache
-> page may be allocated from arbitrary types of memory without affecting the
-> radix-tree. Then grab_cache_page_nowait() is changed to allocate radix-tree
-> nodes with GFP_NOFS, because it is not supposed to reenter the filesystem.
-> 
-> Filesystems should be careful about exactly what semantics they want and what
-> they get when fiddling with gfp_t masks to allocate pagecache. One should be
-> as liberal as possible with the type of memory that can be used, and same
-> for the the context specific flags.
-> 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
+On Sun, 23 Nov 2008, Wu Fengguang wrote:
 
-Looks good to me.
-
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
+> And some 80-line cleanups.
+> 
+> Signed-off-by: Wu Fengguang <wfg@linux.intel.com>
 > ---
-> Index: linux-2.6/mm/filemap.c
-> ===================================================================
-> --- linux-2.6.orig/mm/filemap.c
-> +++ linux-2.6/mm/filemap.c
-> @@ -741,7 +741,14 @@ repeat:
->  		page = __page_cache_alloc(gfp_mask);
->  		if (!page)
->  			return NULL;
-> -		err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
-> +		/*
-> +		 * We want a regular kernel memory (not highmem or DMA etc)
-> +		 * allocation for the radix tree nodes, but we need to honour
-> +		 * the context-specific requirements the caller has asked for.
-> +		 * GFP_RECLAIM_MASK collects those requirements.
-> +		 */
-> +		err = add_to_page_cache_lru(page, mapping, index,
-> +			(gfp_mask & GFP_RECLAIM_MASK));
->  		if (unlikely(err)) {
->  			page_cache_release(page);
->  			page = NULL;
-> @@ -950,7 +957,7 @@ grab_cache_page_nowait(struct address_sp
->  		return NULL;
->  	}
->  	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~__GFP_FS);
-> -	if (page && add_to_page_cache_lru(page, mapping, index, GFP_KERNEL)) {
-> +	if (page && add_to_page_cache_lru(page, mapping, index, GFP_NOFS)) {
->  		page_cache_release(page);
->  		page = NULL;
->  	}
+>  lib/radix-tree.c |   11 ++++++-----
+>  1 file changed, 6 insertions(+), 5 deletions(-)
+> 
+> --- linux-2.6.orig/lib/radix-tree.c
+> +++ linux-2.6/lib/radix-tree.c
+> @@ -640,13 +640,14 @@ EXPORT_SYMBOL(radix_tree_tag_get);
+>   *
+>   *	Returns: the index of the hole if found, otherwise returns an index
+>   *	outside of the set specified (in which case 'return - index >= max_scan'
+> - *	will be true).
+> + *	will be true). In rare cases of index wrap-around, 0 will be returned.
+>   *
+>   *	radix_tree_next_hole may be called under rcu_read_lock. However, like
+> - *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
+> - *	tree at a single point in time. For example, if a hole is created at index
+> - *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
+> - *	covering both indexes may return 10 if called under rcu_read_lock.
+> + *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+> + *	the tree at a single point in time. For example, if a hole is created
+> + *	at index 5, then subsequently a hole is created at index 10,
+> + *	radix_tree_next_hole covering both indexes may return 10 if called
+> + *	under rcu_read_lock.
+>   */
+>  unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+>  				unsigned long index, unsigned long max_scan)
+> 
+
+I don't see this applied in any of the publically visible trees, so I have 
+taken this into -trivial. Please let me know if it has been through any 
+other channel already.
+
+Thanks,
+
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
