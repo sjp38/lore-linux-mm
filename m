@@ -1,49 +1,52 @@
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <492E6849.6090205@google.com>
-References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com>
-	 <20081123091843.GK30453@elte.hu>
-	 <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com>
-	 <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com>
-	 <20081127085554.GD28285@wotan.suse.de>  <492E6849.6090205@google.com>
-Content-Type: text/plain
-Date: Thu, 27 Nov 2008 11:00:07 +0100
-Message-Id: <1227780007.4454.1344.camel@twins>
+Date: Thu, 27 Nov 2008 11:01:27 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 1/2] mm: pagecache allocation gfp fixes
+Message-ID: <20081127100127.GH28285@wotan.suse.de>
+References: <20081127093401.GE28285@wotan.suse.de> <84144f020811270152i5d5c50a8i9dbd78aa4a7da646@mail.gmail.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <84144f020811270152i5d5c50a8i9dbd78aa4a7da646@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Nick Piggin <npiggin@suse.de>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, "H. Peter Anvin" <hpa@zytor.com>, edwintorok@gmail.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-11-27 at 01:28 -0800, Mike Waychison wrote:
+Hi Pekka,
 
-> Correct.  I don't recall the numbers from the pathelogical cases we were 
-> seeing, but iirc, it was on the order of 10s of seconds, likely 
-> exascerbated by slower than usual disks.  I've been digging through my 
-> inbox to find numbers without much success -- we've been using a variant 
-> of this patch since 2.6.11.
+On Thu, Nov 27, 2008 at 11:52:40AM +0200, Pekka Enberg wrote:
+> Hi Nick,
+> 
+> On Thu, Nov 27, 2008 at 11:34 AM, Nick Piggin <npiggin@suse.de> wrote:
+> > Filesystems should be careful about exactly what semantics they want and what
+> > they get when fiddling with gfp_t masks to allocate pagecache. One should be
+> > as liberal as possible with the type of memory that can be used, and same
+> > for the the context specific flags.
+> >
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> > Index: linux-2.6/mm/filemap.c
+> > ===================================================================
+> > --- linux-2.6.orig/mm/filemap.c
+> > +++ linux-2.6/mm/filemap.c
+> > @@ -741,7 +741,8 @@ repeat:
+> >                page = __page_cache_alloc(gfp_mask);
+> >                if (!page)
+> >                        return NULL;
+> > -               err = add_to_page_cache_lru(page, mapping, index, gfp_mask);
+> > +               err = add_to_page_cache_lru(page, mapping, index,
+> > +                       (gfp_mask & (__GFP_FS|__GFP_IO|__GFP_WAIT|__GFP_HIGH)));
+> 
+> Can we use GFP_RECLAIM_MASK here? I mean, surely we need to pass
+> __GFP_NOFAIL, for example, down to radix_tree_preload() et al?
 
-> We generally try to avoid such things, but sometimes it a) can't be 
-> easily avoided (third party libraries for instance) and b) when it hits 
-> us, it affects the overall health of the machine/cluster (the monitoring 
-> daemons get blocked, which isn't very healthy).
+Ah, yes I thought a #define would be handy for this, but obviously didn't
+look hard enough. GFP_RECLAIM_MASK looks good (but God help any filesystem
+passing __GFP_NOFAIL into here ;)).
 
-If its only monitoring, there might be another solution. If you can keep
-the required data in a separate (approximate) copy so that you don't
-need mmap_sem at all to show them.
-
-If your mmap_sem is so contended your latencies are unacceptable, adding
-more users to it - even statistics gathering, just isn't going to cure
-the situation.
-
-Furthermore, /proc code usually isn't written with performance in mind,
-so its usually simple and robust code. Adding it to a 'hot'-path like
-you're doing doesn't seem advisable.
-
-Also, releasing and re-acquiring mmap_sem can significantly add to the
-cacheline bouncing that thing already has.
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
