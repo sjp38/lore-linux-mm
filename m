@@ -1,48 +1,45 @@
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: [patch 1/7] Increase default reserve percpu area
-Date: Wed, 05 Nov 2008 17:16:35 -0600
-Message-ID: <20081105231646.764343476@quilx.com>
-References: <20081105231634.133252042@quilx.com>
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [RESEND:PATCH] [ARM] clearpage: provide our own clear_user_highpage()
+Date: Thu, 27 Nov 2008 11:21:24 +0000
+Message-ID: <20081127112124.GA9233__19452.2109617994$1227785076$gmane$org@flint.arm.linux.org.uk>
+References: <20081126171321.GA4719@dyn-67.arm.linux.org.uk> <1227719999.3387.0.camel@localhost.localdomain> <20081127102920.660303a5.sfr@canb.auug.org.au> <20081127010755.GA30854@linux-sh.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Return-path: <owner-linux-mm@kvack.org>
-Content-Disposition: inline; filename=cpu_alloc_increase_percpu_default
+Content-Disposition: inline
+In-Reply-To: <20081127010755.GA30854@linux-sh.org>
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, travis@sgi.com, Stephen Rothwell <sfr@canb.auug.org.au>, Vegard Nossum <vegard.nossum@gmail.com>
+To: Paul Mundt <lethal@linux-sh.org>, Stephen Rothwell <sfr@canb.auug.org.au>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-arch@vger.kernel.orgLinux Kernel List <lin>
 List-Id: linux-mm.kvack.org
 
-SLUB now requires a portion of the per cpu reserve. There are on average
-about 70 real slabs on a system (aliases do not count) and each needs 12 bytes
-of per cpu space. Thats 840 bytes. In debug mode all slabs will be real slabs
-which will make us end up with 150 -> 1800.
+On Thu, Nov 27, 2008 at 10:07:55AM +0900, Paul Mundt wrote:
+> On Thu, Nov 27, 2008 at 10:29:20AM +1100, Stephen Rothwell wrote:
+> > Hi Russell,
+> > 
+> > On Wed, 26 Nov 2008 11:19:59 -0600 James Bottomley <James.Bottomley@HansenPartnership.com> wrote:
+> > >
+> > > We'd like to pull this trick on parisc as well (another VIPT
+> > > architecture), so you can add my ack.
+> > 
+> > If this is going to be used by more than one architecture during the next
+> > merge window, then maybe the change to include/linux/highmem.h could be
+> > extracted to its own patch and sent to Linus for inclusion in 2.6.28.
+> > This way we avoid some conflicts and the architectures can do their
+> > updates independently.
+> 
+> I plan to use it on VIPT SH also, so getting the higmem.h change in by
+> itself sooner rather than later would certainly be welcome.
 
-Things work fine without this patch but then slub will reduce the percpu reserve
-for modules.
+I'll queue the change to linux/highmem.h for when Linus gets back then.
+Can I assume that Hugh and James are happy for their ack to apply to
+both parts of the split patch?  And do I have your ack as well?
 
-Percpu data must be available regardless if modules are in use or not. So get
-rid of the #ifdef CONFIG_MODULES.
-
-Make the size of the percpu area dependant on the size of a machine word. That
-way we have larger sizes for 64 bit machines. 64 bit machines need more percpu
-memory since the pointer and counters may have double the size. Plus there is
-lots of memory available on 64 bit.
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
-Index: linux-2.6/include/linux/percpu.h
-===================================================================
---- linux-2.6.orig/include/linux/percpu.h	2008-11-05 12:05:46.000000000 -0600
-+++ linux-2.6/include/linux/percpu.h	2008-11-05 14:29:15.000000000 -0600
-@@ -44,7 +44,7 @@
- extern unsigned int percpu_reserve;
- /* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
- #ifndef PERCPU_AREA_SIZE
--#define PERCPU_RESERVE_SIZE	8192
-+#define PERCPU_RESERVE_SIZE   (sizeof(unsigned long) * 2500)
- 
- #define PERCPU_AREA_SIZE						\
- 	(__per_cpu_end - __per_cpu_start + percpu_reserve)
+Thanks.
 
 -- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
