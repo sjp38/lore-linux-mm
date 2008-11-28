@@ -1,66 +1,55 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id mASIIcpB001606
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 23:48:38 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mASIIdmT3362890
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 23:48:39 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id mASIIbgl021816
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2008 05:18:37 +1100
-Date: Fri, 28 Nov 2008 23:48:35 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH -mmotm 0/2] misc patches for memory cgroup
-	hierarchy
-Message-ID: <20081128181835.GA12948@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20081128180252.b7a73c86.nishimura@mxp.nes.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Date: Fri, 28 Nov 2008 23:43:04 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
+Message-ID: <20081128224304.GB7828@cmpxchg.org>
+References: <20081128060803.73cd59bd@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081128180252.b7a73c86.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081128060803.73cd59bd@bree.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-* Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> [2008-11-28 18:02:52]:
+On Fri, Nov 28, 2008 at 06:08:03AM -0500, Rik van Riel wrote:
+> Skip freeing memory from zones that already have lots of free memory.
+> If one memory zone has harder to free memory, we want to avoid freeing
+> excessive amounts of memory from other zones, if only because pageout
+> IO from the other zones can slow down page freeing from the problem zone.
+> 
+> This is similar to the check already done by kswapd in balance_pgdat().
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-> Hi.
-> 
-> I'm writing some patches for memory cgroup hierarchy.
-> 
-> I think KAMEZAWA-san's cgroup-id patches are the most important pathes now,
-> but I post these patches as RFC before going further.
-> 
-> Patch descriptions:
-> - [1/2] take account of memsw
->     mem_cgroup_hierarchical_reclaim checks only mem->res now.
->     It should also check mem->memsw when do_swap_account.
-> - [2/2] avoid oom
->     In previous implementation, mem_cgroup_try_charge checked the return
->     value of mem_cgroup_try_to_free_pages, and just retried if some pages
->     had been reclaimed.
->     But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
->     only checks whether the usage is less than the limit.
->     I see oom easily in some tests which didn't cause oom before.
-> 
-> Both patches are for memory-cgroup-hierarchical-reclaim-v4 patch series.
-> 
-> My current plan for memory cgroup hierarchy:
-> - If hierarchy is enabled, limit of child should not exceed that of parent.
-> - Change other calls for mem_cgroup_try_to_free_page() to
->   mem_cgroup_hierarchical_reclaim() if possible.
->
+Acked-by: Johannes Weiner <hannes@saeurebad.de>
 
-Thanks, Daisuke,
-
-I am in a conference and taken a quick look. The patches seem sane,
-but I've not reviewed them carefully. I'll revert back next week
- 
-
--- 
-	Balbir
+> ---
+> Kosaki-san, this should address point (3) from your list.
+> 
+>  mm/vmscan.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> Index: linux-2.6.28-rc5/mm/vmscan.c
+> ===================================================================
+> --- linux-2.6.28-rc5.orig/mm/vmscan.c	2008-11-28 05:53:56.000000000 -0500
+> +++ linux-2.6.28-rc5/mm/vmscan.c	2008-11-28 06:05:29.000000000 -0500
+> @@ -1510,6 +1510,9 @@ static unsigned long shrink_zones(int pr
+>  			if (zone_is_all_unreclaimable(zone) &&
+>  						priority != DEF_PRIORITY)
+>  				continue;	/* Let kswapd poll it */
+> +			if (zone_watermark_ok(zone, sc->order,
+> +					4*zone->pages_high, high_zoneidx, 0))
+> +				continue;	/* Lots free already */
+>  			sc->all_unreclaimable = 0;
+>  		} else {
+>  			/*
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
