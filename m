@@ -1,76 +1,87 @@
-Date: Fri, 28 Nov 2008 13:27:15 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [rfc] lockdep: check fs reclaim recursion
-Message-ID: <20081128122715.GH18333@elte.hu>
-References: <20081128120548.GB13786@wotan.suse.de> <20081128121127.GF18333@elte.hu> <20081128122158.GD13786@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081128122158.GD13786@wotan.suse.de>
+Date: Fri, 28 Nov 2008 21:49:21 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [RFC][PATCH -mmotm 0/2] misc patches for memory cgroup
+ hierarchy
+Message-Id: <20081128214921.86c30347.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20081128194938.508a3b22.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081128180252.b7a73c86.nishimura@mxp.nes.nec.co.jp>
+	<20081128194938.508a3b22.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 28 Nov 2008 19:49:38 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-* Nick Piggin <npiggin@suse.de> wrote:
-
-> On Fri, Nov 28, 2008 at 01:11:27PM +0100, Ingo Molnar wrote:
+> On Fri, 28 Nov 2008 18:02:52 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > Hi.
 > > 
-> > * Nick Piggin <npiggin@suse.de> wrote:
+> > I'm writing some patches for memory cgroup hierarchy.
 > > 
-> > > Hi,
-> > > 
-> > > After yesterday noticing some code in mm/filemap.c accidentally perform 
-> > > a __GFP_FS allocation when it should not have been, I thought it might 
-> > > be a good idea to try to catch this kind of thing with lockdep.
-> > > 
-> > > I coded up a little idea that seems to work. Unfortunately the system 
-> > > has to actually be in __GFP_FS page reclaim, then take the lock, before 
-> > > it will mark it. But at least that might still be some orders of 
-> > > magnitude more common (and more debuggable) than an actual deadlock 
-> > > condition, so we have some improvement I hope.
-> > > 
-> > > I guess we could do the same thing with __GFP_IO and even GFP_NOIO 
-> > > locks too, but I don't know how expensive it is to add these 
-> > > annotations to lockdep. [...]
+> > I think KAMEZAWA-san's cgroup-id patches are the most important pathes now,
+> > but I post these patches as RFC before going further.
 > > 
-> > Same cost as normal locking, i.e. as cheap and local as it gets. Lockdep 
-> > is only expensive computationally when new rules are discovered and have 
-> > to be validated - but that is rare.
+> Don't wait me ;) I'll rebase mine.
 > 
-> OK, good... I'll think about whether it makes sense to add those locks.
-> Actually, it probably makes sense to merge the __GFP_FS thing first,
-> with a design that will allow further types to be added easily.
-> 
->  
-> > Nice feature - and we want more of this type of preventive dependency 
-> > tracking - so feel free to add it whenever you run into an example like 
-> > this.
-> 
-> Well, lockdep has most of the support with iits "recusion possibility"
-> checking for interrupts. All the names in the lockdep code are geared
-> completely toward interrupts, but the concept is almost exactly the same
-> here (I can't think if there are any other important points in the kernel
-> where similar situation can arise, but it wouldn't surprise me if there
-> is). 
-> 
-> 
-> > What merge route would you prefer? tip/core/locking would be the natural 
-> > home of it (we already have a fair bit of lockdep stuff queued up there 
-> > for v2.6.29) - it also touches a few FS bits.
-> 
-> I'm happy for you or Peter to merge yet though there, sure. Just let me 
-> get some more input and then I'll try fix it up and make it merge 
-> worthy :)
-> 
-> BTW. Do you have the might_lock annotations in there? I thought I'd see 
-> them in 2.6.28, but they don't seem to be there. No problems with them?
+I see :)
 
-yes, they are still there, lined up for v2.6.29. They are working fine.
+> 
+> > Patch descriptions:
+> > - [1/2] take account of memsw
+> >     mem_cgroup_hierarchical_reclaim checks only mem->res now.
+> >     It should also check mem->memsw when do_swap_account.
+> > - [2/2] avoid oom
+> >     In previous implementation, mem_cgroup_try_charge checked the return
+> >     value of mem_cgroup_try_to_free_pages, and just retried if some pages
+> >     had been reclaimed.
+> >     But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
+> >     only checks whether the usage is less than the limit.
+> >     I see oom easily in some tests which didn't cause oom before.
+> > 
+> > Both patches are for memory-cgroup-hierarchical-reclaim-v4 patch series.
+> > 
+> > My current plan for memory cgroup hierarchy:
+> > - If hierarchy is enabled, limit of child should not exceed that of parent.
+>  limit of a child or
+>  limit of sum of children ?
+> 
+I'm sorry for my poor explanation.
+I meant *max* of limits of children.
 
-	Ingo
+I think setting limit like
+
+	group A (limit=1G)
+		group A0 (limit=500M)
+		group A1 (limit=800M)
+
+is not wrong itself.
+
+
+Thanks,
+Daisuke Nishimura.
+
+> > - Change other calls for mem_cgroup_try_to_free_page() to
+> >   mem_cgroup_hierarchical_reclaim() if possible.
+> > 
+>  maybe makes sense.
+> 
+> Thanks,
+> -Kame
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
