@@ -1,337 +1,3484 @@
-Date: Fri, 28 Nov 2008 13:05:48 +0100
+Date: Fri, 28 Nov 2008 13:10:15 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: [rfc] lockdep: check fs reclaim recursion
-Message-ID: <20081128120548.GB13786@wotan.suse.de>
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+Message-ID: <20081128121015.GC13786@wotan.suse.de>
+References: <492E6849.6090205@google.com> <492E8708.4060601@gmail.com> <20081127120330.GM28285@wotan.suse.de> <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de> <492E97FA.5000804@gmail.com> <20081127130525.GO28285@wotan.suse.de> <492E9C3C.9050507@gmail.com> <20081127131215.GQ28285@wotan.suse.de> <492E9F42.6010808@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <492E9F42.6010808@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: =?iso-8859-1?B?VPZy9ms=?= Edwin <edwintorok@gmail.com>
+Cc: Mike Waychison <mikew@google.com>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, Nov 27, 2008 at 03:23:14PM +0200, Torok Edwin wrote:
+> On 2008-11-27 15:12, Nick Piggin wrote:
+> > On Thu, Nov 27, 2008 at 03:10:20PM +0200, Torok Edwin wrote:
+> >   
+> >>
+> >> Ok. Sorry for hijacking the thread, my testcase is not a good testcase
+> >> for what this patch tries to solve.
+> >>     
+> >
+> > No not at all. It's always really useful to hear any problems like this.
+> > I'd like you to keep participating... for one thing I'd like you to test
+> > my mmap_sem patch ;) (when I finish it)
+> 
+> Sure, just send me your patch when it is ready (together, or
+> before/after the rwsems patch).
 
-After yesterday noticing some code in mm/filemap.c accidentally perform a
-__GFP_FS allocation when it should not have been, I thought it might be a
-good idea to try to catch this kind of thing with lockdep.
+This is what I have.
 
-I coded up a little idea that seems to work. Unfortunately the system has to
-actually be in __GFP_FS page reclaim, then take the lock, before it will mark
-it. But at least that might still be some orders of magnitude more common
-(and more debuggable) than an actual deadlock condition, so we have some
-improvement I hope.
+It does two things. Firstly, it switches x86-64 over to use the xadd
+algorithm rather than the spinlock algorithm. This is actually significant
+in high contention situations, because the spinlock algorithm doesn't allow
+concurrent operations on the lock while the queue of waiters is being
+manipulated.
 
-I guess we could do the same thing with __GFP_IO and even GFP_NOIO locks
-too, but I don't know how expensive it is to add these annotations to lockdep.
-Filesystems will have the most locks and fiddly code paths... Also, I've just
-stolen a process flag for this first attempt, but actually I should be using
-a CONFIG_LOCKDEP specific flag for this (rather than add stuff to pf flags).
+Secondly, it moves wakeups out from underneath the waiter queue lock. This
+is more significant on bigger machines where wakeup latency is worse and/or
+runqueue locks are very heavily contended.
 
-I've also not added the last few bits for reader/writer lock support, or
-added all the user output stuff. I just wanted to get comments on the idea.
+Now both these changes are going to help *mainly* for the case when there are
+a significant number of readers and writers, I think. So your write-heavy
+workload may not win anything. I noticed some speedup a long time ago on
+some weird java (volanomark) workload.
 
-It *seems* to work. I did a quick test.
-
-=================================
-[ INFO: inconsistent lock state ]
-2.6.28-rc6-00007-ged31348-dirty #26
----------------------------------
-inconsistent {in-reclaim-W} -> {ov-reclaim-W} usage.
-modprobe/8526 [HC0[0]:SC0[0]:HE1:SE1] takes:
- (testlock){--..}, at: [<ffffffffa0020055>] brd_init+0x55/0x216 [brd]
-{in-reclaim-W} state was registered at:
-  [<ffffffff80267bdb>] __lock_acquire+0x75b/0x1a60
-  [<ffffffff80268f71>] lock_acquire+0x91/0xc0
-  [<ffffffff8070f0e1>] mutex_lock_nested+0xb1/0x310
-  [<ffffffffa002002b>] brd_init+0x2b/0x216 [brd]
-  [<ffffffff8020903b>] _stext+0x3b/0x170
-  [<ffffffff80272ebf>] sys_init_module+0xaf/0x1e0
-  [<ffffffff8020c3fb>] system_call_fastpath+0x16/0x1b
-  [<ffffffffffffffff>] 0xffffffffffffffff
-irq event stamp: 3929
-hardirqs last  enabled at (3929): [<ffffffff8070f2b5>] mutex_lock_nested+0x285/0x310
-hardirqs last disabled at (3928): [<ffffffff8070f089>] mutex_lock_nested+0x59/0x310
-softirqs last  enabled at (3732): [<ffffffff8061f623>] sk_filter+0x83/0xe0
-softirqs last disabled at (3730): [<ffffffff8061f5b6>] sk_filter+0x16/0xe0
-
-other info that might help us debug this:
-1 lock held by modprobe/8526:
- #0:  (testlock){--..}, at: [<ffffffffa0020055>] brd_init+0x55/0x216 [brd]
-
-stack backtrace:
-Pid: 8526, comm: modprobe Not tainted 2.6.28-rc6-00007-ged31348-dirty #26
-Call Trace:
- [<ffffffff80265483>] print_usage_bug+0x193/0x1d0
- [<ffffffff80266530>] mark_lock+0xaf0/0xca0
- [<ffffffff80266735>] mark_held_locks+0x55/0xc0
- [<ffffffffa0020000>] ? brd_init+0x0/0x216 [brd]
- [<ffffffff802667ca>] trace_reclaim_fs+0x2a/0x60
- [<ffffffff80285005>] __alloc_pages_internal+0x475/0x580
- [<ffffffff8070f29e>] ? mutex_lock_nested+0x26e/0x310
- [<ffffffffa0020000>] ? brd_init+0x0/0x216 [brd]
- [<ffffffffa002006a>] brd_init+0x6a/0x216 [brd]
- [<ffffffffa0020000>] ? brd_init+0x0/0x216 [brd]
- [<ffffffff8020903b>] _stext+0x3b/0x170
- [<ffffffff8070f8b9>] ? mutex_unlock+0x9/0x10
- [<ffffffff8070f83d>] ? __mutex_unlock_slowpath+0x10d/0x180
- [<ffffffff802669ec>] ? trace_hardirqs_on_caller+0x12c/0x190
- [<ffffffff80272ebf>] sys_init_module+0xaf/0x1e0
- [<ffffffff8020c3fb>] system_call_fastpath+0x16/0x1b
-
+Thanks,
+Nick
 ---
-Index: linux-2.6/fs/nfsd/nfssvc.c
+
+Index: linux-2.6/include/asm-generic/rwsem-xadd.h
 ===================================================================
---- linux-2.6.orig/fs/nfsd/nfssvc.c
-+++ linux-2.6/fs/nfsd/nfssvc.c
-@@ -439,7 +439,6 @@ nfsd(void *vrqstp)
- 	 * localhost doesn't cause nfsd to lock up due to all the client's
- 	 * dirty pages.
- 	 */
--	current->flags |= PF_LESS_THROTTLE;
- 	set_freezable();
- 
- 	/*
-Index: linux-2.6/include/linux/lockdep.h
-===================================================================
---- linux-2.6.orig/include/linux/lockdep.h
-+++ linux-2.6/include/linux/lockdep.h
-@@ -33,6 +33,8 @@ enum lock_usage_bit
- 	LOCK_USED_IN_SOFTIRQ_READ,
- 	LOCK_ENABLED_SOFTIRQS_READ,
- 	LOCK_ENABLED_HARDIRQS_READ,
-+	LOCK_USED_IN_RECLAIM_FS,
-+	LOCK_HELD_OVER_RECLAIM_FS,
- 	LOCK_USAGE_STATES
- };
- 
-@@ -53,6 +55,9 @@ enum lock_usage_bit
- #define LOCKF_ENABLED_HARDIRQS_READ	(1 << LOCK_ENABLED_HARDIRQS_READ)
- #define LOCKF_ENABLED_SOFTIRQS_READ	(1 << LOCK_ENABLED_SOFTIRQS_READ)
- 
-+#define LOCKF_USED_IN_RECLAIM_FS	(1 << LOCK_USED_IN_RECLAIM_FS)
-+#define LOCKF_HELD_IN_RECLAIM_FS	(1 << LOCK_HELD_OVER_RECLAIM_FS)
+--- /dev/null
++++ linux-2.6/include/asm-generic/rwsem-xadd.h
+@@ -0,0 +1,182 @@
++#ifndef _ASM_GENERIC_RWSEM_XADD_H
++#define _ASM_GENERIC_RWSEM_XADD_H
 +
- #define LOCKF_ENABLED_IRQS_READ \
- 		(LOCKF_ENABLED_HARDIRQS_READ | LOCKF_ENABLED_SOFTIRQS_READ)
- #define LOCKF_USED_IN_IRQ_READ \
-@@ -389,6 +394,7 @@ static inline void early_init_irq_lock_c
- extern void early_boot_irqs_off(void);
- extern void early_boot_irqs_on(void);
- extern void print_irqtrace_events(struct task_struct *curr);
-+extern void trace_reclaim_fs(void);
- #else
- static inline void early_boot_irqs_off(void)
- {
-Index: linux-2.6/include/linux/sched.h
-===================================================================
---- linux-2.6.orig/include/linux/sched.h
-+++ linux-2.6/include/linux/sched.h
-@@ -1551,7 +1551,7 @@ extern cputime_t task_gtime(struct task_
- #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
- #define PF_KSWAPD	0x00040000	/* I am kswapd */
- #define PF_SWAPOFF	0x00080000	/* I am in swapoff */
--#define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
-+#define PF_RECLAIM_FS	0x00100000	/* Throttle me less: I clean memory */
- #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
- #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
- #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
-Index: linux-2.6/kernel/lockdep.c
-===================================================================
---- linux-2.6.orig/kernel/lockdep.c
-+++ linux-2.6/kernel/lockdep.c
-@@ -451,6 +451,8 @@ static const char *usage_str[] =
- 	[LOCK_USED_IN_SOFTIRQ_READ] =	"in-softirq-R",
- 	[LOCK_ENABLED_SOFTIRQS_READ] =	"softirq-on-R",
- 	[LOCK_ENABLED_HARDIRQS_READ] =	"hardirq-on-R",
-+	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
-+	[LOCK_HELD_OVER_RECLAIM_FS] =	"ov-reclaim-W",
- };
- 
- const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
-@@ -2111,6 +2113,20 @@ static int mark_lock_irq(struct task_str
- 		if (softirq_verbose(hlock_class(this)))
- 			ret = 2;
- 		break;
-+	case LOCK_USED_IN_RECLAIM_FS:
-+		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
-+			return 0;
-+		if (!check_usage_forwards(curr, this,
-+					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim"))
-+			return 0;
-+		break;
-+	case LOCK_HELD_OVER_RECLAIM_FS:
-+		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
-+			return 0;
-+		if (!check_usage_backwards(curr, this,
-+					   LOCK_USED_IN_RECLAIM_FS, "reclaim"))
-+			return 0;
-+		break;
- 	default:
- 		WARN_ON(1);
- 		break;
-@@ -2119,11 +2135,17 @@ static int mark_lock_irq(struct task_str
- 	return ret;
- }
- 
-+enum mark_type {
-+	HARDIRQ,
-+	SOFTIRQ,
-+	RECLAIM_FS,
++#ifndef _LINUX_RWSEM_H
++#error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
++#endif
++
++#ifdef __KERNEL__
++
++/*
++ * R/W semaphores for PPC using the stuff in lib/rwsem.c.
++ * Adapted largely from include/asm-i386/rwsem.h
++ * by Paul Mackerras <paulus@samba.org>.
++ */
++
++#include <linux/types.h>
++#include <linux/kernel.h>
++#include <linux/rwsem.h>
++#include <linux/spinlock.h>
++
++#include <asm/system.h>
++#include <asm/atomic.h>
++
++/*
++ * The MSW of the count is the negated number of active writers and waiting
++ * lockers, and the LSW is the total number of active locks
++ *
++ * The lock count is initialized to 0 (no active and no waiting lockers).
++ *
++ * When a writer subtracts WRITE_BIAS, it'll get 0xffff0001 for the case of an
++ * uncontended lock. This can be determined because atomic_long_add_return returns
++ * the old value.  Readers increment by 1 and see a positive value when
++ * uncontended, negative if there are writers (and maybe) readers waiting (in
++ * which case it goes to sleep).
++ *
++ * On 32-bit architectures, the value of WAITING_BIAS supports up to 32766
++ * waiting processes. The value of ACTIVE_BIAS supports up to 65535 active
++ * processes. On 64-bit, these are much larger.
++ */
++#define RWSEM_UNLOCKED_VALUE		0x00000000L
++#define RWSEM_ACTIVE_BIAS		0x00000001L
++#if BITS_PER_LONG == 32
++#define RWSEM_ACTIVE_MASK		0x0000ffffL
++#define RWSEM_WAITING_BIAS		0xffff0000L
++#elif BITS_PER_LONG == 64
++#define RWSEM_ACTIVE_MASK		0x00000000ffffffffL
++#define RWSEM_WAITING_BIAS		0xffffffff00000000L
++#endif
++#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
++#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
++
++/*
++ * the semaphore definition
++ */
++struct rw_semaphore {
++	atomic_long_t		count;
++	spinlock_t		wait_lock;
++	struct list_head	wait_list;
++#ifdef CONFIG_DEBUG_LOCK_ALLOC
++	struct lockdep_map	dep_map;
++#endif
 +};
 +
- /*
-  * Mark all held locks with a usage bit:
-  */
- static int
--mark_held_locks(struct task_struct *curr, int hardirq)
-+mark_held_locks(struct task_struct *curr, enum mark_type mark)
- {
- 	enum lock_usage_bit usage_bit;
- 	struct held_lock *hlock;
-@@ -2132,17 +2154,29 @@ mark_held_locks(struct task_struct *curr
- 	for (i = 0; i < curr->lockdep_depth; i++) {
- 		hlock = curr->held_locks + i;
- 
--		if (hardirq) {
-+		switch (mark) {
-+		case HARDIRQ:
- 			if (hlock->read)
- 				usage_bit = LOCK_ENABLED_HARDIRQS_READ;
- 			else
- 				usage_bit = LOCK_ENABLED_HARDIRQS;
--		} else {
-+			break;
++#ifdef CONFIG_DEBUG_LOCK_ALLOC
++# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
++#else
++# define __RWSEM_DEP_MAP_INIT(lockname)
++#endif
 +
-+		case SOFTIRQ:
- 			if (hlock->read)
- 				usage_bit = LOCK_ENABLED_SOFTIRQS_READ;
- 			else
- 				usage_bit = LOCK_ENABLED_SOFTIRQS;
-+			break;
++#define __RWSEM_INITIALIZER(name) \
++	{ .count = ATOMIC_LONG_INIT(RWSEM_UNLOCKED_VALUE),	\
++	  .wait_lock = __SPIN_LOCK_UNLOCKED((name).wait_lock),	\
++	  .wait_list = LIST_HEAD_INIT((name).wait_list)		\
++	  __RWSEM_DEP_MAP_INIT(name) }
 +
-+		case RECLAIM_FS:
-+			usage_bit = LOCK_HELD_OVER_RECLAIM_FS;
-+			break;
++#define DECLARE_RWSEM(name)		\
++	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
 +
-+		default:
-+			BUG();
- 		}
++extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
++extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
++extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem);
++extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
 +
- 		if (!mark_lock(curr, hlock, usage_bit))
- 			return 0;
- 	}
-@@ -2196,7 +2230,7 @@ void trace_hardirqs_on_caller(unsigned l
- 	 * We are going to turn hardirqs on, so set the
- 	 * usage bit for all held locks:
- 	 */
--	if (!mark_held_locks(curr, 1))
-+	if (!mark_held_locks(curr, HARDIRQ))
- 		return;
- 	/*
- 	 * If we have softirqs enabled, then set the usage
-@@ -2204,7 +2238,7 @@ void trace_hardirqs_on_caller(unsigned l
- 	 * this bit from being set before)
- 	 */
- 	if (curr->softirqs_enabled)
--		if (!mark_held_locks(curr, 0))
-+		if (!mark_held_locks(curr, SOFTIRQ))
- 			return;
- 
- 	curr->hardirq_enable_ip = ip;
-@@ -2284,7 +2318,7 @@ void trace_softirqs_on(unsigned long ip)
- 	 * enabled too:
- 	 */
- 	if (curr->hardirqs_enabled)
--		mark_held_locks(curr, 0);
-+		mark_held_locks(curr, SOFTIRQ);
- }
- 
- /*
-@@ -2313,6 +2347,18 @@ void trace_softirqs_off(unsigned long ip
- 		debug_atomic_inc(&redundant_softirqs_off);
- }
- 
-+void trace_reclaim_fs(void)
++extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
++			 struct lock_class_key *key);
++
++#define init_rwsem(sem)					\
++	do {						\
++		static struct lock_class_key __key;	\
++							\
++		__init_rwsem((sem), #sem, &__key);	\
++	} while (0)
++
++/*
++ * lock for reading
++ */
++static inline void __down_read(struct rw_semaphore *sem)
 +{
-+	struct task_struct *curr = current;
-+
-+	if (unlikely(!debug_locks))
-+		return;
-+	if (DEBUG_LOCKS_WARN_ON(irqs_disabled()))
-+		return;
-+
-+	mark_held_locks(curr, RECLAIM_FS);
++	if (unlikely(atomic_long_inc_return(&sem->count)) <= 0)
++		rwsem_down_read_failed(sem);
 +}
 +
- static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
- {
- 	/*
-@@ -2337,6 +2383,10 @@ static int mark_irqflags(struct task_str
- 				if (!mark_lock(curr, hlock, LOCK_USED_IN_SOFTIRQ))
- 					return 0;
- 		}
-+		if (curr->flags & PF_RECLAIM_FS) {
-+			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS))
-+				return 0;
-+		}
- 	}
- 	if (!hlock->hardirqs_off) {
- 		if (hlock->read) {
-@@ -2449,6 +2499,8 @@ static int mark_lock(struct task_struct
- 	case LOCK_ENABLED_SOFTIRQS:
- 	case LOCK_ENABLED_HARDIRQS_READ:
- 	case LOCK_ENABLED_SOFTIRQS_READ:
-+	case LOCK_USED_IN_RECLAIM_FS:
-+	case LOCK_HELD_OVER_RECLAIM_FS:
- 		ret = mark_lock_irq(curr, this, new_bit);
- 		if (!ret)
- 			return 0;
-Index: linux-2.6/mm/page-writeback.c
-===================================================================
---- linux-2.6.orig/mm/page-writeback.c
-+++ linux-2.6/mm/page-writeback.c
-@@ -383,7 +383,7 @@ get_dirty_limits(long *pbackground, long
- 	background = (background_ratio * available_memory) / 100;
- 	dirty = (dirty_ratio * available_memory) / 100;
- 	tsk = current;
--	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-+	if (rt_task(tsk)) {
- 		background += background / 4;
- 		dirty += dirty / 4;
- 	}
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c
-+++ linux-2.6/mm/page_alloc.c
-@@ -1467,6 +1467,9 @@ __alloc_pages_internal(gfp_t gfp_mask, u
- 	unsigned long did_some_progress;
- 	unsigned long pages_reclaimed = 0;
- 
-+	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS) && !(p->flags & PF_MEMALLOC))
-+		trace_reclaim_fs();
++static inline int __down_read_trylock(struct rw_semaphore *sem)
++{
++	long tmp;
 +
- 	might_sleep_if(wait);
++	while ((tmp = atomic_long_read(&sem->count)) >= 0) {
++		if (tmp == atomic_long_cmpxchg(&sem->count, tmp,
++				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
++			return 1;
++		}
++	}
++	return 0;
++}
++
++/*
++ * lock for writing
++ */
++static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
++{
++	long tmp;
++
++	tmp = atomic_long_add_return(RWSEM_ACTIVE_WRITE_BIAS, &sem->count);
++	if (unlikely(tmp != RWSEM_ACTIVE_WRITE_BIAS))
++		rwsem_down_write_failed(sem);
++}
++
++static inline void __down_write(struct rw_semaphore *sem)
++{
++	__down_write_nested(sem, 0);
++}
++
++static inline int __down_write_trylock(struct rw_semaphore *sem)
++{
++	long tmp;
++
++	tmp = atomic_long_cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
++		      RWSEM_ACTIVE_WRITE_BIAS);
++	return tmp == RWSEM_UNLOCKED_VALUE;
++}
++
++/*
++ * unlock after reading
++ */
++static inline void __up_read(struct rw_semaphore *sem)
++{
++	long tmp;
++
++	tmp = atomic_long_dec_return(&sem->count);
++	if (unlikely(tmp < -1 && (tmp & RWSEM_ACTIVE_MASK) == 0))
++		rwsem_wake(sem);
++}
++
++/*
++ * unlock after writing
++ */
++static inline void __up_write(struct rw_semaphore *sem)
++{
++	if (unlikely(atomic_long_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
++			      &sem->count) < 0))
++		rwsem_wake(sem);
++}
++
++/*
++ * downgrade write lock to read lock
++ */
++static inline void __downgrade_write(struct rw_semaphore *sem)
++{
++	long tmp;
++
++	tmp = atomic_long_add_return(-RWSEM_WAITING_BIAS, &sem->count);
++	if (tmp < 0)
++		rwsem_downgrade_wake(sem);
++}
++
++static inline int rwsem_is_locked(struct rw_semaphore *sem)
++{
++	return (atomic_long_read(&sem->count) != 0);
++}
++
++#endif	/* __KERNEL__ */
++#endif	/* _ASM_GENERIC_RWSEM_XADD_H */
+Index: linux-2.6/lib/rwsem.c
+===================================================================
+--- linux-2.6.orig/lib/rwsem.c
++++ linux-2.6/lib/rwsem.c
+@@ -3,10 +3,15 @@
+  * Written by David Howells (dhowells@redhat.com).
+  * Derived from arch/i386/kernel/semaphore.c
+  */
+-#include <linux/rwsem.h>
++#include <linux/types.h>
++#include <linux/kernel.h>
+ #include <linux/sched.h>
+-#include <linux/init.h>
+ #include <linux/module.h>
++#include <linux/rwsem.h>
++#include <linux/sched.h>
++
++#include <asm/system.h>
++#include <asm/atomic.h>
  
- 	if (should_fail_alloc_page(gfp_mask, order))
-@@ -1566,12 +1569,16 @@ nofail_alloc:
+ /*
+  * Initialize an rwsem:
+@@ -21,11 +26,10 @@ void __init_rwsem(struct rw_semaphore *s
+ 	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+ 	lockdep_init_map(&sem->dep_map, name, key, 0);
+ #endif
+-	sem->count = RWSEM_UNLOCKED_VALUE;
++	atomic_long_set(&sem->count, RWSEM_UNLOCKED_VALUE);
+ 	spin_lock_init(&sem->wait_lock);
+ 	INIT_LIST_HEAD(&sem->wait_list);
+ }
+-
+ EXPORT_SYMBOL(__init_rwsem);
+ 
+ struct rwsem_waiter {
+@@ -45,14 +49,15 @@ struct rwsem_waiter {
+  * - the spinlock must be held by the caller
+  * - woken process blocks are discarded from the list after having task zeroed
+  * - writers are only woken if downgrading is false
++ *
++ * The spinlock will be dropped by this function.
+  */
+-static inline struct rw_semaphore *
+-__rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
++static inline void
++__rwsem_do_wake(struct rw_semaphore *sem, int downgrading, unsigned long flags)
+ {
++	LIST_HEAD(wake_list);
+ 	struct rwsem_waiter *waiter;
+-	struct task_struct *tsk;
+-	struct list_head *next;
+-	signed long oldcount, woken, loop;
++	long oldcount, woken;
+ 
+ 	if (downgrading)
+ 		goto dont_wake_writers;
+@@ -61,7 +66,7 @@ __rwsem_do_wake(struct rw_semaphore *sem
+ 	 * if we can transition the active part of the count from 0 -> 1
  	 */
- 	cpuset_update_task_memory_state();
- 	p->flags |= PF_MEMALLOC;
-+	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS))
-+		p->flags |= PF_RECLAIM_FS;
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
+  try_again:
+-	oldcount = rwsem_atomic_update(RWSEM_ACTIVE_BIAS, sem)
++	oldcount = atomic_long_add_return(RWSEM_ACTIVE_BIAS, &sem->count)
+ 						- RWSEM_ACTIVE_BIAS;
+ 	if (oldcount & RWSEM_ACTIVE_MASK)
+ 		goto undo;
+@@ -79,12 +84,8 @@ __rwsem_do_wake(struct rw_semaphore *sem
+ 	 * It is an allocated on the waiter's stack and may become invalid at
+ 	 * any time after that point (due to a wakeup from another source).
+ 	 */
+-	list_del(&waiter->list);
+-	tsk = waiter->task;
+-	smp_mb();
+-	waiter->task = NULL;
+-	wake_up_process(tsk);
+-	put_task_struct(tsk);
++	list_move_tail(&waiter->list, &wake_list);
++	waiter->flags = 0;
+ 	goto out;
  
- 	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
+ 	/* don't want to wake any writers */
+@@ -101,44 +102,40 @@ __rwsem_do_wake(struct rw_semaphore *sem
+  readers_only:
+ 	woken = 0;
+ 	do {
+-		woken++;
+-
+-		if (waiter->list.next == &sem->wait_list)
++		list_move_tail(&waiter->list, &wake_list);
++		waiter->flags = 0;
++		woken += RWSEM_ACTIVE_BIAS - RWSEM_WAITING_BIAS;
++		if (list_empty(&sem->wait_list))
+ 			break;
  
- 	p->reclaim_state = NULL;
-+	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS))
-+		p->flags &= ~PF_RECLAIM_FS;
- 	p->flags &= ~PF_MEMALLOC;
+-		waiter = list_entry(waiter->list.next,
++		waiter = list_entry(sem->wait_list.next,
+ 					struct rwsem_waiter, list);
+-
+ 	} while (waiter->flags & RWSEM_WAITING_FOR_READ);
  
- 	cond_resched();
+-	loop = woken;
+-	woken *= RWSEM_ACTIVE_BIAS - RWSEM_WAITING_BIAS;
+ 	if (!downgrading)
+ 		/* we'd already done one increment earlier */
+ 		woken -= RWSEM_ACTIVE_BIAS;
+ 
+-	rwsem_atomic_add(woken, sem);
++	atomic_long_add(woken, &sem->count);
+ 
+-	next = sem->wait_list.next;
+-	for (; loop > 0; loop--) {
+-		waiter = list_entry(next, struct rwsem_waiter, list);
+-		next = waiter->list.next;
++out:
++	spin_unlock_irqrestore(&sem->wait_lock, flags);
++	while (!list_empty(&wake_list)) {
++		struct task_struct *tsk;
++		waiter = list_entry(wake_list.next, struct rwsem_waiter, list);
++		list_del(&waiter->list);
+ 		tsk = waiter->task;
+-		smp_mb();
+ 		waiter->task = NULL;
++		smp_mb();
+ 		wake_up_process(tsk);
+ 		put_task_struct(tsk);
+ 	}
+ 
+-	sem->wait_list.next = next;
+-	next->prev = &sem->wait_list;
+-
+- out:
+-	return sem;
++	return;
+ 
+ 	/* undo the change to count, but check for a transition 1->0 */
+  undo:
+-	if (rwsem_atomic_update(-RWSEM_ACTIVE_BIAS, sem) != 0)
++	if (atomic_long_add_return(-RWSEM_ACTIVE_BIAS, &sem->count) != 0)
+ 		goto out;
+ 	goto try_again;
+ }
+@@ -146,35 +143,33 @@ __rwsem_do_wake(struct rw_semaphore *sem
+ /*
+  * wait for a lock to be granted
+  */
+-static struct rw_semaphore __sched *
+-rwsem_down_failed_common(struct rw_semaphore *sem,
+-			struct rwsem_waiter *waiter, signed long adjustment)
++static struct rw_semaphore * __sched rwsem_down_failed_common(struct rw_semaphore *sem,
++			struct rwsem_waiter *waiter, long adjustment)
+ {
+ 	struct task_struct *tsk = current;
+-	signed long count;
++	unsigned long flags;
++	long count;
+ 
+ 	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+ 
+ 	/* set up my own style of waitqueue */
+-	spin_lock_irq(&sem->wait_lock);
++	spin_lock_irqsave(&sem->wait_lock, flags);
+ 	waiter->task = tsk;
+ 	get_task_struct(tsk);
+ 
+ 	list_add_tail(&waiter->list, &sem->wait_list);
+ 
+ 	/* we're now waiting on the lock, but no longer actively read-locking */
+-	count = rwsem_atomic_update(adjustment, sem);
++	count = atomic_long_add_return(adjustment, &sem->count);
+ 
+ 	/* if there are no active locks, wake the front queued process(es) up */
+ 	if (!(count & RWSEM_ACTIVE_MASK))
+-		sem = __rwsem_do_wake(sem, 0);
+-
+-	spin_unlock_irq(&sem->wait_lock);
++		__rwsem_do_wake(sem, 0, flags);
++	else
++		spin_unlock_irqrestore(&sem->wait_lock, flags);
+ 
+ 	/* wait to be given the lock */
+-	for (;;) {
+-		if (!waiter->task)
+-			break;
++	while (waiter->task) {
+ 		schedule();
+ 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+ 	}
+@@ -187,8 +182,7 @@ rwsem_down_failed_common(struct rw_semap
+ /*
+  * wait for the read lock to be granted
+  */
+-asmregparm struct rw_semaphore __sched *
+-rwsem_down_read_failed(struct rw_semaphore *sem)
++struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
+ {
+ 	struct rwsem_waiter waiter;
+ 
+@@ -197,12 +191,12 @@ rwsem_down_read_failed(struct rw_semapho
+ 				RWSEM_WAITING_BIAS - RWSEM_ACTIVE_BIAS);
+ 	return sem;
+ }
++EXPORT_SYMBOL(rwsem_down_read_failed);
+ 
+ /*
+  * wait for the write lock to be granted
+  */
+-asmregparm struct rw_semaphore __sched *
+-rwsem_down_write_failed(struct rw_semaphore *sem)
++struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
+ {
+ 	struct rwsem_waiter waiter;
+ 
+@@ -211,12 +205,13 @@ rwsem_down_write_failed(struct rw_semaph
+ 
+ 	return sem;
+ }
++EXPORT_SYMBOL(rwsem_down_write_failed);
+ 
+ /*
+  * handle waking up a waiter on the semaphore
+  * - up_read/up_write has decremented the active part of count if we come here
+  */
+-asmregparm struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
++struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
+ {
+ 	unsigned long flags;
+ 
+@@ -224,19 +219,20 @@ asmregparm struct rw_semaphore *rwsem_wa
+ 
+ 	/* do nothing if list empty */
+ 	if (!list_empty(&sem->wait_list))
+-		sem = __rwsem_do_wake(sem, 0);
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
++		__rwsem_do_wake(sem, 0, flags);
++	else
++		spin_unlock_irqrestore(&sem->wait_lock, flags);
+ 
+ 	return sem;
+ }
++EXPORT_SYMBOL(rwsem_wake);
+ 
+ /*
+  * downgrade a write lock into a read lock
+  * - caller incremented waiting part of count and discovered it still negative
+  * - just wake up any readers at the front of the queue
+  */
+-asmregparm struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem)
++struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem)
+ {
+ 	unsigned long flags;
+ 
+@@ -244,14 +240,10 @@ asmregparm struct rw_semaphore *rwsem_do
+ 
+ 	/* do nothing if list empty */
+ 	if (!list_empty(&sem->wait_list))
+-		sem = __rwsem_do_wake(sem, 1);
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
++		__rwsem_do_wake(sem, 1, flags);
++	else
++		spin_unlock_irqrestore(&sem->wait_lock, flags);
+ 
+ 	return sem;
+ }
+-
+-EXPORT_SYMBOL(rwsem_down_read_failed);
+-EXPORT_SYMBOL(rwsem_down_write_failed);
+-EXPORT_SYMBOL(rwsem_wake);
+ EXPORT_SYMBOL(rwsem_downgrade_wake);
+Index: linux-2.6/include/linux/rwsem.h
+===================================================================
+--- linux-2.6.orig/include/linux/rwsem.h
++++ linux-2.6/include/linux/rwsem.h
+@@ -16,8 +16,8 @@
+ 
+ struct rw_semaphore;
+ 
+-#ifdef CONFIG_RWSEM_GENERIC_SPINLOCK
+-#include <linux/rwsem-spinlock.h> /* use a generic implementation */
++#ifdef CONFIG_GENERIC_RWSEM
++#include <asm-generic/rwsem-xadd.h>
+ #else
+ #include <asm/rwsem.h> /* use an arch-specific implementation */
+ #endif
+Index: linux-2.6/arch/alpha/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/alpha/include/asm/rwsem.h
++++ /dev/null
+@@ -1,259 +0,0 @@
+-#ifndef _ALPHA_RWSEM_H
+-#define _ALPHA_RWSEM_H
+-
+-/*
+- * Written by Ivan Kokshaysky <ink@jurassic.park.msu.ru>, 2001.
+- * Based on asm-alpha/semaphore.h and asm-i386/rwsem.h
+- */
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#ifdef __KERNEL__
+-
+-#include <linux/compiler.h>
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-
+-struct rwsem_waiter;
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	long			count;
+-#define RWSEM_UNLOCKED_VALUE		0x0000000000000000L
+-#define RWSEM_ACTIVE_BIAS		0x0000000000000001L
+-#define RWSEM_ACTIVE_MASK		0x00000000ffffffffL
+-#define RWSEM_WAITING_BIAS		(-0x0000000100000000L)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-};
+-
+-#define __RWSEM_INITIALIZER(name) \
+-	{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, \
+-	LIST_HEAD_INIT((name).wait_list) }
+-
+-#define DECLARE_RWSEM(name) \
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-static inline void init_rwsem(struct rw_semaphore *sem)
+-{
+-	sem->count = RWSEM_UNLOCKED_VALUE;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	long oldcount;
+-#ifndef	CONFIG_SMP
+-	oldcount = sem->count;
+-	sem->count += RWSEM_ACTIVE_READ_BIAS;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"1:	ldq_l	%0,%1\n"
+-	"	addq	%0,%3,%2\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	"	mb\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (oldcount), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (RWSEM_ACTIVE_READ_BIAS), "m" (sem->count) : "memory");
+-#endif
+-	if (unlikely(oldcount < 0))
+-		rwsem_down_read_failed(sem);
+-}
+-
+-/*
+- * trylock for reading -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	long old, new, res;
+-
+-	res = sem->count;
+-	do {
+-		new = res + RWSEM_ACTIVE_READ_BIAS;
+-		if (new <= 0)
+-			break;
+-		old = res;
+-		res = cmpxchg(&sem->count, old, new);
+-	} while (res != old);
+-	return res >= 0 ? 1 : 0;
+-}
+-
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	long oldcount;
+-#ifndef	CONFIG_SMP
+-	oldcount = sem->count;
+-	sem->count += RWSEM_ACTIVE_WRITE_BIAS;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"1:	ldq_l	%0,%1\n"
+-	"	addq	%0,%3,%2\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	"	mb\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (oldcount), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (RWSEM_ACTIVE_WRITE_BIAS), "m" (sem->count) : "memory");
+-#endif
+-	if (unlikely(oldcount))
+-		rwsem_down_write_failed(sem);
+-}
+-
+-/*
+- * trylock for writing -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	long ret = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+-			   RWSEM_ACTIVE_WRITE_BIAS);
+-	if (ret == RWSEM_UNLOCKED_VALUE)
+-		return 1;
+-	return 0;
+-}
+-
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	long oldcount;
+-#ifndef	CONFIG_SMP
+-	oldcount = sem->count;
+-	sem->count -= RWSEM_ACTIVE_READ_BIAS;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"	mb\n"
+-	"1:	ldq_l	%0,%1\n"
+-	"	subq	%0,%3,%2\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (oldcount), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (RWSEM_ACTIVE_READ_BIAS), "m" (sem->count) : "memory");
+-#endif
+-	if (unlikely(oldcount < 0))
+-		if ((int)oldcount - RWSEM_ACTIVE_READ_BIAS == 0)
+-			rwsem_wake(sem);
+-}
+-
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	long count;
+-#ifndef	CONFIG_SMP
+-	sem->count -= RWSEM_ACTIVE_WRITE_BIAS;
+-	count = sem->count;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"	mb\n"
+-	"1:	ldq_l	%0,%1\n"
+-	"	subq	%0,%3,%2\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	"	subq	%0,%3,%0\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (count), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (RWSEM_ACTIVE_WRITE_BIAS), "m" (sem->count) : "memory");
+-#endif
+-	if (unlikely(count))
+-		if ((int)count == 0)
+-			rwsem_wake(sem);
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	long oldcount;
+-#ifndef	CONFIG_SMP
+-	oldcount = sem->count;
+-	sem->count -= RWSEM_WAITING_BIAS;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"1:	ldq_l	%0,%1\n"
+-	"	addq	%0,%3,%2\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	"	mb\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (oldcount), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (-RWSEM_WAITING_BIAS), "m" (sem->count) : "memory");
+-#endif
+-	if (unlikely(oldcount < 0))
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-static inline void rwsem_atomic_add(long val, struct rw_semaphore *sem)
+-{
+-#ifndef	CONFIG_SMP
+-	sem->count += val;
+-#else
+-	long temp;
+-	__asm__ __volatile__(
+-	"1:	ldq_l	%0,%1\n"
+-	"	addq	%0,%2,%0\n"
+-	"	stq_c	%0,%1\n"
+-	"	beq	%0,2f\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (temp), "=m" (sem->count)
+-	:"Ir" (val), "m" (sem->count));
+-#endif
+-}
+-
+-static inline long rwsem_atomic_update(long val, struct rw_semaphore *sem)
+-{
+-#ifndef	CONFIG_SMP
+-	sem->count += val;
+-	return sem->count;
+-#else
+-	long ret, temp;
+-	__asm__ __volatile__(
+-	"1:	ldq_l	%0,%1\n"
+-	"	addq 	%0,%3,%2\n"
+-	"	addq	%0,%3,%0\n"
+-	"	stq_c	%2,%1\n"
+-	"	beq	%2,2f\n"
+-	".subsection 2\n"
+-	"2:	br	1b\n"
+-	".previous"
+-	:"=&r" (ret), "=m" (sem->count), "=&r" (temp)
+-	:"Ir" (val), "m" (sem->count));
+-
+-	return ret;
+-#endif
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-#endif /* _ALPHA_RWSEM_H */
+Index: linux-2.6/arch/ia64/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/ia64/include/asm/rwsem.h
++++ /dev/null
+@@ -1,182 +0,0 @@
+-/*
+- * R/W semaphores for ia64
+- *
+- * Copyright (C) 2003 Ken Chen <kenneth.w.chen@intel.com>
+- * Copyright (C) 2003 Asit Mallick <asit.k.mallick@intel.com>
+- * Copyright (C) 2005 Christoph Lameter <clameter@sgi.com>
+- *
+- * Based on asm-i386/rwsem.h and other architecture implementation.
+- *
+- * The MSW of the count is the negated number of active writers and
+- * waiting lockers, and the LSW is the total number of active locks.
+- *
+- * The lock count is initialized to 0 (no active and no waiting lockers).
+- *
+- * When a writer subtracts WRITE_BIAS, it'll get 0xffffffff00000001 for
+- * the case of an uncontended lock. Readers increment by 1 and see a positive
+- * value when uncontended, negative if there are writers (and maybe) readers
+- * waiting (in which case it goes to sleep).
+- */
+-
+-#ifndef _ASM_IA64_RWSEM_H
+-#define _ASM_IA64_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
+-#endif
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-
+-#include <asm/intrinsics.h>
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	signed long		count;
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-};
+-
+-#define RWSEM_UNLOCKED_VALUE		__IA64_UL_CONST(0x0000000000000000)
+-#define RWSEM_ACTIVE_BIAS		__IA64_UL_CONST(0x0000000000000001)
+-#define RWSEM_ACTIVE_MASK		__IA64_UL_CONST(0x00000000ffffffff)
+-#define RWSEM_WAITING_BIAS		-__IA64_UL_CONST(0x0000000100000000)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-
+-#define __RWSEM_INITIALIZER(name) \
+-	{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, \
+-	  LIST_HEAD_INIT((name).wait_list) }
+-
+-#define DECLARE_RWSEM(name) \
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-static inline void
+-init_rwsem (struct rw_semaphore *sem)
+-{
+-	sem->count = RWSEM_UNLOCKED_VALUE;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-/*
+- * lock for reading
+- */
+-static inline void
+-__down_read (struct rw_semaphore *sem)
+-{
+-	long result = ia64_fetchadd8_acq((unsigned long *)&sem->count, 1);
+-
+-	if (result < 0)
+-		rwsem_down_read_failed(sem);
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void
+-__down_write (struct rw_semaphore *sem)
+-{
+-	long old, new;
+-
+-	do {
+-		old = sem->count;
+-		new = old + RWSEM_ACTIVE_WRITE_BIAS;
+-	} while (cmpxchg_acq(&sem->count, old, new) != old);
+-
+-	if (old != 0)
+-		rwsem_down_write_failed(sem);
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void
+-__up_read (struct rw_semaphore *sem)
+-{
+-	long result = ia64_fetchadd8_rel((unsigned long *)&sem->count, -1);
+-
+-	if (result < 0 && (--result & RWSEM_ACTIVE_MASK) == 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void
+-__up_write (struct rw_semaphore *sem)
+-{
+-	long old, new;
+-
+-	do {
+-		old = sem->count;
+-		new = old - RWSEM_ACTIVE_WRITE_BIAS;
+-	} while (cmpxchg_rel(&sem->count, old, new) != old);
+-
+-	if (new < 0 && (new & RWSEM_ACTIVE_MASK) == 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * trylock for reading -- returns 1 if successful, 0 if contention
+- */
+-static inline int
+-__down_read_trylock (struct rw_semaphore *sem)
+-{
+-	long tmp;
+-	while ((tmp = sem->count) >= 0) {
+-		if (tmp == cmpxchg_acq(&sem->count, tmp, tmp+1)) {
+-			return 1;
+-		}
+-	}
+-	return 0;
+-}
+-
+-/*
+- * trylock for writing -- returns 1 if successful, 0 if contention
+- */
+-static inline int
+-__down_write_trylock (struct rw_semaphore *sem)
+-{
+-	long tmp = cmpxchg_acq(&sem->count, RWSEM_UNLOCKED_VALUE,
+-			      RWSEM_ACTIVE_WRITE_BIAS);
+-	return tmp == RWSEM_UNLOCKED_VALUE;
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void
+-__downgrade_write (struct rw_semaphore *sem)
+-{
+-	long old, new;
+-
+-	do {
+-		old = sem->count;
+-		new = old - RWSEM_WAITING_BIAS;
+-	} while (cmpxchg_rel(&sem->count, old, new) != old);
+-
+-	if (old < 0)
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-/*
+- * Implement atomic add functionality.  These used to be "inline" functions, but GCC v3.1
+- * doesn't quite optimize this stuff right and ends up with bad calls to fetchandadd.
+- */
+-#define rwsem_atomic_add(delta, sem)	atomic64_add(delta, (atomic64_t *)(&(sem)->count))
+-#define rwsem_atomic_update(delta, sem)	atomic64_add_return(delta, (atomic64_t *)(&(sem)->count))
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* _ASM_IA64_RWSEM_H */
+Index: linux-2.6/arch/powerpc/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/powerpc/include/asm/rwsem.h
++++ /dev/null
+@@ -1,173 +0,0 @@
+-#ifndef _ASM_POWERPC_RWSEM_H
+-#define _ASM_POWERPC_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
+-#endif
+-
+-#ifdef __KERNEL__
+-
+-/*
+- * R/W semaphores for PPC using the stuff in lib/rwsem.c.
+- * Adapted largely from include/asm-i386/rwsem.h
+- * by Paul Mackerras <paulus@samba.org>.
+- */
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-#include <asm/atomic.h>
+-#include <asm/system.h>
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	/* XXX this should be able to be an atomic_t  -- paulus */
+-	signed int		count;
+-#define RWSEM_UNLOCKED_VALUE		0x00000000
+-#define RWSEM_ACTIVE_BIAS		0x00000001
+-#define RWSEM_ACTIVE_MASK		0x0000ffff
+-#define RWSEM_WAITING_BIAS		(-0x00010000)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map	dep_map;
+-#endif
+-};
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-#define __RWSEM_INITIALIZER(name) \
+-	{ RWSEM_UNLOCKED_VALUE, __SPIN_LOCK_UNLOCKED((name).wait_lock), \
+-	  LIST_HEAD_INIT((name).wait_list) __RWSEM_DEP_MAP_INIT(name) }
+-
+-#define DECLARE_RWSEM(name)		\
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)					\
+-	do {						\
+-		static struct lock_class_key __key;	\
+-							\
+-		__init_rwsem((sem), #sem, &__key);	\
+-	} while (0)
+-
+-/*
+- * lock for reading
+- */
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	if (unlikely(atomic_inc_return((atomic_t *)(&sem->count)) <= 0))
+-		rwsem_down_read_failed(sem);
+-}
+-
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	while ((tmp = sem->count) >= 0) {
+-		if (tmp == cmpxchg(&sem->count, tmp,
+-				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
+-			return 1;
+-		}
+-	}
+-	return 0;
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	int tmp;
+-
+-	tmp = atomic_add_return(RWSEM_ACTIVE_WRITE_BIAS,
+-				(atomic_t *)(&sem->count));
+-	if (unlikely(tmp != RWSEM_ACTIVE_WRITE_BIAS))
+-		rwsem_down_write_failed(sem);
+-}
+-
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	__down_write_nested(sem, 0);
+-}
+-
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+-		      RWSEM_ACTIVE_WRITE_BIAS);
+-	return tmp == RWSEM_UNLOCKED_VALUE;
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = atomic_dec_return((atomic_t *)(&sem->count));
+-	if (unlikely(tmp < -1 && (tmp & RWSEM_ACTIVE_MASK) == 0))
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	if (unlikely(atomic_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
+-			      (atomic_t *)(&sem->count)) < 0))
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * implement atomic add functionality
+- */
+-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+-{
+-	atomic_add(delta, (atomic_t *)(&sem->count));
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = atomic_add_return(-RWSEM_WAITING_BIAS, (atomic_t *)(&sem->count));
+-	if (tmp < 0)
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-/*
+- * implement exchange and add functionality
+- */
+-static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+-{
+-	return atomic_add_return(delta, (atomic_t *)(&sem->count));
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif	/* __KERNEL__ */
+-#endif	/* _ASM_POWERPC_RWSEM_H */
+Index: linux-2.6/arch/s390/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/s390/include/asm/rwsem.h
++++ /dev/null
+@@ -1,387 +0,0 @@
+-#ifndef _S390_RWSEM_H
+-#define _S390_RWSEM_H
+-
+-/*
+- *  include/asm-s390/rwsem.h
+- *
+- *  S390 version
+- *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
+- *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
+- *
+- *  Based on asm-alpha/semaphore.h and asm-i386/rwsem.h
+- */
+-
+-/*
+- *
+- * The MSW of the count is the negated number of active writers and waiting
+- * lockers, and the LSW is the total number of active locks
+- *
+- * The lock count is initialized to 0 (no active and no waiting lockers).
+- *
+- * When a writer subtracts WRITE_BIAS, it'll get 0xffff0001 for the case of an
+- * uncontended lock. This can be determined because XADD returns the old value.
+- * Readers increment by 1 and see a positive value when uncontended, negative
+- * if there are writers (and maybe) readers waiting (in which case it goes to
+- * sleep).
+- *
+- * The value of WAITING_BIAS supports up to 32766 waiting processes. This can
+- * be extended to 65534 by manually checking the whole MSW rather than relying
+- * on the S flag.
+- *
+- * The value of ACTIVE_BIAS supports up to 65535 active processes.
+- *
+- * This should be totally fair - if anything is waiting, a process that wants a
+- * lock will go to the back of the queue. When the currently active lock is
+- * released, if there's a writer at the front of the queue, then that and only
+- * that will be woken up; if there's a bunch of consequtive readers at the
+- * front, then they'll all be woken up, but no other readers will be.
+- */
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#ifdef __KERNEL__
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-
+-struct rwsem_waiter;
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *);
+-extern struct rw_semaphore *rwsem_downgrade_write(struct rw_semaphore *);
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	signed long		count;
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map	dep_map;
+-#endif
+-};
+-
+-#ifndef __s390x__
+-#define RWSEM_UNLOCKED_VALUE	0x00000000
+-#define RWSEM_ACTIVE_BIAS	0x00000001
+-#define RWSEM_ACTIVE_MASK	0x0000ffff
+-#define RWSEM_WAITING_BIAS	(-0x00010000)
+-#else /* __s390x__ */
+-#define RWSEM_UNLOCKED_VALUE	0x0000000000000000L
+-#define RWSEM_ACTIVE_BIAS	0x0000000000000001L
+-#define RWSEM_ACTIVE_MASK	0x00000000ffffffffL
+-#define RWSEM_WAITING_BIAS	(-0x0000000100000000L)
+-#endif /* __s390x__ */
+-#define RWSEM_ACTIVE_READ_BIAS	RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS	(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-
+-/*
+- * initialisation
+- */
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-#define __RWSEM_INITIALIZER(name) \
+- { RWSEM_UNLOCKED_VALUE, __SPIN_LOCK_UNLOCKED((name).wait.lock), \
+-   LIST_HEAD_INIT((name).wait_list) __RWSEM_DEP_MAP_INIT(name) }
+-
+-#define DECLARE_RWSEM(name) \
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-static inline void init_rwsem(struct rw_semaphore *sem)
+-{
+-	sem->count = RWSEM_UNLOCKED_VALUE;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)				\
+-do {						\
+-	static struct lock_class_key __key;	\
+-						\
+-	__init_rwsem((sem), #sem, &__key);	\
+-} while (0)
+-
+-
+-/*
+- * lock for reading
+- */
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	signed long old, new;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	ahi	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	aghi	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count),
+-		  "i" (RWSEM_ACTIVE_READ_BIAS) : "cc", "memory");
+-	if (old < 0)
+-		rwsem_down_read_failed(sem);
+-}
+-
+-/*
+- * trylock for reading -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	signed long old, new;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	ltr	%1,%0\n"
+-		"	jm	1f\n"
+-		"	ahi	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b\n"
+-		"1:"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	ltgr	%1,%0\n"
+-		"	jm	1f\n"
+-		"	aghi	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b\n"
+-		"1:"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count),
+-		  "i" (RWSEM_ACTIVE_READ_BIAS) : "cc", "memory");
+-	return old >= 0 ? 1 : 0;
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	signed long old, new, tmp;
+-
+-	tmp = RWSEM_ACTIVE_WRITE_BIAS;
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	a	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	ag	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+-		: "cc", "memory");
+-	if (old != 0)
+-		rwsem_down_write_failed(sem);
+-}
+-
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	__down_write_nested(sem, 0);
+-}
+-
+-/*
+- * trylock for writing -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	signed long old;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%2)\n"
+-		"0:	ltr	%0,%0\n"
+-		"	jnz	1f\n"
+-		"	cs	%0,%4,0(%2)\n"
+-		"	jl	0b\n"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%2)\n"
+-		"0:	ltgr	%0,%0\n"
+-		"	jnz	1f\n"
+-		"	csg	%0,%4,0(%2)\n"
+-		"	jl	0b\n"
+-#endif /* __s390x__ */
+-		"1:"
+-		: "=&d" (old), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count),
+-		  "d" (RWSEM_ACTIVE_WRITE_BIAS) : "cc", "memory");
+-	return (old == RWSEM_UNLOCKED_VALUE) ? 1 : 0;
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	signed long old, new;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	ahi	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	aghi	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count),
+-		  "i" (-RWSEM_ACTIVE_READ_BIAS)
+-		: "cc", "memory");
+-	if (new < 0)
+-		if ((new & RWSEM_ACTIVE_MASK) == 0)
+-			rwsem_wake(sem);
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	signed long old, new, tmp;
+-
+-	tmp = -RWSEM_ACTIVE_WRITE_BIAS;
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	a	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	ag	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+-		: "cc", "memory");
+-	if (new < 0)
+-		if ((new & RWSEM_ACTIVE_MASK) == 0)
+-			rwsem_wake(sem);
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	signed long old, new, tmp;
+-
+-	tmp = -RWSEM_WAITING_BIAS;
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	a	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	ag	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+-		: "cc", "memory");
+-	if (new > 1)
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-/*
+- * implement atomic add functionality
+- */
+-static inline void rwsem_atomic_add(long delta, struct rw_semaphore *sem)
+-{
+-	signed long old, new;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	ar	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	agr	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count), "d" (delta)
+-		: "cc", "memory");
+-}
+-
+-/*
+- * implement exchange and add functionality
+- */
+-static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
+-{
+-	signed long old, new;
+-
+-	asm volatile(
+-#ifndef __s390x__
+-		"	l	%0,0(%3)\n"
+-		"0:	lr	%1,%0\n"
+-		"	ar	%1,%5\n"
+-		"	cs	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#else /* __s390x__ */
+-		"	lg	%0,0(%3)\n"
+-		"0:	lgr	%1,%0\n"
+-		"	agr	%1,%5\n"
+-		"	csg	%0,%1,0(%3)\n"
+-		"	jl	0b"
+-#endif /* __s390x__ */
+-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
+-		: "a" (&sem->count), "m" (sem->count), "d" (delta)
+-		: "cc", "memory");
+-	return new;
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-#endif /* _S390_RWSEM_H */
+Index: linux-2.6/arch/sh/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/sh/include/asm/rwsem.h
++++ /dev/null
+@@ -1,188 +0,0 @@
+-/*
+- * include/asm-sh/rwsem.h: R/W semaphores for SH using the stuff
+- * in lib/rwsem.c.
+- */
+-
+-#ifndef _ASM_SH_RWSEM_H
+-#define _ASM_SH_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#ifdef __KERNEL__
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-#include <asm/atomic.h>
+-#include <asm/system.h>
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	long		count;
+-#define RWSEM_UNLOCKED_VALUE		0x00000000
+-#define RWSEM_ACTIVE_BIAS		0x00000001
+-#define RWSEM_ACTIVE_MASK		0x0000ffff
+-#define RWSEM_WAITING_BIAS		(-0x00010000)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map	dep_map;
+-#endif
+-};
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-#define __RWSEM_INITIALIZER(name) \
+-	{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, \
+-	  LIST_HEAD_INIT((name).wait_list) \
+-	  __RWSEM_DEP_MAP_INIT(name) }
+-
+-#define DECLARE_RWSEM(name)		\
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)				\
+-do {						\
+-	static struct lock_class_key __key;	\
+-						\
+-	__init_rwsem((sem), #sem, &__key);	\
+-} while (0)
+-
+-static inline void init_rwsem(struct rw_semaphore *sem)
+-{
+-	sem->count = RWSEM_UNLOCKED_VALUE;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-/*
+- * lock for reading
+- */
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	if (atomic_inc_return((atomic_t *)(&sem->count)) > 0)
+-		smp_wmb();
+-	else
+-		rwsem_down_read_failed(sem);
+-}
+-
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	while ((tmp = sem->count) >= 0) {
+-		if (tmp == cmpxchg(&sem->count, tmp,
+-				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
+-			smp_wmb();
+-			return 1;
+-		}
+-	}
+-	return 0;
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = atomic_add_return(RWSEM_ACTIVE_WRITE_BIAS,
+-				(atomic_t *)(&sem->count));
+-	if (tmp == RWSEM_ACTIVE_WRITE_BIAS)
+-		smp_wmb();
+-	else
+-		rwsem_down_write_failed(sem);
+-}
+-
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+-		      RWSEM_ACTIVE_WRITE_BIAS);
+-	smp_wmb();
+-	return tmp == RWSEM_UNLOCKED_VALUE;
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	smp_wmb();
+-	tmp = atomic_dec_return((atomic_t *)(&sem->count));
+-	if (tmp < -1 && (tmp & RWSEM_ACTIVE_MASK) == 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	smp_wmb();
+-	if (atomic_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
+-			      (atomic_t *)(&sem->count)) < 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * implement atomic add functionality
+- */
+-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+-{
+-	atomic_add(delta, (atomic_t *)(&sem->count));
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	smp_wmb();
+-	tmp = atomic_add_return(-RWSEM_WAITING_BIAS, (atomic_t *)(&sem->count));
+-	if (tmp < 0)
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	__down_write(sem);
+-}
+-
+-/*
+- * implement exchange and add functionality
+- */
+-static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+-{
+-	smp_mb();
+-	return atomic_add_return(delta, (atomic_t *)(&sem->count));
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-#endif /* _ASM_SH_RWSEM_H */
+Index: linux-2.6/arch/sparc/include/asm/rwsem-const.h
+===================================================================
+--- linux-2.6.orig/arch/sparc/include/asm/rwsem-const.h
++++ /dev/null
+@@ -1,12 +0,0 @@
+-/* rwsem-const.h: RW semaphore counter constants.  */
+-#ifndef _SPARC64_RWSEM_CONST_H
+-#define _SPARC64_RWSEM_CONST_H
+-
+-#define RWSEM_UNLOCKED_VALUE		0x00000000
+-#define RWSEM_ACTIVE_BIAS		0x00000001
+-#define RWSEM_ACTIVE_MASK		0x0000ffff
+-#define RWSEM_WAITING_BIAS		0xffff0000
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-
+-#endif /* _SPARC64_RWSEM_CONST_H */
+Index: linux-2.6/arch/sparc/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/sparc/include/asm/rwsem.h
++++ /dev/null
+@@ -1,84 +0,0 @@
+-/*
+- * rwsem.h: R/W semaphores implemented using CAS
+- *
+- * Written by David S. Miller (davem@redhat.com), 2001.
+- * Derived from asm-i386/rwsem.h
+- */
+-#ifndef _SPARC64_RWSEM_H
+-#define _SPARC64_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#ifdef __KERNEL__
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-#include <asm/rwsem-const.h>
+-
+-struct rwsem_waiter;
+-
+-struct rw_semaphore {
+-	signed int count;
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map	dep_map;
+-#endif
+-};
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-#define __RWSEM_INITIALIZER(name) \
+-{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, LIST_HEAD_INIT((name).wait_list) \
+-  __RWSEM_DEP_MAP_INIT(name) }
+-
+-#define DECLARE_RWSEM(name) \
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)						\
+-do {								\
+-	static struct lock_class_key __key;			\
+-								\
+-	__init_rwsem((sem), #sem, &__key);			\
+-} while (0)
+-
+-extern void __down_read(struct rw_semaphore *sem);
+-extern int __down_read_trylock(struct rw_semaphore *sem);
+-extern void __down_write(struct rw_semaphore *sem);
+-extern int __down_write_trylock(struct rw_semaphore *sem);
+-extern void __up_read(struct rw_semaphore *sem);
+-extern void __up_write(struct rw_semaphore *sem);
+-extern void __downgrade_write(struct rw_semaphore *sem);
+-
+-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	__down_write(sem);
+-}
+-
+-static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+-{
+-	return atomic_add_return(delta, (atomic_t *)(&sem->count));
+-}
+-
+-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+-{
+-	atomic_add(delta, (atomic_t *)(&sem->count));
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-
+-#endif /* _SPARC64_RWSEM_H */
+Index: linux-2.6/arch/sparc/lib/rwsem.S
+===================================================================
+--- linux-2.6.orig/arch/sparc/lib/rwsem.S
++++ /dev/null
+@@ -1,204 +0,0 @@
+-/*
+- * Assembly part of rw semaphores.
+- *
+- * Copyright (C) 1999 Jakub Jelinek (jakub@redhat.com)
+- */
+-
+-#include <asm/ptrace.h>
+-#include <asm/psr.h>
+-
+-	.section .sched.text, "ax"
+-	.align	4
+-
+-	.globl		___down_read
+-___down_read:
+-	rd		%psr, %g3
+-	nop
+-	nop
+-	nop
+-	or		%g3, PSR_PIL, %g7
+-	wr		%g7, 0, %psr
+-	nop
+-	nop
+-	nop
+-#ifdef CONFIG_SMP
+-1:	ldstub		[%g1 + 4], %g7
+-	tst		%g7
+-	bne		1b
+-	 ld		[%g1], %g7
+-	sub		%g7, 1, %g7
+-	st		%g7, [%g1]
+-	stb		%g0, [%g1 + 4]
+-#else
+-	ld		[%g1], %g7
+-	sub		%g7, 1, %g7
+-	st		%g7, [%g1]
+-#endif
+-	wr		%g3, 0, %psr
+-	add		%g7, 1, %g7
+-	nop
+-	nop
+-	subcc		%g7, 1, %g7
+-	bneg		3f
+-	 nop
+-2:	jmpl		%o7, %g0
+-	 mov		%g4, %o7
+-3:	save		%sp, -64, %sp
+-	mov		%g1, %l1
+-	mov		%g4, %l4
+-	bcs		4f
+-	 mov		%g5, %l5
+-	call		down_read_failed
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		___down_read
+-	 restore	%l5, %g0, %g5
+-4:	call		down_read_failed_biased
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		2b
+-	 restore	%l5, %g0, %g5
+-
+-	.globl		___down_write
+-___down_write:
+-	rd		%psr, %g3
+-	nop
+-	nop
+-	nop
+-	or		%g3, PSR_PIL, %g7
+-	wr		%g7, 0, %psr
+-	sethi		%hi(0x01000000), %g2
+-	nop
+-	nop
+-#ifdef CONFIG_SMP
+-1:	ldstub		[%g1 + 4], %g7
+-	tst		%g7
+-	bne		1b
+-	 ld		[%g1], %g7
+-	sub		%g7, %g2, %g7
+-	st		%g7, [%g1]
+-	stb		%g0, [%g1 + 4]
+-#else
+-	ld		[%g1], %g7
+-	sub		%g7, %g2, %g7
+-	st		%g7, [%g1]
+-#endif
+-	wr		%g3, 0, %psr
+-	add		%g7, %g2, %g7
+-	nop
+-	nop
+-	subcc		%g7, %g2, %g7
+-	bne		3f
+-	 nop
+-2:	jmpl		%o7, %g0
+-	 mov		%g4, %o7
+-3:	save		%sp, -64, %sp
+-	mov		%g1, %l1
+-	mov		%g4, %l4
+-	bcs		4f
+-	 mov		%g5, %l5
+-	call		down_write_failed
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		___down_write
+-	 restore	%l5, %g0, %g5
+-4:	call		down_write_failed_biased
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		2b
+-	 restore	%l5, %g0, %g5
+-
+-	.text
+-	.globl		___up_read
+-___up_read:
+-	rd		%psr, %g3
+-	nop
+-	nop
+-	nop
+-	or		%g3, PSR_PIL, %g7
+-	wr		%g7, 0, %psr
+-	nop
+-	nop
+-	nop
+-#ifdef CONFIG_SMP
+-1:	ldstub		[%g1 + 4], %g7
+-	tst		%g7
+-	bne		1b
+-	 ld		[%g1], %g7
+-	add		%g7, 1, %g7
+-	st		%g7, [%g1]
+-	stb		%g0, [%g1 + 4]
+-#else
+-	ld		[%g1], %g7
+-	add		%g7, 1, %g7
+-	st		%g7, [%g1]
+-#endif
+-	wr		%g3, 0, %psr
+-	nop
+-	nop
+-	nop
+-	cmp		%g7, 0
+-	be		3f
+-	 nop
+-2:	jmpl		%o7, %g0
+-	 mov		%g4, %o7
+-3:	save		%sp, -64, %sp
+-	mov		%g1, %l1
+-	mov		%g4, %l4
+-	mov		%g5, %l5
+-	clr		%o1
+-	call		__rwsem_wake
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		2b
+-	 restore	%l5, %g0, %g5
+-
+-	.globl		___up_write
+-___up_write:
+-	rd		%psr, %g3
+-	nop
+-	nop
+-	nop
+-	or		%g3, PSR_PIL, %g7
+-	wr		%g7, 0, %psr
+-	sethi		%hi(0x01000000), %g2
+-	nop
+-	nop
+-#ifdef CONFIG_SMP
+-1:	ldstub		[%g1 + 4], %g7
+-	tst		%g7
+-	bne		1b
+-	 ld		[%g1], %g7
+-	add		%g7, %g2, %g7
+-	st		%g7, [%g1]
+-	stb		%g0, [%g1 + 4]
+-#else
+-	ld		[%g1], %g7
+-	add		%g7, %g2, %g7
+-	st		%g7, [%g1]
+-#endif
+-	wr		%g3, 0, %psr
+-	sub		%g7, %g2, %g7
+-	nop
+-	nop
+-	addcc		%g7, %g2, %g7
+-	bcs		3f
+-	 nop
+-2:	jmpl		%o7, %g0
+-	 mov		%g4, %o7
+-3:	save		%sp, -64, %sp
+-	mov		%g1, %l1
+-	mov		%g4, %l4
+-	mov		%g5, %l5
+-	mov		%g7, %o1
+-	call		__rwsem_wake
+-	 mov		%l1, %o0
+-	mov		%l1, %g1
+-	mov		%l4, %g4
+-	ba		2b
+-	 restore	%l5, %g0, %g5
+Index: linux-2.6/arch/sparc64/lib/rwsem.S
+===================================================================
+--- linux-2.6.orig/arch/sparc64/lib/rwsem.S
++++ /dev/null
+@@ -1,170 +0,0 @@
+-/* rwsem.S: RW semaphore assembler.
+- *
+- * Written by David S. Miller (davem@redhat.com), 2001.
+- * Derived from asm-i386/rwsem.h
+- */
+-
+-#include <asm/rwsem-const.h>
+-
+-	.section	.sched.text, "ax"
+-
+-	.globl		__down_read
+-__down_read:
+-1:	lduw		[%o0], %g1
+-	add		%g1, 1, %g7
+-	cas		[%o0], %g1, %g7
+-	cmp		%g1, %g7
+-	bne,pn		%icc, 1b
+-	 add		%g7, 1, %g7
+-	cmp		%g7, 0
+-	membar		#StoreLoad | #StoreStore
+-	bl,pn		%icc, 3f
+-	 nop
+-2:
+-	retl
+-	 nop
+-3:
+-	save		%sp, -192, %sp
+-	call		rwsem_down_read_failed
+-	 mov		%i0, %o0
+-	ret
+-	 restore
+-	.size		__down_read, .-__down_read
+-
+-	.globl		__down_read_trylock
+-__down_read_trylock:
+-1:	lduw		[%o0], %g1
+-	add		%g1, 1, %g7
+-	cmp		%g7, 0
+-	bl,pn		%icc, 2f
+-	 mov		0, %o1
+-	cas		[%o0], %g1, %g7
+-	cmp		%g1, %g7
+-	bne,pn		%icc, 1b
+-	 mov		1, %o1
+-	membar		#StoreLoad | #StoreStore
+-2:	retl
+-	 mov		%o1, %o0
+-	.size		__down_read_trylock, .-__down_read_trylock
+-
+-	.globl		__down_write
+-__down_write:
+-	sethi		%hi(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-	or		%g1, %lo(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-1:
+-	lduw		[%o0], %g3
+-	add		%g3, %g1, %g7
+-	cas		[%o0], %g3, %g7
+-	cmp		%g3, %g7
+-	bne,pn		%icc, 1b
+-	 cmp		%g7, 0
+-	membar		#StoreLoad | #StoreStore
+-	bne,pn		%icc, 3f
+-	 nop
+-2:	retl
+-	 nop
+-3:
+-	save		%sp, -192, %sp
+-	call		rwsem_down_write_failed
+-	 mov		%i0, %o0
+-	ret
+-	 restore
+-	.size		__down_write, .-__down_write
+-
+-	.globl		__down_write_trylock
+-__down_write_trylock:
+-	sethi		%hi(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-	or		%g1, %lo(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-1:
+-	lduw		[%o0], %g3
+-	cmp		%g3, 0
+-	bne,pn		%icc, 2f
+-	 mov		0, %o1
+-	add		%g3, %g1, %g7
+-	cas		[%o0], %g3, %g7
+-	cmp		%g3, %g7
+-	bne,pn		%icc, 1b
+-	 mov		1, %o1
+-	membar		#StoreLoad | #StoreStore
+-2:	retl
+-	 mov		%o1, %o0
+-	.size		__down_write_trylock, .-__down_write_trylock
+-
+-	.globl		__up_read
+-__up_read:
+-1:
+-	lduw		[%o0], %g1
+-	sub		%g1, 1, %g7
+-	cas		[%o0], %g1, %g7
+-	cmp		%g1, %g7
+-	bne,pn		%icc, 1b
+-	 cmp		%g7, 0
+-	membar		#StoreLoad | #StoreStore
+-	bl,pn		%icc, 3f
+-	 nop
+-2:	retl
+-	 nop
+-3:	sethi		%hi(RWSEM_ACTIVE_MASK), %g1
+-	sub		%g7, 1, %g7
+-	or		%g1, %lo(RWSEM_ACTIVE_MASK), %g1
+-	andcc		%g7, %g1, %g0
+-	bne,pn		%icc, 2b
+-	 nop
+-	save		%sp, -192, %sp
+-	call		rwsem_wake
+-	 mov		%i0, %o0
+-	ret
+-	 restore
+-	.size		__up_read, .-__up_read
+-
+-	.globl		__up_write
+-__up_write:
+-	sethi		%hi(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-	or		%g1, %lo(RWSEM_ACTIVE_WRITE_BIAS), %g1
+-1:
+-	lduw		[%o0], %g3
+-	sub		%g3, %g1, %g7
+-	cas		[%o0], %g3, %g7
+-	cmp		%g3, %g7
+-	bne,pn		%icc, 1b
+-	 sub		%g7, %g1, %g7
+-	cmp		%g7, 0
+-	membar		#StoreLoad | #StoreStore
+-	bl,pn		%icc, 3f
+-	 nop
+-2:
+-	retl
+-	 nop
+-3:
+-	save		%sp, -192, %sp
+-	call		rwsem_wake
+-	 mov		%i0, %o0
+-	ret
+-	 restore
+-	.size		__up_write, .-__up_write
+-
+-	.globl		__downgrade_write
+-__downgrade_write:
+-	sethi		%hi(RWSEM_WAITING_BIAS), %g1
+-	or		%g1, %lo(RWSEM_WAITING_BIAS), %g1
+-1:
+-	lduw		[%o0], %g3
+-	sub		%g3, %g1, %g7
+-	cas		[%o0], %g3, %g7
+-	cmp		%g3, %g7
+-	bne,pn		%icc, 1b
+-	 sub		%g7, %g1, %g7
+-	cmp		%g7, 0
+-	membar		#StoreLoad | #StoreStore
+-	bl,pn		%icc, 3f
+-	 nop
+-2:
+-	retl
+-	 nop
+-3:
+-	save		%sp, -192, %sp
+-	call		rwsem_downgrade_wake
+-	 mov		%i0, %o0
+-	ret
+-	 restore
+-	.size		__downgrade_write, .-__downgrade_write
+Index: linux-2.6/arch/x86/include/asm/rwsem.h
+===================================================================
+--- linux-2.6.orig/arch/x86/include/asm/rwsem.h
++++ /dev/null
+@@ -1,265 +0,0 @@
+-/* rwsem.h: R/W semaphores implemented using XADD/CMPXCHG for i486+
+- *
+- * Written by David Howells (dhowells@redhat.com).
+- *
+- * Derived from asm-x86/semaphore.h
+- *
+- *
+- * The MSW of the count is the negated number of active writers and waiting
+- * lockers, and the LSW is the total number of active locks
+- *
+- * The lock count is initialized to 0 (no active and no waiting lockers).
+- *
+- * When a writer subtracts WRITE_BIAS, it'll get 0xffff0001 for the case of an
+- * uncontended lock. This can be determined because XADD returns the old value.
+- * Readers increment by 1 and see a positive value when uncontended, negative
+- * if there are writers (and maybe) readers waiting (in which case it goes to
+- * sleep).
+- *
+- * The value of WAITING_BIAS supports up to 32766 waiting processes. This can
+- * be extended to 65534 by manually checking the whole MSW rather than relying
+- * on the S flag.
+- *
+- * The value of ACTIVE_BIAS supports up to 65535 active processes.
+- *
+- * This should be totally fair - if anything is waiting, a process that wants a
+- * lock will go to the back of the queue. When the currently active lock is
+- * released, if there's a writer at the front of the queue, then that and only
+- * that will be woken up; if there's a bunch of consequtive readers at the
+- * front, then they'll all be woken up, but no other readers will be.
+- */
+-
+-#ifndef _ASM_X86_RWSEM_H
+-#define _ASM_X86_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include asm/rwsem.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#ifdef __KERNEL__
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-#include <linux/lockdep.h>
+-
+-struct rwsem_waiter;
+-
+-extern asmregparm struct rw_semaphore *
+- rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern asmregparm struct rw_semaphore *
+- rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern asmregparm struct rw_semaphore *
+- rwsem_wake(struct rw_semaphore *);
+-extern asmregparm struct rw_semaphore *
+- rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-/*
+- * the semaphore definition
+- */
+-
+-#define RWSEM_UNLOCKED_VALUE		0x00000000
+-#define RWSEM_ACTIVE_BIAS		0x00000001
+-#define RWSEM_ACTIVE_MASK		0x0000ffff
+-#define RWSEM_WAITING_BIAS		(-0x00010000)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-
+-struct rw_semaphore {
+-	signed long		count;
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map dep_map;
+-#endif
+-};
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-
+-#define __RWSEM_INITIALIZER(name)				\
+-{								\
+-	RWSEM_UNLOCKED_VALUE, __SPIN_LOCK_UNLOCKED((name).wait_lock), \
+-	LIST_HEAD_INIT((name).wait_list) __RWSEM_DEP_MAP_INIT(name) \
+-}
+-
+-#define DECLARE_RWSEM(name)					\
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)						\
+-do {								\
+-	static struct lock_class_key __key;			\
+-								\
+-	__init_rwsem((sem), #sem, &__key);			\
+-} while (0)
+-
+-/*
+- * lock for reading
+- */
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	asm volatile("# beginning down_read\n\t"
+-		     LOCK_PREFIX "  incl      (%%eax)\n\t"
+-		     /* adds 0x00000001, returns the old value */
+-		     "  jns        1f\n"
+-		     "  call call_rwsem_down_read_failed\n"
+-		     "1:\n\t"
+-		     "# ending down_read\n\t"
+-		     : "+m" (sem->count)
+-		     : "a" (sem)
+-		     : "memory", "cc");
+-}
+-
+-/*
+- * trylock for reading -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	__s32 result, tmp;
+-	asm volatile("# beginning __down_read_trylock\n\t"
+-		     "  movl      %0,%1\n\t"
+-		     "1:\n\t"
+-		     "  movl	     %1,%2\n\t"
+-		     "  addl      %3,%2\n\t"
+-		     "  jle	     2f\n\t"
+-		     LOCK_PREFIX "  cmpxchgl  %2,%0\n\t"
+-		     "  jnz	     1b\n\t"
+-		     "2:\n\t"
+-		     "# ending __down_read_trylock\n\t"
+-		     : "+m" (sem->count), "=&a" (result), "=&r" (tmp)
+-		     : "i" (RWSEM_ACTIVE_READ_BIAS)
+-		     : "memory", "cc");
+-	return result >= 0 ? 1 : 0;
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	int tmp;
+-
+-	tmp = RWSEM_ACTIVE_WRITE_BIAS;
+-	asm volatile("# beginning down_write\n\t"
+-		     LOCK_PREFIX "  xadd      %%edx,(%%eax)\n\t"
+-		     /* subtract 0x0000ffff, returns the old value */
+-		     "  testl     %%edx,%%edx\n\t"
+-		     /* was the count 0 before? */
+-		     "  jz        1f\n"
+-		     "  call call_rwsem_down_write_failed\n"
+-		     "1:\n"
+-		     "# ending down_write"
+-		     : "+m" (sem->count), "=d" (tmp)
+-		     : "a" (sem), "1" (tmp)
+-		     : "memory", "cc");
+-}
+-
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	__down_write_nested(sem, 0);
+-}
+-
+-/*
+- * trylock for writing -- returns 1 if successful, 0 if contention
+- */
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	signed long ret = cmpxchg(&sem->count,
+-				  RWSEM_UNLOCKED_VALUE,
+-				  RWSEM_ACTIVE_WRITE_BIAS);
+-	if (ret == RWSEM_UNLOCKED_VALUE)
+-		return 1;
+-	return 0;
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	__s32 tmp = -RWSEM_ACTIVE_READ_BIAS;
+-	asm volatile("# beginning __up_read\n\t"
+-		     LOCK_PREFIX "  xadd      %%edx,(%%eax)\n\t"
+-		     /* subtracts 1, returns the old value */
+-		     "  jns        1f\n\t"
+-		     "  call call_rwsem_wake\n"
+-		     "1:\n"
+-		     "# ending __up_read\n"
+-		     : "+m" (sem->count), "=d" (tmp)
+-		     : "a" (sem), "1" (tmp)
+-		     : "memory", "cc");
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	asm volatile("# beginning __up_write\n\t"
+-		     "  movl      %2,%%edx\n\t"
+-		     LOCK_PREFIX "  xaddl     %%edx,(%%eax)\n\t"
+-		     /* tries to transition
+-			0xffff0001 -> 0x00000000 */
+-		     "  jz       1f\n"
+-		     "  call call_rwsem_wake\n"
+-		     "1:\n\t"
+-		     "# ending __up_write\n"
+-		     : "+m" (sem->count)
+-		     : "a" (sem), "i" (-RWSEM_ACTIVE_WRITE_BIAS)
+-		     : "memory", "cc", "edx");
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	asm volatile("# beginning __downgrade_write\n\t"
+-		     LOCK_PREFIX "  addl      %2,(%%eax)\n\t"
+-		     /* transitions 0xZZZZ0001 -> 0xYYYY0001 */
+-		     "  jns       1f\n\t"
+-		     "  call call_rwsem_downgrade_wake\n"
+-		     "1:\n\t"
+-		     "# ending __downgrade_write\n"
+-		     : "+m" (sem->count)
+-		     : "a" (sem), "i" (-RWSEM_WAITING_BIAS)
+-		     : "memory", "cc");
+-}
+-
+-/*
+- * implement atomic add functionality
+- */
+-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+-{
+-	asm volatile(LOCK_PREFIX "addl %1,%0"
+-		     : "+m" (sem->count)
+-		     : "ir" (delta));
+-}
+-
+-/*
+- * implement exchange and add functionality
+- */
+-static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+-{
+-	int tmp = delta;
+-
+-	asm volatile(LOCK_PREFIX "xadd %0,%1"
+-		     : "+r" (tmp), "+m" (sem->count)
+-		     : : "memory");
+-
+-	return tmp + delta;
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-#endif /* _ASM_X86_RWSEM_H */
+Index: linux-2.6/include/linux/rwsem-spinlock.h
+===================================================================
+--- linux-2.6.orig/include/linux/rwsem-spinlock.h
++++ /dev/null
+@@ -1,78 +0,0 @@
+-/* rwsem-spinlock.h: fallback C implementation
+- *
+- * Copyright (c) 2001   David Howells (dhowells@redhat.com).
+- * - Derived partially from ideas by Andrea Arcangeli <andrea@suse.de>
+- * - Derived also from comments by Linus
+- */
+-
+-#ifndef _LINUX_RWSEM_SPINLOCK_H
+-#define _LINUX_RWSEM_SPINLOCK_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "please don't include linux/rwsem-spinlock.h directly, use linux/rwsem.h instead"
+-#endif
+-
+-#include <linux/spinlock.h>
+-#include <linux/list.h>
+-
+-#ifdef __KERNEL__
+-
+-#include <linux/types.h>
+-
+-struct rwsem_waiter;
+-
+-/*
+- * the rw-semaphore definition
+- * - if activity is 0 then there are no active readers or writers
+- * - if activity is +ve then that is the number of active readers
+- * - if activity is -1 then there is one active writer
+- * - if wait_list is not empty, then there are processes waiting for the semaphore
+- */
+-struct rw_semaphore {
+-	__s32			activity;
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	struct lockdep_map dep_map;
+-#endif
+-};
+-
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
+-#else
+-# define __RWSEM_DEP_MAP_INIT(lockname)
+-#endif
+-
+-#define __RWSEM_INITIALIZER(name) \
+-{ 0, __SPIN_LOCK_UNLOCKED(name.wait_lock), LIST_HEAD_INIT((name).wait_list) \
+-  __RWSEM_DEP_MAP_INIT(name) }
+-
+-#define DECLARE_RWSEM(name) \
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-			 struct lock_class_key *key);
+-
+-#define init_rwsem(sem)						\
+-do {								\
+-	static struct lock_class_key __key;			\
+-								\
+-	__init_rwsem((sem), #sem, &__key);			\
+-} while (0)
+-
+-extern void __down_read(struct rw_semaphore *sem);
+-extern int __down_read_trylock(struct rw_semaphore *sem);
+-extern void __down_write(struct rw_semaphore *sem);
+-extern void __down_write_nested(struct rw_semaphore *sem, int subclass);
+-extern int __down_write_trylock(struct rw_semaphore *sem);
+-extern void __up_read(struct rw_semaphore *sem);
+-extern void __up_write(struct rw_semaphore *sem);
+-extern void __downgrade_write(struct rw_semaphore *sem);
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->activity != 0);
+-}
+-
+-#endif /* __KERNEL__ */
+-#endif /* _LINUX_RWSEM_SPINLOCK_H */
+Index: linux-2.6/lib/rwsem-spinlock.c
+===================================================================
+--- linux-2.6.orig/lib/rwsem-spinlock.c
++++ /dev/null
+@@ -1,316 +0,0 @@
+-/* rwsem-spinlock.c: R/W semaphores: contention handling functions for
+- * generic spinlock implementation
+- *
+- * Copyright (c) 2001   David Howells (dhowells@redhat.com).
+- * - Derived partially from idea by Andrea Arcangeli <andrea@suse.de>
+- * - Derived also from comments by Linus
+- */
+-#include <linux/rwsem.h>
+-#include <linux/sched.h>
+-#include <linux/module.h>
+-
+-struct rwsem_waiter {
+-	struct list_head list;
+-	struct task_struct *task;
+-	unsigned int flags;
+-#define RWSEM_WAITING_FOR_READ	0x00000001
+-#define RWSEM_WAITING_FOR_WRITE	0x00000002
+-};
+-
+-/*
+- * initialise the semaphore
+- */
+-void __init_rwsem(struct rw_semaphore *sem, const char *name,
+-		  struct lock_class_key *key)
+-{
+-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+-	/*
+-	 * Make sure we are not reinitializing a held semaphore:
+-	 */
+-	debug_check_no_locks_freed((void *)sem, sizeof(*sem));
+-	lockdep_init_map(&sem->dep_map, name, key, 0);
+-#endif
+-	sem->activity = 0;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-/*
+- * handle the lock release when processes blocked on it that can now run
+- * - if we come here, then:
+- *   - the 'active count' _reached_ zero
+- *   - the 'waiting count' is non-zero
+- * - the spinlock must be held by the caller
+- * - woken process blocks are discarded from the list after having task zeroed
+- * - writers are only woken if wakewrite is non-zero
+- */
+-static inline struct rw_semaphore *
+-__rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
+-{
+-	struct rwsem_waiter *waiter;
+-	struct task_struct *tsk;
+-	int woken;
+-
+-	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
+-
+-	if (!wakewrite) {
+-		if (waiter->flags & RWSEM_WAITING_FOR_WRITE)
+-			goto out;
+-		goto dont_wake_writers;
+-	}
+-
+-	/* if we are allowed to wake writers try to grant a single write lock
+-	 * if there's a writer at the front of the queue
+-	 * - we leave the 'waiting count' incremented to signify potential
+-	 *   contention
+-	 */
+-	if (waiter->flags & RWSEM_WAITING_FOR_WRITE) {
+-		sem->activity = -1;
+-		list_del(&waiter->list);
+-		tsk = waiter->task;
+-		/* Don't touch waiter after ->task has been NULLed */
+-		smp_mb();
+-		waiter->task = NULL;
+-		wake_up_process(tsk);
+-		put_task_struct(tsk);
+-		goto out;
+-	}
+-
+-	/* grant an infinite number of read locks to the front of the queue */
+- dont_wake_writers:
+-	woken = 0;
+-	while (waiter->flags & RWSEM_WAITING_FOR_READ) {
+-		struct list_head *next = waiter->list.next;
+-
+-		list_del(&waiter->list);
+-		tsk = waiter->task;
+-		smp_mb();
+-		waiter->task = NULL;
+-		wake_up_process(tsk);
+-		put_task_struct(tsk);
+-		woken++;
+-		if (list_empty(&sem->wait_list))
+-			break;
+-		waiter = list_entry(next, struct rwsem_waiter, list);
+-	}
+-
+-	sem->activity += woken;
+-
+- out:
+-	return sem;
+-}
+-
+-/*
+- * wake a single writer
+- */
+-static inline struct rw_semaphore *
+-__rwsem_wake_one_writer(struct rw_semaphore *sem)
+-{
+-	struct rwsem_waiter *waiter;
+-	struct task_struct *tsk;
+-
+-	sem->activity = -1;
+-
+-	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
+-	list_del(&waiter->list);
+-
+-	tsk = waiter->task;
+-	smp_mb();
+-	waiter->task = NULL;
+-	wake_up_process(tsk);
+-	put_task_struct(tsk);
+-	return sem;
+-}
+-
+-/*
+- * get a read lock on the semaphore
+- */
+-void __sched __down_read(struct rw_semaphore *sem)
+-{
+-	struct rwsem_waiter waiter;
+-	struct task_struct *tsk;
+-
+-	spin_lock_irq(&sem->wait_lock);
+-
+-	if (sem->activity >= 0 && list_empty(&sem->wait_list)) {
+-		/* granted */
+-		sem->activity++;
+-		spin_unlock_irq(&sem->wait_lock);
+-		goto out;
+-	}
+-
+-	tsk = current;
+-	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+-
+-	/* set up my own style of waitqueue */
+-	waiter.task = tsk;
+-	waiter.flags = RWSEM_WAITING_FOR_READ;
+-	get_task_struct(tsk);
+-
+-	list_add_tail(&waiter.list, &sem->wait_list);
+-
+-	/* we don't need to touch the semaphore struct anymore */
+-	spin_unlock_irq(&sem->wait_lock);
+-
+-	/* wait to be given the lock */
+-	for (;;) {
+-		if (!waiter.task)
+-			break;
+-		schedule();
+-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+-	}
+-
+-	tsk->state = TASK_RUNNING;
+- out:
+-	;
+-}
+-
+-/*
+- * trylock for reading -- returns 1 if successful, 0 if contention
+- */
+-int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	unsigned long flags;
+-	int ret = 0;
+-
+-
+-	spin_lock_irqsave(&sem->wait_lock, flags);
+-
+-	if (sem->activity >= 0 && list_empty(&sem->wait_list)) {
+-		/* granted */
+-		sem->activity++;
+-		ret = 1;
+-	}
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
+-
+-	return ret;
+-}
+-
+-/*
+- * get a write lock on the semaphore
+- * - we increment the waiting count anyway to indicate an exclusive lock
+- */
+-void __sched __down_write_nested(struct rw_semaphore *sem, int subclass)
+-{
+-	struct rwsem_waiter waiter;
+-	struct task_struct *tsk;
+-
+-	spin_lock_irq(&sem->wait_lock);
+-
+-	if (sem->activity == 0 && list_empty(&sem->wait_list)) {
+-		/* granted */
+-		sem->activity = -1;
+-		spin_unlock_irq(&sem->wait_lock);
+-		goto out;
+-	}
+-
+-	tsk = current;
+-	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+-
+-	/* set up my own style of waitqueue */
+-	waiter.task = tsk;
+-	waiter.flags = RWSEM_WAITING_FOR_WRITE;
+-	get_task_struct(tsk);
+-
+-	list_add_tail(&waiter.list, &sem->wait_list);
+-
+-	/* we don't need to touch the semaphore struct anymore */
+-	spin_unlock_irq(&sem->wait_lock);
+-
+-	/* wait to be given the lock */
+-	for (;;) {
+-		if (!waiter.task)
+-			break;
+-		schedule();
+-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+-	}
+-
+-	tsk->state = TASK_RUNNING;
+- out:
+-	;
+-}
+-
+-void __sched __down_write(struct rw_semaphore *sem)
+-{
+-	__down_write_nested(sem, 0);
+-}
+-
+-/*
+- * trylock for writing -- returns 1 if successful, 0 if contention
+- */
+-int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	unsigned long flags;
+-	int ret = 0;
+-
+-	spin_lock_irqsave(&sem->wait_lock, flags);
+-
+-	if (sem->activity == 0 && list_empty(&sem->wait_list)) {
+-		/* granted */
+-		sem->activity = -1;
+-		ret = 1;
+-	}
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
+-
+-	return ret;
+-}
+-
+-/*
+- * release a read lock on the semaphore
+- */
+-void __up_read(struct rw_semaphore *sem)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&sem->wait_lock, flags);
+-
+-	if (--sem->activity == 0 && !list_empty(&sem->wait_list))
+-		sem = __rwsem_wake_one_writer(sem);
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
+-}
+-
+-/*
+- * release a write lock on the semaphore
+- */
+-void __up_write(struct rw_semaphore *sem)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&sem->wait_lock, flags);
+-
+-	sem->activity = 0;
+-	if (!list_empty(&sem->wait_list))
+-		sem = __rwsem_do_wake(sem, 1);
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
+-}
+-
+-/*
+- * downgrade a write lock into a read lock
+- * - just wake up any readers at the front of the queue
+- */
+-void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&sem->wait_lock, flags);
+-
+-	sem->activity = 1;
+-	if (!list_empty(&sem->wait_list))
+-		sem = __rwsem_do_wake(sem, 0);
+-
+-	spin_unlock_irqrestore(&sem->wait_lock, flags);
+-}
+-
+-EXPORT_SYMBOL(__init_rwsem);
+-EXPORT_SYMBOL(__down_read);
+-EXPORT_SYMBOL(__down_read_trylock);
+-EXPORT_SYMBOL(__down_write_nested);
+-EXPORT_SYMBOL(__down_write);
+-EXPORT_SYMBOL(__down_write_trylock);
+-EXPORT_SYMBOL(__up_read);
+-EXPORT_SYMBOL(__up_write);
+-EXPORT_SYMBOL(__downgrade_write);
+Index: linux-2.6/include/asm-xtensa/rwsem.h
+===================================================================
+--- linux-2.6.orig/include/asm-xtensa/rwsem.h
++++ /dev/null
+@@ -1,168 +0,0 @@
+-/*
+- * include/asm-xtensa/rwsem.h
+- *
+- * This file is subject to the terms and conditions of the GNU General Public
+- * License.  See the file "COPYING" in the main directory of this archive
+- * for more details.
+- *
+- * Largely copied from include/asm-ppc/rwsem.h
+- *
+- * Copyright (C) 2001 - 2005 Tensilica Inc.
+- */
+-
+-#ifndef _XTENSA_RWSEM_H
+-#define _XTENSA_RWSEM_H
+-
+-#ifndef _LINUX_RWSEM_H
+-#error "Please don't include <asm/rwsem.h> directly, use <linux/rwsem.h> instead."
+-#endif
+-
+-#include <linux/list.h>
+-#include <linux/spinlock.h>
+-#include <asm/atomic.h>
+-#include <asm/system.h>
+-
+-/*
+- * the semaphore definition
+- */
+-struct rw_semaphore {
+-	signed long		count;
+-#define RWSEM_UNLOCKED_VALUE		0x00000000
+-#define RWSEM_ACTIVE_BIAS		0x00000001
+-#define RWSEM_ACTIVE_MASK		0x0000ffff
+-#define RWSEM_WAITING_BIAS		(-0x00010000)
+-#define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
+-#define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
+-	spinlock_t		wait_lock;
+-	struct list_head	wait_list;
+-};
+-
+-#define __RWSEM_INITIALIZER(name) \
+-	{ RWSEM_UNLOCKED_VALUE, SPIN_LOCK_UNLOCKED, \
+-	  LIST_HEAD_INIT((name).wait_list) }
+-
+-#define DECLARE_RWSEM(name)		\
+-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
+-
+-extern struct rw_semaphore *rwsem_down_read_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_down_write_failed(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem);
+-extern struct rw_semaphore *rwsem_downgrade_wake(struct rw_semaphore *sem);
+-
+-static inline void init_rwsem(struct rw_semaphore *sem)
+-{
+-	sem->count = RWSEM_UNLOCKED_VALUE;
+-	spin_lock_init(&sem->wait_lock);
+-	INIT_LIST_HEAD(&sem->wait_list);
+-}
+-
+-/*
+- * lock for reading
+- */
+-static inline void __down_read(struct rw_semaphore *sem)
+-{
+-	if (atomic_add_return(1,(atomic_t *)(&sem->count)) > 0)
+-		smp_wmb();
+-	else
+-		rwsem_down_read_failed(sem);
+-}
+-
+-static inline int __down_read_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	while ((tmp = sem->count) >= 0) {
+-		if (tmp == cmpxchg(&sem->count, tmp,
+-				   tmp + RWSEM_ACTIVE_READ_BIAS)) {
+-			smp_wmb();
+-			return 1;
+-		}
+-	}
+-	return 0;
+-}
+-
+-/*
+- * lock for writing
+- */
+-static inline void __down_write(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = atomic_add_return(RWSEM_ACTIVE_WRITE_BIAS,
+-				(atomic_t *)(&sem->count));
+-	if (tmp == RWSEM_ACTIVE_WRITE_BIAS)
+-		smp_wmb();
+-	else
+-		rwsem_down_write_failed(sem);
+-}
+-
+-static inline int __down_write_trylock(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	tmp = cmpxchg(&sem->count, RWSEM_UNLOCKED_VALUE,
+-		      RWSEM_ACTIVE_WRITE_BIAS);
+-	smp_wmb();
+-	return tmp == RWSEM_UNLOCKED_VALUE;
+-}
+-
+-/*
+- * unlock after reading
+- */
+-static inline void __up_read(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	smp_wmb();
+-	tmp = atomic_sub_return(1,(atomic_t *)(&sem->count));
+-	if (tmp < -1 && (tmp & RWSEM_ACTIVE_MASK) == 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * unlock after writing
+- */
+-static inline void __up_write(struct rw_semaphore *sem)
+-{
+-	smp_wmb();
+-	if (atomic_sub_return(RWSEM_ACTIVE_WRITE_BIAS,
+-			      (atomic_t *)(&sem->count)) < 0)
+-		rwsem_wake(sem);
+-}
+-
+-/*
+- * implement atomic add functionality
+- */
+-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+-{
+-	atomic_add(delta, (atomic_t *)(&sem->count));
+-}
+-
+-/*
+- * downgrade write lock to read lock
+- */
+-static inline void __downgrade_write(struct rw_semaphore *sem)
+-{
+-	int tmp;
+-
+-	smp_wmb();
+-	tmp = atomic_add_return(-RWSEM_WAITING_BIAS, (atomic_t *)(&sem->count));
+-	if (tmp < 0)
+-		rwsem_downgrade_wake(sem);
+-}
+-
+-/*
+- * implement exchange and add functionality
+- */
+-static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+-{
+-	smp_mb();
+-	return atomic_add_return(delta, (atomic_t *)(&sem->count));
+-}
+-
+-static inline int rwsem_is_locked(struct rw_semaphore *sem)
+-{
+-	return (sem->count != 0);
+-}
+-
+-#endif	/* _XTENSA_RWSEM_H */
+Index: linux-2.6/arch/alpha/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/alpha/Kconfig
++++ linux-2.6/arch/alpha/Kconfig
+@@ -21,10 +21,7 @@ config MMU
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	bool
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+Index: linux-2.6/arch/arm/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/arm/Kconfig
++++ linux-2.6/arch/arm/Kconfig
+@@ -117,13 +117,10 @@ config GENERIC_LOCKBREAK
+ 	default y
+ 	depends on SMP && PREEMPT
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/avr32/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/avr32/Kconfig
++++ linux-2.6/arch/avr32/Kconfig
+@@ -42,7 +42,7 @@ config HARDIRQS_SW_RESEND
+ config GENERIC_IRQ_PROBE
+ 	def_bool y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	def_bool y
+ 
+ config GENERIC_TIME
+Index: linux-2.6/arch/blackfin/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/blackfin/Kconfig
++++ linux-2.6/arch/blackfin/Kconfig
+@@ -13,14 +13,10 @@ config FPU
+ 	bool
+ 	default n
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-	default n
+-
+ config BLACKFIN
+ 	bool
+ 	default y
+Index: linux-2.6/arch/cris/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/cris/Kconfig
++++ linux-2.6/arch/cris/Kconfig
+@@ -13,13 +13,10 @@ config ZONE_DMA
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config GENERIC_IOMAP
+        bool
+        default y
+Index: linux-2.6/arch/frv/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/frv/Kconfig
++++ linux-2.6/arch/frv/Kconfig
+@@ -11,13 +11,10 @@ config ZONE_DMA
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config GENERIC_FIND_NEXT_BIT
+ 	bool
+ 	default y
+Index: linux-2.6/arch/h8300/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/h8300/Kconfig
++++ linux-2.6/arch/h8300/Kconfig
+@@ -26,14 +26,10 @@ config FPU
+ 	bool
+ 	default n
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-	default n
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/ia64/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/ia64/Kconfig
++++ linux-2.6/arch/ia64/Kconfig
+@@ -59,7 +59,7 @@ config GENERIC_LOCKBREAK
+ 	default y
+ 	depends on SMP && PREEMPT
+ 
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+Index: linux-2.6/arch/m32r/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/m32r/Kconfig
++++ linux-2.6/arch/m32r/Kconfig
+@@ -244,15 +244,10 @@ config GENERIC_LOCKBREAK
+ 	default y
+ 	depends on SMP && PREEMPT
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+-	depends on M32R
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-	default n
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/m68k/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/m68k/Kconfig
++++ linux-2.6/arch/m68k/Kconfig
+@@ -12,13 +12,10 @@ config MMU
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/m68knommu/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/m68knommu/Kconfig
++++ linux-2.6/arch/m68knommu/Kconfig
+@@ -22,14 +22,10 @@ config ZONE_DMA
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-	default n
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/mips/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/mips/Kconfig
++++ linux-2.6/arch/mips/Kconfig
+@@ -610,13 +610,10 @@ source "arch/mips/vr41xx/Kconfig"
+ 
+ endmenu
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+ 	default n
+Index: linux-2.6/arch/mn10300/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/mn10300/Kconfig
++++ linux-2.6/arch/mn10300/Kconfig
+@@ -23,11 +23,9 @@ config NUMA
+ config UID16
+ 	def_bool y
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	def_bool y
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
++	default y
+ 
+ config GENERIC_HARDIRQS_NO__DO_IRQ
+ 	def_bool y
+Index: linux-2.6/arch/parisc/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/parisc/Kconfig
++++ linux-2.6/arch/parisc/Kconfig
+@@ -28,11 +28,9 @@ config GENERIC_LOCKBREAK
+ 	default y
+ 	depends on SMP && PREEMPT
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	def_bool y
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
++	default y
+ 
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+Index: linux-2.6/arch/powerpc/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/powerpc/Kconfig
++++ linux-2.6/arch/powerpc/Kconfig
+@@ -65,10 +65,7 @@ config LOCKDEP_SUPPORT
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	bool
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+Index: linux-2.6/arch/s390/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/s390/Kconfig
++++ linux-2.6/arch/s390/Kconfig
+@@ -23,11 +23,9 @@ config STACKTRACE_SUPPORT
+ config HAVE_LATENCYTOP_SUPPORT
+ 	def_bool y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+-
+-config RWSEM_XCHGADD_ALGORITHM
+-	def_bool y
++	default y
+ 
+ config ARCH_HAS_ILOG2_U32
+ 	bool
+Index: linux-2.6/arch/sh/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/sh/Kconfig
++++ linux-2.6/arch/sh/Kconfig
+@@ -34,11 +34,9 @@ config ARCH_DEFCONFIG
+ 	default "arch/sh/configs/shx3_defconfig" if SUPERH32
+ 	default "arch/sh/configs/cayman_defconfig" if SUPERH64
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	def_bool y
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
++	default y
+ 
+ config GENERIC_BUG
+ 	def_bool y
+Index: linux-2.6/arch/sparc/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/sparc/Kconfig
++++ linux-2.6/arch/sparc/Kconfig
+@@ -169,13 +169,10 @@ config SUN_IO
+ 	bool
+ 	default y
+ 
+-config RWSEM_GENERIC_SPINLOCK
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	bool
+-
+ config GENERIC_FIND_NEXT_BIT
+ 	bool
+ 	default y
+Index: linux-2.6/arch/sparc64/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/sparc64/Kconfig
++++ linux-2.6/arch/sparc64/Kconfig
+@@ -214,10 +214,7 @@ config GENERIC_LOCKBREAK
+ 	default y
+ 	depends on SMP && PREEMPT
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	bool
+-
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+Index: linux-2.6/arch/um/Kconfig.x86
+===================================================================
+--- linux-2.6.orig/arch/um/Kconfig.x86
++++ linux-2.6/arch/um/Kconfig.x86
+@@ -19,11 +19,9 @@ config X86_32
+ 	def_bool !64BIT
+ 	select HAVE_AOUT
+ 
+-config RWSEM_XCHGADD_ALGORITHM
+-	def_bool X86_XADD
+-
+-config RWSEM_GENERIC_SPINLOCK
+-	def_bool !X86_XADD
++config GENERIC_RWSEM
++	bool
++	default y
+ 
+ config 3_LEVEL_PGTABLES
+ 	bool "Three-level pagetables (EXPERIMENTAL)" if !64BIT
+Index: linux-2.6/arch/x86/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/x86/Kconfig
++++ linux-2.6/arch/x86/Kconfig
+@@ -97,11 +97,9 @@ config GENERIC_GPIO
+ config ARCH_MAY_HAVE_PC_FDC
+ 	def_bool y
+ 
+-config RWSEM_GENERIC_SPINLOCK
+-	def_bool !X86_XADD
+-
+-config RWSEM_XCHGADD_ALGORITHM
+-	def_bool X86_XADD
++config GENERIC_RWSEM
++	bool
++	default y
+ 
+ config ARCH_HAS_CPU_IDLE_WAIT
+ 	def_bool y
+Index: linux-2.6/arch/xtensa/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/xtensa/Kconfig
++++ linux-2.6/arch/xtensa/Kconfig
+@@ -23,7 +23,7 @@ config XTENSA
+ 	  with reasonable minimum requirements.  The Xtensa Linux project has
+ 	  a home page at <http://xtensa.sourceforge.net/>.
+ 
+-config RWSEM_XCHGADD_ALGORITHM
++config GENERIC_RWSEM
+ 	bool
+ 	default y
+ 
+Index: linux-2.6/lib/Makefile
+===================================================================
+--- linux-2.6.orig/lib/Makefile
++++ linux-2.6/lib/Makefile
+@@ -33,8 +33,7 @@ obj-$(CONFIG_HAS_IOMEM) += iomap_copy.o
+ obj-$(CONFIG_CHECK_SIGNATURE) += check_signature.o
+ obj-$(CONFIG_DEBUG_LOCKING_API_SELFTESTS) += locking-selftest.o
+ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock_debug.o
+-lib-$(CONFIG_RWSEM_GENERIC_SPINLOCK) += rwsem-spinlock.o
+-lib-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) += rwsem.o
++lib-$(CONFIG_GENERIC_RWSEM) += rwsem.o
+ lib-$(CONFIG_GENERIC_FIND_FIRST_BIT) += find_next_bit.o
+ lib-$(CONFIG_GENERIC_FIND_NEXT_BIT) += find_next_bit.o
+ obj-$(CONFIG_GENERIC_HWEIGHT) += hweight.o
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
