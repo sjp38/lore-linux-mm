@@ -1,127 +1,141 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mASB0fLc030446
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 28 Nov 2008 20:00:41 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A0D845DE53
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 20:00:41 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E16A745DE51
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 20:00:40 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id C49AD1DB8040
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 20:00:40 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 49E311DB803A
-	for <linux-mm@kvack.org>; Fri, 28 Nov 2008 20:00:40 +0900 (JST)
-Date: Fri, 28 Nov 2008 19:59:53 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH -mmotm 2/2] avoid oom
-Message-Id: <20081128195953.0f69d9ea.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081128180937.5d7b16c5.nishimura@mxp.nes.nec.co.jp>
-References: <20081128180252.b7a73c86.nishimura@mxp.nes.nec.co.jp>
-	<20081128180937.5d7b16c5.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <492FCFF6.1050808@redhat.com>
+Date: Fri, 28 Nov 2008 06:03:18 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] vmscan: bail out of page reclaim after swap_cluster_max
+ pages
+References: <20081124145057.4211bd46@bree.surriel.com> <20081125203333.26F0.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081128140405.3D0B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081128140405.3D0B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Nov 2008 18:09:37 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+KOSAKI Motohiro wrote:
+> Hi
+> 
+> I mesured some data in this week and I got some interesting data.
 
-> In previous implementation, mem_cgroup_try_charge checked the return
-> value of mem_cgroup_try_to_free_pages, and just retried if some pages
-> had been reclaimed.
-> But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
-> only checks whether the usage is less than the limit.
-> I see oom easily in some tests which didn't cause oom before.
+> Rik patch improve about 30% and my patch improve 20% more.
+> totally, We got about 50% improvement.
+
+Very interesting indeed!   I did not know there was this easy
+a reproducer of the problem that my patch is trying to solve.
+
+> 	rc6+stream	rvr		+kosaki
+> 	----------------------------------------
+> avg	274.8004	194.6495	132.7923
+> std	184.4902365	111.5699478	75.88299814
+> min	37.523		57.084		52.233
+> max	588.74		382.376		319.115
+
+Impressive.
+
+> So, rik patch and my patch improve perfectly different reclaim aspect.
+> In general, kernel reclaim processing has several key goals.
 > 
-> This patch tries to change the behavior as before.
+>  (1) if system has droppable cache, system shouldn't happen oom kill.
+>  (2) if system has avaiable swap space, system shouldn't happen 
+>      oom kill as poosible as.
+>  (3) if system has enough free memory, system shouldn't reclaim any page
+>      at all.
+>  (4) if memory pressure is lite, system shouldn't cause heavy reclaim 
+>      latency to application.
 > 
-> I've tested this patch with only one (except root) mem cgroup directory,
-> and a mem cgroup directory(use_hierarchy=1) which has 4 children with running
-> test programs on itself and each children's directories.
+> rik patch improve (3), my (this mail) modification improve (4).
+
+Actually, to achieve (3) we would want to skip zones with way
+more than enough free memory in shrink_zones().  Kswapd already
+skips zones like this in shrink_pgdat(), so we definately want
+this change:
+
+@@ -1519,6 +1519,9 @@ static void shrink_zones(int priority, s
+                         if (zone_is_all_unreclaimable(zone) &&
+                                                 priority != DEF_PRIORITY)
+                                 continue;       /* Let kswapd poll it */
++                       if (zone_watermark_ok(zone, order, 
+4*zone->pages_high,
++                                               end_zone, 0))
++                               continue;       /* Lots free already */
+                         sc->all_unreclaimable = 0;
+                 } else {
+                         /*
+
+I'm sending a patch with this right now :)
+
+> Actually, kswapd background reclaim and direct reclaim have perfectly
+> different purpose and goal.
 > 
-> Of course, even after this patch is applied, oom happens if trying to use
-> too much memory.
+> background reclaim
+>   - kswapd don't need latency overhead reducing.
+>     it isn't observe from end user.
+>   - kswapd shoudn't only increase free pages, but also should 
+>     zone balancing.
 > 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> foreground reclaim
+>   - it used application task context.
+>   - as possible as, it shouldn't increase latency overhead.
+>   - this reclaiming purpose is to make the memory for _own_ taks.
+>     for other tasks memory don't need to concern.
+>     kswap does it.
+
+I am not entirely convinced that breaking out of the loop early
+in a zone is not harmful for direct reclaimers.  Maybe it works
+fine, maybe it won't.
+
+Or maybe direct reclaimers should start scanning the largest zone
+first, so your change can be done with the lowest risk possible?
+
+Having said that, the 20% additional performance achieved with
+your changes is impressive.
+
+> o remove priority==DEF_PRIORITY condision
+
+This one could definately be worth considering.
+
+However, looking at the changeset that was backed out in the
+early 2.6 series suggests that it may not be the best idea.
+
+> o shrink_zones() also should have bailing out feature.
+
+This one is similar.  What are the downsides of skipping a
+zone entirely, when that zone has pages that should be freed?
+
+If it can lead to the VM reclaiming new pages from one zone,
+while leaving old pages from another zone in memory, we can
+greatly reduce the caching efficiency of the page cache.
+
 > ---
+>  mm/vmscan.c |    4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
 > 
->  mm/memcontrol.c |   19 ++++++++++++-------
->  1 files changed, 12 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e7806fc..ab134b7 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -592,6 +592,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  {
->  	struct mem_cgroup *next_mem;
->  	int ret = 0;
-> +	int child = 0;
->  
->  	/*
->  	 * Reclaim unconditionally and don't check for return value.
-> @@ -600,9 +601,9 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  	 * but there might be left over accounting, even after children
->  	 * have left.
->  	 */
-> -	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
-> +	ret += try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
->  	if (mem_cgroup_check_under_limit(root_mem))
-> -		return 0;
-> +		return 1;	/* indicate success of reclaim */
->  
->  	next_mem = mem_cgroup_get_first_node(root_mem);
->  
-> @@ -614,14 +615,17 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
->  			cgroup_unlock();
->  			continue;
->  		}
-> -		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
-> +		child++;
-> +		ret += try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
->  		if (mem_cgroup_check_under_limit(root_mem))
-> -			return 0;
-> +			return 1;	/* indicate success of reclaim */
->  		cgroup_lock();
->  		next_mem = mem_cgroup_get_next_node(next_mem, root_mem);
->  		cgroup_unlock();
+> Index: b/mm/vmscan.c
+> ===================================================================
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1469,7 +1469,7 @@ static void shrink_zone(int priority, st
+>  		 * freeing target can get unreasonably large.
+>  		 */
+>  		if (sc->nr_reclaimed > sc->swap_cluster_max &&
+> -		    priority < DEF_PRIORITY && !current_is_kswapd())
+> +		    !current_is_kswapd())
+>  			break;
 >  	}
-> -	return ret;
-> +
-> +	/* reclaimed at least one page on average from root and each child */
-> +	return ret > child;
+>  
+> @@ -1534,6 +1534,8 @@ static void shrink_zones(int priority, s
+>  		}
+>  
+>  		shrink_zone(priority, zone, sc);
+> +		if (sc->nr_reclaimed > sc->swap_cluster_max)
+> +			break;
+>  	}
 >  }
->  
-I can't understand why this heuristic...
 
-just (ret != 0) is ?
-
-Thanks,
--Kame
-
-
-
->  /*
-> @@ -684,8 +688,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
->  		if (!(gfp_mask & __GFP_WAIT))
->  			goto nomem;
->  
-> -		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
-> -							noswap);
-> +		if (mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
-> +							noswap))
-> +			continue;
->  
->  		/*
->  		 * try_to_free_mem_cgroup_pages() might not give us a full
-> 
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
