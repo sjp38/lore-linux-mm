@@ -1,458 +1,469 @@
-Date: Fri, 28 Nov 2008 15:37:37 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 2/2] fs: symlink write_begin allocation context fix
-Message-ID: <20081128143737.GA15458@wotan.suse.de>
-References: <20081127093401.GE28285@wotan.suse.de> <20081127093504.GF28285@wotan.suse.de> <20081127200014.3CF6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [RFC] another crazy idea to get rid of mmap_sem in faults
+From: Peter Zijlstra <peterz@infradead.org>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Fri, 28 Nov 2008 16:42:39 +0100
+Message-Id: <1227886959.4454.4421.camel@twins>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081127200014.3CF6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, hugh <hugh@veritas.com>
+Cc: Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 27, 2008 at 08:02:32PM +0900, KOSAKI Motohiro wrote:
-> > @@ -2820,8 +2825,7 @@ fail:
-> >  
-> >  int page_symlink(struct inode *inode, const char *symname, int len)
-> >  {
-> > -	return __page_symlink(inode, symname, len,
-> > -			mapping_gfp_mask(inode->i_mapping));
-> > +	return __page_symlink(inode, symname, len, 0);
-> >  }
-> 
-> your patch always pass 0 into __page_symlink().
-> therefore it doesn't change any behavior.
-> 
-> right?
+Hi,
 
-How about this patch?
+While pondering the page_fault retry stuff, I came up with the following
+idea.
 
---
-With the write_begin/write_end aops, page_symlink was broken because it
-could no longer pass a GFP_NOFS type mask into the point where the allocations
-happened. They are done in write_begin, which would always assume that the
-filesystem can be entered from reclaim.
+Pagefault concurrency with mmap() is undefined at best (any sane
+application will start using memory after its been mmap'ed and stop
+using it before it unmaps it).
 
-The funny thing with having a gfp_t mask there is that it doesn't really allow
-the caller to arbitrarily tinker with the context in which it can be called.
-It couldn't ever be GFP_ATOMIC, for example, because it needs to take the
-page lock. The only thing any callers care about is __GFP_FS anyway, so turn
-that into a single flag.
+The only thing we need to ensure is that we don't insert a PTE in the
+wrong map in case some app does stupid.
 
-Add a new flag for write_begin, AOP_FLAG_NOFS. Filesystems can now act on
-this flag in their write_begin function. Change __grab_cache_page to accept
-a nofs argument as well, to honour that flag (while we're there, change the
-name to grab_cache_page_write_begin which is more instructive and does away
-with random leading underscores).
+If we do not freeze the vm map like we normally do but use a lockless
+vma lookup we're left with the unmap race (you're unlikely to find the
+vma before insertion anyway).
 
-This is really a more flexible way to go in the end anyway -- if a filesystem
-happens to want any extra allocations aside from the pagecache ones in ints
-write_begin function, it may now use GFP_KERNEL for common case allocations
-(eg. ocfs2_alloc_write_ctxt, for a random example).
+I think we can close that race by marking a vma 'dead' before we do the
+pte unmap, this means that once we have the pte lock in the fault
+handler we can validate the vma (it cannot go away after all, because
+the unmap will block on it).
 
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+Therefore, we can do the fault optimistically with any sane vma we get
+until the point we want to insert the PTE, at which point we have to
+take the PTL and validate the vma is still good.
+
+[ Of course getting the PTL after the unmap might instantiate the upper
+  page tables for naught and we ought to clean them up again if we
+  raced, can this be done race free? ]
+
+I'm sure there are many fun details to work out, even if the above idea
+is found solid, amongst them is extending srcu to provide call_srcu(),
+and implement an RCU friendly tree structure.
+
+[ hmm, while writing this it occurred to me this might mean we have to
+  srcu free the page table pages :/ ]
+
+The below patch is very rough and doesn't compile nor attempts to be
+correct, it's only purpose is to illustrate the idea more clearly.
+
+NOT-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
-Index: linux-2.6/fs/namei.c
-===================================================================
---- linux-2.6.orig/fs/namei.c
-+++ linux-2.6/fs/namei.c
-@@ -2786,18 +2786,23 @@ void page_put_link(struct dentry *dentry
+
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 63e9f7c..ba0eeeb 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -591,6 +591,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
+ 	unsigned long address;
+ 	int write, si_code;
+ 	int fault;
++	int idx;
+ 	unsigned long *stackend;
+ 
+ #ifdef CONFIG_X86_64
+@@ -600,7 +601,6 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
+ 
+ 	tsk = current;
+ 	mm = tsk->mm;
+-	prefetchw(&mm->mmap_sem);
+ 
+ 	/* get the address */
+ 	address = read_cr2();
+@@ -683,32 +683,35 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
+ 		goto bad_area_nosemaphore;
+ 
+ again:
++	idx = srcu_read_lock(&mm_srcu);
++
++retry:
+ 	/*
+-	 * When running in the kernel we expect faults to occur only to
+-	 * addresses in user space.  All other faults represent errors in the
+-	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
+-	 * erroneous fault occurring in a code path which already holds mmap_sem
+-	 * we will deadlock attempting to validate the fault against the
+-	 * address space.  Luckily the kernel only validly references user
+-	 * space from well defined areas of code, which are listed in the
+-	 * exceptions table.
++	 * this should be lockless, except RB trees suck!
++	 *
++	 * we want:
++	 * srcu_read_lock(); // guard vmas
++	 * rcu_read_lock();  // guard the lookup structure
++	 * vma = find_vma(mm, address);
++	 * rcu_read_unlock();
+ 	 *
+-	 * As the vast majority of faults will be valid we will only perform
+-	 * the source reference check when there is a possibility of a deadlock.
+-	 * Attempt to lock the address space, if we cannot we then validate the
+-	 * source.  If this is invalid we can skip the address space check,
+-	 * thus avoiding the deadlock.
++	 * do the fault
++	 *
++	 * srcu_read_unlock(); // release vma
+ 	 */
+-	if (!down_read_trylock(&mm->mmap_sem)) {
+-		if ((error_code & PF_USER) == 0 &&
+-		    !search_exception_tables(regs->ip))
+-			goto bad_area_nosemaphore;
+-		down_read(&mm->mmap_sem);
+-	}
+-
++	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, address);
++	up_read(&mm->mmap_sem);
++
+ 	if (!vma)
+ 		goto bad_area;
++	if (vma_is_dead(vma)) {
++		/*
++		 * We lost a race against an concurrent modification. Retry the
++		 * lookup which should now obtain a NULL or valid vma.
++		 */
++		goto retry;
++	}
+ 	if (vma->vm_start <= address)
+ 		goto good_area;
+ 	if (!(vma->vm_flags & VM_GROWSDOWN))
+@@ -723,6 +726,9 @@ again:
+ 		if (address + 65536 + 32 * sizeof(unsigned long) < regs->sp)
+ 			goto bad_area;
  	}
- }
- 
--int __page_symlink(struct inode *inode, const char *symname, int len,
--		gfp_t gfp_mask)
-+/*
-+ * The nofs argument instructs pagecache_write_begin to pass AOP_FLAG_NOFS
-+ */
-+int __page_symlink(struct inode *inode, const char *symname, int len, int nofs)
- {
- 	struct address_space *mapping = inode->i_mapping;
- 	struct page *page;
- 	void *fsdata;
- 	int err;
- 	char *kaddr;
-+	unsigned int flags = AOP_FLAG_UNINTERRUPTIBLE;
-+	if (nofs)
-+		flags |= AOP_FLAG_NOFS;
- 
- retry:
- 	err = pagecache_write_begin(NULL, mapping, 0, len-1,
--				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
-+				flags, &page, &fsdata);
- 	if (err)
- 		goto fail;
- 
-@@ -2821,7 +2826,7 @@ fail:
- int page_symlink(struct inode *inode, const char *symname, int len)
- {
- 	return __page_symlink(inode, symname, len,
--			mapping_gfp_mask(inode->i_mapping));
-+			!(mapping_gfp_mask(inode->i_mapping) & __GFP_FS));
- }
- 
- const struct inode_operations page_symlink_inode_operations = {
-Index: linux-2.6/include/linux/fs.h
-===================================================================
---- linux-2.6.orig/include/linux/fs.h
-+++ linux-2.6/include/linux/fs.h
-@@ -413,6 +413,9 @@ enum positive_aop_returns {
- 
- #define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
- #define AOP_FLAG_CONT_EXPAND		0x0002 /* called from cont_expand */
-+#define AOP_FLAG_NOFS			0x0004 /* used by filesystem to direct
-+						* helper code (eg buffer layer)
-+						* to clear GFP_FS from alloc */
++	/*
++	 * XXX this might still need mmap_sem...
++	 */
+ 	if (expand_stack(vma, address))
+ 		goto bad_area;
+ /*
+@@ -775,7 +781,7 @@ good_area:
+ 			tsk->thread.screen_bitmap |= 1 << bit;
+ 	}
+ #endif
+-	up_read(&mm->mmap_sem);
++	srcu_read_unlock(&mm_srcu, idx);
+ 	return;
  
  /*
-  * oh the beauties of C type declarations.
-@@ -2022,7 +2025,7 @@ extern int page_readlink(struct dentry *
- extern void *page_follow_link_light(struct dentry *, struct nameidata *);
- extern void page_put_link(struct dentry *, struct nameidata *, void *);
- extern int __page_symlink(struct inode *inode, const char *symname, int len,
--		gfp_t gfp_mask);
-+		int nofs);
- extern int page_symlink(struct inode *inode, const char *symname, int len);
- extern const struct inode_operations page_symlink_inode_operations;
- extern int generic_readlink(struct dentry *, char __user *, int);
-Index: linux-2.6/fs/ext3/namei.c
-===================================================================
---- linux-2.6.orig/fs/ext3/namei.c
-+++ linux-2.6/fs/ext3/namei.c
-@@ -2170,8 +2170,7 @@ retry:
- 		 * We have a transaction open.  All is sweetness.  It also sets
- 		 * i_size in generic_commit_write().
- 		 */
--		err = __page_symlink(inode, symname, l,
--				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
-+		err = __page_symlink(inode, symname, l, 1);
- 		if (err) {
- 			drop_nlink(inode);
- 			ext3_mark_inode_dirty(handle, inode);
-Index: linux-2.6/fs/ext4/namei.c
-===================================================================
---- linux-2.6.orig/fs/ext4/namei.c
-+++ linux-2.6/fs/ext4/namei.c
-@@ -2208,8 +2208,7 @@ retry:
- 		 * We have a transaction open.  All is sweetness.  It also sets
- 		 * i_size in generic_commit_write().
- 		 */
--		err = __page_symlink(inode, symname, l,
--				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
-+		err = __page_symlink(inode, symname, l, 1);
- 		if (err) {
- 			clear_nlink(inode);
- 			ext4_mark_inode_dirty(handle, inode);
-Index: linux-2.6/include/linux/pagemap.h
-===================================================================
---- linux-2.6.orig/include/linux/pagemap.h
-+++ linux-2.6/include/linux/pagemap.h
-@@ -241,7 +241,8 @@ unsigned find_get_pages_contig(struct ad
- unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 			int tag, unsigned int nr_pages, struct page **pages);
- 
--struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index);
-+struct page *grab_cache_page_write_begin(struct address_space *mapping,
-+			pgoff_t index, int nofs);
- 
- /*
-  * Returns locked page at given index in given cache, creating it if needed.
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c
-+++ linux-2.6/mm/filemap.c
-@@ -2147,19 +2147,24 @@ EXPORT_SYMBOL(generic_file_direct_write)
-  * Find or create a page at the given pagecache position. Return the locked
-  * page. This function is specifically for buffered writes.
+@@ -783,7 +789,7 @@ good_area:
+  * Fix it, but check if it's kernel or user first..
   */
--struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index)
-+struct page *grab_cache_page_write_begin(struct address_space *mapping,
-+					pgoff_t index, int nofs)
- {
- 	int status;
- 	struct page *page;
-+	gfp_t gfp_notmask = 0;
-+	if (nofs)
-+		gfp_notmask = __GFP_FS;
- repeat:
- 	page = find_lock_page(mapping, index);
- 	if (likely(page))
- 		return page;
+ bad_area:
+-	up_read(&mm->mmap_sem);
++	srcu_read_unlock(&mm_srcu, idx);
  
--	page = page_cache_alloc(mapping);
-+	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
- 	if (!page)
- 		return NULL;
--	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
-+	status = add_to_page_cache_lru(page, mapping, index,
-+						GFP_KERNEL & ~gfp_notmask);
- 	if (unlikely(status)) {
- 		page_cache_release(page);
- 		if (status == -EEXIST)
-@@ -2168,7 +2173,7 @@ repeat:
- 	}
- 	return page;
+ bad_area_nosemaphore:
+ 	/* User mode accesses just cause a SIGSEGV */
+@@ -883,7 +889,7 @@ no_context:
+  * us unable to handle the page fault gracefully.
+  */
+ out_of_memory:
+-	up_read(&mm->mmap_sem);
++	srcu_read_unlock(&mm_srcu, idx);
+ 	if (is_global_init(tsk)) {
+ 		yield();
+ 		/*
+@@ -899,7 +905,7 @@ out_of_memory:
+ 	goto no_context;
+ 
+ do_sigbus:
+-	up_read(&mm->mmap_sem);
++	srcu_read_unlock(&mm_srcu, idx);
+ 
+ 	/* Kernel mode? Handle exceptions or die */
+ 	if (!(error_code & PF_USER))
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ffee2f7..c9f1727 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -13,6 +13,7 @@
+ #include <linux/prio_tree.h>
+ #include <linux/debug_locks.h>
+ #include <linux/mm_types.h>
++#include <linux/srcu.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -145,6 +146,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
+ 
++extern struct srcu_struct mm_srcu;
+ 
+ /*
+  * vm_fault is filled by the the pagefault handler and passed to the vma's
+@@ -1132,6 +1134,25 @@ extern int do_munmap(struct mm_struct *, unsigned long, size_t);
+ 
+ extern unsigned long do_brk(unsigned long, unsigned long);
+ 
++static inline int vma_is_dead(struct vm_area_struct *vma)
++{
++	return atomic_read(&vma->vm_usage) == 0;
++}
++
++static inline void vma_get(struct vm_area_struct *vma)
++{
++	BUG_ON(vma_is_dead(vma));
++	atomic_inc(&vma->vm_usage);
++}
++
++extern void __vma_put(struct vm_area_struct *vma);
++
++static inline void vma_put(struct vm_area_struct *vma)
++{
++	if (!atomic_dec_return(&vma->vm_usage))
++		__vma_put(vma);
++}
++
+ /* filemap.c */
+ extern unsigned long page_unuse(struct page *);
+ extern void truncate_inode_pages(struct address_space *, loff_t);
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 0a48058..d5b46a8 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -159,12 +159,11 @@ struct vm_area_struct {
+ 	void * vm_private_data;		/* was vm_pte (shared mem) */
+ 	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
+ 
+-#ifndef CONFIG_MMU
+ 	atomic_t vm_usage;		/* refcount (VMAs shared if !MMU) */
+-#endif
+ #ifdef CONFIG_NUMA
+ 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
+ #endif
++	struct rcu_head rcu_head;
+ };
+ 
+ struct core_thread {
+diff --git a/kernel/fork.c b/kernel/fork.c
+index afb376d..b4daad6 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -136,6 +136,8 @@ struct kmem_cache *vm_area_cachep;
+ /* SLAB cache for mm_struct structures (tsk->mm) */
+ static struct kmem_cache *mm_cachep;
+ 
++struct srcu_struct mm_srcu;
++
+ void free_task(struct task_struct *tsk)
+ {
+ 	prop_local_destroy_single(&tsk->dirties);
+@@ -1477,6 +1479,8 @@ void __init proc_caches_init(void)
+ 	mm_cachep = kmem_cache_create("mm_struct",
+ 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
+ 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK, NULL);
++
++	init_srcu_struct(&mm_srcu);
  }
--EXPORT_SYMBOL(__grab_cache_page);
-+EXPORT_SYMBOL(grab_cache_page_write_begin);
  
- static ssize_t generic_perform_write(struct file *file,
- 				struct iov_iter *i, loff_t pos)
-Index: linux-2.6/fs/affs/file.c
-===================================================================
---- linux-2.6.orig/fs/affs/file.c
-+++ linux-2.6/fs/affs/file.c
-@@ -628,7 +628,7 @@ static int affs_write_begin_ofs(struct f
+ /*
+diff --git a/mm/memory.c b/mm/memory.c
+index fc031d6..dc2475a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1829,6 +1829,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 * sleep if it needs to.
+ 			 */
+ 			page_cache_get(old_page);
++			vma_get(vma);
+ 			pte_unmap_unlock(page_table, ptl);
+ 
+ 			if (vma->vm_ops->page_mkwrite(vma, old_page) < 0)
+@@ -1842,6 +1843,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			 */
+ 			page_table = pte_offset_map_lock(mm, pmd, address,
+ 							 &ptl);
++			vma_put(vma);
+ 			page_cache_release(old_page);
+ 			if (!pte_same(*page_table, orig_pte))
+ 				goto unlock;
+@@ -1869,6 +1871,7 @@ reuse:
+ 	 */
+ 	page_cache_get(old_page);
+ gotten:
++	vma_get(vma);
+ 	pte_unmap_unlock(page_table, ptl);
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+@@ -1896,6 +1899,7 @@ gotten:
+ 	 * Re-check the pte - we dropped the lock
+ 	 */
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++	vma_put(vma);
+ 	if (likely(pte_same(*page_table, orig_pte))) {
+ 		if (old_page) {
+ 			if (!PageAnon(old_page)) {
+@@ -2410,6 +2414,17 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++	if (vma_is_dead(vma)) {
++		/*
++		 * by holding the ptl we pin whatever vma that is covering its
++		 * memory region, if at this point the vma we got is dead,
++		 * we've lost the race and need to bail.
++		 *
++		 * XXX should we re-do the lookup and check for merged vmas?
++		 */
++		pte_unmap_unlock(pte, ptl);
++		return VM_FAULT_SIGBUS;
++	}
+ 	if (!pte_none(*page_table))
+ 		goto release;
+ 	inc_mm_counter(mm, anon_rss);
+@@ -2543,6 +2558,17 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
  	}
  
- 	index = pos >> PAGE_CACHE_SHIFT;
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index, flags&AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/afs/write.c
-===================================================================
---- linux-2.6.orig/fs/afs/write.c
-+++ linux-2.6/fs/afs/write.c
-@@ -144,7 +144,7 @@ int afs_write_begin(struct file *file, s
- 	candidate->state = AFS_WBACK_PENDING;
- 	init_waitqueue_head(&candidate->waitq);
+ 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++	if (vma_is_dead(vma)) {
++		/*
++		 * by holding the ptl we pin whatever vma that is covering its
++		 * memory region, if at this point the vma we got is dead,
++		 * we've lost the race and need to bail.
++		 *
++		 * XXX should we re-do the lookup and check for merged vmas?
++		 */
++		pte_unmap_unlock(pte, ptl);
++		return VM_FAULT_SIGBUS;
++	}
  
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index, flags&AOP_FLAG_NOFS);
- 	if (!page) {
- 		kfree(candidate);
- 		return -ENOMEM;
-Index: linux-2.6/fs/buffer.c
-===================================================================
---- linux-2.6.orig/fs/buffer.c
-+++ linux-2.6/fs/buffer.c
-@@ -1987,7 +1987,8 @@ int block_write_begin(struct file *file,
- 	page = *pagep;
- 	if (page == NULL) {
- 		ownpage = 1;
--		page = __grab_cache_page(mapping, index);
-+		page = grab_cache_page_write_begin(mapping, index,
-+						flags & AOP_FLAG_NOFS);
- 		if (!page) {
- 			status = -ENOMEM;
- 			goto out;
-@@ -2493,7 +2494,8 @@ int nobh_write_begin(struct file *file,
- 	from = pos & (PAGE_CACHE_SIZE - 1);
- 	to = from + len;
+ 	/*
+ 	 * This silly early PAGE_DIRTY setting removes a race
+@@ -2690,6 +2716,17 @@ static inline int handle_pte_fault(struct mm_struct *mm,
  
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/cifs/file.c
-===================================================================
---- linux-2.6.orig/fs/cifs/file.c
-+++ linux-2.6/fs/cifs/file.c
-@@ -2065,7 +2065,8 @@ static int cifs_write_begin(struct file
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
++	if (vma_is_dead(vma)) {
++		/*
++		 * by holding the ptl we pin whatever vma that is covering its
++		 * memory region, if at this point the vma we got is dead,
++		 * we've lost the race and need to bail.
++		 *
++		 * XXX should we re-do the lookup and check for merged vmas?
++		 */
++		pte_unmap_unlock(pte, ptl);
++		return VM_FAULT_SIGBUS;
++	}
+ 	if (unlikely(!pte_same(*pte, entry)))
+ 		goto unlock;
+ 	if (write_access) {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index d4855a6..2b2d454 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -43,6 +43,48 @@
+ #define arch_rebalance_pgtables(addr, len)		(addr)
+ #endif
  
- 	cFYI(1, ("write_begin from %lld len %d", (long long)pos, len));
- 
--	*pagep = __grab_cache_page(mapping, index);
-+	*pagep = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!*pagep)
- 		return -ENOMEM;
- 
-Index: linux-2.6/fs/ecryptfs/mmap.c
-===================================================================
---- linux-2.6.orig/fs/ecryptfs/mmap.c
-+++ linux-2.6/fs/ecryptfs/mmap.c
-@@ -288,7 +288,8 @@ static int ecryptfs_write_begin(struct f
- 	loff_t prev_page_end_size;
- 	int rc = 0;
- 
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/ext3/inode.c
-===================================================================
---- linux-2.6.orig/fs/ext3/inode.c
-+++ linux-2.6/fs/ext3/inode.c
-@@ -1160,7 +1160,8 @@ static int ext3_write_begin(struct file
- 	to = from + len;
- 
- retry:
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/ext4/inode.c
-===================================================================
---- linux-2.6.orig/fs/ext4/inode.c
-+++ linux-2.6/fs/ext4/inode.c
-@@ -1345,7 +1345,8 @@ retry:
- 		goto out;
++void __vma_put(struct vm_area_struct *vma)
++{
++	/*
++	 * we should never free a vma through here!
++	 */
++	BUG();
++}
++
++void vma_free_rcu(struct rcu_head *rcu)
++{
++	struct vm_area_struct *vma = 
++		container_of(rcu, struct vm_area_struct, rcu_head);
++
++	kmem_cache_free(vm_area_cachep, vma);
++}
++
++void vma_free(struct vm_area_struct *vma)
++{
++	VM_BUG_ON(!vma_is_dead(vma));
++	/*
++	 * Yeah, I know, this doesn't exist...
++	 */
++	call_srcu(&mm_srcu, &vma->rcu_head, vma_free_rcu);
++}
++
++/*
++ * mark the vma unused before we zap the PTEs, that way, holding the PTE lock
++ * will block the unmap and guarantee vma validity.
++ */
++void vma_remove(struct vm_area_struct *vma)
++{
++	/*
++	 * XXX might need to be a blocking wait ?
++	 *     complicates vma_adjust
++	 *
++	 *     better to get rid of vma_get/put do_wp_page() might be able
++	 *     to compare PTEs and bail, it'll just re-take the fault.
++	 */
++	while (atomic_cmpxchg(&vma->vm_usage, 1, 0))
++		cpu_relax();
++}
++
+ static void unmap_region(struct mm_struct *mm,
+ 		struct vm_area_struct *vma, struct vm_area_struct *prev,
+ 		unsigned long start, unsigned long end);
+@@ -241,7 +283,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+ 			removed_exe_file_vma(vma->vm_mm);
  	}
+ 	mpol_put(vma_policy(vma));
+-	kmem_cache_free(vm_area_cachep, vma);
++	vma_free(vma);
+ 	return next;
+ }
  
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page) {
- 		ext4_journal_stop(handle);
- 		ret = -ENOMEM;
-@@ -2549,7 +2550,8 @@ retry:
- 		goto out;
- 	}
- 
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page) {
- 		ext4_journal_stop(handle);
- 		ret = -ENOMEM;
-Index: linux-2.6/fs/fuse/file.c
-===================================================================
---- linux-2.6.orig/fs/fuse/file.c
-+++ linux-2.6/fs/fuse/file.c
-@@ -646,7 +646,8 @@ static int fuse_write_begin(struct file
+@@ -407,6 +449,7 @@ __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+ void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		struct rb_node **rb_link, struct rb_node *rb_parent)
  {
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
- 
--	*pagep = __grab_cache_page(mapping, index);
-+	*pagep = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!*pagep)
- 		return -ENOMEM;
- 	return 0;
-Index: linux-2.6/fs/gfs2/ops_address.c
-===================================================================
---- linux-2.6.orig/fs/gfs2/ops_address.c
-+++ linux-2.6/fs/gfs2/ops_address.c
-@@ -675,7 +675,8 @@ static int gfs2_write_begin(struct file
- 		goto out_trans_fail;
- 
- 	error = -ENOMEM;
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	*pagep = page;
- 	if (unlikely(!page))
- 		goto out_endtrans;
-Index: linux-2.6/fs/hostfs/hostfs_kern.c
-===================================================================
---- linux-2.6.orig/fs/hostfs/hostfs_kern.c
-+++ linux-2.6/fs/hostfs/hostfs_kern.c
-@@ -501,7 +501,8 @@ int hostfs_write_begin(struct file *file
++	atomic_set(&vma->vm_usage, 1);
+ 	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
+ 	rb_insert_color(&vma->vm_rb, &mm->mm_rb);
+ }
+@@ -492,6 +535,7 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
  {
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
- 
--	*pagep = __grab_cache_page(mapping, index);
-+	*pagep = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!*pagep)
- 		return -ENOMEM;
- 	return 0;
-Index: linux-2.6/fs/jffs2/file.c
-===================================================================
---- linux-2.6.orig/fs/jffs2/file.c
-+++ linux-2.6/fs/jffs2/file.c
-@@ -132,7 +132,8 @@ static int jffs2_write_begin(struct file
- 	uint32_t pageofs = index << PAGE_CACHE_SHIFT;
- 	int ret = 0;
- 
--	pg = __grab_cache_page(mapping, index);
-+	pg = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!pg)
- 		return -ENOMEM;
- 	*pagep = pg;
-Index: linux-2.6/fs/libfs.c
-===================================================================
---- linux-2.6.orig/fs/libfs.c
-+++ linux-2.6/fs/libfs.c
-@@ -360,7 +360,8 @@ int simple_write_begin(struct file *file
- 	index = pos >> PAGE_CACHE_SHIFT;
- 	from = pos & (PAGE_CACHE_SIZE - 1);
- 
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 
-Index: linux-2.6/fs/nfs/file.c
-===================================================================
---- linux-2.6.orig/fs/nfs/file.c
-+++ linux-2.6/fs/nfs/file.c
-@@ -354,7 +354,8 @@ static int nfs_write_begin(struct file *
- 		file->f_path.dentry->d_name.name,
- 		mapping->host->i_ino, len, (long long) pos);
- 
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/reiserfs/inode.c
-===================================================================
---- linux-2.6.orig/fs/reiserfs/inode.c
-+++ linux-2.6/fs/reiserfs/inode.c
-@@ -2556,7 +2556,8 @@ static int reiserfs_write_begin(struct f
- 	}
- 
- 	index = pos >> PAGE_CACHE_SHIFT;
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!page)
- 		return -ENOMEM;
- 	*pagep = page;
-Index: linux-2.6/fs/smbfs/file.c
-===================================================================
---- linux-2.6.orig/fs/smbfs/file.c
-+++ linux-2.6/fs/smbfs/file.c
-@@ -297,7 +297,8 @@ static int smb_write_begin(struct file *
- 			struct page **pagep, void **fsdata)
- {
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
--	*pagep = __grab_cache_page(mapping, index);
-+	*pagep = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (!*pagep)
- 		return -ENOMEM;
- 	return 0;
-Index: linux-2.6/fs/ubifs/file.c
-===================================================================
---- linux-2.6.orig/fs/ubifs/file.c
-+++ linux-2.6/fs/ubifs/file.c
-@@ -247,7 +247,8 @@ static int write_begin_slow(struct addre
- 	if (unlikely(err))
- 		return err;
- 
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (unlikely(!page)) {
- 		ubifs_release_budget(c, &req);
- 		return -ENOMEM;
-@@ -438,7 +439,8 @@ static int ubifs_write_begin(struct file
- 		return -EROFS;
- 
- 	/* Try out the fast-path part first */
--	page = __grab_cache_page(mapping, index);
-+	page = grab_cache_page_write_begin(mapping, index,
-+					flags & AOP_FLAG_NOFS);
- 	if (unlikely(!page))
- 		return -ENOMEM;
- 
+ 	prev->vm_next = vma->vm_next;
+ 	rb_erase(&vma->vm_rb, &mm->mm_rb);
++	vma_remove(vma);
+ 	if (mm->mmap_cache == vma)
+ 		mm->mmap_cache = prev;
+ }
+@@ -644,7 +688,7 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 		mm->map_count--;
+ 		mpol_put(vma_policy(next));
+-		kmem_cache_free(vm_area_cachep, next);
++		vma_free(next);
+ 		/*
+ 		 * In mprotect's case 6 (see comments on vma_merge),
+ 		 * we must remove another next too. It would clutter
+@@ -1210,7 +1254,7 @@ munmap_back:
+ 	if (file && vma_merge(mm, prev, addr, vma->vm_end,
+ 			vma->vm_flags, NULL, file, pgoff, vma_policy(vma))) {
+ 		mpol_put(vma_policy(vma));
+-		kmem_cache_free(vm_area_cachep, vma);
++		vma_free(vma);
+ 		fput(file);
+ 		if (vm_flags & VM_EXECUTABLE)
+ 			removed_exe_file_vma(mm);
+@@ -1247,7 +1291,7 @@ unmap_and_free_vma:
+ 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
+ 	charged = 0;
+ free_vma:
+-	kmem_cache_free(vm_area_cachep, vma);
++	vma_free(vma);
+ unacct_error:
+ 	if (charged)
+ 		vm_unacct_memory(charged);
+@@ -1801,6 +1845,7 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	insertion_point = (prev ? &prev->vm_next : &mm->mmap);
+ 	do {
+ 		rb_erase(&vma->vm_rb, &mm->mm_rb);
++		vma_remove(vma);
+ 		mm->map_count--;
+ 		tail_vma = vma;
+ 		vma = vma->vm_next;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
