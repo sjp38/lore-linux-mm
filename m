@@ -1,56 +1,58 @@
-Date: Fri, 28 Nov 2008 11:27:45 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
-Message-ID: <20081128112745.GR28946@ZenIV.linux.org.uk>
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu> <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
+Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20081128060803.73cd59bd@bree.surriel.com>
+References: <20081128060803.73cd59bd@bree.surriel.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Fri, 28 Nov 2008 12:30:14 +0100
+Message-Id: <1227871814.4454.3855.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 26, 2008 at 08:04:40PM -0500, Oren Laadan wrote:
+On Fri, 2008-11-28 at 06:08 -0500, Rik van Riel wrote:
+> Skip freeing memory from zones that already have lots of free memory.
+> If one memory zone has harder to free memory, we want to avoid freeing
+> excessive amounts of memory from other zones, if only because pageout
+> IO from the other zones can slow down page freeing from the problem zone.
+> 
+> This is similar to the check already done by kswapd in balance_pgdat().
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-> +/**
-> + * cr_attach_get_file - attach (and get) lonely file ptr to a file descriptor
-> + * @file: lonely file pointer
-> + */
-> +static int cr_attach_get_file(struct file *file)
-> +{
-> +	int fd = get_unused_fd_flags(0);
-> +
-> +	if (fd >= 0) {
-> +		fsnotify_open(file->f_path.dentry);
-> +		fd_install(fd, file);
-> +		get_file(file);
-> +	}
-> +	return fd;
-> +}
+Make sense,
 
-What happens if another thread closes the descriptor in question between
-fd_install() and get_file()?
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-> +	fd = cr_attach_file(file);	/* no need to cleanup 'file' below */
-> +	if (fd < 0) {
-> +		filp_close(file, NULL);
-> +		ret = fd;
-> +		goto out;
-> +	}
-> +
-> +	/* register new <objref, file> tuple in hash table */
-> +	ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
-> +	if (ret < 0)
-> +		goto out;
-
-Who said that file still exists at that point?
-
-BTW, there are shitloads of races here - references to fd and struct file *
-are mixed in a way that breaks *badly* if descriptor table is played with
-by another thread.
+> ---
+> Kosaki-san, this should address point (3) from your list.
+> 
+>  mm/vmscan.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> Index: linux-2.6.28-rc5/mm/vmscan.c
+> ===================================================================
+> --- linux-2.6.28-rc5.orig/mm/vmscan.c	2008-11-28 05:53:56.000000000 -0500
+> +++ linux-2.6.28-rc5/mm/vmscan.c	2008-11-28 06:05:29.000000000 -0500
+> @@ -1510,6 +1510,9 @@ static unsigned long shrink_zones(int pr
+>  			if (zone_is_all_unreclaimable(zone) &&
+>  						priority != DEF_PRIORITY)
+>  				continue;	/* Let kswapd poll it */
+> +			if (zone_watermark_ok(zone, sc->order,
+> +					4*zone->pages_high, high_zoneidx, 0))
+> +				continue;	/* Lots free already */
+>  			sc->all_unreclaimable = 0;
+>  		} else {
+>  			/*
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
