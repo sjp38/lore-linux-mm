@@ -1,55 +1,54 @@
-Date: Fri, 28 Nov 2008 23:43:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
-Message-ID: <20081128224304.GB7828@cmpxchg.org>
-References: <20081128060803.73cd59bd@bree.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081128060803.73cd59bd@bree.surriel.com>
+Message-ID: <493074D8.3080002@google.com>
+Date: Fri, 28 Nov 2008 14:46:48 -0800
+From: Mike Waychison <mikew@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <1227780007.4454.1344.camel@twins> <20081127101436.GI28285@wotan.suse.de> <492EF391.1040408@google.com> <20081128094127.GC1818@wotan.suse.de>
+In-Reply-To: <20081128094127.GC1818@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, akpm@linux-foundation.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, "H. Peter Anvin" <hpa@zytor.com>, edwintorok@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 28, 2008 at 06:08:03AM -0500, Rik van Riel wrote:
-> Skip freeing memory from zones that already have lots of free memory.
-> If one memory zone has harder to free memory, we want to avoid freeing
-> excessive amounts of memory from other zones, if only because pageout
-> IO from the other zones can slow down page freeing from the problem zone.
+Nick Piggin wrote:
+> On Thu, Nov 27, 2008 at 11:22:57AM -0800, Mike Waychison wrote:
+>> Nick Piggin wrote:
+>>> On Thu, Nov 27, 2008 at 11:00:07AM +0100, Peter Zijlstra wrote:
+>>> pagemap_read looks like it can use get_user_pages_fast. The smaps and
+>>> clear_refs stuff might have been nicer if they could work on ranges
+>>> like pagemap. Then they could avoid mmap_sem as well (although maps
+>>> would need to be sampled and take mmap_sem I guess).
+>>>
+>>> One problem with dropping mmap_sem is that it hurts priority/fairness.
+>>> And it opens a bit of a (maybe theoretical but not something to completely
+>>> ignore) forward progress hole AFAIKS. If mmap_sem is very heavily
+>>> contended, then the refault is going to take a while to get through,
+>>> and then the page might get reclaimed etc).
+>> Right, this can be an issue.  The way around it should be to minimize 
+>> the length of time any single lock holder can sit on it.  Compared to 
+>> what we have today with:
+>>
+>>   - sleep in major fault with read lock held,
+>>   - enqueue writer behind it,
+>>   - and make all other faults wait on the rwsem
+>>
+>> The retry logic seems to be a lot better for forward progress.
 > 
-> This is similar to the check already done by kswapd in balance_pgdat().
+> The whole reason why you have the latency is because it is
+> guaranteeing forward progress for everyone. The retry logic
+> may work out better in that situation, but it does actually
+> open a starvation hole.
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
 
-Acked-by: Johannes Weiner <hannes@saeurebad.de>
+Right.  In practice though, we haven't seen this cause a problem (and is 
+why we'll only allow the path to retry once).
 
-> ---
-> Kosaki-san, this should address point (3) from your list.
-> 
->  mm/vmscan.c |    3 +++
->  1 file changed, 3 insertions(+)
-> 
-> Index: linux-2.6.28-rc5/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6.28-rc5.orig/mm/vmscan.c	2008-11-28 05:53:56.000000000 -0500
-> +++ linux-2.6.28-rc5/mm/vmscan.c	2008-11-28 06:05:29.000000000 -0500
-> @@ -1510,6 +1510,9 @@ static unsigned long shrink_zones(int pr
->  			if (zone_is_all_unreclaimable(zone) &&
->  						priority != DEF_PRIORITY)
->  				continue;	/* Let kswapd poll it */
-> +			if (zone_watermark_ok(zone, sc->order,
-> +					4*zone->pages_high, high_zoneidx, 0))
-> +				continue;	/* Lots free already */
->  			sc->all_unreclaimable = 0;
->  		} else {
->  			/*
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Do you have any suggestions on how we could plug this hole?   Perhaps we 
+could pin a reference to the page in the vm_fault structure across the 
+retry?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
