@@ -1,142 +1,458 @@
-Date: Fri, 28 Nov 2008 23:09:23 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: Re: [RFC][PATCH -mmotm 2/2] avoid oom
-Message-Id: <20081128230923.c492bad6.d-nishimura@mtf.biglobe.ne.jp>
-In-Reply-To: <20081128195953.0f69d9ea.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081128180252.b7a73c86.nishimura@mxp.nes.nec.co.jp>
-	<20081128180937.5d7b16c5.nishimura@mxp.nes.nec.co.jp>
-	<20081128195953.0f69d9ea.kamezawa.hiroyu@jp.fujitsu.com>
-Reply-To: nishimura@mxp.nes.nec.co.jp
+Date: Fri, 28 Nov 2008 15:37:37 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2] fs: symlink write_begin allocation context fix
+Message-ID: <20081128143737.GA15458@wotan.suse.de>
+References: <20081127093401.GE28285@wotan.suse.de> <20081127093504.GF28285@wotan.suse.de> <20081127200014.3CF6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081127200014.3CF6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Nov 2008 19:59:53 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> On Fri, 28 Nov 2008 18:09:37 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > In previous implementation, mem_cgroup_try_charge checked the return
-> > value of mem_cgroup_try_to_free_pages, and just retried if some pages
-> > had been reclaimed.
-> > But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
-> > only checks whether the usage is less than the limit.
-> > I see oom easily in some tests which didn't cause oom before.
-> > 
-> > This patch tries to change the behavior as before.
-> > 
-> > I've tested this patch with only one (except root) mem cgroup directory,
-> > and a mem cgroup directory(use_hierarchy=1) which has 4 children with running
-> > test programs on itself and each children's directories.
-> > 
-> > Of course, even after this patch is applied, oom happens if trying to use
-> > too much memory.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> > 
-> >  mm/memcontrol.c |   19 ++++++++++++-------
-> >  1 files changed, 12 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index e7806fc..ab134b7 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -592,6 +592,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+On Thu, Nov 27, 2008 at 08:02:32PM +0900, KOSAKI Motohiro wrote:
+> > @@ -2820,8 +2825,7 @@ fail:
+> >  
+> >  int page_symlink(struct inode *inode, const char *symname, int len)
 > >  {
-> >  	struct mem_cgroup *next_mem;
-> >  	int ret = 0;
-> > +	int child = 0;
-> >  
-> >  	/*
-> >  	 * Reclaim unconditionally and don't check for return value.
-> > @@ -600,9 +601,9 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> >  	 * but there might be left over accounting, even after children
-> >  	 * have left.
-> >  	 */
-> > -	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
-> > +	ret += try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
-> >  	if (mem_cgroup_check_under_limit(root_mem))
-> > -		return 0;
-> > +		return 1;	/* indicate success of reclaim */
-> >  
-> >  	next_mem = mem_cgroup_get_first_node(root_mem);
-> >  
-> > @@ -614,14 +615,17 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> >  			cgroup_unlock();
-> >  			continue;
-> >  		}
-> > -		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
-> > +		child++;
-> > +		ret += try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
-> >  		if (mem_cgroup_check_under_limit(root_mem))
-> > -			return 0;
-> > +			return 1;	/* indicate success of reclaim */
-> >  		cgroup_lock();
-> >  		next_mem = mem_cgroup_get_next_node(next_mem, root_mem);
-> >  		cgroup_unlock();
-> >  	}
-> > -	return ret;
-> > +
-> > +	/* reclaimed at least one page on average from root and each child */
-> > +	return ret > child;
+> > -	return __page_symlink(inode, symname, len,
+> > -			mapping_gfp_mask(inode->i_mapping));
+> > +	return __page_symlink(inode, symname, len, 0);
 > >  }
-> >  
-> I can't understand why this heuristic...
 > 
-> just (ret != 0) is ?
+> your patch always pass 0 into __page_symlink().
+> therefore it doesn't change any behavior.
 > 
-I also thought the same thing first.
+> right?
 
-I'm worrying about the case there are many and many children.
-IMHO, this function rarely fails in such cases(just because there
-are many candidates to reclaim from. Ah.. I should check at least
-each memcgroup has charges), so I thought it would be better
-to take account of the number of children, to prevent a long software
-stuck at infinite loop at __mem_cgroup_try_charge.
+How about this patch?
 
-Actually, I tested "return ret" version in my test (4 children) too,
-and I didn't see a big difference(it seemed that in "return ret" version
-it took a bit long time to cause oom, but I've not confirmed it in detail).
+--
+With the write_begin/write_end aops, page_symlink was broken because it
+could no longer pass a GFP_NOFS type mask into the point where the allocations
+happened. They are done in write_begin, which would always assume that the
+filesystem can be entered from reclaim.
 
-I must consider more.
+The funny thing with having a gfp_t mask there is that it doesn't really allow
+the caller to arbitrarily tinker with the context in which it can be called.
+It couldn't ever be GFP_ATOMIC, for example, because it needs to take the
+page lock. The only thing any callers care about is __GFP_FS anyway, so turn
+that into a single flag.
 
+Add a new flag for write_begin, AOP_FLAG_NOFS. Filesystems can now act on
+this flag in their write_begin function. Change __grab_cache_page to accept
+a nofs argument as well, to honour that flag (while we're there, change the
+name to grab_cache_page_write_begin which is more instructive and does away
+with random leading underscores).
 
-Thanks,
-Daisuke Nishimura.
+This is really a more flexible way to go in the end anyway -- if a filesystem
+happens to want any extra allocations aside from the pagecache ones in ints
+write_begin function, it may now use GFP_KERNEL for common case allocations
+(eg. ocfs2_alloc_write_ctxt, for a random example).
 
-> Thanks,
-> -Kame
-> 
-> 
-> 
-> >  /*
-> > @@ -684,8 +688,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> >  		if (!(gfp_mask & __GFP_WAIT))
-> >  			goto nomem;
-> >  
-> > -		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
-> > -							noswap);
-> > +		if (mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
-> > +							noswap))
-> > +			continue;
-> >  
-> >  		/*
-> >  		 * try_to_free_mem_cgroup_pages() might not give us a full
-> > 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/fs/namei.c
+===================================================================
+--- linux-2.6.orig/fs/namei.c
++++ linux-2.6/fs/namei.c
+@@ -2786,18 +2786,23 @@ void page_put_link(struct dentry *dentry
+ 	}
+ }
+ 
+-int __page_symlink(struct inode *inode, const char *symname, int len,
+-		gfp_t gfp_mask)
++/*
++ * The nofs argument instructs pagecache_write_begin to pass AOP_FLAG_NOFS
++ */
++int __page_symlink(struct inode *inode, const char *symname, int len, int nofs)
+ {
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct page *page;
+ 	void *fsdata;
+ 	int err;
+ 	char *kaddr;
++	unsigned int flags = AOP_FLAG_UNINTERRUPTIBLE;
++	if (nofs)
++		flags |= AOP_FLAG_NOFS;
+ 
+ retry:
+ 	err = pagecache_write_begin(NULL, mapping, 0, len-1,
+-				AOP_FLAG_UNINTERRUPTIBLE, &page, &fsdata);
++				flags, &page, &fsdata);
+ 	if (err)
+ 		goto fail;
+ 
+@@ -2821,7 +2826,7 @@ fail:
+ int page_symlink(struct inode *inode, const char *symname, int len)
+ {
+ 	return __page_symlink(inode, symname, len,
+-			mapping_gfp_mask(inode->i_mapping));
++			!(mapping_gfp_mask(inode->i_mapping) & __GFP_FS));
+ }
+ 
+ const struct inode_operations page_symlink_inode_operations = {
+Index: linux-2.6/include/linux/fs.h
+===================================================================
+--- linux-2.6.orig/include/linux/fs.h
++++ linux-2.6/include/linux/fs.h
+@@ -413,6 +413,9 @@ enum positive_aop_returns {
+ 
+ #define AOP_FLAG_UNINTERRUPTIBLE	0x0001 /* will not do a short write */
+ #define AOP_FLAG_CONT_EXPAND		0x0002 /* called from cont_expand */
++#define AOP_FLAG_NOFS			0x0004 /* used by filesystem to direct
++						* helper code (eg buffer layer)
++						* to clear GFP_FS from alloc */
+ 
+ /*
+  * oh the beauties of C type declarations.
+@@ -2022,7 +2025,7 @@ extern int page_readlink(struct dentry *
+ extern void *page_follow_link_light(struct dentry *, struct nameidata *);
+ extern void page_put_link(struct dentry *, struct nameidata *, void *);
+ extern int __page_symlink(struct inode *inode, const char *symname, int len,
+-		gfp_t gfp_mask);
++		int nofs);
+ extern int page_symlink(struct inode *inode, const char *symname, int len);
+ extern const struct inode_operations page_symlink_inode_operations;
+ extern int generic_readlink(struct dentry *, char __user *, int);
+Index: linux-2.6/fs/ext3/namei.c
+===================================================================
+--- linux-2.6.orig/fs/ext3/namei.c
++++ linux-2.6/fs/ext3/namei.c
+@@ -2170,8 +2170,7 @@ retry:
+ 		 * We have a transaction open.  All is sweetness.  It also sets
+ 		 * i_size in generic_commit_write().
+ 		 */
+-		err = __page_symlink(inode, symname, l,
+-				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
++		err = __page_symlink(inode, symname, l, 1);
+ 		if (err) {
+ 			drop_nlink(inode);
+ 			ext3_mark_inode_dirty(handle, inode);
+Index: linux-2.6/fs/ext4/namei.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/namei.c
++++ linux-2.6/fs/ext4/namei.c
+@@ -2208,8 +2208,7 @@ retry:
+ 		 * We have a transaction open.  All is sweetness.  It also sets
+ 		 * i_size in generic_commit_write().
+ 		 */
+-		err = __page_symlink(inode, symname, l,
+-				mapping_gfp_mask(inode->i_mapping) & ~__GFP_FS);
++		err = __page_symlink(inode, symname, l, 1);
+ 		if (err) {
+ 			clear_nlink(inode);
+ 			ext4_mark_inode_dirty(handle, inode);
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -241,7 +241,8 @@ unsigned find_get_pages_contig(struct ad
+ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 			int tag, unsigned int nr_pages, struct page **pages);
+ 
+-struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index);
++struct page *grab_cache_page_write_begin(struct address_space *mapping,
++			pgoff_t index, int nofs);
+ 
+ /*
+  * Returns locked page at given index in given cache, creating it if needed.
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -2147,19 +2147,24 @@ EXPORT_SYMBOL(generic_file_direct_write)
+  * Find or create a page at the given pagecache position. Return the locked
+  * page. This function is specifically for buffered writes.
+  */
+-struct page *__grab_cache_page(struct address_space *mapping, pgoff_t index)
++struct page *grab_cache_page_write_begin(struct address_space *mapping,
++					pgoff_t index, int nofs)
+ {
+ 	int status;
+ 	struct page *page;
++	gfp_t gfp_notmask = 0;
++	if (nofs)
++		gfp_notmask = __GFP_FS;
+ repeat:
+ 	page = find_lock_page(mapping, index);
+ 	if (likely(page))
+ 		return page;
+ 
+-	page = page_cache_alloc(mapping);
++	page = __page_cache_alloc(mapping_gfp_mask(mapping) & ~gfp_notmask);
+ 	if (!page)
+ 		return NULL;
+-	status = add_to_page_cache_lru(page, mapping, index, GFP_KERNEL);
++	status = add_to_page_cache_lru(page, mapping, index,
++						GFP_KERNEL & ~gfp_notmask);
+ 	if (unlikely(status)) {
+ 		page_cache_release(page);
+ 		if (status == -EEXIST)
+@@ -2168,7 +2173,7 @@ repeat:
+ 	}
+ 	return page;
+ }
+-EXPORT_SYMBOL(__grab_cache_page);
++EXPORT_SYMBOL(grab_cache_page_write_begin);
+ 
+ static ssize_t generic_perform_write(struct file *file,
+ 				struct iov_iter *i, loff_t pos)
+Index: linux-2.6/fs/affs/file.c
+===================================================================
+--- linux-2.6.orig/fs/affs/file.c
++++ linux-2.6/fs/affs/file.c
+@@ -628,7 +628,7 @@ static int affs_write_begin_ofs(struct f
+ 	}
+ 
+ 	index = pos >> PAGE_CACHE_SHIFT;
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index, flags&AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/afs/write.c
+===================================================================
+--- linux-2.6.orig/fs/afs/write.c
++++ linux-2.6/fs/afs/write.c
+@@ -144,7 +144,7 @@ int afs_write_begin(struct file *file, s
+ 	candidate->state = AFS_WBACK_PENDING;
+ 	init_waitqueue_head(&candidate->waitq);
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index, flags&AOP_FLAG_NOFS);
+ 	if (!page) {
+ 		kfree(candidate);
+ 		return -ENOMEM;
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -1987,7 +1987,8 @@ int block_write_begin(struct file *file,
+ 	page = *pagep;
+ 	if (page == NULL) {
+ 		ownpage = 1;
+-		page = __grab_cache_page(mapping, index);
++		page = grab_cache_page_write_begin(mapping, index,
++						flags & AOP_FLAG_NOFS);
+ 		if (!page) {
+ 			status = -ENOMEM;
+ 			goto out;
+@@ -2493,7 +2494,8 @@ int nobh_write_begin(struct file *file,
+ 	from = pos & (PAGE_CACHE_SIZE - 1);
+ 	to = from + len;
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/cifs/file.c
+===================================================================
+--- linux-2.6.orig/fs/cifs/file.c
++++ linux-2.6/fs/cifs/file.c
+@@ -2065,7 +2065,8 @@ static int cifs_write_begin(struct file
+ 
+ 	cFYI(1, ("write_begin from %lld len %d", (long long)pos, len));
+ 
+-	*pagep = __grab_cache_page(mapping, index);
++	*pagep = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!*pagep)
+ 		return -ENOMEM;
+ 
+Index: linux-2.6/fs/ecryptfs/mmap.c
+===================================================================
+--- linux-2.6.orig/fs/ecryptfs/mmap.c
++++ linux-2.6/fs/ecryptfs/mmap.c
+@@ -288,7 +288,8 @@ static int ecryptfs_write_begin(struct f
+ 	loff_t prev_page_end_size;
+ 	int rc = 0;
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/ext3/inode.c
+===================================================================
+--- linux-2.6.orig/fs/ext3/inode.c
++++ linux-2.6/fs/ext3/inode.c
+@@ -1160,7 +1160,8 @@ static int ext3_write_begin(struct file
+ 	to = from + len;
+ 
+ retry:
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/ext4/inode.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/inode.c
++++ linux-2.6/fs/ext4/inode.c
+@@ -1345,7 +1345,8 @@ retry:
+ 		goto out;
+ 	}
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page) {
+ 		ext4_journal_stop(handle);
+ 		ret = -ENOMEM;
+@@ -2549,7 +2550,8 @@ retry:
+ 		goto out;
+ 	}
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page) {
+ 		ext4_journal_stop(handle);
+ 		ret = -ENOMEM;
+Index: linux-2.6/fs/fuse/file.c
+===================================================================
+--- linux-2.6.orig/fs/fuse/file.c
++++ linux-2.6/fs/fuse/file.c
+@@ -646,7 +646,8 @@ static int fuse_write_begin(struct file
+ {
+ 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+ 
+-	*pagep = __grab_cache_page(mapping, index);
++	*pagep = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!*pagep)
+ 		return -ENOMEM;
+ 	return 0;
+Index: linux-2.6/fs/gfs2/ops_address.c
+===================================================================
+--- linux-2.6.orig/fs/gfs2/ops_address.c
++++ linux-2.6/fs/gfs2/ops_address.c
+@@ -675,7 +675,8 @@ static int gfs2_write_begin(struct file
+ 		goto out_trans_fail;
+ 
+ 	error = -ENOMEM;
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	*pagep = page;
+ 	if (unlikely(!page))
+ 		goto out_endtrans;
+Index: linux-2.6/fs/hostfs/hostfs_kern.c
+===================================================================
+--- linux-2.6.orig/fs/hostfs/hostfs_kern.c
++++ linux-2.6/fs/hostfs/hostfs_kern.c
+@@ -501,7 +501,8 @@ int hostfs_write_begin(struct file *file
+ {
+ 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+ 
+-	*pagep = __grab_cache_page(mapping, index);
++	*pagep = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!*pagep)
+ 		return -ENOMEM;
+ 	return 0;
+Index: linux-2.6/fs/jffs2/file.c
+===================================================================
+--- linux-2.6.orig/fs/jffs2/file.c
++++ linux-2.6/fs/jffs2/file.c
+@@ -132,7 +132,8 @@ static int jffs2_write_begin(struct file
+ 	uint32_t pageofs = index << PAGE_CACHE_SHIFT;
+ 	int ret = 0;
+ 
+-	pg = __grab_cache_page(mapping, index);
++	pg = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!pg)
+ 		return -ENOMEM;
+ 	*pagep = pg;
+Index: linux-2.6/fs/libfs.c
+===================================================================
+--- linux-2.6.orig/fs/libfs.c
++++ linux-2.6/fs/libfs.c
+@@ -360,7 +360,8 @@ int simple_write_begin(struct file *file
+ 	index = pos >> PAGE_CACHE_SHIFT;
+ 	from = pos & (PAGE_CACHE_SIZE - 1);
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 
+Index: linux-2.6/fs/nfs/file.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -354,7 +354,8 @@ static int nfs_write_begin(struct file *
+ 		file->f_path.dentry->d_name.name,
+ 		mapping->host->i_ino, len, (long long) pos);
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/reiserfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/reiserfs/inode.c
++++ linux-2.6/fs/reiserfs/inode.c
+@@ -2556,7 +2556,8 @@ static int reiserfs_write_begin(struct f
+ 	}
+ 
+ 	index = pos >> PAGE_CACHE_SHIFT;
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!page)
+ 		return -ENOMEM;
+ 	*pagep = page;
+Index: linux-2.6/fs/smbfs/file.c
+===================================================================
+--- linux-2.6.orig/fs/smbfs/file.c
++++ linux-2.6/fs/smbfs/file.c
+@@ -297,7 +297,8 @@ static int smb_write_begin(struct file *
+ 			struct page **pagep, void **fsdata)
+ {
+ 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+-	*pagep = __grab_cache_page(mapping, index);
++	*pagep = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (!*pagep)
+ 		return -ENOMEM;
+ 	return 0;
+Index: linux-2.6/fs/ubifs/file.c
+===================================================================
+--- linux-2.6.orig/fs/ubifs/file.c
++++ linux-2.6/fs/ubifs/file.c
+@@ -247,7 +247,8 @@ static int write_begin_slow(struct addre
+ 	if (unlikely(err))
+ 		return err;
+ 
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (unlikely(!page)) {
+ 		ubifs_release_budget(c, &req);
+ 		return -ENOMEM;
+@@ -438,7 +439,8 @@ static int ubifs_write_begin(struct file
+ 		return -EROFS;
+ 
+ 	/* Try out the fast-path part first */
+-	page = __grab_cache_page(mapping, index);
++	page = grab_cache_page_write_begin(mapping, index,
++					flags & AOP_FLAG_NOFS);
+ 	if (unlikely(!page))
+ 		return -ENOMEM;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
