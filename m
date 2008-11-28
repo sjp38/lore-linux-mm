@@ -1,47 +1,79 @@
-Date: Fri, 28 Nov 2008 10:41:27 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-Message-ID: <20081128094127.GC1818@wotan.suse.de>
-References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <1227780007.4454.1344.camel@twins> <20081127101436.GI28285@wotan.suse.de> <492EF391.1040408@google.com>
-Mime-Version: 1.0
+Date: Fri, 28 Nov 2008 10:19:19 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
+Message-ID: <20081128101919.GO28946@ZenIV.linux.org.uk>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu> <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <492EF391.1040408@google.com>
+In-Reply-To: <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, "H. Peter Anvin" <hpa@zytor.com>, edwintorok@gmail.com
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 27, 2008 at 11:22:57AM -0800, Mike Waychison wrote:
-> Nick Piggin wrote:
-> >On Thu, Nov 27, 2008 at 11:00:07AM +0100, Peter Zijlstra wrote:
-> 
-> >pagemap_read looks like it can use get_user_pages_fast. The smaps and
-> >clear_refs stuff might have been nicer if they could work on ranges
-> >like pagemap. Then they could avoid mmap_sem as well (although maps
-> >would need to be sampled and take mmap_sem I guess).
-> >
-> >One problem with dropping mmap_sem is that it hurts priority/fairness.
-> >And it opens a bit of a (maybe theoretical but not something to completely
-> >ignore) forward progress hole AFAIKS. If mmap_sem is very heavily
-> >contended, then the refault is going to take a while to get through,
-> >and then the page might get reclaimed etc).
-> 
-> Right, this can be an issue.  The way around it should be to minimize 
-> the length of time any single lock holder can sit on it.  Compared to 
-> what we have today with:
-> 
->   - sleep in major fault with read lock held,
->   - enqueue writer behind it,
->   - and make all other faults wait on the rwsem
-> 
-> The retry logic seems to be a lot better for forward progress.
+On Wed, Nov 26, 2008 at 08:04:39PM -0500, Oren Laadan wrote:
+> +int cr_scan_fds(struct files_struct *files, int **fdtable)
+> +{
+> +	struct fdtable *fdt;
+> +	int *fds;
+> +	int i, n = 0;
+> +	int tot = CR_DEFAULT_FDTABLE;
+> +
+> +	fds = kmalloc(tot * sizeof(*fds), GFP_KERNEL);
+> +	if (!fds)
+> +		return -ENOMEM;
+> +
+> +	/*
+> +	 * We assume that the target task is frozen (or that we checkpoint
+> +	 * ourselves), so we can safely proceed after krealloc() from where
+> +	 * we left off; in the worst cases restart will fail.
+> +	 */
 
-The whole reason why you have the latency is because it is
-guaranteeing forward progress for everyone. The retry logic
-may work out better in that situation, but it does actually
-open a starvation hole.
+Task may be frozen, but it may share the table with any number of other
+tasks...
+
+> +	spin_lock(&files->file_lock);
+> +	rcu_read_lock();
+> +	fdt = files_fdtable(files);
+> +	for (i = 0; i < fdt->max_fds; i++) {
+> +		if (!fcheck_files(files, i))
+> +			continue;
+> +		if (n == tot) {
+> +			/*
+> +			 * fcheck_files() is safe with drop/re-acquire
+> +			 * of the lock, because it tests:  fd < max_fds
+> +			 */
+> +			spin_unlock(&files->file_lock);
+> +			rcu_read_unlock();
+> +			tot *= 2;	/* won't overflow: kmalloc will fail */
+> +			fds = krealloc(fds, tot * sizeof(*fds), GFP_KERNEL);
+> +			if (!fds)
+> +				return -ENOMEM;
+> +			rcu_read_lock();
+> +			spin_lock(&files->file_lock);
+> +		}
+> +		fds[n++] = i;
+> +	}
+> +	rcu_read_unlock();
+> +	spin_unlock(&files->file_lock);
+> +
+> +	*fdtable = fds;
+> +	return n;
+> +}
+
+> +	switch (inode->i_mode & S_IFMT) {
+> +	case S_IFREG:
+> +		fd_type = CR_FD_FILE;
+> +		break;
+> +	case S_IFDIR:
+> +		fd_type = CR_FD_DIR;
+> +		break;
+> +	case S_IFLNK:
+> +		fd_type = CR_FD_LINK;
+
+Opened symlinks?  May I have whatever you'd been smoking, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
