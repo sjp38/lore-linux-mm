@@ -1,83 +1,152 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mATAtFZ7021468
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 29 Nov 2008 19:55:15 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3824045DD76
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2008 19:55:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19AC645DD74
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2008 19:55:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id F0B801DB8040
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2008 19:55:14 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A337C1DB803C
-	for <linux-mm@kvack.org>; Sat, 29 Nov 2008 19:55:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
-In-Reply-To: <20081128231933.8daef193.akpm@linux-foundation.org>
-References: <20081128060803.73cd59bd@bree.surriel.com> <20081128231933.8daef193.akpm@linux-foundation.org>
-Message-Id: <20081129195357.813D.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sat, 29 Nov 2008 19:55:13 +0900 (JST)
+Date: Sat, 29 Nov 2008 16:39:04 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [rfc] vmscan: serialize aggressive reclaimers
+Message-ID: <20081129153902.GA1944@cmpxchg.org>
+References: <20081124145057.4211bd46@bree.surriel.com> <20081127173610.GA1781@cmpxchg.org> <20081129164322.8131.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081129164322.8131.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-> We already tried this, or something very similar in effect, I think...
+On Sat, Nov 29, 2008 at 04:46:24PM +0900, KOSAKI Motohiro wrote:
+> > Since we have to pull through a reclaim cycle once we commited to it,
+> > what do you think about serializing the lower priority levels
+> > completely?
+> > 
+> > The idea is that when one reclaimer has done a low priority level
+> > iteration with a huge reclaim target, chances are that succeeding
+> > reclaimers don't even need to drop to lower levels at all because
+> > enough memory has already been freed.
+> > 
+> > My testprogram maps and faults in a file that is about as large as my
+> > physical memory.  Then it spawns off n processes that try allocate
+> > 1/2n of total memory in anon pages, i.e. half of it in sum.  After it
+> > ran, I check how much memory has been reclaimed.  But my zone sizes
+> > are too small to induce enormous reclaim targets so I don't see vast
+> > over-reclaims.
+> > 
+> > I have measured the time of other tests on an SMP machine with 4 cores
+> > and the following patch applied.  I couldn't see any performance
+> > degradation.  But since the bug is not triggerable here, I can not
+> > prove it helps the original problem, either.
 > 
-> 
-> commit 26e4931632352e3c95a61edac22d12ebb72038fe
-> Author: akpm <akpm>
-> Date:   Sun Sep 8 19:21:55 2002 +0000
-> 
->     [PATCH] refill the inactive list more quickly
->     
->     Fix a problem noticed by Ed Tomlinson: under shifting workloads the
->     shrink_zone() logic will refill the inactive load too slowly.
->     
->     Bale out of the zone scan when we've reclaimed enough pages.  Fixes a
->     rarely-occurring problem wherein refill_inactive_zone() ends up
->     shuffling 100,000 pages and generally goes silly.
->     
->     This needs to be revisited - we should go on and rebalance the lower
->     zones even if we reclaimed enough pages from highmem.
->     
-> 
-> 
-> Then it was reverted a year or two later:
-> 
-> 
-> commit 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3
-> Author: akpm <akpm>
-> Date:   Fri Mar 12 16:23:50 2004 +0000
-> 
->     [PATCH] vmscan: zone balancing fix
->     
->     We currently have a problem with the balancing of reclaim between zones: much
->     more reclaim happens against highmem than against lowmem.
->     
->     This patch partially fixes this by changing the direct reclaim path so it
->     does not bale out of the zone walk after having reclaimed sufficient pages
->     from highmem: go on to reclaim from lowmem regardless of how many pages we
->     reclaimed from lowmem.
->     
-> 
-> My changelog does not adequately explain the reasons.
-> 
-> But we don't want to rediscover these reasons in early 2010 :(  Some trolling
-> of the linux-mm and lkml archives around those dates might help us avoid
-> a mistake here.
+> I wonder why nobody of vmscan folks write actual performance improvement value
+> in patch description.
 
-I hope to digg past discussion archive.
-Andrew, plese wait merge this patch awhile.
+That's why I made it RFC.  I haven't seriously tested it, I just
+wanted to know what people that understand more than I do think of the
+idea.
 
+> I think this patch point to right direction.
+> but, unfortunately, this implementation isn't fast as I mesured as.
 
+Fair enough.
+
+> > The level where it starts serializing is chosen pretty arbitrarily.
+> > Suggestions welcome :)
+> > 
+> > 	Hannes
+> > 
+> > ---
+> > 
+> > Prevent over-reclaiming by serializing direct reclaimers below a
+> > certain priority level.
+> > 
+> > Over-reclaiming happens when the sum of the reclaim targets of all
+> > reclaiming processes is larger than the sum of the needed free pages,
+> > thus leading to excessive eviction of more cache and anonymous pages
+> > than required.
+> > 
+> > A scan iteration over all zones can not be aborted intermittently when
+> > enough pages are reclaimed because that would mess up the scan balance
+> > between the zones.  Instead, prevent that too many processes
+> > simultaneously commit themselves to lower priority level scans in the
+> > first place.
+> > 
+> > Chances are that after the exclusive reclaimer has finished, enough
+> > memory has been freed that succeeding scanners don't need to drop to
+> > lower priority levels at all anymore.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
+> > ---
+> >  mm/vmscan.c |   20 ++++++++++++++++++++
+> >  1 file changed, 20 insertions(+)
+> > 
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -35,6 +35,7 @@
+> >  #include <linux/notifier.h>
+> >  #include <linux/rwsem.h>
+> >  #include <linux/delay.h>
+> > +#include <linux/wait.h>
+> >  #include <linux/kthread.h>
+> >  #include <linux/freezer.h>
+> >  #include <linux/memcontrol.h>
+> > @@ -42,6 +43,7 @@
+> >  #include <linux/sysctl.h>
+> >  
+> >  #include <asm/tlbflush.h>
+> > +#include <asm/atomic.h>
+> >  #include <asm/div64.h>
+> >  
+> >  #include <linux/swapops.h>
+> > @@ -1546,10 +1548,15 @@ static unsigned long shrink_zones(int pr
+> >   * returns:	0, if no pages reclaimed
+> >   * 		else, the number of pages reclaimed
+> >   */
+> > +
+> > +static DECLARE_WAIT_QUEUE_HEAD(reclaim_wait);
+> > +static atomic_t reclaim_exclusive = ATOMIC_INIT(0);
+> > +
+> >  static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+> >  					struct scan_control *sc)
+> >  {
+> >  	int priority;
+> > +	int exclusive = 0;
+> >  	unsigned long ret = 0;
+> >  	unsigned long total_scanned = 0;
+> >  	unsigned long nr_reclaimed = 0;
+> > @@ -1580,6 +1587,14 @@ static unsigned long do_try_to_free_page
+> >  		sc->nr_scanned = 0;
+> >  		if (!priority)
+> >  			disable_swap_token();
+> > +		/*
+> > +		 * Serialize aggressive reclaimers
+> > +		 */
+> > +		if (priority <= DEF_PRIORITY / 2 && !exclusive) {
+> 
+> On large machine, DEF_PRIORITY / 2 is really catastrophe situation.
+> 2^6 = 64. 
+> if zone has 64GB memory, it mean 1GB reclaim.
+> I think more early restriction is better.
+
+I am just afraid that it kills parallelity.
+
+> > +			wait_event(reclaim_wait,
+> > +				!atomic_cmpxchg(&reclaim_exclusive, 0, 1));
+> > +			exclusive = 1;
+> > +		}
+> 
+> if you want to restrict to one task, you can use mutex.
+> and this wait_queue should put on global variable. it should be zone variable.
+
+Hm, global or per-zone?  Rik suggested to do it per-node and I like
+that idea.
+
+> In addision, you don't consider recursive relaim and several task can't sleep there.
+> 
+> 
+> please believe me. I have richest experience about reclaim throttling in the planet.
+
+Hehe, okay.  Than I am glad you don't hate the idea completely.  Do
+you have any patches flying around that do something similar?
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
