@@ -1,9 +1,10 @@
-Date: Fri, 28 Nov 2008 23:19:33 -0800
+Date: Fri, 28 Nov 2008 23:24:36 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
-Message-Id: <20081128231933.8daef193.akpm@linux-foundation.org>
-In-Reply-To: <20081128060803.73cd59bd@bree.surriel.com>
-References: <20081128060803.73cd59bd@bree.surriel.com>
+Subject: Re: [PATCH] vmscan: bail out of direct reclaim after
+ swap_cluster_max pages
+Message-Id: <20081128232436.f9b92685.akpm@linux-foundation.org>
+In-Reply-To: <20081128062358.7a2e091f@bree.surriel.com>
+References: <20081128062358.7a2e091f@bree.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -13,82 +14,59 @@ To: Rik van Riel <riel@redhat.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Nov 2008 06:08:03 -0500 Rik van Riel <riel@redhat.com> wrote:
+On Fri, 28 Nov 2008 06:23:58 -0500 Rik van Riel <riel@redhat.com> wrote:
 
-> Skip freeing memory from zones that already have lots of free memory.
-> If one memory zone has harder to free memory, we want to avoid freeing
-> excessive amounts of memory from other zones, if only because pageout
-> IO from the other zones can slow down page freeing from the problem zone.
+> When the VM is under pressure, it can happen that several direct reclaim
+> processes are in the pageout code simultaneously.  It also happens that
+> the reclaiming processes run into mostly referenced, mapped and dirty
+> pages in the first round.
 > 
-> This is similar to the check already done by kswapd in balance_pgdat().
+> This results in multiple direct reclaim processes having a lower
+> pageout priority, which corresponds to a higher target of pages to
+> scan.
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
-> Kosaki-san, this should address point (3) from your list.
+> This in turn can result in each direct reclaim process freeing
+> many pages.  Together, they can end up freeing way too many pages.
 > 
->  mm/vmscan.c |    3 +++
->  1 file changed, 3 insertions(+)
+> This kicks useful data out of memory (in some cases more than half
+> of all memory is swapped out).  It also impacts performance by
+> keeping tasks stuck in the pageout code for too long.
 > 
-> Index: linux-2.6.28-rc5/mm/vmscan.c
-> ===================================================================
-> --- linux-2.6.28-rc5.orig/mm/vmscan.c	2008-11-28 05:53:56.000000000 -0500
-> +++ linux-2.6.28-rc5/mm/vmscan.c	2008-11-28 06:05:29.000000000 -0500
-> @@ -1510,6 +1510,9 @@ static unsigned long shrink_zones(int pr
->  			if (zone_is_all_unreclaimable(zone) &&
->  						priority != DEF_PRIORITY)
->  				continue;	/* Let kswapd poll it */
-> +			if (zone_watermark_ok(zone, sc->order,
-> +					4*zone->pages_high, high_zoneidx, 0))
-> +				continue;	/* Lots free already */
->  			sc->all_unreclaimable = 0;
->  		} else {
->  			/*
+> A 30% improvement in hackbench has been observed with this patch.
+> 
+> The fix is relatively simple: in shrink_zone() we can check how many
+> pages we have already freed, direct reclaim tasks break out of the
+> scanning loop if they have already freed enough pages and have reached
+> a lower priority level.
+> 
+> We do not break out of shrink_zone() when priority == DEF_PRIORITY,
+> to ensure that equal pressure is applied to every zone in the common
+> case.
+> 
+> However, in order to do this we do need to know how many pages we already
+> freed, so move nr_reclaimed into scan_control.
+> 
 
-We already tried this, or something very similar in effect, I think...
+Again, it's just awful to make a change which has already be tried and
+rejected.  Especially as we don't really fully understand why it was
+rejected (do we?).  The information we seek may well be in the mailing
+list archives somewhere.
 
+> +		/*
+> +		 * On large memory systems, scan >> priority can become
+> +		 * really large. This is fine for the starting priority;
+> +		 * we want to put equal scanning pressure on each zone.
+> +		 * However, if the VM has a harder time of freeing pages,
+> +		 * with multiple processes reclaiming pages, the total
+> +		 * freeing target can get unreasonably large.
+> +		 */
+> +		if (sc->nr_reclaimed > sc->swap_cluster_max &&
+> +			priority < DEF_PRIORITY && !current_is_kswapd())
+> +			break;
 
-commit 26e4931632352e3c95a61edac22d12ebb72038fe
-Author: akpm <akpm>
-Date:   Sun Sep 8 19:21:55 2002 +0000
-
-    [PATCH] refill the inactive list more quickly
-    
-    Fix a problem noticed by Ed Tomlinson: under shifting workloads the
-    shrink_zone() logic will refill the inactive load too slowly.
-    
-    Bale out of the zone scan when we've reclaimed enough pages.  Fixes a
-    rarely-occurring problem wherein refill_inactive_zone() ends up
-    shuffling 100,000 pages and generally goes silly.
-    
-    This needs to be revisited - we should go on and rebalance the lower
-    zones even if we reclaimed enough pages from highmem.
-    
-
-
-Then it was reverted a year or two later:
-
-
-commit 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3
-Author: akpm <akpm>
-Date:   Fri Mar 12 16:23:50 2004 +0000
-
-    [PATCH] vmscan: zone balancing fix
-    
-    We currently have a problem with the balancing of reclaim between zones: much
-    more reclaim happens against highmem than against lowmem.
-    
-    This patch partially fixes this by changing the direct reclaim path so it
-    does not bale out of the zone walk after having reclaimed sufficient pages
-    from highmem: go on to reclaim from lowmem regardless of how many pages we
-    reclaimed from lowmem.
-    
-
-My changelog does not adequately explain the reasons.
-
-But we don't want to rediscover these reasons in early 2010 :(  Some trolling
-of the linux-mm and lkml archives around those dates might help us avoid
-a mistake here.
-
+Fingers crossed, it might be that the `priority < DEF_PRIORITY' here
+will save our bacon from <whatever it was>.  But it sure would be good
+to know.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
