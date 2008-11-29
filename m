@@ -1,72 +1,109 @@
-Date: Fri, 28 Nov 2008 23:24:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: bail out of direct reclaim after
- swap_cluster_max pages
-Message-Id: <20081128232436.f9b92685.akpm@linux-foundation.org>
-In-Reply-To: <20081128062358.7a2e091f@bree.surriel.com>
-References: <20081128062358.7a2e091f@bree.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Nikanth Karthikesan <knikanth@suse.de>
+Subject: [PATCH] Unused check for thread group leader in mem_cgroup_move_task
+Date: Sat, 29 Nov 2008 12:59:27 +0530
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200811291259.27681.knikanth@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: containers@lists.linux-foundation.org, xemul@openvz.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, nikanth@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Nov 2008 06:23:58 -0500 Rik van Riel <riel@redhat.com> wrote:
+Currently we just check for thread group leader in attach() handler but do 
+nothing!  Either (1) move it to can_attach handler or (2) remove the test 
+itself. I am attaching patches for both below.
 
-> When the VM is under pressure, it can happen that several direct reclaim
-> processes are in the pageout code simultaneously.  It also happens that
-> the reclaiming processes run into mostly referenced, mapped and dirty
-> pages in the first round.
-> 
-> This results in multiple direct reclaim processes having a lower
-> pageout priority, which corresponds to a higher target of pages to
-> scan.
-> 
-> This in turn can result in each direct reclaim process freeing
-> many pages.  Together, they can end up freeing way too many pages.
-> 
-> This kicks useful data out of memory (in some cases more than half
-> of all memory is swapped out).  It also impacts performance by
-> keeping tasks stuck in the pageout code for too long.
-> 
-> A 30% improvement in hackbench has been observed with this patch.
-> 
-> The fix is relatively simple: in shrink_zone() we can check how many
-> pages we have already freed, direct reclaim tasks break out of the
-> scanning loop if they have already freed enough pages and have reached
-> a lower priority level.
-> 
-> We do not break out of shrink_zone() when priority == DEF_PRIORITY,
-> to ensure that equal pressure is applied to every zone in the common
-> case.
-> 
-> However, in order to do this we do need to know how many pages we already
-> freed, so move nr_reclaimed into scan_control.
-> 
+Thanks
+Nikanth Karthikesan
 
-Again, it's just awful to make a change which has already be tried and
-rejected.  Especially as we don't really fully understand why it was
-rejected (do we?).  The information we seek may well be in the mailing
-list archives somewhere.
+Move thread group leader check to can_attach handler, but this may prevent non 
+thread group leaders to be moved at all! 
 
-> +		/*
-> +		 * On large memory systems, scan >> priority can become
-> +		 * really large. This is fine for the starting priority;
-> +		 * we want to put equal scanning pressure on each zone.
-> +		 * However, if the VM has a harder time of freeing pages,
-> +		 * with multiple processes reclaiming pages, the total
-> +		 * freeing target can get unreasonably large.
-> +		 */
-> +		if (sc->nr_reclaimed > sc->swap_cluster_max &&
-> +			priority < DEF_PRIORITY && !current_is_kswapd())
-> +			break;
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
 
-Fingers crossed, it might be that the `priority < DEF_PRIORITY' here
-will save our bacon from <whatever it was>.  But it sure would be good
-to know.
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 866dcc7..26bc823 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1136,6 +1136,18 @@ static int mem_cgroup_populate(struct cgroup_subsys 
+*ss,
+ 					ARRAY_SIZE(mem_cgroup_files));
+ }
+ 
++static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
++                          struct cgroup *cgrp, struct task_struct *tsk)
++{
++	/*
++	 * Only thread group leaders are allowed to migrate, the mm_struct is
++	 * in effect owned by the leader
++	 */
++	if (!thread_group_leader(tsk))
++		return -EINVAL;
++	return 0;
++}
++
+ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+ 				struct cgroup *cont,
+ 				struct cgroup *old_cont,
+@@ -1151,14 +1163,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys 
+*ss,
+ 	mem = mem_cgroup_from_cont(cont);
+ 	old_mem = mem_cgroup_from_cont(old_cont);
+ 
+-	/*
+-	 * Only thread group leaders are allowed to migrate, the mm_struct is
+-	 * in effect owned by the leader
+-	 */
+-	if (!thread_group_leader(p))
+-		goto out;
+-
+-out:
+ 	mmput(mm);
+ }
+ 
+@@ -1169,6 +1173,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.pre_destroy = mem_cgroup_pre_destroy,
+ 	.destroy = mem_cgroup_destroy,
+ 	.populate = mem_cgroup_populate,
++	.can_attach = mem_cgroup_can_attach,
+ 	.attach = mem_cgroup_move_task,
+ 	.early_init = 0,
+ };
+
+
+
+The patch to remove unused code follows.
+
+Remove the unused test for thread group leader.
+
+Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
+
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 866dcc7..8e9287d 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1151,14 +1151,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys 
+*ss,
+ 	mem = mem_cgroup_from_cont(cont);
+ 	old_mem = mem_cgroup_from_cont(old_cont);
+ 
+-	/*
+-	 * Only thread group leaders are allowed to migrate, the mm_struct is
+-	 * in effect owned by the leader
+-	 */
+-	if (!thread_group_leader(p))
+-		goto out;
+-
+-out:
+ 	mmput(mm);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
