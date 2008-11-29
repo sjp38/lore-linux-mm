@@ -1,56 +1,72 @@
-Message-ID: <4931BD2C.3010706@redhat.com>
-Date: Sat, 29 Nov 2008 17:07:40 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
-References: <20081128060803.73cd59bd@bree.surriel.com>	<20081128231933.8daef193.akpm@linux-foundation.org>	<4931721D.7010001@redhat.com>	<20081129094537.a224098a.akpm@linux-foundation.org>	<493182C8.1080303@redhat.com>	<20081129102608.f8228afd.akpm@linux-foundation.org>	<49318CDE.4020505@redhat.com>	<20081129105120.cfb8c035.akpm@linux-foundation.org>	<49319109.7030904@redhat.com>	<20081129122901.6243d2fa.akpm@linux-foundation.org>	<4931B5B1.8030601@redhat.com> <20081129135712.817e912c.akpm@linux-foundation.org>
-In-Reply-To: <20081129135712.817e912c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH/RFC] - support inheritance of mlocks across fork/exec
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20081126172913.3CB8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <1227561707.6937.61.camel@lts-notebook>
+	 <20081126172913.3CB8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Sat, 29 Nov 2008 17:38:39 -0500
+Message-Id: <1227998319.7489.30.camel@lts-notebook>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-
-> The bottom line here is that we don't fully understand the problem
-> which 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3 fixed, hence we cannot
-> say whether this proposed change will reintroduce it.
+On Wed, 2008-11-26 at 17:37 +0900, KOSAKI Motohiro wrote:
+> only one nit.
 > 
-> Why did it matter that "much more reclaim happens against highmem than
-> against lowmem"?  What were the observeable effects of this?
+> > @@ -599,7 +602,8 @@ asmlinkage long sys_mlockall(int flags)
+> >  	unsigned long lock_limit;
+> >  	int ret = -EINVAL;
+> >  
+> > -	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
+> > +	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE |
+> > +				 MCL_INHERIT | MCL_RECURSIVE)))
+> >  		goto out;
+> 
+> from patch description, I think mlockall(MCL_INHERIT) and 
+> mlockall(MCL_RECURSIVE) are incorrect. right?
+> 
+> if so, I think following likes error check is needed.
+> 
+> if (!(flags & (MCL_CURRENT | MCL_FUTURE)))
+> 	goto out;
+> 
+> if ((flags & (MCL_INHERIT | MECL_RECURSIVE)) == MCL_RECURSIVE)
+> 	goto out;
+> 
 
-On a 1GB system, with 892MB lowmem and 128MB highmem, it could
-lead to the page cache coming mostly from highmem.  This in turn
-would mean that lowmem could have hundreds of megabytes of unused
-memory, while large files would not get cached in memory.
+Hello, Kosaki-san:
 
-Baling out early and not putting any memory pressure on a zone
-can lead to problems.
+Thanks for looking at this.  I think you mean that:
 
-It is important that zones with easily freeable memory get some
-extra memory freed, so more allocations go to that zone.
+1) don't allow MCL_INHERIT | MCL_RECURSIVE without either MCL_CURRENT or
+MCL_FUTURE, and
 
-However, we also do not want to go overboard.  Kicking potentially
-useful data out of memory or causing unnecessary pageout IO is
-harmful too.
+2) MCL_RECURSIVE without MCL_INHERIT does not make sense, either.
 
-By doing some amount of extra reclaim in zones with easily
-freeable memory means more memory will get allocated from that
-zone.  Over time this equalizes pressure between zones.
+Is this correct?
 
-The patch I sent in limits that extra reclaim (extra allocation
-space) in easily freeable zones to 4 * zone->pages_high.  That
-gives the zone extra free space for alloc_pages, while limiting
-unnecessary pageout IO and evicting of useful data.
+I guess I agree with you.  As is stands, my patch would allow
+MCL_INHERIT[|MCL_RECURSIVE] to sneak through with neither MCL_CURRENT
+nor MCL_FUTURE set.  Looks like this would result in mlock_fixup() being
+called with a newflags that does not containing VM_LOCKED.  This would
+be treated as munlockall().   Not good.  Your first check would catch
+this.
 
-I am pretty sure that we do understand the differences between
-that 2004 patch and the code we have today.
+The second condition would be a no-op, I think.  We only look at look
+for MCL_RECURSIVE in mm->mcl_inherit when mcl_inherit is non-zero; and
+we only set mcl_inherit when MCL_INHERIT is specified.  But, if the
+caller specified MCL_RECURSIVE, they probably intended something to
+happen, and since it won't, best to return an error.
 
--- 
-All rights reversed.
+I'll fix this up and send it out to the wider distribution that Andrew
+requested.
+
+Thanks, again.
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
