@@ -1,152 +1,57 @@
-Date: Sat, 29 Nov 2008 16:39:04 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [rfc] vmscan: serialize aggressive reclaimers
-Message-ID: <20081129153902.GA1944@cmpxchg.org>
-References: <20081124145057.4211bd46@bree.surriel.com> <20081127173610.GA1781@cmpxchg.org> <20081129164322.8131.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081129164322.8131.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <49316CAF.2010006@redhat.com>
+Date: Sat, 29 Nov 2008 11:24:15 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] vmscan: bail out of page reclaim after swap_cluster_max
+ pages
+References: <20081128140405.3D0B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <492FCFF6.1050808@redhat.com> <20081129164624.8134.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081129164624.8134.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, akpm@linux-foundation.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 29, 2008 at 04:46:24PM +0900, KOSAKI Motohiro wrote:
-> > Since we have to pull through a reclaim cycle once we commited to it,
-> > what do you think about serializing the lower priority levels
-> > completely?
-> > 
-> > The idea is that when one reclaimer has done a low priority level
-> > iteration with a huge reclaim target, chances are that succeeding
-> > reclaimers don't even need to drop to lower levels at all because
-> > enough memory has already been freed.
-> > 
-> > My testprogram maps and faults in a file that is about as large as my
-> > physical memory.  Then it spawns off n processes that try allocate
-> > 1/2n of total memory in anon pages, i.e. half of it in sum.  After it
-> > ran, I check how much memory has been reclaimed.  But my zone sizes
-> > are too small to induce enormous reclaim targets so I don't see vast
-> > over-reclaims.
-> > 
-> > I have measured the time of other tests on an SMP machine with 4 cores
-> > and the following patch applied.  I couldn't see any performance
-> > degradation.  But since the bug is not triggerable here, I can not
-> > prove it helps the original problem, either.
+KOSAKI Motohiro wrote:
+
+> The result talk about three things.
 > 
-> I wonder why nobody of vmscan folks write actual performance improvement value
-> in patch description.
-
-That's why I made it RFC.  I haven't seriously tested it, I just
-wanted to know what people that understand more than I do think of the
-idea.
-
-> I think this patch point to right direction.
-> but, unfortunately, this implementation isn't fast as I mesured as.
-
-Fair enough.
-
-> > The level where it starts serializing is chosen pretty arbitrarily.
-> > Suggestions welcome :)
-> > 
-> > 	Hannes
-> > 
-> > ---
-> > 
-> > Prevent over-reclaiming by serializing direct reclaimers below a
-> > certain priority level.
-> > 
-> > Over-reclaiming happens when the sum of the reclaim targets of all
-> > reclaiming processes is larger than the sum of the needed free pages,
-> > thus leading to excessive eviction of more cache and anonymous pages
-> > than required.
-> > 
-> > A scan iteration over all zones can not be aborted intermittently when
-> > enough pages are reclaimed because that would mess up the scan balance
-> > between the zones.  Instead, prevent that too many processes
-> > simultaneously commit themselves to lower priority level scans in the
-> > first place.
-> > 
-> > Chances are that after the exclusive reclaimer has finished, enough
-> > memory has been freed that succeeding scanners don't need to drop to
-> > lower priority levels at all anymore.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
-> > ---
-> >  mm/vmscan.c |   20 ++++++++++++++++++++
-> >  1 file changed, 20 insertions(+)
-> > 
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -35,6 +35,7 @@
-> >  #include <linux/notifier.h>
-> >  #include <linux/rwsem.h>
-> >  #include <linux/delay.h>
-> > +#include <linux/wait.h>
-> >  #include <linux/kthread.h>
-> >  #include <linux/freezer.h>
-> >  #include <linux/memcontrol.h>
-> > @@ -42,6 +43,7 @@
-> >  #include <linux/sysctl.h>
-> >  
-> >  #include <asm/tlbflush.h>
-> > +#include <asm/atomic.h>
-> >  #include <asm/div64.h>
-> >  
-> >  #include <linux/swapops.h>
-> > @@ -1546,10 +1548,15 @@ static unsigned long shrink_zones(int pr
-> >   * returns:	0, if no pages reclaimed
-> >   * 		else, the number of pages reclaimed
-> >   */
-> > +
-> > +static DECLARE_WAIT_QUEUE_HEAD(reclaim_wait);
-> > +static atomic_t reclaim_exclusive = ATOMIC_INIT(0);
-> > +
-> >  static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
-> >  					struct scan_control *sc)
-> >  {
-> >  	int priority;
-> > +	int exclusive = 0;
-> >  	unsigned long ret = 0;
-> >  	unsigned long total_scanned = 0;
-> >  	unsigned long nr_reclaimed = 0;
-> > @@ -1580,6 +1587,14 @@ static unsigned long do_try_to_free_page
-> >  		sc->nr_scanned = 0;
-> >  		if (!priority)
-> >  			disable_swap_token();
-> > +		/*
-> > +		 * Serialize aggressive reclaimers
-> > +		 */
-> > +		if (priority <= DEF_PRIORITY / 2 && !exclusive) {
+>   - rvr and mine patch increase direct reclaim imbalancing, indeed.
+>   - However, background reclaim scanning is _very_ much than direct reclaim.
+>     Then, direct reclaim imbalancing is ignorable on the big view.
+>     rvr patch doesn't reintroduce zone imbalancing issue.
+>   - rvr's priority==DEF_PRIORITY condition checking doesn't improve
+>     zone balancing at all.
+>     we can drop it.
 > 
-> On large machine, DEF_PRIORITY / 2 is really catastrophe situation.
-> 2^6 = 64. 
-> if zone has 64GB memory, it mean 1GB reclaim.
-> I think more early restriction is better.
-
-I am just afraid that it kills parallelity.
-
-> > +			wait_event(reclaim_wait,
-> > +				!atomic_cmpxchg(&reclaim_exclusive, 0, 1));
-> > +			exclusive = 1;
-> > +		}
+> Again, I believe my patch improve vm scanning totally.
 > 
-> if you want to restrict to one task, you can use mutex.
-> and this wait_queue should put on global variable. it should be zone variable.
+> Any comments?
 
-Hm, global or per-zone?  Rik suggested to do it per-node and I like
-that idea.
+Reclaiming is very easy when the workload is just page cache,
+because the application will be throttled when too many page
+cache pages are dirty.
 
-> In addision, you don't consider recursive relaim and several task can't sleep there.
-> 
-> 
-> please believe me. I have richest experience about reclaim throttling in the planet.
+When using mmap or memory hogs writing to swap, applications
+will not be throttled by the "too many dirty pages" logic,
+but may instead end up being throttled in the direct reclaim
+path instead.
 
-Hehe, okay.  Than I am glad you don't hate the idea completely.  Do
-you have any patches flying around that do something similar?
+At that point direct reclaim may become a lot more common,
+making the imbalance more significant.
 
-	Hannes
+I'll run a few tests.
+
+> Andrew, I hope add this mesurement result to rvr bailing out patch description too.
+
+So far the performance numbers you have measured are very
+encouraging and do indeed suggest that the priority==DEF_PRIORITY
+thing does not make a difference.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
