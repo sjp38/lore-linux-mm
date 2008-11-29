@@ -1,124 +1,56 @@
-Date: Sat, 29 Nov 2008 13:57:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Message-ID: <4931BD2C.3010706@redhat.com>
+Date: Sat, 29 Nov 2008 17:07:40 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] vmscan: skip freeing memory from zones with lots free
-Message-Id: <20081129135712.817e912c.akpm@linux-foundation.org>
-In-Reply-To: <4931B5B1.8030601@redhat.com>
-References: <20081128060803.73cd59bd@bree.surriel.com>
-	<20081128231933.8daef193.akpm@linux-foundation.org>
-	<4931721D.7010001@redhat.com>
-	<20081129094537.a224098a.akpm@linux-foundation.org>
-	<493182C8.1080303@redhat.com>
-	<20081129102608.f8228afd.akpm@linux-foundation.org>
-	<49318CDE.4020505@redhat.com>
-	<20081129105120.cfb8c035.akpm@linux-foundation.org>
-	<49319109.7030904@redhat.com>
-	<20081129122901.6243d2fa.akpm@linux-foundation.org>
-	<4931B5B1.8030601@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20081128060803.73cd59bd@bree.surriel.com>	<20081128231933.8daef193.akpm@linux-foundation.org>	<4931721D.7010001@redhat.com>	<20081129094537.a224098a.akpm@linux-foundation.org>	<493182C8.1080303@redhat.com>	<20081129102608.f8228afd.akpm@linux-foundation.org>	<49318CDE.4020505@redhat.com>	<20081129105120.cfb8c035.akpm@linux-foundation.org>	<49319109.7030904@redhat.com>	<20081129122901.6243d2fa.akpm@linux-foundation.org>	<4931B5B1.8030601@redhat.com> <20081129135712.817e912c.akpm@linux-foundation.org>
+In-Reply-To: <20081129135712.817e912c.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 29 Nov 2008 16:35:45 -0500 Rik van Riel <riel@redhat.com> wrote:
+Andrew Morton wrote:
 
-> Andrew Morton wrote:
-> > On Sat, 29 Nov 2008 13:59:21 -0500 Rik van Riel <riel@redhat.com> wrote:
-> > 
-> >> Andrew Morton wrote:
-> >>> On Sat, 29 Nov 2008 13:41:34 -0500 Rik van Riel <riel@redhat.com> wrote:
-> >>>
-> >>>> Andrew Morton wrote:
-> >>>>> On Sat, 29 Nov 2008 12:58:32 -0500 Rik van Riel <riel@redhat.com> wrote:
-> >>>>>
-> >>>>>>> Will this new patch reintroduce the problem which
-> >>>>>>> 26e4931632352e3c95a61edac22d12ebb72038fe fixed?
-> >>>> No, that problem is already taken care of by the fact that
-> >>>> active pages always get deactivated in the current VM,
-> >>>> regardless of whether or not they were referenced.
-> >>> err, sorry, that was the wrong commit. 
-> >>> 26e4931632352e3c95a61edac22d12ebb72038fe _introduced_ the problem, as
-> >>> predicted in the changelog.
-> >>>
-> >>> 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3 later fixed it up.
-> >> The patch I sent in this thread does not do any baling out,
-> >> it only skips zones where the number of free pages is more
-> >> than 4 times zone->pages_high.
-> > 
-> > But that will have the same effect as baling out.  Moreso, in fact.
+> The bottom line here is that we don't fully understand the problem
+> which 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3 fixed, hence we cannot
+> say whether this proposed change will reintroduce it.
 > 
-> Kswapd already does the same in balance_pgdat.
-> 
-> Unequal pressure is sometimes desired, because allocation
-> pressure is not equal between zones.  Having lots of
-> lowmem allocations should not lead to gigabytes of swapped
-> out highmem.  A numactl pinned application should not cause
-> memory on other NUMA nodes to be swapped out.
-> 
-> Equal pressure between the zones makes sense when allocation
-> pressure is similar.
-> 
-> When allocation pressure is different, we have a choice
-> between evicting potentially useful data from memory or
-> applying uneven pressure on zones.
-> 
-> >> Equal pressure is still applied to the other zones.
-> >>
-> >> This should not be a problem since we do not enter direct
-> >> reclaim unless the free pages in every zone in our zonelist
-> >> are below zone->pages_low.
-> >>
-> >> Zone skipping is only done by tasks that have been in the
-> >> direct reclaim code for a long time.
-> > 
-> >>From 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3:
-> > 
-> >     We currently have a problem with the balancing of reclaim
-> >     between zones: much more reclaim happens against highmem than
-> >     against lowmem.
-> > 
-> > This problem will be reintroduced, will it not?
-> 
-> We already have that behaviour in balance_pgdat().
+> Why did it matter that "much more reclaim happens against highmem than
+> against lowmem"?  What were the observeable effects of this?
 
-I expect that was the case back in March 2004. 
-265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3 removed the bale-out only for
-the direct reclaim path.
+On a 1GB system, with 892MB lowmem and 128MB highmem, it could
+lead to the page cache coming mostly from highmem.  This in turn
+would mean that lowmem could have hundreds of megabytes of unused
+memory, while large files would not get cached in memory.
 
-> We do not do any reclaim on zones higher than the first
-> zone where the zone_watermark_ok call returns true:
-> 
->             if (!zone_watermark_ok(zone, order, zone->pages_high,
->                                                 0, 0)) {
->                       end_zone = i;
->                       break;
->             }
-> 
-> Further down in balance_pgdat(), we skip reclaiming from zones
-> that have way too much memory free.
-> 
->           /*
->            * We put equal pressure on every zone, unless one
->            * zone has way too many pages free already.
->            */
->           if (!zone_watermark_ok(zone, order, 8*zone->pages_high,
->                                                  end_zone, 0))
->                    shrink_zone(priority, zone, &sc);
-> 
-> All my patch does is add one of these sanity checks to the
-> direct reclaim path.
+Baling out early and not putting any memory pressure on a zone
+can lead to problems.
 
-It's a change in behaviour, not a "sanity check"!
+It is important that zones with easily freeable memory get some
+extra memory freed, so more allocations go to that zone.
 
-The bottom line here is that we don't fully understand the problem
-which 265b2b8cac1774f5f30c88e0ab8d0bcf794ef7b3 fixed, hence we cannot
-say whether this proposed change will reintroduce it.
+However, we also do not want to go overboard.  Kicking potentially
+useful data out of memory or causing unnecessary pageout IO is
+harmful too.
 
-Why did it matter that "much more reclaim happens against highmem than
-against lowmem"?  What were the observeable effects of this?
+By doing some amount of extra reclaim in zones with easily
+freeable memory means more memory will get allocated from that
+zone.  Over time this equalizes pressure between zones.
+
+The patch I sent in limits that extra reclaim (extra allocation
+space) in easily freeable zones to 4 * zone->pages_high.  That
+gives the zone extra free space for alloc_pages, while limiting
+unnecessary pageout IO and evicting of useful data.
+
+I am pretty sure that we do understand the differences between
+that 2004 patch and the code we have today.
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
