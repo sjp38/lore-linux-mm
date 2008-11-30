@@ -1,59 +1,55 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail2.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mAUBEZK9006408
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sun, 30 Nov 2008 20:14:35 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 54DEA45DD71
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2008 20:14:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A78945DD70
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2008 20:14:35 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0EC241DB803E
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2008 20:14:35 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BCF211DB803A
-	for <linux-mm@kvack.org>; Sun, 30 Nov 2008 20:14:34 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: kill zone_is_near_oom()
-Message-Id: <20081130201255.8162.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: by fg-out-1718.google.com with SMTP id 13so1570597fge.4
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2008 04:25:56 -0800 (PST)
+Date: Sun, 30 Nov 2008 15:25:54 +0300
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 02/09] memcg: make inactive_anon_is_low()
+Message-ID: <20081130122554.GA12552@localhost>
+References: <20081130193502.8145.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081130195508.814B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sun, 30 Nov 2008 20:14:34 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081130195508.814B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Now, zone_is_ner_oom() is unused.
-it can be removed.
+[KOSAKI Motohiro - Sun, Nov 30, 2008 at 07:56:37PM +0900]
+| make inactive_anon_is_low for memcgroup.
+| it improve active_anon vs inactive_anon ratio balancing.
+| 
+| 
+| Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+| ---
+...
+| +static void mem_cgroup_set_inactive_ratio(struct mem_cgroup *memcg)
+| +{
+| +	unsigned int gb, ratio;
+| +
+| +	gb = res_counter_read_u64(&memcg->res, RES_LIMIT) >> 30;
+| +	ratio = int_sqrt(10 * gb);
+| +	if (!ratio)
+| +		ratio = 1;
 
+Hi Kosaki,
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |    5 -----
- 1 file changed, 5 deletions(-)
+maybe better would be
 
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1220,11 +1220,6 @@ static inline void note_zone_scanning_pr
- 		zone->prev_priority = priority;
- }
- 
--static inline int zone_is_near_oom(struct zone *zone)
--{
--	return zone->pages_scanned >= (zone_lru_pages(zone) * 3);
--}
--
- /*
-  * This moves pages from the active list to the inactive list.
-  *
+	gb = ...;
+	if (gb) {
+		ratio = int_sqrt(10 * gb);
+	} else
+		ratio = 1;
 
+| +
+| +	memcg->inactive_ratio = ratio;
+| +
+| +}
+| +
+...
 
+		- Cyrill -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
