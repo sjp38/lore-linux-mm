@@ -1,73 +1,74 @@
-Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.LFD.2.00.0811301123320.24125@nehalem.linux-foundation.org>
-References: <1227886959.4454.4421.camel@twins>
-	 <alpine.LFD.2.00.0811301123320.24125@nehalem.linux-foundation.org>
-Content-Type: text/plain
-Date: Sun, 30 Nov 2008 20:42:04 +0100
-Message-Id: <1228074124.24749.26.camel@lappy.programming.kicks-ass.net>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by ey-out-1920.google.com with SMTP id 21so1119258eyc.44
+        for <linux-mm@kvack.org>; Sun, 30 Nov 2008 11:55:00 -0800 (PST)
+Message-ID: <4932EF90.9070601@gmail.com>
+Date: Sun, 30 Nov 2008 21:54:56 +0200
+From: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <20081127130817.GP28285@wotan.suse.de> <492EEF0C.9040607@google.com> <20081128093713.GB1818@wotan.suse.de> <49307893.4030708@google.com>
+In-Reply-To: <49307893.4030708@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, hugh <hugh@veritas.com>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
+To: Mike Waychison <mikew@google.com>
+Cc: Nick Piggin <npiggin@suse.de>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2008-11-30 at 11:27 -0800, Linus Torvalds wrote:
-> 
-> On Fri, 28 Nov 2008, Peter Zijlstra wrote:
-> > 
-> > While pondering the page_fault retry stuff, I came up with the following
-> > idea.
-> 
-> I don't know if your idea is any good, but this part of your patch is 
-> utter crap:
-> 
-> 	-       if (!down_read_trylock(&mm->mmap_sem)) {
-> 	-               if ((error_code & PF_USER) == 0 &&
-> 	-                   !search_exception_tables(regs->ip))
-> 	-                       goto bad_area_nosemaphore;
-> 	-               down_read(&mm->mmap_sem);
-> 	-       }
-> 	-
-> 	+       down_read(&mm->mmap_sem);
-> 
-> because the reason we do a down_read_trylock() is not because of any lock 
-> order issue or anything like that, but really really fundamental: we want 
-> to be able to print an oops, instead of deadlocking, if we take a page 
-> fault in kernel code while holding/waiting-for the mmap_sem for writing.
-> 
-> .... and I don't even see the reason why you did tht change anyway, since 
-> it seems to be totally independent of all the other locking changes.
+On 2008-11-29 01:02, Mike Waychison wrote:
+> Nick Piggin wrote:
+>> On Thu, Nov 27, 2008 at 11:03:40AM -0800, Mike Waychison wrote:
+>>> Nick Piggin wrote:
+>>>> On Thu, Nov 27, 2008 at 01:28:41AM -0800, Mike Waychison wrote:
+>>>>> Torok however identified mmap taking on the order of several
+>>>>> milliseconds due to this exact problem:
+>>>>>
+>>>>> http://lkml.org/lkml/2008/9/12/185
+>>>> Turns out to be a different problem.
+>>>>
+>>> What do you mean?
+>>
+>> His is just contending on the write side. The retry patch doesn't help.
+>>
+>
+> I disagree.  How do you get 'write contention' from the following
+> paragraph:
+>
+> "Just to confirm that the problem is with pagefaults and mmap, I dropped
+> the mmap_sem in filemap_fault, and then
+> I got same performance in my testprogram for mmap and read. Of course
+> this is totally unsafe, because the mapping could change at any time."
+>
+> It reads to me that the writers were held off by the readers sleeping
+> in IO.
 
-Yes, the patch sucks, and you replying to it in such detail makes me
-think I should have never attached it..
+It is true that I have a write/write contention too, but do_page_fault
+shows up too on lock_stat.
 
-I know why we do trylock, and the only reason I did that change is to
-place the down/up right around the find_vma(), if you'd read the changed
-comment you'd see I'd intended that to become rcu_read_{,un}lock()
-however we currently cannot since RB trees are not compatible with
-lockless lookups (due to the tree rotations).
+This is my guess at what happens:
+* filemap_fault used to sleep with mmap_sem held while waiting for the
+page lock.
+* the google patch avoids that, which is fine: if page lock can't be
+taken, it drops mmap_sem, waits, then retries the fault once
+* however after we acquired the page lock, mapping->a_ops->readpage is
+invoked, mmap_sem is NOT dropped here:
 
-Please consider the idea of lockless vma lookup and synchronizing
-against the PTE lock.
+    error = mapping->a_ops->readpage(file, page);
+    if (!error) {
+        wait_on_page_locked(page);
 
-If that primary idea seems feasible, I'll continue working on it and try
-to tackle further obstacles.
+If my understanding is correct ->readpage does the actual disk I/O, and
+it keeps the page locked, when the lock is released we know it has finished.
+So wait_on_page_locked(page)  holds mmap_sem locked for read during the
+disk I/O, preventing sys_mmap/sys_munmap from making progress.
 
-One non trivial issue is splitting/merging vmas against this lockless
-lookup - I do have a solution, but I;m not particularly fond of it. 
+I don't know how to prove/disprove my guess above, suggestions welcome.
 
-Other issues include replacing the RB tree with something that is suited
-for lockless lookups (B+ trees for example) and extending SRCU to suit
-the new requirements.
+Could the patch be changed to also release the mmap_sem after readpage,
+and before wait_on_page_locked?
 
-Anyway, please don't take the patch too serious (and again, yes, its
-utter shite), but consider the idea of getting rid of the mmap_sem usage
-in the regular fault path as outlined (currently I'm still not sure on
-how to get rid of it in the stack extend case).
-
+Best regards,
+--Edwin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
