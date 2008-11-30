@@ -1,10 +1,10 @@
-Message-ID: <4932B0C7.9040603@redhat.com>
-Date: Sun, 30 Nov 2008 10:27:03 -0500
+Message-ID: <4932BA13.7000409@redhat.com>
+Date: Sun, 30 Nov 2008 11:06:43 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/09] introduce zone_reclaim struct
-References: <20081130193502.8145.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081130195637.814E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20081130195637.814E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 04/09] memcg: make zone_reclaim_stat
+References: <20081130193502.8145.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081130195731.8151.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081130195731.8151.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,15 +14,19 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> make zone_reclam_stat strcut for latter enhancement.
-> latter patch use this.
-> 
-> this patch doesn't any functional change.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> +struct zone_reclaim_stat*
+> +mem_cgroup_get_reclaim_stat_by_page(struct page *page)
+> +{
+> +	return NULL;
+> +}
+
+> +		memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_by_page(page);
+> +		memcg_reclaim_stat->recent_rotated[!!file]++;
+> +		memcg_reclaim_stat->recent_scanned[!!file]++;
+
+Won't this cause a null pointer dereference when
+not using memcg?
 
 -- 
 All rights reversed.
