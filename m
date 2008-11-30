@@ -1,10 +1,10 @@
-Message-ID: <4932B02B.3020502@redhat.com>
-Date: Sun, 30 Nov 2008 10:24:27 -0500
+Message-ID: <4932B0C7.9040603@redhat.com>
+Date: Sun, 30 Nov 2008 10:27:03 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/09] memcg: make inactive_anon_is_low()
-References: <20081130193502.8145.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081130195508.814B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20081130195508.814B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 03/09] introduce zone_reclaim struct
+References: <20081130193502.8145.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081130195637.814E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081130195637.814E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,14 +14,13 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> make inactive_anon_is_low for memcgroup.
-> it improve active_anon vs inactive_anon ratio balancing.
+> make zone_reclam_stat strcut for latter enhancement.
+> latter patch use this.
+> 
+> this patch doesn't any functional change.
 > 
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Looking forward to the cleanups, but since the code is correct
-here's an early:
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
