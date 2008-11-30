@@ -1,54 +1,45 @@
-From: Johannes Weiner <hannes@saeurebad.de>
-Subject: vmscan: protect zone rotation stats by lru lock
-Message-Id: <E1L6qr1-0003Qv-Re@cmpxchg.org>
-Date: Sun, 30 Nov 2008 19:17:11 +0100
+Date: Sun, 30 Nov 2008 11:27:53 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
+In-Reply-To: <1227886959.4454.4421.camel@twins>
+Message-ID: <alpine.LFD.2.00.0811301123320.24125@nehalem.linux-foundation.org>
+References: <1227886959.4454.4421.camel@twins>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, hugh <hugh@veritas.com>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Signed-off-by: Johannes Weiner <hannes@saeurebad.de>
----
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1243,32 +1243,32 @@ static void shrink_active_list(unsigned 
- 		/* page_referenced clears PageReferenced */
- 		if (page_mapping_inuse(page) &&
- 		    page_referenced(page, 0, sc->mem_cgroup))
- 			pgmoved++;
- 
- 		list_add(&page->lru, &l_inactive);
- 	}
- 
-+	spin_lock_irq(&zone->lru_lock);
- 	/*
- 	 * Count referenced pages from currently used mappings as
- 	 * rotated, even though they are moved to the inactive list.
- 	 * This helps balance scan pressure between file and anonymous
- 	 * pages in get_scan_ratio.
- 	 */
- 	zone->recent_rotated[!!file] += pgmoved;
- 
- 	/*
- 	 * Move the pages to the [file or anon] inactive list.
- 	 */
- 	pagevec_init(&pvec, 1);
- 
- 	pgmoved = 0;
- 	lru = LRU_BASE + file * LRU_FILE;
--	spin_lock_irq(&zone->lru_lock);
- 	while (!list_empty(&l_inactive)) {
- 		page = lru_to_page(&l_inactive);
- 		prefetchw_prev_lru_page(page, &l_inactive, flags);
- 		VM_BUG_ON(PageLRU(page));
- 		SetPageLRU(page);
- 		VM_BUG_ON(!PageActive(page));
- 		ClearPageActive(page);
- 
+
+On Fri, 28 Nov 2008, Peter Zijlstra wrote:
+> 
+> While pondering the page_fault retry stuff, I came up with the following
+> idea.
+
+I don't know if your idea is any good, but this part of your patch is 
+utter crap:
+
+	-       if (!down_read_trylock(&mm->mmap_sem)) {
+	-               if ((error_code & PF_USER) == 0 &&
+	-                   !search_exception_tables(regs->ip))
+	-                       goto bad_area_nosemaphore;
+	-               down_read(&mm->mmap_sem);
+	-       }
+	-
+	+       down_read(&mm->mmap_sem);
+
+because the reason we do a down_read_trylock() is not because of any lock 
+order issue or anything like that, but really really fundamental: we want 
+to be able to print an oops, instead of deadlocking, if we take a page 
+fault in kernel code while holding/waiting-for the mmap_sem for writing.
+
+... and I don't even see the reason why you did tht change anyway, since 
+it seems to be totally independent of all the other locking changes.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
