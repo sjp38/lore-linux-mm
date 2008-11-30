@@ -1,5 +1,5 @@
-Message-ID: <4932BA13.7000409@redhat.com>
-Date: Sun, 30 Nov 2008 11:06:43 -0500
+Message-ID: <4932BA80.3060708@redhat.com>
+Date: Sun, 30 Nov 2008 11:08:32 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 04/09] memcg: make zone_reclaim_stat
@@ -15,18 +15,19 @@ List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
 
-> +struct zone_reclaim_stat*
-> +mem_cgroup_get_reclaim_stat_by_page(struct page *page)
-> +{
-> +	return NULL;
-> +}
-
+> @@ -172,6 +173,10 @@ void activate_page(struct page *page)
+>  
+>  		reclaim_stat->recent_rotated[!!file]++;
+>  		reclaim_stat->recent_scanned[!!file]++;
+> +
 > +		memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_by_page(page);
 > +		memcg_reclaim_stat->recent_rotated[!!file]++;
 > +		memcg_reclaim_stat->recent_scanned[!!file]++;
 
-Won't this cause a null pointer dereference when
-not using memcg?
+Also, manipulation of the zone based reclaim_stats happens
+under the lru lock.
+
+What protects the memcg reclaim stat?
 
 -- 
 All rights reversed.
