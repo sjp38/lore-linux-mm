@@ -1,47 +1,54 @@
-Date: Mon, 1 Dec 2008 13:02:09 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
-In-Reply-To: <1228164679.2971.91.camel@nimitz>
-Message-ID: <alpine.LFD.2.00.0812011258390.3256@nehalem.linux-foundation.org>
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>  <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>  <20081128101919.GO28946@ZenIV.linux.org.uk>  <1228153645.2971.36.camel@nimitz>  <493447DD.7010102@cs.columbia.edu>
- <1228164679.2971.91.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1L6Nos025285
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 14:06:23 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1L7i8f215930
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 14:07:44 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1L7iDX018746
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 14:07:44 -0700
+Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <49345086.4@cs.columbia.edu>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
+	 <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
+	 <20081128112745.GR28946@ZenIV.linux.org.uk>
+	 <1228159324.2971.74.camel@nimitz>  <49344C11.6090204@cs.columbia.edu>
+	 <1228164873.2971.95.camel@nimitz>  <49345086.4@cs.columbia.edu>
+Content-Type: text/plain
+Date: Mon, 01 Dec 2008 13:07:31 -0800
+Message-Id: <1228165651.2971.99.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Al Viro <viro@ZenIV.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Mon, 1 Dec 2008, Dave Hansen wrote:
+On Mon, 2008-12-01 at 16:00 -0500, Oren Laadan wrote:
+> > Is that sufficient?  It seems like we're depending on the fd's reference
+> > to the 'struct file' to keep it valid in the hash.  If something happens
+> > to the fd (like the other thread messing with it) the 'struct file' can
+> > still go away.
+> > 
+> > Shouldn't we do another get_file() for the hash's reference?
 > 
-> Why is this done in two steps?  It first grabs a list of fd numbers
-> which needs to be validated, then goes back and turns those into 'struct
-> file's which it saves off.  Is there a problem with doing that
-> fd->'struct file' conversion under the files->file_lock?
+> When a shared object is inserted to the hash we automatically take another
+> reference to it (according to its type) for as long as it remains in the
+> hash. See:  'cr_obj_ref_grab()' and 'cr_obj_ref_drop()'.  So by moving that
+> call higher up, we protect the struct file.
 
-Umm, why do we even worry about this?
+That's kinda (and by kinda I mean really) disgusting.  Hiding that two
+levels deep in what is effectively the hash table code where no one will
+ever see it is really bad.  It also makes you lazy thinking that the
+hash code will just know how to take references on whatever you give to
+it.
 
-Wouldn't it be much better to make sure that all other threads are 
-stopped before we snapshot, and if we cannot account for some thread (ie 
-there's some elevated count in the fs/files/mm structures that we cannot 
-see from the threads we've stopped), just refuse to dump.
+I think cr_obj_ref_grab() is hideous obfuscation and needs to die.
+Let's just do the get_file() directly, please.
 
-There is no sane dump from a multi-threaded app that shares resources 
-without that kind of serialization _anyway_, so why even try?
-
-In other words: any races in dumping are fundamental _bugs_ in the dumping 
-at a much higher level. There's absolutely no point in trying to make 
-something like "dump open fd's" be race-free, because if there are other 
-people that are actively accessing the 'files' structure concurrently, you 
-had a much more fundamental bug in the first place!
-
-So do things more like the core-dumping does: make sure that all other 
-threads are quiescent first!
-
-			Linus
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
