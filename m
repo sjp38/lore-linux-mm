@@ -1,60 +1,65 @@
-Date: Mon, 1 Dec 2008 08:47:22 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
-In-Reply-To: <Pine.LNX.4.64.0812010038220.11401@blonde.site>
-Message-ID: <Pine.LNX.4.64.0812010843230.15331@quilx.com>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010038220.11401@blonde.site>
+Received: by ug-out-1314.google.com with SMTP id 34so2508259ugf.19
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 06:48:09 -0800 (PST)
+Message-ID: <4933F925.3020907@gmail.com>
+Date: Mon, 01 Dec 2008 17:48:05 +0300
+From: Alexey Starikovskiy <aystarik@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+References: <20081201083128.GB2529@wotan.suse.de>  <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>  <20081201120002.GB10790@wotan.suse.de>  <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <Pine.LNX.4.64.0812010828150.14977@quilx.com>
+In-Reply-To: <Pine.LNX.4.64.0812010828150.14977@quilx.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Hugh Dickins wrote:
+Christoph Lameter wrote:
+> On Mon, 1 Dec 2008, Pekka Enberg wrote:
+>
+>   
+>> Why do you think Nick's patch is going to _increase_ memory consumption?
+>> SLUB _already_ merges the ACPI caches with kmalloc caches so you won't
+>> see any difference there. For SLAB, it's a gain because there's not
+>> enough activity going on which results in lots of unused space in the
+>> slabs (which is, btw, the reason SLUB does slab merging in the first
+>> place).
+>>     
+>
+> The patch is going to increase memory consumption because the use of
+> the kmalloc array means that the allocated object sizes are rounded up to
+> the next power of two.
+>
+> I would recommend to keep the caches. Subsystem specific caches help to
+> simplify debugging and track the memory allocated for various purposes in
+> addition to saving the rounding up to power of two overhead.
+> And with SLUB the creation of such caches usually does not require
+> additional memory.
+>
+> Maybe it would be best to avoid kmalloc as much as possible.
+>
+>   
+Christoph,
+Thanks for support, these were my thoughts, when I changed ACPICA to use 
+kmem_cache instead of
+it's own on top of kmalloc 4 years ago...
+Here are two acpi caches on my thinkpad z61m, IMHO any laptop will show 
+similar numbers:
 
->  /*
->   * Flags checked when a page is freed.  Pages being freed should not have
->   * these flags set.  It they are, there is a problem.
->   */
-> -#define PAGE_FLAGS_CHECK_AT_FREE (PAGE_FLAGS | 1 << PG_reserved)
-> +#define PAGE_FLAGS_CHECK_AT_FREE \
-> +	(1 << PG_lru   | 1 << PG_private   | 1 << PG_locked | \
-> +	 1 << PG_buddy | 1 << PG_writeback | 1 << PG_reserved | \
-> +	 1 << PG_slab  | 1 << PG_swapcache | 1 << PG_active | \
-> +	 __PG_UNEVICTABLE | __PG_MLOCKED)
+aystarik@thinkpad:~$ cat /proc/slabinfo | grep Acpi
+Acpi-ParseExt       2856   2856     72   56    1 : tunables    0    0    
+0 : slabdata     51     51      0
+Acpi-Parse           170    170     48   85    1 : tunables    0    0    
+0 : slabdata      2      2      0
 
-Rename this to PAGE_FLAGS_CLEAR_WHEN_FREE?
+Size of first will become 96 and size of second will be 64 if kmalloc is 
+used, and we don't count ACPICA internal overhead.
+Number of used blocks is not smallest in the list of slabs, actually it 
+is among the highest.
 
-> + * Pages being prepped should not have any flags set.  It they are set,
-> + * there has been a kernel bug or struct page corruption.
->   */
-> -#define PAGE_FLAGS_CHECK_AT_PREP (PAGE_FLAGS | \
-> -		1 << PG_reserved | 1 << PG_dirty | 1 << PG_swapbacked)
-> +#define PAGE_FLAGS_CHECK_AT_PREP	((1 << NR_PAGEFLAGS) - 1)
-
-These are all the bits. Can we get rid of this definition?
-
->  	/*
->  	 * For now, we report if PG_reserved was found set, but do not
->  	 * clear it, and do not free the page.  But we shall soon need
->  	 * to do more, for when the ZERO_PAGE count wraps negative.
->  	 */
-> -	return PageReserved(page);
-> +	if (PageReserved(page))
-> +		return 1;
-> +	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-> +		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> +	return 0;
-
-The name PAGE_FLAGS_CHECK_AT_PREP is strange. We clear these flags without
-message. This is equal to
-
-page->flags &=~PAGE_FLAGS_CHECK_AT_PREP;
-
-You can drop the if...
+Regards,
+Alex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
