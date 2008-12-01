@@ -1,82 +1,72 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB14VJnk017052
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Dec 2008 13:31:19 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4FB0B45DE58
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 13:31:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EEA8645DE4F
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 13:31:18 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C55981DB8040
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 13:31:18 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C9C71DB8043
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 13:31:18 +0900 (JST)
-Date: Mon, 1 Dec 2008 13:30:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] Unused check for thread group leader in
- mem_cgroup_move_task
-Message-Id: <20081201133030.0a330c7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <200812010951.36392.knikanth@suse.de>
-References: <200811291259.27681.knikanth@suse.de>
-	<20081201101208.08e0aa98.kamezawa.hiroyu@jp.fujitsu.com>
-	<200812010951.36392.knikanth@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <49336D26.2060607@google.com>
+Date: Sun, 30 Nov 2008 20:50:46 -0800
+From: Mike Waychison <mikew@google.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com> <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <20081127130817.GP28285@wotan.suse.de> <492EEF0C.9040607@google.com> <20081128093713.GB1818@wotan.suse.de> <49307893.4030708@google.com> <4932EF90.9070601@gmail.com>
+In-Reply-To: <4932EF90.9070601@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikanth Karthikesan <knikanth@suse.de>, balbir@linux.vnet.ibm.com
-Cc: containers@lists.linux-foundation.org, xemul@openvz.org, linux-mm@kvack.org, nikanth@gmail.com
+To: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008 09:51:35 +0530
-Nikanth Karthikesan <knikanth@suse.de> wrote:
+Torok Edwin wrote:
+> On 2008-11-29 01:02, Mike Waychison wrote:
+>> Nick Piggin wrote:
+>>> On Thu, Nov 27, 2008 at 11:03:40AM -0800, Mike Waychison wrote:
+>>>> Nick Piggin wrote:
+>>>>> On Thu, Nov 27, 2008 at 01:28:41AM -0800, Mike Waychison wrote:
+>>>>>> Torok however identified mmap taking on the order of several
+>>>>>> milliseconds due to this exact problem:
+>>>>>>
+>>>>>> http://lkml.org/lkml/2008/9/12/185
+>>>>> Turns out to be a different problem.
+>>>>>
+>>>> What do you mean?
+>>> His is just contending on the write side. The retry patch doesn't help.
+>>>
+>> I disagree.  How do you get 'write contention' from the following
+>> paragraph:
+>>
+>> "Just to confirm that the problem is with pagefaults and mmap, I dropped
+>> the mmap_sem in filemap_fault, and then
+>> I got same performance in my testprogram for mmap and read. Of course
+>> this is totally unsafe, because the mapping could change at any time."
+>>
+>> It reads to me that the writers were held off by the readers sleeping
+>> in IO.
+> 
+> It is true that I have a write/write contention too, but do_page_fault
+> shows up too on lock_stat.
+> 
+> This is my guess at what happens:
+> * filemap_fault used to sleep with mmap_sem held while waiting for the
+> page lock.
+> * the google patch avoids that, which is fine: if page lock can't be
+> taken, it drops mmap_sem, waits, then retries the fault once
+> * however after we acquired the page lock, mapping->a_ops->readpage is
+> invoked, mmap_sem is NOT dropped here:
+> 
+>     error = mapping->a_ops->readpage(file, page);
+>     if (!error) {
+>         wait_on_page_locked(page);
+> 
+> If my understanding is correct ->readpage does the actual disk I/O, and
+> it keeps the page locked, when the lock is released we know it has finished.
+> So wait_on_page_locked(page)  holds mmap_sem locked for read during the
+> disk I/O, preventing sys_mmap/sys_munmap from making progress.
+> 
+> I don't know how to prove/disprove my guess above, suggestions welcome.
+> 
+> Could the patch be changed to also release the mmap_sem after readpage,
+> and before wait_on_page_locked?
 
-> Ok. Then should we remove the unused code which simply checks for thread group 
-> leader but does nothing?
->  
-> Thanks
-> Nikanth
-> 
-Hmm, it seem that code is obsolete. thanks.
-Balbir, how do you think ?
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-Anyway we have to visit here, again.
-
-
-> Remove the unused test for thread group leader in mem_cgroup_move_task.
-> 
-> Signed-off-by: Nikanth Karthikesan <knikanth@suse.de>
-> 
-> ---
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 866dcc7..8e9287d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1151,14 +1151,6 @@ static void mem_cgroup_move_task(struct cgroup_subsys 
-> *ss,
->  	mem = mem_cgroup_from_cont(cont);
->  	old_mem = mem_cgroup_from_cont(old_cont);
->  
-> -	/*
-> -	 * Only thread group leaders are allowed to migrate, the mm_struct is
-> -	 * in effect owned by the leader
-> -	 */
-> -	if (!thread_group_leader(p))
-> -		goto out;
-> -
-> -out:
->  	mmput(mm);
->  }
->  
-> 
-> 
+Ya, my suspicion is that there is still some other code path where we 
+are waiting on the locked page with mmap_sem still held.  Ying and I 
+will take a closer look this week.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
