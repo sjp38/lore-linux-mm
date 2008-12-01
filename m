@@ -1,111 +1,54 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1Hl5Cx004347
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:05 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1Hla69045394
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:36 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1HlX0G025379
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:36 -0700
-Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20081128101919.GO28946@ZenIV.linux.org.uk>
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
-	 <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
-	 <20081128101919.GO28946@ZenIV.linux.org.uk>
-Content-Type: text/plain
-Date: Mon, 01 Dec 2008 09:47:25 -0800
-Message-Id: <1228153645.2971.36.camel@nimitz>
-Mime-Version: 1.0
+Received: by an-out-0708.google.com with SMTP id d14so910522and.26
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 09:48:25 -0800 (PST)
+Message-ID: <84144f020812010948m78f550frac44be276b5296bc@mail.gmail.com>
+Date: Mon, 1 Dec 2008 19:48:24 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+In-Reply-To: <493420B2.8050907@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20081201083128.GB2529@wotan.suse.de>
+	 <1228138641.14439.18.camel@penberg-laptop>
+	 <Pine.LNX.4.64.0812010828150.14977@quilx.com>
+	 <4933F925.3020907@gmail.com> <20081201162018.GF10790@wotan.suse.de>
+	 <49341915.5000900@gmail.com> <20081201171219.GI10790@wotan.suse.de>
+	 <84144f020812010925r6c5f9c85p32f180c06085b496@mail.gmail.com>
+	 <84144f020812010932l540b26dr57716d8abea2562@mail.gmail.com>
+	 <493420B2.8050907@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: Alexey Starikovskiy <aystarik@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-11-28 at 10:19 +0000, Al Viro wrote:
-> On Wed, Nov 26, 2008 at 08:04:39PM -0500, Oren Laadan wrote:
-> > +int cr_scan_fds(struct files_struct *files, int **fdtable)
-> > +{
-> > +	struct fdtable *fdt;
-> > +	int *fds;
-> > +	int i, n = 0;
-> > +	int tot = CR_DEFAULT_FDTABLE;
-> > +
-> > +	fds = kmalloc(tot * sizeof(*fds), GFP_KERNEL);
-> > +	if (!fds)
-> > +		return -ENOMEM;
-> > +
-> > +	/*
-> > +	 * We assume that the target task is frozen (or that we checkpoint
-> > +	 * ourselves), so we can safely proceed after krealloc() from where
-> > +	 * we left off; in the worst cases restart will fail.
-> > +	 */
-> 
-> Task may be frozen, but it may share the table with any number of other
-> tasks...
+On Mon, Dec 1, 2008 at 7:36 PM, Alexey Starikovskiy <aystarik@gmail.com> wrote:
+>> [ The size of ACPI kmem caches with wasted bytes per object in
+>> parenthesis. ]
+>>
+>>                 32-bit size  64-bit size
+>>  Acpi-Namespace  24 (8)       32 (0)
+>>  Acpi-Operand    40 (24)      72 (24)
+>>  Acpi-Parse      32 (0)       48 (16)
+>>  Acpi-ParseExt   44 (20)      72 (24)
+>>  Acpi-State      44 (20)      80 (16)
+>>
+>> Though I suspect this situation could be improved by avoiding those
+>> fairly big unions ACPI does (like union acpi_operand_object).
+>
+> No, last time I checked, operand may get down to 16 bytes in 32-bit case --
+> save byte by having 3 types of operands... and making 2 more caches :)
 
-First of all, thanks for looking at this, Al.  
+I'm not sure what you mean. I wasn't suggesting adding new caches but
+instead, avoid big unions and allocate plain structs with kmalloc()
+instead. If you look at union acpi_operand_object, for example, it's
+such a bad fit on 64-bit (72 bytes) only because of struct
+acpi_object_mutex. Other structs in that union fit in a kmalloc-64
+cache just fine.
 
-I think Oren's assumption here is that all tasks possibly sharing the
-table would be frozen.  I don't think that's a good assumption,
-either. :)
-
-This would be a lot safer and bulletproof if we size the allocation
-ahead of time, take all the locks, then retry if the size has changed.
-
-I think that will just plain work of we do this:
-
-> > +	spin_lock(&files->file_lock);
-> > +	rcu_read_lock();
-> > +	fdt = files_fdtable(files);
-> > +	for (i = 0; i < fdt->max_fds; i++) {
-> > +		if (!fcheck_files(files, i))
-> > +			continue;
-> > +		if (n == tot) {
-> > +			/*
-> > +			 * fcheck_files() is safe with drop/re-acquire
-> > +			 * of the lock, because it tests:  fd < max_fds
-> > +			 */
-> > +			spin_unlock(&files->file_lock);
-> > +			rcu_read_unlock();
-> > +			tot *= 2;	/* won't overflow: kmalloc will fail */
-
-			  free(fds);
-			  goto first_kmalloc_in_this_function;
-
-> > +		}
-> > +		fds[n++] = i;
-> > +	}
-> > +	rcu_read_unlock();
-> > +	spin_unlock(&files->file_lock);
-> > +
-> > +	*fdtable = fds;
-> > +	return n;
-> > +}
-
-Right?
-
-> > +	switch (inode->i_mode & S_IFMT) {
-> > +	case S_IFREG:
-> > +		fd_type = CR_FD_FILE;
-> > +		break;
-> > +	case S_IFDIR:
-> > +		fd_type = CR_FD_DIR;
-> > +		break;
-> > +	case S_IFLNK:
-> > +		fd_type = CR_FD_LINK;
-> 
-> Opened symlinks?  May I have whatever you'd been smoking, please?
-
-Ugh, that certainly doesn't have any place here.  I do wonder if Oren
-had some use for that in the fully put together code, but it can
-certainly go for now.
-
-I'll send patches for these shortly.
-
--- Dave
+So really, ACPI should probably be fixing the unions rather than paper
+over the problem by adding new kmem caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
