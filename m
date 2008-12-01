@@ -1,8 +1,8 @@
-Date: Mon, 1 Dec 2008 00:45:45 +0000 (GMT)
+Date: Mon, 1 Dec 2008 00:46:53 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH 6/8] badpage: remove vma from page_remove_rmap
+Subject: [PATCH 7/8] badpage: ratelimit print_bad_pte and bad_page
 In-Reply-To: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
-Message-ID: <Pine.LNX.4.64.0812010044580.11401@blonde.site>
+Message-ID: <Pine.LNX.4.64.0812010045520.11401@blonde.site>
 References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -12,114 +12,93 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove page_remove_rmap()'s vma arg, which was only for the Eeek message.
-And remove the BUG_ON(page_mapcount(page) == 0) from CONFIG_DEBUG_VM's
-page_dup_rmap(): we're trying to be more resilient about that than BUGs.
+print_bad_pte() and bad_page() might each need ratelimiting - especially
+for their dump_stacks, almost never of interest, yet not quite dispensible.
+Correlating corruption across neighbouring entries can be very helpful,
+so allow a burst of 60 reports before keeping quiet for the remainder
+of that minute (or allow a steady drip of one report per second).
 
 Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
 
- include/linux/rmap.h |    2 +-
- mm/filemap_xip.c     |    2 +-
- mm/fremap.c          |    2 +-
- mm/memory.c          |    4 ++--
- mm/rmap.c            |    8 +++-----
- 5 files changed, 8 insertions(+), 10 deletions(-)
+ mm/memory.c     |   23 +++++++++++++++++++++++
+ mm/page_alloc.c |   26 +++++++++++++++++++++++++-
+ 2 files changed, 48 insertions(+), 1 deletion(-)
 
---- badpage5/include/linux/rmap.h	2008-11-26 12:18:59.000000000 +0000
-+++ badpage6/include/linux/rmap.h	2008-11-28 20:40:48.000000000 +0000
-@@ -69,7 +69,7 @@ void __anon_vma_link(struct vm_area_stru
- void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
- void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
- void page_add_file_rmap(struct page *);
--void page_remove_rmap(struct page *, struct vm_area_struct *);
-+void page_remove_rmap(struct page *);
+--- badpage6/mm/memory.c	2008-11-28 20:40:48.000000000 +0000
++++ badpage7/mm/memory.c	2008-11-28 20:40:50.000000000 +0000
+@@ -383,6 +383,29 @@ static void print_bad_pte(struct vm_area
+ 	pmd_t *pmd = pmd_offset(pud, addr);
+ 	struct address_space *mapping;
+ 	pgoff_t index;
++	static unsigned long resume;
++	static unsigned long nr_shown;
++	static unsigned long nr_unshown;
++
++	/*
++	 * Allow a burst of 60 reports, then keep quiet for that minute;
++	 * or allow a steady drip of one report per second.
++	 */
++	if (nr_shown == 60) {
++		if (time_before(jiffies, resume)) {
++			nr_unshown++;
++			return;
++		}
++		if (nr_unshown) {
++			printk(KERN_EMERG
++				"Bad page map: %lu messages suppressed\n",
++				nr_unshown);
++			nr_unshown = 0;
++		}
++		nr_shown = 0;
++	}
++	if (nr_shown++ == 0)
++		resume = jiffies + 60 * HZ;
  
- #ifdef CONFIG_DEBUG_VM
- void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address);
---- badpage5/mm/filemap_xip.c	2008-10-09 23:13:53.000000000 +0100
-+++ badpage6/mm/filemap_xip.c	2008-11-28 20:40:48.000000000 +0000
-@@ -193,7 +193,7 @@ retry:
- 			/* Nuke the page table entry. */
- 			flush_cache_page(vma, address, pte_pfn(*pte));
- 			pteval = ptep_clear_flush_notify(vma, address, pte);
--			page_remove_rmap(page, vma);
-+			page_remove_rmap(page);
- 			dec_mm_counter(mm, file_rss);
- 			BUG_ON(pte_dirty(pteval));
- 			pte_unmap_unlock(pte, ptl);
---- badpage5/mm/fremap.c	2008-10-24 09:28:26.000000000 +0100
-+++ badpage6/mm/fremap.c	2008-11-28 20:40:48.000000000 +0000
-@@ -37,7 +37,7 @@ static void zap_pte(struct mm_struct *mm
- 		if (page) {
- 			if (pte_dirty(pte))
- 				set_page_dirty(page);
--			page_remove_rmap(page, vma);
-+			page_remove_rmap(page);
- 			page_cache_release(page);
- 			update_hiwater_rss(mm);
- 			dec_mm_counter(mm, file_rss);
---- badpage5/mm/memory.c	2008-11-28 20:40:46.000000000 +0000
-+++ badpage6/mm/memory.c	2008-11-28 20:40:48.000000000 +0000
-@@ -788,7 +788,7 @@ static unsigned long zap_pte_range(struc
- 					mark_page_accessed(page);
- 				file_rss--;
- 			}
--			page_remove_rmap(page, vma);
-+			page_remove_rmap(page);
- 			if (unlikely(page_mapcount(page) < 0))
- 				print_bad_pte(vma, addr, ptent, page);
- 			tlb_remove_page(tlb, page);
-@@ -1996,7 +1996,7 @@ gotten:
- 			 * mapcount is visible. So transitively, TLBs to
- 			 * old page will be flushed before it can be reused.
- 			 */
--			page_remove_rmap(old_page, vma);
-+			page_remove_rmap(old_page);
- 		}
+ 	mapping = vma->vm_file ? vma->vm_file->f_mapping : NULL;
+ 	index = linear_page_index(vma, addr);
+--- badpage6/mm/page_alloc.c	2008-11-28 20:40:42.000000000 +0000
++++ badpage7/mm/page_alloc.c	2008-11-28 20:40:50.000000000 +0000
+@@ -223,6 +223,30 @@ static inline int bad_range(struct zone 
  
- 		/* Free the old page.. */
---- badpage5/mm/rmap.c	2008-11-28 20:40:40.000000000 +0000
-+++ badpage6/mm/rmap.c	2008-11-28 20:40:48.000000000 +0000
-@@ -707,7 +707,6 @@ void page_add_file_rmap(struct page *pag
-  */
- void page_dup_rmap(struct page *page, struct vm_area_struct *vma, unsigned long address)
+ static void bad_page(struct page *page)
  {
--	BUG_ON(page_mapcount(page) == 0);
- 	if (PageAnon(page))
- 		__page_check_anon_rmap(page, vma, address);
- 	atomic_inc(&page->_mapcount);
-@@ -717,11 +716,10 @@ void page_dup_rmap(struct page *page, st
- /**
-  * page_remove_rmap - take down pte mapping from a page
-  * @page: page to remove mapping from
-- * @vma: the vm area in which the mapping is removed
-  *
-  * The caller needs to hold the pte lock.
-  */
--void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
-+void page_remove_rmap(struct page *page)
- {
- 	if (atomic_add_negative(-1, &page->_mapcount)) {
- 		/*
-@@ -837,7 +835,7 @@ static int try_to_unmap_one(struct page 
- 		dec_mm_counter(mm, file_rss);
++	static unsigned long resume;
++	static unsigned long nr_shown;
++	static unsigned long nr_unshown;
++
++	/*
++	 * Allow a burst of 60 reports, then keep quiet for that minute;
++	 * or allow a steady drip of one report per second.
++	 */
++	if (nr_shown == 60) {
++		if (time_before(jiffies, resume)) {
++			nr_unshown++;
++			goto out;
++		}
++		if (nr_unshown) {
++			printk(KERN_EMERG
++				"Bad page state: %lu messages suppressed\n",
++				nr_unshown);
++			nr_unshown = 0;
++		}
++		nr_shown = 0;
++	}
++	if (nr_shown++ == 0)
++		resume = jiffies + 60 * HZ;
++
+ 	printk(KERN_EMERG "Bad page state in process %s  pfn:%05lx\n",
+ 		current->comm, page_to_pfn(page));
+ 	printk(KERN_EMERG
+@@ -232,7 +256,7 @@ static void bad_page(struct page *page)
+ 	printk(KERN_EMERG "Trying to fix it up, but a reboot is needed\n");
  
- 
--	page_remove_rmap(page, vma);
-+	page_remove_rmap(page);
- 	page_cache_release(page);
- 
- out_unmap:
-@@ -952,7 +950,7 @@ static int try_to_unmap_cluster(unsigned
- 		if (pte_dirty(pteval))
- 			set_page_dirty(page);
- 
--		page_remove_rmap(page, vma);
-+		page_remove_rmap(page);
- 		page_cache_release(page);
- 		dec_mm_counter(mm, file_rss);
- 		(*mapcount)--;
+ 	dump_stack();
+-
++out:
+ 	/* Leave bad fields for debug, except PageBuddy could make trouble */
+ 	__ClearPageBuddy(page);
+ 	add_taint(TAINT_BAD_PAGE);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
