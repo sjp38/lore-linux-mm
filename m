@@ -1,150 +1,90 @@
-Message-ID: <493447DD.7010102@cs.columbia.edu>
-Date: Mon, 01 Dec 2008 15:23:57 -0500
-From: Oren Laadan <orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>	 <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>	 <20081128101919.GO28946@ZenIV.linux.org.uk> <1228153645.2971.36.camel@nimitz>
-In-Reply-To: <1228153645.2971.36.camel@nimitz>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 1 Dec 2008 12:24:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] vmscan: evict streaming IO first
+Message-Id: <20081201122438.16828a87.akpm@linux-foundation.org>
+In-Reply-To: <20081117190642.3aabd3ff@bree.surriel.com>
+References: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20081115210039.537f59f5.akpm@linux-foundation.org>
+	<alpine.LFD.2.00.0811161013270.3468@nehalem.linux-foundation.org>
+	<49208E9A.5080801@redhat.com>
+	<20081116204720.1b8cbe18.akpm@linux-foundation.org>
+	<20081117153012.51ece88f.kamezawa.hiroyu@jp.fujitsu.com>
+	<2f11576a0811162239w58555c6dq8a61ec184b22bd52@mail.gmail.com>
+	<20081117155417.5cc63907.kamezawa.hiroyu@jp.fujitsu.com>
+	<alpine.LFD.2.00.0811170802010.3468@nehalem.linux-foundation.org>
+	<20081117190642.3aabd3ff@bree.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: torvalds@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gene.heskett@gmail.com
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 17 Nov 2008 19:06:42 -0500
+Rik van Riel <riel@redhat.com> wrote:
 
-
-Dave Hansen wrote:
-> On Fri, 2008-11-28 at 10:19 +0000, Al Viro wrote:
->> On Wed, Nov 26, 2008 at 08:04:39PM -0500, Oren Laadan wrote:
->>> +int cr_scan_fds(struct files_struct *files, int **fdtable)
->>> +{
->>> +	struct fdtable *fdt;
->>> +	int *fds;
->>> +	int i, n = 0;
->>> +	int tot = CR_DEFAULT_FDTABLE;
->>> +
->>> +	fds = kmalloc(tot * sizeof(*fds), GFP_KERNEL);
->>> +	if (!fds)
->>> +		return -ENOMEM;
->>> +
->>> +	/*
->>> +	 * We assume that the target task is frozen (or that we checkpoint
->>> +	 * ourselves), so we can safely proceed after krealloc() from where
->>> +	 * we left off; in the worst cases restart will fail.
->>> +	 */
->> Task may be frozen, but it may share the table with any number of other
->> tasks...
+> Count the insertion of new pages in the statistics used to drive the
+> pageout scanning code.  This should help the kernel quickly evict
+> streaming file IO.
 > 
-> First of all, thanks for looking at this, Al.  
-
-That goes for me too.
-
+> We count on the fact that new file pages start on the inactive file
+> LRU and new anonymous pages start on the active anon list.  This
+> means streaming file IO will increment the recent scanned file
+> statistic, while leaving the recent rotated file statistic alone,
+> driving pageout scanning to the file LRUs.
 > 
-> I think Oren's assumption here is that all tasks possibly sharing the
-> table would be frozen.  I don't think that's a good assumption,
-> either. :)
+> Pageout activity does its own list manipulation.
 > 
-> This would be a lot safer and bulletproof if we size the allocation
-> ahead of time, take all the locks, then retry if the size has changed.
-
-Yes, I assume that all tasks possibly sharing the table are frozen for
-this to work "right"; by "right" I mean that if checkpoint completes
-then a matching restart would complete successfully.
-
-Verifying that the size doesn't change does not ensure that the table's
-contents remained the same, so we can still end up with obsolete data.
-For that, you'll need to take the lock over a very long period of time,
-while you capture and write data about the files.
-
-So back to the assumption: the idea is that if the user does not adhere
-to this assumption - ensuring that all tasks are frozen and that there
-are no sharing otherwise - then the results are undefined (just as, e.g.
-not calling execve() immediately after vfork() gives undefined results).
-
-By "undefined" I mean that it may produce a checkpoint image that can't
-be restarted, or fail. If the assumption doesn't hold, then the table may
-change, and we will get a list of fd's which is "incorrect". The comment
-before this function explicitly says that "The caller must validate the
-file descriptors...", so the checkpoint may will fail subsequently, eg.
-while trying to access a bad fd. Otherwise, the image file will reflect
-a state that is inconsistent, and restart will fail.
-
-Note that in both cases, the code will not crash the kernel (unless you
-think I missed something...)
-
-(BTW, the alternative would be to test for such sharing and abort with
-an error. The only way I can think of is to loop through the all the
-tasks, for each files_struct that we find. But we don't really need to,
-given the argument above).
-
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/swap.c |    7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
 > 
-> I think that will just plain work of we do this:
+> On Mon, 17 Nov 2008 08:22:13 -0800 (PST)
+> Linus Torvalds <torvalds@linux-foundation.org> wrote:
 > 
->>> +	spin_lock(&files->file_lock);
->>> +	rcu_read_lock();
->>> +	fdt = files_fdtable(files);
->>> +	for (i = 0; i < fdt->max_fds; i++) {
->>> +		if (!fcheck_files(files, i))
->>> +			continue;
->>> +		if (n == tot) {
->>> +			/*
->>> +			 * fcheck_files() is safe with drop/re-acquire
->>> +			 * of the lock, because it tests:  fd < max_fds
->>> +			 */
->>> +			spin_unlock(&files->file_lock);
->>> +			rcu_read_unlock();
->>> +			tot *= 2;	/* won't overflow: kmalloc will fail */
+> > .. or how about just considering the act of adding a new page to the LRU 
+> > to be a "scan" event? IOW, "scanning" is not necessarily just an act of 
+> > the VM looking for pages to free, but would be a more general "activity" 
+> > meter.
 > 
-> 			  free(fds);
-> 			  goto first_kmalloc_in_this_function;
+> Linus, this should implement your idea.  
 > 
->>> +		}
->>> +		fds[n++] = i;
->>> +	}
->>> +	rcu_read_unlock();
->>> +	spin_unlock(&files->file_lock);
->>> +
->>> +	*fdtable = fds;
->>> +	return n;
->>> +}
-> 
-> Right?
+> Gene, does this patch resolve the problem for you?
 
-Lol .. that was actually in my original post, and changed in response to
-comments that explicitly asked to not count in advance :o
+Has Gene had a chance to confirm this yet?
 
-Actually, I think the current code is cleaner, and I don't see how counting
-in advance with the lock give us any advantage here.
+> Index: linux-2.6.28-rc5/mm/swap.c
+> ===================================================================
+> --- linux-2.6.28-rc5.orig/mm/swap.c	2008-11-16 17:47:13.000000000 -0500
+> +++ linux-2.6.28-rc5/mm/swap.c	2008-11-17 18:58:32.000000000 -0500
+> @@ -445,6 +445,7 @@ void ____pagevec_lru_add(struct pagevec 
+>  	for (i = 0; i < pagevec_count(pvec); i++) {
+>  		struct page *page = pvec->pages[i];
+>  		struct zone *pagezone = page_zone(page);
+> +		int file;
+>  
+>  		if (pagezone != zone) {
+>  			if (zone)
+> @@ -456,8 +457,12 @@ void ____pagevec_lru_add(struct pagevec 
+>  		VM_BUG_ON(PageUnevictable(page));
+>  		VM_BUG_ON(PageLRU(page));
+>  		SetPageLRU(page);
+> -		if (is_active_lru(lru))
+> +		file = is_file_lru(lru);
+> +		zone->recent_scanned[file]++;
+> +		if (is_active_lru(lru)) {
+>  			SetPageActive(page);
+> +			zone->recent_rotated[file]++;
+> +		}
+>  		add_page_to_lru_list(zone, page, lru);
+>  	}
+>  	if (zone)
 
->>> +	switch (inode->i_mode & S_IFMT) {
->>> +	case S_IFREG:
->>> +		fd_type = CR_FD_FILE;
->>> +		break;
->>> +	case S_IFDIR:
->>> +		fd_type = CR_FD_DIR;
->>> +		break;
->>> +	case S_IFLNK:
->>> +		fd_type = CR_FD_LINK;
->> Opened symlinks?  May I have whatever you'd been smoking, please?
-> 
-> Ugh, that certainly doesn't have any place here.  I do wonder if Oren
-> had some use for that in the fully put together code, but it can
-> certainly go for now.
-
-Not anymore. Indeed ugh...
-
-Thanks,
-
-Oren.
-
-> 
-> I'll send patches for these shortly.
-> 
-> -- Dave
-> 
-> 
+Were you not able to reproduce the problem?  It looks like it'd be a
+pretty simple test case to set up?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
