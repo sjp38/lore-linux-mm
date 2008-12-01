@@ -1,60 +1,50 @@
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB101pG4028084
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 1 Dec 2008 09:01:51 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31B9345DD7A
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 09:01:51 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0698145DE54
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 09:01:51 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C83FF1DB803A
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 09:01:50 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EB1B1DB803B
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 09:01:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: vmscan: protect zone rotation stats by lru lock
-In-Reply-To: <E1L6qr1-0003Qv-Re@cmpxchg.org>
-References: <E1L6qr1-0003Qv-Re@cmpxchg.org>
-Message-Id: <20081201090003.816E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Mon, 1 Dec 2008 00:29:41 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH 10/9] swapfile: change discard pgoff_t to sector_t
+In-Reply-To: <Pine.LNX.4.64.0811252145190.20455@blonde.site>
+Message-ID: <Pine.LNX.4.64.0812010028040.10131@blonde.site>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+ <Pine.LNX.4.64.0811252140230.17555@blonde.site> <Pine.LNX.4.64.0811252145190.20455@blonde.site>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon,  1 Dec 2008 09:01:49 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Johannes Weiner <hannes@saeurebad.de>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Woodhouse <dwmw2@infradead.org>, Jens Axboe <jens.axboe@oracle.com>, Matthew Wilcox <matthew@wil.cx>, Joern Engel <joern@logfs.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, Donjun Shin <djshin90@gmail.com>, Tejun Heo <teheo@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> +	spin_lock_irq(&zone->lru_lock);
->  	/*
->  	 * Count referenced pages from currently used mappings as
->  	 * rotated, even though they are moved to the inactive list.
->  	 * This helps balance scan pressure between file and anonymous
->  	 * pages in get_scan_ratio.
->  	 */
->  	zone->recent_rotated[!!file] += pgmoved;
->  
->  	/*
->  	 * Move the pages to the [file or anon] inactive list.
->  	 */
->  	pagevec_init(&pvec, 1);
->  
->  	pgmoved = 0;
->  	lru = LRU_BASE + file * LRU_FILE;
-> -	spin_lock_irq(&zone->lru_lock);
->  	while (!list_empty(&l_inactive)) {
->  		page = lru_to_page(&l_inactive);
+Change pgoff_t nr_blocks in discard_swap() and discard_swap_cluster() to
+sector_t: given the constraints on swap offsets (in particular, the 5 bits
+of swap type accommodated in the same unsigned long), pgoff_t was actually
+safe as is, but it certainly looked worrying when shifted left.
 
-I think this patch is needed for 2.6.28.
-please CC to lkml and linus at your next post.
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+To follow 9/9 swapfile-swap-allocation-cycle-if-nonrot.patch
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+ mm/swapfile.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-
+--- swapfile9/mm/swapfile.c	2008-11-26 12:19:00.000000000 +0000
++++ swapfile10/mm/swapfile.c	2008-11-28 20:36:44.000000000 +0000
+@@ -96,7 +96,7 @@ static int discard_swap(struct swap_info
+ 
+ 	list_for_each_entry(se, &si->extent_list, list) {
+ 		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
+-		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
++		sector_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
+ 
+ 		if (se->start_page == 0) {
+ 			/* Do not discard the swap header page! */
+@@ -133,7 +133,7 @@ static void discard_swap_cluster(struct 
+ 		    start_page < se->start_page + se->nr_pages) {
+ 			pgoff_t offset = start_page - se->start_page;
+ 			sector_t start_block = se->start_block + offset;
+-			pgoff_t nr_blocks = se->nr_pages - offset;
++			sector_t nr_blocks = se->nr_pages - offset;
+ 
+ 			if (nr_blocks > nr_pages)
+ 				nr_blocks = nr_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
