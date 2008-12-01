@@ -1,41 +1,23 @@
-Date: Mon, 1 Dec 2008 08:32:50 -0600 (CST)
+Date: Mon, 1 Dec 2008 08:40:58 -0600 (CST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-In-Reply-To: <1228138641.14439.18.camel@penberg-laptop>
-Message-ID: <Pine.LNX.4.64.0812010828150.14977@quilx.com>
-References: <20081201083128.GB2529@wotan.suse.de>
- <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
- <20081201120002.GB10790@wotan.suse.de>  <4933E2C3.4020400@gmail.com>
- <1228138641.14439.18.camel@penberg-laptop>
+Subject: Re: [PATCH 8/8] badpage: KERN_ALERT BUG instead of KERN_EMERG
+In-Reply-To: <Pine.LNX.4.64.0812010047010.11401@blonde.site>
+Message-ID: <Pine.LNX.4.64.0812010840110.15331@quilx.com>
+References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
+ <Pine.LNX.4.64.0812010047010.11401@blonde.site>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Alexey Starikovskiy <aystarik@gmail.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Pekka Enberg wrote:
+On Mon, 1 Dec 2008, Hugh Dickins wrote:
+> And remove the "Trying to fix it up, but a reboot is needed" line:
+> it's not untrue, but I hope the KERN_ALERT "BUG: " conveys as much.
 
-> Why do you think Nick's patch is going to _increase_ memory consumption?
-> SLUB _already_ merges the ACPI caches with kmalloc caches so you won't
-> see any difference there. For SLAB, it's a gain because there's not
-> enough activity going on which results in lots of unused space in the
-> slabs (which is, btw, the reason SLUB does slab merging in the first
-> place).
-
-The patch is going to increase memory consumption because the use of
-the kmalloc array means that the allocated object sizes are rounded up to
-the next power of two.
-
-I would recommend to keep the caches. Subsystem specific caches help to
-simplify debugging and track the memory allocated for various purposes in
-addition to saving the rounding up to power of two overhead.
-And with SLUB the creation of such caches usually does not require
-additional memory.
-
-Maybe it would be best to avoid kmalloc as much as possible.
-
+Thanks. That was a pretty strange message....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
