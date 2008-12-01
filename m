@@ -1,10 +1,10 @@
-Message-ID: <49341A66.3080905@redhat.com>
-Date: Mon, 01 Dec 2008 12:09:58 -0500
+Message-ID: <49341A88.9060803@redhat.com>
+Date: Mon, 01 Dec 2008 12:10:32 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/11] memcg: remove mem_cgroup_calc_reclaim()
-References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081201211742.1CE5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20081201211742.1CE5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 10/11] memcg: show inactive_ratio
+References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081201211817.1CE8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081201211817.1CE8.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,10 +14,8 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 List-ID: <linux-mm.kvack.org>
 
 KOSAKI Motohiro wrote:
-> Now, get_scan_ratio() return correct value although memcg reclaim.
-> Then, mem_cgroup_calc_reclaim() can be removed.
-> 
-> So, memcg reclaim get the same capability of anon/file reclaim balancing as global reclaim now.
+> add inactive_ratio field to memory.stat file.
+> it is useful for memcg reclam debugging.
 > 
 > 
 > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
