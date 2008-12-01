@@ -1,76 +1,111 @@
-Received: by ug-out-1314.google.com with SMTP id 34so2557086ugf.19
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 09:43:20 -0800 (PST)
-Message-ID: <49342234.9000607@gmail.com>
-Date: Mon, 01 Dec 2008 20:43:16 +0300
-From: Alexey Starikovskiy <aystarik@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <Pine.LNX.4.64.0812010828150.14977@quilx.com> <4933F925.3020907@gmail.com> <20081201162018.GF10790@wotan.suse.de> <49341915.5000900@gmail.com> <20081201171219.GI10790@wotan.suse.de>
-In-Reply-To: <20081201171219.GI10790@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1Hl5Cx004347
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:05 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1Hla69045394
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:36 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1HlX0G025379
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 10:47:36 -0700
+Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081128101919.GO28946@ZenIV.linux.org.uk>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
+	 <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
+	 <20081128101919.GO28946@ZenIV.linux.org.uk>
+Content-Type: text/plain
+Date: Mon, 01 Dec 2008 09:47:25 -0800
+Message-Id: <1228153645.2971.36.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Mon, Dec 01, 2008 at 08:04:21PM +0300, Alexey Starikovskiy wrote:
->   
->> Nick Piggin wrote:
->>     
->>> Hmm.
->>> Acpi-Operand        2641   2773     64   59    1 : tunables  120   60    8 
->>> : slabdata     47     47     0
->>> Acpi-ParseExt          0      0     64   59    1 : tunables  120   60    8 
->>> : slabdata      0      0     0
->>> Acpi-Parse             0      0     40   92    1 : tunables  120   60    8 
->>> : slabdata      0      0     0
->>> Acpi-State             0      0     80   48    1 : tunables  120   60    8 
->>> : slabdata      0      0     0
->>> Acpi-Namespace      1711   1792     32  112    1 : tunables  120   60    8 
->>> : slabdata     16     16     0
->>>
->>>  
->>> Looks different for my thinkpad.
->>>  
->>>       
->> Probably this is SLUB vs. SLAB thing Pecca was talking about...
->>     
->
-> Sizes should not be bigger with SLUB. Although if you have SLUB debugging
-> turned on then maybe the size gets padded with redzones, but in that
-> configuration you don't expect memory saving anyway because padding bloats
-> things up.
->
->
->   
->> And, probably you run at 32-bit? This is part of my .config:
->>     
->
-> No, 64 bit.
->
->
->   
->> --------------------------------------------
->> CONFIG_SLUB_DEBUG=y
->> # CONFIG_SLAB is not set
->> CONFIG_SLUB=y
->> # CONFIG_SLOB is not set
->> -------------------------------------------
->>
->> With your patch you would be able to save 64*(2773 - 2641) + 32 * 
->> (1792-1711)= 8448 + 2592 = 11040 bytes of memory, less than 3 pages?
->>     
->
-> You don't account the cost of the kmem cache. Or fragmentation that
-> can be caused with extra kmem caches.  I guess neither is any problem
-> with SLOB, which is used by tiny systems...
->   
-There is very small amount of fragmentation -- underfill, maybe 3 pages 
-out of 63, less than 5%.
+On Fri, 2008-11-28 at 10:19 +0000, Al Viro wrote:
+> On Wed, Nov 26, 2008 at 08:04:39PM -0500, Oren Laadan wrote:
+> > +int cr_scan_fds(struct files_struct *files, int **fdtable)
+> > +{
+> > +	struct fdtable *fdt;
+> > +	int *fds;
+> > +	int i, n = 0;
+> > +	int tot = CR_DEFAULT_FDTABLE;
+> > +
+> > +	fds = kmalloc(tot * sizeof(*fds), GFP_KERNEL);
+> > +	if (!fds)
+> > +		return -ENOMEM;
+> > +
+> > +	/*
+> > +	 * We assume that the target task is frozen (or that we checkpoint
+> > +	 * ourselves), so we can safely proceed after krealloc() from where
+> > +	 * we left off; in the worst cases restart will fail.
+> > +	 */
+> 
+> Task may be frozen, but it may share the table with any number of other
+> tasks...
 
+First of all, thanks for looking at this, Al.  
+
+I think Oren's assumption here is that all tasks possibly sharing the
+table would be frozen.  I don't think that's a good assumption,
+either. :)
+
+This would be a lot safer and bulletproof if we size the allocation
+ahead of time, take all the locks, then retry if the size has changed.
+
+I think that will just plain work of we do this:
+
+> > +	spin_lock(&files->file_lock);
+> > +	rcu_read_lock();
+> > +	fdt = files_fdtable(files);
+> > +	for (i = 0; i < fdt->max_fds; i++) {
+> > +		if (!fcheck_files(files, i))
+> > +			continue;
+> > +		if (n == tot) {
+> > +			/*
+> > +			 * fcheck_files() is safe with drop/re-acquire
+> > +			 * of the lock, because it tests:  fd < max_fds
+> > +			 */
+> > +			spin_unlock(&files->file_lock);
+> > +			rcu_read_unlock();
+> > +			tot *= 2;	/* won't overflow: kmalloc will fail */
+
+			  free(fds);
+			  goto first_kmalloc_in_this_function;
+
+> > +		}
+> > +		fds[n++] = i;
+> > +	}
+> > +	rcu_read_unlock();
+> > +	spin_unlock(&files->file_lock);
+> > +
+> > +	*fdtable = fds;
+> > +	return n;
+> > +}
+
+Right?
+
+> > +	switch (inode->i_mode & S_IFMT) {
+> > +	case S_IFREG:
+> > +		fd_type = CR_FD_FILE;
+> > +		break;
+> > +	case S_IFDIR:
+> > +		fd_type = CR_FD_DIR;
+> > +		break;
+> > +	case S_IFLNK:
+> > +		fd_type = CR_FD_LINK;
+> 
+> Opened symlinks?  May I have whatever you'd been smoking, please?
+
+Ugh, that certainly doesn't have any place here.  I do wonder if Oren
+had some use for that in the fully put together code, but it can
+certainly go for now.
+
+I'll send patches for these shortly.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
