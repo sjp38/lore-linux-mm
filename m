@@ -1,51 +1,82 @@
+Date: Mon, 1 Dec 2008 14:36:46 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch][rfc] acpi: do not use kmem caches
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <4933E2C3.4020400@gmail.com>
-References: <20081201083128.GB2529@wotan.suse.de>
-	 <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
-	 <20081201120002.GB10790@wotan.suse.de>  <4933E2C3.4020400@gmail.com>
-Date: Mon, 01 Dec 2008 15:37:21 +0200
-Message-Id: <1228138641.14439.18.camel@penberg-laptop>
+Message-ID: <20081201133646.GC10790@wotan.suse.de>
+References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4933E2C3.4020400@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alexey Starikovskiy <aystarik@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Mon, 2008-12-01 at 16:12 +0300, Alexey Starikovskiy wrote:
-> > Actually I think it is also somewhat of a bugfix (not to mention that it
-> > seems like a good idea to share testing code with other operating systems).
-> 
+On Mon, Dec 01, 2008 at 04:12:35PM +0300, Alexey Starikovskiy wrote:
+> Nick Piggin wrote:
+> >On Mon, Dec 01, 2008 at 01:18:33PM +0200, Pekka Enberg wrote:
+> >  
+> >>Hi Nick,
+> >>
+> >>On Mon, Dec 1, 2008 at 10:31 AM, Nick Piggin <npiggin@suse.de> wrote:
+> >>    
+> >>>What does everyone think about this patch?
+> >>>      
+> >>Doesn't matter all that much for SLUB which already merges the ACPI
+> >>caches with the generic kmalloc caches. But for SLAB, it's an obvious
+> >>wil so:
+> >>
+> >>Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> >>    
+> >
+> >Actually I think it is also somewhat of a bugfix (not to mention that it
+> >seems like a good idea to share testing code with other operating systems).
+> >
+> >  
 > It is not "kind of a bugfix". Caches were used to allocate all frequenly
 > created objects of fixed size. Removing native cache interface will
 > increase memory consumption and increase code size, and will make it harder
 > to spot actual memory leaks.
 
-Excuse me?
+Slabs can take a non-trivial amount of memory. On bigger machines it can
+be many megabytes. On smaller machines perhaps not, but what is the benefit??
+The only ACPI slabs I have with anything in them total a couple of hundred
+kB, and anyway they are 64 and 32 bytes so they will pack exactly into
+kmalloc slabs.
 
-Why do you think Nick's patch is going to _increase_ memory consumption?
-SLUB _already_ merges the ACPI caches with kmalloc caches so you won't
-see any difference there. For SLAB, it's a gain because there's not
-enough activity going on which results in lots of unused space in the
-slabs (which is, btw, the reason SLUB does slab merging in the first
-place).
+Code size... Does it matter? Is it really performance critical? If you are
+worried about code size, then I will implement them directly with kmalloc
+and kfree for you.
 
-I'm also wondering why you think it's going to increase text size.
-Unless the ACPI code is doing something weird, the kmalloc() and
-kzalloc() shouldn't be a problem at all.
+kmem caches are not exactly an appropriate tool to detect memory leaks. If
+that were the case then we'd have million kmem caches everywhere.
 
-For memory leaks, CONFIG_SLAB_LEAK has been in mainline for a long time
-plus there are the kmemleak patches floating around. So I fail to see
-how it's going to be harder to spot the memory leaks. After all, the
-rest of the kernel manages fine without a special wrapper, so how is
-ACPI any different here?
 
-			Pekka
+> >Because acpi_os_purge_cache seems to want to free all active objects in the
+> >cache, but kmem_cache_shrink actually does nothing of the sort. So there
+> >ends up being a memory leak.
+> >  
+> No. acpi_os_purge_cache wants to free only unused objects, so it is a 
+> direct map to
+
+Ah OK I misread, that's the cache's freelist... ACPI shouldn't be poking
+this button inside the slab allocator anyway, honestly. What is it
+for?
+
+ 
+> >In practice, there are warnings in some of the allocators if this ever
+> >happens and I don't think I have seen these trigger, so perhaps the ACPI
+> >code which calls this never actually cares. But still seems like a good
+> >idea to use the generic code (which seems to get this right)
+> >
+> >Anyway, thanks for the ack. Yes it should help SLAB.
+> >
+> >  
+> NACK.
+
+Is there a reasonable performance or memory win by using kmem cache? If
+not, then they should not be used.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
