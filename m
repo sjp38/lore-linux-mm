@@ -1,63 +1,92 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1LPPi9031287
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 16:25:25 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1LPtox181148
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 16:25:55 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1LPt8B023377
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 16:25:55 -0500
-Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <alpine.LFD.2.00.0812011258390.3256@nehalem.linux-foundation.org>
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
-	 <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
-	 <20081128101919.GO28946@ZenIV.linux.org.uk>
-	 <1228153645.2971.36.camel@nimitz> <493447DD.7010102@cs.columbia.edu>
-	 <1228164679.2971.91.camel@nimitz>
-	 <alpine.LFD.2.00.0812011258390.3256@nehalem.linux-foundation.org>
-Content-Type: text/plain
-Date: Mon, 01 Dec 2008 13:25:45 -0800
-Message-Id: <1228166745.2971.113.camel@nimitz>
+Date: Mon, 1 Dec 2008 13:41:12 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch v2] vmscan: protect zone rotation stats by lru lock
+Message-Id: <20081201134112.24c647ff.akpm@linux-foundation.org>
+In-Reply-To: <E1L6y5T-0003q3-M3@cmpxchg.org>
+References: <E1L6y5T-0003q3-M3@cmpxchg.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+To: Johannes Weiner <hannes@saeurebad.de>
+Cc: torvalds@linux-foundation.org, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-01 at 13:02 -0800, Linus Torvalds wrote:
-> On Mon, 1 Dec 2008, Dave Hansen wrote:
-> > 
-> > Why is this done in two steps?  It first grabs a list of fd numbers
-> > which needs to be validated, then goes back and turns those into 'struct
-> > file's which it saves off.  Is there a problem with doing that
-> > fd->'struct file' conversion under the files->file_lock?
+On Mon, 01 Dec 2008 03:00:35 +0100
+Johannes Weiner <hannes@saeurebad.de> wrote:
+
+> The zone's rotation statistics must not be accessed without the
+> corresponding LRU lock held.  Fix an unprotected write in
+> shrink_active_list().
 > 
-> Umm, why do we even worry about this?
+
+I don't think it really matters.  It's quite common in that code to do
+unlocked, racy update to statistics such as this.  Because on those
+rare occasions where a race does happen, there's a small glitch in the
+reclaim logic which nobody will notice anyway.
+
+Of course, this does need to be done with some care, to ensure the
+glitch _will_ be small.  If such a race would cause the scanner to go
+off and reclaim 2^32 pages, well, that's not so good.
+
 > 
-> Wouldn't it be much better to make sure that all other threads are 
-> stopped before we snapshot, and if we cannot account for some thread (ie 
-> there's some elevated count in the fs/files/mm structures that we cannot 
-> see from the threads we've stopped), just refuse to dump.
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1243,32 +1243,32 @@ static void shrink_active_list(unsigned 
+>  		/* page_referenced clears PageReferenced */
+>  		if (page_mapping_inuse(page) &&
+>  		    page_referenced(page, 0, sc->mem_cgroup))
+>  			pgmoved++;
+>  
+>  		list_add(&page->lru, &l_inactive);
+>  	}
+>  
+> +	spin_lock_irq(&zone->lru_lock);
+>  	/*
+>  	 * Count referenced pages from currently used mappings as
+>  	 * rotated, even though they are moved to the inactive list.
+>  	 * This helps balance scan pressure between file and anonymous
+>  	 * pages in get_scan_ratio.
+>  	 */
+>  	zone->recent_rotated[!!file] += pgmoved;
+>  
+>  	/*
+>  	 * Move the pages to the [file or anon] inactive list.
+>  	 */
+>  	pagevec_init(&pvec, 1);
+>  
+>  	pgmoved = 0;
+>  	lru = LRU_BASE + file * LRU_FILE;
+> -	spin_lock_irq(&zone->lru_lock);
 
-My guess is that the mm is probably ok here, but we'll need some work on
-the vfs structures, at least eventually.
+We've unnecessarily moved a pile of other things inside the locked
+region as well, needlessly extending the lock hold times.
 
-The mm is nice that it has ->count separated from ->users.  We can
-easily compare the sum of mm->users to the number of tasks we've frozen
-since mm->users has nice defined behavior.
+>  	while (!list_empty(&l_inactive)) {
+>  		page = lru_to_page(&l_inactive);
+>  		prefetchw_prev_lru_page(page, &l_inactive, flags);
+>  		VM_BUG_ON(PageLRU(page));
+>  		SetPageLRU(page);
+>  		VM_BUG_ON(!PageActive(page));
+>  		ClearPageActive(page);
+>  
 
-But, we've got suckers like proc_fd_info() that do a
-get/put_files_struct().  So, somebody just doing lots of looks in /proc
-could stop us from ever checkpointing.  Unfortunately, I know of a
-number of "monitoring" programs that do just that. :)
+You'll note that the code which _uses_ these values does so without
+holding the lock.  So get_scan_ratio() sees incoherent values of
+recent_scanned[0] and recent_scanned[1].  As is common in this code,
+that is OK and deliberate.
 
-I guess we can use the plain counts for now, and add something like
-mm->users for the vfs structures in a bit.  
+It's also racy here:
 
--- Dave
+	if (unlikely(zone->recent_scanned[0] > anon / 4)) {
+		spin_lock_irq(&zone->lru_lock);
+		zone->recent_scanned[0] /= 2;
+		zone->recent_rotated[0] /= 2;
+		spin_unlock_irq(&zone->lru_lock);
+	}
+
+failing to recheck the comparison after taking the lock..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
