@@ -1,70 +1,52 @@
-Date: Mon, 1 Dec 2008 17:20:18 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-Message-ID: <20081201162018.GF10790@wotan.suse.de>
-References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <Pine.LNX.4.64.0812010828150.14977@quilx.com> <4933F925.3020907@gmail.com>
-Mime-Version: 1.0
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1GMN3b015117
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:22:23 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1GMjE9172334
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:22:45 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1HMsOw010267
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 12:22:54 -0500
+Date: Mon, 1 Dec 2008 08:22:44 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
+Message-ID: <20081201162244.GA10922@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1227886959.4454.4421.camel@twins> <Pine.LNX.4.64.0812010747100.11954@quilx.com> <1228142895.7140.43.camel@twins> <Pine.LNX.4.64.0812010857040.15331@quilx.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4933F925.3020907@gmail.com>
+In-Reply-To: <Pine.LNX.4.64.0812010857040.15331@quilx.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Starikovskiy <aystarik@gmail.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, hugh <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 01, 2008 at 05:48:05PM +0300, Alexey Starikovskiy wrote:
-> Christoph Lameter wrote:
-> >On Mon, 1 Dec 2008, Pekka Enberg wrote:
+On Mon, Dec 01, 2008 at 09:06:10AM -0600, Christoph Lameter wrote:
+> On Mon, 1 Dec 2008, Peter Zijlstra wrote:
+> > > srcu may have too much of an overhead for this.
 > >
-> >  
-> >>Why do you think Nick's patch is going to _increase_ memory consumption?
-> >>SLUB _already_ merges the ACPI caches with kmalloc caches so you won't
-> >>see any difference there. For SLAB, it's a gain because there's not
-> >>enough activity going on which results in lots of unused space in the
-> >>slabs (which is, btw, the reason SLUB does slab merging in the first
-> >>place).
-> >>    
-> >
-> >The patch is going to increase memory consumption because the use of
-> >the kmalloc array means that the allocated object sizes are rounded up to
-> >the next power of two.
-> >
-> >I would recommend to keep the caches. Subsystem specific caches help to
-> >simplify debugging and track the memory allocated for various purposes in
-> >addition to saving the rounding up to power of two overhead.
-> >And with SLUB the creation of such caches usually does not require
-> >additional memory.
-> >
-> >Maybe it would be best to avoid kmalloc as much as possible.
-> >
-> >  
-> Christoph,
-> Thanks for support, these were my thoughts, when I changed ACPICA to use 
-> kmem_cache instead of
-> it's own on top of kmalloc 4 years ago...
-> Here are two acpi caches on my thinkpad z61m, IMHO any laptop will show 
-> similar numbers:
+> > Then we need to fix that ;-) But surely SRCU is cheaper than mmap_sem.
 > 
-> aystarik@thinkpad:~$ cat /proc/slabinfo | grep Acpi
-> Acpi-ParseExt       2856   2856     72   56    1 : tunables    0    0    
-> 0 : slabdata     51     51      0
-> Acpi-Parse           170    170     48   85    1 : tunables    0    0    
-> 0 : slabdata      2      2      0
-> 
-> Size of first will become 96 and size of second will be 64 if kmalloc is 
-> used, and we don't count ACPICA internal overhead.
-> Number of used blocks is not smallest in the list of slabs, actually it 
-> is among the highest.
+> Holding off frees for a long time (sleeping???) is usually bad for cache
+> hot behavior. It introduces cacheline refetches. Avoid if possible.
 
-Hmm.
-Acpi-Operand        2641   2773     64   59    1 : tunables  120   60    8 : slabdata     47     47     0
-Acpi-ParseExt          0      0     64   59    1 : tunables  120   60    8 : slabdata      0      0     0
-Acpi-Parse             0      0     40   92    1 : tunables  120   60    8 : slabdata      0      0     0
-Acpi-State             0      0     80   48    1 : tunables  120   60    8 : slabdata      0      0     0
-Acpi-Namespace      1711   1792     32  112    1 : tunables  120   60    8 : slabdata     16     16     0
+This is a classic tradeoff.  Cache misses from mmap_sem vs. cache misses
+from accessing newly allocated memory that was freed via RCU (and thus
+was ejected from the CPU cache).
 
-Looks different for my thinkpad.
+This is one reason why RCU is specialized for read-mostly situations.
+In read-mostly situations, the savings due to avoiding cache-thrashy
+locking primitives can outweigh the cache-cold effects due to memory
+waiting for an RCU grace period to elapse.  Plus RCU does not suffer
+so much from lock contention (for exclusive locks or write-acquisitions
+of reader-writer locks) or cache thrashing (for locks in general and
+also most atomic operations).
+
+Your mileage may vary, so use the best tool for the job.  ;-)
+
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
