@@ -1,27 +1,40 @@
-Date: Mon, 1 Dec 2008 08:49:11 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 2/8] badpage: keep any bad page out of circulation
-In-Reply-To: <Pine.LNX.4.64.0812010040330.11401@blonde.site>
-Message-ID: <Pine.LNX.4.64.0812010848160.15331@quilx.com>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010040330.11401@blonde.site>
+Message-ID: <4933F9A1.6080106@redhat.com>
+Date: Mon, 01 Dec 2008 09:50:09 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 04/11] make get_scan_ratio() to memcg safe
+References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081201211342.1CD6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081201211342.1CD6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Hugh Dickins wrote:
+KOSAKI Motohiro wrote:
+> Currently, get_scan_ratio() always calculate the balancing value for global reclaim and
+> memcg reclaim doesn't use it.
+> Therefore it doesn't have scan_global_lru() condition.
+> 
+> However, we plan to expand get_scan_ratio() to be usable for memcg too, latter.
+> Then, The dependency code of global reclaim in the get_scan_ratio() insert into
+> scan_global_lru() condision explictly.
+> 
+> 
+> this patch doesn't have any functional change.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-> Until now the bad_page() checkers have special-cased PageReserved, keeping
-> those pages out of circulation thereafter.  Now extend the special case to
-> all: we want to keep ANY page with bad state out of circulation - the
-> "free" page may well be in use by something.
+Good in principle, though of course this particular corner
+case is not going to change when reclaiming a memcg :)
 
-If I screw up with a VM patch then my machine will now die because of OOM
-instead of letting me shutdown and reboot?
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
