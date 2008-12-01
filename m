@@ -1,45 +1,57 @@
-Received: from localhost.localdomain ([96.237.168.40])
- by vms173007.mailsrvcs.net
- (Sun Java System Messaging Server 6.2-6.01 (built Apr  3 2006))
- with ESMTPA id <0KB7004E3LMOVTZ8@vms173007.mailsrvcs.net> for
- linux-mm@kvack.org; Mon, 01 Dec 2008 11:52:01 -0600 (CST)
-Date: Mon, 01 Dec 2008 12:53:04 -0500 (EST)
-From: Len Brown <lenb@kernel.org>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-In-reply-to: <20081201172044.GB14074@infradead.org>
-Message-id: <alpine.LFD.2.00.0812011241080.3197@localhost.localdomain>
-MIME-version: 1.0
-Content-type: TEXT/PLAIN; charset=US-ASCII
-References: <20081201083128.GB2529@wotan.suse.de>
- <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
- <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com>
- <1228138641.14439.18.camel@penberg-laptop> <4933EE8A.2010007@gmail.com>
- <20081201161404.GE10790@wotan.suse.de> <4934149A.4020604@gmail.com>
- <20081201172044.GB14074@infradead.org>
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1I0GZt024068
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:00:16 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1I0WIe052224
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:00:32 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1I0HMK031742
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:00:20 -0700
+Subject: Re: [RFC v10][PATCH 05/13] Dump memory address space
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081128105351.GQ28946@ZenIV.linux.org.uk>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
+	 <1227747884-14150-6-git-send-email-orenl@cs.columbia.edu>
+	 <20081128105351.GQ28946@ZenIV.linux.org.uk>
+Content-Type: text/plain
+Date: Mon, 01 Dec 2008 10:00:12 -0800
+Message-Id: <1228154412.2971.44.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Alexey Starikovskiy <aystarik@gmail.com>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 2008-11-28 at 10:53 +0000, Al Viro wrote:
+> 
+> > +static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
+> > +{
+> > +     ctx->root_pid = pid;
+> > +
+> > +     /*
+> > +      * assume checkpointer is in container's root vfs
+> > +      * FIXME: this works for now, but will change with real containers
+> > +      */
+> > +     ctx->vfsroot = &current->fs->root;
+> > +     path_get(ctx->vfsroot);
+> 
+> This is going to break as soon as you get another thread doing e.g. chroot(2)
+> while you are in there.
 
-> Or at least stop arguing and throwing bureaucratic stones in the way of
-> those wanting to sort out this mess.
+Yeah, we do need at least a read_lock(&current->fs->lock) to keep people
+from chroot()'ing underneath us.
 
-I think we all would be better served if there were more facts
-and fewer insults on this thread, can we do that please?
+> And it's a really, _really_ bad idea to take a
+> pointer to shared object, increment refcount on the current *contents* of
+> said object and assume that dropping refcount on the later contents of the
+> same will balance out.
 
-I do not think the extra work we need to do for ACPICA changes
-are a significant hurdle here. We will do what is best for Linux --
-which is what we though we were doing when we changed ACPICA
-so Linux could use native caching in the first place.
+Absolutely.  I assume you mean get_fs_struct(current) instead of
+path_get().
 
-The only question that should be on the table here is how
-to make Linux be the best it can be.
-
-thanks,
--Len
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
