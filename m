@@ -1,185 +1,53 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB1A87Z0008411
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Dec 2008 19:08:07 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 550B745DE51
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 19:08:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 200B345DD76
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 19:08:07 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 093391DB8038
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 19:08:07 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA0701DB803B
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 19:08:03 +0900 (JST)
-Date: Mon, 1 Dec 2008 19:07:15 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/4] memcg:  rename scan_global_lru macro
-Message-Id: <20081201190715.20323800.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081201190021.f3ab1f17.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081201190021.f3ab1f17.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Re: [patch][rfc] fs: shrink struct dentry
+From: Andi Kleen <andi@firstfloor.org>
+References: <20081201083343.GC2529@wotan.suse.de>
+Date: Mon, 01 Dec 2008 12:09:12 +0100
+In-Reply-To: <20081201083343.GC2529@wotan.suse.de> (Nick Piggin's message of "Mon, 1 Dec 2008 09:33:43 +0100")
+Message-ID: <87ljv05ezr.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, hugh@veritas.com, nickpiggin@yahoo.com.au, knikanth@suse.de, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
-Rename scan_grobal_lru() to scanning_global_lru().
+Nick Piggin <npiggin@suse.de> writes:
 
-scan_global_lru() sounds like that it does "scan" global lru.
+> Hi,
+> Comments?
+> Thanks,
+> Nick
+>
+> --
+> struct dentry is one of the most critical structures in the kernel. So it's
+> sad to see it going neglected.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Very nice. But the sad thing is that such optimizations tend to quickly
+bit rot again. At least add big fat comments.
 
- mm/vmscan.c |   34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+How does it look like on 32bit hosts?
 
-Index: mmotm-2.6.28-Nov30/mm/vmscan.c
-===================================================================
---- mmotm-2.6.28-Nov30.orig/mm/vmscan.c
-+++ mmotm-2.6.28-Nov30/mm/vmscan.c
-@@ -126,9 +126,9 @@ static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR
--#define scan_global_lru(sc)	(!(sc)->mem_cgroup)
-+#define scanning_global_lru(sc)	(!(sc)->mem_cgroup)
- #else
--#define scan_global_lru(sc)	(1)
-+#define scanning_global_lru(sc)	(1)
- #endif
- 
- /*
-@@ -1124,7 +1124,7 @@ static unsigned long shrink_inactive_lis
- 		__mod_zone_page_state(zone, NR_INACTIVE_ANON,
- 						-count[LRU_INACTIVE_ANON]);
- 
--		if (scan_global_lru(sc)) {
-+		if (scanning_global_lru(sc)) {
- 			zone->pages_scanned += nr_scan;
- 			zone->recent_scanned[0] += count[LRU_INACTIVE_ANON];
- 			zone->recent_scanned[0] += count[LRU_ACTIVE_ANON];
-@@ -1162,7 +1162,7 @@ static unsigned long shrink_inactive_lis
- 		if (current_is_kswapd()) {
- 			__count_zone_vm_events(PGSCAN_KSWAPD, zone, nr_scan);
- 			__count_vm_events(KSWAPD_STEAL, nr_freed);
--		} else if (scan_global_lru(sc))
-+		} else if (scanning_global_lru(sc))
- 			__count_zone_vm_events(PGSCAN_DIRECT, zone, nr_scan);
- 
- 		__count_zone_vm_events(PGSTEAL, zone, nr_freed);
-@@ -1188,7 +1188,7 @@ static unsigned long shrink_inactive_lis
- 			SetPageLRU(page);
- 			lru = page_lru(page);
- 			add_page_to_lru_list(zone, page, lru);
--			if (PageActive(page) && scan_global_lru(sc)) {
-+			if (PageActive(page) && scanning_global_lru(sc)) {
- 				int file = !!page_is_file_cache(page);
- 				zone->recent_rotated[file]++;
- 			}
-@@ -1265,7 +1265,7 @@ static void shrink_active_list(unsigned 
- 	 * zone->pages_scanned is used for detect zone's oom
- 	 * mem_cgroup remembers nr_scan by itself.
- 	 */
--	if (scan_global_lru(sc)) {
-+	if (scanning_global_lru(sc)) {
- 		zone->pages_scanned += pgscanned;
- 		zone->recent_scanned[!!file] += pgmoved;
- 	}
-@@ -1301,7 +1301,7 @@ static void shrink_active_list(unsigned 
- 	 * This helps balance scan pressure between file and anonymous
- 	 * pages in get_scan_ratio.
- 	 */
--	if (scan_global_lru(sc))
-+	if (scanning_global_lru(sc))
- 		zone->recent_rotated[!!file] += pgmoved;
- 
- 	/*
-@@ -1361,7 +1361,7 @@ static unsigned long shrink_list(enum lr
- 	}
- 
- 	if (lru == LRU_ACTIVE_ANON &&
--	    (!scan_global_lru(sc) || inactive_anon_is_low(zone))) {
-+	    (!scanning_global_lru(sc) || inactive_anon_is_low(zone))) {
- 		shrink_active_list(nr_to_scan, zone, sc, priority, file);
- 		return 0;
- 	}
-@@ -1467,7 +1467,7 @@ static void shrink_zone(int priority, st
- 	get_scan_ratio(zone, sc, percent);
- 
- 	for_each_evictable_lru(l) {
--		if (scan_global_lru(sc)) {
-+		if (scanning_global_lru(sc)) {
- 			int file = is_file_lru(l);
- 			int scan;
- 
-@@ -1522,9 +1522,9 @@ static void shrink_zone(int priority, st
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
- 	 */
--	if (!scan_global_lru(sc) || inactive_anon_is_low(zone))
-+	if (!scanning_global_lru(sc) || inactive_anon_is_low(zone))
- 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
--	else if (!scan_global_lru(sc))
-+	else if (!scanning_global_lru(sc))
- 		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
- 
- 	throttle_vm_writeout(sc->gfp_mask);
-@@ -1559,7 +1559,7 @@ static void shrink_zones(int priority, s
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
- 		 */
--		if (scan_global_lru(sc)) {
-+		if (scanning_global_lru(sc)) {
- 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
- 				continue;
- 			note_zone_scanning_priority(zone, priority);
-@@ -1612,12 +1612,12 @@ static unsigned long do_try_to_free_page
- 
- 	delayacct_freepages_start();
- 
--	if (scan_global_lru(sc))
-+	if (scanning_global_lru(sc))
- 		count_vm_event(ALLOCSTALL);
- 	/*
- 	 * mem_cgroup will not do shrink_slab.
- 	 */
--	if (scan_global_lru(sc)) {
-+	if (scanning_global_lru(sc)) {
- 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
- 
- 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-@@ -1636,7 +1636,7 @@ static unsigned long do_try_to_free_page
- 		 * Don't shrink slabs when reclaiming memory from
- 		 * over limit cgroups
- 		 */
--		if (scan_global_lru(sc)) {
-+		if (scanning_global_lru(sc)) {
- 			shrink_slab(sc->nr_scanned, sc->gfp_mask, lru_pages, NULL);
- 			if (reclaim_state) {
- 				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-@@ -1667,7 +1667,7 @@ static unsigned long do_try_to_free_page
- 			congestion_wait(WRITE, HZ/10);
- 	}
- 	/* top priority shrink_zones still had more to do? don't OOM, then */
--	if (!sc->all_unreclaimable && scan_global_lru(sc))
-+	if (!sc->all_unreclaimable && scanning_global_lru(sc))
- 		ret = sc->nr_reclaimed;
- out:
- 	/*
-@@ -1680,7 +1680,7 @@ out:
- 	if (priority < 0)
- 		priority = 0;
- 
--	if (scan_global_lru(sc)) {
-+	if (scanning_global_lru(sc)) {
- 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
- 
- 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+Since the size is variable depending on word size it might be a 
+good idea to auto adjust inline name length to always give a nice
+end result for slab.
+
+Also I think with some effort it would be possible to shrink it more.
+But since you already reached cache lines, it would just allow
+to increase inline name length. Ok perhaps it would help more on 32bit.
+
+Further possibilities to shrink: 
+- Eliminate name.length. It seems of dubious utility
+(in general I'm not sure struct qstr is all that useful)
+- Change some of the children/alias list_heads to hlist_heads. I don't
+think these lists typically need O(1) access to the end.
+- If the maximum mount nest was limited d_mounted could migrate
+into d_flags (that would be probably desparate)
+
+-Andi
+
+-- 
+ak@linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
