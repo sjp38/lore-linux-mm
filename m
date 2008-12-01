@@ -1,110 +1,79 @@
-Date: Mon, 1 Dec 2008 09:52:03 +0100
+Date: Mon, 1 Dec 2008 09:58:44 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-Message-ID: <20081201085203.GB4926@wotan.suse.de>
-References: <20081127120330.GM28285@wotan.suse.de> <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de> <492E97FA.5000804@gmail.com> <20081127130525.GO28285@wotan.suse.de> <492E9C3C.9050507@gmail.com> <20081127131215.GQ28285@wotan.suse.de> <492E9F42.6010808@gmail.com> <20081128121015.GC13786@wotan.suse.de> <4932EBAA.60808@gmail.com>
+Message-ID: <20081201085844.GC4926@wotan.suse.de>
+References: <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <20081127130817.GP28285@wotan.suse.de> <492EEF0C.9040607@google.com> <20081128093713.GB1818@wotan.suse.de> <49307893.4030708@google.com> <4932EF90.9070601@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <4932EBAA.60808@gmail.com>
+In-Reply-To: <4932EF90.9070601@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: =?iso-8859-1?B?VPZy9ms=?= Edwin <edwintorok@gmail.com>
 Cc: Mike Waychison <mikew@google.com>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 30, 2008 at 09:38:18PM +0200, Torok Edwin wrote:
-> On 2008-11-28 14:10, Nick Piggin wrote:
-> > This is what I have.
+On Sun, Nov 30, 2008 at 09:54:56PM +0200, Torok Edwin wrote:
+> On 2008-11-29 01:02, Mike Waychison wrote:
+> > Nick Piggin wrote:
+> >> On Thu, Nov 27, 2008 at 11:03:40AM -0800, Mike Waychison wrote:
+> >>> Nick Piggin wrote:
+> >>>> On Thu, Nov 27, 2008 at 01:28:41AM -0800, Mike Waychison wrote:
+> >>>>> Torok however identified mmap taking on the order of several
+> >>>>> milliseconds due to this exact problem:
+> >>>>>
+> >>>>> http://lkml.org/lkml/2008/9/12/185
+> >>>> Turns out to be a different problem.
+> >>>>
+> >>> What do you mean?
+> >>
+> >> His is just contending on the write side. The retry patch doesn't help.
+> >>
 > >
-> > It does two things. Firstly, it switches x86-64 over to use the xadd
-> > algorithm rather than the spinlock algorithm. This is actually significant
-> > in high contention situations, because the spinlock algorithm doesn't allow
-> > concurrent operations on the lock while the queue of waiters is being
-> > manipulated.
+> > I disagree.  How do you get 'write contention' from the following
+> > paragraph:
 > >
-> > Secondly, it moves wakeups out from underneath the waiter queue lock. This
-> > is more significant on bigger machines where wakeup latency is worse and/or
-> > runqueue locks are very heavily contended.
+> > "Just to confirm that the problem is with pagefaults and mmap, I dropped
+> > the mmap_sem in filemap_fault, and then
+> > I got same performance in my testprogram for mmap and read. Of course
+> > this is totally unsafe, because the mapping could change at any time."
 > >
-> > Now both these changes are going to help *mainly* for the case when there are
-> > a significant number of readers and writers, I think. So your write-heavy
-> > workload may not win anything. I noticed some speedup a long time ago on
-> > some weird java (volanomark) workload.
+> > It reads to me that the writers were held off by the readers sleeping
+> > in IO.
 > 
-> Hi,
+> It is true that I have a write/write contention too, but do_page_fault
+> shows up too on lock_stat.
 > 
-> I just tested your patch on top of tip/master, and my testprogram has
-> segfaulted :(
-> It is either something wrong in tip/master or the patch, or my program.
-> This is the first time this testprogram segfaults, and it doesn't have a
-> reason to segfault there.
+> This is my guess at what happens:
+> * filemap_fault used to sleep with mmap_sem held while waiting for the
+> page lock.
+> * the google patch avoids that, which is fine: if page lock can't be
+> taken, it drops mmap_sem, waits, then retries the fault once
+> * however after we acquired the page lock, mapping->a_ops->readpage is
+> invoked, mmap_sem is NOT dropped here:
 > 
+>     error = mapping->a_ops->readpage(file, page);
+>     if (!error) {
+>         wait_on_page_locked(page);
 > 
-> [  140.624155] scalability[4995]: segfault at 7f9ce137f000 ip
-> 0000000000401a62 sp 00000000454950a0 error 4 in scalability[400000+3000]
-> [  401.640738] scalability[5398]: segfault at 7fdbffba3000 ip
-> 0000000000401a62 sp 00000000423d70a0 error 4 in scalability[400000+3000]
-> 
-> Here is the relevant portion, at 401a62 I read from the mapping:
-> 
-> static void mmap_worker_fn(int fd, off_t len)
-> {
->     char *data = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
->   401a4f:    48 89 c7                 mov    %rax,%rdi
->     if(data == MAP_FAILED) {
->   401a52:    74 36                    je     401a8a <mmap_worker_fn+0x5a>
->         perror("mmap");
->         abort();
->   401a54:    31 d2                    xor    %edx,%edx
->   401a56:    31 c9                    xor    %ecx,%ecx
-> static pthread_mutex_t thrtime_mtx = PTHREAD_MUTEX_INITIALIZER;
-> 
-> static size_t execute(const char *data, size_t len)
-> {
->     size_t sum = 0, i;
->     for(i=0;i<len;++i)
->   401a58:    48 85 db                 test   %rbx,%rbx
->   401a5b:    74 28                    je     401a85 <mmap_worker_fn+0x55>
->   401a5d:    0f 1f 00                 nopl   (%rax)
->         if(data[i] == 'd')
->             ++sum;
->   401a60:    31 c0                    xor    %eax,%eax
->   401a62:    80 3c 17 64              cmpb   $0x64,(%rdi,%rdx,1)
-> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> This simply reads from the mapping
-> 
->   401a66:    0f 94 c0                 sete   %al
-> static pthread_mutex_t thrtime_mtx = PTHREAD_MUTEX_INITIALIZER;
-> 
-> Steps to reproduce:
-> # sync; echo 3 >/proc/sys/vm/drop_caches; sync
-> # echo 0 >/proc/lock_stat
-> $ sudo ./scalability 16 /usr/bin/
-> ... prints out results for read, and while running mmap_worker ...
-> ... a message about segmentation fault ....
-> 
-> The testprogram is available here:
-> http://edwintorok.googlepages.com/tst.tar.gz
-> 
-> My .config:
-> http://edwintorok.googlepages.com/config
-> 
-> Can you reproduce the crash on your box?
-> Can I help debugging the problem?
+> If my understanding is correct ->readpage does the actual disk I/O, and
+> it keeps the page locked, when the lock is released we know it has finished.
+> So wait_on_page_locked(page)  holds mmap_sem locked for read during the
+> disk I/O, preventing sys_mmap/sys_munmap from making progress.
 
-Hi Edwin,
+Yes that's exactly right. Ahh, the google patch doesn't solve this
+case? Interesting...
 
-Drat, sorry. I haven't been able to do very good testing because I'm
-overseas away from my normal test systems :P
 
-The bug is quite likely to be in my patch I sent you by the sound. I
-will definitely try to have you a working patch by next week, if I'm
-unable to reproduce the problem here.
+> I don't know how to prove/disprove my guess above, suggestions welcome.
+> 
+> Could the patch be changed to also release the mmap_sem after readpage,
+> and before wait_on_page_locked?
 
-Thanks,
-Nick
+It should be possible somehow, but it is difficult because after
+dropping mmap_sem, then we have to basically retry the whole fault
+because the vma might have gone away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
