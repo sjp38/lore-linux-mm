@@ -1,106 +1,194 @@
-Date: Mon, 1 Dec 2008 12:13:01 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-Message-ID: <20081201111301.GB13903@wotan.suse.de>
-References: <20081127120330.GM28285@wotan.suse.de> <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de> <492E97FA.5000804@gmail.com> <20081127130525.GO28285@wotan.suse.de> <492E9C3C.9050507@gmail.com> <20081127131215.GQ28285@wotan.suse.de> <492E9F42.6010808@gmail.com> <20081128121015.GC13786@wotan.suse.de> <4932EBAA.60808@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: by wf-out-1314.google.com with SMTP id 28so2603578wfc.11
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 03:18:33 -0800 (PST)
+Message-ID: <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
+Date: Mon, 1 Dec 2008 13:18:33 +0200
+From: "Pekka Enberg" <penberg@cs.helsinki.fi>
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+In-Reply-To: <20081201083128.GB2529@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <4932EBAA.60808@gmail.com>
+References: <20081201083128.GB2529@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?iso-8859-1?B?VPZy9ms=?= Edwin <edwintorok@gmail.com>
-Cc: Mike Waychison <mikew@google.com>, Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 30, 2008 at 09:38:18PM +0200, Torok Edwin wrote:
-> On 2008-11-28 14:10, Nick Piggin wrote:
-> > This is what I have.
-> >
-> > It does two things. Firstly, it switches x86-64 over to use the xadd
-> > algorithm rather than the spinlock algorithm. This is actually significant
-> > in high contention situations, because the spinlock algorithm doesn't allow
-> > concurrent operations on the lock while the queue of waiters is being
-> > manipulated.
-> >
-> > Secondly, it moves wakeups out from underneath the waiter queue lock. This
-> > is more significant on bigger machines where wakeup latency is worse and/or
-> > runqueue locks are very heavily contended.
-> >
-> > Now both these changes are going to help *mainly* for the case when there are
-> > a significant number of readers and writers, I think. So your write-heavy
-> > workload may not win anything. I noticed some speedup a long time ago on
-> > some weird java (volanomark) workload.
-> 
-> Hi,
-> 
-> I just tested your patch on top of tip/master, and my testprogram has
-> segfaulted :(
-> It is either something wrong in tip/master or the patch, or my program.
-> This is the first time this testprogram segfaults, and it doesn't have a
-> reason to segfault there.
-> 
-> 
-> [  140.624155] scalability[4995]: segfault at 7f9ce137f000 ip
-> 0000000000401a62 sp 00000000454950a0 error 4 in scalability[400000+3000]
-> [  401.640738] scalability[5398]: segfault at 7fdbffba3000 ip
-> 0000000000401a62 sp 00000000423d70a0 error 4 in scalability[400000+3000]
-> 
-> Here is the relevant portion, at 401a62 I read from the mapping:
-> 
-> static void mmap_worker_fn(int fd, off_t len)
-> {
->     char *data = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
->   401a4f:    48 89 c7                 mov    %rax,%rdi
->     if(data == MAP_FAILED) {
->   401a52:    74 36                    je     401a8a <mmap_worker_fn+0x5a>
->         perror("mmap");
->         abort();
->   401a54:    31 d2                    xor    %edx,%edx
->   401a56:    31 c9                    xor    %ecx,%ecx
-> static pthread_mutex_t thrtime_mtx = PTHREAD_MUTEX_INITIALIZER;
-> 
-> static size_t execute(const char *data, size_t len)
-> {
->     size_t sum = 0, i;
->     for(i=0;i<len;++i)
->   401a58:    48 85 db                 test   %rbx,%rbx
->   401a5b:    74 28                    je     401a85 <mmap_worker_fn+0x55>
->   401a5d:    0f 1f 00                 nopl   (%rax)
->         if(data[i] == 'd')
->             ++sum;
->   401a60:    31 c0                    xor    %eax,%eax
->   401a62:    80 3c 17 64              cmpb   $0x64,(%rdi,%rdx,1)
-> ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-> This simply reads from the mapping
-> 
->   401a66:    0f 94 c0                 sete   %al
-> static pthread_mutex_t thrtime_mtx = PTHREAD_MUTEX_INITIALIZER;
-> 
-> Steps to reproduce:
-> # sync; echo 3 >/proc/sys/vm/drop_caches; sync
-> # echo 0 >/proc/lock_stat
-> $ sudo ./scalability 16 /usr/bin/
-> ... prints out results for read, and while running mmap_worker ...
-> ... a message about segmentation fault ....
-> 
-> The testprogram is available here:
-> http://edwintorok.googlepages.com/tst.tar.gz
-> 
-> My .config:
-> http://edwintorok.googlepages.com/config
-> 
-> Can you reproduce the crash on your box?
-> Can I help debugging the problem?
+Hi Nick,
 
-BTW. I think your source code (I see you updated it since last posting)
-should be very easy to give good hints to the kernel about the IO. I
-will try a few simple tricks and we can see if they help. (this pattern
-of touching memory corresponds well to how your app works?)
+On Mon, Dec 1, 2008 at 10:31 AM, Nick Piggin <npiggin@suse.de> wrote:
+> What does everyone think about this patch?
 
-Thanks,
-Nick
+Doesn't matter all that much for SLUB which already merges the ACPI
+caches with the generic kmalloc caches. But for SLAB, it's an obvious
+wil so:
+
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+
+> ACPI subsystem creates a handful of kmem caches that are not particularly
+> appropriate. Most of them seem to be empty or nearly empty most of the time,
+> and the others don't have too many objects. In this situation, kmem caches
+> can actually have more overhead than they save.
+>
+> Just use ACPI's generic code for its acpi_cache_t type.
+> ---
+>  drivers/acpi/osl.c              |   85 ----------------------------------------
+>  include/acpi/acmacros.h         |    2
+>  include/acpi/platform/aclinux.h |    9 ----
+>  3 files changed, 3 insertions(+), 93 deletions(-)
+>
+> Index: linux-2.6/include/acpi/acmacros.h
+> ===================================================================
+> --- linux-2.6.orig/include/acpi/acmacros.h
+> +++ linux-2.6/include/acpi/acmacros.h
+> @@ -670,7 +670,7 @@ struct acpi_integer_overlay {
+>  #define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed((acpi_size)(a), ACPI_MEM_PARAMETERS)
+>  #endif
+>  #ifndef ACPI_FREE
+> -#define ACPI_FREE(a)                acpio_os_free(a)
+> +#define ACPI_FREE(a)                acpi_os_free(a)
+>  #endif
+>  #define ACPI_MEM_TRACKING(a)
+>
+> Index: linux-2.6/include/acpi/platform/aclinux.h
+> ===================================================================
+> --- linux-2.6.orig/include/acpi/platform/aclinux.h
+> +++ linux-2.6/include/acpi/platform/aclinux.h
+> @@ -65,7 +65,6 @@
+>  /* Host-dependent types and defines */
+>
+>  #define ACPI_MACHINE_WIDTH          BITS_PER_LONG
+> -#define acpi_cache_t                        struct kmem_cache
+>  #define acpi_spinlock                   spinlock_t *
+>  #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
+>  #define strtoul                     simple_strtoul
+> @@ -73,6 +72,8 @@
+>  /* Full namespace pathname length limit - arbitrary */
+>  #define ACPI_PATHNAME_MAX              256
+>
+> +#define ACPI_USE_LOCAL_CACHE
+> +
+>  #else                          /* !__KERNEL__ */
+>
+>  #include <stdarg.h>
+> @@ -128,12 +129,6 @@ static inline void *acpi_os_allocate_zer
+>        return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+>  }
+>
+> -static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
+> -{
+> -       return kmem_cache_zalloc(cache,
+> -                                irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+> -}
+> -
+>  #define ACPI_ALLOCATE(a)       acpi_os_allocate(a)
+>  #define ACPI_ALLOCATE_ZEROED(a)        acpi_os_allocate_zeroed(a)
+>  #define ACPI_FREE(a)           kfree(a)
+> Index: linux-2.6/drivers/acpi/osl.c
+> ===================================================================
+> --- linux-2.6.orig/drivers/acpi/osl.c
+> +++ linux-2.6/drivers/acpi/osl.c
+> @@ -1212,91 +1212,6 @@ void acpi_os_release_lock(acpi_spinlock
+>        spin_unlock_irqrestore(lockp, flags);
+>  }
+>
+> -#ifndef ACPI_USE_LOCAL_CACHE
+> -
+> -/*******************************************************************************
+> - *
+> - * FUNCTION:    acpi_os_create_cache
+> - *
+> - * PARAMETERS:  name      - Ascii name for the cache
+> - *              size      - Size of each cached object
+> - *              depth     - Maximum depth of the cache (in objects) <ignored>
+> - *              cache     - Where the new cache object is returned
+> - *
+> - * RETURN:      status
+> - *
+> - * DESCRIPTION: Create a cache object
+> - *
+> - ******************************************************************************/
+> -
+> -acpi_status
+> -acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
+> -{
+> -       *cache = kmem_cache_create(name, size, 0, 0, NULL);
+> -       if (*cache == NULL)
+> -               return AE_ERROR;
+> -       else
+> -               return AE_OK;
+> -}
+> -
+> -/*******************************************************************************
+> - *
+> - * FUNCTION:    acpi_os_purge_cache
+> - *
+> - * PARAMETERS:  Cache           - Handle to cache object
+> - *
+> - * RETURN:      Status
+> - *
+> - * DESCRIPTION: Free all objects within the requested cache.
+> - *
+> - ******************************************************************************/
+> -
+> -acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
+> -{
+> -       kmem_cache_shrink(cache);
+> -       return (AE_OK);
+> -}
+> -
+> -/*******************************************************************************
+> - *
+> - * FUNCTION:    acpi_os_delete_cache
+> - *
+> - * PARAMETERS:  Cache           - Handle to cache object
+> - *
+> - * RETURN:      Status
+> - *
+> - * DESCRIPTION: Free all objects within the requested cache and delete the
+> - *              cache object.
+> - *
+> - ******************************************************************************/
+> -
+> -acpi_status acpi_os_delete_cache(acpi_cache_t * cache)
+> -{
+> -       kmem_cache_destroy(cache);
+> -       return (AE_OK);
+> -}
+> -
+> -/*******************************************************************************
+> - *
+> - * FUNCTION:    acpi_os_release_object
+> - *
+> - * PARAMETERS:  Cache       - Handle to cache object
+> - *              Object      - The object to be released
+> - *
+> - * RETURN:      None
+> - *
+> - * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+> - *              the object is deleted.
+> - *
+> - ******************************************************************************/
+> -
+> -acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
+> -{
+> -       kmem_cache_free(cache, object);
+> -       return (AE_OK);
+> -}
+> -#endif
+> -
+>  /**
+>  *     acpi_dmi_dump - dump DMI slots needed for blacklist entry
+>  *
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
