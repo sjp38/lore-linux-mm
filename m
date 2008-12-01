@@ -1,96 +1,207 @@
-Date: Mon, 1 Dec 2008 12:45:50 +0100
+Date: Mon, 1 Dec 2008 13:00:02 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-Message-ID: <20081201114550.GA10790@wotan.suse.de>
-References: <20081123091843.GK30453@elte.hu> <604427e00811251042t1eebded6k9916212b7c0c2ea0@mail.gmail.com> <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com> <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com> <20081127130817.GP28285@wotan.suse.de> <492EEF0C.9040607@google.com> <20081128093713.GB1818@wotan.suse.de> <49307893.4030708@google.com>
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+Message-ID: <20081201120002.GB10790@wotan.suse.de>
+References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <49307893.4030708@google.com>
+In-Reply-To: <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Waychison <mikew@google.com>
-Cc: Ying Han <yinghan@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, edwintorok@gmail.com
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 28, 2008 at 03:02:43PM -0800, Mike Waychison wrote:
-> Nick Piggin wrote:
-> >On Thu, Nov 27, 2008 at 11:03:40AM -0800, Mike Waychison wrote:
-> >>Nick Piggin wrote:
-> >>>On Thu, Nov 27, 2008 at 01:28:41AM -0800, Mike Waychison wrote:
-> >>>>Torok however identified mmap taking on the order of several 
-> >>>>milliseconds due to this exact problem:
-> >>>>
-> >>>>http://lkml.org/lkml/2008/9/12/185
-> >>>Turns out to be a different problem.
-> >>>
-> >>What do you mean?
-> >
-> >His is just contending on the write side. The retry patch doesn't help.
-> >
+On Mon, Dec 01, 2008 at 01:18:33PM +0200, Pekka Enberg wrote:
+> Hi Nick,
 > 
-> I disagree.  How do you get 'write contention' from the following paragraph:
+> On Mon, Dec 1, 2008 at 10:31 AM, Nick Piggin <npiggin@suse.de> wrote:
+> > What does everyone think about this patch?
 > 
-> "Just to confirm that the problem is with pagefaults and mmap, I dropped
-> the mmap_sem in filemap_fault, and then
-> I got same performance in my testprogram for mmap and read. Of course
-> this is totally unsafe, because the mapping could change at any time."
+> Doesn't matter all that much for SLUB which already merges the ACPI
+> caches with the generic kmalloc caches. But for SLAB, it's an obvious
+> wil so:
 > 
-> It reads to me that the writers were held off by the readers sleeping in IO.
+> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-Yeah, I didn't look closely at your patch. I assumed it was dropping the
-mmap_sem for the duration of the IO, so I didn't think there could be
-significant read hold time there. Of course reads would still show up
-somewhat if there is a lot of write contention, but they would not
-necessarily be the cause of the problem.
+Actually I think it is also somewhat of a bugfix (not to mention that it
+seems like a good idea to share testing code with other operating systems).
 
-Anyway...
+Because acpi_os_purge_cache seems to want to free all active objects in the
+cache, but kmem_cache_shrink actually does nothing of the sort. So there
+ends up being a memory leak.
 
+In practice, there are warnings in some of the allocators if this ever
+happens and I don't think I have seen these trigger, so perhaps the ACPI
+code which calls this never actually cares. But still seems like a good
+idea to use the generic code (which seems to get this right)
 
-> >>>>We generally try to avoid such things, but sometimes it a) can't be 
-> >>>>easily avoided (third party libraries for instance) and b) when it hits 
-> >>>>us, it affects the overall health of the machine/cluster (the 
-> >>>>monitoring daemons get blocked, which isn't very healthy).
-> >>>Are you doing appropriate posix_fadvise to prefetch in the files before
-> >>>faulting, and madvise hints if appropriate?
-> >>>
-> >>Yes, we've been slowly rolling out fadvise hints out, though not to 
-> >>prefetch, and definitely not for faulting.  I don't see how issuing a 
-> >>prefetch right before we try to fault in a page is going to help 
-> >>matters.  The pages may appear in pagecache, but they won't be uptodate 
-> >>by the time we look at them anyway, so we're back to square one.
+Anyway, thanks for the ack. Yes it should help SLAB.
+
+> 
+> > ACPI subsystem creates a handful of kmem caches that are not particularly
+> > appropriate. Most of them seem to be empty or nearly empty most of the time,
+> > and the others don't have too many objects. In this situation, kmem caches
+> > can actually have more overhead than they save.
 > >
-> >The whole point of a prefetch is to issue it sufficiently early so
-> >it makes a difference. Actually if you can tell quite well where the
-> >major faults will be, but don't know it sufficiently in advance to
-> >do very good prefetching, then perhaps we could add a new madvise hint
-> >to synchronously bring the page in (dropping the mmap_sem over the IO).
+> > Just use ACPI's generic code for its acpi_cache_t type.
+> > ---
+> >  drivers/acpi/osl.c              |   85 ----------------------------------------
+> >  include/acpi/acmacros.h         |    2
+> >  include/acpi/platform/aclinux.h |    9 ----
+> >  3 files changed, 3 insertions(+), 93 deletions(-)
 > >
-> 
-> Or we could just fix the faulting code to drop the mmap_sem for us?  I'm 
-
-Yeah... I don't exactly call it a "fix"... It's tricky code... In other
-cases you slow down.
-
-Of course we should try to improve the kernel for user workloads, but we
-also need to steer users toward workloads that are going to work well and
-be nice for us to work with and optimise in future.
-
-Threads are more often than not, not a good solution. There is lots of
-other locks in the kernel (and userspace) that are going to slow things
-down. I bet this workload would actually be much faster if the app was
-designed with processes (and shared memory in the cases where it needs
-to be shared).
-
-
-> not sure a new madvise flag could help with the 'starvation hole' issue 
-> you brought up.
-
-Because the madvise is just a hint, but you still go through with the
-fault, so in rare cases yes perhaps the fault will need to re-read the
-page if it has been reclaimed in the meantime, but those are the cases
-where the fault retry code has a chance to have a starvation issue.
+> > Index: linux-2.6/include/acpi/acmacros.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/acpi/acmacros.h
+> > +++ linux-2.6/include/acpi/acmacros.h
+> > @@ -670,7 +670,7 @@ struct acpi_integer_overlay {
+> >  #define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed((acpi_size)(a), ACPI_MEM_PARAMETERS)
+> >  #endif
+> >  #ifndef ACPI_FREE
+> > -#define ACPI_FREE(a)                acpio_os_free(a)
+> > +#define ACPI_FREE(a)                acpi_os_free(a)
+> >  #endif
+> >  #define ACPI_MEM_TRACKING(a)
+> >
+> > Index: linux-2.6/include/acpi/platform/aclinux.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/acpi/platform/aclinux.h
+> > +++ linux-2.6/include/acpi/platform/aclinux.h
+> > @@ -65,7 +65,6 @@
+> >  /* Host-dependent types and defines */
+> >
+> >  #define ACPI_MACHINE_WIDTH          BITS_PER_LONG
+> > -#define acpi_cache_t                        struct kmem_cache
+> >  #define acpi_spinlock                   spinlock_t *
+> >  #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
+> >  #define strtoul                     simple_strtoul
+> > @@ -73,6 +72,8 @@
+> >  /* Full namespace pathname length limit - arbitrary */
+> >  #define ACPI_PATHNAME_MAX              256
+> >
+> > +#define ACPI_USE_LOCAL_CACHE
+> > +
+> >  #else                          /* !__KERNEL__ */
+> >
+> >  #include <stdarg.h>
+> > @@ -128,12 +129,6 @@ static inline void *acpi_os_allocate_zer
+> >        return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+> >  }
+> >
+> > -static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
+> > -{
+> > -       return kmem_cache_zalloc(cache,
+> > -                                irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+> > -}
+> > -
+> >  #define ACPI_ALLOCATE(a)       acpi_os_allocate(a)
+> >  #define ACPI_ALLOCATE_ZEROED(a)        acpi_os_allocate_zeroed(a)
+> >  #define ACPI_FREE(a)           kfree(a)
+> > Index: linux-2.6/drivers/acpi/osl.c
+> > ===================================================================
+> > --- linux-2.6.orig/drivers/acpi/osl.c
+> > +++ linux-2.6/drivers/acpi/osl.c
+> > @@ -1212,91 +1212,6 @@ void acpi_os_release_lock(acpi_spinlock
+> >        spin_unlock_irqrestore(lockp, flags);
+> >  }
+> >
+> > -#ifndef ACPI_USE_LOCAL_CACHE
+> > -
+> > -/*******************************************************************************
+> > - *
+> > - * FUNCTION:    acpi_os_create_cache
+> > - *
+> > - * PARAMETERS:  name      - Ascii name for the cache
+> > - *              size      - Size of each cached object
+> > - *              depth     - Maximum depth of the cache (in objects) <ignored>
+> > - *              cache     - Where the new cache object is returned
+> > - *
+> > - * RETURN:      status
+> > - *
+> > - * DESCRIPTION: Create a cache object
+> > - *
+> > - ******************************************************************************/
+> > -
+> > -acpi_status
+> > -acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
+> > -{
+> > -       *cache = kmem_cache_create(name, size, 0, 0, NULL);
+> > -       if (*cache == NULL)
+> > -               return AE_ERROR;
+> > -       else
+> > -               return AE_OK;
+> > -}
+> > -
+> > -/*******************************************************************************
+> > - *
+> > - * FUNCTION:    acpi_os_purge_cache
+> > - *
+> > - * PARAMETERS:  Cache           - Handle to cache object
+> > - *
+> > - * RETURN:      Status
+> > - *
+> > - * DESCRIPTION: Free all objects within the requested cache.
+> > - *
+> > - ******************************************************************************/
+> > -
+> > -acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
+> > -{
+> > -       kmem_cache_shrink(cache);
+> > -       return (AE_OK);
+> > -}
+> > -
+> > -/*******************************************************************************
+> > - *
+> > - * FUNCTION:    acpi_os_delete_cache
+> > - *
+> > - * PARAMETERS:  Cache           - Handle to cache object
+> > - *
+> > - * RETURN:      Status
+> > - *
+> > - * DESCRIPTION: Free all objects within the requested cache and delete the
+> > - *              cache object.
+> > - *
+> > - ******************************************************************************/
+> > -
+> > -acpi_status acpi_os_delete_cache(acpi_cache_t * cache)
+> > -{
+> > -       kmem_cache_destroy(cache);
+> > -       return (AE_OK);
+> > -}
+> > -
+> > -/*******************************************************************************
+> > - *
+> > - * FUNCTION:    acpi_os_release_object
+> > - *
+> > - * PARAMETERS:  Cache       - Handle to cache object
+> > - *              Object      - The object to be released
+> > - *
+> > - * RETURN:      None
+> > - *
+> > - * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+> > - *              the object is deleted.
+> > - *
+> > - ******************************************************************************/
+> > -
+> > -acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
+> > -{
+> > -       kmem_cache_free(cache, object);
+> > -       return (AE_OK);
+> > -}
+> > -#endif
+> > -
+> >  /**
+> >  *     acpi_dmi_dump - dump DMI slots needed for blacklist entry
+> >  *
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
