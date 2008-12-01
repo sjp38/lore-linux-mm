@@ -1,23 +1,24 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB1642ae021824
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB164tsL002874
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Dec 2008 15:04:02 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 97D8545DE52
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:01 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 446EC45DE50
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:01 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 19E52E18003
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:01 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id C99021DB803B
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:03:56 +0900 (JST)
-Date: Mon, 1 Dec 2008 15:03:08 +0900
+	Mon, 1 Dec 2008 15:04:55 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 604EA45DE52
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E27745DD77
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 228FE1DB803E
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:55 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C74191DB803A
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 15:04:54 +0900 (JST)
+Date: Mon, 1 Dec 2008 15:04:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/3] cgroup: cgroup ID and scanning under RCU.
-Message-Id: <20081201150308.b1825278.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 3/3] memcg: change hierarhcy managenemt to use scan by
+ cgroup ID
+Message-Id: <20081201150406.81b10fc4.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,543 +30,255 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-patch for Cgroup ID and hierarchy code.
+Implement hierarchy reclaim by cgroup_id.
 
-This patch tries to assign a ID to each cgroup. Attach unique ID to each
-cgroup and provides following functions.
-
- - cgroup_lookup(id)
-   returns struct cgroup of id.
- - cgroup_get_next(id, rootid, depth, foundid)
-   returns the next cgroup under "root" by scanning bitmap (not by tree-walk)
- - cgroup_id_put/getref()
-   used when subsystem want to prevent reuse of ID.
-
-There is several reasons to develop this.
-
-	- While trying to implement hierarchy in memory cgroup, we have to
-	  implement "walk under hierarchy" code.
-	  Now it's consists of cgroup_lock and tree up-down code. Because
-	  Because memory cgroup have to do hierarchy walk in other places,
-	  intelligent processing, we'll reuse the "walk" code.
-	  But taking "cgroup_lock" in walking tree can cause deadlocks.
-	  Easier way is helpful.
-
- 	- SwapCgroup uses array of "pointer" to record the owner of swaps.
-	  By ID, we can reduce this to "short" or "int". This means ID is 
-	  useful for reducing space consumption by pointer if the access cost
-	  is not problem.
-	  (I hear bio-cgroup will use the same kind of...)
-
-Example) OOM-Killer under hierarchy.
-	do {
-		rcu_read_lock();
-		next = cgroup_get_next(id, root, nextid);
-		/* check sanity of next here */
-		css_tryget();
-		rcu_read_unlock();
-		if (!next)
-			break;
-		cgroup_scan_tasks(select_bad_process?);
-		/* record score here...*/
-	} while (1);
-
-
-Characteristics: 
-	- Each cgroup get new ID when created.
-	- cgroup ID contains "ID" and "Depth in tree" and hierarchy code.
-	- hierarchy code is array of IDs of ancestors.
-	- ID 0 is UNUSED ID.
-
-Consideration:
-	- I'd like to use  "short" to cgroup_id for saving space...
-	- MAX_DEPTH is small ? (making this depend on boot option is easy.)
 TODO:
-	- Documentation.
+ 	- memsw support isn't good. (maybe using Nishimura's patch is good.)
 
-Changelog (v1) -> (v2):
-	- Design change: show only ID(integer) to outside of cgroup.c
-	- moved cgroup ID definition from include/ to kernel/cgroup.c
-	- struct cgroup_id is freed by RCU.
-	- changed interface from pointer to "int"
-	- kill_sb() is handled. 
-	- ID 0 as unused ID.
+What changes:
+	- reclaim is not done by tree-walk algorithm
+	- mem_cgroup->last_schan_child is ID, not pointer.
+	- no cgroup_lock.
+	- scanning order is just defined by ID's order.
+	  (Scan by round-robin logic.)
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Changelog: v1 -> v2
+	- make use of css_tryget();
+	- count # of loops rather than remembering position.
 
- include/linux/cgroup.h |   28 ++++-
- include/linux/idr.h    |    1 
- kernel/cgroup.c        |  272 ++++++++++++++++++++++++++++++++++++++++++++++++-
- lib/idr.c              |   46 ++++++++
- 4 files changed, 342 insertions(+), 5 deletions(-)
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujisu.com>
 
-Index: mmotm-2.6.28-Nov29/include/linux/cgroup.h
+
+ mm/memcontrol.c |  176 +++++++++++++++++---------------------------------------
+ 1 file changed, 55 insertions(+), 121 deletions(-)
+
+Index: mmotm-2.6.28-Nov29/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.28-Nov29.orig/include/linux/cgroup.h
-+++ mmotm-2.6.28-Nov29/include/linux/cgroup.h
-@@ -22,6 +22,7 @@ struct cgroupfs_root;
- struct cgroup_subsys;
- struct inode;
- struct cgroup;
-+struct cgroup_id;
+--- mmotm-2.6.28-Nov29.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Nov29/mm/memcontrol.c
+@@ -146,9 +146,11 @@ struct mem_cgroup {
  
- extern int cgroup_init_early(void);
- extern int cgroup_init(void);
-@@ -63,6 +64,12 @@ struct cgroup_subsys_state {
- 	unsigned long flags;
- };
- 
-+/*
-+ * Cgroup ID for *internal* identification and lookup. For user-land,"path"
-+ * of cgroup works well.
-+ */
-+#define MAX_CGROUP_DEPTH	(10)
-+
- /* bits in struct cgroup_subsys_state flags field */
- enum {
- 	CSS_ROOT, /* This CSS is the root of the subsystem */
-@@ -162,6 +169,9 @@ struct cgroup {
- 	int pids_use_count;
- 	/* Length of the current tasks_pids array */
- 	int pids_length;
-+
-+	/* Cgroup ID */
-+	struct cgroup_id	*id;
- };
- 
- /* A css_set is a structure holding pointers to a set of
-@@ -346,7 +356,6 @@ struct cgroup_subsys {
- 			struct cgroup *cgrp);
- 	void (*post_clone)(struct cgroup_subsys *ss, struct cgroup *cgrp);
- 	void (*bind)(struct cgroup_subsys *ss, struct cgroup *root);
--
- 	int subsys_id;
- 	int active;
- 	int disabled;
-@@ -410,6 +419,23 @@ void cgroup_iter_end(struct cgroup *cgrp
- int cgroup_scan_tasks(struct cgroup_scanner *scan);
- int cgroup_attach_task(struct cgroup *, struct task_struct *);
- 
-+/*
-+ * For supporting cgroup lookup and hierarchy management.
-+ * Giving Flat view of cgroup hierarchy rather than tree.
-+ */
-+/* An interface for usual lookup */
-+struct cgroup *cgroup_lookup(int id);
-+/* get next cgroup under tree (for scan) */
-+struct cgroup *
-+cgroup_get_next(int id, int rootid, int depth, int *foundid);
-+/* get id and depth of cgroup */
-+int cgroup_id(struct cgroup *cgroup);
-+int cgroup_depth(struct cgroup *cgroup);
-+/* For delayed freeing of IDs */
-+void cgroup_id_getref(int id);
-+void cgroup_id_putref(int id);
-+bool cgroup_id_is_obsolete(int id);
-+
- #else /* !CONFIG_CGROUPS */
- 
- static inline int cgroup_init_early(void) { return 0; }
-Index: mmotm-2.6.28-Nov29/kernel/cgroup.c
-===================================================================
---- mmotm-2.6.28-Nov29.orig/kernel/cgroup.c
-+++ mmotm-2.6.28-Nov29/kernel/cgroup.c
-@@ -46,7 +46,7 @@
- #include <linux/cgroupstats.h>
- #include <linux/hash.h>
- #include <linux/namei.h>
--
-+#include <linux/idr.h>
- #include <asm/atomic.h>
- 
- static DEFINE_MUTEX(cgroup_mutex);
-@@ -545,6 +545,253 @@ void cgroup_unlock(void)
- }
+ 	/*
+ 	 * While reclaiming in a hiearchy, we cache the last child we
+-	 * reclaimed from. Protected by cgroup_lock()
++	 * reclaimed from.
+ 	 */
+-	struct mem_cgroup *last_scanned_child;
++	spinlock_t	scan_lock;
++	int	last_scan_child;
++	unsigned long	scan_age;
+ 	/*
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+@@ -475,104 +477,44 @@ unsigned long mem_cgroup_isolate_pages(u
+ 	container_of(counter, struct mem_cgroup, member)
  
  /*
-+ * CGROUP ID
-+ */
-+struct cgroup_id {
-+	struct cgroup *myself;
-+	unsigned int  id;
-+	unsigned int  depth;
-+	atomic_t      refcnt;
-+	struct rcu_head rcu_head;
-+	unsigned int  hierarchy_code[MAX_CGROUP_DEPTH];
-+};
-+
-+void free_cgroupid_cb(struct rcu_head *head)
-+{
-+	struct cgroup_id *id;
-+
-+	id = container_of(head, struct cgroup_id, rcu_head);
-+	kfree(id);
-+}
-+
-+void free_cgroupid(struct cgroup_id *id)
-+{
-+	call_rcu(&id->rcu_head, free_cgroupid_cb);
-+}
-+
-+/*
-+ * Cgroup ID and lookup functions.
-+ * cgid->myself pointer is safe under rcu_read_lock() because d_put() of
-+ * cgroup, which finally frees cgroup pointer, uses rcu_synchronize().
-+ */
-+static DEFINE_IDR(cgroup_idr);
-+DEFINE_SPINLOCK(cgroup_idr_lock);
-+
-+static int cgrouproot_setup_idr(struct cgroupfs_root *root)
-+{
-+	struct cgroup_id *newid;
-+	int err = -ENOMEM;
-+	int myid;
-+
-+	newid = kzalloc(sizeof(*newid), GFP_KERNEL);
-+	if (!newid)
-+		goto out;
-+	if (!idr_pre_get(&cgroup_idr, GFP_KERNEL))
-+		goto free_out;
-+
-+	spin_lock_irq(&cgroup_idr_lock);
-+	err = idr_get_new_above(&cgroup_idr, newid, 1, &myid);
-+	spin_unlock_irq(&cgroup_idr_lock);
-+
-+	/* This one is new idr....*/
-+	BUG_ON(err);
-+	newid->id = myid;
-+	newid->depth = 0;
-+	newid->hierarchy_code[0] = myid;
-+	atomic_set(&newid->refcnt, 1);
-+	rcu_assign_pointer(newid->myself, &root->top_cgroup);
-+	root->top_cgroup.id = newid;
-+	return 0;
-+
-+free_out:
-+	kfree(newid);
-+out:
-+	return err;
-+}
-+
-+/*
-+ * should be called while "cgrp" is valid.
-+ */
-+int cgroup_id(struct cgroup *cgrp)
-+{
-+	if (cgrp->id)
-+		return cgrp->id->id;
-+	return 0;
-+}
-+
-+int cgroup_depth(struct cgroup *cgrp)
-+{
-+	if (cgrp->id)
-+		return cgrp->id->depth;
-+	return 0;
-+}
-+
-+static int cgroup_prepare_id(struct cgroup *parent, struct cgroup_id **id)
-+{
-+	struct cgroup_id *newid;
-+	int myid, error;
-+
-+	/* check depth */
-+	if (parent->id->depth + 1 >= MAX_CGROUP_DEPTH)
-+		return -ENOSPC;
-+	newid = kzalloc(sizeof(*newid), GFP_KERNEL);
-+	if (!newid)
-+		return -ENOMEM;
-+	/* get id */
-+	if (unlikely(!idr_pre_get(&cgroup_idr, GFP_KERNEL))) {
-+		error = -ENOMEM;
-+		goto err_out;
-+	}
-+	spin_lock_irq(&cgroup_idr_lock);
-+	/* Don't use 0 */
-+	error = idr_get_new_above(&cgroup_idr, newid, 1, &myid);
-+	spin_unlock_irq(&cgroup_idr_lock);
-+	if (error)
-+		goto err_out;
-+
-+	newid->id = myid;
-+	atomic_set(&newid->refcnt, 1);
-+	*id = newid;
-+	return 0;
-+err_out:
-+	kfree(newid);
-+	return error;
-+}
-+
-+
-+static void cgroup_id_attach(struct cgroup_id *cgid,
-+			     struct cgroup *cg, struct cgroup *parent)
-+{
-+	struct cgroup_id *parent_id = parent->id;
-+	int i;
-+
-+	cgid->depth = parent_id->depth + 1;
-+	/* Inherit hierarchy code from parent */
-+	for (i = 0; i < cgid->depth; i++) {
-+		cgid->hierarchy_code[i] =
-+			parent_id->hierarchy_code[i];
-+		cgid->hierarchy_code[cgid->depth] = cgid->id;
-+	}
-+	rcu_assign_pointer(cgid->myself, cg);
-+	cg->id = cgid;
-+
-+	return;
-+}
-+static void cgroup_id_put(int id)
-+{
-+	struct cgroup_id *cgid;
+- * This routine finds the DFS walk successor. This routine should be
+- * called with cgroup_mutex held
++ * This routine select next memcg by ID. Using RCU and tryget().
++ * No cgroup_mutex is required.
+  */
+ static struct mem_cgroup *
+-mem_cgroup_get_next_node(struct mem_cgroup *curr, struct mem_cgroup *root_mem)
++mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+ {
+-	struct cgroup *cgroup, *curr_cgroup, *root_cgroup;
+-
+-	curr_cgroup = curr->css.cgroup;
+-	root_cgroup = root_mem->css.cgroup;
+-
+-	if (!list_empty(&curr_cgroup->children)) {
+-		/*
+-		 * Walk down to children
+-		 */
+-		mem_cgroup_put(curr);
+-		cgroup = list_entry(curr_cgroup->children.next,
+-						struct cgroup, sibling);
+-		curr = mem_cgroup_from_cont(cgroup);
+-		mem_cgroup_get(curr);
+-		goto done;
+-	}
+-
+-visit_parent:
+-	if (curr_cgroup == root_cgroup) {
+-		mem_cgroup_put(curr);
+-		curr = root_mem;
+-		mem_cgroup_get(curr);
+-		goto done;
+-	}
+-
+-	/*
+-	 * Goto next sibling
+-	 */
+-	if (curr_cgroup->sibling.next != &curr_cgroup->parent->children) {
+-		mem_cgroup_put(curr);
+-		cgroup = list_entry(curr_cgroup->sibling.next, struct cgroup,
+-						sibling);
+-		curr = mem_cgroup_from_cont(cgroup);
+-		mem_cgroup_get(curr);
+-		goto done;
+-	}
+-
+-	/*
+-	 * Go up to next parent and next parent's sibling if need be
+-	 */
+-	curr_cgroup = curr_cgroup->parent;
+-	goto visit_parent;
+-
+-done:
+-	root_mem->last_scanned_child = curr;
+-	return curr;
+-}
+-
+-/*
+- * Visit the first child (need not be the first child as per the ordering
+- * of the cgroup list, since we track last_scanned_child) of @mem and use
+- * that to reclaim free pages from.
+- */
+-static struct mem_cgroup *
+-mem_cgroup_get_first_node(struct mem_cgroup *root_mem)
+-{
+-	struct cgroup *cgroup;
++	struct cgroup *cgroup, *root_cgroup;
+ 	struct mem_cgroup *ret;
+-	struct mem_cgroup *last_scan = root_mem->last_scanned_child;
+-	bool obsolete = false;
++	int nextid, rootid, depth, found;
 +	unsigned long flags;
-+
+ 
+-	if (last_scan) {
+-		if (css_under_removal(&last_scan->css))
+-			obsolete = true;
+-	} else
+-		obsolete = true;
++	root_cgroup = root_mem->css.cgroup;
++	rootid = cgroup_id(root_cgroup);
++	depth = cgroup_depth(root_cgroup);
++	found = 0;
++	ret = NULL;
 +	rcu_read_lock();
-+	cgid = idr_find(&cgroup_idr, id);
-+	BUG_ON(!cgid);
-+	if (atomic_dec_and_test(&cgid->refcnt)) {
-+		spin_lock_irqsave(&cgroup_idr_lock, flags);
-+		idr_remove(&cgroup_idr, cgid->id);
-+		spin_unlock_irq(&cgroup_idr_lock);
-+		free_cgroupid(cgid);
-+	}
-+	rcu_read_unlock();
-+}
-+
-+static void cgroup_id_detach(struct cgroup *cg)
-+{
-+	rcu_assign_pointer(cg->id->myself, NULL);
-+	cgroup_id_put(cg->id->id);
-+}
-+
-+void cgroup_id_getref(int id)
-+{
-+	struct cgroup_id *cgid;
-+
-+	rcu_read_lock();
-+	cgid = idr_find(&cgroup_idr, id);
-+	if (cgid)
-+		atomic_inc(&cgid->refcnt);
-+	rcu_read_unlock();
-+}
-+
-+void cgroup_id_putref(int id)
-+{
-+	cgroup_id_put(id);
-+}
-+/**
-+ * cgroup_lookup - lookup cgroup by id
-+ * @id: the id of cgroup to be looked up
-+ *
-+ * Returns pointer to cgroup if there is valid cgroup with id, NULL if not.
-+ * Should be called under rcu_read_lock() or cgroup_lock.
-+ * If subsys is not used, returns NULL.
-+ */
-+
-+struct cgroup *cgroup_lookup(int id)
-+{
-+	struct cgroup *cgrp = NULL;
-+	struct cgroup_id *cgid = NULL;
-+
-+	rcu_read_lock();
-+	cgid = idr_find(&cgroup_idr, id);
-+
-+	if (unlikely(!cgid))
-+		goto out;
-+
-+	cgrp = rcu_dereference(cgid->myself);
-+	if (unlikely(!cgrp || cgroup_is_removed(cgrp)))
-+		cgrp = NULL;
-+out:
-+	rcu_read_unlock();
-+	return cgrp;
-+}
-+
-+/**
-+ * cgroup_get_next - lookup next cgroup under specified hierarchy.
-+ * @id: current position of iteration.
-+ * @rootid: search tree under this.
-+ * @depth: depth of root id.
-+ * @foundid: position of found object.
-+ *
-+ * Search next cgroup under the specified hierarchy. If "cur" is NULL,
-+ * start from root cgroup. Called under rcu_read_lock() or cgroup_lock()
-+ * is necessary (to access a found cgroup.).
-+ * If subsys is not used, returns NULL. If used, it's guaranteed that there is
-+ * a used cgroup ID (root).
-+ */
-+struct cgroup *
-+cgroup_get_next(int id, int rootid, int depth, int *foundid)
-+{
-+	struct cgroup *ret = NULL;
-+	struct cgroup_id *tmp;
-+	int tmpid;
-+	unsigned long flags;
-+
-+	rcu_read_lock();
-+	tmpid = id;
-+	while (1) {
-+		/* scan next entry from bitmap(tree) */
-+		spin_lock_irqsave(&cgroup_idr_lock, flags);
-+		tmp = idr_get_next(&cgroup_idr, &tmpid);
-+		spin_unlock_irqrestore(&cgroup_idr_lock, flags);
-+
-+		if (!tmp) {
-+			ret = NULL;
-+			break;
+ 
+-	/*
+-	 * Scan all children under the mem_cgroup mem
+-	 */
+-	cgroup_lock();
+-	if (list_empty(&root_mem->css.cgroup->children)) {
+-		ret = root_mem;
+-		goto done;
++	while (!ret) {
++		/* ID:0 is not used by cgroup-id */
++		nextid = root_mem->last_scan_child + 1;
++		cgroup = cgroup_get_next(nextid, rootid, depth, &found);
++		if (cgroup) {
++			spin_lock_irqsave(&root_mem->scan_lock, flags);
++			root_mem->last_scan_child = found;
++			spin_unlock_irqrestore(&root_mem->scan_lock, flags);
++			ret = mem_cgroup_from_cont(cgroup);
++			if (!css_tryget(&ret->css))
++				ret = NULL;
++		} else {
++			spin_lock_irqsave(&root_mem->scan_lock, flags);
++			root_mem->scan_age++;
++			root_mem->last_scan_child = 0;
++			spin_unlock_irqrestore(&root_mem->scan_lock, flags);
 +		}
-+
-+		if (tmp->hierarchy_code[depth] == rootid) {
-+			ret = rcu_dereference(tmp->myself);
-+			/* Sanity check and check hierarchy */
-+			if (ret && !cgroup_is_removed(ret))
-+				break;
-+		}
-+		tmpid = tmpid + 1;
-+	}
-+
-+	rcu_read_unlock();
-+	*foundid = tmpid;
-+	return ret;
-+}
-+
-+/*
-  * A couple of forward declarations required, due to cyclic reference loop:
-  * cgroup_mkdir -> cgroup_create -> cgroup_populate_dir ->
-  * cgroup_add_file -> cgroup_create_file -> cgroup_dir_inode_operations
-@@ -1039,6 +1286,13 @@ static int cgroup_get_sb(struct file_sys
- 			mutex_unlock(&inode->i_mutex);
- 			goto drop_new_super;
- 		}
-+		/* Setup Cgroup ID for this fs */
-+		ret = cgrouproot_setup_idr(root);
-+		if (ret) {
-+			mutex_unlock(&cgroup_mutex);
-+			mutex_unlock(&inode->i_mutex);
-+			goto drop_new_super;
-+		}
- 
- 		ret = rebind_subsystems(root, root->subsys_bits);
- 		if (ret == -EBUSY) {
-@@ -1125,9 +1379,10 @@ static void cgroup_kill_sb(struct super_
- 
- 	list_del(&root->root_list);
- 	root_count--;
--
-+	if (root->top_cgroup.id)
-+		cgroup_id_detach(&root->top_cgroup);
- 	mutex_unlock(&cgroup_mutex);
--
-+	synchronize_rcu();
- 	kfree(root);
- 	kill_litter_super(sb);
- }
-@@ -2360,11 +2615,18 @@ static long cgroup_create(struct cgroup 
- 	int err = 0;
- 	struct cgroup_subsys *ss;
- 	struct super_block *sb = root->sb;
-+	struct cgroup_id *cgid = NULL;
- 
- 	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
- 	if (!cgrp)
- 		return -ENOMEM;
- 
-+	err = cgroup_prepare_id(parent, &cgid);
-+	if (err) {
-+		kfree(cgrp);
-+		return err;
-+	}
-+
- 	/* Grab a reference on the superblock so the hierarchy doesn't
- 	 * get deleted on unmount if there are child cgroups.  This
- 	 * can be done outside cgroup_mutex, since the sb can't
-@@ -2404,7 +2666,7 @@ static long cgroup_create(struct cgroup 
- 
- 	err = cgroup_populate_dir(cgrp);
- 	/* If err < 0, we have a half-filled directory - oh well ;) */
--
-+	cgroup_id_attach(cgid, cgrp, parent);
- 	mutex_unlock(&cgroup_mutex);
- 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
- 
-@@ -2512,6 +2774,8 @@ static int cgroup_rmdir(struct inode *un
- 		return -EBUSY;
  	}
++	rcu_read_unlock();
  
-+	cgroup_id_detach(cgrp);
-+
- 	spin_lock(&release_list_lock);
- 	set_bit(CGRP_REMOVED, &cgrp->flags);
+-	if (!root_mem->last_scanned_child || obsolete) {
+-
+-		if (obsolete)
+-			mem_cgroup_put(root_mem->last_scanned_child);
+-
+-		cgroup = list_first_entry(&root_mem->css.cgroup->children,
+-				struct cgroup, sibling);
+-		ret = mem_cgroup_from_cont(cgroup);
+-		mem_cgroup_get(ret);
+-	} else
+-		ret = mem_cgroup_get_next_node(root_mem->last_scanned_child,
+-						root_mem);
+-
+-done:
+-	root_mem->last_scanned_child = ret;
+-	cgroup_unlock();
+ 	return ret;
+ }
  
-Index: mmotm-2.6.28-Nov29/include/linux/idr.h
-===================================================================
---- mmotm-2.6.28-Nov29.orig/include/linux/idr.h
-+++ mmotm-2.6.28-Nov29/include/linux/idr.h
-@@ -106,6 +106,7 @@ int idr_get_new(struct idr *idp, void *p
- int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
- int idr_for_each(struct idr *idp,
- 		 int (*fn)(int id, void *p, void *data), void *data);
-+void *idr_get_next(struct idr *idp, int *nextid);
- void *idr_replace(struct idr *idp, void *ptr, int id);
- void idr_remove(struct idr *idp, int id);
- void idr_remove_all(struct idr *idp);
-Index: mmotm-2.6.28-Nov29/lib/idr.c
-===================================================================
---- mmotm-2.6.28-Nov29.orig/lib/idr.c
-+++ mmotm-2.6.28-Nov29/lib/idr.c
-@@ -573,6 +573,52 @@ int idr_for_each(struct idr *idp,
- EXPORT_SYMBOL(idr_for_each);
+@@ -586,37 +528,25 @@ done:
+ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 						gfp_t gfp_mask, bool noswap)
+ {
+-	struct mem_cgroup *next_mem;
++	struct mem_cgroup *victim;
++	unsigned long start_age;
+ 	int ret = 0;
++	int total = 0;
  
- /**
-+ * idr_get_next - lookup next object of id to given id.
-+ * @idp: idr handle
-+ * @id:  pointer to lookup key
-+ *
-+ * Returns pointer to registered object with id, which is next number to
-+ * given id.
-+ */
+-	/*
+-	 * Reclaim unconditionally and don't check for return value.
+-	 * We need to reclaim in the current group and down the tree.
+-	 * One might think about checking for children before reclaiming,
+-	 * but there might be left over accounting, even after children
+-	 * have left.
+-	 */
+-	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap);
+-	if (res_counter_check_under_limit(&root_mem->res))
+-		return 0;
+-
+-	next_mem = mem_cgroup_get_first_node(root_mem);
+-
+-	while (next_mem != root_mem) {
+-		if (css_under_removal(&next_mem->css)) {
+-			mem_cgroup_put(next_mem);
+-			cgroup_lock();
+-			next_mem = mem_cgroup_get_first_node(root_mem);
+-			cgroup_unlock();
+-			continue;
+-		}
+-		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap);
++	start_age = root_mem->scan_age;
++	/* allows 2 times of loops */
++	while (time_after((start_age + 2UL), root_mem->scan_age)) {
++		victim = mem_cgroup_select_victim(root_mem);
++		ret = try_to_free_mem_cgroup_pages(victim, gfp_mask, noswap);
++		css_put(&victim->css);
+ 		if (res_counter_check_under_limit(&root_mem->res))
+-			return 0;
+-		cgroup_lock();
+-		next_mem = mem_cgroup_get_next_node(next_mem, root_mem);
+-		cgroup_unlock();
++			return 1;
++		total += ret;
+ 	}
++	ret = total;
++	if (res_counter_check_under_limit(&root_mem->res))
++		ret = 1;
 +
-+void *idr_get_next(struct idr *idp, int *nextidp)
-+{
-+	struct idr_layer *p, *pa[MAX_LEVEL];
-+	struct idr_layer **paa = &pa[0];
-+	int id = *nextidp;
-+	int n, max;
-+
-+	/* find first ent */
-+	n = idp->layers * IDR_BITS;
-+	max = 1 << n;
-+	p = rcu_dereference(idp->top);
-+	if (!p)
-+		return NULL;
-+
-+	while (id < max) {
-+		while (n > 0 && p) {
-+			n -= IDR_BITS;
-+			*paa++ = p;
-+			p = rcu_dereference(p->ary[(id >> n) & IDR_MASK]);
-+		}
-+
-+		if (p) {
-+			*nextidp = id;
-+			return p;
-+		}
-+
-+		id += 1 << n;
-+		while (n < fls(id)) {
-+			n += IDR_BITS;
-+			p = *--paa;
-+		}
-+	}
-+	return NULL;
-+}
-+
-+
-+
-+/**
-  * idr_replace - replace pointer for given id
-  * @idp: idr handle
-  * @ptr: pointer you want associated with the id
+ 	return ret;
+ }
+ 
+@@ -705,6 +635,8 @@ static int __mem_cgroup_try_charge(struc
+ 
+ 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
+ 							noswap);
++		if (ret)
++			continue;
+ 
+ 		/*
+ 		 * try_to_free_mem_cgroup_pages() might not give us a full
+@@ -1981,8 +1913,9 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		res_counter_init(&mem->res, NULL);
+ 		res_counter_init(&mem->memsw, NULL);
+ 	}
+-
+-	mem->last_scanned_child = NULL;
++	spin_lock_init(&mem->scan_lock);
++	mem->last_scan_child = 0;
++	mem->scan_age = 0;
+ 
+ 	return &mem->css;
+ free_out:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
