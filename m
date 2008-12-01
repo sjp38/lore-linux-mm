@@ -1,54 +1,45 @@
-Received: by an-out-0708.google.com with SMTP id d14so910522and.26
-        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 09:48:25 -0800 (PST)
-Message-ID: <84144f020812010948m78f550frac44be276b5296bc@mail.gmail.com>
-Date: Mon, 1 Dec 2008 19:48:24 +0200
-From: "Pekka Enberg" <penberg@cs.helsinki.fi>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-In-Reply-To: <493420B2.8050907@gmail.com>
+Received: by ug-out-1314.google.com with SMTP id 34so2558745ugf.19
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 09:49:30 -0800 (PST)
+Message-ID: <493423A7.6050907@gmail.com>
+Date: Mon, 01 Dec 2008 20:49:27 +0300
+From: Alexey Starikovskiy <aystarik@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <4933EE8A.2010007@gmail.com> <20081201161404.GE10790@wotan.suse.de> <4934149A.4020604@gmail.com> <20081201172044.GB14074@infradead.org>
+In-Reply-To: <20081201172044.GB14074@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20081201083128.GB2529@wotan.suse.de>
-	 <1228138641.14439.18.camel@penberg-laptop>
-	 <Pine.LNX.4.64.0812010828150.14977@quilx.com>
-	 <4933F925.3020907@gmail.com> <20081201162018.GF10790@wotan.suse.de>
-	 <49341915.5000900@gmail.com> <20081201171219.GI10790@wotan.suse.de>
-	 <84144f020812010925r6c5f9c85p32f180c06085b496@mail.gmail.com>
-	 <84144f020812010932l540b26dr57716d8abea2562@mail.gmail.com>
-	 <493420B2.8050907@gmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexey Starikovskiy <aystarik@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 1, 2008 at 7:36 PM, Alexey Starikovskiy <aystarik@gmail.com> wrote:
->> [ The size of ACPI kmem caches with wasted bytes per object in
->> parenthesis. ]
->>
->>                 32-bit size  64-bit size
->>  Acpi-Namespace  24 (8)       32 (0)
->>  Acpi-Operand    40 (24)      72 (24)
->>  Acpi-Parse      32 (0)       48 (16)
->>  Acpi-ParseExt   44 (20)      72 (24)
->>  Acpi-State      44 (20)      80 (16)
->>
->> Though I suspect this situation could be improved by avoiding those
->> fairly big unions ACPI does (like union acpi_operand_object).
+Christoph Hellwig wrote:
+> On Mon, Dec 01, 2008 at 07:45:14PM +0300, Alexey Starikovskiy wrote:
+>   
+>> You would laugh, this is due to Windows userspace debug library -- it  
+>> checks for
+>> memory leaks by default, and it takes ages to do this.
+>> And ACPICA maintainer is sitting on Windows, so he _cares_.
+>>     
 >
-> No, last time I checked, operand may get down to 16 bytes in 32-bit case --
-> save byte by having 3 types of operands... and making 2 more caches :)
+> So what about getting a non-moronic maintainer instead?  Really this
+> whole ACPI code is a piece of turd exactly because of shit like this.
+> Can't Intel get their act together and do a proper ACPI implementation
+> for Linux instead of this junk?
+>
+> Or at least stop arguing and throwing bureaucratic stones in the way of
+> those wanting to sort out this mess.
+>
+>   
+Christoph, please, I don't work for Intel :)
+How long will it take for _you_ to write another ACPICA ?
+I assume it will be shining diamond?
 
-I'm not sure what you mean. I wasn't suggesting adding new caches but
-instead, avoid big unions and allocate plain structs with kmalloc()
-instead. If you look at union acpi_operand_object, for example, it's
-such a bad fit on 64-bit (72 bytes) only because of struct
-acpi_object_mutex. Other structs in that union fit in a kmalloc-64
-cache just fine.
+Regards,
+Alex.
 
-So really, ACPI should probably be fixing the unions rather than paper
-over the problem by adding new kmem caches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
