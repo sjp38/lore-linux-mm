@@ -1,33 +1,37 @@
-Date: Mon, 1 Dec 2008 19:04:55 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] fs: shrink struct dentry
-Message-ID: <20081201180455.GJ10790@wotan.suse.de>
-References: <20081201083343.GC2529@wotan.suse.de> <20081201175113.GA16828@totally.trollied.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081201175113.GA16828@totally.trollied.org.uk>
+Date: Mon, 1 Dec 2008 12:09:33 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+In-Reply-To: <493420B2.8050907@gmail.com>
+Message-ID: <Pine.LNX.4.64.0812011207400.16919@quilx.com>
+References: <20081201083128.GB2529@wotan.suse.de>  <20081201120002.GB10790@wotan.suse.de>
+ <4933E2C3.4020400@gmail.com>  <1228138641.14439.18.camel@penberg-laptop>
+ <Pine.LNX.4.64.0812010828150.14977@quilx.com>  <4933F925.3020907@gmail.com>
+ <20081201162018.GF10790@wotan.suse.de>  <49341915.5000900@gmail.com>
+ <20081201171219.GI10790@wotan.suse.de>  <84144f020812010925r6c5f9c85p32f180c06085b496@mail.gmail.com>
+ <84144f020812010932l540b26dr57716d8abea2562@mail.gmail.com> <493420B2.8050907@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Levon <levon@movementarian.org>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
+To: Alexey Starikovskiy <aystarik@gmail.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 01, 2008 at 05:51:13PM +0000, John Levon wrote:
-> On Mon, Dec 01, 2008 at 09:33:43AM +0100, Nick Piggin wrote:
-> 
-> > I then got rid of the d_cookie pointer. This shrinks it to 192 bytes. Rant:
-> > why was this ever a good idea? The cookie system should increase its hash
-> > size or use a tree or something if lookups are a problem.
-> 
-> Are you saying you've made this change without even testing its
-> performance impact?
+On Mon, 1 Dec 2008, Alexey Starikovskiy wrote:
 
-For oprofile case (maybe if you are profiling hundreds of vmas and
-overflow the 4096 byte hash table), no. That case is uncommon and
-must be fixed in the dcookie code (as I said, trivial with changing
-data structure). I don't want this pointer in struct dentry
-regardless of a possible tiny benefit for oprofile.
+> > Though I suspect this situation could be improved by avoiding those
+> > fairly big unions ACPI does (like union acpi_operand_object).
+> >
+> No, last time I checked, operand may get down to 16 bytes in 32-bit case --
+> save byte by having 3 types of operands... and making 2 more caches :)
+
+SLAB has a minimum allocation size of 32 bytes so it would not make a
+difference there.
+
+SLUB can go down to 8 bytes which would enable you to save more. Adding
+new caches most of the time simply lead to incrementing a counter in
+a similar kmem_cache structure.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
