@@ -1,71 +1,175 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB17qu2i001828
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 1 Dec 2008 16:52:56 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4043445DE56
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:52:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A2CC45DE50
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:52:56 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id D9FF41DB8040
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:52:55 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AB721DB803B
-	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:52:55 +0900 (JST)
-Date: Mon, 1 Dec 2008 16:52:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/3] cgroup id and scanning without cgroup_lock
-Message-Id: <20081201165207.0db76b1f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081201062429.GD28478@balbir.in.ibm.com>
-References: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081201062429.GD28478@balbir.in.ibm.com>
+Date: Mon, 1 Dec 2008 09:31:28 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch][rfc] acpi: do not use kmem caches
+Message-ID: <20081201083128.GB2529@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008 11:54:29 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi,
+What does everyone think about this patch?
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-12-01 14:59:07]:
-> 
-> > This is a series of patches againse mmotm-Nov29
-> > (passed easy test)
-> > 
-> > Now, memcg supports hierarhcy. But walking cgroup tree in intellegent way
-> > with lock/unlock cgroup_mutex seems to have troubles rather than expected.
-> > And, I want to reduce the memory usage of swap_cgroup, which uses array of
-> > pointers.
-> > 
-> > This patch series provides
-> > 	- cgroup_id per cgroup object.
-> > 	- lookup struct cgroup by cgroup_id
-> > 	- scan all cgroup under tree by cgroup_id. without mutex.
-> > 	- css_tryget() function.
-> > 	- fixes semantics of notify_on_release. (I think this is valid fix.)
-> > 
-> > Many changes since v1. (But I wonder some more work may be neeeded.)
-> > 
-> > BTW, I know there are some amount of patches against memcg are posted recently.
-> > If necessary, I'll prepare Weekly-update queue again (Wednesday) and
-> > picks all patches to linux-mm in my queue.
-> >
-> 
-> Thanks for the offer, I've just come back from foss.in. I need to look
-> athe locking issue with cgroup_lock() reported and also review/test
-> the other patches. 
-> 
-Hmm, after reading mailing list again, it seems it's better to do some serialization.
-I'll pick up some and post a queue tomorrow.
+--
 
-Thanks,
--Kame
+ACPI subsystem creates a handful of kmem caches that are not particularly
+appropriate. Most of them seem to be empty or nearly empty most of the time,
+and the others don't have too many objects. In this situation, kmem caches
+can actually have more overhead than they save.
+
+Just use ACPI's generic code for its acpi_cache_t type.
+---
+ drivers/acpi/osl.c              |   85 ----------------------------------------
+ include/acpi/acmacros.h         |    2 
+ include/acpi/platform/aclinux.h |    9 ----
+ 3 files changed, 3 insertions(+), 93 deletions(-)
+
+Index: linux-2.6/include/acpi/acmacros.h
+===================================================================
+--- linux-2.6.orig/include/acpi/acmacros.h
++++ linux-2.6/include/acpi/acmacros.h
+@@ -670,7 +670,7 @@ struct acpi_integer_overlay {
+ #define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed((acpi_size)(a), ACPI_MEM_PARAMETERS)
+ #endif
+ #ifndef ACPI_FREE
+-#define ACPI_FREE(a)                acpio_os_free(a)
++#define ACPI_FREE(a)                acpi_os_free(a)
+ #endif
+ #define ACPI_MEM_TRACKING(a)
+ 
+Index: linux-2.6/include/acpi/platform/aclinux.h
+===================================================================
+--- linux-2.6.orig/include/acpi/platform/aclinux.h
++++ linux-2.6/include/acpi/platform/aclinux.h
+@@ -65,7 +65,6 @@
+ /* Host-dependent types and defines */
+ 
+ #define ACPI_MACHINE_WIDTH          BITS_PER_LONG
+-#define acpi_cache_t                        struct kmem_cache
+ #define acpi_spinlock                   spinlock_t *
+ #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
+ #define strtoul                     simple_strtoul
+@@ -73,6 +72,8 @@
+ /* Full namespace pathname length limit - arbitrary */
+ #define ACPI_PATHNAME_MAX              256
+ 
++#define ACPI_USE_LOCAL_CACHE
++
+ #else				/* !__KERNEL__ */
+ 
+ #include <stdarg.h>
+@@ -128,12 +129,6 @@ static inline void *acpi_os_allocate_zer
+ 	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+ }
+ 
+-static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
+-{
+-	return kmem_cache_zalloc(cache,
+-				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+-}
+-
+ #define ACPI_ALLOCATE(a)	acpi_os_allocate(a)
+ #define ACPI_ALLOCATE_ZEROED(a)	acpi_os_allocate_zeroed(a)
+ #define ACPI_FREE(a)		kfree(a)
+Index: linux-2.6/drivers/acpi/osl.c
+===================================================================
+--- linux-2.6.orig/drivers/acpi/osl.c
++++ linux-2.6/drivers/acpi/osl.c
+@@ -1212,91 +1212,6 @@ void acpi_os_release_lock(acpi_spinlock
+ 	spin_unlock_irqrestore(lockp, flags);
+ }
+ 
+-#ifndef ACPI_USE_LOCAL_CACHE
+-
+-/*******************************************************************************
+- *
+- * FUNCTION:    acpi_os_create_cache
+- *
+- * PARAMETERS:  name      - Ascii name for the cache
+- *              size      - Size of each cached object
+- *              depth     - Maximum depth of the cache (in objects) <ignored>
+- *              cache     - Where the new cache object is returned
+- *
+- * RETURN:      status
+- *
+- * DESCRIPTION: Create a cache object
+- *
+- ******************************************************************************/
+-
+-acpi_status
+-acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
+-{
+-	*cache = kmem_cache_create(name, size, 0, 0, NULL);
+-	if (*cache == NULL)
+-		return AE_ERROR;
+-	else
+-		return AE_OK;
+-}
+-
+-/*******************************************************************************
+- *
+- * FUNCTION:    acpi_os_purge_cache
+- *
+- * PARAMETERS:  Cache           - Handle to cache object
+- *
+- * RETURN:      Status
+- *
+- * DESCRIPTION: Free all objects within the requested cache.
+- *
+- ******************************************************************************/
+-
+-acpi_status acpi_os_purge_cache(acpi_cache_t * cache)
+-{
+-	kmem_cache_shrink(cache);
+-	return (AE_OK);
+-}
+-
+-/*******************************************************************************
+- *
+- * FUNCTION:    acpi_os_delete_cache
+- *
+- * PARAMETERS:  Cache           - Handle to cache object
+- *
+- * RETURN:      Status
+- *
+- * DESCRIPTION: Free all objects within the requested cache and delete the
+- *              cache object.
+- *
+- ******************************************************************************/
+-
+-acpi_status acpi_os_delete_cache(acpi_cache_t * cache)
+-{
+-	kmem_cache_destroy(cache);
+-	return (AE_OK);
+-}
+-
+-/*******************************************************************************
+- *
+- * FUNCTION:    acpi_os_release_object
+- *
+- * PARAMETERS:  Cache       - Handle to cache object
+- *              Object      - The object to be released
+- *
+- * RETURN:      None
+- *
+- * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+- *              the object is deleted.
+- *
+- ******************************************************************************/
+-
+-acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
+-{
+-	kmem_cache_free(cache, object);
+-	return (AE_OK);
+-}
+-#endif
+-
+ /**
+  *	acpi_dmi_dump - dump DMI slots needed for blacklist entry
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
