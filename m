@@ -1,60 +1,69 @@
-Date: Mon, 1 Dec 2008 08:00:41 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
-In-Reply-To: <1227886959.4454.4421.camel@twins>
-Message-ID: <Pine.LNX.4.64.0812010747100.11954@quilx.com>
-References: <1227886959.4454.4421.camel@twins>
+Received: by ug-out-1314.google.com with SMTP id 34so2494771ugf.19
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 06:02:54 -0800 (PST)
+Message-ID: <4933EE8A.2010007@gmail.com>
+Date: Mon, 01 Dec 2008 17:02:50 +0300
+From: Alexey Starikovskiy <aystarik@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+References: <20081201083128.GB2529@wotan.suse.de>	 <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com>	 <20081201120002.GB10790@wotan.suse.de>  <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop>
+In-Reply-To: <1228138641.14439.18.camel@penberg-laptop>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, hugh <hugh@veritas.com>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 28 Nov 2008, Peter Zijlstra wrote:
+Pekka Enberg wrote:
+> Hi,
+>
+> On Mon, 2008-12-01 at 16:12 +0300, Alexey Starikovskiy wrote:
+>   
+>>> Actually I think it is also somewhat of a bugfix (not to mention that it
+>>> seems like a good idea to share testing code with other operating systems).
+>>>       
+>> It is not "kind of a bugfix". Caches were used to allocate all frequenly
+>> created objects of fixed size. Removing native cache interface will
+>> increase memory consumption and increase code size, and will make it harder
+>> to spot actual memory leaks.
+>>     
+>
+> Excuse me?
+>
+> Why do you think Nick's patch is going to _increase_ memory consumption?
+> SLUB _already_ merges the ACPI caches with kmalloc caches so you won't
+> see any difference there. For SLAB, it's a gain because there's not
+> enough activity going on which results in lots of unused space in the
+> slabs (which is, btw, the reason SLUB does slab merging in the first
+> place).
+>
+>   
+Because SLAB has standard memory wells of 2^x size. None of cached ACPI
+objects has exactly this size, so bigger block will be used. Plus, 
+internal ACPICA
+caching will add some overhead.
+> I'm also wondering why you think it's going to increase text size.
+> Unless the ACPI code is doing something weird, the kmalloc() and
+> kzalloc() shouldn't be a problem at all.
+>
+>   
+if you don't use ACPI_USE_LOCAL_CACHE
+ACPICA will enable it's own cache implementation, so it will increase
+code size.
+> For memory leaks, CONFIG_SLAB_LEAK has been in mainline for a long time
+> plus there are the kmemleak patches floating around. So I fail to see
+> how it's going to be harder to spot the memory leaks.
+It will give you a memory leak, not the kind of it, right?
+>  After all, the
+> rest of the kernel manages fine without a special wrapper, so how is
+> ACPI any different here?
+>   
+Do you have another interpreter in kernel space?
 
-> Pagefault concurrency with mmap() is undefined at best (any sane
-> application will start using memory after its been mmap'ed and stop
-> using it before it unmaps it).
 
-mmap_sem in pagefaults is mainly used to serialize various
-modifications to the address space structures while faults are processed.
-This is of course all mmap related but stuff like forking can
-occur concurrently in a multithreaded application. The COW mechanism is
-tied up with this too.
-
-> If we do not freeze the vm map like we normally do but use a lockless
-> vma lookup we're left with the unmap race (you're unlikely to find the
-> vma before insertion anyway).
-
-Then you will need to use RCU for the vmas in general. We already use
-RCU for the anonymous vma. Extend that to all vmas?
-
-> I think we can close that race by marking a vma 'dead' before we do the
-> pte unmap, this means that once we have the pte lock in the fault
-> handler we can validate the vma (it cannot go away after all, because
-> the unmap will block on it).
-
-The anonymous VMAs already have refcounts and vm_area_struct also for the
-!MM case. So maybe you could get to the notion of a "dead" vma easily.
-
-> Therefore, we can do the fault optimistically with any sane vma we get
-> until the point we want to insert the PTE, at which point we have to
-> take the PTL and validate the vma is still good.
-
-How would this sync with other operations that need to take mmap_sem?
-
-> I'm sure there are many fun details to work out, even if the above idea
-> is found solid, amongst them is extending srcu to provide call_srcu(),
-> and implement an RCU friendly tree structure.
-
-srcu may have too much of an overhead for this.
-
-> [ hmm, while writing this it occurred to me this might mean we have to
->   srcu free the page table pages :/ ]
-
-The page tables cannot be immediately be reused then (quicklists etc).
+Regards,
+Alex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
