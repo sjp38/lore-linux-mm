@@ -1,38 +1,43 @@
-Date: Mon, 1 Dec 2008 22:55:40 +0000 (GMT)
+Date: Mon, 1 Dec 2008 23:19:50 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
-In-Reply-To: <1228074124.24749.26.camel@lappy.programming.kicks-ass.net>
-Message-ID: <Pine.LNX.4.64.0812012247590.18893@blonde.anvils>
-References: <1227886959.4454.4421.camel@twins>
- <alpine.LFD.2.00.0811301123320.24125@nehalem.linux-foundation.org>
- <1228074124.24749.26.camel@lappy.programming.kicks-ass.net>
+Subject: Re: [PATCH 2/8] badpage: keep any bad page out of circulation
+In-Reply-To: <Pine.LNX.4.64.0812010848160.15331@quilx.com>
+Message-ID: <Pine.LNX.4.64.0812012308470.18893@blonde.anvils>
+References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
+ <Pine.LNX.4.64.0812010040330.11401@blonde.site> <Pine.LNX.4.64.0812010848160.15331@quilx.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 30 Nov 2008, Peter Zijlstra wrote:
+On Mon, 1 Dec 2008, Christoph Lameter wrote:
+> On Mon, 1 Dec 2008, Hugh Dickins wrote:
 > 
-> Please consider the idea of lockless vma lookup and synchronizing
-> against the PTE lock.
+> > Until now the bad_page() checkers have special-cased PageReserved, keeping
+> > those pages out of circulation thereafter.  Now extend the special case to
+> > all: we want to keep ANY page with bad state out of circulation - the
+> > "free" page may well be in use by something.
 > 
-> If that primary idea seems feasible, I'll continue working on it and try
-> to tackle further obstacles.
+> If I screw up with a VM patch
 
-I've not studied any of your details (you'll be relieved to know ;),
-but this does seem to me like a very promising direction, and fun too!
+Oh, perish the thought!
 
-It is consistent with the nature of faulting (go back and try it again
-if any difficulty encountered, just don't take eternity), and the way
-we already grab a snapshot of the pte, make decisions based upon that,
-get the lock we need, then check pte_same().  I imagine you'll need
-something like vma_same(), with a sequence count in the vma (perhaps
-you already said as much).
+> then my machine will now die because of OOM
+> instead of letting me shutdown and reboot?
 
-Good luck with it!
+If you screw up so royally as to allocate every page in the machine
+and free it with bad state, yes, that's indeed the way it will tend.
+Or, to the extent that you're relying on high orders and low zones,
+it will happen even sooner.  Same as if you screw up and forget to
+free your pages.
+
+That's okay.  In more normal cases you'll see the warnings before
+it's dead, and shutdown and reboot (hopefully a different kernel!)
+before it reaches that state.  By the time your patches reach -mm,
+I'd hope you'll have weeded out the immediate OOM cases.
 
 Hugh
 
