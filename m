@@ -1,58 +1,92 @@
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id mB16f28c100368
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 17:41:03 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB16OZ3b248572
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 17:24:42 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB16OYIj004175
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 17:24:35 +1100
-Date: Mon, 1 Dec 2008 11:54:29 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/3] cgroup id and scanning without cgroup_lock
-Message-ID: <20081201062429.GD28478@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB17eAcB020331
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 1 Dec 2008 16:40:11 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B99B845DE52
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:40:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 97E2C45DD77
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:40:10 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 67C511DB803E
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:40:10 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 05CA11DB8046
+	for <linux-mm@kvack.org>; Mon,  1 Dec 2008 16:40:10 +0900 (JST)
+Date: Mon, 1 Dec 2008 16:39:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 1/2] mm: pagecache allocation gfp fixes
+Message-Id: <20081201163921.bd5d71aa.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081201105038.cf128e4a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081127093401.GE28285@wotan.suse.de>
+	<84144f020811270152i5d5c50a8i9dbd78aa4a7da646@mail.gmail.com>
+	<20081127101837.GJ28285@wotan.suse.de>
+	<Pine.LNX.4.64.0811271749100.17307@blonde.site>
+	<20081128120440.GA13786@wotan.suse.de>
+	<Pine.LNX.4.64.0812010053510.14288@blonde.site>
+	<20081201105038.cf128e4a.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-12-01 14:59:07]:
+On Mon, 1 Dec 2008 10:50:38 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> This is a series of patches againse mmotm-Nov29
-> (passed easy test)
-> 
-> Now, memcg supports hierarhcy. But walking cgroup tree in intellegent way
-> with lock/unlock cgroup_mutex seems to have troubles rather than expected.
-> And, I want to reduce the memory usage of swap_cgroup, which uses array of
-> pointers.
-> 
-> This patch series provides
-> 	- cgroup_id per cgroup object.
-> 	- lookup struct cgroup by cgroup_id
-> 	- scan all cgroup under tree by cgroup_id. without mutex.
-> 	- css_tryget() function.
-> 	- fixes semantics of notify_on_release. (I think this is valid fix.)
-> 
-> Many changes since v1. (But I wonder some more work may be neeeded.)
-> 
-> BTW, I know there are some amount of patches against memcg are posted recently.
-> If necessary, I'll prepare Weekly-update queue again (Wednesday) and
-> picks all patches to linux-mm in my queue.
+> On Mon, 1 Dec 2008 01:18:09 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
 >
+> It comes from the fact that memcg reclaims memory not because of memory shortage
+> but of memory limit.
+> "From which zone the memory should be reclaimed" is not problem. 
+> I used GFP_HIGHUSER_MOVABLE to show "reclaim from anyware" in explicit way.
+> too bad ?
+> 
+Maybe I got your point..
 
-Thanks for the offer, I've just come back from foss.in. I need to look
-athe locking issue with cgroup_lock() reported and also review/test
-the other patches. 
+Hmm...but...
 
--- 
-	Balbir
+mmotm-Nov29's following gfp_mask is buggy (mis leading).
+==
+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+                pgoff_t offset, gfp_t gfp_mask)
+{
+        int error;
+
+        error = mem_cgroup_cache_charge(page, current->mm,
+                                        gfp_mask & ~__GFP_HIGHMEM);
+        if (error)
+==
+
+mem_cgroup_cache_charge() has to reclaim memory from HIGHMEM (if used.) 
+to make room. (not to reclaim memory from some specified area.)
+
+(Anyway) memcg's page reclaim code uses following
+==
+unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+                                                gfp_t gfp_mask,
+                                           bool noswap)
+{
+
+        sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+                        (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+....
+}
+==
+
+And we don't see bug..
+
+I'll try mmotm-Nov30 and find some way to do better explanation.
+This gfp semantics of memcg is a bit different from other gfp's.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
