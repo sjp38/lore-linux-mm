@@ -1,48 +1,75 @@
-Date: Mon, 1 Dec 2008 19:10:47 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-Message-ID: <20081201181047.GK10790@wotan.suse.de>
-References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <4933EE8A.2010007@gmail.com> <20081201161404.GE10790@wotan.suse.de> <4934149A.4020604@gmail.com> <20081201172044.GB14074@infradead.org> <alpine.LFD.2.00.0812011241080.3197@localhost.localdomain>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1IF1CW020474
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:15:01 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1IFe1x082786
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:15:40 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1IFamR001570
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 11:15:40 -0700
+Subject: Re: [RFC v10][PATCH 02/13] Checkpoint/restart: initial
+	documentation
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081128104554.GP28946@ZenIV.linux.org.uk>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
+	 <1227747884-14150-3-git-send-email-orenl@cs.columbia.edu>
+	 <20081128104554.GP28946@ZenIV.linux.org.uk>
+Content-Type: text/plain
+Date: Mon, 01 Dec 2008 10:15:32 -0800
+Message-Id: <1228155332.2971.60.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0812011241080.3197@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Len Brown <lenb@kernel.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Alexey Starikovskiy <aystarik@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org
+To: Al Viro <viro@ZenIV.linux.org.uk>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 01, 2008 at 12:53:04PM -0500, Len Brown wrote:
+On Fri, 2008-11-28 at 10:45 +0000, Al Viro wrote:
+> On Wed, Nov 26, 2008 at 08:04:33PM -0500, Oren Laadan wrote:
+> > +Currently, namespaces are not saved or restored. They will be treated
+> > +as a class of a shared object. In particular, it is assumed that the
+> > +task's file system namespace is the "root" for the entire container.
+> > +It is also assumed that the same file system view is available for the
+> > +restart task(s). Otherwise, a file system snapshot is required.
 > 
-> > Or at least stop arguing and throwing bureaucratic stones in the way of
-> > those wanting to sort out this mess.
-> 
-> I think we all would be better served if there were more facts
-> and fewer insults on this thread, can we do that please?
-> 
-> I do not think the extra work we need to do for ACPICA changes
-> are a significant hurdle here. We will do what is best for Linux --
-> which is what we though we were doing when we changed ACPICA
-> so Linux could use native caching in the first place.
-> 
-> The only question that should be on the table here is how
-> to make Linux be the best it can be.
+> That is to say, bindings are not handled at all.
 
-If there is good reason to keep them around, I'm fine with that.
-I think Pekka's suggestion of not doing unions but have better
-typing in the code and then allocate the smaller types from
-kmalloc sounds like a good idea.
+Sadly, no.  I'm trying to convince Oren that this is important, but I've
+been unable to do so thus far.  I'd appreciate any particularly
+pathological cases you can think of.
 
-If the individual kmem caches are here to stay, then the
-kmem_cache_shrink call should go away. Either way we can delete
-some code from slab.
+There are two cases here that worry me.  One is the case where we're
+checkpointing a container that has been off in its own mount namespace
+doing bind mounts to its little heart's content.  We want to checkpoint
+and restore the sucker on the same machine.  In this case, we almost
+certainly want the kernel to be doing the restoration of the binds.
 
-The OS agnostic code that implements its own allocator is kind
-of a hack -- I don't understand why you would turn on allocator
-debugging and then circumvent it because you find it too slow.
-But I will never maintain that so if it is compiled out for
-Linux, then OK.
+The other case is when we're checkpointing, and moving to a completely
+different machine.  The new machine may have a completely different disk
+layout and *need* the admin doing the sys_restore() to set up those
+binds differently because of space constraints or whatever.
+
+For now, we're completely assuming the second case, where the admin
+(userspace) is responsible for it, and punting.  Do you think this is
+something we should take care of now, early in the process?
+
+> > +* What additional work needs to be done to it?
+> 
+> > +We know this design can work.  We have two commercial products and a
+> > +horde of academic projects doing it today using this basic design.
+> 
+> May I use that for a t-shirt, please?  With that quote in foreground, and
+> pus-yellow-greenish "MACH" serving as background.  With the names of products
+> and projects dripping from it...
+
+*Functionally* we know this design can work.  Practically, in Linux, I
+have no freaking idea.  The hard part isn't getting it working, of
+course.  The hard part is getting something that doesn't step on top of
+everyone else's toes in the kernel and, at the same time, is actually
+*maintainable*.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
