@@ -1,55 +1,40 @@
-Subject: Re: [patch v2] vmscan: protect zone rotation stats by lru lock
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <49345B3B.30703@redhat.com>
-References: <E1L6y5T-0003q3-M3@cmpxchg.org>
-	 <20081201134112.24c647ff.akpm@linux-foundation.org>
-	 <49345B3B.30703@redhat.com>
-Content-Type: text/plain
-Date: Mon, 01 Dec 2008 17:09:45 -0500
-Message-Id: <1228169385.18834.136.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 1 Dec 2008 22:55:40 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC] another crazy idea to get rid of mmap_sem in faults
+In-Reply-To: <1228074124.24749.26.camel@lappy.programming.kicks-ass.net>
+Message-ID: <Pine.LNX.4.64.0812012247590.18893@blonde.anvils>
+References: <1227886959.4454.4421.camel@twins>
+ <alpine.LFD.2.00.0811301123320.24125@nehalem.linux-foundation.org>
+ <1228074124.24749.26.camel@lappy.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@saeurebad.de>, torvalds@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-01 at 16:46 -0500, Rik van Riel wrote:
-> Andrew Morton wrote:
-> > On Mon, 01 Dec 2008 03:00:35 +0100
-> > Johannes Weiner <hannes@saeurebad.de> wrote:
-> > 
-> >> The zone's rotation statistics must not be accessed without the
-> >> corresponding LRU lock held.  Fix an unprotected write in
-> >> shrink_active_list().
-> >>
-> > 
-> > I don't think it really matters.  It's quite common in that code to do
-> > unlocked, racy update to statistics such as this.  Because on those
-> > rare occasions where a race does happen, there's a small glitch in the
-> > reclaim logic which nobody will notice anyway.
-> > 
-> > Of course, this does need to be done with some care, to ensure the
-> > glitch _will_ be small.
+On Sun, 30 Nov 2008, Peter Zijlstra wrote:
 > 
-> Processing at most SWAP_CLUSTER_MAX pages at once probably
-> ensures that glitches will be small most of the time.
+> Please consider the idea of lockless vma lookup and synchronizing
+> against the PTE lock.
 > 
-> The only way this could be a big problem is if we end up
-> racing with the divide-by-two logic in get_scan_ratio,
-> leaving the rotated pages a factor two higher than they
-> should be.
-> 
-> Putting all the writes to the stats under the LRU lock
-> should ensure that never happens.
+> If that primary idea seems feasible, I'll continue working on it and try
+> to tackle further obstacles.
 
-And he's not actually adding a lock.  Just moving the exiting one up to
-include the stats update.  The intervening pagevec, pgmoved and lru
-initializations don't need to be under the lock, but that's probably not
-a big deal?
+I've not studied any of your details (you'll be relieved to know ;),
+but this does seem to me like a very promising direction, and fun too!
 
-Lee
+It is consistent with the nature of faulting (go back and try it again
+if any difficulty encountered, just don't take eternity), and the way
+we already grab a snapshot of the pte, make decisions based upon that,
+get the lock we need, then check pte_same().  I imagine you'll need
+something like vma_same(), with a sequence count in the vma (perhaps
+you already said as much).
+
+Good luck with it!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
