@@ -1,90 +1,114 @@
-Date: Mon, 1 Dec 2008 12:24:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: evict streaming IO first
-Message-Id: <20081201122438.16828a87.akpm@linux-foundation.org>
-In-Reply-To: <20081117190642.3aabd3ff@bree.surriel.com>
-References: <20081115181748.3410.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081115210039.537f59f5.akpm@linux-foundation.org>
-	<alpine.LFD.2.00.0811161013270.3468@nehalem.linux-foundation.org>
-	<49208E9A.5080801@redhat.com>
-	<20081116204720.1b8cbe18.akpm@linux-foundation.org>
-	<20081117153012.51ece88f.kamezawa.hiroyu@jp.fujitsu.com>
-	<2f11576a0811162239w58555c6dq8a61ec184b22bd52@mail.gmail.com>
-	<20081117155417.5cc63907.kamezawa.hiroyu@jp.fujitsu.com>
-	<alpine.LFD.2.00.0811170802010.3468@nehalem.linux-foundation.org>
-	<20081117190642.3aabd3ff@bree.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <49344C11.6090204@cs.columbia.edu>
+Date: Mon, 01 Dec 2008 15:41:53 -0500
+From: Oren Laadan <orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>	 <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>	 <20081128112745.GR28946@ZenIV.linux.org.uk> <1228159324.2971.74.camel@nimitz>
+In-Reply-To: <1228159324.2971.74.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: torvalds@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, gene.heskett@gmail.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Nov 2008 19:06:42 -0500
-Rik van Riel <riel@redhat.com> wrote:
 
-> Count the insertion of new pages in the statistics used to drive the
-> pageout scanning code.  This should help the kernel quickly evict
-> streaming file IO.
-> 
-> We count on the fact that new file pages start on the inactive file
-> LRU and new anonymous pages start on the active anon list.  This
-> means streaming file IO will increment the recent scanned file
-> statistic, while leaving the recent rotated file statistic alone,
-> driving pageout scanning to the file LRUs.
-> 
-> Pageout activity does its own list manipulation.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
->  mm/swap.c |    7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
-> 
-> On Mon, 17 Nov 2008 08:22:13 -0800 (PST)
-> Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > .. or how about just considering the act of adding a new page to the LRU 
-> > to be a "scan" event? IOW, "scanning" is not necessarily just an act of 
-> > the VM looking for pages to free, but would be a more general "activity" 
-> > meter.
-> 
-> Linus, this should implement your idea.  
-> 
-> Gene, does this patch resolve the problem for you?
 
-Has Gene had a chance to confirm this yet?
+Dave Hansen wrote:
+> On Fri, 2008-11-28 at 11:27 +0000, Al Viro wrote:
+>> On Wed, Nov 26, 2008 at 08:04:40PM -0500, Oren Laadan wrote:
+>>> +/**
+>>> + * cr_attach_get_file - attach (and get) lonely file ptr to a file descriptor
+>>> + * @file: lonely file pointer
+>>> + */
+>>> +static int cr_attach_get_file(struct file *file)
+>>> +{
+>>> +	int fd = get_unused_fd_flags(0);
+>>> +
+>>> +	if (fd >= 0) {
+>>> +		fsnotify_open(file->f_path.dentry);
+>>> +		fd_install(fd, file);
+>>> +		get_file(file);
+>>> +	}
+>>> +	return fd;
+>>> +}
+>> What happens if another thread closes the descriptor in question between
+>> fd_install() and get_file()?
+> 
+> You're just saying to flip the get_file() and fd_install()?
 
-> Index: linux-2.6.28-rc5/mm/swap.c
-> ===================================================================
-> --- linux-2.6.28-rc5.orig/mm/swap.c	2008-11-16 17:47:13.000000000 -0500
-> +++ linux-2.6.28-rc5/mm/swap.c	2008-11-17 18:58:32.000000000 -0500
-> @@ -445,6 +445,7 @@ void ____pagevec_lru_add(struct pagevec 
->  	for (i = 0; i < pagevec_count(pvec); i++) {
->  		struct page *page = pvec->pages[i];
->  		struct zone *pagezone = page_zone(page);
-> +		int file;
->  
->  		if (pagezone != zone) {
->  			if (zone)
-> @@ -456,8 +457,12 @@ void ____pagevec_lru_add(struct pagevec 
->  		VM_BUG_ON(PageUnevictable(page));
->  		VM_BUG_ON(PageLRU(page));
->  		SetPageLRU(page);
-> -		if (is_active_lru(lru))
-> +		file = is_file_lru(lru);
-> +		zone->recent_scanned[file]++;
-> +		if (is_active_lru(lru)) {
->  			SetPageActive(page);
-> +			zone->recent_rotated[file]++;
-> +		}
->  		add_page_to_lru_list(zone, page, lru);
->  	}
->  	if (zone)
+Indeed.
 
-Were you not able to reproduce the problem?  It looks like it'd be a
-pretty simple test case to set up?
+> 
+>>> +	fd = cr_attach_file(file);	/* no need to cleanup 'file' below */
+>>> +	if (fd < 0) {
+>>> +		filp_close(file, NULL);
+>>> +		ret = fd;
+>>> +		goto out;
+>>> +	}
+>>> +
+>>> +	/* register new <objref, file> tuple in hash table */
+>>> +	ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
+>>> +	if (ret < 0)
+>>> +		goto out;
+>> Who said that file still exists at that point?
+
+Correct. This call should move higher up befor ethe call to cr_attach_file()
+
+> 
+> Ahhh.  We're depending on the 'struct file' reference that comes from
+> the fd table.  That's why there is supposedly "no need to cleanup 'file'
+> below".  But, some other thread can come along and close() the fd, which
+> will __fput() our poor 'struct file' and will make it go away.  Next
+> time we go and pull it out of the hash table, we go boom.
+> 
+> As a quick fix, I think we can just take another get_file() here.  But,
+> as Al notes, there are some much larger issues that we face with the
+> fd_table and multi-thread access.  They haven't "mattered" to us so far
+> because we assume everything is either single-threaded or frozen.
+> Sounds like Al isn't comfortable with this being integrated until a much
+> more detailed look has been taken.
+> 
+>> BTW, there are shitloads of races here - references to fd and struct file *
+>> are mixed in a way that breaks *badly* if descriptor table is played with
+>> by another thread.
+
+The assumption about tasks being frozen and no additional sharing is generally
+more strict, more likely to hold, and easier to enforce for the restart.
+
+Besides the race pointed above which would crash the kernel, the other races
+are "ok" - if the user abuses the interface, then the results are "undefined"
+(refer to my reply to "..PATCH 808/13] Dump open file descriptors").
+
+Here, too, by "undefined" I mean that the restart syscall may fail, and if it
+completes successfully the resulting set of tasks is not guaranteed to behave
+correctly. In contrast, if the user uses the interface correctly (ensuring
+that the assumption holds), then restart is guaranteed to succeed. Note that
+even when the outcome is undefined, there are no security issues - all actions
+are limited to what the initiating user can do.
+
+> One of the things about this that bothers me is that it shares too
+> little with existing VFS code.  It calls into a ton of existing stuff
+> but doesn't refactor anything that is currently there.  Surely there are
+> some common bits somewhere in the VFS that could be consolidated here.  
+
+Actually, the code alternates between "file" and "fd", in attempt to resuse
+existing code and not do things ourselves:
+
+	ret = sys_fcntl(fd, F_SETFL, hh->f_flags & CR_SETFL_MASK);
+        if (ret < 0)
+        	goto out;
+        ret = vfs_llseek(file, hh->f_pos, SEEK_SET);
+        if (ret == -ESPIPE)     /* ignore error on non-seekable files */
+                ret = 0;
+
+This is still safe: the file struct is protected with a reference count. If
+the fd no longer points to the same struct file, then either it will fail
+(e.g. if the fd is invalid) or the restart will eventually succeed but the
+resulting state of the tasks will be incorrect (that is: undefined behavior).
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
