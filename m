@@ -1,31 +1,52 @@
-Message-ID: <493411D0.2040507@redhat.com>
-Date: Mon, 01 Dec 2008 11:33:20 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: by ug-out-1314.google.com with SMTP id 34so2541230ugf.19
+        for <linux-mm@kvack.org>; Mon, 01 Dec 2008 08:45:17 -0800 (PST)
+Message-ID: <4934149A.4020604@gmail.com>
+Date: Mon, 01 Dec 2008 19:45:14 +0300
+From: Alexey Starikovskiy <aystarik@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/11] memcg: make zone_reclaim_stat
-References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081201211646.1CE2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-In-Reply-To: <20081201211646.1CE2.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [patch][rfc] acpi: do not use kmem caches
+References: <20081201083128.GB2529@wotan.suse.de> <84144f020812010318v205579ean57edecf7992ec7ef@mail.gmail.com> <20081201120002.GB10790@wotan.suse.de> <4933E2C3.4020400@gmail.com> <1228138641.14439.18.camel@penberg-laptop> <4933EE8A.2010007@gmail.com> <20081201161404.GE10790@wotan.suse.de>
+In-Reply-To: <20081201161404.GE10790@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, linux-acpi@vger.kernel.org, lenb@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
-> introduce mem_cgroup_per_zone::reclaim_stat member and its statics collecting
-> function.
-> 
-> Now, get_scan_ratio() can calculate correct value although memcg reclaim.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Nick Piggin wrote:
+> On Mon, Dec 01, 2008 at 05:02:50PM +0300, Alexey Starikovskiy wrote:
+>   
+>> Because SLAB has standard memory wells of 2^x size. None of cached ACPI
+>> objects has exactly this size, so bigger block will be used. Plus, 
+>> internal ACPICA caching will add some overhead.
+>>     
+>
+> That's an insane looking caching thing now that I come to closely read
+> the code. There is so much stuff there that I thought it must have been
+> doing something useful which is why I didn't replace the Linux functions
+> with kmalloc/kfree directly.
+>
+> There is really some operating system you support that has such a poor
+> allocator that you think ACPI can do better in 300 lines of code? Why
+> not just rip that whole thing out?
+>   
+You would laugh, this is due to Windows userspace debug library -- it 
+checks for
+memory leaks by default, and it takes ages to do this.
+And ACPICA maintainer is sitting on Windows, so he _cares_.
+>> Do you have another interpreter in kernel space?
+>>     
+>
+> So what makes it special?
+>
+>   
+You don't know what size of program you will end up with.
+DSDT could be almost empty, or you could have several thousand of SSDT 
+tables.
 
-Acked-by: Rik van Riel <riel@redhat.com>
 
--- 
-All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
