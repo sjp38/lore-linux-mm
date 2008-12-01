@@ -1,45 +1,52 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1KotC6031365
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:50:55 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1KpOnG163908
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:51:24 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1Kower011758
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:50:58 -0500
-Subject: Re: [RFC v10][PATCH 08/13] Dump open file descriptors
+	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB1KsMTr014757
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:54:22 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB1KsksA066194
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:54:46 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB1KsjL6030661
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 15:54:46 -0500
+Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <493447DD.7010102@cs.columbia.edu>
+In-Reply-To: <49344C11.6090204@cs.columbia.edu>
 References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
-	 <1227747884-14150-9-git-send-email-orenl@cs.columbia.edu>
-	 <20081128101919.GO28946@ZenIV.linux.org.uk>
-	 <1228153645.2971.36.camel@nimitz>  <493447DD.7010102@cs.columbia.edu>
+	 <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
+	 <20081128112745.GR28946@ZenIV.linux.org.uk>
+	 <1228159324.2971.74.camel@nimitz>  <49344C11.6090204@cs.columbia.edu>
 Content-Type: text/plain
-Date: Mon, 01 Dec 2008 12:51:19 -0800
-Message-Id: <1228164679.2971.91.camel@nimitz>
+Date: Mon, 01 Dec 2008 12:54:33 -0800
+Message-Id: <1228164873.2971.95.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Al Viro <viro@ZenIV.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-01 at 15:23 -0500, Oren Laadan wrote:
-> Verifying that the size doesn't change does not ensure that the table's
-> contents remained the same, so we can still end up with obsolete data.
+On Mon, 2008-12-01 at 15:41 -0500, Oren Laadan wrote:
+> >>> +   fd = cr_attach_file(file);      /* no need to cleanup 'file' below */
+> >>> +   if (fd < 0) {
+> >>> +           filp_close(file, NULL);
+> >>> +           ret = fd;
+> >>> +           goto out;
+> >>> +   }
+> >>> +
+> >>> +   /* register new <objref, file> tuple in hash table */
+> >>> +   ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
+> >>> +   if (ret < 0)
+> >>> +           goto out;
+> >> Who said that file still exists at that point?
+> 
+> Correct. This call should move higher up befor ethe call to cr_attach_file()
 
-With the realloc() scheme, we have virtually no guarantees about how the
-fdtable that we read relates to the source.  All that we know is that
-the n'th fd was at this value at *some* time.
+Is that sufficient?  It seems like we're depending on the fd's reference
+to the 'struct file' to keep it valid in the hash.  If something happens
+to the fd (like the other thread messing with it) the 'struct file' can
+still go away.
 
-Using the scheme that I just suggested (and you evidently originally
-used) at least guarantees that we have an atomic copy of the fdtable.
-
-Why is this done in two steps?  It first grabs a list of fd numbers
-which needs to be validated, then goes back and turns those into 'struct
-file's which it saves off.  Is there a problem with doing that
-fd->'struct file' conversion under the files->file_lock?
+Shouldn't we do another get_file() for the hash's reference?
 
 -- Dave
 
