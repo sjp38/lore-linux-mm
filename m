@@ -1,56 +1,34 @@
-Date: Tue, 2 Dec 2008 14:12:05 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
-In-Reply-To: <Pine.LNX.4.64.0812020710371.9474@quilx.com>
-Message-ID: <Pine.LNX.4.64.0812021357390.28623@blonde.anvils>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010038220.11401@blonde.site> <Pine.LNX.4.64.0812010843230.15331@quilx.com>
- <Pine.LNX.4.64.0812012349330.18893@blonde.anvils> <Pine.LNX.4.64.0812012014150.30344@quilx.com>
- <Pine.LNX.4.64.0812020947440.5306@blonde.anvils> <Pine.LNX.4.64.0812020710371.9474@quilx.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 Dec 2008 14:49:18 +0000
+From: John Levon <levon@movementarian.org>
+Subject: Re: [patch][rfc] fs: shrink struct dentry
+Message-ID: <20081202144918.GB24222@totally.trollied.org.uk>
+References: <20081201083343.GC2529@wotan.suse.de> <20081201175113.GA16828@totally.trollied.org.uk> <20081201180455.GJ10790@wotan.suse.de> <20081201193818.GB16828@totally.trollied.org.uk> <20081202070608.GA28080@wotan.suse.de> <20081202130410.GA24222@totally.trollied.org.uk> <20081202134926.GA3235@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081202134926.GA3235@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Dec 2008, Christoph Lameter wrote:
-> On Tue, 2 Dec 2008, Hugh Dickins wrote:
+On Tue, Dec 02, 2008 at 02:49:26PM +0100, Nick Piggin wrote:
+
+> > I can't believe I'm having to argue that you need to test your code. So
+> > I think I'll stop.
 > 
-> > > But they are always clear on free. The checking is irrelevant.
-> >
-> > How about CHECK_PAGE_FLAGS_CLEAR_AT_FREE?
-> 
-> Strange name.
+> Code was tested. It doesn't affect my normal oprofile usage (it's
+> utterly within the noise, in case that wasn't obvious to you).
 
-Looks like I'm not going to be able to satisfy you then.  I didn't
-introduce the names in the patch, so let's leave them as is for now,
-and everybody can muse on what they should get called in the end.
+Then, heck, why didn't you say so?! I just went and read the whole
+exchange and this is the first time you actually stated you tested the
+impact of your patch on oprofile overhead.
 
-> > > If (page->flags & (all the flags including dirty and SwapBacked))
-> > > 	zap-em.
-> >
-> > That's exactly what I did, isn't it?
-> 
-> Yes but you added another instance of this.
+It's in the noise, so it's fine.
 
-Did I?  Whereabouts?  I wonder if you're thinking of the
-+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-in prep_new_page(), which replaces the clearing of another
-collection of flags which somehow didn't get named before.
-
-That clearing is a temporary measure, to keep the handling
-of PageReserved unchanged in that patch; then it vanishes in the
-next patch, where we treat all bad_page candidates the same way.
-
-> Can you consolidate all the check and clears into one?
-
-You mean one test_and_clear_bits() that somehow covers the different
-cases of what we expect at free time and what we need at alloc time?
-I don't think so.
-
-Hugh
+regards
+john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
