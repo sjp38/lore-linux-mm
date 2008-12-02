@@ -1,61 +1,53 @@
-Date: Mon, 1 Dec 2008 20:21:45 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
-In-Reply-To: <Pine.LNX.4.64.0812012349330.18893@blonde.anvils>
-Message-ID: <Pine.LNX.4.64.0812012014150.30344@quilx.com>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010038220.11401@blonde.site> <Pine.LNX.4.64.0812010843230.15331@quilx.com>
- <Pine.LNX.4.64.0812012349330.18893@blonde.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB24IDdD024442
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Dec 2008 13:18:13 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 020D245DE66
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:18:13 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B069E45DE61
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:18:12 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 81C8C1DB8040
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:18:12 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 245DD1DB8042
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:18:12 +0900 (JST)
+Date: Tue, 2 Dec 2008 13:17:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [mmotm][PATCH 0/4] request for patch replacement
+Message-Id: <20081202131723.806f1724.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "hugh@veritas.com" <hugh@veritas.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Hugh Dickins wrote:
+Hi, I'm sorry for asking this.
 
-> > Rename this to PAGE_FLAGS_CLEAR_WHEN_FREE?
->
-> No, that's a list of just the ones it's checking at free;
-> it then (with this patch) goes on to clear all of them.
+please drop memcg-fix-gfp_mask-of-callers-of-charge.patch.
 
-But they are always clear on free. The checking is irrelevant.
+It got NACK. http://marc.info/?l=linux-kernel&m=122817796729117&w=2
 
-> One of the problems with PREP is that it's not obvious that it
-> means ALLOC: yes, I'd be happier with PAGE_FLAGS_CLEAR_AT_FREE.
+To drop memcg-fix-gfp_mask-of-callers-of-charge.patch, some HUNKs in following
+patches should be fixed. By dropping it, all gfp mask will turn to be GFP_KERNEL.
+I'll consider how to handle this, later again.
 
-Ok.
+I send replacment for 4 patches follows this mail.
+==
+memcg-simple-migration-handling.patch
+memcg-handle-swap-caches.patch
+memcg-memswap-controller-core.patch
+memcg-memswap-controller-core-make-resize-limit-hold-mutex.patch
 
->
-> > This is equal to
-> >
-> > page->flags &=~PAGE_FLAGS_CHECK_AT_PREP;
-> >
-> > You can drop the if...
->
-> I was intentionally following the existing style of
-> 	if (PageDirty(page))
-> 		__ClearPageDirty(page);
-> 	if (PageSwapBacked(page))
-> 		__ClearPageSwapBacked(page);
-> which is going out of its way to avoid dirtying a cacheline.
->
-> In all the obvious cases, I think the cacheline will already
-> be dirty; but I guess there's an important case (high order
-> but not compound?) which has a lot of clean cachelines.
+Fortunately, HUNK was not so many as expected.
 
-Free or alloc dirties the cacheline of the page struct regardless since
-the LRU field is always modified.
-
-Well, ok. The not compound high order case may be an exception.
-
-But then lets at least make a single check
-
-If (page->flags & (all the flags including dirty and SwapBacked))
-	zap-em.
-
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
