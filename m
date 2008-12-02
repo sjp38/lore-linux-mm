@@ -1,79 +1,66 @@
-Message-ID: <4934DC34.7090406@cn.fujitsu.com>
-Date: Tue, 02 Dec 2008 14:56:52 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] cgroup: fix pre_destroy and semantics of css->refcnt
-References: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>	<20081201150208.6b24506b.kamezawa.hiroyu@jp.fujitsu.com>	<4934D27B.4020904@cn.fujitsu.com> <20081202152129.d795da96.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081202152129.d795da96.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Date: Tue, 2 Dec 2008 08:06:08 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch][rfc] fs: shrink struct dentry
+Message-ID: <20081202070608.GA28080@wotan.suse.de>
+References: <20081201083343.GC2529@wotan.suse.de> <20081201175113.GA16828@totally.trollied.org.uk> <20081201180455.GJ10790@wotan.suse.de> <20081201193818.GB16828@totally.trollied.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081201193818.GB16828@totally.trollied.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: John Levon <levon@movementarian.org>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> On Tue, 02 Dec 2008 14:15:23 +0800
-> Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Mon, Dec 01, 2008 at 07:38:18PM +0000, John Levon wrote:
+> On Mon, Dec 01, 2008 at 07:04:55PM +0100, Nick Piggin wrote:
 > 
->> KAMEZAWA Hiroyuki wrote:
->>> Now, final check of refcnt is done after pre_destroy(), so rmdir() can fail
->>> after pre_destroy().
->>> memcg set mem->obsolete to be 1 at pre_destroy and this is buggy..
->>>
->>> Several ways to fix this can be considered. This is an idea.
->>>
->> I don't see what's the difference with css_under_removal() in this patch and
->> cgroup_is_removed() which is currently available.
->>
->> CGRP_REMOVED flag is set in cgroup_rmdir() when it's confirmed that rmdir can
->> be sucessfully performed.
->>
->> So mem->obsolete can be replaced with:
->>
->> bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
->> {
->> 	return cgroup_is_removed(mem->css.cgroup);
->> }
->>
->> Or am I missing something?
->>
-> Yes.
-> 	1. "cgroup" and "css" object are different object.
-> 	2. css object may not be freed at destroy() (as current memcg does.)
+> > On Mon, Dec 01, 2008 at 05:51:13PM +0000, John Levon wrote:
+> > > On Mon, Dec 01, 2008 at 09:33:43AM +0100, Nick Piggin wrote:
+> > > 
+> > > > I then got rid of the d_cookie pointer. This shrinks it to 192 bytes. Rant:
+> > > > why was this ever a good idea? The cookie system should increase its hash
+> > > > size or use a tree or something if lookups are a problem.
+> > > 
+> > > Are you saying you've made this change without even testing its
+> > > performance impact?
+> > 
+> > For oprofile case (maybe if you are profiling hundreds of vmas and
+> > overflow the 4096 byte hash table), no. That case is uncommon and
+> > must be fixed in the dcookie code (as I said, trivial with changing
+> > data structure). I don't want this pointer in struct dentry
+> > regardless of a possible tiny benefit for oprofile.
 > 
-> Some of css objects cannot be freed even when there are no tasks because
-> of reference from some persistent object or temporal refcnt.
-> 
+> Don't you even have a differential profile showing the impact of
+> removing d_cookie? This hash table lookup will now happen on *every*
+> userspace sample that's processed. That's, uh, a lot.
 
-I just noticed mem_cgroup has its own refcnt now. The memcg code has changed
-dramatically that I don't catch up with it. Thx for the explanation.
+I don't know what you mean by every sample that's processed, but
+won't the hash lookup only happen for the *first* time that a given
+name is asked for a dcookie (ie. fast_get_dcookie, which, as I said,
+should actually be moved to fs/dcookies.c).
 
-But I have another doubt:
+If get_dcookie is called "a lot" of times, then this profiling code
+is broken anyway. There is a global mutex in that function. It's bad
+enough that it takes mmap_sem and does find_vma...
 
-void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
-{
-	struct mem_cgroup *memcg;
 
-	memcg = __mem_cgroup_uncharge_common(page,
-					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
-	/* record memcg information */
-	if (do_swap_account && memcg) {
-		swap_cgroup_record(ent, memcg);
-		mem_cgroup_get(memcg);
-	}
-}
+> (By all means make your change, but I don't get how it's OK to regress
+> other code, and provide no evidence at all as to its impact.)
 
-In the above code, is it possible that memcg is freed before mem_cgroup_get()
-increases memcg->refcnt?
+Tradeoffs are made all the time. This is obviously a good one, and
+I provided evidence of the impact of the improvement in the common
+case. I also acknowledge it can slow down the uncommon case, but
+showed ways that can easily be improved. Do you want me to just try
+to make an artificial case where I mmap thousands of tiny shared
+libraries and try to overflow the hash and try to detect a difference?
 
-> Please consider css_under_removal() as a kind of css_tryget() which doesn't
-> increase any refcnt.
-> 
-> Thanks,
-> -Kame
-> 
+Did you add d_cookie? If so, then surely at the time you must have
+justified that with some numbers to show a significant improvement
+to outweigh the clear downsides. Care to share? Then I might be able
+to just reuse your test case.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
