@@ -1,78 +1,105 @@
-Date: Tue, 2 Dec 2008 10:39:26 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
-In-Reply-To: <Pine.LNX.4.64.0812012014150.30344@quilx.com>
-Message-ID: <Pine.LNX.4.64.0812020947440.5306@blonde.anvils>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010038220.11401@blonde.site> <Pine.LNX.4.64.0812010843230.15331@quilx.com>
- <Pine.LNX.4.64.0812012349330.18893@blonde.anvils> <Pine.LNX.4.64.0812012014150.30344@quilx.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 Dec 2008 13:34:53 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v2] vmscan: protect zone rotation stats by lru lock
+Message-ID: <20081202123453.GB6170@cmpxchg.org>
+References: <E1L6y5T-0003q3-M3@cmpxchg.org> <20081201134112.24c647ff.akpm@linux-foundation.org> <49345B3B.30703@redhat.com> <1228169385.18834.136.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1228169385.18834.136.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Christoph Lameter wrote:
-> On Mon, 1 Dec 2008, Hugh Dickins wrote:
-> > > > PAGE_FLAGS_CHECK_AT_FREE
+On Mon, Dec 01, 2008 at 05:09:45PM -0500, Lee Schermerhorn wrote:
+> On Mon, 2008-12-01 at 16:46 -0500, Rik van Riel wrote:
+> > Andrew Morton wrote:
+> > > On Mon, 01 Dec 2008 03:00:35 +0100
+> > > Johannes Weiner <hannes@saeurebad.de> wrote:
+> > > 
+> > >> The zone's rotation statistics must not be accessed without the
+> > >> corresponding LRU lock held.  Fix an unprotected write in
+> > >> shrink_active_list().
+> > >>
+> > > 
+> > > I don't think it really matters.  It's quite common in that code to do
+> > > unlocked, racy update to statistics such as this.  Because on those
+> > > rare occasions where a race does happen, there's a small glitch in the
+> > > reclaim logic which nobody will notice anyway.
+> > > 
+> > > Of course, this does need to be done with some care, to ensure the
+> > > glitch _will_ be small.
+> > 
+> > Processing at most SWAP_CLUSTER_MAX pages at once probably
+> > ensures that glitches will be small most of the time.
+> > 
+> > The only way this could be a big problem is if we end up
+> > racing with the divide-by-two logic in get_scan_ratio,
+> > leaving the rotated pages a factor two higher than they
+> > should be.
+> > 
+> > Putting all the writes to the stats under the LRU lock
+> > should ensure that never happens.
 > 
-> > > Rename this to PAGE_FLAGS_CLEAR_WHEN_FREE?
-> >
-> > No, that's a list of just the ones it's checking at free;
-> > it then (with this patch) goes on to clear all of them.
-> 
-> But they are always clear on free. The checking is irrelevant.
+> And he's not actually adding a lock.  Just moving the exiting one up to
+> include the stats update.  The intervening pagevec, pgmoved and lru
+> initializations don't need to be under the lock, but that's probably not
+> a big deal?
 
-How about CHECK_PAGE_FLAGS_CLEAR_AT_FREE?
+I did it like this to keep the diff as simple as possible and to not
+change existing code flow.
 
-> 
-> > One of the problems with PREP is that it's not obvious that it
-> > means ALLOC: yes, I'd be happier with PAGE_FLAGS_CLEAR_AT_FREE.
-> 
-> Ok.
+Here is an alternate version that moves the safe stuff out of the
+locked region.
 
-If you like the suggestion above, then for this one
-how about CHECK_PAGE_FLAGS_CLEAR_AT_ALLOC?
+tbh, I think it's worse.
 
-I just haven't changed those names in the patch, continued to
-use the names from before: they're probably not the names I'd
-have chosen, but it is hard to write a paragraph in a name.
+	Hannes
 
-The one I really disliked was "PAGE_FLAGS" for an obscure
-subset of page flags, and have got rid of that.
+---
 
-> > > This is equal to
-> > >
-> > > page->flags &=~PAGE_FLAGS_CHECK_AT_PREP;
-> > >
-> > > You can drop the if...
-> >
-> > I was intentionally following the existing style of
-> > 	if (PageDirty(page))
-> > 		__ClearPageDirty(page);
-> > 	if (PageSwapBacked(page))
-> > 		__ClearPageSwapBacked(page);
-> > which is going out of its way to avoid dirtying a cacheline.
-> >
-> > In all the obvious cases, I think the cacheline will already
-> > be dirty; but I guess there's an important case (high order
-> > but not compound?) which has a lot of clean cachelines.
-> 
-> Free or alloc dirties the cacheline of the page struct regardless since
-> the LRU field is always modified.
-> 
-> Well, ok. The not compound high order case may be an exception.
-> 
-> But then lets at least make a single check
-> 
-> If (page->flags & (all the flags including dirty and SwapBacked))
-> 	zap-em.
+The zone's rotation statistics must not be modified without the
+corresponding LRU lock held.  Fix an unprotected write in
+shrink_active_list().
 
-That's exactly what I did, isn't it?
+---
+ mm/vmscan.c |   16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-Hugh
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1249,21 +1249,21 @@ static void shrink_active_list(unsigned 
+ 	}
+ 
+ 	/*
++	 * Move the pages to the [file or anon] inactive list.
++	 */
++
++	pagevec_init(&pvec, 1);
++	lru = LRU_BASE + file * LRU_FILE;
++
++	spin_lock_irq(&zone->lru_lock);
++	/*
+ 	 * Count referenced pages from currently used mappings as
+ 	 * rotated, even though they are moved to the inactive list.
+ 	 * This helps balance scan pressure between file and anonymous
+ 	 * pages in get_scan_ratio.
+ 	 */
+ 	zone->recent_rotated[!!file] += pgmoved;
+-
+-	/*
+-	 * Move the pages to the [file or anon] inactive list.
+-	 */
+-	pagevec_init(&pvec, 1);
+-
+ 	pgmoved = 0;
+-	lru = LRU_BASE + file * LRU_FILE;
+-	spin_lock_irq(&zone->lru_lock);
+ 	while (!list_empty(&l_inactive)) {
+ 		page = lru_to_page(&l_inactive);
+ 		prefetchw_prev_lru_page(page, &l_inactive, flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
