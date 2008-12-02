@@ -1,70 +1,255 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB21AwxF014326
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:10:58 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB21C9FQ165076
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:12:09 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB21C8Ur009351
-	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:12:09 -0700
-Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <49345086.4@cs.columbia.edu>
-References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
-	 <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
-	 <20081128112745.GR28946@ZenIV.linux.org.uk>
-	 <1228159324.2971.74.camel@nimitz> <49344C11.6090204@cs.columbia.edu>
-	 <1228164873.2971.95.camel@nimitz>  <49345086.4@cs.columbia.edu>
-Content-Type: text/plain
-Date: Mon, 01 Dec 2008 17:12:06 -0800
-Message-Id: <1228180326.2971.128.camel@nimitz>
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB21LsNe032457
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 2 Dec 2008 10:21:54 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E20E45DD7E
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 10:21:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0944245DD7D
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 10:21:54 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D4FE21DB803B
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 10:21:53 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79F8B1DB8037
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 10:21:53 +0900 (JST)
+Date: Tue, 2 Dec 2008 10:21:05 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/4] memcg: explaing memcg's gfp_mask behavior in
+ explicit way.
+Message-Id: <20081202102105.614f19d3.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0812020001490.25510@blonde.anvils>
+References: <20081201190021.f3ab1f17.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081201190534.1612b0b0.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0812020001490.25510@blonde.anvils>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@ZenIV.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, nickpiggin@yahoo.com.au, knikanth@suse.de, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-01 at 16:00 -0500, Oren Laadan wrote:
-> Dave Hansen wrote:
-> > On Mon, 2008-12-01 at 15:41 -0500, Oren Laadan wrote:
-> >>>>> +   fd = cr_attach_file(file);      /* no need to cleanup 'file' below */
-> >>>>> +   if (fd < 0) {
-> >>>>> +           filp_close(file, NULL);
-> >>>>> +           ret = fd;
-> >>>>> +           goto out;
-> >>>>> +   }
-> >>>>> +
-> >>>>> +   /* register new <objref, file> tuple in hash table */
-> >>>>> +   ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
-> >>>>> +   if (ret < 0)
-> >>>>> +           goto out;
-> >>>> Who said that file still exists at that point?
-> >> Correct. This call should move higher up befor ethe call to cr_attach_file()
+On Tue, 2 Dec 2008 00:32:29 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Mon, 1 Dec 2008, KAMEZAWA Hiroyuki wrote:
+> > mem_cgroup_xxx_charge(...gfpmask) function take gfpmask as its argument.
+> > But this gfp_t is only used for check GFP_RECALIM_MASK. In other words,
+> > memcg has no interst where the memory should be reclaimed from.
+> > It just see usage of pages.
 > > 
-> > Is that sufficient?  It seems like we're depending on the fd's reference
-> > to the 'struct file' to keep it valid in the hash.  If something happens
-> > to the fd (like the other thread messing with it) the 'struct file' can
-> > still go away.
+> > Using bare gfp_t is misleading and this is a patch for explaining
+> > expected behavior in explicit way. (better name/code is welcome.)
 > > 
-> > Shouldn't we do another get_file() for the hash's reference?
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> When a shared object is inserted to the hash we automatically take another
-> reference to it (according to its type) for as long as it remains in the
-> hash. See:  'cr_obj_ref_grab()' and 'cr_obj_ref_drop()'.  So by moving that
-> call higher up, we protect the struct file.
+> Sorry, but I hate it.  You're spreading mem_cgroup ugliness throughout.
+> 
+> This is a good demonstation of why I wanted to go the opposite way to
+> Nick, why I wanted to push the masking as low as possible; I accept
+> Nick's point, but please, not at the expense of being this ugly.
+> 
+Okay ;)
 
-We also need to document that we depend on this reference in the hash to
-keep the object around.  Take a look at cr_read_fd_data().  Once that
-cr_attach_file() has been performed, the only thing keeping the 'file'
-around is the hash reference.  If someone happened to remove it from the
-hash, the vfs_llseek() below would be bogus.
 
-I don't know how we document that the hash is one-way: writes only and
-no later deletions.
+> It's a pity about loop over tmpfs, IIRC without that case you could
+> just remove the gfp_mask argument from every one of them - that is a
+> change I would appreciate!  Or am I forgetting some other cases?
+> 
 
--- Dave
+Ah, I considered that. putting gfp_mask here is for rememebering
+"this will do page reclaim".
+
+> I think you should remove the arg from every one you can, and change
+> those shmem_getpage() ones to say "gfp & GFP_RECLAIM_MASK" (just as
+> we'll be changing the radix_tree_preload later).
+> 
+I'll look into again 
+
+> Hmm, shmem_getpage()'s mem_cgroup_cache_charge(,, gfp & ~__GFP_HIGHMEM)
+> has morphed into mem_cgroup_cache_charge(,, GFP_HIGHUSER_MOVABLE) in
+> mmotm (well, mmo2daysago, I've not looked today).  How come?
+> 
+Maybe my patches/memcg-fix-gfp_mask-of-callers-of-charge.patch.
+Hmm, I'll write replacement patch for this and remove gfp_t.
+
+> It used to be the case that the mem_cgroup calls made their own
+> memory allocations, and that could become the case again in future:
+> the gfp mask was passed down for those allocations, and it was almost
+> everywhere GFP_KERNEL.
+> 
+> mem_cgroup charging may need to reclaim some memory from the memcg:
+> it happens that the category of memory it goes for is HIGHUSER_MOVABLE;
+> and it happens that the gfp mask for any incidental allocations it might
+> want to make, also provides the GFP_RECLAIM_MASK flags for that reclaim.
+> But please keep that within mem_cgroup_cache_charge_common or whatever.
+> 
+
+Okay. I'll write replacment for memcg-fix-gfp_mask-of-callers-of-charge.patch.
+
+-Kame
+
+> Hugh
+> 
+> > 
+> >  include/linux/gfp.h |   19 +++++++++++++++++++
+> >  mm/filemap.c        |    2 +-
+> >  mm/memory.c         |   12 +++++++-----
+> >  mm/shmem.c          |    8 ++++----
+> >  mm/swapfile.c       |    2 +-
+> >  mm/vmscan.c         |    3 +--
+> >  6 files changed, 33 insertions(+), 13 deletions(-)
+> > 
+> > Index: mmotm-2.6.28-Nov30/include/linux/gfp.h
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/include/linux/gfp.h
+> > +++ mmotm-2.6.28-Nov30/include/linux/gfp.h
+> > @@ -245,4 +245,23 @@ void drain_zone_pages(struct zone *zone,
+> >  void drain_all_pages(void);
+> >  void drain_local_pages(void *dummy);
+> >  
+> > +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> > +static inline gfp_t gfp_memcg_mask(gfp_t gfp)
+> > +{
+> > +	gfp_t mask;
+> > +	/*
+> > +	 * Memory Resource Controller memory reclaim is called to reduce usage
+> > +	 * of memory, not to get free memory from specified area.
+> > +	 * Remove zone constraints.
+> > +	 */
+> > +	mask = gfp & GFP_RECLAIM_MASK;
+> > +	return mask | (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+> > +}
+> > +#else
+> > +static inline gfp_t gfp_memcg_mask(gfp_t gfp)
+> > +{
+> > +	return gfp;
+> > +}
+> > +#endif
+> > +
+> >  #endif /* __LINUX_GFP_H */
+> > Index: mmotm-2.6.28-Nov30/mm/filemap.c
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/mm/filemap.c
+> > +++ mmotm-2.6.28-Nov30/mm/filemap.c
+> > @@ -461,7 +461,7 @@ int add_to_page_cache_locked(struct page
+> >  	VM_BUG_ON(!PageLocked(page));
+> >  
+> >  	error = mem_cgroup_cache_charge(page, current->mm,
+> > -					gfp_mask & ~__GFP_HIGHMEM);
+> > +					gfp_memcg_mask(gfp_mask));
+> >  	if (error)
+> >  		goto out;
+> >  
+> > Index: mmotm-2.6.28-Nov30/mm/vmscan.c
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/mm/vmscan.c
+> > +++ mmotm-2.6.28-Nov30/mm/vmscan.c
+> > @@ -1733,8 +1733,7 @@ unsigned long try_to_free_mem_cgroup_pag
+> >  	if (noswap)
+> >  		sc.may_swap = 0;
+> >  
+> > -	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+> > -			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+> > +	sc.gfp_mask = gfp_memcg_mask(gfp_mask);
+> >  	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
+> >  	return do_try_to_free_pages(zonelist, &sc);
+> >  }
+> > Index: mmotm-2.6.28-Nov30/mm/memory.c
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/mm/memory.c
+> > +++ mmotm-2.6.28-Nov30/mm/memory.c
+> > @@ -1913,7 +1913,8 @@ gotten:
+> >  	cow_user_page(new_page, old_page, address, vma);
+> >  	__SetPageUptodate(new_page);
+> >  
+> > -	if (mem_cgroup_newpage_charge(new_page, mm, GFP_HIGHUSER_MOVABLE))
+> > +	if (mem_cgroup_newpage_charge(new_page, mm,
+> > +			gfp_memcg_mask(GFP_HIGHUSER_MOVABLE)))
+> >  		goto oom_free_new;
+> >  
+> >  	/*
+> > @@ -2345,7 +2346,7 @@ static int do_swap_page(struct mm_struct
+> >  	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+> >  
+> >  	if (mem_cgroup_try_charge_swapin(mm, page,
+> > -				GFP_HIGHUSER_MOVABLE, &ptr) == -ENOMEM) {
+> > +		gfp_memcg_mask(GFP_HIGHUSER_MOVABLE), &ptr) == -ENOMEM) {
+> >  		ret = VM_FAULT_OOM;
+> >  		unlock_page(page);
+> >  		goto out;
+> > @@ -2437,7 +2438,8 @@ static int do_anonymous_page(struct mm_s
+> >  		goto oom;
+> >  	__SetPageUptodate(page);
+> >  
+> > -	if (mem_cgroup_newpage_charge(page, mm, GFP_HIGHUSER_MOVABLE))
+> > +	if (mem_cgroup_newpage_charge(page, mm,
+> > +				gfp_memcg_mask(GFP_HIGHUSER_MOVABLE)))
+> >  		goto oom_free_page;
+> >  
+> >  	entry = mk_pte(page, vma->vm_page_prot);
+> > @@ -2528,8 +2530,8 @@ static int __do_fault(struct mm_struct *
+> >  				ret = VM_FAULT_OOM;
+> >  				goto out;
+> >  			}
+> > -			if (mem_cgroup_newpage_charge(page,
+> > -						mm, GFP_HIGHUSER_MOVABLE)) {
+> > +			if (mem_cgroup_newpage_charge(page, mm,
+> > +					gfp_memcg_mask(GFP_HIGHUSER_MOVABLE))) {
+> >  				ret = VM_FAULT_OOM;
+> >  				page_cache_release(page);
+> >  				goto out;
+> > Index: mmotm-2.6.28-Nov30/mm/swapfile.c
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/mm/swapfile.c
+> > +++ mmotm-2.6.28-Nov30/mm/swapfile.c
+> > @@ -698,7 +698,7 @@ static int unuse_pte(struct vm_area_stru
+> >  	int ret = 1;
+> >  
+> >  	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page,
+> > -					GFP_HIGHUSER_MOVABLE, &ptr))
+> > +				gfp_memcg_mask(GFP_HIGHUSER_MOVABLE), &ptr))
+> >  		ret = -ENOMEM;
+> >  
+> >  	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > Index: mmotm-2.6.28-Nov30/mm/shmem.c
+> > ===================================================================
+> > --- mmotm-2.6.28-Nov30.orig/mm/shmem.c
+> > +++ mmotm-2.6.28-Nov30/mm/shmem.c
+> > @@ -924,8 +924,8 @@ found:
+> >  	 * Charge page using GFP_HIGHUSER_MOVABLE while we can wait.
+> >  	 * charged back to the user(not to caller) when swap account is used.
+> >  	 */
+> > -	error = mem_cgroup_cache_charge_swapin(page,
+> > -			current->mm, GFP_HIGHUSER_MOVABLE, true);
+> > +	error = mem_cgroup_cache_charge_swapin(page, current->mm,
+> > +			gfp_memcg_mask(GFP_HIGHUSER_MOVABLE), true);
+> >  	if (error)
+> >  		goto out;
+> >  	error = radix_tree_preload(GFP_KERNEL);
+> > @@ -1267,7 +1267,7 @@ repeat:
+> >  			 * charge against this swap cache here.
+> >  			 */
+> >  			if (mem_cgroup_cache_charge_swapin(swappage,
+> > -						current->mm, gfp, false)) {
+> > +				current->mm, gfp_memcg_mask(gfp), false)) {
+> >  				page_cache_release(swappage);
+> >  				error = -ENOMEM;
+> >  				goto failed;
+> > @@ -1385,7 +1385,7 @@ repeat:
+> >  
+> >  			/* Precharge page while we can wait, compensate after */
+> >  			error = mem_cgroup_cache_charge(filepage, current->mm,
+> > -					GFP_HIGHUSER_MOVABLE);
+> > +					gfp_memcg_mask(GFP_HIGHUSER_MOVABLE));
+> >  			if (error) {
+> >  				page_cache_release(filepage);
+> >  				shmem_unacct_blocks(info->flags, 1);
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
