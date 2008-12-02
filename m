@@ -1,186 +1,110 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB27eAjB026584
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Dec 2008 16:40:10 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 060CD45DD80
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:40:10 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BBFF045DD81
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:40:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E88B1DB8046
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:40:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D3DA1DB803A
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:40:07 +0900 (JST)
-Date: Tue, 2 Dec 2008 16:39:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/3] cgroup: fix pre_destroy and semantics of
- css->refcnt
-Message-Id: <20081202163917.0063f5ca.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <4934E444.9030603@cn.fujitsu.com>
-References: <20081201145907.e6d63d61.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081201150208.6b24506b.kamezawa.hiroyu@jp.fujitsu.com>
-	<4934D27B.4020904@cn.fujitsu.com>
-	<20081202152129.d795da96.kamezawa.hiroyu@jp.fujitsu.com>
-	<4934DC34.7090406@cn.fujitsu.com>
-	<20081202161346.f86db973.kamezawa.hiroyu@jp.fujitsu.com>
-	<4934E444.9030603@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB27iK2a028364
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 2 Dec 2008 16:44:20 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 37CCB45DE52
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:44:20 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F70945DE50
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:44:20 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EA9161DB8041
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:44:19 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A4CFB1DB8037
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:44:19 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/2] memcg: mem_cgroup->prev_priority protected by lock. take2
+Message-Id: <20081202164334.1D0C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue,  2 Dec 2008 16:44:18 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 02 Dec 2008 15:31:16 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Tue, 02 Dec 2008 14:56:52 +0800
-> > Li Zefan <lizf@cn.fujitsu.com> wrote:
-> > 
-> >> KAMEZAWA Hiroyuki wrote:
-> >>> On Tue, 02 Dec 2008 14:15:23 +0800
-> >>> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> >>>
-> >>>> KAMEZAWA Hiroyuki wrote:
-> >>>>> Now, final check of refcnt is done after pre_destroy(), so rmdir() can fail
-> >>>>> after pre_destroy().
-> >>>>> memcg set mem->obsolete to be 1 at pre_destroy and this is buggy..
-> >>>>>
-> >>>>> Several ways to fix this can be considered. This is an idea.
-> >>>>>
-> >>>> I don't see what's the difference with css_under_removal() in this patch and
-> >>>> cgroup_is_removed() which is currently available.
-> >>>>
-> >>>> CGRP_REMOVED flag is set in cgroup_rmdir() when it's confirmed that rmdir can
-> >>>> be sucessfully performed.
-> >>>>
-> >>>> So mem->obsolete can be replaced with:
-> >>>>
-> >>>> bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
-> >>>> {
-> >>>> 	return cgroup_is_removed(mem->css.cgroup);
-> >>>> }
-> >>>>
-> >>>> Or am I missing something?
-> >>>>
-> >>> Yes.
-> >>> 	1. "cgroup" and "css" object are different object.
-> >>> 	2. css object may not be freed at destroy() (as current memcg does.)
-> >>>
-> >>> Some of css objects cannot be freed even when there are no tasks because
-> >>> of reference from some persistent object or temporal refcnt.
-> >>>
-> >> I just noticed mem_cgroup has its own refcnt now. The memcg code has changed
-> >> dramatically that I don't catch up with it. Thx for the explanation.
-> >>
-> >> But I have another doubt:
-> >>
-> >> void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
-> >> {
-> >> 	struct mem_cgroup *memcg;
-> >>
-> >> 	memcg = __mem_cgroup_uncharge_common(page,
-> >> 					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
-> >> 	/* record memcg information */
-> >> 	if (do_swap_account && memcg) {
-> >> 		swap_cgroup_record(ent, memcg);
-> >> 		mem_cgroup_get(memcg);
-> >> 	}
-> >> }
-> >>
-> >> In the above code, is it possible that memcg is freed before mem_cgroup_get()
-> >> increases memcg->refcnt?
-> >>
-> > Thank you for looking into. maybe possible.
-> > 
-> > In this case, 
-> > 	1. "the page" was belongs to memcg before uncharge().
-> > 	2. but it's not guaranteed that memcg is alive after uncharge.
-> > 
-> > OK. maybe css_tryget() can change this to be
-> > ==
-> > 	rcu_read_lock();
-> > 	memcg = __mem_cgroup_uncharge_common(page,
-> > 					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
-> > 	if (do_swap_account && memcg && css_tryget(&memcg->css)) {
-> > 		swap_cgroup_record(ent, memcg);
-> > 		mem_cgroup_get(memcg);
-> > 		css_put(&memcg->css);
-> > 	}
-> > 	rcu_read_unlock();
-> > ==
-> > How about this ?
-> > 
-> 
-> Seems OK for me. Another way to fix this is, don't call css_put() if we want
-> to use the memcg returned from __mem_cgroup_uncharge_common(), I think this
-> is more reasonable:
-> 
-but more complicated ;) Hmm...
-Anyway , I'll queue some fix to next weekly-update.
-Thank you for pointing out.
+Currently, mem_cgroup doesn't have own lock and almost its member doesn't need.
+ (e.g. mem_cgroup->info is protected by zone lock, mem_cgroup->stat is
+  per cpu variable)
 
--Kame
+However, there is one explict exception. mem_cgroup->prev_priorit need lock,
+but doesn't protect.
+Luckly, this is NOT bug because prev_priority isn't used for current reclaim code.
+
+However, we plan to use prev_priority future again.
+Therefore, fixing is better.
 
 
-> --- a/mm/memcontrol.c.orig	2008-12-02 15:20:55.000000000 +0800
-> +++ b/mm/memcontrol.c	2008-12-02 15:28:07.000000000 +0800
-> @@ -1110,8 +1110,9 @@ void mem_cgroup_cancel_charge_swapin(str
->  /*
->   * uncharge if !page_mapped(page)
->   */
-> -static struct mem_cgroup *
-> -__mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
-> +static void
-> +__mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
-> +			     struct mem_cgroup **memcg)
->  {
->  	struct page_cgroup *pc;
->  	struct mem_cgroup *mem = NULL;
-> @@ -1163,13 +1164,16 @@ __mem_cgroup_uncharge_common(struct page
->  	mz = page_cgroup_zoneinfo(pc);
->  	unlock_page_cgroup(pc);
->  
-> -	css_put(&mem->css);
-> +	/* don't dec refcnt, since the caller want to use this memcg */
-> +	if (memcg)
-> +		*memcg = mem;
-> +	else
-> +		css_put(&mem->css);
->  
-> -	return mem;
-> +	return;
->  
->  unlock_out:
->  	unlock_page_cgroup(pc);
-> -	return NULL;
->  }
->  
->  void mem_cgroup_uncharge_page(struct page *page)
-> @@ -1197,12 +1201,13 @@ void mem_cgroup_uncharge_swapcache(struc
->  {
->  	struct mem_cgroup *memcg;
->  
-> -	memcg = __mem_cgroup_uncharge_common(page,
-> -					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
-> +	__mem_cgroup_uncharge_common(page,
-> +				     MEM_CGROUP_CHARGE_TYPE_SWAPOUT, &memcg);
->  	/* record memcg information */
->  	if (do_swap_account && memcg) {
->  		swap_cgroup_record(ent, memcg);
->  		mem_cgroup_get(memcg);
-> +		css_put(&memcg->css);
->  	}
->  }
->  
-> 
-> 
+In addision, we plan to reuse this lock for another member.
+Then "reclaim_param_lock" name is better than "prev_priority_lock".
+
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+Index: b/mm/memcontrol.c
+===================================================================
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -142,6 +142,11 @@ struct mem_cgroup {
+ 	 */
+ 	struct mem_cgroup_lru_info info;
+ 
++	/*
++	  protect against reclaim related member.
++	*/
++	spinlock_t reclaim_param_lock;
++
+ 	int	prev_priority;	/* for recording reclaim priority */
+ 
+ 	/*
+@@ -393,18 +398,28 @@ int mem_cgroup_calc_mapped_ratio(struct 
+  */
+ int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+ {
+-	return mem->prev_priority;
++	int prev_priority;
++
++	spin_lock(&mem->reclaim_param_lock);
++	prev_priority = mem->prev_priority;
++	spin_unlock(&mem->reclaim_param_lock);
++
++	return prev_priority;
+ }
+ 
+ void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem, int priority)
+ {
++	spin_lock(&mem->reclaim_param_lock);
+ 	if (priority < mem->prev_priority)
+ 		mem->prev_priority = priority;
++	spin_unlock(&mem->reclaim_param_lock);
+ }
+ 
+ void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
+ {
++	spin_lock(&mem->reclaim_param_lock);
+ 	mem->prev_priority = priority;
++	spin_unlock(&mem->reclaim_param_lock);
+ }
+ 
+ /*
+@@ -1967,6 +1982,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	}
+ 
+ 	mem->last_scanned_child = NULL;
++	spin_lock_init(&mem->reclaim_param_lock);
+ 
+ 	return &mem->css;
+ free_out:
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
