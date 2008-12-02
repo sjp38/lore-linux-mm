@@ -1,65 +1,110 @@
-Date: Tue, 2 Dec 2008 08:06:08 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] fs: shrink struct dentry
-Message-ID: <20081202070608.GA28080@wotan.suse.de>
-References: <20081201083343.GC2529@wotan.suse.de> <20081201175113.GA16828@totally.trollied.org.uk> <20081201180455.GJ10790@wotan.suse.de> <20081201193818.GB16828@totally.trollied.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081201193818.GB16828@totally.trollied.org.uk>
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB27BCr7025833
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 2 Dec 2008 16:11:12 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 26E2045DE54
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:11:12 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F0B2645DE53
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:11:11 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CF2C81DB803F
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:11:11 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 84E791DB8038
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 16:11:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH 1/2] memcg: mem_cgroup->prev_priority protected by lock.
+Message-Id: <20081202160949.1CFE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  2 Dec 2008 16:11:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Levon <levon@movementarian.org>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 01, 2008 at 07:38:18PM +0000, John Levon wrote:
-> On Mon, Dec 01, 2008 at 07:04:55PM +0100, Nick Piggin wrote:
-> 
-> > On Mon, Dec 01, 2008 at 05:51:13PM +0000, John Levon wrote:
-> > > On Mon, Dec 01, 2008 at 09:33:43AM +0100, Nick Piggin wrote:
-> > > 
-> > > > I then got rid of the d_cookie pointer. This shrinks it to 192 bytes. Rant:
-> > > > why was this ever a good idea? The cookie system should increase its hash
-> > > > size or use a tree or something if lookups are a problem.
-> > > 
-> > > Are you saying you've made this change without even testing its
-> > > performance impact?
-> > 
-> > For oprofile case (maybe if you are profiling hundreds of vmas and
-> > overflow the 4096 byte hash table), no. That case is uncommon and
-> > must be fixed in the dcookie code (as I said, trivial with changing
-> > data structure). I don't want this pointer in struct dentry
-> > regardless of a possible tiny benefit for oprofile.
-> 
-> Don't you even have a differential profile showing the impact of
-> removing d_cookie? This hash table lookup will now happen on *every*
-> userspace sample that's processed. That's, uh, a lot.
 
-I don't know what you mean by every sample that's processed, but
-won't the hash lookup only happen for the *first* time that a given
-name is asked for a dcookie (ie. fast_get_dcookie, which, as I said,
-should actually be moved to fs/dcookies.c).
+Currently, mem_cgroup doesn't have own lock and almost its member doesn't need.
+ (e.g. info is protected by zone lock, stat is per cpu variable)
 
-If get_dcookie is called "a lot" of times, then this profiling code
-is broken anyway. There is a global mutex in that function. It's bad
-enough that it takes mmap_sem and does find_vma...
+However, there is one explict exception. mem_cgroup->prev_priorit need lock,
+but doesn't protect.
+Luckly, this is NOT bug because prev_priority isn't used for current reclaim code.
+
+However, we plan to use prev_priority future again.
+Therefore, fixing is better.
 
 
-> (By all means make your change, but I don't get how it's OK to regress
-> other code, and provide no evidence at all as to its impact.)
+In addision, we plan to reuse this lock for another member.
+Then "misc_lock" name is better than "prev_priority_lock".
 
-Tradeoffs are made all the time. This is obviously a good one, and
-I provided evidence of the impact of the improvement in the common
-case. I also acknowledge it can slow down the uncommon case, but
-showed ways that can easily be improved. Do you want me to just try
-to make an artificial case where I mmap thousands of tiny shared
-libraries and try to overflow the hash and try to detect a difference?
 
-Did you add d_cookie? If so, then surely at the time you must have
-justified that with some numbers to show a significant improvement
-to outweigh the clear downsides. Care to share? Then I might be able
-to just reuse your test case.
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+Index: b/mm/memcontrol.c
+===================================================================
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -142,6 +142,13 @@ struct mem_cgroup {
+ 	 */
+ 	struct mem_cgroup_lru_info info;
+ 
++	/*
++	  Almost mem_cgroup member doesn't need lock.
++	  (e.g. info is protected by zone lock, stat is per cpu variable)
++	  However, rest few member need explict lock.
++	*/
++	spinlock_t misc_lock;
++
+ 	int	prev_priority;	/* for recording reclaim priority */
+ 
+ 	/*
+@@ -393,18 +400,28 @@ int mem_cgroup_calc_mapped_ratio(struct 
+  */
+ int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+ {
+-	return mem->prev_priority;
++	int prev_priority;
++
++	spin_lock(&mem->misc_lock);
++	prev_priority = mem->prev_priority;
++	spin_unlock(&mem->misc_lock);
++
++	return prev_priority;
+ }
+ 
+ void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem, int priority)
+ {
++	spin_lock(&mem->misc_lock);
+ 	if (priority < mem->prev_priority)
+ 		mem->prev_priority = priority;
++	spin_unlock(&mem->misc_lock);
+ }
+ 
+ void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
+ {
++	spin_lock(&mem->misc_lock);
+ 	mem->prev_priority = priority;
++	spin_unlock(&mem->misc_lock);
+ }
+ 
+ /*
+@@ -1967,6 +1984,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	}
+ 
+ 	mem->last_scanned_child = NULL;
++	spin_lock_init(&mem->misc_lock);
+ 
+ 	return &mem->css;
+ free_out:
 
 
 --
