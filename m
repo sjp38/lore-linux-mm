@@ -1,86 +1,70 @@
-Date: Tue, 2 Dec 2008 00:51:45 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 6/8] mm: remove try_to_munlock from vmscan
-In-Reply-To: <1228162614.18834.92.camel@lts-notebook>
-Message-ID: <Pine.LNX.4.64.0812020040040.29644@blonde.anvils>
-References: <Pine.LNX.4.64.0811232151400.3748@blonde.site>
- <Pine.LNX.4.64.0811232202040.4142@blonde.site>  <1227548092.6937.23.camel@lts-notebook>
-  <Pine.LNX.4.64.0811241928260.3700@blonde.site> <1228162614.18834.92.camel@lts-notebook>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e31.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB21AwxF014326
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:10:58 -0700
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB21C9FQ165076
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:12:09 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB21C8Ur009351
+	for <linux-mm@kvack.org>; Mon, 1 Dec 2008 18:12:09 -0700
+Subject: Re: [RFC v10][PATCH 09/13] Restore open file descriprtors
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <49345086.4@cs.columbia.edu>
+References: <1227747884-14150-1-git-send-email-orenl@cs.columbia.edu>
+	 <1227747884-14150-10-git-send-email-orenl@cs.columbia.edu>
+	 <20081128112745.GR28946@ZenIV.linux.org.uk>
+	 <1228159324.2971.74.camel@nimitz> <49344C11.6090204@cs.columbia.edu>
+	 <1228164873.2971.95.camel@nimitz>  <49345086.4@cs.columbia.edu>
+Content-Type: text/plain
+Date: Mon, 01 Dec 2008 17:12:06 -0800
+Message-Id: <1228180326.2971.128.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Al Viro <viro@ZenIV.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008, Lee Schermerhorn wrote:
+On Mon, 2008-12-01 at 16:00 -0500, Oren Laadan wrote:
+> Dave Hansen wrote:
+> > On Mon, 2008-12-01 at 15:41 -0500, Oren Laadan wrote:
+> >>>>> +   fd = cr_attach_file(file);      /* no need to cleanup 'file' below */
+> >>>>> +   if (fd < 0) {
+> >>>>> +           filp_close(file, NULL);
+> >>>>> +           ret = fd;
+> >>>>> +           goto out;
+> >>>>> +   }
+> >>>>> +
+> >>>>> +   /* register new <objref, file> tuple in hash table */
+> >>>>> +   ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
+> >>>>> +   if (ret < 0)
+> >>>>> +           goto out;
+> >>>> Who said that file still exists at that point?
+> >> Correct. This call should move higher up befor ethe call to cr_attach_file()
+> > 
+> > Is that sufficient?  It seems like we're depending on the fd's reference
+> > to the 'struct file' to keep it valid in the hash.  If something happens
+> > to the fd (like the other thread messing with it) the 'struct file' can
+> > still go away.
+> > 
+> > Shouldn't we do another get_file() for the hash's reference?
 > 
-> Hugh:  I got a chance to start my test workload on 28-rc6-mmotm-081130
+> When a shared object is inserted to the hash we automatically take another
+> reference to it (according to its type) for as long as it remains in the
+> hash. See:  'cr_obj_ref_grab()' and 'cr_obj_ref_drop()'.  So by moving that
+> call higher up, we protect the struct file.
 
-Thanks!
+We also need to document that we depend on this reference in the hash to
+keep the object around.  Take a look at cr_read_fd_data().  Once that
+cr_attach_file() has been performed, the only thing keeping the 'file'
+around is the hash reference.  If someone happened to remove it from the
+hash, the vfs_llseek() below would be bogus.
 
-> today [after finding the patch for the "BUG_ON(!dot)" boot-time panic].
-> I added a couple of temporary vmstat counters to count attempts to free
-> swap space in the vmscan "cull" path and successful frees, so I could
-> tell that we were exercising your changes.
-> 
-> Unfortunately, both my x86_64 and ia64 platforms eventually [after an
-> hour and a half or so] hit a null pointer deref [Nat consumption on
-> ia64] in __get_user_pages().  In both cases, __get_user_pages was called
-> while ps(1) was trying to read the task's command line via /proc.
-> 
-> The ia64 platform eventually locked up.  I rebooted the x86_64 and hit a
-> "kernel BUG at fs/dcache.c:666".
+I don't know how we document that the hash is one-way: writes only and
+no later deletions.
 
-Beware the BUG of the Beast.
-
-> I don't know that these were related
-> to your changes, so I'll report them separately.
-
-Please do.  They don't sound so close that I feel guilty yet,
-but they don't sound so far away that I can rest all that easy.
-
-> 
-> I did manage to grab some selected vmstats from the run on the x86_64,
-> after couple of hours of running [it stayed up longer than the ia64]:
-> 
-> egrep '^pgp|^pswp|^pgfau|^pgmaj|^unev|^swap_' /proc/vmstat
-> pgpgin 288501203
-> pgpgout 89224219
-> pswpin 1063928
-> pswpout 1637706
-> pgfault 1471335469
-> pgmajfault 517119
-> unevictable_pgs_culled 108794397
-> unevictable_pgs_scanned 28835840
-> unevictable_pgs_rescued 260444075
-> unevictable_pgs_mlocked 250282969
-> unevictable_pgs_munlocked 239272025
-> unevictable_pgs_cleared 6750236
-> unevictable_pgs_stranded 0
-> unevictable_pgs_mlockfreed 0
-> swap_try_free_mlocked_pgs 823799
-> swap_freed_mlocked_pgs 823799
-> 
-> the last two items are the temporary counters where we
-> try_to_free_swap() in the vmscan cull path.
-> 
-> I tested this by mmap()ing a largish [20G] anon segment, writing to each
-> page to populate it, then mlocking the segment.  Other tests kept the
-> system under memory pressure so that quite a few of the pages of the
-> anon segment got swapped out before I mlocked it.  The fact that I hit
-> these counters indicates that many of the mlocked pages were culled by
-> vmscan rather than by mlock itself--possibly because we recently removed
-> the lru_drain_all() from mlock, so we don't necessarily see all of the
-> pages on the lru on return from get_user_pages() in mlock.
-
-That does sound like you've really been testing it, and it looks to be
-a satisfying result, that it actually swap_freed every one it tried.
-
-Thanks for the reassurance (but let's see about those bugs),
-
-Hugh
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
