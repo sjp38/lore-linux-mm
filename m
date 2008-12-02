@@ -1,59 +1,40 @@
-Date: Tue, 2 Dec 2008 13:04:10 +0000
-From: John Levon <levon@movementarian.org>
-Subject: Re: [patch][rfc] fs: shrink struct dentry
-Message-ID: <20081202130410.GA24222@totally.trollied.org.uk>
-References: <20081201083343.GC2529@wotan.suse.de> <20081201175113.GA16828@totally.trollied.org.uk> <20081201180455.GJ10790@wotan.suse.de> <20081201193818.GB16828@totally.trollied.org.uk> <20081202070608.GA28080@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081202070608.GA28080@wotan.suse.de>
+Date: Tue, 2 Dec 2008 07:12:01 -0600 (CST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
+In-Reply-To: <Pine.LNX.4.64.0812020947440.5306@blonde.anvils>
+Message-ID: <Pine.LNX.4.64.0812020710371.9474@quilx.com>
+References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
+ <Pine.LNX.4.64.0812010038220.11401@blonde.site> <Pine.LNX.4.64.0812010843230.15331@quilx.com>
+ <Pine.LNX.4.64.0812012349330.18893@blonde.anvils> <Pine.LNX.4.64.0812012014150.30344@quilx.com>
+ <Pine.LNX.4.64.0812020947440.5306@blonde.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, robert.richter@amd.com, oprofile-list@lists.sf.net
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 02, 2008 at 08:06:08AM +0100, Nick Piggin wrote:
+On Tue, 2 Dec 2008, Hugh Dickins wrote:
 
-> > Don't you even have a differential profile showing the impact of
-> > removing d_cookie? This hash table lookup will now happen on *every*
-> > userspace sample that's processed. That's, uh, a lot.
-> 
-> I don't know what you mean by every sample that's processed, but
-> won't the hash lookup only happen for the *first* time that a given
-> name is asked for a dcookie (ie. fast_get_dcookie, which, as I said,
-> should actually be moved to fs/dcookies.c)
+> > But they are always clear on free. The checking is irrelevant.
+>
+> How about CHECK_PAGE_FLAGS_CLEAR_AT_FREE?
 
-I mis-read your changes.
+Strange name.
 
-> > (By all means make your change, but I don't get how it's OK to regress
-> > other code, and provide no evidence at all as to its impact.)
-> 
-> Tradeoffs are made all the time. This is obviously a good one, and
-                                           ^^^^^^^^^^^^^^^^^^^^
+> The one I really disliked was "PAGE_FLAGS" for an obscure
+> subset of page flags, and have got rid of that.
 
-By all means make your change, but I don't get how it's OK to regress
-other code, and provide no evidence at all as to its impact.
+Good.
 
-> I provided evidence of the impact of the improvement in the common
-> case. I also acknowledge it can slow down the uncommon case, but
-> showed ways that can easily be improved. Do you want me to just try
-> to make an artificial case where I mmap thousands of tiny shared
-> libraries and try to overflow the hash and try to detect a difference?
+> > If (page->flags & (all the flags including dirty and SwapBacked))
+> > 	zap-em.
+>
+> That's exactly what I did, isn't it?
 
-You haven't even bothered to show that it hasn't affected normal
-oprofile use yet.
-
-I can't believe I'm having to argue that you need to test your code. So
-I think I'll stop.
-
-> Did you add d_cookie? If so, then surely at the time you must have
-
-It was added along with the rest of oprofile, so I don't have breakout
-numbers. I did have oprofile overhead numbers, though I doubt I could
-find them now.
-
-john
+Yes but you added another instance of this. Can you consolidate all the
+check and clears into one?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
