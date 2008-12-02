@@ -1,104 +1,54 @@
-Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
-	by smtp-out.google.com with ESMTP id mB2M0loR015766
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 14:00:47 -0800
-Received: from yw-out-2324.google.com (ywb5.prod.google.com [10.192.2.5])
-	by zps77.corp.google.com with ESMTP id mB2M0jLi003722
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 14:00:46 -0800
-Received: by yw-out-2324.google.com with SMTP id 5so1364160ywb.53
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2008 14:00:45 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <4935A7EC.2020708@cs.helsinki.fi>
-References: <604427e00812021130t1aad58a8j7474258ae33e15a4@mail.gmail.com>
-	 <4935A7EC.2020708@cs.helsinki.fi>
-Date: Tue, 2 Dec 2008 14:00:45 -0800
-Message-ID: <604427e00812021400w170cd1dbl6e5b8c3d18135013@mail.gmail.com>
-Subject: Re: [PATCH][V6]make get_user_pages interruptible
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Tue, 2 Dec 2008 22:10:29 +0000
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver.
+Message-ID: <20081202221029.513e8774@lxorguk.ukuu.org.uk>
+In-Reply-To: <20081202212411.GG17607@acer.localdomain>
+References: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
+	<1226888432-3662-2-git-send-email-ieidus@redhat.com>
+	<1226888432-3662-3-git-send-email-ieidus@redhat.com>
+	<1226888432-3662-4-git-send-email-ieidus@redhat.com>
+	<20081128165806.172d1026@lxorguk.ukuu.org.uk>
+	<20081202180724.GC17607@acer.localdomain>
+	<20081202181333.38c7b421@lxorguk.ukuu.org.uk>
+	<20081202212411.GG17607@acer.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Oleg Nesterov <oleg@redhat.com>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: Chris Wright <chrisw@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 2, 2008 at 1:26 PM, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> Ying Han wrote:
->>
->> changelog
->> [v6] replace the sigkill_pending() with fatal_signal_pending()
->>      add the check for cases current != tsk
->>
->> From: Ying Han <yinghan@google.com>
->>
->> make get_user_pages interruptible
->> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
->> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
->> return immediately. This patch includes:
->>
->> 1. add the case that the SIGKILL is sent by user processes. The process
->> can
->> try to get_user_pages() unlimited memory even if a user process has sent a
->> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
->> try to kill it). In the old implementation, the SIGKILL won't be handled
->> until the get_user_pages() returns.
->>
->> 2. change the return value to be ERESTARTSYS. It makes no sense to return
->> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
->> Considering the general convention for a system call interrupted by a
->> signal is ERESTARTNOSYS, so the current return value is consistant to
->> that.
->>
->> Signed-off-by:  Paul Menage <menage@google.com>
->> Signed-off-by:  Ying Han <yinghan@google.com>
->>
->> mm/memory.c                   |   13 ++-
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 164951c..049a4f1 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -1218,12 +1218,15 @@ int __get_user_pages(struct task_struct *tsk,
->> struct m
->>                        struct page *page;
->>
->>                        /*
->> -                        * If tsk is ooming, cut off its access to large
->> memory
->> -                        * allocations. It has a pending SIGKILL, but it
->> can't
->> -                        * be processed until returning to user space.
->> +                        * If we have a pending SIGKILL, don't keep
->> +                        * allocating memory. We check both current
->> +                        * and tsk to cover the cases where current
->> +                        * is allocating pages on behalf of tsk.
->>                         */
->> -                       if (unlikely(test_tsk_thread_flag(tsk,
->> TIF_MEMDIE)))
->> -                               return i ? i : -ENOMEM;
->> +                       if (unlikely(fatal_signal_pending(current) ||
->> +                               ((current != tsk) &&
->
-> Hmm, do we really need that extra check for current != tsk? If it's a must,
-> then you probably want to do something like:
->
->  if (unlikely(fatal_signal_pending(current))
->      return i ? i : -ERESTARTSYS;
->  if (unlikely(current!= tsk && fatal_signal_pending(tsk))
->      return i ? i : - ERESTARTSYS;
->
-> The current form seems just too ugly to live with.
->
->> +                               fatal_signal_pending(tsk))))
->> +                               return i ? i : -ERESTARTSYS;
->>
->>                        if (write)
->>                                foll_flags |= FOLL_WRITE;
->
->
-hmm,  i was thinking since in most cases we have current==tsk, and we
-don't want to do the doublecheck for fatal_signal_pending. Thanks
-Pekka and i will post the fix as you suggested.
+On Tue, 2 Dec 2008 13:24:11 -0800
+Chris Wright <chrisw@redhat.com> wrote:
+
+> * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> > On Tue, 2 Dec 2008 10:07:24 -0800
+> > Chris Wright <chrisw@redhat.com> wrote:
+> > > * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> > > > > +	r = !memcmp(old_digest, sha1_item->sha1val, SHA1_DIGEST_SIZE);
+> > > > > +	mutex_unlock(&sha1_lock);
+> > > > > +	if (r) {
+> > > > > +		char *old_addr, *new_addr;
+> > > > > +		old_addr = kmap_atomic(oldpage, KM_USER0);
+> > > > > +		new_addr = kmap_atomic(newpage, KM_USER1);
+> > > > > +		r = !memcmp(old_addr+PAGEHASH_LEN, new_addr+PAGEHASH_LEN,
+> > > > > +			    PAGE_SIZE-PAGEHASH_LEN);
+> > > > 
+> > > > NAK - this isn't guaranteed to be robust so you could end up merging
+> > > > different pages one provided by a malicious attacker.
+> > > 
+> > > I presume you're referring to the digest comparison.  While there's
+> > > theoretical concern of hash collision, it's mitigated by hmac(sha1)
+> > > so the attacker can't brute force for known collisions.
+> > 
+> > Using current known techniques. A random collision is just as bad news.
+> 
+> And, just to clarify, your concern would extend to any digest based
+> comparison?  Or are you specifically concerned about sha1?
+
+Taken off list 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
