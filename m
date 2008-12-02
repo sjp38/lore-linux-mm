@@ -1,102 +1,78 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB296F1q030309
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Dec 2008 18:06:15 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 96C5045DE50
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 18:06:15 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 78CBD45DD72
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 18:06:15 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AB8B1DB803C
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 18:06:15 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 10A1D1DB8037
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 18:06:15 +0900 (JST)
-Date: Tue, 2 Dec 2008 18:05:25 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 11/11] memcg: show reclaim_stat
-Message-Id: <20081202180525.2023892c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081201211905.1CEB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081201211905.1CEB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 2 Dec 2008 10:39:26 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 1/8] badpage: simplify page_alloc flag check+clear
+In-Reply-To: <Pine.LNX.4.64.0812012014150.30344@quilx.com>
+Message-ID: <Pine.LNX.4.64.0812020947440.5306@blonde.anvils>
+References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
+ <Pine.LNX.4.64.0812010038220.11401@blonde.site> <Pine.LNX.4.64.0812010843230.15331@quilx.com>
+ <Pine.LNX.4.64.0812012349330.18893@blonde.anvils> <Pine.LNX.4.64.0812012014150.30344@quilx.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russ Anderson <rja@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Dave Jones <davej@redhat.com>, Arjan van de Ven <arjan@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon,  1 Dec 2008 21:19:49 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Mon, 1 Dec 2008, Christoph Lameter wrote:
+> On Mon, 1 Dec 2008, Hugh Dickins wrote:
+> > > > PAGE_FLAGS_CHECK_AT_FREE
+> 
+> > > Rename this to PAGE_FLAGS_CLEAR_WHEN_FREE?
+> >
+> > No, that's a list of just the ones it's checking at free;
+> > it then (with this patch) goes on to clear all of them.
+> 
+> But they are always clear on free. The checking is irrelevant.
 
-> added following four field to memory.stat file.
-> 
->   - recent_rotated_anon
->   - recent_rotated_file
->   - recent_scanned_anon
->   - recent_scanned_file
-> 
-> it is useful for memcg reclaim debugging.
-> 
-I'll put this under CONFIG_DEBUG_VM.
-
-Thanks,
--Kame
+How about CHECK_PAGE_FLAGS_CLEAR_AT_FREE?
 
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |   25 +++++++++++++++++++++++++
->  1 file changed, 25 insertions(+)
+> > One of the problems with PREP is that it's not obvious that it
+> > means ALLOC: yes, I'd be happier with PAGE_FLAGS_CLEAR_AT_FREE.
 > 
-> Index: b/mm/memcontrol.c
-> ===================================================================
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1799,6 +1799,31 @@ static int mem_control_stat_show(struct 
->  
->  	cb->fill(cb, "inactive_ratio", mem_cont->inactive_ratio);
->  
-> +	{
-> +		int nid, zid;
-> +		struct mem_cgroup_per_zone *mz;
-> +		unsigned long recent_rotated[2] = {0, 0};
-> +		unsigned long recent_scanned[2] = {0, 0};
-> +
-> +		for_each_online_node(nid)
-> +			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-> +				mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
-> +
-> +				recent_rotated[0] +=
-> +					mz->reclaim_stat.recent_rotated[0];
-> +				recent_rotated[1] +=
-> +					mz->reclaim_stat.recent_rotated[1];
-> +				recent_scanned[0] +=
-> +					mz->reclaim_stat.recent_scanned[0];
-> +				recent_scanned[1] +=
-> +					mz->reclaim_stat.recent_scanned[1];
-> +			}
-> +		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
-> +		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
-> +		cb->fill(cb, "recent_scanned_anon", recent_scanned[0]);
-> +		cb->fill(cb, "recent_scanned_file", recent_scanned[1]);
-> +	}
-> +
->  	return 0;
->  }
->  
+> Ok.
+
+If you like the suggestion above, then for this one
+how about CHECK_PAGE_FLAGS_CLEAR_AT_ALLOC?
+
+I just haven't changed those names in the patch, continued to
+use the names from before: they're probably not the names I'd
+have chosen, but it is hard to write a paragraph in a name.
+
+The one I really disliked was "PAGE_FLAGS" for an obscure
+subset of page flags, and have got rid of that.
+
+> > > This is equal to
+> > >
+> > > page->flags &=~PAGE_FLAGS_CHECK_AT_PREP;
+> > >
+> > > You can drop the if...
+> >
+> > I was intentionally following the existing style of
+> > 	if (PageDirty(page))
+> > 		__ClearPageDirty(page);
+> > 	if (PageSwapBacked(page))
+> > 		__ClearPageSwapBacked(page);
+> > which is going out of its way to avoid dirtying a cacheline.
+> >
+> > In all the obvious cases, I think the cacheline will already
+> > be dirty; but I guess there's an important case (high order
+> > but not compound?) which has a lot of clean cachelines.
 > 
+> Free or alloc dirties the cacheline of the page struct regardless since
+> the LRU field is always modified.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Well, ok. The not compound high order case may be an exception.
 > 
+> But then lets at least make a single check
+> 
+> If (page->flags & (all the flags including dirty and SwapBacked))
+> 	zap-em.
+
+That's exactly what I did, isn't it?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
