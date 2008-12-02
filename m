@@ -1,36 +1,42 @@
-Message-Id: <6.2.5.6.2.20081202143914.01ddcd88@binnacle.cx>
-Date: Tue, 02 Dec 2008 14:41:56 -0500
-From: starlight@binnacle.cx
-Subject: Re: [Bug 12134] New: can't shmat() 1GB hugepage segment
-  from second process more than one time
-In-Reply-To: <1228245880.13482.19.camel@localhost.localdomain>
-References: <bug-12134-27@http.bugzilla.kernel.org/>
- <20081201181459.49d8fcca.akpm@linux-foundation.org>
- <1228245880.13482.19.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Tue, 2 Dec 2008 13:24:11 -0800
+From: Chris Wright <chrisw@redhat.com>
+Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver.
+Message-ID: <20081202212411.GG17607@acer.localdomain>
+References: <1226888432-3662-1-git-send-email-ieidus@redhat.com> <1226888432-3662-2-git-send-email-ieidus@redhat.com> <1226888432-3662-3-git-send-email-ieidus@redhat.com> <1226888432-3662-4-git-send-email-ieidus@redhat.com> <20081128165806.172d1026@lxorguk.ukuu.org.uk> <20081202180724.GC17607@acer.localdomain> <20081202181333.38c7b421@lxorguk.ukuu.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20081202181333.38c7b421@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adam Litke <agl@us.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugme-daemon@bugzilla.kernel.org, Andy Whitcroft <apw@shadowen.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Chris Wright <chrisw@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net
 List-ID: <linux-mm.kvack.org>
 
-I'll collect a more detailed picture in the next day or so and 
-send the info.  Maybe create a test-case.
+* Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> On Tue, 2 Dec 2008 10:07:24 -0800
+> Chris Wright <chrisw@redhat.com> wrote:
+> > * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> > > > +	r = !memcmp(old_digest, sha1_item->sha1val, SHA1_DIGEST_SIZE);
+> > > > +	mutex_unlock(&sha1_lock);
+> > > > +	if (r) {
+> > > > +		char *old_addr, *new_addr;
+> > > > +		old_addr = kmap_atomic(oldpage, KM_USER0);
+> > > > +		new_addr = kmap_atomic(newpage, KM_USER1);
+> > > > +		r = !memcmp(old_addr+PAGEHASH_LEN, new_addr+PAGEHASH_LEN,
+> > > > +			    PAGE_SIZE-PAGEHASH_LEN);
+> > > 
+> > > NAK - this isn't guaranteed to be robust so you could end up merging
+> > > different pages one provided by a malicious attacker.
+> > 
+> > I presume you're referring to the digest comparison.  While there's
+> > theoretical concern of hash collision, it's mitigated by hmac(sha1)
+> > so the attacker can't brute force for known collisions.
+> 
+> Using current known techniques. A random collision is just as bad news.
 
-Several other segments 128MB are created before the 1GB segment. 
-They all run in the 0x300000000 range on 256MB boundaries 
-(second digit changes) and the big one goes at 0x400000000.
-
-'mlockall()' is called periodically as well--perhaps
-that's the antagonist.
-
-Have SHM_HUGETLB set even for no-create attaches, which I'm not 
-sure is proper.  It works on RHEL though.
-
-Memory is touched in each segment, 100% for the smaller
-ones and small % for the big one.  Didn't think it made
-any difference since it's all locked by implication.
+And, just to clarify, your concern would extend to any digest based
+comparison?  Or are you specifically concerned about sha1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
