@@ -1,24 +1,23 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB24JVS1024873
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB24KHaO017920
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 2 Dec 2008 13:19:32 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D3EE22AEA8D
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:19:31 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AC79F45DD6E
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:19:31 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A9DC1DB803C
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:19:31 +0900 (JST)
+	Tue, 2 Dec 2008 13:20:17 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4780045DE4F
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:20:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 21ABF45DE51
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:20:17 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E79431DB8037
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:20:16 +0900 (JST)
 Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FB391DB803F
-	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:19:31 +0900 (JST)
-Date: Tue, 2 Dec 2008 13:18:40 +0900
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F9201DB8042
+	for <linux-mm@kvack.org>; Tue,  2 Dec 2008 13:20:16 +0900 (JST)
+Date: Tue, 2 Dec 2008 13:19:27 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [mmotm][PATCH 1/4]
- replacement-for-memcg-simple-migration-handling.patch
-Message-Id: <20081202131840.6d797997.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [mmotm][PATCH 2/4] replacement-for-memcg-handle-swap-caches.patch
+Message-Id: <20081202131927.e93b779e.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081202131723.806f1724.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081202131723.806f1724.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,348 +31,273 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, management of "charge" under page migration is done under following
-manner. (Assume migrate page contents from oldpage to newpage)
+SwapCache support for memory resource controller (memcg)
 
- before
-  - "newpage" is charged before migration.
- at success.
-  - "oldpage" is uncharged at somewhere(unmap, radix-tree-replace)
- at failure
-  - "newpage" is uncharged.
-  - "oldpage" is charged if necessary (*1)
+Before mem+swap controller, memcg itself should handle SwapCache in proper
+way.  This is cut-out from it.
 
-But (*1) is not reliable....because of GFP_ATOMIC.
+In current memcg, SwapCache is just leaked and the user can create tons of
+SwapCache.  This is a leak of account and should be handled.
 
-This patch tries to change behavior as following by charge/commit/cancel ops.
+SwapCache accounting is done as following.
 
- before
-  - charge PAGE_SIZE (no target page)
- success
-  - commit charge against "newpage".
- failure
-  - commit charge against "oldpage".
-    (PCG_USED bit works effectively to avoid double-counting)
-  - if "oldpage" is obsolete, cancel charge of PAGE_SIZE.
+  charge (anon)
+	- charged when it's mapped.
+	  (because of readahead, charge at add_to_swap_cache() is not sane)
+  uncharge (anon)
+	- uncharged when it's dropped from swapcache and fully unmapped.
+	  means it's not uncharged at unmap.
+	  Note: delete from swap cache at swap-in is done after rmap information
+	        is established.
+  charge (shmem)
+	- charged at swap-in. this prevents charge at add_to_page_cache().
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+  uncharge (shmem)
+	- uncharged when it's dropped from swapcache and not on shmem's
+	  radix-tree.
+
+  at migration, check against 'old page' is modified to handle shmem.
+
+Comparing to the old version discussed (and caused troubles), we have
+advantages of
+  - PCG_USED bit.
+  - simple migrating handling.
+
+So, situation is much easier than several months ago, maybe.
+
 Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>
 Cc: Balbir Singh <balbir@in.ibm.com>
+Cc: Pavel Emelyanov <xemul@openvz.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
- include/linux/memcontrol.h |   19 ++-----
- mm/memcontrol.c            |  109 +++++++++++++++++++++------------------------
- mm/migrate.c               |   42 +++++------------
- 3 files changed, 74 insertions(+), 96 deletions(-)
+ Documentation/controllers/memory.txt |    5 ++
+ include/linux/swap.h                 |   16 ++++++++
+ mm/memcontrol.c                      |   67 +++++++++++++++++++++++++++++++----
+ mm/shmem.c                           |   17 +++++++-
+ mm/swap_state.c                      |    1 
+ 5 files changed, 98 insertions(+), 8 deletions(-)
 
-Index: mmotm-2.6.28-Nov30/include/linux/memcontrol.h
+Index: mmotm-2.6.28-Nov30/Documentation/controllers/memory.txt
 ===================================================================
---- mmotm-2.6.28-Nov30.orig/include/linux/memcontrol.h
-+++ mmotm-2.6.28-Nov30/include/linux/memcontrol.h
-@@ -29,8 +29,6 @@ struct mm_struct;
+--- mmotm-2.6.28-Nov30.orig/Documentation/controllers/memory.txt
++++ mmotm-2.6.28-Nov30/Documentation/controllers/memory.txt
+@@ -137,6 +137,11 @@ behind this approach is that a cgroup th
+ page will eventually get charged for it (once it is uncharged from
+ the cgroup that brought it in -- this will happen on memory pressure).
  
- extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask);
--extern int mem_cgroup_charge_migrate_fixup(struct page *page,
--				struct mm_struct *mm, gfp_t gfp_mask);
- /* for swap handling */
- extern int mem_cgroup_try_charge(struct mm_struct *mm,
- 		gfp_t gfp_mask, struct mem_cgroup **ptr);
-@@ -60,8 +58,9 @@ extern struct mem_cgroup *mem_cgroup_fro
- 	((cgroup) == mem_cgroup_from_task((mm)->owner))
++Exception: When you do swapoff and make swapped-out pages of shmem(tmpfs) to
++be backed into memory in force, charges for pages are accounted against the
++caller of swapoff rather than the users of shmem.
++
++
+ 2.4 Reclaim
  
- extern int
--mem_cgroup_prepare_migration(struct page *page, struct page *newpage);
--extern void mem_cgroup_end_migration(struct page *page);
-+mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
-+extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
-+	struct page *oldpage, struct page *newpage);
- 
- /*
-  * For memory reclaim.
-@@ -94,12 +93,6 @@ static inline int mem_cgroup_cache_charg
- 	return 0;
+ Each cgroup maintains a per cgroup LRU that consists of an active
+Index: mmotm-2.6.28-Nov30/include/linux/swap.h
+===================================================================
+--- mmotm-2.6.28-Nov30.orig/include/linux/swap.h
++++ mmotm-2.6.28-Nov30/include/linux/swap.h
+@@ -336,6 +336,22 @@ static inline void disable_swap_token(vo
+ 	put_swap_token(swap_token_mm);
  }
  
--static inline int mem_cgroup_charge_migrate_fixup(struct page *page,
--					struct mm_struct *mm, gfp_t gfp_mask)
--{
--	return 0;
--}
--
- static inline int mem_cgroup_try_charge(struct mm_struct *mm,
- 				gfp_t gfp_mask, struct mem_cgroup **ptr)
- {
-@@ -144,12 +137,14 @@ static inline int task_in_mem_cgroup(str
- }
++#ifdef CONFIG_CGROUP_MEM_RES_CTLR
++extern int mem_cgroup_cache_charge_swapin(struct page *page,
++				struct mm_struct *mm, gfp_t mask, bool locked);
++extern void mem_cgroup_uncharge_swapcache(struct page *page);
++#else
++static inline
++int mem_cgroup_cache_charge_swapin(struct page *page,
++				struct mm_struct *mm, gfp_t mask, bool locked)
++{
++	return 0;
++}
++static inline void mem_cgroup_uncharge_swapcache(struct page *page)
++{
++}
++#endif
++
+ #else /* CONFIG_SWAP */
  
- static inline int
--mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
-+mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
- {
- 	return 0;
- }
- 
--static inline void mem_cgroup_end_migration(struct page *page)
-+static inline void mem_cgroup_end_migration(struct mem_cgroup *mem,
-+					struct page *oldpage,
-+					struct page *newpage)
- {
- }
- 
+ #define nr_swap_pages				0L
 Index: mmotm-2.6.28-Nov30/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.28-Nov30.orig/mm/memcontrol.c
 +++ mmotm-2.6.28-Nov30/mm/memcontrol.c
-@@ -627,34 +627,6 @@ int mem_cgroup_newpage_charge(struct pag
- 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
- }
+@@ -21,6 +21,7 @@
+ #include <linux/memcontrol.h>
+ #include <linux/cgroup.h>
+ #include <linux/mm.h>
++#include <linux/pagemap.h>
+ #include <linux/smp.h>
+ #include <linux/page-flags.h>
+ #include <linux/backing-dev.h>
+@@ -139,6 +140,7 @@ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+ 	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
+ 	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
++	MEM_CGROUP_CHARGE_TYPE_SWAPOUT,	/* for accounting swapcache */
+ 	NR_CHARGE_TYPE,
+ };
  
--/*
-- * same as mem_cgroup_newpage_charge(), now.
-- * But what we assume is different from newpage, and this is special case.
-- * treat this in special function. easy for maintenance.
-- */
--
--int mem_cgroup_charge_migrate_fixup(struct page *page,
--				struct mm_struct *mm, gfp_t gfp_mask)
--{
--	if (mem_cgroup_subsys.disabled)
--		return 0;
--
--	if (PageCompound(page))
--		return 0;
--
--	if (page_mapped(page) || (page->mapping && !PageAnon(page)))
--		return 0;
--
--	if (unlikely(!mm))
--		mm = &init_mm;
--
--	return mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
--}
--
--
--
--
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
-@@ -697,7 +669,6 @@ int mem_cgroup_cache_charge(struct page 
+@@ -780,6 +782,33 @@ int mem_cgroup_cache_charge(struct page 
  				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
  }
  
--
++#ifdef CONFIG_SWAP
++int mem_cgroup_cache_charge_swapin(struct page *page,
++			struct mm_struct *mm, gfp_t mask, bool locked)
++{
++	int ret = 0;
++
++	if (mem_cgroup_subsys.disabled)
++		return 0;
++	if (unlikely(!mm))
++		mm = &init_mm;
++	if (!locked)
++		lock_page(page);
++	/*
++	 * If not locked, the page can be dropped from SwapCache until
++	 * we reach here.
++	 */
++	if (PageSwapCache(page)) {
++		ret = mem_cgroup_charge_common(page, mm, mask,
++				MEM_CGROUP_CHARGE_TYPE_SHMEM, NULL);
++	}
++	if (!locked)
++		unlock_page(page);
++
++	return ret;
++}
++#endif
++
  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
  {
  	struct page_cgroup *pc;
-@@ -782,13 +753,13 @@ void mem_cgroup_uncharge_cache_page(stru
- }
- 
- /*
-- * Before starting migration, account against new page.
-+ * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
-+ * page belongs to.
-  */
--int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
-+int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
- {
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *mem = NULL;
--	enum charge_type ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
- 	int ret = 0;
- 
+@@ -817,6 +846,9 @@ __mem_cgroup_uncharge_common(struct page
  	if (mem_cgroup_subsys.disabled)
-@@ -799,41 +770,67 @@ int mem_cgroup_prepare_migration(struct 
- 	if (PageCgroupUsed(pc)) {
- 		mem = pc->mem_cgroup;
- 		css_get(&mem->css);
--		if (PageCgroupCache(pc)) {
--			if (page_is_file_cache(page))
--				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
--			else
--				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
--		}
- 	}
- 	unlock_page_cgroup(pc);
-+
- 	if (mem) {
--		ret = mem_cgroup_charge_common(newpage, NULL, GFP_KERNEL,
--			ctype, mem);
-+		ret = mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem);
- 		css_put(&mem->css);
- 	}
-+	*ptr = mem;
- 	return ret;
- }
+ 		return;
  
--/* remove redundant charge if migration failed*/
--void mem_cgroup_end_migration(struct page *newpage)
-+ /* remove redundant charge if migration failed*/
-+void mem_cgroup_end_migration(struct mem_cgroup *mem,
-+		struct page *oldpage, struct page *newpage)
- {
-+	struct page *target, *unused;
-+	struct page_cgroup *pc;
-+	enum charge_type ctype;
-+
-+	if (!mem)
++	if (PageSwapCache(page))
 +		return;
 +
-+	/* at migration success, oldpage->mapping is NULL. */
-+	if (oldpage->mapping) {
-+		target = oldpage;
-+		unused = NULL;
-+	} else {
-+		target = newpage;
-+		unused = oldpage;
-+	}
-+
-+	if (PageAnon(target))
-+		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-+	else if (page_is_file_cache(target))
-+		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-+	else
-+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-+
-+	/* unused page is not on radix-tree now. */
-+	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
-+		__mem_cgroup_uncharge_common(unused, ctype);
-+
-+	pc = lookup_page_cgroup(target);
  	/*
--	 * At success, page->mapping is not NULL.
--	 * special rollback care is necessary when
--	 * 1. at migration failure. (newpage->mapping is cleared in this case)
--	 * 2. the newpage was moved but not remapped again because the task
--	 *    exits and the newpage is obsolete. In this case, the new page
--	 *    may be a swapcache. So, we just call mem_cgroup_uncharge_page()
--	 *    always for avoiding mess. The  page_cgroup will be removed if
--	 *    unnecessary. File cache pages is still on radix-tree. Don't
--	 *    care it.
-+	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
-+	 * So, double-counting is effectively avoided.
-+	 */
-+	__mem_cgroup_commit_charge(mem, pc, ctype);
-+
-+	/*
-+	 * Both of oldpage and newpage are still under lock_page().
-+	 * Then, we don't have to care about race in radix-tree.
-+	 * But we have to be careful that this page is unmapped or not.
-+	 *
-+	 * There is a case for !page_mapped(). At the start of
-+	 * migration, oldpage was mapped. But now, it's zapped.
-+	 * But we know *target* page is not freed/reused under us.
-+	 * mem_cgroup_uncharge_page() does all necessary checks.
+ 	 * Check if our page_cgroup is valid
  	 */
--	if (!newpage->mapping)
--		__mem_cgroup_uncharge_common(newpage,
--				MEM_CGROUP_CHARGE_TYPE_FORCE);
--	else if (PageAnon(newpage))
--		mem_cgroup_uncharge_page(newpage);
-+	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-+		mem_cgroup_uncharge_page(target);
+@@ -825,12 +857,26 @@ __mem_cgroup_uncharge_common(struct page
+ 		return;
+ 
+ 	lock_page_cgroup(pc);
+-	if ((ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED && page_mapped(page))
+-	     || !PageCgroupUsed(pc)) {
+-		/* This happens at race in zap_pte_range() and do_swap_page()*/
+-		unlock_page_cgroup(pc);
+-		return;
++
++	if (!PageCgroupUsed(pc))
++		goto unlock_out;
++
++	switch (ctype) {
++	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
++		if (page_mapped(page))
++			goto unlock_out;
++		break;
++	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
++		if (!PageAnon(page)) {	/* Shared memory */
++			if (page->mapping && !page_is_file_cache(page))
++				goto unlock_out;
++		} else if (page_mapped(page)) /* Anon */
++				goto unlock_out;
++		break;
++	default:
++		break;
+ 	}
++
+ 	ClearPageCgroupUsed(pc);
+ 	mem = pc->mem_cgroup;
+ 
+@@ -844,6 +890,10 @@ __mem_cgroup_uncharge_common(struct page
+ 	css_put(&mem->css);
+ 
+ 	return;
++
++unlock_out:
++	unlock_page_cgroup(pc);
++	return;
  }
  
+ void mem_cgroup_uncharge_page(struct page *page)
+@@ -863,6 +913,11 @@ void mem_cgroup_uncharge_cache_page(stru
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
+ }
+ 
++void mem_cgroup_uncharge_swapcache(struct page *page)
++{
++	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
++}
++
  /*
-Index: mmotm-2.6.28-Nov30/mm/migrate.c
+  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+  * page belongs to.
+@@ -920,7 +975,7 @@ void mem_cgroup_end_migration(struct mem
+ 		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+ 
+ 	/* unused page is not on radix-tree now. */
+-	if (unused && ctype != MEM_CGROUP_CHARGE_TYPE_MAPPED)
++	if (unused)
+ 		__mem_cgroup_uncharge_common(unused, ctype);
+ 
+ 	pc = lookup_page_cgroup(target);
+Index: mmotm-2.6.28-Nov30/mm/shmem.c
 ===================================================================
---- mmotm-2.6.28-Nov30.orig/mm/migrate.c
-+++ mmotm-2.6.28-Nov30/mm/migrate.c
-@@ -121,20 +121,6 @@ static void remove_migration_pte(struct 
- 	if (!is_migration_entry(entry) || migration_entry_to_page(entry) != old)
+--- mmotm-2.6.28-Nov30.orig/mm/shmem.c
++++ mmotm-2.6.28-Nov30/mm/shmem.c
+@@ -920,8 +920,11 @@ found:
+ 	error = 1;
+ 	if (!inode)
  		goto out;
+-	/* Precharge page using GFP_KERNEL while we can wait */
+-	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
++	/*
++	 * Charged back to the user(not to caller) when swap account is used.
++	 */
++	error = mem_cgroup_cache_charge_swapin(page,
++			current->mm, GFP_KERNEL, true);
+ 	if (error)
+ 		goto out;
+ 	error = radix_tree_preload(GFP_KERNEL);
+@@ -1258,6 +1261,16 @@ repeat:
+ 				goto repeat;
+ 			}
+ 			wait_on_page_locked(swappage);
++			/*
++			 * We want to avoid charge at add_to_page_cache().
++			 * charge against this swap cache here.
++			 */
++			if (mem_cgroup_cache_charge_swapin(swappage,
++						current->mm, gfp, false)) {
++				page_cache_release(swappage);
++				error = -ENOMEM;
++				goto failed;
++			}
+ 			page_cache_release(swappage);
+ 			goto repeat;
+ 		}
+Index: mmotm-2.6.28-Nov30/mm/swap_state.c
+===================================================================
+--- mmotm-2.6.28-Nov30.orig/mm/swap_state.c
++++ mmotm-2.6.28-Nov30/mm/swap_state.c
+@@ -118,6 +118,7 @@ void __delete_from_swap_cache(struct pag
+ 	total_swapcache_pages--;
+ 	__dec_zone_page_state(page, NR_FILE_PAGES);
+ 	INC_CACHE_INFO(del_total);
++	mem_cgroup_uncharge_swapcache(page);
+ }
  
--	/*
--	 * Yes, ignore the return value from a GFP_ATOMIC mem_cgroup_charge.
--	 * Failure is not an option here: we're now expected to remove every
--	 * migration pte, and will cause crashes otherwise.  Normally this
--	 * is not an issue: mem_cgroup_prepare_migration bumped up the old
--	 * page_cgroup count for safety, that's now attached to the new page,
--	 * so this charge should just be another incrementation of the count,
--	 * to keep in balance with rmap.c's mem_cgroup_uncharging.  But if
--	 * there's been a force_empty, those reference counts may no longer
--	 * be reliable, and this charge can actually fail: oh well, we don't
--	 * make the situation any worse by proceeding as if it had succeeded.
--	 */
--	mem_cgroup_charge_migrate_fixup(new, mm, GFP_ATOMIC);
--
- 	get_page(new);
- 	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
- 	if (is_write_migration_entry(entry))
-@@ -378,9 +364,6 @@ static void migrate_page_copy(struct pag
- 	anon = PageAnon(page);
- 	page->mapping = NULL;
- 
--	if (!anon) /* This page was removed from radix-tree. */
--		mem_cgroup_uncharge_cache_page(page);
--
- 	/*
- 	 * If any waiters have accumulated on the new page then
- 	 * wake them up.
-@@ -613,6 +596,7 @@ static int unmap_and_move(new_page_t get
- 	struct page *newpage = get_new_page(page, private, &result);
- 	int rcu_locked = 0;
- 	int charge = 0;
-+	struct mem_cgroup *mem;
- 
- 	if (!newpage)
- 		return -ENOMEM;
-@@ -622,24 +606,26 @@ static int unmap_and_move(new_page_t get
- 		goto move_newpage;
- 	}
- 
--	charge = mem_cgroup_prepare_migration(page, newpage);
--	if (charge == -ENOMEM) {
--		rc = -ENOMEM;
--		goto move_newpage;
--	}
- 	/* prepare cgroup just returns 0 or -ENOMEM */
--	BUG_ON(charge);
--
- 	rc = -EAGAIN;
-+
- 	if (!trylock_page(page)) {
- 		if (!force)
- 			goto move_newpage;
- 		lock_page(page);
- 	}
- 
-+	/* charge against new page */
-+	charge = mem_cgroup_prepare_migration(page, &mem);
-+	if (charge == -ENOMEM) {
-+		rc = -ENOMEM;
-+		goto unlock;
-+	}
-+	BUG_ON(charge);
-+
- 	if (PageWriteback(page)) {
- 		if (!force)
--			goto unlock;
-+			goto uncharge;
- 		wait_on_page_writeback(page);
- 	}
- 	/*
-@@ -692,7 +678,9 @@ static int unmap_and_move(new_page_t get
- rcu_unlock:
- 	if (rcu_locked)
- 		rcu_read_unlock();
--
-+uncharge:
-+	if (!charge)
-+		mem_cgroup_end_migration(mem, page, newpage);
- unlock:
- 	unlock_page(page);
- 
-@@ -708,8 +696,6 @@ unlock:
- 	}
- 
- move_newpage:
--	if (!charge)
--		mem_cgroup_end_migration(newpage);
- 
- 	/*
- 	 * Move the new page to the LRU. If migration was not successful
+ /**
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
