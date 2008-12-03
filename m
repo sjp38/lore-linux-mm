@@ -1,54 +1,59 @@
-Date: Tue, 2 Dec 2008 22:10:29 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver.
-Message-ID: <20081202221029.513e8774@lxorguk.ukuu.org.uk>
-In-Reply-To: <20081202212411.GG17607@acer.localdomain>
-References: <1226888432-3662-1-git-send-email-ieidus@redhat.com>
-	<1226888432-3662-2-git-send-email-ieidus@redhat.com>
-	<1226888432-3662-3-git-send-email-ieidus@redhat.com>
-	<1226888432-3662-4-git-send-email-ieidus@redhat.com>
-	<20081128165806.172d1026@lxorguk.ukuu.org.uk>
-	<20081202180724.GC17607@acer.localdomain>
-	<20081202181333.38c7b421@lxorguk.ukuu.org.uk>
-	<20081202212411.GG17607@acer.localdomain>
+Date: Tue, 2 Dec 2008 16:47:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 10/9] swapfile: change discard pgoff_t to sector_t
+Message-Id: <20081202164732.1d6d0997.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0812010028040.10131@blonde.site>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+	<Pine.LNX.4.64.0811252140230.17555@blonde.site>
+	<Pine.LNX.4.64.0811252145190.20455@blonde.site>
+	<Pine.LNX.4.64.0812010028040.10131@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Wright <chrisw@redhat.com>
-Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net
+To: Hugh Dickins <hugh@veritas.com>
+Cc: dwmw2@infradead.org, jens.axboe@oracle.com, matthew@wil.cx, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Dec 2008 13:24:11 -0800
-Chris Wright <chrisw@redhat.com> wrote:
+On Mon, 1 Dec 2008 00:29:41 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
 
-> * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
-> > On Tue, 2 Dec 2008 10:07:24 -0800
-> > Chris Wright <chrisw@redhat.com> wrote:
-> > > * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
-> > > > > +	r = !memcmp(old_digest, sha1_item->sha1val, SHA1_DIGEST_SIZE);
-> > > > > +	mutex_unlock(&sha1_lock);
-> > > > > +	if (r) {
-> > > > > +		char *old_addr, *new_addr;
-> > > > > +		old_addr = kmap_atomic(oldpage, KM_USER0);
-> > > > > +		new_addr = kmap_atomic(newpage, KM_USER1);
-> > > > > +		r = !memcmp(old_addr+PAGEHASH_LEN, new_addr+PAGEHASH_LEN,
-> > > > > +			    PAGE_SIZE-PAGEHASH_LEN);
-> > > > 
-> > > > NAK - this isn't guaranteed to be robust so you could end up merging
-> > > > different pages one provided by a malicious attacker.
-> > > 
-> > > I presume you're referring to the digest comparison.  While there's
-> > > theoretical concern of hash collision, it's mitigated by hmac(sha1)
-> > > so the attacker can't brute force for known collisions.
-> > 
-> > Using current known techniques. A random collision is just as bad news.
+> Change pgoff_t nr_blocks in discard_swap() and discard_swap_cluster() to
+> sector_t: given the constraints on swap offsets (in particular, the 5 bits
+> of swap type accommodated in the same unsigned long), pgoff_t was actually
+> safe as is, but it certainly looked worrying when shifted left.
 > 
-> And, just to clarify, your concern would extend to any digest based
-> comparison?  Or are you specifically concerned about sha1?
+> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+> ---
+> To follow 9/9 swapfile-swap-allocation-cycle-if-nonrot.patch
+> 
+>  mm/swapfile.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> --- swapfile9/mm/swapfile.c	2008-11-26 12:19:00.000000000 +0000
+> +++ swapfile10/mm/swapfile.c	2008-11-28 20:36:44.000000000 +0000
+> @@ -96,7 +96,7 @@ static int discard_swap(struct swap_info
+>  
+>  	list_for_each_entry(se, &si->extent_list, list) {
+>  		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
+> -		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
+> +		sector_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
 
-Taken off list 
+but, but, that didn't change anything?  se->nr_pages must be cast to
+sector_t?
+
+>  		if (se->start_page == 0) {
+>  			/* Do not discard the swap header page! */
+> @@ -133,7 +133,7 @@ static void discard_swap_cluster(struct 
+>  		    start_page < se->start_page + se->nr_pages) {
+>  			pgoff_t offset = start_page - se->start_page;
+>  			sector_t start_block = se->start_block + offset;
+> -			pgoff_t nr_blocks = se->nr_pages - offset;
+> +			sector_t nr_blocks = se->nr_pages - offset;
+>  
+>  			if (nr_blocks > nr_pages)
+>  				nr_blocks = nr_pages;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
