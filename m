@@ -1,67 +1,73 @@
-Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
-	by smtp-out.google.com with ESMTP id mB35HlR3009513
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 21:17:47 -0800
-Received: from wf-out-1314.google.com (wfa28.prod.google.com [10.142.1.28])
-	by zps75.corp.google.com with ESMTP id mB35HkHJ003541
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 21:17:46 -0800
-Received: by wf-out-1314.google.com with SMTP id 28so3610675wfa.25
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2008 21:17:46 -0800 (PST)
-MIME-Version: 1.0
-Date: Tue, 2 Dec 2008 21:17:46 -0800
-Message-ID: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
-Subject: [PATCH][V7]make get_user_pages interruptible
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB35LUNG002406
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 3 Dec 2008 14:21:30 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F3F945DE65
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:21:30 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EEC2745DE5D
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:21:29 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3C731DB803A
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:21:29 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5069F1DB803C
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:21:29 +0900 (JST)
+Date: Wed, 3 Dec 2008 14:20:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH  0/21] memcg updates 2008/12/03
+Message-Id: <20081203142040.065c184d.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Ying Han <yinghan@google.com>
+On Wed, 3 Dec 2008 13:47:18 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-make get_user_pages interruptible
-The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-return immediately. This patch includes:
+> This is memcg update series onto
+> "The mm-of-the-moment snapshot 2008-12-02-17-08"
+> 
+> including following patches. 18-21 are highly experimenal
+> (so, drop CC: to Andrew)
+> 
+> Bug fixes.
+> 1. memcg-revert-gfp-mask-fix.patch 
+> 2. memcg-check-group-leader-fix.patch
+> 3. memsw_limit_check.patch
+> 4. memcg-swapout-refcnt-fix.patch
+> 5. avoid-unnecessary-reclaim.patch
+> 
+> Kosaki's LRU works. (thanks!)
+> 6.  inactive_anon_is_low-move-to-vmscan.patch
+> 7.  introduce-zone_reclaim-struct.patch
+> 8.  make-zone-nr_pages-helper-function.patch
+> 9.  make-get_scan_ratio-to-memcg-safe.patch
+> 10. memcg-add-null-check-to-page_cgroup_zoneinfo.patch
+> 11. memcg-make-inactive_anon_is_low.patch
+> 12. memcg-make-mem_cgroup_zone_nr_pages.patch
+> 13. memcg-make-zone_reclaim_stat.patch
+> 14. memcg-remove-mem_cgroup_cal_reclaim.patch
+> 15. memcg-show-reclaim-stat.patch
+> Cleanup
+> 16. memcg-rename-scan-glonal-lru.patch
+> Bug fix 
+> 16. memcg_prev_priority_protect.patch
+double counts here ..sigh...
 
-1. add the case that the SIGKILL is sent by user processes. The process can
-try to get_user_pages() unlimited memory even if a user process has sent a
-SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-try to kill it). In the old implementation, the SIGKILL won't be handled
-until the get_user_pages() returns.
+If mmotm eats too patches to apply this, I'll post again in Friday.
 
-2. change the return value to be ERESTARTSYS. It makes no sense to return
-ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-Considering the general convention for a system call interrupted by a
-signal is ERESTARTNOSYS, so the current return value is consistant to that.
+BTW, Balbir, "21" (really 22/21) meets your request ?
 
-Signed-off-by:	Paul Menage <menage@google.com>
-Signed-off-by:	Ying Han <yinghan@google.com>
-
-mm/memory.c                   |    9 +-
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 164951c..ef1c3f0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1218,12 +1218,11 @@ int __get_user_pages(struct task_struct *tsk, struct m
- 			struct page *page;
-
- 			/*
--			 * If tsk is ooming, cut off its access to large memory
--			 * allocations. It has a pending SIGKILL, but it can't
--			 * be processed until returning to user space.
-+			 * If we have a pending SIGKILL, don't keep
-+			 * allocating memory.
- 			 */
--			if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))
--				return i ? i : -ENOMEM;
-+			if (unlikely(fatal_signal_pending(current)))
-+				return i ? i : -ERESTARTSYS;
-
- 			if (write)
- 				foll_flags |= FOLL_WRITE;
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
