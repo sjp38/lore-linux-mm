@@ -1,23 +1,23 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB34tL2g017703
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB34u6H4017857
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 3 Dec 2008 13:55:21 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CC73C45DE58
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:55:20 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AB89545DE52
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:55:20 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 873E81DB8040
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:55:20 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 08B181DB8042
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:55:20 +0900 (JST)
-Date: Wed, 3 Dec 2008 13:54:31 +0900
+	Wed, 3 Dec 2008 13:56:06 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AE91645DE51
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:56:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B0A045DE54
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:56:05 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id BB4F7E08002
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:56:04 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F4E6E08004
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:56:04 +0900 (JST)
+Date: Wed, 3 Dec 2008 13:55:15 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH  6/21] inactive_anon_is_low-move-to-vmscan.patch
-Message-Id: <20081203135431.a2acb02f.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH  7/21] introduce-zone_reclaim-struct.patch
+Message-Id: <20081203135515.324a8769.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,73 +29,262 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-The inactive_anon_is_low() is called only vmscan.
-Then it can move to vmscan.c
+make zone_reclam_stat strcut for latter enhancement.
 
-This patch doesn't have any functional change.
+latter patch use this.
+this patch doesn't any behavior change (yet).
 
-Reviewd-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Index: mmotm-2.6.28-Dec02/include/linux/mm_inline.h
+Acked-by: Rik van Riel <riel@redhat.com>
+
+ include/linux/mmzone.h |   24 ++++++++++++++----------
+ mm/page_alloc.c        |    8 ++++----
+ mm/swap.c              |   12 ++++++++----
+ mm/vmscan.c            |   47 ++++++++++++++++++++++++++++++-----------------
+ 4 files changed, 56 insertions(+), 35 deletions(-)
+
+Index: mmotm-2.6.28-Dec02/include/linux/mmzone.h
 ===================================================================
---- mmotm-2.6.28-Dec02.orig/include/linux/mm_inline.h
-+++ mmotm-2.6.28-Dec02/include/linux/mm_inline.h
-@@ -81,23 +81,4 @@ static inline enum lru_list page_lru(str
- 	return lru;
- }
- 
--/**
-- * inactive_anon_is_low - check if anonymous pages need to be deactivated
-- * @zone: zone to check
-- *
-- * Returns true if the zone does not have enough inactive anon pages,
-- * meaning some active anon pages need to be deactivated.
-- */
--static inline int inactive_anon_is_low(struct zone *zone)
--{
--	unsigned long active, inactive;
--
--	active = zone_page_state(zone, NR_ACTIVE_ANON);
--	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
--
--	if (inactive * zone->inactive_ratio < active)
--		return 1;
--
--	return 0;
--}
+--- mmotm-2.6.28-Dec02.orig/include/linux/mmzone.h
++++ mmotm-2.6.28-Dec02/include/linux/mmzone.h
+@@ -263,6 +263,19 @@ enum zone_type {
+ #error ZONES_SHIFT -- too many zones configured adjust calculation
  #endif
+ 
++struct zone_reclaim_stat {
++	/*
++	 * The pageout code in vmscan.c keeps track of how many of the
++	 * mem/swap backed and file backed pages are refeferenced.
++	 * The higher the rotated/scanned ratio, the more valuable
++	 * that cache is.
++	 *
++	 * The anon LRU stats live in [0], file LRU stats in [1]
++	 */
++	unsigned long		recent_rotated[2];
++	unsigned long		recent_scanned[2];
++};
++
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+ 	unsigned long		pages_min, pages_low, pages_high;
+@@ -315,16 +328,7 @@ struct zone {
+ 		unsigned long nr_scan;
+ 	} lru[NR_LRU_LISTS];
+ 
+-	/*
+-	 * The pageout code in vmscan.c keeps track of how many of the
+-	 * mem/swap backed and file backed pages are refeferenced.
+-	 * The higher the rotated/scanned ratio, the more valuable
+-	 * that cache is.
+-	 *
+-	 * The anon LRU stats live in [0], file LRU stats in [1]
+-	 */
+-	unsigned long		recent_rotated[2];
+-	unsigned long		recent_scanned[2];
++	struct zone_reclaim_stat reclaim_stat;
+ 
+ 	unsigned long		pages_scanned;	   /* since last reclaim */
+ 	unsigned long		slab_defrag_counter; /* since last defrag */
+Index: mmotm-2.6.28-Dec02/mm/page_alloc.c
+===================================================================
+--- mmotm-2.6.28-Dec02.orig/mm/page_alloc.c
++++ mmotm-2.6.28-Dec02/mm/page_alloc.c
+@@ -3523,10 +3523,10 @@ static void __paginginit free_area_init_
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
+ 			zone->lru[l].nr_scan = 0;
+ 		}
+-		zone->recent_rotated[0] = 0;
+-		zone->recent_rotated[1] = 0;
+-		zone->recent_scanned[0] = 0;
+-		zone->recent_scanned[1] = 0;
++		zone->reclaim_stat.recent_rotated[0] = 0;
++		zone->reclaim_stat.recent_rotated[1] = 0;
++		zone->reclaim_stat.recent_scanned[0] = 0;
++		zone->reclaim_stat.recent_scanned[1] = 0;
+ 		zap_zone_vm_stats(zone);
+ 		zone->flags = 0;
+ 		if (!size)
+Index: mmotm-2.6.28-Dec02/mm/swap.c
+===================================================================
+--- mmotm-2.6.28-Dec02.orig/mm/swap.c
++++ mmotm-2.6.28-Dec02/mm/swap.c
+@@ -157,6 +157,7 @@ void  rotate_reclaimable_page(struct pag
+ void activate_page(struct page *page)
+ {
+ 	struct zone *zone = page_zone(page);
++	struct zone_reclaim_stat *reclaim_stat = &zone->reclaim_stat;
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+@@ -169,8 +170,8 @@ void activate_page(struct page *page)
+ 		add_page_to_lru_list(zone, page, lru);
+ 		__count_vm_event(PGACTIVATE);
+ 
+-		zone->recent_rotated[!!file]++;
+-		zone->recent_scanned[!!file]++;
++		reclaim_stat->recent_rotated[!!file]++;
++		reclaim_stat->recent_scanned[!!file]++;
+ 	}
+ 	spin_unlock_irq(&zone->lru_lock);
+ }
+@@ -398,6 +399,8 @@ void ____pagevec_lru_add(struct pagevec 
+ {
+ 	int i;
+ 	struct zone *zone = NULL;
++	struct zone_reclaim_stat *reclaim_stat = NULL;
++
+ 	VM_BUG_ON(is_unevictable_lru(lru));
+ 
+ 	for (i = 0; i < pagevec_count(pvec); i++) {
+@@ -409,6 +412,7 @@ void ____pagevec_lru_add(struct pagevec 
+ 			if (zone)
+ 				spin_unlock_irq(&zone->lru_lock);
+ 			zone = pagezone;
++			reclaim_stat = &zone->reclaim_stat;
+ 			spin_lock_irq(&zone->lru_lock);
+ 		}
+ 		VM_BUG_ON(PageActive(page));
+@@ -416,10 +420,10 @@ void ____pagevec_lru_add(struct pagevec 
+ 		VM_BUG_ON(PageLRU(page));
+ 		SetPageLRU(page);
+ 		file = is_file_lru(lru);
+-		zone->recent_scanned[file]++;
++		reclaim_stat->recent_scanned[file]++;
+ 		if (is_active_lru(lru)) {
+ 			SetPageActive(page);
+-			zone->recent_rotated[file]++;
++			reclaim_stat->recent_rotated[file]++;
+ 		}
+ 		add_page_to_lru_list(zone, page, lru);
+ 	}
 Index: mmotm-2.6.28-Dec02/mm/vmscan.c
 ===================================================================
 --- mmotm-2.6.28-Dec02.orig/mm/vmscan.c
 +++ mmotm-2.6.28-Dec02/mm/vmscan.c
-@@ -1345,6 +1345,26 @@ static void shrink_active_list(unsigned 
- 	pagevec_release(&pvec);
- }
+@@ -131,6 +131,12 @@ static DECLARE_RWSEM(shrinker_rwsem);
+ #define scan_global_lru(sc)	(1)
+ #endif
  
-+/**
-+ * inactive_anon_is_low - check if anonymous pages need to be deactivated
-+ * @zone: zone to check
-+ *
-+ * Returns true if the zone does not have enough inactive anon pages,
-+ * meaning some active anon pages need to be deactivated.
-+ */
-+static int inactive_anon_is_low(struct zone *zone)
++static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
++						  struct scan_control *sc)
 +{
-+	unsigned long active, inactive;
-+
-+	active = zone_page_state(zone, NR_ACTIVE_ANON);
-+	inactive = zone_page_state(zone, NR_INACTIVE_ANON);
-+
-+	if (inactive * zone->inactive_ratio < active)
-+		return 1;
-+
-+	return 0;
++	return &zone->reclaim_stat;
 +}
 +
- static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
- 	struct zone *zone, struct scan_control *sc, int priority)
- {
+ /*
+  * Add a shrinker callback to be called from the vm
+  */
+@@ -1083,6 +1089,7 @@ static unsigned long shrink_inactive_lis
+ 	struct pagevec pvec;
+ 	unsigned long nr_scanned = 0;
+ 	unsigned long nr_reclaimed = 0;
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	pagevec_init(&pvec, 1);
+ 
+@@ -1126,10 +1133,14 @@ static unsigned long shrink_inactive_lis
+ 
+ 		if (scan_global_lru(sc)) {
+ 			zone->pages_scanned += nr_scan;
+-			zone->recent_scanned[0] += count[LRU_INACTIVE_ANON];
+-			zone->recent_scanned[0] += count[LRU_ACTIVE_ANON];
+-			zone->recent_scanned[1] += count[LRU_INACTIVE_FILE];
+-			zone->recent_scanned[1] += count[LRU_ACTIVE_FILE];
++			reclaim_stat->recent_scanned[0] +=
++						      count[LRU_INACTIVE_ANON];
++			reclaim_stat->recent_scanned[0] +=
++						      count[LRU_ACTIVE_ANON];
++			reclaim_stat->recent_scanned[1] +=
++						      count[LRU_INACTIVE_FILE];
++			reclaim_stat->recent_scanned[1] +=
++						      count[LRU_ACTIVE_FILE];
+ 		}
+ 		spin_unlock_irq(&zone->lru_lock);
+ 
+@@ -1190,7 +1201,7 @@ static unsigned long shrink_inactive_lis
+ 			add_page_to_lru_list(zone, page, lru);
+ 			if (PageActive(page) && scan_global_lru(sc)) {
+ 				int file = !!page_is_file_cache(page);
+-				zone->recent_rotated[file]++;
++				reclaim_stat->recent_rotated[file]++;
+ 			}
+ 			if (!pagevec_add(&pvec, page)) {
+ 				spin_unlock_irq(&zone->lru_lock);
+@@ -1250,6 +1261,7 @@ static void shrink_active_list(unsigned 
+ 	struct page *page;
+ 	struct pagevec pvec;
+ 	enum lru_list lru;
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	lru_add_drain();
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1262,7 +1274,7 @@ static void shrink_active_list(unsigned 
+ 	 */
+ 	if (scan_global_lru(sc)) {
+ 		zone->pages_scanned += pgscanned;
+-		zone->recent_scanned[!!file] += pgmoved;
++		reclaim_stat->recent_scanned[!!file] += pgmoved;
+ 	}
+ 
+ 	if (file)
+@@ -1298,7 +1310,7 @@ static void shrink_active_list(unsigned 
+ 	 * pages in get_scan_ratio.
+ 	 */
+ 	if (scan_global_lru(sc))
+-		zone->recent_rotated[!!file] += pgmoved;
++		reclaim_stat->recent_rotated[!!file] += pgmoved;
+ 
+ 	/*
+ 	 * Move the pages to the [file or anon] inactive list.
+@@ -1398,6 +1410,7 @@ static void get_scan_ratio(struct zone *
+ 	unsigned long anon, file, free;
+ 	unsigned long anon_prio, file_prio;
+ 	unsigned long ap, fp;
++	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (nr_swap_pages <= 0) {
+@@ -1430,17 +1443,17 @@ static void get_scan_ratio(struct zone *
+ 	 *
+ 	 * anon in [0], file in [1]
+ 	 */
+-	if (unlikely(zone->recent_scanned[0] > anon / 4)) {
++	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
+ 		spin_lock_irq(&zone->lru_lock);
+-		zone->recent_scanned[0] /= 2;
+-		zone->recent_rotated[0] /= 2;
++		reclaim_stat->recent_scanned[0] /= 2;
++		reclaim_stat->recent_rotated[0] /= 2;
+ 		spin_unlock_irq(&zone->lru_lock);
+ 	}
+ 
+-	if (unlikely(zone->recent_scanned[1] > file / 4)) {
++	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
+ 		spin_lock_irq(&zone->lru_lock);
+-		zone->recent_scanned[1] /= 2;
+-		zone->recent_rotated[1] /= 2;
++		reclaim_stat->recent_scanned[1] /= 2;
++		reclaim_stat->recent_rotated[1] /= 2;
+ 		spin_unlock_irq(&zone->lru_lock);
+ 	}
+ 
+@@ -1456,11 +1469,11 @@ static void get_scan_ratio(struct zone *
+ 	 * proportional to the fraction of recently scanned pages on
+ 	 * each list that were recently referenced and in active use.
+ 	 */
+-	ap = (anon_prio + 1) * (zone->recent_scanned[0] + 1);
+-	ap /= zone->recent_rotated[0] + 1;
++	ap = (anon_prio + 1) * (reclaim_stat->recent_scanned[0] + 1);
++	ap /= reclaim_stat->recent_rotated[0] + 1;
+ 
+-	fp = (file_prio + 1) * (zone->recent_scanned[1] + 1);
+-	fp /= zone->recent_rotated[1] + 1;
++	fp = (file_prio + 1) * (reclaim_stat->recent_scanned[1] + 1);
++	fp /= reclaim_stat->recent_rotated[1] + 1;
+ 
+ 	/* Normalize to percentages */
+ 	percent[0] = 100 * ap / (ap + fp + 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
