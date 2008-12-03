@@ -1,112 +1,32 @@
-Date: Wed, 3 Dec 2008 00:35:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] hugetlb: unsigned ret cannot be negative.
-Message-Id: <20081203003517.423f21f6.akpm@linux-foundation.org>
-In-Reply-To: <4935BBDA.1020404@gmail.com>
-References: <4931295B.7080105@gmail.com>
-	<20081202140223.7d5f3538.akpm@linux-foundation.org>
-	<4935BBDA.1020404@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 3 Dec 2008 12:52:53 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH 10/9] swapfile: change discard pgoff_t to sector_t
+In-Reply-To: <20081202164732.1d6d0997.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0812031251260.6817@blonde.anvils>
+References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
+ <Pine.LNX.4.64.0811252140230.17555@blonde.site> <Pine.LNX.4.64.0811252145190.20455@blonde.site>
+ <Pine.LNX.4.64.0812010028040.10131@blonde.site> <20081202164732.1d6d0997.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roel Kluin <roel.kluin@gmail.com>
-Cc: wli@holomorphy.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: dwmw2@infradead.org, jens.axboe@oracle.com, matthew@wil.cx, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 02 Dec 2008 23:51:06 +0100 Roel Kluin <roel.kluin@gmail.com> wrote:
-
-> Andrew Morton wrote:
-> > On Sat, 29 Nov 2008 06:36:59 -0500
-> > roel kluin <roel.kluin@gmail.com> wrote:
-> > 
-> >> unsigned long ret cannot be negative, but ret can get -EFAULT.
-> >>
-> >> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-> >> ---
-> >> hugetlbfs_read_actor() returns int,
-> >> see 
-> >> vi fs/hugetlbfs/inode.c +187
-> >>
-> >> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> >> index 61edc70..0af64e4 100644
-> >> --- a/fs/hugetlbfs/inode.c
-> >> +++ b/fs/hugetlbfs/inode.c
-> >> @@ -252,6 +252,7 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
-> >>  	for (;;) {
-> >>  		struct page *page;
-> >>  		unsigned long nr, ret;
-> >> +		int ra;
-> >>  
-> >>  		/* nr is the maximum number of bytes to copy from this page */
-> >>  		nr = huge_page_size(h);
-> >> @@ -279,15 +280,16 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
-> >>  			/*
-> >>  			 * We have the page, copy it to user space buffer.
-> >>  			 */
-> >> -			ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
-> >> +			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
-> >>  		}
-> >> -		if (ret < 0) {
-> >> +		if (ra < 0) {
+On Tue, 2 Dec 2008, Andrew Morton wrote:
+> On Mon, 1 Dec 2008 00:29:41 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
 > 
-> > `ra' can obviously be used uninitialised here.  The compiler reports
-> > this, too.
+> > -		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
+> > +		sector_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
 > 
-> Yes, it was incomplete as well, sorry. This should be OK.
-> (checkpatch tested)
-> --------------->8----------------8<---------------------
-> unsigned long ret cannot be negative, but ret can get -EFAULT.
-> 
-> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-> ---
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 61edc70..07fa7e3 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -252,6 +252,7 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
->  	for (;;) {
->  		struct page *page;
->  		unsigned long nr, ret;
-> +		int ra;
->  
->  		/* nr is the maximum number of bytes to copy from this page */
->  		nr = huge_page_size(h);
-> @@ -274,16 +275,19 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
->  			 */
->  			ret = len < nr ? len : nr;
->  			if (clear_user(buf, ret))
-> -				ret = -EFAULT;
-> +				ra = -EFAULT;
-> +			else
-> +				ra = 0;
->  		} else {
->  			/*
->  			 * We have the page, copy it to user space buffer.
->  			 */
-> -			ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
-> +			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
-> +			ret = ra;
->  		}
-> -		if (ret < 0) {
-> +		if (ra < 0) {
->  			if (retval == 0)
-> -				retval = ret;
-> +				retval = ra;
->  			if (page)
->  				page_cache_release(page);
->  			goto out;
+> but, but, that didn't change anything?  se->nr_pages must be cast to
+> sector_t?
 
-Looks like it'll work, I think.
+I'm squirming, you are right, thanks for fixing it up.
 
-That function is pretty sad-looking now.  It has `ra', `ret' and
-`retval', all rather confusingly.  After being renamed to something
-useful, `ret' should have type size_t, hugetlbfs_read_actor() should
-return size_t and the whole logic around these three things needs a can
-of drano tipped down it.
-
-Oh well.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
