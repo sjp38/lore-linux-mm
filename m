@@ -1,23 +1,23 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB34w24v018621
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB34xVOK025851
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 3 Dec 2008 13:58:02 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B27045DE56
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:58:02 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADFC245DE51
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:58:01 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 96AF81DB8041
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:58:01 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 40EDA1DB8040
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:58:01 +0900 (JST)
-Date: Wed, 3 Dec 2008 13:57:12 +0900
+	Wed, 3 Dec 2008 13:59:32 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A205045DE50
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:59:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F01845DD77
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:59:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E3401DB803C
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:59:31 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 162CF1DB8037
+	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 13:59:31 +0900 (JST)
+Date: Wed, 3 Dec 2008 13:58:42 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH  9/21] make-get_scan_ratio-to-memcg-safe.patch
-Message-Id: <20081203135712.4c89b83d.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH  10/21] memcg-add-null-check-to-page_cgroup_zoneinfo.patch
+Message-Id: <20081203135842.15ce50c5.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,46 +29,31 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Currently, get_scan_ratio() always calculate the balancing value for global reclaim and
-memcg reclaim doesn't use it.
-Therefore it doesn't have scan_global_lru() condition.
+if CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y, page_cgroup::mem_cgroup can be NULL.
+Therefore null checking is better.
 
-However, we plan to expand get_scan_ratio() to be usable for memcg too, latter.
-Then, The dependency code of global reclaim in the get_scan_ratio() insert into
-scan_global_lru() condision explictly.
+latter patch use this function.
 
-
-this patch doesn't have any functional change.
-
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Index: mmotm-2.6.28-Dec02/mm/vmscan.c
+ mm/memcontrol.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+Index: mmotm-2.6.28-Dec02/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.28-Dec02.orig/mm/vmscan.c
-+++ mmotm-2.6.28-Dec02/mm/vmscan.c
-@@ -1430,13 +1430,16 @@ static void get_scan_ratio(struct zone *
- 		zone_nr_pages(zone, sc, LRU_INACTIVE_ANON);
- 	file  = zone_nr_pages(zone, sc, LRU_ACTIVE_FILE) +
- 		zone_nr_pages(zone, sc, LRU_INACTIVE_FILE);
--	free  = zone_page_state(zone, NR_FREE_PAGES);
+--- mmotm-2.6.28-Dec02.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Dec02/mm/memcontrol.c
+@@ -231,6 +231,9 @@ page_cgroup_zoneinfo(struct page_cgroup 
+ 	int nid = page_cgroup_nid(pc);
+ 	int zid = page_cgroup_zid(pc);
  
--	/* If we have very few page cache pages, force-scan anon pages. */
--	if (unlikely(file + free <= zone->pages_high)) {
--		percent[0] = 100;
--		percent[1] = 0;
--		return;
-+	if (scan_global_lru(sc)) {
-+		free  = zone_page_state(zone, NR_FREE_PAGES);
-+		/* If we have very few page cache pages,
-+		   force-scan anon pages. */
-+		if (unlikely(file + free <= zone->pages_high)) {
-+			percent[0] = 100;
-+			percent[1] = 0;
-+			return;
-+		}
- 	}
++	if (!mem)
++		return NULL;
++
+ 	return mem_cgroup_zoneinfo(mem, nid, zid);
+ }
  
- 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
