@@ -1,108 +1,60 @@
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id mB3EJYBV011871
-	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 19:49:34 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB3EJYSl1409048
-	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 19:49:34 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id mB3EJXuS031235
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 01:19:33 +1100
-Date: Wed, 3 Dec 2008 19:49:32 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 11/11] memcg: show reclaim_stat
-Message-ID: <20081203141931.GH17701@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20081201205810.1CCA.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081201211905.1CEB.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081202180525.2023892c.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20081202180525.2023892c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH][V7]make get_user_pages interruptible
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
+References: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
+Content-Type: text/plain
+Date: Wed, 03 Dec 2008 10:03:40 -0500
+Message-Id: <1228316620.6693.34.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-12-02 18:05:25]:
-
-> On Mon,  1 Dec 2008 21:19:49 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+On Tue, 2008-12-02 at 21:17 -0800, Ying Han wrote:
+> From: Ying Han <yinghan@google.com>
 > 
-> > added following four field to memory.stat file.
-> > 
-> >   - recent_rotated_anon
-> >   - recent_rotated_file
-> >   - recent_scanned_anon
-> >   - recent_scanned_file
-> > 
-> > it is useful for memcg reclaim debugging.
-> > 
-> I'll put this under CONFIG_DEBUG_VM.
->
-
-I think they'll be useful even outside for tasks that need to take
-decisions, it will be nice to see what sort of reclaim is going on. I
-would like to see them outside, there is no cost associated with them
-and assuming we'll not change the LRU logic very frequently, we don't
-need to be afraid of breaking ABI either :)
- 
-> Thanks,
-> -Kame
+> make get_user_pages interruptible
+> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
+> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
+> return immediately. This patch includes:
 > 
-> > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > ---
-> >  mm/memcontrol.c |   25 +++++++++++++++++++++++++
-> >  1 file changed, 25 insertions(+)
-> > 
-> > Index: b/mm/memcontrol.c
-> > ===================================================================
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1799,6 +1799,31 @@ static int mem_control_stat_show(struct 
-> >  
-> >  	cb->fill(cb, "inactive_ratio", mem_cont->inactive_ratio);
-> >  
-> > +	{
-> > +		int nid, zid;
-> > +		struct mem_cgroup_per_zone *mz;
-> > +		unsigned long recent_rotated[2] = {0, 0};
-> > +		unsigned long recent_scanned[2] = {0, 0};
-> > +
-> > +		for_each_online_node(nid)
-> > +			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-> > +				mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
-> > +
-> > +				recent_rotated[0] +=
-> > +					mz->reclaim_stat.recent_rotated[0];
-> > +				recent_rotated[1] +=
-> > +					mz->reclaim_stat.recent_rotated[1];
-> > +				recent_scanned[0] +=
-> > +					mz->reclaim_stat.recent_scanned[0];
-> > +				recent_scanned[1] +=
-> > +					mz->reclaim_stat.recent_scanned[1];
-> > +			}
-> > +		cb->fill(cb, "recent_rotated_anon", recent_rotated[0]);
-> > +		cb->fill(cb, "recent_rotated_file", recent_rotated[1]);
-> > +		cb->fill(cb, "recent_scanned_anon", recent_scanned[0]);
-> > +		cb->fill(cb, "recent_scanned_file", recent_scanned[1]);
-> > +	}
-> > +
-> >  	return 0;
-> >  }
-> >  
-> > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
+> 1. add the case that the SIGKILL is sent by user processes. The process can
+> try to get_user_pages() unlimited memory even if a user process has sent a
+> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
+> try to kill it). In the old implementation, the SIGKILL won't be handled
+> until the get_user_pages() returns.
 > 
+> 2. change the return value to be ERESTARTSYS. It makes no sense to return
+> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
+> Considering the general convention for a system call interrupted by a
+> signal is ERESTARTNOSYS, so the current return value is consistant to that.
+> 
+> Signed-off-by:	Paul Menage <menage@google.com>
+> Signed-off-by:	Ying Han <yinghan@google.com>
+> 
+<snip>
 
--- 
-	Balbir
+Couple of things:
+
+* I tested your previous patch [that was "just too ugly to live
+with" :)] overnight with my swap/unevictable-lru/mlocked-pages stress
+test on both x86_64 and ia64.  I replaced the two patches in mmotm
+081201 with the "ugly one".  Both systems ran for ~16:40 [hh:mm] without
+error, before I stopped the tests.
+
+* Your patch--bailing out of get_user_pages() when current has SIGKILL
+pending--breaks munlock on exit when SIGKILL is pending.  This results
+in freeing of mlocked pages [not so bad, I guess] and possibly leaving,
+e.g., shared library pages mlocked and unevictable after last VM_LOCKED
+vma is removed.  I noticed this because SIGKILL is how the test harness
+kills off the running tests.  I have a patch that fixes this.  The
+overnight runs included this patch.  I'll post it after rebasing and a
+quick retest [he says optimistically] on mmotm-081203.  
+
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
