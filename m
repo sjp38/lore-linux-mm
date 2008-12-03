@@ -1,48 +1,112 @@
-Subject: Re: [PATCH][V7]make get_user_pages interruptible
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20081203161834.1D4A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
-	 <20081203161834.1D4A.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Date: Wed, 03 Dec 2008 10:21:48 +0200
-Message-Id: <1228292508.22472.14.camel@penberg-laptop>
+Date: Wed, 3 Dec 2008 00:35:17 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] hugetlb: unsigned ret cannot be negative.
+Message-Id: <20081203003517.423f21f6.akpm@linux-foundation.org>
+In-Reply-To: <4935BBDA.1020404@gmail.com>
+References: <4931295B.7080105@gmail.com>
+	<20081202140223.7d5f3538.akpm@linux-foundation.org>
+	<4935BBDA.1020404@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Ying Han <yinghan@google.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Oleg Nesterov <oleg@redhat.com>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: Roel Kluin <roel.kluin@gmail.com>
+Cc: wli@holomorphy.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-12-03 at 16:19 +0900, KOSAKI Motohiro wrote:
-> > From: Ying Han <yinghan@google.com>
-> > 
-> > make get_user_pages interruptible
-> > The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-> > killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-> > return immediately. This patch includes:
-> > 
-> > 1. add the case that the SIGKILL is sent by user processes. The process can
-> > try to get_user_pages() unlimited memory even if a user process has sent a
-> > SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-> > try to kill it). In the old implementation, the SIGKILL won't be handled
-> > until the get_user_pages() returns.
-> > 
-> > 2. change the return value to be ERESTARTSYS. It makes no sense to return
-> > ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-> > Considering the general convention for a system call interrupted by a
-> > signal is ERESTARTNOSYS, so the current return value is consistant to that.
-> > 
-> > Signed-off-by:	Paul Menage <menage@google.com>
-> > Signed-off-by:	Ying Han <yinghan@google.com>
-> 
-> looks good to me.
-> 
-> 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Tue, 02 Dec 2008 23:51:06 +0100 Roel Kluin <roel.kluin@gmail.com> wrote:
 
-Looks good to me too.
+> Andrew Morton wrote:
+> > On Sat, 29 Nov 2008 06:36:59 -0500
+> > roel kluin <roel.kluin@gmail.com> wrote:
+> > 
+> >> unsigned long ret cannot be negative, but ret can get -EFAULT.
+> >>
+> >> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
+> >> ---
+> >> hugetlbfs_read_actor() returns int,
+> >> see 
+> >> vi fs/hugetlbfs/inode.c +187
+> >>
+> >> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> >> index 61edc70..0af64e4 100644
+> >> --- a/fs/hugetlbfs/inode.c
+> >> +++ b/fs/hugetlbfs/inode.c
+> >> @@ -252,6 +252,7 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
+> >>  	for (;;) {
+> >>  		struct page *page;
+> >>  		unsigned long nr, ret;
+> >> +		int ra;
+> >>  
+> >>  		/* nr is the maximum number of bytes to copy from this page */
+> >>  		nr = huge_page_size(h);
+> >> @@ -279,15 +280,16 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
+> >>  			/*
+> >>  			 * We have the page, copy it to user space buffer.
+> >>  			 */
+> >> -			ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
+> >> +			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
+> >>  		}
+> >> -		if (ret < 0) {
+> >> +		if (ra < 0) {
+> 
+> > `ra' can obviously be used uninitialised here.  The compiler reports
+> > this, too.
+> 
+> Yes, it was incomplete as well, sorry. This should be OK.
+> (checkpatch tested)
+> --------------->8----------------8<---------------------
+> unsigned long ret cannot be negative, but ret can get -EFAULT.
+> 
+> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
+> ---
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 61edc70..07fa7e3 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -252,6 +252,7 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
+>  	for (;;) {
+>  		struct page *page;
+>  		unsigned long nr, ret;
+> +		int ra;
+>  
+>  		/* nr is the maximum number of bytes to copy from this page */
+>  		nr = huge_page_size(h);
+> @@ -274,16 +275,19 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
+>  			 */
+>  			ret = len < nr ? len : nr;
+>  			if (clear_user(buf, ret))
+> -				ret = -EFAULT;
+> +				ra = -EFAULT;
+> +			else
+> +				ra = 0;
+>  		} else {
+>  			/*
+>  			 * We have the page, copy it to user space buffer.
+>  			 */
+> -			ret = hugetlbfs_read_actor(page, offset, buf, len, nr);
+> +			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
+> +			ret = ra;
+>  		}
+> -		if (ret < 0) {
+> +		if (ra < 0) {
+>  			if (retval == 0)
+> -				retval = ret;
+> +				retval = ra;
+>  			if (page)
+>  				page_cache_release(page);
+>  			goto out;
 
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Looks like it'll work, I think.
+
+That function is pretty sad-looking now.  It has `ra', `ret' and
+`retval', all rather confusingly.  After being renamed to something
+useful, `ret' should have type size_t, hugetlbfs_read_actor() should
+return size_t and the whole logic around these three things needs a can
+of drano tipped down it.
+
+Oh well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
