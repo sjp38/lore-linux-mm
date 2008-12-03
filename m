@@ -1,120 +1,76 @@
-Subject: [PATCH] mmotm:  ignore sigkill in get_user_pages during munlock
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
+Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
+	by smtp-out.google.com with ESMTP id mB3KPIQG016029
+	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 12:25:18 -0800
+Received: from an-out-0708.google.com (andd14.prod.google.com [10.100.30.14])
+	by wpaz9.hot.corp.google.com with ESMTP id mB3KPGsI029973
+	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 12:25:17 -0800
+Received: by an-out-0708.google.com with SMTP id d14so1530795and.0
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2008 12:25:16 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1228316620.6693.34.camel@lts-notebook>
 References: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 03 Dec 2008 15:01:31 -0500
-Message-Id: <1228334491.6693.82.camel@lts-notebook>
-Mime-Version: 1.0
+	 <1228316620.6693.34.camel@lts-notebook>
+Date: Wed, 3 Dec 2008 12:25:15 -0800
+Message-ID: <604427e00812031225t773be1c4seae4e54d7fc0ff44@mail.gmail.com>
+Subject: Re: [PATCH][V7]make get_user_pages interruptible
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-PATCH ignore sigkill in get_user_pages during munlock
+On Wed, Dec 3, 2008 at 7:03 AM, Lee Schermerhorn
+<Lee.Schermerhorn@hp.com> wrote:
+> On Tue, 2008-12-02 at 21:17 -0800, Ying Han wrote:
+>> From: Ying Han <yinghan@google.com>
+>>
+>> make get_user_pages interruptible
+>> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
+>> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
+>> return immediately. This patch includes:
+>>
+>> 1. add the case that the SIGKILL is sent by user processes. The process can
+>> try to get_user_pages() unlimited memory even if a user process has sent a
+>> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
+>> try to kill it). In the old implementation, the SIGKILL won't be handled
+>> until the get_user_pages() returns.
+>>
+>> 2. change the return value to be ERESTARTSYS. It makes no sense to return
+>> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
+>> Considering the general convention for a system call interrupted by a
+>> signal is ERESTARTNOSYS, so the current return value is consistant to that.
+>>
+>> Signed-off-by:        Paul Menage <menage@google.com>
+>> Signed-off-by:        Ying Han <yinghan@google.com>
+>>
+> <snip>
+>
+> Couple of things:
+>
+> * I tested your previous patch [that was "just too ugly to live
+> with" :)] overnight with my swap/unevictable-lru/mlocked-pages stress
+> test on both x86_64 and ia64.  I replaced the two patches in mmotm
+> 081201 with the "ugly one".  Both systems ran for ~16:40 [hh:mm] without
+> error, before I stopped the tests.
+thanks Lee and the "swap/unevictable-lru/mlocked-pages" tests is somewhere
+i can access? just curious.
 
-Against:  2.6.28-rc7-mmotm-081203-0150
+> * Your patch--bailing out of get_user_pages() when current has SIGKILL
+> pending--breaks munlock on exit when SIGKILL is pending.  This results
+> in freeing of mlocked pages [not so bad, I guess] and possibly leaving,
+> e.g., shared library pages mlocked and unevictable after last VM_LOCKED
+> vma is removed.  I noticed this because SIGKILL is how the test harness
+> kills off the running tests.  I have a patch that fixes this.  The
+> overnight runs included this patch.  I'll post it after rebasing and a
+> quick retest [he says optimistically] on mmotm-081203.
+sorry not get exactly what you mean it breaks the munlock. :-)
 
-Fixes:  make-get_user_pages-interruptible.patch
-
-An unfortunate side effect of "make-get_user_pages-interruptible"
-is that it prevents a SIGKILL'd task from munlock-ing pages that it
-had mlocked, resulting in freeing of mlocked pages.  Freeing of mlocked
-pages, in itself, is not so bad.  We just count them now--altho' I
-had hoped to remove this stat and add PG_MLOCKED to the free pages
-flags check.
-
-However, consider pages in shared libraries mapped by more than one
-task that a task mlocked--e.g., via mlockall().  If the task that
-mlocked the pages exits via SIGKILL, these pages would be left mlocked
-and unevictable.
-
-Proposed fix:
-
-Add another GUP flag to ignore sigkill when calling get_user_pages
-from munlock()--similar to Kosaki Motohiro's 'IGNORE_VMA_PERMISSIONS
-flag for the same purpose.  We are not actually allocating memory in
-this case, which "make-get_user_pages-interruptible" intends to avoid.
-We're just munlocking pages that are already resident and mapped, and
-we're reusing get_user_pages() to access those pages.
-
-?? Maybe we should combine 'IGNORE_VMA_PERMISSIONS and '_IGNORE_SIGKILL
-into a single flag:  GUP_FLAGS_MUNLOCK ???
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
- mm/internal.h |    1 +
- mm/memory.c   |   11 ++++++++---
- mm/mlock.c    |    9 +++++----
- 3 files changed, 14 insertions(+), 7 deletions(-)
-
-Index: linux-2.6.28-rc7-mmotm-081203/mm/internal.h
-===================================================================
---- linux-2.6.28-rc7-mmotm-081203.orig/mm/internal.h	2008-12-03 14:32:06.000000000 -0500
-+++ linux-2.6.28-rc7-mmotm-081203/mm/internal.h	2008-12-03 14:32:08.000000000 -0500
-@@ -276,6 +276,7 @@ static inline void mminit_validate_memmo
- #define GUP_FLAGS_WRITE                  0x1
- #define GUP_FLAGS_FORCE                  0x2
- #define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
-+#define GUP_FLAGS_IGNORE_SIGKILL         0x8
- 
- int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		     unsigned long start, int len, int flags,
-Index: linux-2.6.28-rc7-mmotm-081203/mm/memory.c
-===================================================================
---- linux-2.6.28-rc7-mmotm-081203.orig/mm/memory.c	2008-12-03 14:32:06.000000000 -0500
-+++ linux-2.6.28-rc7-mmotm-081203/mm/memory.c	2008-12-03 14:33:46.000000000 -0500
-@@ -1197,6 +1197,7 @@ int __get_user_pages(struct task_struct 
- 	int write = !!(flags & GUP_FLAGS_WRITE);
- 	int force = !!(flags & GUP_FLAGS_FORCE);
- 	int ignore = !!(flags & GUP_FLAGS_IGNORE_VMA_PERMISSIONS);
-+	int ignore_sigkill = !!(flags & GUP_FLAGS_IGNORE_SIGKILL);
- 
- 	if (len <= 0)
- 		return 0;
-@@ -1275,10 +1276,14 @@ int __get_user_pages(struct task_struct 
- 			struct page *page;
- 
- 			/*
--			 * If we have a pending SIGKILL, don't keep
--			 * allocating memory.
-+			 * If we have a pending SIGKILL, don't keep faulting
-+			 * pages and potentially allocating memory, unless
-+			 * current is handling munlock--e.g., on exit. In
-+			 * that case, we are not allocating memory.  Rather,
-+			 * we're only unlocking already resident/mapped pages.
- 			 */
--			if (unlikely(fatal_signal_pending(current)))
-+			if (unlikely(!ignore_sigkill &&
-+					fatal_signal_pending(current)))
- 				return i ? i : -ERESTARTSYS;
- 
- 			if (write)
-Index: linux-2.6.28-rc7-mmotm-081203/mm/mlock.c
-===================================================================
---- linux-2.6.28-rc7-mmotm-081203.orig/mm/mlock.c	2008-12-03 14:32:06.000000000 -0500
-+++ linux-2.6.28-rc7-mmotm-081203/mm/mlock.c	2008-12-03 14:32:08.000000000 -0500
-@@ -173,12 +173,13 @@ static long __mlock_vma_pages_range(stru
- 		  (atomic_read(&mm->mm_users) != 0));
- 
- 	/*
--	 * mlock:   don't page populate if page has PROT_NONE permission.
--	 * munlock: the pages always do munlock althrough
--	 *          its has PROT_NONE permission.
-+	 * mlock:   don't page populate if vma has PROT_NONE permission.
-+	 * munlock: always do munlock although the vma has PROT_NONE
-+	 *          permission, or SIGKILL is pending.
- 	 */
- 	if (!mlock)
--		gup_flags |= GUP_FLAGS_IGNORE_VMA_PERMISSIONS;
-+		gup_flags |= GUP_FLAGS_IGNORE_VMA_PERMISSIONS |
-+			     GUP_FLAGS_IGNORE_SIGKILL;
- 
- 	if (vma->vm_flags & VM_WRITE)
- 		gup_flags |= GUP_FLAGS_WRITE;
-
+> Lee
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
