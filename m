@@ -1,60 +1,69 @@
-Subject: Re: [PATCH][V7]make get_user_pages interruptible
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
-References: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
-Content-Type: text/plain
-Date: Wed, 03 Dec 2008 10:03:40 -0500
-Message-Id: <1228316620.6693.34.camel@lts-notebook>
-Mime-Version: 1.0
+Received: by wa-out-1112.google.com with SMTP id j37so1857321waf.22
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2008 07:12:15 -0800 (PST)
+Message-ID: <2f11576a0812030712t1131c9d2x4dd0fd32eafa66ae@mail.gmail.com>
+Date: Thu, 4 Dec 2008 00:12:15 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] vmscan: improve reclaim throuput to bail out patch
+In-Reply-To: <49368DAF.9060206@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <49316CAF.2010006@redhat.com>
+	 <20081130150849.8140.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081203140419.1D44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <49368DAF.9060206@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-12-02 at 21:17 -0800, Ying Han wrote:
-> From: Ying Han <yinghan@google.com>
-> 
-> make get_user_pages interruptible
-> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
-> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
-> return immediately. This patch includes:
-> 
-> 1. add the case that the SIGKILL is sent by user processes. The process can
-> try to get_user_pages() unlimited memory even if a user process has sent a
-> SIGKILL to it(maybe a monitor find the process exceed its memory limit and
-> try to kill it). In the old implementation, the SIGKILL won't be handled
-> until the get_user_pages() returns.
-> 
-> 2. change the return value to be ERESTARTSYS. It makes no sense to return
-> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
-> Considering the general convention for a system call interrupted by a
-> signal is ERESTARTNOSYS, so the current return value is consistant to that.
-> 
-> Signed-off-by:	Paul Menage <menage@google.com>
-> Signed-off-by:	Ying Han <yinghan@google.com>
-> 
-<snip>
+>> I evaluate rvr bailout and skip-freeing patch in this week conteniously.
+>> I'd like to dump first output here.
+>>
+>>
+>>
+>> Rik, could you please review following?
+>> ==
+>> vmscan bail out patch move nr_reclaimed variable to struct scan_control.
+>> Unfortunately, indirect access can easily happen cache miss.
+>> More unfortunately, Some architecture (e.g. ia64) don't access global
+>> variable so fast.
+>
+> That is amazing.  Especially considering that the scan_control
+> is a local variable on the stack.
 
-Couple of things:
+Ahhhhh, I did want to write "indirect access(or likes global variables)",
+but my brain was sucked. sorry.
 
-* I tested your previous patch [that was "just too ugly to live
-with" :)] overnight with my swap/unevictable-lru/mlocked-pages stress
-test on both x86_64 and ia64.  I replaced the two patches in mmotm
-081201 with the "ugly one".  Both systems ran for ~16:40 [hh:mm] without
-error, before I stopped the tests.
+I'll  post description fixed version soon. thanks.
 
-* Your patch--bailing out of get_user_pages() when current has SIGKILL
-pending--breaks munlock on exit when SIGKILL is pending.  This results
-in freeing of mlocked pages [not so bad, I guess] and possibly leaving,
-e.g., shared library pages mlocked and unevictable after last VM_LOCKED
-vma is removed.  I noticed this because SIGKILL is how the test harness
-kills off the running tests.  I have a patch that fixes this.  The
-overnight runs included this patch.  I'll post it after rebasing and a
-quick retest [he says optimistically] on mmotm-081203.  
 
-Lee
+>> if heavy memory pressure happend, that's ok.
+>> cache miss already plenty. it is not observable.
+>>
+>> but, if memory pressure is lite, performance degression is obserbable.
+>
+>> about 4-5% degression.
+>>
+>> Then, this patch introduce temporal local variable.
+>
+>> OK. the degression is disappeared.
+>
+> I can't argue with the numbers, though :)
+>
+> Maybe all the scanning we do ends up evicting the cache lines
+> with the scan_control struct in it from the fast part of the
+> CPU cache?
+
+Yeah, I think so.
+
+
+>
+>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+> Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
