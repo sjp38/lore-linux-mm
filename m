@@ -1,54 +1,59 @@
-Date: Wed, 3 Dec 2008 13:04:17 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 7/8] badpage: ratelimit print_bad_pte and bad_page
-In-Reply-To: <20081202165654.b84ffdad.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0812031253060.6817@blonde.anvils>
-References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
- <Pine.LNX.4.64.0812010045520.11401@blonde.site> <20081202165654.b84ffdad.akpm@linux-foundation.org>
+Message-ID: <49368DAF.9060206@redhat.com>
+Date: Wed, 03 Dec 2008 08:46:23 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] vmscan: improve reclaim throuput to bail out patch
+References: <49316CAF.2010006@redhat.com> <20081130150849.8140.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081203140419.1D44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081203140419.1D44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: nickpiggin@yahoo.com.au, davej@redhat.com, arjan@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 Dec 2008, Andrew Morton wrote:
-> On Mon, 1 Dec 2008 00:46:53 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
-> > +	/*
-> > +	 * Allow a burst of 60 reports, then keep quiet for that minute;
-> > +	 * or allow a steady drip of one report per second.
-> > +	 */
-> > +	if (nr_shown == 60) {
-> > +		if (time_before(jiffies, resume)) {
-> > +			nr_unshown++;
-> > +			goto out;
-> > +		}
-> > +		if (nr_unshown) {
-> > +			printk(KERN_EMERG
-> > +				"Bad page state: %lu messages suppressed\n",
-> > +				nr_unshown);
-> > +			nr_unshown = 0;
-> > +		}
-> > +		nr_shown = 0;
-> > +	}
-> > +	if (nr_shown++ == 0)
-> > +		resume = jiffies + 60 * HZ;
-> > +
+KOSAKI Motohiro wrote:
+> Hi
 > 
-> gee, that's pretty elaborate.  There's no way of using the
-> possibly-enhanced ratelimit.h?
+> I evaluate rvr bailout and skip-freeing patch in this week conteniously.
+> I'd like to dump first output here.
+> 
+> 
+> 
+> Rik, could you please review following?
+> ==
+> vmscan bail out patch move nr_reclaimed variable to struct scan_control.
+> Unfortunately, indirect access can easily happen cache miss.
+> More unfortunately, Some architecture (e.g. ia64) don't access global
+> variable so fast.
 
-Thanks a lot for the pointer: I'd browsed around kernel/printk.c and
-not found what I needed, hadn't realized there's a lib/ratelimit.c.
+That is amazing.  Especially considering that the scan_control
+is a local variable on the stack.
 
-It looks eerily like what I'm trying to do, just a less specific
-missed/suppressed message, never mind that.  I'll try making a patch
-later to replace this (in its subsequent KERN_ALERT form) by that -
-in doing so, perhaps I'll encounter a problem, but should be good.
+> if heavy memory pressure happend, that's ok.
+> cache miss already plenty. it is not observable.
+> 
+> but, if memory pressure is lite, performance degression is obserbable.
 
-Hugh
+> about 4-5% degression.
+> 
+> Then, this patch introduce temporal local variable.
+
+> OK. the degression is disappeared.
+
+I can't argue with the numbers, though :)
+
+Maybe all the scanning we do ends up evicting the cache lines
+with the scan_control struct in it from the fast part of the
+CPU cache?
+
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
