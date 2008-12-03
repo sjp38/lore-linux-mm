@@ -1,69 +1,51 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1757039AbYLMJtV@vger.kernel.org>
-Date: Sat, 13 Dec 2008 09:49:49 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [BUGFIX][PATCH mmotm] memcg fix swap accounting leak (v2)
-In-Reply-To: <20081213160310.e9501cd9.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0812130935220.3611@blonde.anvils>
-References: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
- <20081212184341.b62903a7.nishimura@mxp.nes.nec.co.jp>
- <46730.10.75.179.61.1229080565.squirrel@webmail-b.css.fujitsu.com>
- <20081213160310.e9501cd9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: linux-kernel-owner@vger.kernel.org
-List-Archive: <https://lore.kernel.org/lkml/>
-List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-List-ID: <linux-mm.kvack.org>
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [PATCH 3/4] add ksm kernel shared memory driver.
+Date: Wed, 3 Dec 2008 15:33:08 +0100
+Message-ID: <20081203143307.GA2068@ucw.cz>
+References: <1226888432-3662-1-git-send-email-ieidus@redhat.com> <1226888432-3662-2-git-send-email-ieidus@redhat.com> <1226888432-3662-3-git-send-email-ieidus@redhat.com> <1226888432-3662-4-git-send-email-ieidus@redhat.com> <20081128165806.172d1026@lxorguk.ukuu.org.uk> <20081202180724.GC17607@acer.localdomain> <20081202181333.38c7b421@lxorguk.ukuu.org.uk> <20081202212411.GG17607@acer.localdomain> <20081202221029.513e8774@lxorguk.ukuu.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <kvm-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20081202221029.513e8774@lxorguk.ukuu.org.uk>
+Sender: kvm-owner@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Chris Wright <chrisw@redhat.com>, Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, avi@redhat.com, dlaor@redhat.com, kamezawa.hiroyu@jp.fujitsu.com, cl@linux-foundation.org, corbet@lwn.net
+List-Id: linux-mm.kvack.org
 
-On Sat, 13 Dec 2008, KAMEZAWA Hiroyuki wrote:
-> --- mmotm-2.6.28-Dec12.orig/mm/memory.c
-> +++ mmotm-2.6.28-Dec12/mm/memory.c
->  
-> -	mem_cgroup_commit_charge_swapin(page, ptr);
->  	inc_mm_counter(mm, anon_rss);
->  	pte = mk_pte(page, vma->vm_page_prot);
->  	if (write_access && reuse_swap_page(page)) {
->  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
->  		write_access = 0;
->  	}
-> -
->  	flush_icache_page(vma, page);
->  	set_pte_at(mm, address, page_table, pte);
->  	page_add_anon_rmap(page, vma, address);
-> +	/* It's better to call commit-charge after rmap is established */
-> +	mem_cgroup_commit_charge_swapin(page, ptr);
->  
->  	swap_free(entry);
->  	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+On Tue 2008-12-02 22:10:29, Alan Cox wrote:
+> On Tue, 2 Dec 2008 13:24:11 -0800
+> Chris Wright <chrisw@redhat.com> wrote:
+> 
+> > * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> > > On Tue, 2 Dec 2008 10:07:24 -0800
+> > > Chris Wright <chrisw@redhat.com> wrote:
+> > > > * Alan Cox (alan@lxorguk.ukuu.org.uk) wrote:
+> > > > > > +	r = !memcmp(old_digest, sha1_item->sha1val, SHA1_DIGEST_SIZE);
+> > > > > > +	mutex_unlock(&sha1_lock);
+> > > > > > +	if (r) {
+> > > > > > +		char *old_addr, *new_addr;
+> > > > > > +		old_addr = kmap_atomic(oldpage, KM_USER0);
+> > > > > > +		new_addr = kmap_atomic(newpage, KM_USER1);
+> > > > > > +		r = !memcmp(old_addr+PAGEHASH_LEN, new_addr+PAGEHASH_LEN,
+> > > > > > +			    PAGE_SIZE-PAGEHASH_LEN);
+> > > > > 
+> > > > > NAK - this isn't guaranteed to be robust so you could end up merging
+> > > > > different pages one provided by a malicious attacker.
+> > > > 
+> > > > I presume you're referring to the digest comparison.  While there's
+> > > > theoretical concern of hash collision, it's mitigated by hmac(sha1)
+> > > > so the attacker can't brute force for known collisions.
+> > > 
+> > > Using current known techniques. A random collision is just as bad news.
+> > 
+> > And, just to clarify, your concern would extend to any digest based
+> > comparison?  Or are you specifically concerned about sha1?
+> 
+> Taken off list 
 
-That ordering is back to how it was before I adjusted it
-for reuse_swap_page()'s delete_from_swap_cache(), isn't it?
+Hmmm, list would like to know :-).
 
-So I don't understand how you've fixed the bug I hit (not an
-accounting imbalance but an oops or BUG, I forget) with this
-ordering, without making some other change elsewhere.
-
-mem_cgroup_commit_charge_swapin calls swap_cgroup_record with
-bogus swp_entry_t 0, which appears to belong to swp_offset 0 of
-swp_type 0, but the ctrl->map for type 0 may have been freed
-ages ago (we do always start from 0, but maybe we swapped on
-type 1 and swapped off type 0 meanwhile).  I'm guessing that
-by looking at the code, not by retesting it, so I may have the
-details wrong; but I didn't reorder your code just for fun.
-
-Perhaps your restored ordering works if you check PageSwapCache
-in mem_cgroup_commit_charge_swapin or check 0 in swap_cgroup_record,
-but I don't see that in yesterday's mmotm, nor in this patch.
-
-(And I should admit, I've not even attempted to follow your
-accounting justification: I'll leave that to you memcg guys.)
-
-An alternative could be not to clear page->private when deleting
-from swap cache, that's only done for tidiness and to force notice
-of races like this; but I'd want a much stronger reason to change that.
-
-Or am I making this up?  As I say, I've not tested it this time around.
-
-Hugh
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
