@@ -1,167 +1,407 @@
-Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
-	by smtp-out.google.com with ESMTP id mB33vi7v029449
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 19:57:45 -0800
-Received: from an-out-0708.google.com (andd14.prod.google.com [10.100.30.14])
-	by spaceape11.eur.corp.google.com with ESMTP id mB33vgu4027564
-	for <linux-mm@kvack.org>; Tue, 2 Dec 2008 19:57:42 -0800
-Received: by an-out-0708.google.com with SMTP id d14so1359889and.0
-        for <linux-mm@kvack.org>; Tue, 02 Dec 2008 19:57:41 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20081203111440.1D35.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <604427e00812021130t1aad58a8j7474258ae33e15a4@mail.gmail.com>
-	 <20081203111440.1D35.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Date: Tue, 2 Dec 2008 19:57:41 -0800
-Message-ID: <604427e00812021957m44549252k21e1b617ba9e78c3@mail.gmail.com>
-Subject: Re: [PATCH][V6]make get_user_pages interruptible
-From: Ying Han <yinghan@google.com>
-Content-Type: multipart/alternative; boundary=00504502ccae1c9985045d1c729e
+Subject: [PATCH] - support inheritance of mlocks across fork/exec V2
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20081125152651.b4c3c18f.akpm@linux-foundation.org>
+References: <1227561707.6937.61.camel@lts-notebook>
+	 <20081125152651.b4c3c18f.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 03 Dec 2008 14:04:29 -0500
+Message-Id: <1228331069.6693.73.camel@lts-notebook>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
+To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
---00504502ccae1c9985045d1c729e
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 
-On Tue, Dec 2, 2008 at 6:24 PM, KOSAKI Motohiro <
-kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi!
->
-> Sorry for too late review.
-> In general, I like this patch. but ...
->
->
->> changelog
->> [v6] replace the sigkill_pending() with fatal_signal_pending()
->>       add the check for cases current != tsk
->>
->> From: Ying Han <yinghan@google.com>
->>
->> make get_user_pages interruptible
->> The initial implementation of checking TIF_MEMDIE covers the cases of OOM
->> killing. If the process has been OOM killed, the TIF_MEMDIE is set and it
->> return immediately. This patch includes:
->>
->> 1. add the case that the SIGKILL is sent by user processes. The process
-can
->> try to get_user_pages() unlimited memory even if a user process has sent
-a
->> SIGKILL to it(maybe a monitor find the process exceed its memory limit
-and
->> try to kill it). In the old implementation, the SIGKILL won't be handled
->> until the get_user_pages() returns.
->>
->> 2. change the return value to be ERESTARTSYS. It makes no sense to return
->> ENOMEM if the get_user_pages returned by getting a SIGKILL signal.
->> Considering the general convention for a system call interrupted by a
->> signal is ERESTARTNOSYS, so the current return value is consistant to
-that.
->
-> this description explain why fatal_signal_pending(current) is needed.
-> but doesn't explain why fatal_signal_pending(tsk) is needed.
-There were couple of discussions about adding the fatal_signal_pending(tsk)
-in the previous
-versions of this patch, and the reason i added on is to cover the case when
-the current!=tsk
-and the caller calls get_user_pages() on behalf of tsk, and we want to
-interrupt in this case
-as well. if that sounds a reasonable, i will added in the patch description.
->
-> more unfortunately, this patch break kernel compatibility.
-> To read /proc file invoke calling get_user_page().
-> however, "man 2 read" doesn't describe ERESTARTSYS.
-yeah, that seems to be right..
->
-> IOW, this patch can break /proc reading user application.
->
-> May I ask why fatal_signal_pending(tsk) is needed ?
-> at least, you need to cc to linux-api@vger.kernel.org IMHO.
-all the problems seems to be caused by the fatal_signal_pending(tsk),
-i can either make the change like
-if (fatal_signal_pending(tsk))
-   return i ? i : EINTR
 
-or remove the check for fatal_signal_pending(tsk) which is mainly used in
-the case you mentioned above. Afterward, the intial point of the patch is to
-avoid proccess hanging in the mlock (for example) under memory
-pressure while it has SIGKILL pending. Now sounds to me the second option is
-better. any comments?
+Against;  2.6.28-rc7-mmotm-081203
 
---Ying
->
-> Am I talking about pointless?
-thanks for comments. :-)
->
->
->
->> Signed-off-by:        Paul Menage <menage@google.com>
->> Signed-off-by:        Ying Han <yinghan@google.com>
->>
->> mm/memory.c                   |   13 ++-
->>
->> diff --git a/mm/memory.c b/mm/memory.c
->> index 164951c..049a4f1 100644
->> --- a/mm/memory.c
->> +++ b/mm/memory.c
->> @@ -1218,12 +1218,15 @@ int __get_user_pages(struct task_struct *tsk,
-struct m
->>                       struct page *page;
->>
->>                       /*
->> -                      * If tsk is ooming, cut off its access to large
-memory
->> -                      * allocations. It has a pending SIGKILL, but it
-can't
->> -                      * be processed until returning to user space.
->> +                      * If we have a pending SIGKILL, don't keep
->> +                      * allocating memory. We check both current
->> +                      * and tsk to cover the cases where current
->> +                      * is allocating pages on behalf of tsk.
->>                        */
->> -                     if (unlikely(test_tsk_thread_flag(tsk,
-TIF_MEMDIE)))
->> -                             return i ? i : -ENOMEM;
->> +                     if (unlikely(fatal_signal_pending(current) ||
->> +                             ((current != tsk) &&
->> +                             fatal_signal_pending(tsk))))
->> +                             return i ? i : -ERESTARTSYS;
->>
->>                       if (write)
->>                               foll_flags |= FOLL_WRITE;
->
->
->
->
->
+V02:	rework vetting of flags argument as suggested by
+	Kosaki Motohiro.
+	enhance description as requested by Andrew Morton.
 
---00504502ccae1c9985045d1c729e
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Add support for mlockall(MCL_INHERIT|MCL_RECURSIVE):
 
-<br><br>On Tue, Dec 2, 2008 at 6:24 PM, KOSAKI Motohiro &lt;<a href="mailto:kosaki.motohiro@jp.fujitsu.com">kosaki.motohiro@jp.fujitsu.com</a>&gt; wrote:<br>&gt; Hi!<br>&gt;<br>&gt; Sorry for too late review.<br>&gt; In general, I like this patch. but ...<br>
-&gt;<br>&gt;<br>&gt;&gt; changelog<br>&gt;&gt; [v6] replace the sigkill_pending() with fatal_signal_pending()<br>&gt;&gt; &nbsp; &nbsp; &nbsp; add the check for cases current != tsk<br>&gt;&gt;<br>&gt;&gt; From: Ying Han &lt;<a href="mailto:yinghan@google.com">yinghan@google.com</a>&gt;<br>
-&gt;&gt;<br>&gt;&gt; make get_user_pages interruptible<br>&gt;&gt; The initial implementation of checking TIF_MEMDIE covers the cases of OOM<br>&gt;&gt; killing. If the process has been OOM killed, the TIF_MEMDIE is set and it<br>
-&gt;&gt; return immediately. This patch includes:<br>&gt;&gt;<br>&gt;&gt; 1. add the case that the SIGKILL is sent by user processes. The process can<br>&gt;&gt; try to get_user_pages() unlimited memory even if a user process has sent a<br>
-&gt;&gt; SIGKILL to it(maybe a monitor find the process exceed its memory limit and<br>&gt;&gt; try to kill it). In the old implementation, the SIGKILL won&#39;t be handled<br>&gt;&gt; until the get_user_pages() returns.<br>
-&gt;&gt;<br>&gt;&gt; 2. change the return value to be ERESTARTSYS. It makes no sense to return<br>&gt;&gt; ENOMEM if the get_user_pages returned by getting a SIGKILL signal.<br>&gt;&gt; Considering the general convention for a system call interrupted by a<br>
-&gt;&gt; signal is ERESTARTNOSYS, so the current return value is consistant to that.<br>&gt;<br>&gt; this description explain why fatal_signal_pending(current) is needed.<br>&gt; but doesn&#39;t explain why fatal_signal_pending(tsk) is needed.<br>
-There were couple of discussions about adding the fatal_signal_pending(tsk) in the previous<br>versions of this patch, and the reason i added on is to cover the case when the current!=tsk<br>and the caller calls get_user_pages() on behalf of tsk, and we want to interrupt in this case<br>
-as well. if that sounds a reasonable, i will added in the patch description.<br>&gt;<br>&gt; more unfortunately, this patch break kernel compatibility.<br>&gt; To read /proc file invoke calling get_user_page().<br>&gt; however, &quot;man 2 read&quot; doesn&#39;t describe ERESTARTSYS.<br>
-yeah, that seems to be right..<br>&gt;<br>&gt; IOW, this patch can break /proc reading user application.<br>&gt;<br>&gt; May I ask why fatal_signal_pending(tsk) is needed ?<br>&gt; at least, you need to cc to <a href="mailto:linux-api@vger.kernel.org">linux-api@vger.kernel.org</a> IMHO.<br>
-all the problems seems to be caused by the fatal_signal_pending(tsk),<br>i can either make the change like<br>if (fatal_signal_pending(tsk))<br> &nbsp; &nbsp;return i ? i : EINTR<br><br>or remove the check for fatal_signal_pending(tsk) which is mainly used in the case you mentioned above. Afterward, the intial point of the patch is to avoid proccess hanging in the mlock (for example) under memory<br>
-pressure while it has SIGKILL pending. Now sounds to me the second option is better. any comments?<br><br>--Ying<br>&gt;<br>&gt; Am I talking about pointless?<br>thanks for comments. :-)<br>&gt;<br>&gt;<br>&gt;<br>&gt;&gt; Signed-off-by: &nbsp; &nbsp; &nbsp; &nbsp;Paul Menage &lt;<a href="mailto:menage@google.com">menage@google.com</a>&gt;<br>
-&gt;&gt; Signed-off-by: &nbsp; &nbsp; &nbsp; &nbsp;Ying Han &lt;<a href="mailto:yinghan@google.com">yinghan@google.com</a>&gt;<br>&gt;&gt;<br>&gt;&gt; mm/memory.c &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; 13 ++-<br>&gt;&gt;<br>&gt;&gt; diff --git a/mm/memory.c b/mm/memory.c<br>
-&gt;&gt; index 164951c..049a4f1 100644<br>&gt;&gt; --- a/mm/memory.c<br>&gt;&gt; +++ b/mm/memory.c<br>&gt;&gt; @@ -1218,12 +1218,15 @@ int __get_user_pages(struct task_struct *tsk, struct m<br>&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; struct page *page;<br>
-&gt;&gt;<br>&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; /*<br>&gt;&gt; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* If tsk is ooming, cut off its access to large memory<br>&gt;&gt; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* allocations. It has a pending SIGKILL, but it can&#39;t<br>
-&gt;&gt; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* be processed until returning to user space.<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* If we have a pending SIGKILL, don&#39;t keep<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* allocating memory. We check both current<br>
-&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* and tsk to cover the cases where current<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;* is allocating pages on behalf of tsk.<br>&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*/<br>&gt;&gt; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (unlikely(test_tsk_thread_flag(tsk, TIF_MEMDIE)))<br>
-&gt;&gt; - &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return i ? i : -ENOMEM;<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (unlikely(fatal_signal_pending(current) ||<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ((current != tsk) &amp;&amp;<br>&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; fatal_signal_pending(tsk))))<br>
-&gt;&gt; + &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; return i ? i : -ERESTARTSYS;<br>&gt;&gt;<br>&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if (write)<br>&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; foll_flags |= FOLL_WRITE;<br>&gt;<br>&gt;<br>&gt;<br>&gt;<br>
-&gt;<br><br>
+	MCL_CURRENT[|MCL_FUTURE]|MCL_INHERIT - inherit memory locks
+		[vmas' VM_LOCKED flags] across fork(), and inherit
+		MCL_FUTURE behavior [mm's def_flags] across fork()
+		and exec().  Behaves as if child and/or new task
+		called mlockall(MCL_CURRENT|MCL_FUTURE) as first
+		instruction.
 
---00504502ccae1c9985045d1c729e--
+	MCL_RECURSIVE - inherit MCL_CURRENT|MCL_FUTURE|MCL_INHERIT
+		[vmas' VM_LOCKED flags for fork() and mm's def_flags
+		and mcl_inherit across fork() and exec()] for all
+		future generations of calling process's descendants.
+		Behaves as if child and/or new task called
+		mlockall(MCL_CURRENT|MCL_FUTURE|MCL_INHERIT|MCL_RECURSIVE)
+		as the first instruction.
+
+In support of a "lock prefix command"--e.g., mlock <cmd> <args> ...
+Analogous to taskset(1) for cpu affinity or numactl(8) for numa memory
+policy.
+
+Together with patches to keep mlocked pages off the LRU, this will
+allow users/admins to lock down applications without modifying them,
+if their RLIMIT_MEMLOCK is sufficiently large, keeping their pages
+off the LRU and out of consideration for reclaim.
+
+Potentially useful, as well, in real-time environments to force
+prefaulting and residency for applications that don't mlock themselves.
+
+Jeff Sharkey at Montana State developed a similar patch for Linux
+[link no longer accessible], but apparently he never submitted the patch.
+
+I submitted an earlier version of this patch around a year ago.  I
+resurrected it to test the unevictable lru/mlocked pages patches--
+e.g., by "mlock -r make -j<N*nr_cpus> all".  This did shake out a few
+races and vmstat accounting bugs, but NOT something I'd recommend as
+general practice--for kernel builds, that is.
+
+----
+
+Define MCL_INHERIT, MCL_RECURSIVE in <asm-*/mman.h>.
++ x86 and  ia64 versions included.
++ other arch can/will be created, if this patch deemed merge-worthy.
+
+Similarly, I'll provide kernel man page update if/when needed.
+
+Example "lock prefix command" in Documentation/vm/mlock.c
+
+Signed-off-by:  Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+ Documentation/vm/mlock.c     |  149 +++++++++++++++++++++++++++++++++++++++++++
+ arch/ia64/include/asm/mman.h |    2 
+ arch/x86/include/asm/mman.h  |    3 
+ fs/binfmt_elf.c              |    9 ++
+ include/linux/mm_types.h     |    2 
+ kernel/fork.c                |   15 +++-
+ mm/mlock.c                   |   19 ++++-
+ 7 files changed, 191 insertions(+), 8 deletions(-)
+
+Index: linux-2.6.28-rc7-mmotm-081203/arch/ia64/include/asm/mman.h
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/arch/ia64/include/asm/mman.h	2008-12-03 09:33:42.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/arch/ia64/include/asm/mman.h	2008-12-03 10:33:29.000000000 -0500
+@@ -21,6 +21,8 @@
+ 
+ #define MCL_CURRENT	1		/* lock all current mappings */
+ #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_INHERIT	4		/* inherit '_FUTURE across fork/exec */
++#define MCL_RECURSIVE	8		/* inherit '_FUTURE recursively */
+ 
+ #ifdef __KERNEL__
+ #ifndef __ASSEMBLY__
+Index: linux-2.6.28-rc7-mmotm-081203/mm/mlock.c
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/mm/mlock.c	2008-12-03 10:33:11.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/mm/mlock.c	2008-12-03 10:33:29.000000000 -0500
+@@ -573,15 +573,18 @@ asmlinkage long sys_munlock(unsigned lon
+ static int do_mlockall(int flags)
+ {
+ 	struct vm_area_struct * vma, * prev = NULL;
++	struct mm_struct *mm = current->mm;
+ 	unsigned int def_flags = 0;
+ 
+ 	if (flags & MCL_FUTURE)
+-		def_flags = VM_LOCKED;
+-	current->mm->def_flags = def_flags;
+-	if (flags == MCL_FUTURE)
++		def_flags = VM_LOCKED;;
++	mm->def_flags = def_flags;
++	if (flags & MCL_INHERIT)
++		mm->mcl_inherit = flags & (MCL_INHERIT | MCL_RECURSIVE);
++	if ((flags & ~(MCL_INHERIT | MCL_RECURSIVE)) == MCL_FUTURE)
+ 		goto out;
+ 
+-	for (vma = current->mm->mmap; vma ; vma = prev->vm_next) {
++	for (vma = mm->mmap; vma ; vma = prev->vm_next) {
+ 		unsigned int newflags;
+ 
+ 		newflags = vma->vm_flags | VM_LOCKED;
+@@ -600,9 +603,15 @@ asmlinkage long sys_mlockall(int flags)
+ 	unsigned long lock_limit;
+ 	int ret = -EINVAL;
+ 
+-	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
++	if (!(flags & (MCL_CURRENT | MCL_FUTURE)))
+ 		goto out;
+ 
++	if (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_INHERIT | MCL_RECURSIVE))
++		goto out;	/* undefined flag bits */
++
++	if ((flags & (MCL_INHERIT | MCL_RECURSIVE)) == MCL_RECURSIVE)
++		goto out;	/* 'RECURSIVE undefined without 'INHERIT */
++
+ 	ret = -EPERM;
+ 	if (!can_do_mlock())
+ 		goto out;
+Index: linux-2.6.28-rc7-mmotm-081203/kernel/fork.c
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/kernel/fork.c	2008-12-03 10:18:15.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/kernel/fork.c	2008-12-03 10:33:29.000000000 -0500
+@@ -278,7 +278,8 @@ static int dup_mmap(struct mm_struct *mm
+ 	 */
+ 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
+ 
+-	mm->locked_vm = 0;
++	if (!mm->mcl_inherit)
++		mm->locked_vm = 0;
+ 	mm->mmap = NULL;
+ 	mm->mmap_cache = NULL;
+ 	mm->free_area_cache = oldmm->mmap_base;
+@@ -316,7 +317,8 @@ static int dup_mmap(struct mm_struct *mm
+ 		if (IS_ERR(pol))
+ 			goto fail_nomem_policy;
+ 		vma_set_policy(tmp, pol);
+-		tmp->vm_flags &= ~VM_LOCKED;
++		if (!mm->mcl_inherit)
++			tmp->vm_flags &= ~VM_LOCKED;
+ 		tmp->vm_mm = mm;
+ 		tmp->vm_next = NULL;
+ 		anon_vma_link(tmp);
+@@ -406,6 +408,8 @@ __cacheline_aligned_in_smp DEFINE_SPINLO
+ 
+ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
+ {
++	unsigned long def_flags = 0;
++
+ 	atomic_set(&mm->mm_users, 1);
+ 	atomic_set(&mm->mm_count, 1);
+ 	init_rwsem(&mm->mmap_sem);
+@@ -422,9 +426,14 @@ static struct mm_struct * mm_init(struct
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+ 	mm->cached_hole_size = ~0UL;
+ 	mm_init_owner(mm, p);
++	if (current->mm && current->mm->mcl_inherit) {
++		def_flags = current->mm->def_flags & VM_LOCKED;
++		if (mm->mcl_inherit & MCL_RECURSIVE)
++			mm->mcl_inherit  = current->mm->mcl_inherit;
++	}
+ 
+ 	if (likely(!mm_alloc_pgd(mm))) {
+-		mm->def_flags = 0;
++		mm->def_flags = def_flags;
+ 		mmu_notifier_mm_init(mm);
+ 		return mm;
+ 	}
+Index: linux-2.6.28-rc7-mmotm-081203/fs/binfmt_elf.c
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/fs/binfmt_elf.c	2008-12-03 10:19:21.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/fs/binfmt_elf.c	2008-12-03 10:33:29.000000000 -0500
+@@ -585,6 +585,7 @@ static int load_elf_binary(struct linux_
+ 	unsigned long reloc_func_desc = 0;
+ 	int executable_stack = EXSTACK_DEFAULT;
+ 	unsigned long def_flags = 0;
++	int mcl_inherit = 0;
+ 	struct {
+ 		struct elfhdr elf_ex;
+ 		struct elfhdr interp_elf_ex;
+@@ -749,6 +750,13 @@ static int load_elf_binary(struct linux_
+ 		SET_PERSONALITY(loc->elf_ex);
+ 	}
+ 
++	/* Optionally inherit MCL_FUTURE state before destroying old mm */
++	if (current->mm && current->mm->mcl_inherit) {
++		def_flags = current->mm->def_flags & VM_LOCKED;
++		if (current->mm->mcl_inherit & MCL_RECURSIVE)
++			mcl_inherit  = current->mm->mcl_inherit;
++	}
++
+ 	/* Flush all traces of the currently running executable */
+ 	retval = flush_old_exec(bprm);
+ 	if (retval)
+@@ -757,6 +765,7 @@ static int load_elf_binary(struct linux_
+ 	/* OK, This is the point of no return */
+ 	current->flags &= ~PF_FORKNOEXEC;
+ 	current->mm->def_flags = def_flags;
++	current->mm->mcl_inherit = mcl_inherit;
+ 
+ 	/* Do this immediately, since STACK_TOP as used in setup_arg_pages
+ 	   may depend on the personality.  */
+Index: linux-2.6.28-rc7-mmotm-081203/arch/x86/include/asm/mman.h
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/arch/x86/include/asm/mman.h	2008-12-03 10:16:26.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/arch/x86/include/asm/mman.h	2008-12-03 10:33:29.000000000 -0500
+@@ -16,5 +16,8 @@
+ 
+ #define MCL_CURRENT	1		/* lock all current mappings */
+ #define MCL_FUTURE	2		/* lock all future mappings */
++#define MCL_INHERIT	4		/* inherit mlocks across fork */
++					/* inherit '_FUTURE flag across fork/exec */
++#define MCL_RECURSIVE	8		/* inherit mlocks recursively */
+ 
+ #endif /* _ASM_X86_MMAN_H */
+Index: linux-2.6.28-rc7-mmotm-081203/include/linux/mm_types.h
+===================================================================
+--- linux-2.6.28-rc7-mmotm-081203.orig/include/linux/mm_types.h	2008-12-03 10:18:01.000000000 -0500
++++ linux-2.6.28-rc7-mmotm-081203/include/linux/mm_types.h	2008-12-03 10:33:29.000000000 -0500
+@@ -235,6 +235,8 @@ struct mm_struct {
+ 	unsigned int token_priority;
+ 	unsigned int last_interval;
+ 
++	int mcl_inherit;		/* inherit current/future locks */
++
+ 	unsigned long flags; /* Must use atomic bitops to access the bits */
+ 
+ 	struct core_state *core_state; /* coredumping support */
+Index: linux-2.6.28-rc7-mmotm-081203/Documentation/vm/mlock.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.28-rc7-mmotm-081203/Documentation/vm/mlock.c	2008-12-03 10:33:29.000000000 -0500
+@@ -0,0 +1,149 @@
++/*
++ * mlock.c
++ *
++ * Command-line utility for launching a program with the
++ * mlockall() MCL_FUTURE flag set such that all of the task's
++ * pages will be locked into memory.  This depends on the
++ * MCL_INHERIT|MCL_RECURSIVE enhancement to mlockall(2).
++ *
++ * Based on the taskset command from the schedutils package by
++ *
++ * 	Robert Love <rml@tech9.net>
++ *
++ * Compile with:
++ *
++ * 	gcc -o mlock mlock.c
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License, v2, as
++ * published by the Free Software Foundation
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ * Copyright (C) 2004 Robert Love
++ * Copyright (C) 2008 Hewlett-Packard, Inc.
++ */
++
++#include <sys/types.h>
++#include <sys/mman.h>
++
++#include <ctype.h>
++#include <errno.h>
++#include <getopt.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++#define MLOCK_VERSION "0.2"
++
++/*
++ * Version Info
++ *
++ * 0.1	- initial implementation
++ *
++ * 0.2  - add "--recursive" support
++ */
++
++#define OPTIONS "+hr"
++static struct option l_opts[] = {
++	{
++		.name = "help",
++		.has_arg = no_argument,
++		.flag = NULL,
++		.val = 'h'
++	},
++	{
++		.name = "recursive",
++		.has_arg = no_argument,
++		.flag = NULL,
++		.val = 'r'
++	},
++	{
++		.name = NULL,
++	}
++};
++
++/*
++ * For testing before MCL_INHERIT and MCL_RECURSIVE exist in a
++ * user space header.  mlockall() will fail if these flags are
++ * not implemented.
++ *
++ * N.B., won't work on platforms with "interesting" values for
++ *       MCL_FUTURE  -- e.g., powerpc, sparc, alpha
++ *       [maybe OK for alpha, but ...]
++ */
++#ifndef MCL_INHERIT
++#define MCL_INHERIT   (MCL_FUTURE << 1)
++#define MCL_RECURSIVE (MCL_INHERIT << 1)
++#endif
++
++static const char *usage = "\
++\nmlock version " MLOCK_VERSION "\n\n\
++Usage:  %s [-hr] <cmd> [args...]]\n\n\
++Where:\n\
++\t--help/-h      = show this help/usage\n\
++\t--recursive/-r = inherit recursively--i.e., across future\n\
++\t                 generations.\n\n\
++Run <cmd> as if it had called mlockall(2) with the MCL_CURRENT|MCL_FUTURE\n\
++flags set.  That is, all of <cmd>'s pages will be locked into memory.\n\
++If '--recursive/-r' specified, the MCL_RECURSIVE flag will be added, and\n\
++all future descendants of <cmd> will run with inherit this condition,\n\
++unless one of them calls munlockall(2) or mlockall(2) without the\n\
++MCL_INHERIT|MCL_RECURSIVE flags.\n\n\
++";
++
++static void show_usage(const char *cmd)
++{
++	fprintf(stderr, usage, cmd);
++}
++
++int main(int argc, char *argv[])
++{
++
++	int opt;
++	int flags = MCL_FUTURE|MCL_INHERIT;
++
++	while ((opt = getopt_long(argc, argv, OPTIONS, l_opts, NULL)) != -1) {
++		int ret = 1;
++
++		switch (opt) {
++		case 'r':
++			flags |= MCL_RECURSIVE;
++			break;
++		case 'h':
++			ret = 0;
++			/* fall through */
++
++		default:
++			show_usage(argv[0]);
++			return ret;
++		}
++	}
++
++	if ((argc - optind) < 1) {
++		show_usage(argv[0]);
++		return 1;
++	}
++
++	if (mlockall(flags) == -1) {
++		fprintf(stderr, "%s mlockall() failed - %s\n", argv[0],
++			strerror(errno));
++		return 1;
++	}
++
++	argv += optind;
++	execvp(argv[0], argv);
++	perror("execvp");
++	fprintf(stderr, "failed to execute %s\n", argv[0]);
++	return 1;
++
++}
++
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
