@@ -1,59 +1,100 @@
-Date: Tue, 2 Dec 2008 16:47:32 -0800
+Date: Tue, 2 Dec 2008 16:56:54 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 10/9] swapfile: change discard pgoff_t to sector_t
-Message-Id: <20081202164732.1d6d0997.akpm@linux-foundation.org>
-In-Reply-To: <Pine.LNX.4.64.0812010028040.10131@blonde.site>
-References: <Pine.LNX.4.64.0811252132580.17555@blonde.site>
-	<Pine.LNX.4.64.0811252140230.17555@blonde.site>
-	<Pine.LNX.4.64.0811252145190.20455@blonde.site>
-	<Pine.LNX.4.64.0812010028040.10131@blonde.site>
+Subject: Re: [PATCH 7/8] badpage: ratelimit print_bad_pte and bad_page
+Message-Id: <20081202165654.b84ffdad.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0812010045520.11401@blonde.site>
+References: <Pine.LNX.4.64.0812010032210.10131@blonde.site>
+	<Pine.LNX.4.64.0812010045520.11401@blonde.site>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: dwmw2@infradead.org, jens.axboe@oracle.com, matthew@wil.cx, joern@logfs.org, James.Bottomley@HansenPartnership.com, djshin90@gmail.com, teheo@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: nickpiggin@yahoo.com.au, davej@redhat.com, arjan@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Dec 2008 00:29:41 +0000 (GMT)
+On Mon, 1 Dec 2008 00:46:53 +0000 (GMT)
 Hugh Dickins <hugh@veritas.com> wrote:
 
-> Change pgoff_t nr_blocks in discard_swap() and discard_swap_cluster() to
-> sector_t: given the constraints on swap offsets (in particular, the 5 bits
-> of swap type accommodated in the same unsigned long), pgoff_t was actually
-> safe as is, but it certainly looked worrying when shifted left.
+> print_bad_pte() and bad_page() might each need ratelimiting - especially
+> for their dump_stacks, almost never of interest, yet not quite dispensible.
+> Correlating corruption across neighbouring entries can be very helpful,
+> so allow a burst of 60 reports before keeping quiet for the remainder
+> of that minute (or allow a steady drip of one report per second).
 > 
 > Signed-off-by: Hugh Dickins <hugh@veritas.com>
 > ---
-> To follow 9/9 swapfile-swap-allocation-cycle-if-nonrot.patch
 > 
->  mm/swapfile.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>  mm/memory.c     |   23 +++++++++++++++++++++++
+>  mm/page_alloc.c |   26 +++++++++++++++++++++++++-
+>  2 files changed, 48 insertions(+), 1 deletion(-)
 > 
-> --- swapfile9/mm/swapfile.c	2008-11-26 12:19:00.000000000 +0000
-> +++ swapfile10/mm/swapfile.c	2008-11-28 20:36:44.000000000 +0000
-> @@ -96,7 +96,7 @@ static int discard_swap(struct swap_info
+> --- badpage6/mm/memory.c	2008-11-28 20:40:48.000000000 +0000
+> +++ badpage7/mm/memory.c	2008-11-28 20:40:50.000000000 +0000
+> @@ -383,6 +383,29 @@ static void print_bad_pte(struct vm_area
+>  	pmd_t *pmd = pmd_offset(pud, addr);
+>  	struct address_space *mapping;
+>  	pgoff_t index;
+> +	static unsigned long resume;
+> +	static unsigned long nr_shown;
+> +	static unsigned long nr_unshown;
+> +
+> +	/*
+> +	 * Allow a burst of 60 reports, then keep quiet for that minute;
+> +	 * or allow a steady drip of one report per second.
+> +	 */
+> +	if (nr_shown == 60) {
+> +		if (time_before(jiffies, resume)) {
+> +			nr_unshown++;
+> +			return;
+> +		}
+> +		if (nr_unshown) {
+> +			printk(KERN_EMERG
+> +				"Bad page map: %lu messages suppressed\n",
+> +				nr_unshown);
+> +			nr_unshown = 0;
+> +		}
+> +		nr_shown = 0;
+> +	}
+> +	if (nr_shown++ == 0)
+> +		resume = jiffies + 60 * HZ;
 >  
->  	list_for_each_entry(se, &si->extent_list, list) {
->  		sector_t start_block = se->start_block << (PAGE_SHIFT - 9);
-> -		pgoff_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
-> +		sector_t nr_blocks = se->nr_pages << (PAGE_SHIFT - 9);
-
-but, but, that didn't change anything?  se->nr_pages must be cast to
-sector_t?
-
->  		if (se->start_page == 0) {
->  			/* Do not discard the swap header page! */
-> @@ -133,7 +133,7 @@ static void discard_swap_cluster(struct 
->  		    start_page < se->start_page + se->nr_pages) {
->  			pgoff_t offset = start_page - se->start_page;
->  			sector_t start_block = se->start_block + offset;
-> -			pgoff_t nr_blocks = se->nr_pages - offset;
-> +			sector_t nr_blocks = se->nr_pages - offset;
+>  	mapping = vma->vm_file ? vma->vm_file->f_mapping : NULL;
+>  	index = linear_page_index(vma, addr);
+> --- badpage6/mm/page_alloc.c	2008-11-28 20:40:42.000000000 +0000
+> +++ badpage7/mm/page_alloc.c	2008-11-28 20:40:50.000000000 +0000
+> @@ -223,6 +223,30 @@ static inline int bad_range(struct zone 
 >  
->  			if (nr_blocks > nr_pages)
->  				nr_blocks = nr_pages;
+>  static void bad_page(struct page *page)
+>  {
+> +	static unsigned long resume;
+> +	static unsigned long nr_shown;
+> +	static unsigned long nr_unshown;
+> +
+> +	/*
+> +	 * Allow a burst of 60 reports, then keep quiet for that minute;
+> +	 * or allow a steady drip of one report per second.
+> +	 */
+> +	if (nr_shown == 60) {
+> +		if (time_before(jiffies, resume)) {
+> +			nr_unshown++;
+> +			goto out;
+> +		}
+> +		if (nr_unshown) {
+> +			printk(KERN_EMERG
+> +				"Bad page state: %lu messages suppressed\n",
+> +				nr_unshown);
+> +			nr_unshown = 0;
+> +		}
+> +		nr_shown = 0;
+> +	}
+> +	if (nr_shown++ == 0)
+> +		resume = jiffies + 60 * HZ;
+> +
+
+gee, that's pretty elaborate.  There's no way of using the
+possibly-enhanced ratelimit.h?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
