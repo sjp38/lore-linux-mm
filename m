@@ -1,171 +1,62 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB35Qbx0030326
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 3 Dec 2008 14:26:37 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F04CF45DE61
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:26:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C697A45DE57
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:26:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9656A1DB803A
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:26:36 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D3E81DB803C
-	for <linux-mm@kvack.org>; Wed,  3 Dec 2008 14:26:36 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] vmscan: improve reclaim throuput to bail out patch
-In-Reply-To: <20081130150849.8140.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <49316CAF.2010006@redhat.com> <20081130150849.8140.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20081203140419.1D44.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Date: Tue, 2 Dec 2008 21:56:50 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH  0/21] memcg updates 2008/12/03
+Message-Id: <20081202215650.e7621524.akpm@linux-foundation.org>
+In-Reply-To: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Wed,  3 Dec 2008 14:26:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Wed, 3 Dec 2008 13:47:18 +0900 KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-I evaluate rvr bailout and skip-freeing patch in this week conteniously.
-I'd like to dump first output here.
+> This is memcg update series onto
+> "The mm-of-the-moment snapshot 2008-12-02-17-08"
 
+Complaints...
 
+- All these patches had filenames in their Subject: lines.  I turned
+  these all back into sensible-sounding English titles.
 
-Rik, could you please review following?
-==
-vmscan bail out patch move nr_reclaimed variable to struct scan_control.
-Unfortunately, indirect access can easily happen cache miss.
-More unfortunately, Some architecture (e.g. ia64) don't access global
-variable so fast.
+- I think a lot of authorships got lost.  For example, the way these
+  patches were sent, you will be identified as the author of
+  inactive_anon_is_low-move-to-vmscan.patch, but I don't think you
+  were.  So please work out the correct authorship for
 
-if heavy memory pressure happend, that's ok.
-cache miss already plenty. it is not observable.
+	memcg-revert-gfp-mask-fix.patch
+	memcg-check-group-leader-fix.patch
+	memcg-memoryswap-controller-fix-limit-check.patch
+	memcg-swapout-refcnt-fix.patch
+	memcg-hierarchy-avoid-unnecessary-reclaim.patch
+	inactive_anon_is_low-move-to-vmscan.patch
+	mm-introduce-zone_reclaim-struct.patch
+	mm-add-zone-nr_pages-helper-function.patch
+	mm-make-get_scan_ratio-safe-for-memcg.patch
+	memcg-add-null-check-to-page_cgroup_zoneinfo.patch
+	memcg-add-inactive_anon_is_low.patch
+	memcg-add-mem_cgroup_zone_nr_pages.patch
+	memcg-add-zone_reclaim_stat.patch
+	memcg-remove-mem_cgroup_cal_reclaim.patch
+	memcg-show-reclaim-stat.patch
+	memcg-rename-scan-global-lru.patch
+	memcg-protect-prev_priority.patch
+	memcg-swappiness.patch
+	memcg-explain-details-and-test-document.patch
 
-but, if memory pressure is lite, performance degression is obserbable.
+  and let me know?
 
+- Sentences start with capital letters.
 
-I compared following three pattern (it was mesured 10 times each)
+- Your patches are missing the ^--- after the changelog.  This
+  creates additional work (and potential for mistakes) at the other
+  end.
 
-hackbench 125 process 3000
-hackbench 130 process 3000
-hackbench 135 process 3000
-
-            2.6.28-rc6                       bail-out
-
-	125	130	135		125	130	135  
-      ==============================================================
-	71.866	75.86	81.274		93.414	73.254	193.382
-	74.145	78.295	77.27		74.897	75.021	80.17
-	70.305	77.643	75.855		70.134	77.571	79.896
-	74.288	73.986	75.955		77.222	78.48	80.619
-	72.029	79.947	78.312		75.128	82.172	79.708
-	71.499	77.615	77.042		74.177	76.532	77.306
-	76.188	74.471	83.562		73.839	72.43	79.833
-	73.236	75.606	78.743		76.001	76.557	82.726
-	69.427	77.271	76.691		76.236	79.371	103.189
-	72.473	76.978	80.643		69.128	78.932	75.736
-
-avg	72.545	76.767	78.534		76.017	77.03	93.256
-std	1.89	1.71	2.41		6.29	2.79	34.16
-min	69.427	73.986	75.855		69.128	72.43	75.736
-max	76.188	79.947	83.562		93.414	82.172	193.382
-
-
-about 4-5% degression.
-
-Then, this patch introduce temporal local variable.
-
-result:
-
-            2.6.28-rc6                       this patch
-
-num	125	130	135		125	130	135  
-      ==============================================================
-	71.866	75.86	81.274		67.302	68.269	77.161
-	74.145	78.295	77.27   	72.616	72.712	79.06
-	70.305	77.643	75.855  	72.475	75.712	77.735
-	74.288	73.986	75.955  	69.229	73.062	78.814
-	72.029	79.947	78.312  	71.551	74.392	78.564
-	71.499	77.615	77.042  	69.227	74.31	78.837
-	76.188	74.471	83.562  	70.759	75.256	76.6
-	73.236	75.606	78.743  	69.966	76.001	78.464
-	69.427	77.271	76.691  	69.068	75.218	80.321
-	72.473	76.978	80.643  	72.057	77.151	79.068
-                        
-avg	72.545	76.767	78.534 		70.425	74.2083	78.462
-std 	1.89	1.71	2.41    	1.66	2.34	1.00
-min 	69.427	73.986	75.855  	67.302	68.269	76.6
-max 	76.188	79.947	83.562  	72.616	77.151	80.321
-
-
-OK. the degression is disappeared.
-
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/vmscan.c |   15 +++++++++------
- 1 file changed, 9 insertions(+), 6 deletions(-)
-
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1418,6 +1418,8 @@ static void shrink_zone(int priority, st
- 	unsigned long nr_to_scan;
- 	unsigned long percent[2];	/* anon @ 0; file @ 1 */
- 	enum lru_list l;
-+	unsigned long nr_reclaimed = sc->nr_reclaimed;
-+	unsigned long swap_cluster_max = sc->swap_cluster_max;
- 
- 	get_scan_ratio(zone, sc, percent);
- 
-@@ -1433,7 +1435,7 @@ static void shrink_zone(int priority, st
- 			}
- 			zone->lru[l].nr_scan += scan;
- 			nr[l] = zone->lru[l].nr_scan;
--			if (nr[l] >= sc->swap_cluster_max)
-+			if (nr[l] >= swap_cluster_max)
- 				zone->lru[l].nr_scan = 0;
- 			else
- 				nr[l] = 0;
-@@ -1452,12 +1454,11 @@ static void shrink_zone(int priority, st
- 					nr[LRU_INACTIVE_FILE]) {
- 		for_each_evictable_lru(l) {
- 			if (nr[l]) {
--				nr_to_scan = min(nr[l],
--					(unsigned long)sc->swap_cluster_max);
-+				nr_to_scan = min(nr[l], swap_cluster_max);
- 				nr[l] -= nr_to_scan;
- 
--				sc->nr_reclaimed += shrink_list(l, nr_to_scan,
--							zone, sc, priority);
-+				nr_reclaimed += shrink_list(l, nr_to_scan,
-+							    zone, sc, priority);
- 			}
- 		}
- 		/*
-@@ -1468,11 +1469,13 @@ static void shrink_zone(int priority, st
- 		 * with multiple processes reclaiming pages, the total
- 		 * freeing target can get unreasonably large.
- 		 */
--		if (sc->nr_reclaimed > sc->swap_cluster_max &&
-+		if (nr_reclaimed > swap_cluster_max &&
- 		    priority < DEF_PRIORITY && !current_is_kswapd())
- 			break;
- 	}
- 
-+	sc->nr_reclaimed = nr_reclaimed;
-+
- 	/*
- 	 * Even if we did not try to evict anon pages at all, we want to
- 	 * rebalance the anon lru active/inactive ratio.
-
+- I didn't check whether any acked-by's got lost.  They may have been...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
