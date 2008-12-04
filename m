@@ -1,41 +1,74 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate6.uk.ibm.com (8.13.8/8.13.8) with ESMTP id mB4I1gft532962
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:42 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB4I1gbK2470048
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:42 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB4I1fpg007457
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:41 GMT
-Subject: Re: [PATCH] mm: remove UP version lru_add_drain_all()
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-In-Reply-To: <20081204110013.1D62.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <1228342567.13111.11.camel@nimitz>
-	 <20081204093143.390afa9f.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20081204110013.1D62.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Content-Type: text/plain
-Date: Thu, 04 Dec 2008 19:01:39 +0100
-Message-Id: <1228413699.18010.1.camel@localhost.localdomain>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Thu, 4 Dec 2008 19:08:09 +0100
+From: "Hans J. Koch" <hjk@linutronix.de>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+Message-ID: <20081204180809.GB3079@local>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com> <1228379942.5092.14.camel@twins>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1228379942.5092.14.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, y-goto@jp.fujitsu.com, npiggin@suse.de, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, hjk@linutronix.de, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-12-04 at 11:14 +0900, KOSAKI Motohiro wrote:
-> Then this ifdef is not valueable.
-> simple removing is better.
+On Thu, Dec 04, 2008 at 09:39:02AM +0100, Peter Zijlstra wrote:
+> On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
+> > From: Edward Estabrook <Edward_Estabrook@agilent.com>
+> > 
+> > Here is a patch that adds the ability to dynamically allocate (and
+> > use) coherent DMA from userspace by extending the userspace IO driver.
+> > This patch applies against 2.6.28-rc6.
+> > 
+> > The gist of this implementation is to overload uio's mmap
+> > functionality to allocate and map a new DMA region on demand.  The
+> > bus-specific DMA address as returned by dma_alloc_coherent is made
+> > available to userspace in the 1st long word of the newly created
+> > region (as well as through the conventional 'addr' file in sysfs).  
+> > 
+> > To allocate a DMA region you use the following:
+> > /* Pass this magic number to mmap as offset to dynamically allocate a
+> > chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
+> > 
+> > void* memory = mmap (NULL, size, PROT_READ | PROT_WRITE , MAP_SHARED,
+> > fd, DMA_MEM_ALLOCATE_MMAP_OFFSET); u_int64_t *addr = *(u_int64_t *)
+> > memory;
+> > 
+> > where 'size' is the size in bytes of the region you want and fd is the
+> > opened /dev/uioN file.
+> > 
+> > Allocation occurs in page sized pieces by design to ensure that
+> > buffers are page-aligned.
+> > 
+> > Memory is released when uio_unregister_device() is called.
+> >
+> > I have used this extensively on a 2.6.21-based kernel and ported it to
+> > 2.6.28-rc6 for review / submission here.
+> > 
+> > Comments appreciated!
 > 
+> Yuck!
 > 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Christoph Lameter <cl@linux-foundation.org>
-> CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> Why not create another special device that will give you DMA memory when
+> you mmap it? That would also allow you to obtain the physical address
+> without this utter horrid hack of writing it in the mmap'ed memory.
+> 
+> /dev/uioN-dma would seem like a fine name for that.
 
-Thanks, works for me.
+I don't like to have a separate device for DMA memory. It would completely
+break the current concept of userspace drivers if you had to get normal
+memory from one device and DMA memory from another. Note that one driver
+can have both.
 
-Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+But I agree that it's confusing if the physical address is stored somewhere
+in the mapped memory. That should simply be omitted, we have that information
+in sysfs anyway - like for any other memory mappings. But I guess we need
+some kind of "type" or "flags" attribute for the mappings so that userspace
+can find out if a mapping is DMA capable or not.
+
+Thanks,
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
