@@ -1,172 +1,363 @@
-Received: by yw-out-1718.google.com with SMTP id 5so1644247ywm.26
-        for <linux-mm@kvack.org>; Wed, 03 Dec 2008 20:20:22 -0800 (PST)
-Message-ID: <28c262360812032020k6259b71bx5609626db622a884@mail.gmail.com>
-Date: Thu, 4 Dec 2008 13:20:21 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: [PATCH] vmscan: improve reclaim throuput to bail out patch take2
-In-Reply-To: <20081204102729.1D5C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB44M32C008329
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 4 Dec 2008 13:22:03 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 02C3245DE56
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 13:22:03 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B526C45DE53
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 13:22:02 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 74CDC1DB803E
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 13:22:02 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D3DD81DB8044
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 13:22:01 +0900 (JST)
+Date: Thu, 4 Dec 2008 13:21:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][mmotm] Documentation update
+Message-Id: <20081204132111.63f1b300.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <49368DAF.9060206@redhat.com>
-	 <2f11576a0812030712t1131c9d2x4dd0fd32eafa66ae@mail.gmail.com>
-	 <20081204102729.1D5C.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Rik van Riel <riel@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Kosaki-san.
+mmotm-2008-12-03 includes memcg-explain-details-and-test-document.patch
 
-It's a great improvement with only one variable than I expected. :)
-What is your test environment ? (CPU, L1, L2 cache size and so )
-Just out of curiosity.
+But it's still rough and not complete.
+I'd like to update it to be readable becasue memcg is a blackbox for the most
+of developpers but it has many hooks to global VM.
 
+If you have reuqest as "explain xxx in detail", please tell me.
+I'll not send this out for a while.
+ 
+Of course, your own patch is welcome.
 
-On Thu, Dec 4, 2008 at 10:28 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
-> The vmscan bail out patch move nr_reclaimed variable to struct scan_control.
-> Unfortunately, indirect access can easily happen cache miss.
->
-> if heavy memory pressure happend, that's ok.
-> cache miss already plenty. it is not observable.
->
-> but, if memory pressure is lite, performance degression is obserbable.
->
->
-> I compared following three pattern (it was mesured 10 times each)
->
-> hackbench 125 process 3000
-> hackbench 130 process 3000
-> hackbench 135 process 3000
->
->            2.6.28-rc6                       bail-out
->
->        125     130     135             125     130     135
->      ==============================================================
->        71.866  75.86   81.274          93.414  73.254  193.382
->        74.145  78.295  77.27           74.897  75.021  80.17
->        70.305  77.643  75.855          70.134  77.571  79.896
->        74.288  73.986  75.955          77.222  78.48   80.619
->        72.029  79.947  78.312          75.128  82.172  79.708
->        71.499  77.615  77.042          74.177  76.532  77.306
->        76.188  74.471  83.562          73.839  72.43   79.833
->        73.236  75.606  78.743          76.001  76.557  82.726
->        69.427  77.271  76.691          76.236  79.371  103.189
->        72.473  76.978  80.643          69.128  78.932  75.736
->
-> avg     72.545  76.767  78.534          76.017  77.03   93.256
-> std     1.89    1.71    2.41            6.29    2.79    34.16
-> min     69.427  73.986  75.855          69.128  72.43   75.736
-> max     76.188  79.947  83.562          93.414  82.172  193.382
->
->
-> about 4-5% degression.
->
-> Then, this patch introduce temporal local variable.
->
-> result:
->
->            2.6.28-rc6                       this patch
->
-> num     125     130     135             125     130     135
->      ==============================================================
->        71.866  75.86   81.274          67.302  68.269  77.161
->        74.145  78.295  77.27           72.616  72.712  79.06
->        70.305  77.643  75.855          72.475  75.712  77.735
->        74.288  73.986  75.955          69.229  73.062  78.814
->        72.029  79.947  78.312          71.551  74.392  78.564
->        71.499  77.615  77.042          69.227  74.31   78.837
->        76.188  74.471  83.562          70.759  75.256  76.6
->        73.236  75.606  78.743          69.966  76.001  78.464
->        69.427  77.271  76.691          69.068  75.218  80.321
->        72.473  76.978  80.643          72.057  77.151  79.068
->
-> avg     72.545  76.767  78.534          70.425  74.2083 78.462
-> std     1.89    1.71    2.41            1.66    2.34    1.00
-> min     69.427  73.986  75.855          67.302  68.269  76.6
-> max     76.188  79.947  83.562          72.616  77.151  80.321
->
->
-> OK. the degression is disappeared.
->
->
->
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> ---
->  mm/vmscan.c |   15 +++++++++------
->  1 file changed, 9 insertions(+), 6 deletions(-)
->
-> Index: b/mm/vmscan.c
-> ===================================================================
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1418,6 +1418,8 @@ static void shrink_zone(int priority, st
->        unsigned long nr_to_scan;
->        unsigned long percent[2];       /* anon @ 0; file @ 1 */
->        enum lru_list l;
-> +       unsigned long nr_reclaimed = sc->nr_reclaimed;
-> +       unsigned long swap_cluster_max = sc->swap_cluster_max;
->
->        get_scan_ratio(zone, sc, percent);
->
-> @@ -1433,7 +1435,7 @@ static void shrink_zone(int priority, st
->                        }
->                        zone->lru[l].nr_scan += scan;
->                        nr[l] = zone->lru[l].nr_scan;
-> -                       if (nr[l] >= sc->swap_cluster_max)
-> +                       if (nr[l] >= swap_cluster_max)
->                                zone->lru[l].nr_scan = 0;
->                        else
->                                nr[l] = 0;
-> @@ -1452,12 +1454,11 @@ static void shrink_zone(int priority, st
->                                        nr[LRU_INACTIVE_FILE]) {
->                for_each_evictable_lru(l) {
->                        if (nr[l]) {
-> -                               nr_to_scan = min(nr[l],
-> -                                       (unsigned long)sc->swap_cluster_max);
-> +                               nr_to_scan = min(nr[l], swap_cluster_max);
->                                nr[l] -= nr_to_scan;
->
-> -                               sc->nr_reclaimed += shrink_list(l, nr_to_scan,
-> -                                                       zone, sc, priority);
-> +                               nr_reclaimed += shrink_list(l, nr_to_scan,
-> +                                                           zone, sc, priority);
->                        }
->                }
->                /*
-> @@ -1468,11 +1469,13 @@ static void shrink_zone(int priority, st
->                 * with multiple processes reclaiming pages, the total
->                 * freeing target can get unreasonably large.
->                 */
-> -               if (sc->nr_reclaimed > sc->swap_cluster_max &&
-> +               if (nr_reclaimed > swap_cluster_max &&
->                    priority < DEF_PRIORITY && !current_is_kswapd())
->                        break;
->        }
->
-> +       sc->nr_reclaimed = nr_reclaimed;
-> +
->        /*
->         * Even if we did not try to evict anon pages at all, we want to
->         * rebalance the anon lru active/inactive ratio.
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+-Kame
 
+==
+ Documentation/controllers/memcg_test.txt |  216 ++++++++++++++++++++++++++-----
+ mm/memcontrol.c                          |    4 
+ 2 files changed, 189 insertions(+), 31 deletions(-)
 
-
--- 
-Kinds regards,
-MinChan Kim
+Index: mmotm-2.6.28-Dec03/Documentation/controllers/memcg_test.txt
+===================================================================
+--- mmotm-2.6.28-Dec03.orig/Documentation/controllers/memcg_test.txt
++++ mmotm-2.6.28-Dec03/Documentation/controllers/memcg_test.txt
+@@ -1,59 +1,74 @@
+ Memory Resource Controller(Memcg)  Implementation Memo.
+-Last Updated: 2009/12/03
++Last Updated: 2009/12/04
++Base Kernel Version: 2.6.28-rc7-mm.
+ 
+ Because VM is getting complex (one of reasons is memcg...), memcg's behavior
+ is complex. This is a document for memcg's internal behavior and some test
+-patterns tend to be racy.
++patterns tend to be racy. Please note that explanation about implementation
++details can be very old.
+ 
+-1. charges
++(*) Topics on API should be in Documentation/controllers/memory.txt)
++
++0. How to record usage ?
++   2 objects are used.
++   page_cgroup ....an object per page.
++   swap_cgroup ... an entry per swp_entry
++   Both of them are allocated at boot.
++
++   The page_cgroup has USED bit and double count against a page_cgroup never
++   occurs. swap_cgroup is used only when a charged page is swapped-out.
++
++1. Charge
+ 
+    a page/swp_entry may be charged (usage += PAGE_SIZE) at
+ 
+ 	mem_cgroup_newpage_newpage()
+-	  called at new page fault and COW.
++	  Called at new page fault and Copy-On-Write.
+ 
+ 	mem_cgroup_try_charge_swapin()
+-	  called at do_swap_page() and swapoff.
+-	  followed by charge-commit-cancel protocol.
+-	  (With swap accounting) at commit, charges recorded in swap is removed.
++	  Called at do_swap_page() (page fault on swap entry) and swapoff.
++	  Followed by charge-commit-cancel protocol. (With swap accounting)
++	  At commit, charges recorded in swap_cgroup is removed.
+ 
+ 	mem_cgroup_cache_charge()
+-	  called at add_to_page_cache()
++	  Called at add_to_page_cache()
+ 
+-	mem_cgroup_cache_charge_swapin)()
+-	  called by shmem's swapin processing.
++	mem_cgroup_cache_charge_swapin()
++	  Called at shmem's swapin.
+ 
+ 	mem_cgroup_prepare_migration()
+-	  called before migration. "extra" charge is done
+-	  followed by charge-commit-cancel protocol.
++	  Called before migration. "extra" charge is done and followed by
++	  charge-commit-cancel protocol.
+ 	  At commit, charge against oldpage or newpage will be committed.
+ 
+-2. uncharge
++2. Uncharge
+   a page/swp_entry may be uncharged (usage -= PAGE_SIZE) by
+ 
+ 	mem_cgroup_uncharge_page()
+-	  called when an anonymous page is unmapped. If the page is SwapCache
+-	  uncharge is delayed until mem_cgroup_uncharge_swapcache().
++	  Called when an anonymous page is fully unmapped .i.e mapcount goes
++	  to 0. If the page is SwapCache, uncharge is delayed until
++	  mem_cgroup_uncharge_swapcache().
+ 
+ 	mem_cgroup_uncharge_cache_page()
+-	  called when a page-cache is deleted from radix-tree. If the page is
++	  Called when a page-cache is deleted from radix-tree. If the page is
+ 	  SwapCache, uncharge is delayed until mem_cgroup_uncharge_swapcache()
+ 
+ 	mem_cgroup_uncharge_swapcache()
+-	  called when SwapCache is removed from radix-tree. the charge itself
++	  Called when SwapCache is removed from radix-tree. The charge itself
+ 	  is moved to swap_cgroup. (If mem+swap controller is disabled, no
+ 	  charge to swap.)
+ 
+ 	mem_cgroup_uncharge_swap()
+-	  called when swp_entry's refcnt goes down to be 0. charge against swap
++	  Called when swp_entry's refcnt goes down to be 0. Charge against swap
+ 	  disappears.
+ 
+ 	mem_cgroup_end_migration(old, new)
+-	at success of migration -> old is uncharged (if necessary), charge
+-	to new is committed. at failure, charge to old is committed.
++	At success of migration -> old is uncharged (if necessary), a charge
++	to new page is committed. at failure, charge to old page is committed.
+ 
+ 3. charge-commit-cancel
+-	In some case, we can't know this "charge" is valid or not at charge.
++	In some case, we can't know this "charge" is valid or not at charging.
++	(Because of races.)
+ 	To handle such case, there are charge-commit-cancel functions.
+ 		mem_cgroup_try_charge_XXX
+ 		mem_cgroup_commit_charge_XXX
+@@ -68,23 +83,153 @@ patterns tend to be racy.
+ 
+ 	At cancel(), simply usage -= PAGE_SIZE.
+ 
+-4. Typical Tests.
++Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
++
++4. Anonymous
++	Anonymous page is newly allocated at
++		  - page fault into MAP_ANONYMOUS mapping.
++		  - Copy-On-Write.
++ 	It is charged right after it's allocated before doing any page table
++	related operations. Of course, it's uncharged when another page is used
++	for the fault address.
++
++	At freeing anonymous page (by exit() or munmap()), zap_pte() is called
++	and pages for ptes are freed one by one.(see mm/memory.c). Uncharges
++	are done at page_remove_rmap() when page_mapcount() goes down to 0.
++
++	Yet another page freeing is by page-reclaim(vmscan.c) and anonymous
++	pages are swapped-out. In this case, the page is marked as
++	PageSwapCache(). uncharge() routine doesn't uncharge the page marked
++	as SwapCache(). It's delayed until __delete_from_swap_cache().
++
++	4.1 Swap-in.
++	At swap-in, the page is taken from swap-cache.There are 2 cases.
++
++	(a) If the SwapCache is newly allocated and read, it has no charges.
++	(b) If the SwapCache have been mapped by some process, it has been
++	    charged already.
++	In case (a), we charge it. In case (b), we don't charge it.
++	(But racy state between (a) and (b) exists. We do check it.)
++	At charging, a charge recorded in swap_cgroup is moved to page_cgroup.
++
++	4.2 Swap-out.
++	At swap-out, typical state transition is below.
++
++	(a) add to swap cache. (marked as SwapCache)
++	    swp_entry's refcnt += 1.
++	(b) fully unmapped.
++	    swp_entry's refcnt += # of ptes.
++	(c) write back to swap.
++	(d) delete from swap cache. (remove from SwapCache)
++	    swp_entry's refcnt -= 1.
++
++
++	At (b), the page is marked as SwapCache and not uncharged.
++	At (d), the page is removed from SwapCache and a charge in page_cgroup
++	is moved to swap_cgroup.
++
++	Finally, at task exits,
++	(e) zap_pte() is called and swp_entry's refcnt -=1 -> 0.
++	Here, a charge in swap_cgroup disappears.
++
++5. Page Cache
++   	Page Cache is charged at
++	- add_to_page_cache_locked().
++
++	uncharged at
++	- __remove_from_page_cache().
++
++	The logic is very clear. (About migration, see below)
++	Note: __remove_from_page_cache() is called by remove_from_page_cache()
++	and __remove_mapping().
++
++6. Shmem(tmpfs) Page Cache
++	Memcg's charge/uncharge have special handlers of shmem. The best way
++	to understand shmem's page state transition is to read mm/shmem.c.
++	But brief explanation of the behavior of memcg around shmem will be
++	helpful to understand the logic.
++
++	Shmem's page (just leaf page, not direct/indirect block) can be on
++		- radix-tree of shmem's inode.
++		- SwapCache.
++		- Both on radix-tree and SwapCache. This happens at swap-in.
++		  and swap-out,
++
++	It's charged when...
++	- A new page is added to shmem's radix-tree.
++	- A swp page is read. (move a charge from swap_cgroup to page_cgroup)
++	It's uncharged when
++	- A page is removed from radix-tree and not SwapCache.
++	- When SwapCache is removed, a charge is moved to swap_cgroup.
++	- When swp_entry's refcnt goes down to 0, a charge in swap_cgroup
++	  disappears.
++
++7. Page Migration
++   	One of the most complicated logic is page-migration-handler.
++	memcg have 2 routine. Assume migrate page's contents from OLDPAGE
++	to NEWPAGE.
++
++	Usual migration logic is..
++	(a) remove the page from LRU.
++	(b) allocate NEWPAGE (migration target)
++	(c) lock by lock_page().
++	(d) unmap all mappings.
++	(e-1) If necessary, replace entry in radix-tree.
++	(e-2) move contents of a page.
++	(f) map all mappings again.
++	(g) pushback the page to LRU.
++	(-) OLDPAGE will be freed.
++
++	Before (g), memcg should complete the all works.
++
++	The point is....
++	- If OLDPAGE is anonymous, all charges will be dropped at (d)
++	- If OLDPAGE is SwapCache, charges will be kept at (g)
++	- If OLDPAGE is page-cache, charges will be kept at (g)
++	At (e-1)(e-2) and (f), there are no hooks of memcg.
++
++	memcg provides following hooks.
++	- mem_cgroup_prepare_migration(OLDPAGE)
++	  Called at (b) and account a charge (usage += PAGE_SIZE) against
++	  memcg which "OLDPAGE" belongs to.
++
++        - mem_cgroup_end_migration(OLDPAGE, NEWPAGE)
++	  Called after (f) before (g).
++	  If OLDPAGE is used, commit OLDPAGE again. If OLDPAGE is already
++	  charged, a charge by prepare_migration() is automatically canceled.
++	  If NEWPAGE is used, commit NEWPAGE and uncharge OLDPAGE.
++
++	  But zap_pte()(by exit or munmap) can be called while migration,
++	  we have to check OLDPAGE/NEWPAGE is a valid page after commit().
++
++8. LRU
++        Each memcg has its own private LRU. Now, it's handling is under global
++	VM's control (means that it's handled under global zone->lru_lock).
++	Almost all routines around memcg's LRU is called by global LRU's
++	list management functions under zone->lru_lock().
++
++	One special function is mem_cgroup_isolate_pages(). This scans
++	memcg's private LRU and call __isolate_lru_page().
++	(By __isolate_lru_page(), the page is removed from private LRU, too)
+ 
+-  Tests for racy cases.
+ 
+-  4.1 small limit to memcg.
++9. Typical Tests.
++
++ Tests for racy cases.
++
++ 9.1 Small limit to memcg.
+ 	When you do test to do racy case, it's good test to set memcg's limit
+ 	to be very small rather than GB. Many races found in the test under
+ 	xKB or xxMB limits.
+ 	(Memory behavior under GB and Memory behavior under MB shows very
+ 	 different situation.)
+ 
+-  4.2 shmem
++ 9.2 Shmem
+ 	Historically, memcg's shmem handling was poor and we saw some amount
+ 	of troubles here. This is because shmem is page-cache but can be
+ 	SwapCache. Test with shmem/tmpfs is always good test.
+ 
+-  4.3 migration
++ 9.3 Migration
+ 	For NUMA, migration is an another special. To do easy test, cpuset
+ 	is useful. Following is a sample script to do migration.
+ 
+@@ -118,20 +263,20 @@ patterns tend to be racy.
+ 	G2_TASK=`cat ${G2}/tasks`
+ 	move_task "${G1_TASK}" ${G2} &
+ 	--
+-  4.4 memory hotplug.
++ 9.4 Memory hotplug.
+ 	memory hotplug test is one of good test.
+ 	to offline memory, do following.
+ 	# echo offline > /sys/devices/system/memory/memoryXXX/state
+ 	(XXX is the place of memory)
+ 	This is an easy way to test page migration, too.
+ 
+- 4.5 mkdir/rmdir
++ 9.5 mkdir/rmdir
+ 	When using hierarchy, mkdir/rmdir test should be done.
+ 	tests like following.
+ 
+-	#echo 1 >/opt/cgroup/01/memory/use_hierarchy
+-	#mkdir /opt/cgroup/01/child_a
+-	#mkdir /opt/cgroup/01/child_b
++	echo 1 >/opt/cgroup/01/memory/use_hierarchy
++	mkdir /opt/cgroup/01/child_a
++	mkdir /opt/cgroup/01/child_b
+ 
+ 	set limit to 01.
+ 	add limit to 01/child_b
+@@ -143,3 +288,12 @@ patterns tend to be racy.
+ 	/opt/cgroup/01/child_c
+ 
+ 	running new jobs in new group is also good.
++
++ 9.6 Mount with other subsystems.
++	Mounting with other subsystems is a good test because there ia a
++	race and lock dependency with other cgroup subsystems.
++
++	example)
++	# mount -t cgroup none /cgroup -t cpuset,memory,cpu,devices
++
++	and do task move, mkdir, rmdir etc...under this.
+Index: mmotm-2.6.28-Dec03/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.28-Dec03.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Dec03/mm/memcontrol.c
+@@ -6,6 +6,10 @@
+  * Copyright 2007 OpenVZ SWsoft Inc
+  * Author: Pavel Emelianov <xemul@openvz.org>
+  *
++ * Documentations are available at
++ * 	Documentation/controllers/memory.txt
++ * 	Documentation/controllers/memcg_test.txt
++ *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License as published by
+  * the Free Software Foundation; either version 2 of the License, or
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
