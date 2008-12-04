@@ -1,74 +1,141 @@
-Date: Thu, 4 Dec 2008 19:08:09 +0100
-From: "Hans J. Koch" <hjk@linutronix.de>
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-Message-ID: <20081204180809.GB3079@local>
-References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com> <1228379942.5092.14.camel@twins>
+Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
+	by smtp-out.google.com with ESMTP id mB4MRuYl025959
+	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 14:27:56 -0800
+Received: from wf-out-1314.google.com (wff29.prod.google.com [10.142.6.29])
+	by zps78.corp.google.com with ESMTP id mB4MQuBB007855
+	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 14:27:55 -0800
+Received: by wf-out-1314.google.com with SMTP id 29so4354554wff.10
+        for <linux-mm@kvack.org>; Thu, 04 Dec 2008 14:27:55 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1228379942.5092.14.camel@twins>
+In-Reply-To: <492E97FA.5000804@gmail.com>
+References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com>
+	 <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com>
+	 <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com>
+	 <492E8708.4060601@gmail.com> <20081127120330.GM28285@wotan.suse.de>
+	 <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de>
+	 <492E97FA.5000804@gmail.com>
+Date: Thu, 4 Dec 2008 14:27:54 -0800
+Message-ID: <604427e00812041427j7f1c8118p48b1b5b577143703@mail.gmail.com>
+Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, hjk@linutronix.de, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, Mike Waychison <mikew@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 04, 2008 at 09:39:02AM +0100, Peter Zijlstra wrote:
-> On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
-> > From: Edward Estabrook <Edward_Estabrook@agilent.com>
-> > 
-> > Here is a patch that adds the ability to dynamically allocate (and
-> > use) coherent DMA from userspace by extending the userspace IO driver.
-> > This patch applies against 2.6.28-rc6.
-> > 
-> > The gist of this implementation is to overload uio's mmap
-> > functionality to allocate and map a new DMA region on demand.  The
-> > bus-specific DMA address as returned by dma_alloc_coherent is made
-> > available to userspace in the 1st long word of the newly created
-> > region (as well as through the conventional 'addr' file in sysfs).  
-> > 
-> > To allocate a DMA region you use the following:
-> > /* Pass this magic number to mmap as offset to dynamically allocate a
-> > chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
-> > 
-> > void* memory = mmap (NULL, size, PROT_READ | PROT_WRITE , MAP_SHARED,
-> > fd, DMA_MEM_ALLOCATE_MMAP_OFFSET); u_int64_t *addr = *(u_int64_t *)
-> > memory;
-> > 
-> > where 'size' is the size in bytes of the region you want and fd is the
-> > opened /dev/uioN file.
-> > 
-> > Allocation occurs in page sized pieces by design to ensure that
-> > buffers are page-aligned.
-> > 
-> > Memory is released when uio_unregister_device() is called.
-> >
-> > I have used this extensively on a 2.6.21-based kernel and ported it to
-> > 2.6.28-rc6 for review / submission here.
-> > 
-> > Comments appreciated!
-> 
-> Yuck!
-> 
-> Why not create another special device that will give you DMA memory when
-> you mmap it? That would also allow you to obtain the physical address
-> without this utter horrid hack of writing it in the mmap'ed memory.
-> 
-> /dev/uioN-dma would seem like a fine name for that.
+I am trying your test program(scalability) in house, but somehow i got
+different result as you saw. i created 8 files each with 1G size on
+separate drives( to avoid the latency disturbing of disk seek). I got
+this number without applying the batch based on 2.6.26. May i ask how
+to reproduce the mmap issue you mentioned?
 
-I don't like to have a separate device for DMA memory. It would completely
-break the current concept of userspace drivers if you had to get normal
-memory from one device and DMA memory from another. Note that one driver
-can have both.
+8 CPU
+read_worker
+1 threads Real time: 101.058262 s (since task start)
+2 threads Real time: 50.670456 s (since task start)
+4 threads Real time: 25.904657 s (since task start)
+8 threads Real time: 20.090677 s (since task start)
+--------------------------------------------------------------------------------
+mmap_worker
+1 threads Real time: 101.340662 s (since task start)
+2 threads Real time: 51.484646 s (since task start)
+4 threads Real time: 28.414534 s (since task start)
+8 threads Real time: 21.785818 s (since task start)
 
-But I agree that it's confusing if the physical address is stored somewhere
-in the mapped memory. That should simply be omitted, we have that information
-in sysfs anyway - like for any other memory mappings. But I guess we need
-some kind of "type" or "flags" attribute for the mappings so that userspace
-can find out if a mapping is DMA capable or not.
+--Ying
 
-Thanks,
-Hans
+On Thu, Nov 27, 2008 at 4:52 AM, Torok Edwin <edwintorok@gmail.com> wrote:
+> On 2008-11-27 14:39, Nick Piggin wrote:
+>> On Thu, Nov 27, 2008 at 02:21:16PM +0200, Torok Edwin wrote:
+>>
+>>> On 2008-11-27 14:03, Nick Piggin wrote:
+>>>
+>>>>> Running my testcase shows no significant performance difference. What am
+>>>>> I doing wrong?
+>>>>>
+>>>>>
+>>>>
+>>>> Software may just be doing a lot of mmap/munmap activity. threads +
+>>>> mmap is never going to be pretty because it is always going to involve
+>>>> broadcasting tlb flushes to other cores... Software writers shouldn't
+>>>> be scared of using processes (possibly with some shared memory).
+>>>>
+>>>>
+>>> It would be interesting to compare the performance of a threaded clamd,
+>>> and of a clamd that uses multiple processes.
+>>> Distributing tasks will be a bit more tricky, since it would need to use
+>>> IPC, instead of mutexes and condition variables.
+>>>
+>>
+>> Yes, although you could use PTHREAD_PROCESS_SHARED pthread mutexes on
+>> the shared memory I believe (having never tried it myself).
+>>
+>>
+>>
+>>>> Actually, a lot of things get faster (like malloc, or file descriptor
+>>>> operations) because locks aren't needed.
+>>>>
+>>>> Despite common perception, processes are actually much *faster* than
+>>>> threads when doing common operations like these. They are slightly slower
+>>>> sometimes with things like creation and exit, or context switching, but
+>>>> if you're doing huge numbers of those operations, then it is unlikely
+>>>> to be a performance critical app... :)
+>>>>
+>>>>
+>>> How about distributing tasks to a set of worked threads, is the overhead
+>>> of using IPC instead of
+>>> mutexes/cond variables acceptable?
+>>>
+>>
+>> It is really going to depend on a lot of things. What is involved in
+>> distributing tasks, how many cores and cache/TLB architecture of the
+>> system running on, etc.
+>>
+>> You want to distribute as much work as possible while touching as
+>> little memory as possible, in general.
+>>
+>> But if you're distributing threads over cores, and shared caches are
+>> physically tagged (which I think all x86 CPUs are), then you should
+>> be able to have multiple processes operate on shared memory just as
+>> efficiently as multiple threads I think.
+>>
+>> And then you also get the advantages of reduced contention on other
+>> shared locks and resources.
+>>
+>
+> Thanks for the tips, but lets get back to the original question:
+> why don't I see any performance improvement with the fault-retry patches?
+>
+> My testcase only compares reads file with mmap, vs. reading files with
+> read, with different number of threads.
+> Leaving aside other reasons why mmap is slower, there should be some
+> speedup by running 4 threads vs 1 thread, but:
+>
+> 1 thread: read:27,18 28.76
+> 1 thread: mmap: 25.45, 25.24
+> 2 thread: read: 16.03, 15.66
+> 2 thread: mmap: 22.20, 20.99
+> 4 thread: read: 9.15, 9.12
+> 4 thread: mmap: 20.38, 20.47
+>
+> The speed of 4 threads is about the same as for 2 threads with mmap, yet
+> with read it scales nicely.
+> And the patch doesn't seem to improve scalability.
+> How can I find out if the patch works as expected? [i.e. verify that
+> faults are actually retried, and that they don't keep the semaphore locked]
+>
+>> OK, I'll see if I can find them (am overseas at the moment, and I suspect
+>> they are stranded on some stationary rust back home, but I might be able
+>> to find them on the web).
+>
+> Ok.
+>
+> Best regards,
+> --Edwin
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
