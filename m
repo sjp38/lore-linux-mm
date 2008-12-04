@@ -1,68 +1,103 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB40WX8G028106
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Dec 2008 09:32:34 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AFD1945DE4F
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 09:32:33 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8688345DE53
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 09:32:33 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C8A81DB8041
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 09:32:33 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A2DA1DB8038
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 09:32:33 +0900 (JST)
-Date: Thu, 4 Dec 2008 09:31:43 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memory hotplug: run lru_add_drain_all() on each cpu
-Message-Id: <20081204093143.390afa9f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <1228342567.13111.11.camel@nimitz>
-References: <1228339524.6598.11.camel@t60p>
-	<1228342567.13111.11.camel@nimitz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from spaceape11.eur.corp.google.com (spaceape11.eur.corp.google.com [172.28.16.145])
+	by smtp-out.google.com with ESMTP id mB41JZSU025623
+	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 17:19:35 -0800
+Received: from wf-out-1314.google.com (wff29.prod.google.com [10.142.6.29])
+	by spaceape11.eur.corp.google.com with ESMTP id mB41J6aq009136
+	for <linux-mm@kvack.org>; Wed, 3 Dec 2008 17:19:33 -0800
+Received: by wf-out-1314.google.com with SMTP id 29so3914379wff.10
+        for <linux-mm@kvack.org>; Wed, 03 Dec 2008 17:19:32 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20081204091235.1D53.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <604427e00812022117x6538553w8ceb24e6fa7f3a30@mail.gmail.com>
+	 <1228334491.6693.82.camel@lts-notebook>
+	 <20081204091235.1D53.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Wed, 3 Dec 2008 17:19:32 -0800
+Message-ID: <604427e00812031719o20fbd381va785913697c05483@mail.gmail.com>
+Subject: Re: [PATCH] mmotm: ignore sigkill in get_user_pages during munlock
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: gerald.schaefer@de.ibm.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, y-goto@jp.fujitsu.com, npiggin@suse.de
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Paul Menage <menage@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 03 Dec 2008 14:16:07 -0800
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> > This let us run
-> > into the BUG_ON(!PageBuddy(page)) in __offline_isolated_pages() during
-> > memory hotplug stress test on s390. The page in question was still on the
-> > pcp list, because of a race with lru_add_drain_all() and drain_all_pages()
-> > on different cpus.
-> > 
-> > This is fixed with this patch by adding CONFIG_MEMORY_HOTREMOVE to the
-> > lru_add_drain_all() #ifdef, to let it run on each cpu.
-> 
-> This doesn't seem right to me.  CONFIG_MEMORY_HOTREMOVE doesn't change
-> the layout of the LRUs, unlike NUMA or UNEVICTABLE_LRU.  So, I think
-> this bug is more due to the hotremove code mis-expecting behavior out of
-> lru_add_drain_all().
-> 
-How about 
+On Wed, Dec 3, 2008 at 4:30 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> PATCH ignore sigkill in get_user_pages during munlock
+>>
+>> Against:  2.6.28-rc7-mmotm-081203-0150
+>>
+>> Fixes:  make-get_user_pages-interruptible.patch
+>>
+>> An unfortunate side effect of "make-get_user_pages-interruptible"
+>> is that it prevents a SIGKILL'd task from munlock-ing pages that it
+>> had mlocked, resulting in freeing of mlocked pages.  Freeing of mlocked
+>> pages, in itself, is not so bad.  We just count them now--altho' I
+>> had hoped to remove this stat and add PG_MLOCKED to the free pages
+>> flags check.
+>>
+>> However, consider pages in shared libraries mapped by more than one
+>> task that a task mlocked--e.g., via mlockall().  If the task that
+>> mlocked the pages exits via SIGKILL, these pages would be left mlocked
+>> and unevictable.
+>
+> Indeed!
+> Thank your for clarification!
+>
+> Ying, I'd like to explain unevictable lru design for you a bit more.
+>
+> __get_user_pages() also called exit(2) path.
+>
+> do_exit()
+>  exit_mm()
+>    mmput()
+>      exit_mmap()
+>        munlock_vma_pages_all()
+>          munlock_vma_pages_range()
+>            __mlock_vma_pages_range()
+>              __get_user_pages()
+>
+> __mlock_vma_pages_range() process
+>  (1) grab mlock related pages by __get_user_pages()
+>  (2) isolate the page from lru
+>  (3) the page move to evictable list if possible
+>
+> if (1) is interupptible, the page left unevictable lru
+> although the page is not mlocked already.
 
-#ifdef CONFIG_SMP
+Thanks KOSAKI, that is clear now. and thanks Lee for the patch. :-)
 
-#else..
-
-#endif
-
-rather than
-
--#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU)
-+#if defined(CONFIG_NUMA) || defined(CONFIG_UNEVICTABLE_LRU) || \
-+    defined(CONFIG_MEMORY_HOTREMOVE)
-...
-
-thanks,
--Kame
+--Ying
+>
+> this feature was introduced 2.6.28-rc1. So I should noticed
+> at last review, very sorry.
+>
+>
+> this patch is definitly needed.
+>
+>        Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>
+>>
+>> Proposed fix:
+>>
+>> Add another GUP flag to ignore sigkill when calling get_user_pages
+>> from munlock()--similar to Kosaki Motohiro's 'IGNORE_VMA_PERMISSIONS
+>> flag for the same purpose.  We are not actually allocating memory in
+>> this case, which "make-get_user_pages-interruptible" intends to avoid.
+>> We're just munlocking pages that are already resident and mapped, and
+>> we're reusing get_user_pages() to access those pages.
+>>
+>> ?? Maybe we should combine 'IGNORE_VMA_PERMISSIONS and '_IGNORE_SIGKILL
+>> into a single flag:  GUP_FLAGS_MUNLOCK ???
+>
+> In my personal feeling, I like current two flags :)
+>
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
