@@ -1,57 +1,41 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB4Cir8X020056
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 4 Dec 2008 21:44:53 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 76AFE45DE4F
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 21:44:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 563F845DE4E
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 21:44:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F1F11DB803F
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 21:44:53 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EFDCC1DB803A
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 21:44:52 +0900 (JST)
-Message-ID: <44799.10.75.179.61.1228394692.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20081204200037.63ff03c9.nishimura@mxp.nes.nec.co.jp>
-References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com><20081203141423.6f747990.kamezawa.hiroyu@jp.fujitsu.com>
-    <20081204200037.63ff03c9.nishimura@mxp.nes.nec.co.jp>
-Date: Thu, 4 Dec 2008 21:44:52 +0900 (JST)
-Subject: Re: [Experimental][PATCH  
-     21/21]memcg-new-hierarchical-reclaim.patch
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;charset=us-ascii
-Content-Transfer-Encoding: 8bit
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate6.uk.ibm.com (8.13.8/8.13.8) with ESMTP id mB4I1gft532962
+	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:42 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB4I1gbK2470048
+	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:42 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB4I1fpg007457
+	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 18:01:41 GMT
+Subject: Re: [PATCH] mm: remove UP version lru_add_drain_all()
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+In-Reply-To: <20081204110013.1D62.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <1228342567.13111.11.camel@nimitz>
+	 <20081204093143.390afa9f.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20081204110013.1D62.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Thu, 04 Dec 2008 19:01:39 +0100
+Message-Id: <1228413699.18010.1.camel@localhost.localdomain>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, y-goto@jp.fujitsu.com, npiggin@suse.de, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura said:
-> On Wed, 3 Dec 2008 14:14:23 +0900, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> Implement hierarchy reclaim by cgroup_id.
+On Thu, 2008-12-04 at 11:14 +0900, KOSAKI Motohiro wrote:
+> Then this ifdef is not valueable.
+> simple removing is better.
+> 
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Christoph Lameter <cl@linux-foundation.org>
+> CC: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 
->> +	rcu_read_lock();
->> +	if (!root_mem->use_hierarchy) {
->> +		spin_lock(&root_mem->reclaim_param_lock);
->> +		root_mem->scan_age++;
->> +		spin_unlock(&root_mem->reclaim_param_lock);
->> +		css_get(&root_mem->css);
->> +		goto out;
->>  	}
->>
-> I think you forgot "ret = root_mem".
-> I got NULL pointer dereference BUG in my test(I've not tested
-> use_hierarchy case yet).
->
-yes...thank you for catching. will fix.
+Thanks, works for me.
 
--Kame
+Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
