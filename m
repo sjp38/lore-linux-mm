@@ -1,74 +1,107 @@
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB46ENed024528
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB47FfD5017036
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 4 Dec 2008 15:14:24 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CF1C45DE5B
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 15:14:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D22145DD82
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 15:14:23 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CCFD1DB8037
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 15:14:22 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B80371DB8048
-	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 15:14:21 +0900 (JST)
+	Thu, 4 Dec 2008 16:15:41 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 167A145DD76
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 16:15:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BF2C345DD74
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 16:15:40 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EFBDC1DB803C
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 16:15:39 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B33EF1DB8041
+	for <linux-mm@kvack.org>; Thu,  4 Dec 2008 16:15:38 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 06/11] memcg: make inactive_anon_is_low()
-In-Reply-To: <20081203135249.GE17701@balbir.in.ibm.com>
-References: <20081201211457.1CDC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081203135249.GE17701@balbir.in.ibm.com>
-Message-Id: <20081204151202.1D75.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: Re: [PATCH 08/11] memcg: make zone_reclaim_stat
+In-Reply-To: <20081203140655.GG17701@balbir.in.ibm.com>
+References: <20081201211646.1CE2.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081203140655.GG17701@balbir.in.ibm.com>
+Message-Id: <20081204151647.1D78.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu,  4 Dec 2008 15:14:20 +0900 (JST)
+Date: Thu,  4 Dec 2008 16:15:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> > +/*
-> > + * The inactive anon list should be small enough that the VM never has to
-> > + * do too much work, but large enough that each inactive page has a chance
-> > + * to be referenced again before it is swapped out.
-> > + *
-> > + * this calculation is straightforward porting from
-> > + * page_alloc.c::setup_per_zone_inactive_ratio().
-> > + * it describe more detail.
-> > + */
-> > +static void mem_cgroup_set_inactive_ratio(struct mem_cgroup *memcg)
+
+> > +struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+> > +						      struct zone *zone)
 > > +{
-> > +	unsigned int gb, ratio;
+> > +	int nid = zone->zone_pgdat->node_id;
+> > +	int zid = zone_idx(zone);
+> > +	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
 > > +
-> > +	gb = res_counter_read_u64(&memcg->res, RES_LIMIT) >> 30;
-> > +	if (gb)
-> > +		ratio = int_sqrt(10 * gb);
+> > +	return &mz->reclaim_stat;
+> > +}
+> > +
+> > +struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat_by_page(struct page *page)
+> > +{
 > 
-> I don't understand where the magic number 10 comes from?
+> I would prefer to use stat_from_page instead of stat_by_page, by page
+> is confusing.
 
-the function comment write to
-
-  this calculation is straightforward porting from
-  page_alloc.c::setup_per_zone_inactive_ratio().
-  it describe more detail.
+ok.
+will fix.
 
 
-
-
-
-> > @@ -1400,7 +1412,7 @@ static unsigned long shrink_list(enum lr
-> >  	}
+> > @@ -172,6 +173,12 @@ void activate_page(struct page *page)
 > > 
-> >  	if (lru == LRU_ACTIVE_ANON &&
-> > -	    (!scan_global_lru(sc) || inactive_anon_is_low(zone))) {
-> > +	    inactive_anon_is_low(zone, sc)) {
+> >  		reclaim_stat->recent_rotated[!!file]++;
+> >  		reclaim_stat->recent_scanned[!!file]++;
+> > +
+> > +		memcg_reclaim_stat = mem_cgroup_get_reclaim_stat_by_page(page);
+> > +		if (memcg_reclaim_stat) {
+> > +			memcg_reclaim_stat->recent_rotated[!!file]++;
+> > +			memcg_reclaim_stat->recent_scanned[!!file]++;
+> > +		}
 > 
-> Can't we merge the line with the "if" statement
+> Does it make sense to write two inline routines like
+> 
+> update_recent_rotated(page)
+> {
+>         zone = page_zone(page);
+> 
+>         zone->reclaim_stat->recent_rotated[!!file]++;
+>         mem_reclaim_stat = mem_cgroup_get_reclaim_stat_by_page(page);
+>         if (mem_reclaim_stat)
+>                 mem_cg_reclaim_stat->recent_rotated[!!file]++;
+>         ...
+> 
+> }
+> 
+> and similarly update_recent_reclaimed(page)
 
-Will fix.
+makes sense. good cleanup.
 
-thanks.
+will fix.
+
+
+
+> > Index: b/mm/vmscan.c
+> > ===================================================================
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -134,6 +134,9 @@ static DECLARE_RWSEM(shrinker_rwsem);
+> >  static struct zone_reclaim_stat *get_reclaim_stat(struct zone *zone,
+> >  						  struct scan_control *sc)
+> >  {
+> > +	if (!scan_global_lru(sc))
+> > +		mem_cgroup_get_reclaim_stat(sc->mem_cgroup, zone);
+> 
+> What do we gain by just calling mem_cgroup_get_reclaim_stat? Where do
+> we return/use this value?
+
+Agghh.
+My last cleanup is _not_ cleanup..
+
+thanks! will fix.
+
+
 
 
 
