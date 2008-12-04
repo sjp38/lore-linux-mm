@@ -1,46 +1,64 @@
-Date: Thu, 4 Dec 2008 10:27:22 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-In-Reply-To: <1228379942.5092.14.camel@twins>
-Message-ID: <Pine.LNX.4.64.0812041026340.6340@blonde.anvils>
-References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
- <1228379942.5092.14.camel@twins>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 4 Dec 2008 19:17:02 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [Experimental][PATCH 19/21] memcg-fix-pre-destroy.patch
+Message-Id: <20081204191702.d845d79c.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081204184309.da8264c0.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081203134718.6b60986f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081203141117.d3685413.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081204183428.19cbd22d.nishimura@mxp.nes.nec.co.jp>
+	<20081204184309.da8264c0.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, hjk@linutronix.de, gregkh@suse.de, edward.estabrook@gmail.com, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Dec 2008, Peter Zijlstra wrote:
-> On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
+On Thu, 4 Dec 2008 18:43:09 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Thu, 4 Dec 2008 18:34:28 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > Added CC: Paul Menage <menage@google.com>
 > > 
-> > The gist of this implementation is to overload uio's mmap
-> > functionality to allocate and map a new DMA region on demand.  The
-> > bus-specific DMA address as returned by dma_alloc_coherent is made
-> > available to userspace in the 1st long word of the newly created
-> > region (as well as through the conventional 'addr' file in sysfs).  
+> > > @@ -2096,7 +2112,7 @@ static void mem_cgroup_get(struct mem_cg
+> > >  static void mem_cgroup_put(struct mem_cgroup *mem)
+> > >  {
+> > >  	if (atomic_dec_and_test(&mem->refcnt)) {
+> > > -		if (!mem->obsolete)
+> > > +		if (!css_under_removal(&mem->css))
+> > >  			return;
+> > >  		mem_cgroup_free(mem);
+> > >  	}
+> > I don't think it's safe to check css_under_removal here w/o cgroup_lock.
+> > (It's safe *NOW* just because memcg is the only user of css->refcnt.)
 > > 
-> > To allocate a DMA region you use the following:
-> > /* Pass this magic number to mmap as offset to dynamically allocate a
-> > chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
-> > ...
-> > Comments appreciated!
 > 
-> Yuck!
+> > As Li said before, css_under_removal doesn't necessarily mean
+> > this this group has been destroyed, but mem_cgroup will be freed.
+> > 
+> > But adding cgroup_lock/unlock here causes another dead lock,
+> > because mem_cgroup_get_next_node calls mem_cgroup_put.
+> > 
+> > hmm.. hierarchical reclaim code will be re-written completely by [21/21],
+> > so would it be better to change patch order or to take another approach ?
+> > 
+> Hmm, ok.
 > 
-> Why not create another special device that will give you DMA memory when
-> you mmap it? That would also allow you to obtain the physical address
-> without this utter horrid hack of writing it in the mmap'ed memory.
+> How about this ?
+> ==
+> 	At initlization, mem_cgroup_create(), set memcg->refcnt to be 1.
 > 
-> /dev/uioN-dma would seem like a fine name for that.
+> 	At destroy(), put this refcnt by 1.
+> 
+> 	remove css_under_removal(&mem->css) check.
+> ==
+> 
+would be make sence.
 
-I couldn't agree more.  It sounds fine as a local hack for Edward to
-try out some functionality he needed in a hurry; but as something
-that should enter the mainline kernel in that form - no.
-
-Hugh
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
