@@ -1,82 +1,52 @@
-Received: from wpaz1.hot.corp.google.com (wpaz1.hot.corp.google.com [172.24.198.65])
-	by smtp-out.google.com with ESMTP id mB59d4tX004076
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 01:39:05 -0800
-Received: from rv-out-0506.google.com (rvfb25.prod.google.com [10.140.179.25])
-	by wpaz1.hot.corp.google.com with ESMTP id mB59d0kO031332
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 01:39:01 -0800
-Received: by rv-out-0506.google.com with SMTP id b25so4281957rvf.49
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2008 01:39:00 -0800 (PST)
+Date: Fri, 5 Dec 2008 10:44:48 +0100
+From: "Hans J. Koch" <hjk@linutronix.de>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+Message-ID: <20081205094447.GA3081@local>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com> <1228379942.5092.14.camel@twins> <20081204180809.GB3079@local> <1228461060.18899.8.camel@twins>
 MIME-Version: 1.0
-In-Reply-To: <20081205172845.2b9d89a5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081205172642.565661b1.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20081205172845.2b9d89a5.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 5 Dec 2008 01:39:00 -0800
-Message-ID: <6599ad830812050139l5797f16kaf511f831b09e8f4@mail.gmail.com>
-Subject: Re: [RFC][PATCH 1/4] New css->refcnt implementation.
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1228461060.18899.8.camel@twins>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Hans J. Koch" <hjk@linutronix.de>, edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 5, 2008 at 12:28 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujisu.com>
->
-> Now, the last check of refcnt is done after pre_destroy(), so rmdir() can fail
-> after pre_destroy(). But memcg set mem->obsolete to be 1 at pre_destroy.
-> This is a bug. So, removing memcg->obsolete flag is sane.
->
-> But there is no interface to confirm "css" is oboslete or not. I.e. there is
-> no flag to check whether we can increase css_refcnt or not!
+On Fri, Dec 05, 2008 at 08:10:59AM +0100, Peter Zijlstra wrote:
+> > I don't like to have a separate device for DMA memory. It would completely
+> > break the current concept of userspace drivers if you had to get normal
+> > memory from one device and DMA memory from another. Note that one driver
+> > can have both.
+> 
+> How would that break anything, the one driver can simply open both
+> files.
 
-The basic rule is that you're only supposed to increment the css
-refcount if you have:
+I agree there's not much breakage, but it's a difference in handling things.
+People who wrote libraries that generically find mappable memory of a UIO
+device need to change their handling.
 
-- a reference to a task in the cgroup (that is pinned via task_lock()
-so it can't be moved away)
-or
-- an existing reference to the css
+> 
+> > But I agree that it's confusing if the physical address is stored somewhere
+> > in the mapped memory. That should simply be omitted, we have that information
+> > in sysfs anyway - like for any other memory mappings. But I guess we need
+> > some kind of "type" or "flags" attribute for the mappings so that userspace
+> > can find out if a mapping is DMA capable or not.
+> 
+> We have that, different file.
+> 
+> I'll NAK any attempt that rapes the mmap interface like proposed - that
+> is just not an option.
 
->
-> This patch changes this css->refcnt rule as following
->        - css->refcnt is no longer private counter, just point to
->          css->cgroup->css_refcnt.
+Well, UIO already rapes the mmap interface by using the "offset" parameter to
+pass in the number of the mapping.
+But I'll NAK the current concept, too. It's a UIO kernel driver's task to tell
+userspace which memory a device has to offer. The UIO core prevents userspace
+as much as possible from mapping anything different. And it should stay that
+way.
 
-The reason I didn't do this is that I'd like to keep the ref counts
-separate to make it possible to add/remove subsystems from a hiearchy
-- if they're all mingled into a single refcount, it's impossible to
-tell if a particular subsystem has refcounts.
-
->
->        - css_put() is changed not to call notify_on_release().
->
->          From documentation, notify_on_release() is called when there is no
->          tasks/children in cgroup. On implementation, notify_on_release is
->          not called if css->refcnt > 0.
-
-The documentation is a little inaccurate - it's called when the cgroup
-is removable. In the original cpusets this implied that there were no
-tasks or children; in cgroups, a refcount can keep the group alive
-too, so it's right to not call notify_on_release if there are
-remaining refcounts.
-
->          This is problem. Memcg has css->refcnt by each page even when
->          there are no tasks. Release handler will be never called.
-
-Right, because it can't remove the dir if there are still refcounts.
-
-Early in the development of cgroups I did have a css refcount scheme
-similar to what you have, with tryget, etc, but still with separate
-refcounts for each subsystem; I got rid of it since it seemed more
-complicated than we needed at the time. But I'll see if I can dig it
-up.
-
-Paul
+Thanks,
+Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
