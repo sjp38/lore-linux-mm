@@ -1,62 +1,70 @@
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate2.uk.ibm.com (8.13.1/8.13.1) with ESMTP id mB5D8XRS016144
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:08:33 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB5D8XMY2179298
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:08:33 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB5D8WXM000572
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:08:33 GMT
-Subject: Re: [PATCH] memory hotplug: run lru_add_drain_all() on each cpu
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Reply-To: gerald.schaefer@de.ibm.com
-In-Reply-To: <1228342567.13111.11.camel@nimitz>
-References: <1228339524.6598.11.camel@t60p>
-	 <1228342567.13111.11.camel@nimitz>
-Content-Type: text/plain
-Date: Fri, 05 Dec 2008 14:08:20 +0100
-Message-Id: <1228482500.8392.15.camel@t60p>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB5DMllO023618
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 5 Dec 2008 22:22:47 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 40D5D45DD75
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 22:22:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E8A745DD72
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 22:22:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DE14A1DB8041
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 22:22:46 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A7771DB803F
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 22:22:46 +0900 (JST)
+Message-ID: <56250.10.75.179.61.1228483365.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20081205212304.f7018ea1.nishimura@mxp.nes.nec.co.jp>
+References: <20081205212208.31d904e0.nishimura@mxp.nes.nec.co.jp>
+    <20081205212304.f7018ea1.nishimura@mxp.nes.nec.co.jp>
+Date: Fri, 5 Dec 2008 22:22:45 +0900 (JST)
+Subject: Re: [RFC][PATCH -mmotm 1/4] memcg: don't trigger oom at page
+     migration
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com, npiggin@suse.de
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2008-12-03 at 14:16 -0800, Dave Hansen wrote:
-> I'm a bit confused why this is.  Is this because the LRUs are per-zone
-> and we expected !CONFIG_NUMA systems to only have LRUs sitting on the
-> same (only) node as the current CPU?
-> 
-> This doesn't make any sense, though.  The pagevecs that
-> drain_cpu_pagevecs() actually empties out are per-cpu.
+Daisuke Nishimura said:
+> I think triggering OOM at mem_cgroup_prepare_migration would be just a bit
+> overkill.
+> Returning -ENOMEM would be enough for mem_cgroup_prepare_migration.
+> The caller would handle the case anyway.
+>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Right, the pagevecs are per-cpu, independent from any CONFIG_NUMA
-settings, and this is exactly why I would expect that lru_add_drain_all()
-works on all cpus, as opposed to lru_add_drain() which works only on
-the current cpu.
 
-> This doesn't seem right to me.  CONFIG_MEMORY_HOTREMOVE doesn't change
-> the layout of the LRUs, unlike NUMA or UNEVICTABLE_LRU.  So, I think
-> this bug is more due to the hotremove code mis-expecting behavior out of
-> lru_add_drain_all().
-> 
-> Why does this not affect the other lru_add_drain_all() users?
-
-Good question, there are only a few other users and most of them were
-added just recently with the unevictable lru patches. The only exception
-is migrate_prep(), but this is only called from sys_move_pages(), which
-is not implemented w/o CONFIG_NUMA afaik.
-
-As explained above, the per-cpu pagevec layout should be independent
-from NUMA or UNEVICTABLE_LRU, so I guess the right thing to do here
-is completely remove the #ifdef as in the patch from Kosaki Motohiro
-(or at least replace it with a CONFIG_SMP as suggested by Kamezawa
-Hiroyuki).
-
-Thanks,
-Gerald
+> ---
+>  mm/memcontrol.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4dbce1d..50ee1be 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1330,7 +1330,7 @@ int mem_cgroup_prepare_migration(struct page *page,
+> struct mem_cgroup **ptr)
+>  	unlock_page_cgroup(pc);
+>
+>  	if (mem) {
+> -		ret = mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem);
+> +		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+>  		css_put(&mem->css);
+>  	}
+>  	*ptr = mem;
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 
 --
