@@ -1,81 +1,126 @@
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20081204180809.GB3079@local>
-References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
-	 <1228379942.5092.14.camel@twins>  <20081204180809.GB3079@local>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Fri, 05 Dec 2008 08:10:59 +0100
-Message-Id: <1228461060.18899.8.camel@twins>
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB58RZQS007536
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 5 Dec 2008 17:27:35 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E80E245DE55
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 17:27:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 784FC45DE61
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 17:27:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 51C001DB8051
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 17:27:34 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B4871DB8049
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 17:27:33 +0900 (JST)
+Date: Fri, 5 Dec 2008 17:26:42 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/4] cgroup ID and css refcnt change and memcg
+ hierarchy (2008/12/05)
+Message-Id: <20081205172642.565661b1.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Hans J. Koch" <hjk@linutronix.de>
-Cc: edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2008-12-04 at 19:08 +0100, Hans J. Koch wrote:
-> On Thu, Dec 04, 2008 at 09:39:02AM +0100, Peter Zijlstra wrote:
-> > On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
-> > > From: Edward Estabrook <Edward_Estabrook@agilent.com>
-> > > 
-> > > Here is a patch that adds the ability to dynamically allocate (and
-> > > use) coherent DMA from userspace by extending the userspace IO driver.
-> > > This patch applies against 2.6.28-rc6.
-> > > 
-> > > The gist of this implementation is to overload uio's mmap
-> > > functionality to allocate and map a new DMA region on demand.  The
-> > > bus-specific DMA address as returned by dma_alloc_coherent is made
-> > > available to userspace in the 1st long word of the newly created
-> > > region (as well as through the conventional 'addr' file in sysfs).  
-> > > 
-> > > To allocate a DMA region you use the following:
-> > > /* Pass this magic number to mmap as offset to dynamically allocate a
-> > > chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
-> > > 
-> > > void* memory = mmap (NULL, size, PROT_READ | PROT_WRITE , MAP_SHARED,
-> > > fd, DMA_MEM_ALLOCATE_MMAP_OFFSET); u_int64_t *addr = *(u_int64_t *)
-> > > memory;
-> > > 
-> > > where 'size' is the size in bytes of the region you want and fd is the
-> > > opened /dev/uioN file.
-> > > 
-> > > Allocation occurs in page sized pieces by design to ensure that
-> > > buffers are page-aligned.
-> > > 
-> > > Memory is released when uio_unregister_device() is called.
-> > >
-> > > I have used this extensively on a 2.6.21-based kernel and ported it to
-> > > 2.6.28-rc6 for review / submission here.
-> > > 
-> > > Comments appreciated!
-> > 
-> > Yuck!
-> > 
-> > Why not create another special device that will give you DMA memory when
-> > you mmap it? That would also allow you to obtain the physical address
-> > without this utter horrid hack of writing it in the mmap'ed memory.
-> > 
-> > /dev/uioN-dma would seem like a fine name for that.
-> 
-> I don't like to have a separate device for DMA memory. It would completely
-> break the current concept of userspace drivers if you had to get normal
-> memory from one device and DMA memory from another. Note that one driver
-> can have both.
+This is a patch set onto mmotm-2.6.28-Dec30.
 
-How would that break anything, the one driver can simply open both
-files.
+Still RFC. I'm considering whether I can make this simpler....
 
-> But I agree that it's confusing if the physical address is stored somewhere
-> in the mapped memory. That should simply be omitted, we have that information
-> in sysfs anyway - like for any other memory mappings. But I guess we need
-> some kind of "type" or "flags" attribute for the mappings so that userspace
-> can find out if a mapping is DMA capable or not.
+Major changes from previous one
+	- css->refcnt is unified.
+	  I think distributed refcnt is a crazy idea...
+	- applied comments to previous version.
+	- OOM Kill handler is fixed. (this was broken by hierarchy) 
 
-We have that, different file.
+I may not be able to reply quickly in weekend, sorry.
 
-I'll NAK any attempt that rapes the mmap interface like proposed - that
-is just not an option.
+After this, memcg's hierarchical reclaim will be
+==
+static struct mem_cgroup *
+mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+{
+        struct cgroup *cgroup, *root_cgroup;
+        struct mem_cgroup *ret;
+        int nextid, rootid, depth, found;
+
+        root_cgroup = root_mem->css.cgroup;
+        rootid = cgroup_id(root_cgroup);
+        depth = cgroup_depth(root_cgroup);
+        found = 0;
+
+        rcu_read_lock();
+        if (!root_mem->use_hierarchy) {
+                spin_lock(&root_mem->reclaim_param_lock);
+                root_mem->scan_age++;
+                spin_unlock(&root_mem->reclaim_param_lock);
+                css_get(&root_mem->css);
+                ret = root_mem;
+        }
+
+        while (!ret) {
+                /* ID:0 is not used by cgroup-id */
+                nextid = root_mem->last_scanned_child + 1;
+                cgroup = cgroup_get_next(nextid, rootid, depth, &found);
+                if (cgroup) {
+                        spin_lock(&root_mem->reclaim_param_lock);
+                        root_mem->last_scanned_child = found;
+                        spin_unlock(&root_mem->reclaim_param_lock);
+                        ret = mem_cgroup_from_cont(cgroup);
+                        if (!css_tryget(&ret->css))
+                                ret = NULL;
+                } else {
+                        spin_lock(&root_mem->reclaim_param_lock);
+                        root_mem->scan_age++;
+                        root_mem->last_scanned_child = 0;
+                        spin_unlock(&root_mem->reclaim_param_lock);
+                }
+        }
+        rcu_read_unlock();
+        return ret;
+}
+
+/*
+ * root_mem is the original ancestor that we've been reclaim from.
+ * root_mem cannot be freed while walking because there are children.
+ */
+static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+                                                gfp_t gfp_mask, bool noswap)
+{
+        struct mem_cgroup *victim;
+        unsigned long start_age;
+        int ret = 0;
+        int total = 0;
+
+        start_age = root_mem->scan_age;
+        /* allows visit twice (under this memcg, ->scan_age is shared.) */
+        while (time_after((start_age + 2UL), root_mem->scan_age)) {
+                victim = mem_cgroup_select_victim(root_mem);
+                ret = try_to_free_mem_cgroup_pages(victim,
+                                gfp_mask, noswap, get_swappiness(victim));
+                css_put(&victim->css);
+                if (mem_cgroup_check_under_limit(root_mem))
+                        return 1;
+                total += ret;
+        }
+
+        ret = total;
+        if (mem_cgroup_check_under_limit(root_mem))
+                ret = 1;
+
+        return ret;
+}
+==
+This can be reused for soft-limit or something fancy featrues.
+
+
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
