@@ -1,141 +1,189 @@
-Received: from zps78.corp.google.com (zps78.corp.google.com [172.25.146.78])
-	by smtp-out.google.com with ESMTP id mB4MRuYl025959
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 14:27:56 -0800
-Received: from wf-out-1314.google.com (wff29.prod.google.com [10.142.6.29])
-	by zps78.corp.google.com with ESMTP id mB4MQuBB007855
-	for <linux-mm@kvack.org>; Thu, 4 Dec 2008 14:27:55 -0800
-Received: by wf-out-1314.google.com with SMTP id 29so4354554wff.10
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2008 14:27:55 -0800 (PST)
+Message-ID: <49389B69.9010902@cn.fujitsu.com>
+Date: Fri, 05 Dec 2008 11:09:29 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <492E97FA.5000804@gmail.com>
-References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com>
-	 <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com>
-	 <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com>
-	 <492E8708.4060601@gmail.com> <20081127120330.GM28285@wotan.suse.de>
-	 <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de>
-	 <492E97FA.5000804@gmail.com>
-Date: Thu, 4 Dec 2008 14:27:54 -0800
-Message-ID: <604427e00812041427j7f1c8118p48b1b5b577143703@mail.gmail.com>
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Subject: [memcg BUG ?] failed to boot on IA64 with CONFIG_DISCONTIGMEM=y
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, Mike Waychison <mikew@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-I am trying your test program(scalability) in house, but somehow i got
-different result as you saw. i created 8 files each with 1G size on
-separate drives( to avoid the latency disturbing of disk seek). I got
-this number without applying the batch based on 2.6.26. May i ask how
-to reproduce the mmap issue you mentioned?
+Kernel version: 2.6.28-rc7
+Arch: IA64
+Memory model: DISCONTIGMEM
 
-8 CPU
-read_worker
-1 threads Real time: 101.058262 s (since task start)
-2 threads Real time: 50.670456 s (since task start)
-4 threads Real time: 25.904657 s (since task start)
-8 threads Real time: 20.090677 s (since task start)
---------------------------------------------------------------------------------
-mmap_worker
-1 threads Real time: 101.340662 s (since task start)
-2 threads Real time: 51.484646 s (since task start)
-4 threads Real time: 28.414534 s (since task start)
-8 threads Real time: 21.785818 s (since task start)
+ELILO boot: Uncompressing Linux... done
+Loading file initrd-2.6.28-rc7-lizf.img...done
+(frozen)
 
---Ying
 
-On Thu, Nov 27, 2008 at 4:52 AM, Torok Edwin <edwintorok@gmail.com> wrote:
-> On 2008-11-27 14:39, Nick Piggin wrote:
->> On Thu, Nov 27, 2008 at 02:21:16PM +0200, Torok Edwin wrote:
->>
->>> On 2008-11-27 14:03, Nick Piggin wrote:
->>>
->>>>> Running my testcase shows no significant performance difference. What am
->>>>> I doing wrong?
->>>>>
->>>>>
->>>>
->>>> Software may just be doing a lot of mmap/munmap activity. threads +
->>>> mmap is never going to be pretty because it is always going to involve
->>>> broadcasting tlb flushes to other cores... Software writers shouldn't
->>>> be scared of using processes (possibly with some shared memory).
->>>>
->>>>
->>> It would be interesting to compare the performance of a threaded clamd,
->>> and of a clamd that uses multiple processes.
->>> Distributing tasks will be a bit more tricky, since it would need to use
->>> IPC, instead of mutexes and condition variables.
->>>
->>
->> Yes, although you could use PTHREAD_PROCESS_SHARED pthread mutexes on
->> the shared memory I believe (having never tried it myself).
->>
->>
->>
->>>> Actually, a lot of things get faster (like malloc, or file descriptor
->>>> operations) because locks aren't needed.
->>>>
->>>> Despite common perception, processes are actually much *faster* than
->>>> threads when doing common operations like these. They are slightly slower
->>>> sometimes with things like creation and exit, or context switching, but
->>>> if you're doing huge numbers of those operations, then it is unlikely
->>>> to be a performance critical app... :)
->>>>
->>>>
->>> How about distributing tasks to a set of worked threads, is the overhead
->>> of using IPC instead of
->>> mutexes/cond variables acceptable?
->>>
->>
->> It is really going to depend on a lot of things. What is involved in
->> distributing tasks, how many cores and cache/TLB architecture of the
->> system running on, etc.
->>
->> You want to distribute as much work as possible while touching as
->> little memory as possible, in general.
->>
->> But if you're distributing threads over cores, and shared caches are
->> physically tagged (which I think all x86 CPUs are), then you should
->> be able to have multiple processes operate on shared memory just as
->> efficiently as multiple threads I think.
->>
->> And then you also get the advantages of reduced contention on other
->> shared locks and resources.
->>
->
-> Thanks for the tips, but lets get back to the original question:
-> why don't I see any performance improvement with the fault-retry patches?
->
-> My testcase only compares reads file with mmap, vs. reading files with
-> read, with different number of threads.
-> Leaving aside other reasons why mmap is slower, there should be some
-> speedup by running 4 threads vs 1 thread, but:
->
-> 1 thread: read:27,18 28.76
-> 1 thread: mmap: 25.45, 25.24
-> 2 thread: read: 16.03, 15.66
-> 2 thread: mmap: 22.20, 20.99
-> 4 thread: read: 9.15, 9.12
-> 4 thread: mmap: 20.38, 20.47
->
-> The speed of 4 threads is about the same as for 2 threads with mmap, yet
-> with read it scales nicely.
-> And the patch doesn't seem to improve scalability.
-> How can I find out if the patch works as expected? [i.e. verify that
-> faults are actually retried, and that they don't keep the semaphore locked]
->
->> OK, I'll see if I can find them (am overseas at the moment, and I suspect
->> they are stranded on some stationary rust back home, but I might be able
->> to find them on the web).
->
-> Ok.
->
-> Best regards,
-> --Edwin
->
+Booted successfully with cgroup_disable=memory, here is the dmesg:
+
+...
+Number of logical nodes in system = 16
+Number of memory chunks in system = 18
+SMP: Allowing 128 CPUs, 120 hotplug CPUs
+Initial ramdisk at: 0xe00000006afbc000 (4644000 bytes)
+SAL 3.20: FUJITSU LIMITED PRIMEQUEST version 3.4
+SAL Platform features: None
+SAL: AP wakeup using external interrupt vector 0xf0
+ACPI: Local APIC address c0000000fee00000
+PLATFORM int CPEI (0x3): GSI 22 (level, low) -> CPU 0 (0x0000) vector 30
+8 CPUs available, 128 CPUs total
+MCA related initialization done
+Virtual mem_map starts at 0xa07fffffc0c80000
+Zone PFN ranges:
+  DMA      0x00000100 -> 0x00010000
+  Normal   0x00010000 -> 0x01210000
+Movable zone start PFN for each node
+early_node_map[3] active PFN ranges
+    0: 0x00000100 -> 0x00006d00
+    0: 0x00408000 -> 0x00410000
+    1: 0x01200400 -> 0x01210000
+On node 0 totalpages: 60416
+free_area_init_node: node 0, pgdat e0000000011c0000, node_mem_map a07fffffc0c83800
+  DMA zone: 56 pages used for memmap
+  DMA zone: 0 pages reserved
+  DMA zone: 27592 pages, LIFO batch:1
+  Normal zone: 3584 pages used for memmap
+  Normal zone: 29184 pages, LIFO batch:1
+  Movable zone: 0 pages used for memmap
+On node 1 totalpages: 64512
+free_area_init_node: node 1, pgdat e0000120040d0080, node_mem_map a07fffffffc8e000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 56 pages used for memmap
+  Normal zone: 64456 pages, LIFO batch:1
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 2
+On node 2 totalpages: 0
+free_area_init_node: node 2, pgdat e000004080180100, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 3
+On node 3 totalpages: 0
+free_area_init_node: node 3, pgdat e0000040802d0180, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 4
+On node 4 totalpages: 0
+free_area_init_node: node 4, pgdat e0000040804a0200, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 5
+On node 5 totalpages: 0
+free_area_init_node: node 5, pgdat e0000040805f0280, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 6
+On node 6 totalpages: 0
+free_area_init_node: node 6, pgdat e0000040807c0300, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 7
+On node 7 totalpages: 0
+free_area_init_node: node 7, pgdat e000004080910380, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 8
+On node 8 totalpages: 0
+free_area_init_node: node 8, pgdat e000004080ad0400, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 9
+On node 9 totalpages: 0
+free_area_init_node: node 9, pgdat e000004080c10480, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 10
+On node 10 totalpages: 0
+free_area_init_node: node 10, pgdat e000004080dd0500, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 11
+On node 11 totalpages: 0
+free_area_init_node: node 11, pgdat e000004080f10580, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 12
+On node 12 totalpages: 0
+free_area_init_node: node 12, pgdat e0000040810d0600, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 13
+On node 13 totalpages: 0
+free_area_init_node: node 13, pgdat e000004081210680, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 14
+On node 14 totalpages: 0
+free_area_init_node: node 14, pgdat e0000040813d0700, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Could not find start_pfn for node 15
+On node 15 totalpages: 0
+free_area_init_node: node 15, pgdat e000004081510780, node_mem_map a07fffffc0c80000
+  DMA zone: 0 pages used for memmap
+  Normal zone: 0 pages used for memmap
+  Movable zone: 0 pages used for memmap
+Built 16 zonelists in Zone order, mobility grouping on.  Total pages: 121232
+Policy zone: Normal
+Kernel command line: BOOT_IMAGE=scsi0:EFI\redhat\vmlinuz-2.6.28-rc7-lizf  console=ttyS0 rhgb cgroup_disable=memory root=/dev/sda2 ro
+Disabling memory control group subsystem
+PID hash table entries: 4096 (order: 12, 32768 bytes)
+CPU 0: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+Console: colour VGA+ 80x25
+Placing software IO TLB between 0x53d0000 - 0x93d0000
+Memory: 7870144k/7970368k available (6617k code, 125248k reserved, 5996k data, 1728k init)
+SLUB: Genslabs=17, HWalign=128, Order=0-3, MinObjects=0, CPUs=128, Nodes=1024
+Calibrating delay loop... 3186.68 BogoMIPS (lpj=1593344)
+Security Framework initialized
+SELinux:  Initializing.
+SELinux:  Starting in permissive mode
+Dentry cache hash table entries: 1048576 (order: 7, 8388608 bytes)
+Inode-cache hash table entries: 524288 (order: 6, 4194304 bytes)
+Mount-cache hash table entries: 4096
+Initializing cgroup subsys debug
+Initializing cgroup subsys ns
+Initializing cgroup subsys cpuacct
+Initializing cgroup subsys memory
+Initializing cgroup subsys devices
+Initializing cgroup subsys freezer
+ACPI: Core revision 20080926
+Boot processor id 0x0/0x0
+Fixed BSP b0 value from CPU 1
+CPU 1: synchronized ITC with CPU 0 (last diff 1 cycles, maxerr 139 cycles)
+CPU 1: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 2: synchronized ITC with CPU 0 (last diff -1 cycles, maxerr 139 cycles)
+CPU 2: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 3: synchronized ITC with CPU 0 (last diff 1 cycles, maxerr 139 cycles)
+CPU 3: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 4: synchronized ITC with CPU 0 (last diff 0 cycles, maxerr 512 cycles)
+CPU 4: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 5: synchronized ITC with CPU 0 (last diff 0 cycles, maxerr 513 cycles)
+CPU 5: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 6: synchronized ITC with CPU 0 (last diff 0 cycles, maxerr 512 cycles)
+CPU 6: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+CPU 7: synchronized ITC with CPU 0 (last diff 0 cycles, maxerr 512 cycles)
+CPU 7: base freq=266.666MHz, ITC ratio=6/4, ITC freq=399.999MHz
+Brought up 8 CPUs
+Total of 8 processors activated (25493.50 BogoMIPS).
+...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
