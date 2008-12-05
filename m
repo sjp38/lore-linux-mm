@@ -1,7 +1,7 @@
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v11][PATCH 13/13] Restart multiple processes
-Date: Fri,  5 Dec 2008 12:31:22 -0500
-Message-Id: <1228498282-11804-14-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v11][PATCH 07/13] Infrastructure for shared objects
+Date: Fri,  5 Dec 2008 12:31:16 -0500
+Message-Id: <1228498282-11804-8-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -10,483 +10,404 @@ To: Oren Laadan <orenl@cs.columbia.edu>
 Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-Restarting of multiple processes expects all restarting tasks to call
-sys_restart(). Once inside the system call, each task will restart
-itself at the same order that they were saved. The internals of the
-syscall will take care of in-kernel synchronization bewteen tasks.
+Infrastructure to handle objects that may be shared and referenced by
+multiple tasks or other objects, e..g open files, memory address space
+etc.
 
-This patch does _not_ create the task tree in the kernel. Instead it
-assumes that all tasks are created in some way and then invoke the
-restart syscall. You can use the userspace mktree.c program to do
-that.
+The state of shared objects is saved once. On the first encounter, the
+state is dumped and the object is assigned a unique identifier (objref)
+and also stored in a hash table (indexed by its physical kenrel address).
+>From then on the object will be found in the hash and only its identifier
+is saved.
 
-The init task (*) has a special role: it allocates the restart context
-(ctx), and coordinates the operation. In particular, it first waits
-until all participating tasks enter the kernel, and provides them the
-common restart context. Once everyone in ready, it begins to restart
-itself.
+On restart the identifier is looked up in the hash table; if not found
+then the state is read, the object is created, and added to the hash
+table (this time indexed by its identifier). Otherwise, the object in
+the hash table is used.
 
-In contrast, the other tasks enter the kernel, locate the init task (*)
-and grab its restart context, and then wait for their turn to restore.
+The hash is "one-way": objects added to it are never deleted until the
+hash it discarded. The hash is discarded at the end of checkpoint or
+restart, whether successful or not.
 
-When a task (init or not) completes its restart, it hands the control
-over to the next in line, by waking that task.
+The hash keeps a reference to every object that is added to it, matching
+the object's type, and maintains this reference during its lifetime.
+Therefore, it is always safe to use an object that is stored in the hash.
 
-An array of pids (the one saved during the checkpoint) is used to
-synchronize the operation. The first task in the array is the init
-task (*). The restart context (ctx) maintain a "current position" in
-the array, which indicates which task is currently active. Once the
-currently active task completes its own restart, it increments that
-position and wakes up the next task.
+Changelog[v11]:
+  - Doc: be explicit about grabbing a reference and object lifetime
 
-Restart assumes that userspace provides meaningful data, otherwise
-it's garbage-in-garbage-out. In this case, the syscall may block
-indefinitely, but in TASK_INTERRUPTIBLE, so the user can ctrl-c or
-otherwise kill the stray restarting tasks.
+Changelog[v4]:
+  - Fix calculation of hash table size
 
-In terms of security, restart runs as the user the invokes it, so it
-will not allow a user to do more than is otherwise permitted by the
-usual system semantics and policy.
-
-Currently we ignore threads and zombies, as well as session ids.
-Add support for multiple processes
-
-(*) For containers, restart should be called inside a fresh container
-by the init task of that container. However, it is also possible to
-restart applications not necessarily inside a container, and without
-restoring the original pids of the processes (that is, provided that
-the application can tolerate such behavior). This is useful to allow
-multi-process restart of tasks not isolated inside a container, and
-also for debugging.
+Changelog[v3]:
+  - Use standard hlist_... for hash table
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
- checkpoint/restart.c       |  214 +++++++++++++++++++++++++++++++++++++++++++-
- checkpoint/sys.c           |   34 ++++++--
- include/linux/checkpoint.h |   23 ++++-
- include/linux/sched.h      |    1 +
- 4 files changed, 258 insertions(+), 14 deletions(-)
+ checkpoint/Makefile        |    2 +-
+ checkpoint/objhash.c       |  278 ++++++++++++++++++++++++++++++++++++++++++++
+ checkpoint/sys.c           |    4 +
+ include/linux/checkpoint.h |   20 +++
+ 4 files changed, 303 insertions(+), 1 deletions(-)
+ create mode 100644 checkpoint/objhash.c
 
-diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index f4f737d..24392ee 100644
---- a/checkpoint/restart.c
-+++ b/checkpoint/restart.c
-@@ -10,6 +10,7 @@
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+index ac35033..9843fb9 100644
+--- a/checkpoint/Makefile
++++ b/checkpoint/Makefile
+@@ -2,5 +2,5 @@
+ # Makefile for linux checkpoint/restart.
+ #
  
- #include <linux/version.h>
- #include <linux/sched.h>
-+#include <linux/wait.h>
- #include <linux/file.h>
- #include <linux/magic.h>
- #include <linux/checkpoint.h>
-@@ -276,30 +277,235 @@ static int cr_read_task(struct cr_ctx *ctx)
- 	return ret;
- }
- 
-+/* cr_read_tree - read the tasks tree into the checkpoint context */
-+static int cr_read_tree(struct cr_ctx *ctx)
+-obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o \
++obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+ 		ckpt_mem.o rstr_mem.o
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
+new file mode 100644
+index 0000000..13d3e5d
+--- /dev/null
++++ b/checkpoint/objhash.c
+@@ -0,0 +1,278 @@
++/*
++ *  Checkpoint-restart - object hash infrastructure to manage shared objects
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/kernel.h>
++#include <linux/file.h>
++#include <linux/hash.h>
++#include <linux/checkpoint.h>
++
++struct cr_objref {
++	int objref;
++	void *ptr;
++	unsigned short type;
++	unsigned short flags;
++	struct hlist_node hash;
++};
++
++struct cr_objhash {
++	struct hlist_head *head;
++	int next_free_objref;
++};
++
++#define CR_OBJHASH_NBITS  10
++#define CR_OBJHASH_TOTAL  (1UL << CR_OBJHASH_NBITS)
++
++static void cr_obj_ref_drop(struct cr_objref *obj)
 +{
-+	struct cr_hdr_tree *hh = cr_hbuf_get(ctx, sizeof(*hh));
-+	int parent, size, ret = -EINVAL;
-+
-+	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_TREE);
-+	if (parent < 0) {
-+		ret = parent;
-+		goto out;
-+	} else if (parent != 0)
-+		goto out;
-+
-+	if (hh->tasks_nr < 0)
-+		goto out;
-+
-+	ctx->pids_nr = hh->tasks_nr;
-+	size = sizeof(*ctx->pids_arr) * ctx->pids_nr;
-+	if (size < 0)		/* overflow ? */
-+		goto out;
-+
-+	ctx->pids_arr = kmalloc(size, GFP_KERNEL);
-+	if (!ctx->pids_arr) {
-+		ret = -ENOMEM;
-+		goto out;
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		fput((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
 +	}
-+	ret = cr_kread(ctx, ctx->pids_arr, size);
-+ out:
-+	cr_hbuf_put(ctx, sizeof(*hh));
-+	return ret;
 +}
 +
-+static int cr_wait_task(struct cr_ctx *ctx)
++static void cr_obj_ref_grab(struct cr_objref *obj)
 +{
-+	pid_t pid = task_pid_vnr(current);
-+
-+	cr_debug("pid %d waiting\n", pid);
-+	return wait_event_interruptible(ctx->waitq, ctx->pids_active == pid);
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		get_file((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
++	}
 +}
 +
-+static int cr_next_task(struct cr_ctx *ctx)
++static void cr_objhash_clear(struct cr_objhash *objhash)
 +{
-+	struct task_struct *tsk;
++	struct hlist_head *h = objhash->head;
++	struct hlist_node *n, *t;
++	struct cr_objref *obj;
++	int i;
 +
-+	ctx->pids_pos++;
++	for (i = 0; i < CR_OBJHASH_TOTAL; i++) {
++		hlist_for_each_entry_safe(obj, n, t, &h[i], hash) {
++			cr_obj_ref_drop(obj);
++			kfree(obj);
++		}
++	}
++}
 +
-+	cr_debug("pids_pos %d %d\n", ctx->pids_pos, ctx->pids_nr);
-+	if (ctx->pids_pos == ctx->pids_nr) {
-+		complete(&ctx->complete);
-+		return 0;
++void cr_objhash_free(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash = ctx->objhash;
++
++	if (objhash) {
++		cr_objhash_clear(objhash);
++		kfree(objhash->head);
++		kfree(ctx->objhash);
++		ctx->objhash = NULL;
++	}
++}
++
++int cr_objhash_alloc(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash;
++	struct hlist_head *head;
++
++	objhash = kzalloc(sizeof(*objhash), GFP_KERNEL);
++	if (!objhash)
++		return -ENOMEM;
++	head = kzalloc(CR_OBJHASH_TOTAL * sizeof(*head), GFP_KERNEL);
++	if (!head) {
++		kfree(objhash);
++		return -ENOMEM;
 +	}
 +
-+	ctx->pids_active = ctx->pids_arr[ctx->pids_pos].vpid;
++	objhash->head = head;
++	objhash->next_free_objref = 1;
 +
-+	cr_debug("pids_next %d\n", ctx->pids_active);
-+
-+	rcu_read_lock();
-+	tsk = find_task_by_pid_ns(ctx->pids_active, ctx->root_nsproxy->pid_ns);
-+	if (tsk)
-+		wake_up_process(tsk);
-+	rcu_read_unlock();
-+
-+	if (!tsk) {
-+		ctx->pids_err = -ESRCH;
-+		complete(&ctx->complete);
-+		return -ESRCH;
-+	}
-+
++	ctx->objhash = objhash;
 +	return 0;
 +}
 +
-+/* FIXME: this should be per container */
-+DECLARE_WAIT_QUEUE_HEAD(cr_restart_waitq);
-+
-+static int do_restart_task(struct cr_ctx *ctx, pid_t pid)
++static struct cr_objref *cr_obj_find_by_ptr(struct cr_ctx *ctx, void *ptr)
 +{
-+	struct task_struct *root_task;
-+	int ret;
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
 +
-+	rcu_read_lock();
-+	root_task = find_task_by_pid_ns(pid, current->nsproxy->pid_ns);
-+	if (root_task)
-+		get_task_struct(root_task);
-+	rcu_read_unlock();
++	h = &ctx->objhash->head[hash_ptr(ptr, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->ptr == ptr)
++			return obj;
++	return NULL;
++}
 +
-+	if (!root_task)
++static struct cr_objref *cr_obj_find_by_objref(struct cr_ctx *ctx, int objref)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
++
++	h = &ctx->objhash->head[hash_ptr((void *) objref, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->objref == objref)
++			return obj;
++	return NULL;
++}
++
++/**
++ * cr_obj_new - allocate an object and add to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Allocate an object referring to @ptr and add to the hash table.
++ * If @objref is zero, assign a unique object reference and use @ptr
++ * as a hash key [checkpoint]. Else use @objref as a key [restart].
++ * In both cases, grab a reference (depending on @type) to said obejct.
++ */
++static struct cr_objref *cr_obj_new(struct cr_ctx *ctx, void *ptr, int objref,
++				    unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int i;
++
++	obj = kmalloc(sizeof(*obj), GFP_KERNEL);
++	if (!obj)
++		return NULL;
++
++	obj->ptr = ptr;
++	obj->type = type;
++	obj->flags = flags;
++
++	if (objref) {
++		/* use @objref to index (restart) */
++		obj->objref = objref;
++		i = hash_ptr((void *) objref, CR_OBJHASH_NBITS);
++	} else {
++		/* use @ptr to index, assign objref (checkpoint) */
++		obj->objref = ctx->objhash->next_free_objref++;;
++		i = hash_ptr(ptr, CR_OBJHASH_NBITS);
++	}
++
++	hlist_add_head(&obj->hash, &ctx->objhash->head[i]);
++	cr_obj_ref_grab(obj);
++	return obj;
++}
++
++/**
++ * cr_obj_add_ptr - add an object to the hash table if not already there
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference [output]
++ * @type: object type
++ * @flags: object flags
++ *
++ * Look up the object pointed to by @ptr in the hash table. If it isn't
++ * already found there, then add the object to the table, and allocate a
++ * fresh unique object reference (objref). Grab a reference to every
++ * object that is added, and maintain the reference until the entire
++ * hash is free. 
++ *
++ * Fills the unique objref of the object into @objref.
++ * 
++ * [This is used during checkpoint].
++ *
++ * Returns 0 if found, 1 if added, < 0 on error
++ */
++int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++		   unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int ret = 0;
++
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj) {
++		obj = cr_obj_new(ctx, ptr, 0, type, flags);
++		if (!obj)
++			return -ENOMEM;
++		else
++			ret = 1;
++	} else if (obj->type != type)	/* sanity check */
 +		return -EINVAL;
-+
-+	/*
-+	 * wait for container init to initialize the restart context, then
-+	 * grab a reference to that context, and if we're the last task to
-+	 * do it, notify the container init.
-+	 */
-+	ret = wait_event_interruptible(cr_restart_waitq,
-+				       root_task->checkpoint_ctx);
-+	if (ret < 0)
-+		goto out;
-+
-+	task_lock(root_task);
-+	ctx = root_task->checkpoint_ctx;
-+	if (ctx)
-+		cr_ctx_get(ctx);
-+	task_unlock(root_task);
-+
-+	if (!ctx) {
-+		ret = -EAGAIN;
-+		goto out;
-+	}
-+
-+	if (atomic_dec_and_test(&ctx->tasks_count))
-+		complete(&ctx->complete);
-+
-+	/* wait for our turn, do the restore, and tell next task in line */
-+	ret = cr_wait_task(ctx);
-+	if (ret < 0)
-+		goto out;
-+	ret = cr_read_task(ctx);
-+	if (ret < 0)
-+		goto out;
-+	ret = cr_next_task(ctx);
-+
-+ out:
-+	cr_ctx_put(ctx);
-+	put_task_struct(root_task);
++	*objref = obj->objref;
 +	return ret;
 +}
 +
-+static int cr_wait_all_tasks_start(struct cr_ctx *ctx)
++/**
++ * cr_obj_add_ref - add an object with unique objref to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique identifier - object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Add the object pointer to by @ptr and identified by unique object
++ * reference given by @objref to the hash table (indexed by @objref).
++ * Grab a reference to every object that is added, and maintain the
++ * reference until the entire hash is free. 
++ *
++ * [This is used during restart].
++ */
++int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++		   unsigned short type, unsigned short flags)
 +{
-+	int ret;
++	struct cr_objref *obj;
 +
-+	if (ctx->pids_nr == 1)
-+		return 0;
-+
-+	init_completion(&ctx->complete);
-+	current->checkpoint_ctx = ctx;
-+
-+	wake_up_all(&cr_restart_waitq);
-+
-+	ret = wait_for_completion_interruptible(&ctx->complete);
-+	if (ret < 0)
-+		return ret;
-+
-+	task_lock(current);
-+	current->checkpoint_ctx = NULL;
-+	task_unlock(current);
-+
-+	return 0;
++	obj = cr_obj_new(ctx, ptr, objref, type, flags);
++	return obj ? 0 : -ENOMEM;
 +}
 +
-+static int cr_wait_all_tasks_finish(struct cr_ctx *ctx)
++/**
++ * cr_obj_get_by_ptr - find the unique object reference of an object
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ *
++ * Look up the unique object reference (objref) of the object pointed
++ * to by @ptr, and return that number, or 0 if not found.
++ *
++ * [This is used during checkpoint].
++ */
++int cr_obj_get_by_ptr(struct cr_ctx *ctx, void *ptr, unsigned short type)
 +{
-+	int ret;
++	struct cr_objref *obj;
 +
-+	if (ctx->pids_nr == 1)
-+		return 0;
-+
-+	init_completion(&ctx->complete);
-+
-+	ret = cr_next_task(ctx);
-+	if (ret < 0)
-+		return ret;
-+
-+	ret = wait_for_completion_interruptible(&ctx->complete);
-+	if (ret < 0)
-+		return ret;
-+
-+	return 0;
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj)
++		return -ESRCH;
++	if (obj->type != type)
++		return -EINVAL;
++	return obj->objref;
 +}
 +
- /* setup restart-specific parts of ctx */
- static int cr_ctx_restart(struct cr_ctx *ctx, pid_t pid)
- {
-+	ctx->root_pid = pid;
-+	ctx->root_task = current;
-+	ctx->root_nsproxy = current->nsproxy;
-+
-+	get_task_struct(ctx->root_task);
-+	get_nsproxy(ctx->root_nsproxy);
-+
-+	atomic_set(&ctx->tasks_count, ctx->pids_nr - 1);
-+
- 	return 0;
- }
- 
--int do_restart(struct cr_ctx *ctx, pid_t pid)
-+static int do_restart_root(struct cr_ctx *ctx, pid_t pid)
- {
- 	int ret;
- 
-+	ret = cr_read_head(ctx);
-+	if (ret < 0)
-+		goto out;
-+	ret = cr_read_tree(ctx);
-+	if (ret < 0)
-+		goto out;
-+
- 	ret = cr_ctx_restart(ctx, pid);
- 	if (ret < 0)
- 		goto out;
--	ret = cr_read_head(ctx);
-+
-+	/* wait for all other tasks to enter do_restart_task() */
-+	ret = cr_wait_all_tasks_start(ctx);
- 	if (ret < 0)
- 		goto out;
-+
- 	ret = cr_read_task(ctx);
- 	if (ret < 0)
- 		goto out;
--	ret = cr_read_tail(ctx);
-+
-+	/* wait for all other tasks to complete do_restart_task() */
-+	ret = cr_wait_all_tasks_finish(ctx);
- 	if (ret < 0)
- 		goto out;
- 
--	/* on success, adjust the return value if needed [TODO] */
-+	ret = cr_read_tail(ctx);
-+
-  out:
- 	return ret;
- }
-+
-+int do_restart(struct cr_ctx *ctx, pid_t pid)
++/**
++ * cr_obj_get_by_ref - find an object given its unique object reference
++ * @ctx: checkpoint context
++ * @objref: unique identifier - object reference
++ * @type: object type
++ *
++ * Look up the object who is identified by unique object reference that
++ * is specified by @objref, and return a pointer to that matching object,
++ * or NULL if not found.
++ *
++ * [This is used during restart].
++ */
++void *cr_obj_get_by_ref(struct cr_ctx *ctx, int objref, unsigned short type)
 +{
-+	int ret;
++	struct cr_objref *obj;
 +
-+	if (ctx)
-+		ret = do_restart_root(ctx, pid);
-+	else
-+		ret = do_restart_task(ctx, pid);
-+
-+	/* on success, adjust the return value if needed [TODO] */
-+	return ret;
++	obj = cr_obj_find_by_objref(ctx, objref);
++	if (!obj)
++		return NULL;
++	if (obj->type != type)
++		return ERR_PTR(-EINVAL);
++	return obj->ptr;
 +}
 diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-index 121c979..188dbe3 100644
+index c547a1c..c077cd9 100644
 --- a/checkpoint/sys.c
 +++ b/checkpoint/sys.c
-@@ -145,6 +145,8 @@ static void cr_task_arr_free(struct cr_ctx *ctx)
+@@ -139,6 +139,7 @@ static void cr_ctx_free(struct cr_ctx *ctx)
+ 	path_put(&ctx->fs_mnt);		/* safe with NULL pointers */
  
- static void cr_ctx_free(struct cr_ctx *ctx)
- {
-+	BUG_ON(atomic_read(&ctx->refcount));
-+
- 	if (ctx->file)
- 		fput(ctx->file);
+ 	cr_pgarr_free(ctx);
++	cr_objhash_free(ctx);
  
-@@ -163,6 +165,8 @@ static void cr_ctx_free(struct cr_ctx *ctx)
- 	if (ctx->root_task)
- 		put_task_struct(ctx->root_task);
- 
-+	kfree(ctx->pids_arr);
-+
  	kfree(ctx);
  }
- 
-@@ -177,7 +181,9 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 
- 	ctx->flags = flags;
- 
-+	atomic_set(&ctx->refcount, 0);
- 	INIT_LIST_HEAD(&ctx->pgarr_list);
-+	init_waitqueue_head(&ctx->waitq);
- 
- 	err = -EBADF;
- 	ctx->file = fget(fd);
-@@ -192,6 +198,7 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 	if (cr_objhash_alloc(ctx) < 0)
+@@ -166,6 +167,9 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
+ 	if (!ctx->hbuf)
  		goto err;
  
-+	atomic_inc(&ctx->refcount);
++	if (cr_objhash_alloc(ctx) < 0)
++		goto err;
++
  	return ctx;
  
   err:
-@@ -199,6 +206,17 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 	return ERR_PTR(err);
- }
- 
-+void cr_ctx_get(struct cr_ctx *ctx)
-+{
-+	atomic_inc(&ctx->refcount);
-+}
-+
-+void cr_ctx_put(struct cr_ctx *ctx)
-+{
-+	if (ctx && atomic_dec_and_test(&ctx->refcount))
-+		cr_ctx_free(ctx);
-+}
-+
- /**
-  * sys_checkpoint - checkpoint a container
-  * @pid: pid of the container init(1) process
-@@ -226,7 +244,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
- 	if (!ret)
- 		ret = ctx->crid;
- 
--	cr_ctx_free(ctx);
-+	cr_ctx_put(ctx);
- 	return ret;
- }
- 
-@@ -241,7 +259,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
-  */
- asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
- {
--	struct cr_ctx *ctx;
-+	struct cr_ctx *ctx = NULL;
- 	pid_t pid;
- 	int ret;
- 
-@@ -249,15 +267,17 @@ asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
- 	if (flags)
- 		return -EINVAL;
- 
--	ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
--	if (IS_ERR(ctx))
--		return PTR_ERR(ctx);
--
- 	/* FIXME: for now, we use 'crid' as a pid */
- 	pid = (pid_t) crid;
- 
-+	if (pid == task_pid_vnr(current))
-+		ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
-+
-+	if (IS_ERR(ctx))
-+		return PTR_ERR(ctx);
-+
- 	ret = do_restart(ctx, pid);
- 
--	cr_ctx_free(ctx);
-+	cr_ctx_put(ctx);
- 	return ret;
- }
 diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 2504717..b32c0a7 100644
+index ab1b215..7da696c 100644
 --- a/include/linux/checkpoint.h
 +++ b/include/linux/checkpoint.h
-@@ -13,10 +13,11 @@
- #include <linux/fs.h>
- #include <linux/path.h>
- #include <linux/sched.h>
-+#include <asm/atomic.h>
- 
- #ifdef CONFIG_CHECKPOINT_RESTART
- 
--#define CR_VERSION  2
-+#define CR_VERSION  3
- 
- struct cr_ctx {
- 	int crid;		/* unique checkpoint id */
-@@ -34,14 +35,27 @@ struct cr_ctx {
+@@ -29,6 +29,8 @@ struct cr_ctx {
  	void *hbuf;		/* temporary buffer for headers */
  	int hpos;		/* position in headers buffer */
  
--	struct task_struct **tasks_arr;	/* array of all tasks in container */
--	int tasks_nr;			/* size of tasks array */
-+	atomic_t refcount;
- 
- 	struct cr_objhash *objhash;	/* hash for shared objects */
- 
++	struct cr_objhash *objhash;	/* hash for shared objects */
++
  	struct list_head pgarr_list;	/* page array to dump VMA contents */
  
  	struct path fs_mnt;	/* container root (FIXME) */
-+
-+	/* [multi-process checkpoint] */
-+	struct task_struct **tasks_arr; /* array of all tasks [checkpoint] */
-+	int tasks_nr;                   /* size of tasks array */
-+
-+	/* [multi-process restart] */
-+	struct cr_hdr_pids *pids_arr;	/* array of all pids [restart] */
-+	int pids_nr;			/* size of pids array */
-+	int pids_pos;			/* position pids array */
-+	int pids_err;			/* error occured ? */
-+	pid_t pids_active;		/* pid of (next) active task */
-+	atomic_t tasks_count;		/* sync of restarting tasks */
-+	struct completion complete;	/* sync of restarting tasks */
-+	wait_queue_head_t waitq;	/* sync of restarting tasks */
- };
- 
- /* cr_ctx: flags */
-@@ -54,6 +68,9 @@ extern int cr_kread(struct cr_ctx *ctx, void *buf, int count);
+@@ -44,6 +46,24 @@ extern int cr_kread(struct cr_ctx *ctx, void *buf, int count);
  extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
  extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
  
-+extern void cr_ctx_get(struct cr_ctx *ctx);
-+extern void cr_ctx_put(struct cr_ctx *ctx);
++/* shared objects handling */
 +
- /* shared objects handling */
++enum {
++	CR_OBJ_FILE = 1,
++	CR_OBJ_MAX
++};
++
++extern void cr_objhash_free(struct cr_ctx *ctx);
++extern int cr_objhash_alloc(struct cr_ctx *ctx);
++extern void *cr_obj_get_by_ref(struct cr_ctx *ctx,
++			       int objref, unsigned short type);
++extern int cr_obj_get_by_ptr(struct cr_ctx *ctx,
++			     void *ptr, unsigned short type);
++extern int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++			  unsigned short type, unsigned short flags);
++extern int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++			  unsigned short type, unsigned short flags);
++
+ struct cr_hdr;
  
- enum {
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index faa2ec6..0150e90 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1359,6 +1359,7 @@ struct task_struct {
- 
- #ifdef CONFIG_CHECKPOINT_RESTART
- 	atomic_t may_checkpoint;
-+	struct cr_ctx *checkpoint_ctx;
- #endif
- };
- 
+ extern int cr_write_obj(struct cr_ctx *ctx, struct cr_hdr *h, void *buf);
 -- 
 1.5.4.3
 
