@@ -1,200 +1,131 @@
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id mB5BBQ4G012529
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 03:11:27 -0800
-Received: from rv-out-0708.google.com (rvbf25.prod.google.com [10.140.82.25])
-	by wpaz24.hot.corp.google.com with ESMTP id mB5BBOYL012394
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 03:11:25 -0800
-Received: by rv-out-0708.google.com with SMTP id f25so5298949rvb.54
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2008 03:11:24 -0800 (PST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB5BO7IO028434
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 5 Dec 2008 20:24:07 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ED54845DE5D
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 20:24:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E5A945DE55
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 20:24:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 89E2B1DB803F
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 20:24:06 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B72E1DB803B
+	for <linux-mm@kvack.org>; Fri,  5 Dec 2008 20:24:06 +0900 (JST)
+Message-ID: <62469.10.75.179.62.1228476245.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <6599ad830812050139l5797f16kaf511f831b09e8f4@mail.gmail.com>
+References: <20081205172642.565661b1.kamezawa.hiroyu@jp.fujitsu.com><20081205172845.2b9d89a5.kamezawa.hiroyu@jp.fujitsu.com>
+    <6599ad830812050139l5797f16kaf511f831b09e8f4@mail.gmail.com>
+Date: Fri, 5 Dec 2008 20:24:05 +0900 (JST)
+Subject: Re: [RFC][PATCH 1/4] New css->refcnt implementation.
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20081205172959.8285271f.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081205172642.565661b1.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20081205172959.8285271f.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Fri, 5 Dec 2008 03:11:23 -0800
-Message-ID: <6599ad830812050311m3728ab69v465ed5d032792973@mail.gmail.com>
-Subject: Re: [RFC][PATCH 2/4] cgroup ID
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Paul Menage <menage@google.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Kamezawa,
+Thank you for comments.
 
-I definitely agree with the idea of being able to traverse the cgroup
-hierarchy without doing a cgroup_lock() and I've included some
-comments below. But having said that, maybe there's a simpler
-solution?
-
-A while ago I posted some patches that added a per-hierarchy lock
-which could be taken to prevent creation or destruction of cgroups in
-a given hierarchy; it was lighter-weight than the full cgroup_lock().
-Is that sufficient to avoid the deadlock that you mentioned in your
-patch description?
-
-The idea of having a short id for each cgroup to save space in the
-swap cgroup sounds sensible - but I'm not sure that we need the RCU
-support to make the id persist beyond the lifetime of the cgroup
-itself.
-
-On Fri, Dec 5, 2008 at 12:29 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Paul Menage said:
+> On Fri, Dec 5, 2008 at 12:28 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>>
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujisu.com>
+>>
+>> Now, the last check of refcnt is done after pre_destroy(), so rmdir()
+>> can fail
+>> after pre_destroy(). But memcg set mem->obsolete to be 1 at pre_destroy.
+>> This is a bug. So, removing memcg->obsolete flag is sane.
+>>
+>> But there is no interface to confirm "css" is oboslete or not. I.e.
+>> there is
+>> no flag to check whether we can increase css_refcnt or not!
 >
-> +/*
-> + * Cgroup ID for *internal* identification and lookup. For user-land,"path"
-> + * of cgroup works well.
-> + */
-
-This comment seems misplaced and possibly unnecessary. Should it be
-with the struct cgroup_id definition in cgroup.c?
-
+> The basic rule is that you're only supposed to increment the css
+> refcount if you have:
 >
-> +/*
-> + * For supporting cgroup lookup and hierarchy management.
-> + */
-
-A lot more commenting would be useful here.
-
-> +/* An interface for usual lookup */
-> +struct cgroup *cgroup_lookup(int id);
-> +/* get next cgroup under tree (for scan) */
-> +struct cgroup *
-> +cgroup_get_next(int id, int rootid, int depth, int *foundid);
-> +/* get id and depth of cgroup */
-> +int cgroup_id(struct cgroup *cgroup);
-> +int cgroup_depth(struct cgroup *cgroup);
-> +/* For delayed freeing of IDs */
-> +int cgroup_id_tryget(int id);
-> +void cgroup_id_put(int id);
-> +
->  #else /* !CONFIG_CGROUPS */
+> - a reference to a task in the cgroup (that is pinned via task_lock()
+> so it can't be moved away)
+> or
+> - an existing reference to the css
 >
->  /*
-> + * CGROUP ID
-> + */
+My problem is that we can do css_get() after pre_destroy() and
+css's refcnt goes down to 0.
 
-More comments needed about the exact semantics of these fields.
+>>
+>> This patch changes this css->refcnt rule as following
+>>        - css->refcnt is no longer private counter, just point to
+>>          css->cgroup->css_refcnt.
+>
+> The reason I didn't do this is that I'd like to keep the ref counts
+> separate to make it possible to add/remove subsystems from a hiearchy
+> - if they're all mingled into a single refcount, it's impossible to
+> tell if a particular subsystem has refcounts.
+>
+It's not problem. please see memcg, it has its own refcnt.
+and memcg subsystem is not destroyed at destroy(), now.
 
-> +struct cgroup_id {
-> +       struct cgroup *myself;
+What I want to is atomic check to
 
-Can you call this cgroup for consistency with other struct cgroup pointers?
+   "Can I access css->group ?"
 
-> +       unsigned int  id;
-> +       unsigned int  depth;
-> +       atomic_t      refcnt;
-> +       struct rcu_head rcu_head;
-> +       unsigned int  hierarchy_code[MAX_CGROUP_DEPTH];
+   I once tried to do
+    --
+    rcu_read_lock();
+    css_get(&memcg->css);
+    if (cgroup_is_removed(&memcg->css.cgroup)) {
+         css_put(&memcg->css);
+         return 0;
+    }
+    --
+    But this seems not to work.
 
-How about "stack" for this array?
 
-> +};
-> +
-> +void free_cgroupid_cb(struct rcu_head *head)
-> +{
-> +       struct cgroup_id *id;
-> +
-> +       id = container_of(head, struct cgroup_id, rcu_head);
-> +       kfree(id);
-> +}
-> +
-> +void free_cgroupid(struct cgroup_id *id)
-> +{
-> +       call_rcu(&id->rcu_head, free_cgroupid_cb);
-> +}
-> +
+>>
+>>        - css_put() is changed not to call notify_on_release().
+>>
+>>          From documentation, notify_on_release() is called when there is
+>> no
+>>          tasks/children in cgroup. On implementation, notify_on_release
+>> is
+>>          not called if css->refcnt > 0.
+>
+> The documentation is a little inaccurate - it's called when the cgroup
+> is removable. In the original cpusets this implied that there were no
+> tasks or children; in cgroups, a refcount can keep the group alive
+> too, so it's right to not call notify_on_release if there are
+> remaining refcounts.
+>
 
-Rather than having a separate RCU callback for the cgroup_id
-structure, how about marking it as "dead" when you unlink the cgroup
-from the tree, and freeing it in the cgroup_diput() callback at the
-same time the struct cgroup is freed? Or is the issue that you need
-the id to persist longer than the cgroup itself, to prevent re-use?
+>>          This is problem. Memcg has css->refcnt by each page even when
+>>          there are no tasks. Release handler will be never called.
+>
+> Right, because it can't remove the dir if there are still refcounts.
+>
+> Early in the development of cgroups I did have a css refcount scheme
+> similar to what you have, with tryget, etc, but still with separate
+> refcounts for each subsystem; I got rid of it since it seemed more
+> complicated than we needed at the time. But I'll see if I can dig it
+> up.
+O.K.
 
-> +static DEFINE_IDR(cgroup_idr);
-> +DEFINE_SPINLOCK(cgroup_idr_lock);
+I'll not do extra work on this "notify handler" for a while.
+But please, it's now broken.
 
-Any reason to not have a separate idr and idr_lock per hierarchy?
+Hmm...but removing memcg->obsolete flag is difficult. Because
+I can't guarantee memcg->css.cgroup is valid pointer.
 
-> +
-> +static int cgrouproot_setup_idr(struct cgroupfs_root *root)
-> +{
-> +       struct cgroup_id *newid;
-> +       int err = -ENOMEM;
-> +       int myid;
-> +
-> +       newid = kzalloc(sizeof(*newid), GFP_KERNEL);
-> +       if (!newid)
-> +               goto out;
-> +       if (!idr_pre_get(&cgroup_idr, GFP_KERNEL))
-> +               goto free_out;
-> +
-> +       spin_lock_irq(&cgroup_idr_lock);
-> +       err = idr_get_new_above(&cgroup_idr, newid, 1, &myid);
-> +       spin_unlock_irq(&cgroup_idr_lock);
-> +
-> +       /* This one is new idr....*/
-> +       BUG_ON(err);
+Can I add a flag CSS_REMOVED ? (set after CGROUP_REMOVED flag) ?
+Then, I'll be able to have some work around.
 
-There's really no way this can fail?
-
-> +/*
-> + * should be called while "cgrp" is valid.
-> + */
-
-Can you be more specific here? Clearly calling a function with a
-pointer to an object that might have been freed is a bad idea; if
-that's all you mean then I don't think it needs to be called out in a
-comment.
-
-> +static int cgroup_prepare_id(struct cgroup *parent, struct cgroup_id **id)
-> +{
-> +       struct cgroup_id *newid;
-> +       int myid, error;
-> +
-> +       /* check depth */
-> +       if (parent->id->depth + 1 >= MAX_CGROUP_DEPTH)
-> +               return -ENOSPC;
-> +       newid = kzalloc(sizeof(*newid), GFP_KERNEL);
-> +       if (!newid)
-> +               return -ENOMEM;
-> +       /* get id */
-> +       if (unlikely(!idr_pre_get(&cgroup_idr, GFP_KERNEL))) {
-> +               error = -ENOMEM;
-> +               goto err_out;
-> +       }
-> +       spin_lock_irq(&cgroup_idr_lock);
-> +       /* Don't use 0 */
-> +       error = idr_get_new_above(&cgroup_idr, newid, 1, &myid);
-> +       spin_unlock_irq(&cgroup_idr_lock);
-> +       if (error)
-> +               goto err_out;
-
-This code is pretty similar to a big chunk of cgrouproot_setup_idr() -
-can they share the common code?
-
-> +static void cgroup_id_attach(struct cgroup_id *cgid,
-> +                            struct cgroup *cg, struct cgroup *parent)
-> +{
-> +       struct cgroup_id *parent_id = rcu_dereference(parent->id);
-
-It doesn't seem as though it should be necessary to rcu_dereference()
-parent->id - parent can't be going away in this case.
-
-> +       int i;
-> +
-> +       cgid->depth = parent_id->depth + 1;
-> +       /* Inherit hierarchy code from parent */
-> +       for (i = 0; i < cgid->depth; i++) {
-> +               cgid->hierarchy_code[i] =
-> +                       parent_id->hierarchy_code[i];
-> +               cgid->hierarchy_code[cgid->depth] = cgid->id;
-
-I think this line is supposed to be outside the for() loop.
-
-Paul
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
