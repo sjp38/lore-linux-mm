@@ -1,7 +1,7 @@
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v11][PATCH 01/13] Create syscalls: sys_checkpoint, sys_restart
-Date: Fri,  5 Dec 2008 12:31:10 -0500
-Message-Id: <1228498282-11804-2-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v11][PATCH 13/13] Restart multiple processes
+Date: Fri,  5 Dec 2008 12:31:22 -0500
+Message-Id: <1228498282-11804-14-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -10,190 +10,483 @@ To: Oren Laadan <orenl@cs.columbia.edu>
 Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-Create trivial sys_checkpoint and sys_restore system calls. They will
-enable to checkpoint and restart an entire container, to and from a
-checkpoint image file descriptor.
+Restarting of multiple processes expects all restarting tasks to call
+sys_restart(). Once inside the system call, each task will restart
+itself at the same order that they were saved. The internals of the
+syscall will take care of in-kernel synchronization bewteen tasks.
 
-The syscalls take a file descriptor (for the image file) and flags as
-arguments. For sys_checkpoint the first argument identifies the target
-container; for sys_restart it will identify the checkpoint image.
+This patch does _not_ create the task tree in the kernel. Instead it
+assumes that all tasks are created in some way and then invoke the
+restart syscall. You can use the userspace mktree.c program to do
+that.
 
-A checkpoint, much like a process coredump, dumps the state of multiple
-processes at once, including the state of the container. The checkpoint
-image is written to (and read from) the file descriptor directly from
-the kernel. This way the data is generated and then pushed out naturally
-as resources and tasks are scanned to save their state. This is the
-approach taken by, e.g., Zap and OpenVZ.
+The init task (*) has a special role: it allocates the restart context
+(ctx), and coordinates the operation. In particular, it first waits
+until all participating tasks enter the kernel, and provides them the
+common restart context. Once everyone in ready, it begins to restart
+itself.
 
-By using a return value and not a file descriptor, we can distinguish
-between a return from checkpoint, a return from restart (in case of a
-checkpoint that includes self, i.e. a task checkpointing its own
-container, or itself), and an error condition, in a manner analogous
-to a fork() call.
+In contrast, the other tasks enter the kernel, locate the init task (*)
+and grab its restart context, and then wait for their turn to restore.
 
-We don't use copyin()/copyout() because it requires holding the entire
-image in user space, and does not make sense for restart.  Also, we
-don't use a pipe, pseudo-fs file and the like, because they work by
-generating data on demand as the user pulls it (unless the entire
-image is buffered in the kernel) and would require more complex logic.
-They also would significantly complicate checkpoint that includes self.
+When a task (init or not) completes its restart, it hands the control
+over to the next in line, by waking that task.
 
-Changelog[v5]:
-  - Config is 'def_bool n' by default
+An array of pids (the one saved during the checkpoint) is used to
+synchronize the operation. The first task in the array is the init
+task (*). The restart context (ctx) maintain a "current position" in
+the array, which indicates which task is currently active. Once the
+currently active task completes its own restart, it increments that
+position and wakes up the next task.
+
+Restart assumes that userspace provides meaningful data, otherwise
+it's garbage-in-garbage-out. In this case, the syscall may block
+indefinitely, but in TASK_INTERRUPTIBLE, so the user can ctrl-c or
+otherwise kill the stray restarting tasks.
+
+In terms of security, restart runs as the user the invokes it, so it
+will not allow a user to do more than is otherwise permitted by the
+usual system semantics and policy.
+
+Currently we ignore threads and zombies, as well as session ids.
+Add support for multiple processes
+
+(*) For containers, restart should be called inside a fresh container
+by the init task of that container. However, it is also possible to
+restart applications not necessarily inside a container, and without
+restoring the original pids of the processes (that is, provided that
+the application can tolerate such behavior). This is useful to allow
+multi-process restart of tasks not isolated inside a container, and
+also for debugging.
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
-Acked-by: Serge Hallyn <serue@us.ibm.com>
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/unistd_32.h   |    2 +
- arch/x86/kernel/syscall_table_32.S |    2 +
- checkpoint/Kconfig                 |   11 +++++++++
- checkpoint/Makefile                |    5 ++++
- checkpoint/sys.c                   |   41 ++++++++++++++++++++++++++++++++++++
- include/linux/syscalls.h           |    2 +
- init/Kconfig                       |    2 +
- kernel/sys_ni.c                    |    4 +++
- 8 files changed, 69 insertions(+), 0 deletions(-)
- create mode 100644 checkpoint/Kconfig
- create mode 100644 checkpoint/Makefile
- create mode 100644 checkpoint/sys.c
+ checkpoint/restart.c       |  214 +++++++++++++++++++++++++++++++++++++++++++-
+ checkpoint/sys.c           |   34 ++++++--
+ include/linux/checkpoint.h |   23 ++++-
+ include/linux/sched.h      |    1 +
+ 4 files changed, 258 insertions(+), 14 deletions(-)
 
-diff --git a/arch/x86/include/asm/unistd_32.h b/arch/x86/include/asm/unistd_32.h
-index f2bba78..a5f9e09 100644
---- a/arch/x86/include/asm/unistd_32.h
-+++ b/arch/x86/include/asm/unistd_32.h
-@@ -338,6 +338,8 @@
- #define __NR_dup3		330
- #define __NR_pipe2		331
- #define __NR_inotify_init1	332
-+#define __NR_checkpoint		333
-+#define __NR_restart		334
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index f4f737d..24392ee 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -10,6 +10,7 @@
  
- #ifdef __KERNEL__
+ #include <linux/version.h>
+ #include <linux/sched.h>
++#include <linux/wait.h>
+ #include <linux/file.h>
+ #include <linux/magic.h>
+ #include <linux/checkpoint.h>
+@@ -276,30 +277,235 @@ static int cr_read_task(struct cr_ctx *ctx)
+ 	return ret;
+ }
  
-diff --git a/arch/x86/kernel/syscall_table_32.S b/arch/x86/kernel/syscall_table_32.S
-index d44395f..5543136 100644
---- a/arch/x86/kernel/syscall_table_32.S
-+++ b/arch/x86/kernel/syscall_table_32.S
-@@ -332,3 +332,5 @@ ENTRY(sys_call_table)
- 	.long sys_dup3			/* 330 */
- 	.long sys_pipe2
- 	.long sys_inotify_init1
-+	.long sys_checkpoint
-+	.long sys_restart
-diff --git a/checkpoint/Kconfig b/checkpoint/Kconfig
-new file mode 100644
-index 0000000..ffaa635
---- /dev/null
-+++ b/checkpoint/Kconfig
-@@ -0,0 +1,11 @@
-+config CHECKPOINT_RESTART
-+	prompt "Enable checkpoint/restart (EXPERIMENTAL)"
-+	def_bool n
-+	depends on X86_32 && EXPERIMENTAL
-+	help
-+	  Application checkpoint/restart is the ability to save the
-+	  state of a running application so that it can later resume
-+	  its execution from the time at which it was checkpointed.
++/* cr_read_tree - read the tasks tree into the checkpoint context */
++static int cr_read_tree(struct cr_ctx *ctx)
++{
++	struct cr_hdr_tree *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	int parent, size, ret = -EINVAL;
 +
-+	  Turning this option on will enable checkpoint and restart
-+	  functionality in the kernel.
-diff --git a/checkpoint/Makefile b/checkpoint/Makefile
-new file mode 100644
-index 0000000..07d018b
---- /dev/null
-+++ b/checkpoint/Makefile
-@@ -0,0 +1,5 @@
-+#
-+# Makefile for linux checkpoint/restart.
-+#
++	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_TREE);
++	if (parent < 0) {
++		ret = parent;
++		goto out;
++	} else if (parent != 0)
++		goto out;
 +
-+obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o
++	if (hh->tasks_nr < 0)
++		goto out;
++
++	ctx->pids_nr = hh->tasks_nr;
++	size = sizeof(*ctx->pids_arr) * ctx->pids_nr;
++	if (size < 0)		/* overflow ? */
++		goto out;
++
++	ctx->pids_arr = kmalloc(size, GFP_KERNEL);
++	if (!ctx->pids_arr) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	ret = cr_kread(ctx, ctx->pids_arr, size);
++ out:
++	cr_hbuf_put(ctx, sizeof(*hh));
++	return ret;
++}
++
++static int cr_wait_task(struct cr_ctx *ctx)
++{
++	pid_t pid = task_pid_vnr(current);
++
++	cr_debug("pid %d waiting\n", pid);
++	return wait_event_interruptible(ctx->waitq, ctx->pids_active == pid);
++}
++
++static int cr_next_task(struct cr_ctx *ctx)
++{
++	struct task_struct *tsk;
++
++	ctx->pids_pos++;
++
++	cr_debug("pids_pos %d %d\n", ctx->pids_pos, ctx->pids_nr);
++	if (ctx->pids_pos == ctx->pids_nr) {
++		complete(&ctx->complete);
++		return 0;
++	}
++
++	ctx->pids_active = ctx->pids_arr[ctx->pids_pos].vpid;
++
++	cr_debug("pids_next %d\n", ctx->pids_active);
++
++	rcu_read_lock();
++	tsk = find_task_by_pid_ns(ctx->pids_active, ctx->root_nsproxy->pid_ns);
++	if (tsk)
++		wake_up_process(tsk);
++	rcu_read_unlock();
++
++	if (!tsk) {
++		ctx->pids_err = -ESRCH;
++		complete(&ctx->complete);
++		return -ESRCH;
++	}
++
++	return 0;
++}
++
++/* FIXME: this should be per container */
++DECLARE_WAIT_QUEUE_HEAD(cr_restart_waitq);
++
++static int do_restart_task(struct cr_ctx *ctx, pid_t pid)
++{
++	struct task_struct *root_task;
++	int ret;
++
++	rcu_read_lock();
++	root_task = find_task_by_pid_ns(pid, current->nsproxy->pid_ns);
++	if (root_task)
++		get_task_struct(root_task);
++	rcu_read_unlock();
++
++	if (!root_task)
++		return -EINVAL;
++
++	/*
++	 * wait for container init to initialize the restart context, then
++	 * grab a reference to that context, and if we're the last task to
++	 * do it, notify the container init.
++	 */
++	ret = wait_event_interruptible(cr_restart_waitq,
++				       root_task->checkpoint_ctx);
++	if (ret < 0)
++		goto out;
++
++	task_lock(root_task);
++	ctx = root_task->checkpoint_ctx;
++	if (ctx)
++		cr_ctx_get(ctx);
++	task_unlock(root_task);
++
++	if (!ctx) {
++		ret = -EAGAIN;
++		goto out;
++	}
++
++	if (atomic_dec_and_test(&ctx->tasks_count))
++		complete(&ctx->complete);
++
++	/* wait for our turn, do the restore, and tell next task in line */
++	ret = cr_wait_task(ctx);
++	if (ret < 0)
++		goto out;
++	ret = cr_read_task(ctx);
++	if (ret < 0)
++		goto out;
++	ret = cr_next_task(ctx);
++
++ out:
++	cr_ctx_put(ctx);
++	put_task_struct(root_task);
++	return ret;
++}
++
++static int cr_wait_all_tasks_start(struct cr_ctx *ctx)
++{
++	int ret;
++
++	if (ctx->pids_nr == 1)
++		return 0;
++
++	init_completion(&ctx->complete);
++	current->checkpoint_ctx = ctx;
++
++	wake_up_all(&cr_restart_waitq);
++
++	ret = wait_for_completion_interruptible(&ctx->complete);
++	if (ret < 0)
++		return ret;
++
++	task_lock(current);
++	current->checkpoint_ctx = NULL;
++	task_unlock(current);
++
++	return 0;
++}
++
++static int cr_wait_all_tasks_finish(struct cr_ctx *ctx)
++{
++	int ret;
++
++	if (ctx->pids_nr == 1)
++		return 0;
++
++	init_completion(&ctx->complete);
++
++	ret = cr_next_task(ctx);
++	if (ret < 0)
++		return ret;
++
++	ret = wait_for_completion_interruptible(&ctx->complete);
++	if (ret < 0)
++		return ret;
++
++	return 0;
++}
++
+ /* setup restart-specific parts of ctx */
+ static int cr_ctx_restart(struct cr_ctx *ctx, pid_t pid)
+ {
++	ctx->root_pid = pid;
++	ctx->root_task = current;
++	ctx->root_nsproxy = current->nsproxy;
++
++	get_task_struct(ctx->root_task);
++	get_nsproxy(ctx->root_nsproxy);
++
++	atomic_set(&ctx->tasks_count, ctx->pids_nr - 1);
++
+ 	return 0;
+ }
+ 
+-int do_restart(struct cr_ctx *ctx, pid_t pid)
++static int do_restart_root(struct cr_ctx *ctx, pid_t pid)
+ {
+ 	int ret;
+ 
++	ret = cr_read_head(ctx);
++	if (ret < 0)
++		goto out;
++	ret = cr_read_tree(ctx);
++	if (ret < 0)
++		goto out;
++
+ 	ret = cr_ctx_restart(ctx, pid);
+ 	if (ret < 0)
+ 		goto out;
+-	ret = cr_read_head(ctx);
++
++	/* wait for all other tasks to enter do_restart_task() */
++	ret = cr_wait_all_tasks_start(ctx);
+ 	if (ret < 0)
+ 		goto out;
++
+ 	ret = cr_read_task(ctx);
+ 	if (ret < 0)
+ 		goto out;
+-	ret = cr_read_tail(ctx);
++
++	/* wait for all other tasks to complete do_restart_task() */
++	ret = cr_wait_all_tasks_finish(ctx);
+ 	if (ret < 0)
+ 		goto out;
+ 
+-	/* on success, adjust the return value if needed [TODO] */
++	ret = cr_read_tail(ctx);
++
+  out:
+ 	return ret;
+ }
++
++int do_restart(struct cr_ctx *ctx, pid_t pid)
++{
++	int ret;
++
++	if (ctx)
++		ret = do_restart_root(ctx, pid);
++	else
++		ret = do_restart_task(ctx, pid);
++
++	/* on success, adjust the return value if needed [TODO] */
++	return ret;
++}
 diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-new file mode 100644
-index 0000000..375129c
---- /dev/null
+index 121c979..188dbe3 100644
+--- a/checkpoint/sys.c
 +++ b/checkpoint/sys.c
-@@ -0,0 +1,41 @@
-+/*
-+ *  Generic container checkpoint-restart
-+ *
-+ *  Copyright (C) 2008 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ */
+@@ -145,6 +145,8 @@ static void cr_task_arr_free(struct cr_ctx *ctx)
+ 
+ static void cr_ctx_free(struct cr_ctx *ctx)
+ {
++	BUG_ON(atomic_read(&ctx->refcount));
 +
-+#include <linux/sched.h>
-+#include <linux/kernel.h>
+ 	if (ctx->file)
+ 		fput(ctx->file);
+ 
+@@ -163,6 +165,8 @@ static void cr_ctx_free(struct cr_ctx *ctx)
+ 	if (ctx->root_task)
+ 		put_task_struct(ctx->root_task);
+ 
++	kfree(ctx->pids_arr);
 +
-+/**
-+ * sys_checkpoint - checkpoint a container
-+ * @pid: pid of the container init(1) process
-+ * @fd: file to which dump the checkpoint image
-+ * @flags: checkpoint operation flags
-+ *
-+ * Returns positive identifier on success, 0 when returning from restart
-+ * or negative value on error
-+ */
-+asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
+ 	kfree(ctx);
+ }
+ 
+@@ -177,7 +181,9 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
+ 
+ 	ctx->flags = flags;
+ 
++	atomic_set(&ctx->refcount, 0);
+ 	INIT_LIST_HEAD(&ctx->pgarr_list);
++	init_waitqueue_head(&ctx->waitq);
+ 
+ 	err = -EBADF;
+ 	ctx->file = fget(fd);
+@@ -192,6 +198,7 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
+ 	if (cr_objhash_alloc(ctx) < 0)
+ 		goto err;
+ 
++	atomic_inc(&ctx->refcount);
+ 	return ctx;
+ 
+  err:
+@@ -199,6 +206,17 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
+ 	return ERR_PTR(err);
+ }
+ 
++void cr_ctx_get(struct cr_ctx *ctx)
 +{
-+	pr_debug("sys_checkpoint not implemented yet\n");
-+	return -ENOSYS;
++	atomic_inc(&ctx->refcount);
 +}
-+/**
-+ * sys_restart - restart a container
-+ * @crid: checkpoint image identifier
-+ * @fd: file from which read the checkpoint image
-+ * @flags: restart operation flags
-+ *
-+ * Returns negative value on error, or otherwise returns in the realm
-+ * of the original checkpoint
-+ */
-+asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
++
++void cr_ctx_put(struct cr_ctx *ctx)
 +{
-+	pr_debug("sys_restart not implemented yet\n");
-+	return -ENOSYS;
++	if (ctx && atomic_dec_and_test(&ctx->refcount))
++		cr_ctx_free(ctx);
 +}
-diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 04fb47b..9750393 100644
---- a/include/linux/syscalls.h
-+++ b/include/linux/syscalls.h
-@@ -621,6 +621,8 @@ asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
- asmlinkage long sys_eventfd(unsigned int count);
- asmlinkage long sys_eventfd2(unsigned int count, int flags);
- asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
-+asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags);
-+asmlinkage long sys_restart(int crid, int fd, unsigned long flags);
- 
- int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
- 
-diff --git a/init/Kconfig b/init/Kconfig
-index f763762..57364fe 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -814,6 +814,8 @@ config MARKERS
- 
- source "arch/Kconfig"
- 
-+source "checkpoint/Kconfig"
 +
- endmenu		# General setup
+ /**
+  * sys_checkpoint - checkpoint a container
+  * @pid: pid of the container init(1) process
+@@ -226,7 +244,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
+ 	if (!ret)
+ 		ret = ctx->crid;
  
- config HAVE_GENERIC_DMA_COHERENT
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index e14a232..fcd65cc 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -174,3 +174,7 @@ cond_syscall(compat_sys_timerfd_settime);
- cond_syscall(compat_sys_timerfd_gettime);
- cond_syscall(sys_eventfd);
- cond_syscall(sys_eventfd2);
+-	cr_ctx_free(ctx);
++	cr_ctx_put(ctx);
+ 	return ret;
+ }
+ 
+@@ -241,7 +259,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
+  */
+ asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
+ {
+-	struct cr_ctx *ctx;
++	struct cr_ctx *ctx = NULL;
+ 	pid_t pid;
+ 	int ret;
+ 
+@@ -249,15 +267,17 @@ asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
+ 	if (flags)
+ 		return -EINVAL;
+ 
+-	ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
+-	if (IS_ERR(ctx))
+-		return PTR_ERR(ctx);
+-
+ 	/* FIXME: for now, we use 'crid' as a pid */
+ 	pid = (pid_t) crid;
+ 
++	if (pid == task_pid_vnr(current))
++		ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
 +
-+/* checkpoint/restart */
-+cond_syscall(sys_checkpoint);
-+cond_syscall(sys_restart);
++	if (IS_ERR(ctx))
++		return PTR_ERR(ctx);
++
+ 	ret = do_restart(ctx, pid);
+ 
+-	cr_ctx_free(ctx);
++	cr_ctx_put(ctx);
+ 	return ret;
+ }
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 2504717..b32c0a7 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -13,10 +13,11 @@
+ #include <linux/fs.h>
+ #include <linux/path.h>
+ #include <linux/sched.h>
++#include <asm/atomic.h>
+ 
+ #ifdef CONFIG_CHECKPOINT_RESTART
+ 
+-#define CR_VERSION  2
++#define CR_VERSION  3
+ 
+ struct cr_ctx {
+ 	int crid;		/* unique checkpoint id */
+@@ -34,14 +35,27 @@ struct cr_ctx {
+ 	void *hbuf;		/* temporary buffer for headers */
+ 	int hpos;		/* position in headers buffer */
+ 
+-	struct task_struct **tasks_arr;	/* array of all tasks in container */
+-	int tasks_nr;			/* size of tasks array */
++	atomic_t refcount;
+ 
+ 	struct cr_objhash *objhash;	/* hash for shared objects */
+ 
+ 	struct list_head pgarr_list;	/* page array to dump VMA contents */
+ 
+ 	struct path fs_mnt;	/* container root (FIXME) */
++
++	/* [multi-process checkpoint] */
++	struct task_struct **tasks_arr; /* array of all tasks [checkpoint] */
++	int tasks_nr;                   /* size of tasks array */
++
++	/* [multi-process restart] */
++	struct cr_hdr_pids *pids_arr;	/* array of all pids [restart] */
++	int pids_nr;			/* size of pids array */
++	int pids_pos;			/* position pids array */
++	int pids_err;			/* error occured ? */
++	pid_t pids_active;		/* pid of (next) active task */
++	atomic_t tasks_count;		/* sync of restarting tasks */
++	struct completion complete;	/* sync of restarting tasks */
++	wait_queue_head_t waitq;	/* sync of restarting tasks */
+ };
+ 
+ /* cr_ctx: flags */
+@@ -54,6 +68,9 @@ extern int cr_kread(struct cr_ctx *ctx, void *buf, int count);
+ extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
+ extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
+ 
++extern void cr_ctx_get(struct cr_ctx *ctx);
++extern void cr_ctx_put(struct cr_ctx *ctx);
++
+ /* shared objects handling */
+ 
+ enum {
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index faa2ec6..0150e90 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1359,6 +1359,7 @@ struct task_struct {
+ 
+ #ifdef CONFIG_CHECKPOINT_RESTART
+ 	atomic_t may_checkpoint;
++	struct cr_ctx *checkpoint_ctx;
+ #endif
+ };
+ 
 -- 
 1.5.4.3
 
