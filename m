@@ -1,55 +1,81 @@
-Received: by ey-out-1920.google.com with SMTP id 21so2314810eyc.44
-        for <linux-mm@kvack.org>; Thu, 04 Dec 2008 22:50:09 -0800 (PST)
-Message-ID: <4938CF1C.9020503@gmail.com>
-Date: Fri, 05 Dec 2008 08:50:04 +0200
-From: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC v1][PATCH]page_fault retry with NOPAGE_RETRY
-References: <604427e00811212247k1fe6b63u9efe8cfe37bddfb5@mail.gmail.com>	 <20081126123246.GB23649@wotan.suse.de> <492DAA24.8040100@google.com>	 <20081127085554.GD28285@wotan.suse.de> <492E6849.6090205@google.com>	 <492E8708.4060601@gmail.com> <20081127120330.GM28285@wotan.suse.de>	 <492E90BC.1090208@gmail.com> <20081127123926.GN28285@wotan.suse.de>	 <492E97FA.5000804@gmail.com> <604427e00812041427j7f1c8118p48b1b5b577143703@mail.gmail.com>
-In-Reply-To: <604427e00812041427j7f1c8118p48b1b5b577143703@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20081204180809.GB3079@local>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
+	 <1228379942.5092.14.camel@twins>  <20081204180809.GB3079@local>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: Fri, 05 Dec 2008 08:10:59 +0100
+Message-Id: <1228461060.18899.8.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Nick Piggin <npiggin@suse.de>, Mike Waychison <mikew@google.com>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>
+To: "Hans J. Koch" <hjk@linutronix.de>
+Cc: edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On 2008-12-05 00:27, Ying Han wrote:
-> I am trying your test program(scalability) in house, but somehow i got
-> different result as you saw. i created 8 files each with 1G size on
-> separate drives( to avoid the latency disturbing of disk seek). I got
-> this number without applying the batch based on 2.6.26. May i ask how
-> to reproduce the mmap issue you mentioned?
->   
+On Thu, 2008-12-04 at 19:08 +0100, Hans J. Koch wrote:
+> On Thu, Dec 04, 2008 at 09:39:02AM +0100, Peter Zijlstra wrote:
+> > On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
+> > > From: Edward Estabrook <Edward_Estabrook@agilent.com>
+> > > 
+> > > Here is a patch that adds the ability to dynamically allocate (and
+> > > use) coherent DMA from userspace by extending the userspace IO driver.
+> > > This patch applies against 2.6.28-rc6.
+> > > 
+> > > The gist of this implementation is to overload uio's mmap
+> > > functionality to allocate and map a new DMA region on demand.  The
+> > > bus-specific DMA address as returned by dma_alloc_coherent is made
+> > > available to userspace in the 1st long word of the newly created
+> > > region (as well as through the conventional 'addr' file in sysfs).  
+> > > 
+> > > To allocate a DMA region you use the following:
+> > > /* Pass this magic number to mmap as offset to dynamically allocate a
+> > > chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
+> > > 
+> > > void* memory = mmap (NULL, size, PROT_READ | PROT_WRITE , MAP_SHARED,
+> > > fd, DMA_MEM_ALLOCATE_MMAP_OFFSET); u_int64_t *addr = *(u_int64_t *)
+> > > memory;
+> > > 
+> > > where 'size' is the size in bytes of the region you want and fd is the
+> > > opened /dev/uioN file.
+> > > 
+> > > Allocation occurs in page sized pieces by design to ensure that
+> > > buffers are page-aligned.
+> > > 
+> > > Memory is released when uio_unregister_device() is called.
+> > >
+> > > I have used this extensively on a 2.6.21-based kernel and ported it to
+> > > 2.6.28-rc6 for review / submission here.
+> > > 
+> > > Comments appreciated!
+> > 
+> > Yuck!
+> > 
+> > Why not create another special device that will give you DMA memory when
+> > you mmap it? That would also allow you to obtain the physical address
+> > without this utter horrid hack of writing it in the mmap'ed memory.
+> > 
+> > /dev/uioN-dma would seem like a fine name for that.
+> 
+> I don't like to have a separate device for DMA memory. It would completely
+> break the current concept of userspace drivers if you had to get normal
+> memory from one device and DMA memory from another. Note that one driver
+> can have both.
 
-Hi,
+How would that break anything, the one driver can simply open both
+files.
 
-Try using more files, and of smaller size.  I was using /usr/bin, which
-has 3632 files, and 571M total.
-I am using XFS filesystem: /dev/mapper/vg--all-lv--usr on /usr type xfs
-(rw,noatime,logbsize=262144,logbufs=8,logdev=/dev/sdg6,inode64)
+> But I agree that it's confusing if the physical address is stored somewhere
+> in the mapped memory. That should simply be omitted, we have that information
+> in sysfs anyway - like for any other memory mappings. But I guess we need
+> some kind of "type" or "flags" attribute for the mappings so that userspace
+> can find out if a mapping is DMA capable or not.
 
+We have that, different file.
 
-> 8 CPU
-> read_worker
-> 1 threads Real time: 101.058262 s (since task start)
-> 2 threads Real time: 50.670456 s (since task start)
-> 4 threads Real time: 25.904657 s (since task start)
-> 8 threads Real time: 20.090677 s (since task start)
-> --------------------------------------------------------------------------------
-> mmap_worker
-> 1 threads Real time: 101.340662 s (since task start)
-> 2 threads Real time: 51.484646 s (since task start)
-> 4 threads Real time: 28.414534 s (since task start)
-> 8 threads Real time: 21.785818 s (since task start)
->   
-
-
-Try 16 threads, so that there is more contention on the read side as well.
-
-Best regards,
---Edwin
+I'll NAK any attempt that rapes the mmap interface like proposed - that
+is just not an option.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
