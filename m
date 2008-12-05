@@ -1,185 +1,417 @@
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v11][PATCH 00/13] Kernel based checkpoint/restart
-Date: Fri,  5 Dec 2008 12:31:09 -0500
-Message-Id: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v11][PATCH 08/13] Dump open file descriptors
+Date: Fri,  5 Dec 2008 12:31:17 -0500
+Message-Id: <1228498282-11804-9-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Oren Laadan <orenl@cs.columbia.edu>
 Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-Checkpoint-restart (c/r): fixed races in file handling (comments from
-from Al Viro). Updated and tested against v2.6.28-rc7 (feaf384...)
+Dump the files_struct of a task with 'struct cr_hdr_files', followed by
+all open file descriptors. Because the 'struct file' corresponding to an
+FD can be shared, each they are assigned an objref and registered in the
+object hash. A reference to the 'file *' is kept for as long as it lives
+in the hash (the hash is only cleaned up at the end of the checkpoint).
 
-We'd like these to make it into -mm. This version addresses the
-last of the known bugs. Please pull at least the first 11 patches,
-as they are similar to before.
+For each open FD there is a 'struct cr_hdr_fd_ent' with the FD, its
+close-on-exec property, and the objref of the corresponding 'file *'.
+If the FD is to be saved (first time) then this is followed by a
+'struct cr_hdr_fd_data' with the FD state. Then will come the next FD
+and so on.
 
-Patches 1-11 are stable, providing self- and external- c/r of a
-single process.
-Patches 12 and 13 are newer, adding support for c/r of multiple
-processes.
+Recall that it is assumed that all tasks possibly sharing the file table
+are frozen. If this assumption breaks, then the behavior is *undefined*:
+checkpoint may fail, or restart from the resulting image file will fail.
 
-The git tree tracking v11, branch 'ckpt-v11' (and older versions):
-	git://git.ncl.cs.columbia.edu/pub/git/linux-cr.git
+This patch only handles basic FDs - regular files, directories.
 
-Restarting multiple processes requires 'mktree' userspace tool:
-	git://git.ncl.cs.columbia.edu/pub/git/user-cr.git
+Changelog[v11]:
+  - Discard handling of opened symlinks (there is no such thing)
+  - cr_scan_fds() retries from scratch if hits size limits
 
-Oren.
+Changelog[v9]:
+  - Fix a couple of leaks in cr_write_files()
+  - Drop useless kfree from cr_scan_fds()
 
+Changelog[v8]:
+  - initialize 'coe' to workaround gcc false warning
 
---
-Why do we want it?  It allows containers to be moved between physical
-machines' kernels in the same way that VMWare can move VMs between
-physical machines' hypervisors.  There are currently at least two
-out-of-tree implementations of this in the commercial world (IBM's
-Metacluster and Parallels' OpenVZ/Virtuozzo) and several in the academic
-world like Zap.
-
-Why do we need it in mainline now?  Because we already have plenty of
-out-of-tree ones, and  want to know what an in-tree one will be like.   :)  
-What *I* want right now is the extra review and scrutiny that comes with
-a mainline submission to make sure we're not going in a direction
-contrary to the community.
-
-This only supports pretty simple apps.  But, I trust Ingo when he says:
->> > > Generally, if something works for simple apps already (in a robust, 
->> > > compatible and supportable way) and users find it "very cool", then 
->> > > support for more complex apps is not far in the future.  but if you
->> > > want to support more complex apps straight away, it takes forever and
->> > > gets ugly.
-
-We're *certainly* going to be changing the ABI (which is the format of
-the checkpoint).  I'd like to follow the model that we used for
-ext4-dev, which is to make it very clear that this is a development-only
-feature for now.  Perhaps we do that by making the interface only
-available through debugfs or something similar for now.  Or, reserving
-the syscall numbers but require some runtime switch to be thrown before
-they can be used.  I'm open to suggestions here.
---
-
---
-Todo:
-- Add support for x86-64 and improve ABI
-- Refine or change syscall interface
-- Handle multiple namespaces in a container (e.g. save the filesystem
-  namespaces state with the file descriptors)
-- Security (without CAPS_SYS_ADMIN files restore may fail)
-
-Changelog:
-
-[2008-Dec-05] v11:
-  - Use contents of 'init->fs->root' instead of pointing to it
-  - Ignore symlinks (there is no such thing as an open symlink)
-  - cr_scan_fds() retries from scratch if it hits size limits
-  - Add missing test for VM_MAYSHARE when dumping memory
-  - Improve documentation about: behavior when tasks aren't fronen,
-    life span of the object hash, references to objects in the hash
- 
-[2008-Nov-26] v10:
-  - Grab vfs root of container init, rather than current process
-  - Acquire dcache_lock around call to __d_path() in cr_fill_name()
-  - Force end-of-string in cr_read_string() (fix possible DoS)
-  - Introduce cr_write_buffer(), cr_read_buffer() and cr_read_buf_type()
-
-[2008-Nov-10] v9:
-  - Support multiple processes c/r
-  - Extend checkpoint header with archtiecture dependent header 
-  - Misc bug fixes (see individual changelogs)
-  - Rebase to v2.6.28-rc3.
-
-[2008-Oct-29] v8:
-  - Support "external" checkpoint
-  - Include Dave Hansen's 'deny-checkpoint' patch
-  - Split docs in Documentation/checkpoint/..., and improve contents
-
-[2008-Oct-17] v7:
-  - Fix save/restore state of FPU
-  - Fix argument given to kunmap_atomic() in memory dump/restore
-
-[2008-Oct-07] v6:
+Changelog[v6]:
   - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
     (even though it's not really needed)
-  - Add assumptions and what's-missing to documentation
-  - Misc fixes and cleanups
 
-[2008-Sep-11] v5:
-  - Config is now 'def_bool n' by default
-  - Improve memory dump/restore code (following Dave Hansen's comments)
-  - Change dump format (and code) to allow chunks of <vaddrs, pages>
-    instead of one long list of each
-  - Fix use of follow_page() to avoid faulting in non-present pages
-  - Memory restore now maps user pages explicitly to copy data into them,
-    instead of reading directly to user space; got rid of mprotect_fixup()
-  - Remove preempt_disable() when restoring debug registers
-  - Rename headers files s/ckpt/checkpoint/
-  - Fix misc bugs in files dump/restore
-  - Fixes and cleanups on some error paths
-  - Fix misc coding style
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
+ checkpoint/Makefile            |    2 +-
+ checkpoint/checkpoint.c        |    4 +
+ checkpoint/checkpoint_file.h   |   17 +++
+ checkpoint/ckpt_file.c         |  224 ++++++++++++++++++++++++++++++++++++++++
+ include/linux/checkpoint.h     |    3 +-
+ include/linux/checkpoint_hdr.h |   31 ++++++-
+ 6 files changed, 278 insertions(+), 3 deletions(-)
+ create mode 100644 checkpoint/checkpoint_file.h
+ create mode 100644 checkpoint/ckpt_file.c
 
-[2008-Sep-09] v4:
-  - Various fixes and clean-ups
-  - Fix calculation of hash table size
-  - Fix header structure alignment
-  - Use stand list_... for cr_pgarr
-
-[2008-Aug-29] v3:
-  - Various fixes and clean-ups
-  - Use standard hlist_... for hash table
-  - Better use of standard kmalloc/kfree
-
-[2008-Aug-20] v2:
-  - Added Dump and restore of open files (regular and directories)
-  - Added basic handling of shared objects, and improve handling of
-    'parent tag' concept
-  - Added documentation
-  - Improved ABI, 64bit padding for image data
-  - Improved locking when saving/restoring memory
-  - Added UTS information to header (release, version, machine)
-  - Cleanup extraction of filename from a file pointer
-  - Refactor to allow easier reviewing
-  - Remove requirement for CAPS_SYS_ADMIN until we come up with a
-    security policy (this means that file restore may fail)
-  - Other cleanup and response to comments for v1
-
-[2008-Jul-29] v1:
-  - Initial version: support a single task with address space of only
-    private anonymous or file-mapped VMAs; syscalls ignore pid/crid
-    argument and act on current process.
-
---
-At the containers mini-conference before OLS, the consensus among
-all the stakeholders was that doing checkpoint/restart in the kernel
-as much as possible was the best approach.  With this approach, the
-kernel will export a relatively opaque 'blob' of data to userspace
-which can then be handed to the new kernel at restore time.
-
-This is different than what had been proposed before, which was
-that a userspace application would be responsible for collecting
-all of this data.  We were also planning on adding lots of new,
-little kernel interfaces for all of the things that needed
-checkpointing.  This unites those into a single, grand interface.
-
-The 'blob' will contain copies of select portions of kernel
-structures such as vmas and mm_structs.  It will also contain
-copies of the actual memory that the process uses.  Any changes
-in this blob's format between kernel revisions can be handled by
-an in-userspace conversion program.
-
-This is a similar approach to virtually all of the commercial
-checkpoint/restart products out there, as well as the research
-project Zap.
-
-These patches basically serialize internel kernel state and write
-it out to a file descriptor.  The checkpoint and restore are done
-with two new system calls: sys_checkpoint and sys_restart.
-
-In this incarnation, they can only work checkpoint and restore a
-single task. The task's address space may consist of only private,
-simple vma's - anonymous or file-mapped. The open files may consist
-of only simple files and directories.
---
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+index 9843fb9..7496695 100644
+--- a/checkpoint/Makefile
++++ b/checkpoint/Makefile
+@@ -3,4 +3,4 @@
+ #
+ 
+ obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+-		ckpt_mem.o rstr_mem.o
++		ckpt_mem.o rstr_mem.o ckpt_file.o
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index 56d0ec2..75c7cd3 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -233,6 +233,10 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
+ 	cr_debug("memory: ret %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = cr_write_files(ctx, t);
++	cr_debug("files: ret %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = cr_write_thread(ctx, t);
+ 	cr_debug("thread: ret %d\n", ret);
+ 	if (ret < 0)
+diff --git a/checkpoint/checkpoint_file.h b/checkpoint/checkpoint_file.h
+new file mode 100644
+index 0000000..9dc3eba
+--- /dev/null
++++ b/checkpoint/checkpoint_file.h
+@@ -0,0 +1,17 @@
++#ifndef _CHECKPOINT_CKPT_FILE_H_
++#define _CHECKPOINT_CKPT_FILE_H_
++/*
++ *  Checkpoint file descriptors
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/fdtable.h>
++
++int cr_scan_fds(struct files_struct *files, int **fdtable);
++
++#endif /* _CHECKPOINT_CKPT_FILE_H_ */
+diff --git a/checkpoint/ckpt_file.c b/checkpoint/ckpt_file.c
+new file mode 100644
+index 0000000..6f73f8b
+--- /dev/null
++++ b/checkpoint/ckpt_file.c
+@@ -0,0 +1,224 @@
++/*
++ *  Checkpoint file descriptors
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
++
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/file.h>
++#include <linux/fdtable.h>
++#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
++
++#include "checkpoint_file.h"
++
++#define CR_DEFAULT_FDTABLE  256		/* an initial guess */
++
++/**
++ * cr_scan_fds - scan file table and construct array of open fds
++ * @files: files_struct pointer
++ * @fdtable: (output) array of open fds
++ *
++ * Returns the number of open fds found, and also the file table
++ * array via *fdtable. The caller should free the array.
++ *
++ * The caller must validate the file descriptors collected in the
++ * array before using them, e.g. by using fcheck_files(), in case
++ * the task's fdtable changes in the meantime.
++ */
++int cr_scan_fds(struct files_struct *files, int **fdtable)
++{
++	struct fdtable *fdt;
++	int *fds = NULL;
++	int i, n;
++	int tot = CR_DEFAULT_FDTABLE;
++
++	/*
++	 * We assume that all tasks possibly sharing the file table are
++	 * frozen (or we our a single process and we checkpoint ourselves).
++	 * Therefore, we can safely proceed after krealloc() from where we
++	 * left off. Otherwise the file table may be modified by another
++	 * task after we scan it. The behavior is this case is undefined,
++	 * and either and either checkpoint or restart will likely fail.
++	 */
++ retry:
++	fds = krealloc(fds, tot * sizeof(*fds), GFP_KERNEL);
++	if (!fds)
++		return -ENOMEM;
++
++	spin_lock(&files->file_lock);
++	rcu_read_lock();
++	fdt = files_fdtable(files);
++	for (n = 0, i = 0; i < fdt->max_fds; i++) {
++		if (!fcheck_files(files, i))
++			continue;
++		if (n == tot) {
++			spin_unlock(&files->file_lock);
++			rcu_read_unlock();
++			tot *= 2;	/* won't overflow: kmalloc will fail */
++			goto retry;
++		}
++		fds[n++] = i;
++	}
++	rcu_read_unlock();
++	spin_unlock(&files->file_lock);
++
++	*fdtable = fds;
++	return n;
++}
++
++/* cr_write_fd_data - dump the state of a given file pointer */
++static int cr_write_fd_data(struct cr_ctx *ctx, struct file *file, int parent)
++{
++	struct cr_hdr h;
++	struct cr_hdr_fd_data *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct dentry *dent = file->f_dentry;
++	struct inode *inode = dent->d_inode;
++	enum fd_type fd_type;
++	int ret;
++
++	h.type = CR_HDR_FD_DATA;
++	h.len = sizeof(*hh);
++	h.parent = parent;
++
++	hh->f_flags = file->f_flags;
++	hh->f_mode = file->f_mode;
++	hh->f_pos = file->f_pos;
++	hh->f_version = file->f_version;
++	/* FIX: need also file->uid, file->gid, file->f_owner, etc */
++
++	switch (inode->i_mode & S_IFMT) {
++	case S_IFREG:
++		fd_type = CR_FD_FILE;
++		break;
++	case S_IFDIR:
++		fd_type = CR_FD_DIR;
++		break;
++	default:
++		cr_hbuf_put(ctx, sizeof(*hh));
++		return -EBADF;
++	}
++
++	/* FIX: check if the file/dir/link is unlinked */
++	hh->fd_type = fd_type;
++
++	ret = cr_write_obj(ctx, &h, hh);
++	cr_hbuf_put(ctx, sizeof(*hh));
++	if (ret < 0)
++		return ret;
++
++	return cr_write_fname(ctx, &file->f_path, &ctx->fs_mnt);
++}
++
++/**
++ * cr_write_fd_ent - dump the state of a given file descriptor
++ * @ctx: checkpoint context
++ * @files: files_struct pointer
++ * @fd: file descriptor
++ *
++ * Saves the state of the file descriptor; looks up the actual file
++ * pointer in the hash table, and if found saves the matching objref,
++ * otherwise calls cr_write_fd_data to dump the file pointer too.
++ */
++static int
++cr_write_fd_ent(struct cr_ctx *ctx, struct files_struct *files, int fd)
++{
++	struct cr_hdr h;
++	struct cr_hdr_fd_ent *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct file *file;
++	struct fdtable *fdt;
++	int objref, new, ret;
++	int coe = 0;	/* avoid gcc warning */
++
++	rcu_read_lock();
++	fdt = files_fdtable(files);
++	file = fcheck_files(files, fd);
++	if (file) {
++		coe = FD_ISSET(fd, fdt->close_on_exec);
++		get_file(file);
++	}
++	rcu_read_unlock();
++
++	/* sanity check (although this shouldn't happen) */
++	if (!file) {
++		ret = -EBADF;
++		goto out;
++	}
++
++	/* adding 'file' to the hash will keep a reference to it */
++	new = cr_obj_add_ptr(ctx, file, &objref, CR_OBJ_FILE, 0);
++	cr_debug("fd %d objref %d file %p c-o-e %d)\n", fd, objref, file, coe);
++
++	if (new < 0) {
++		ret = new;
++		goto out;
++	}
++
++	h.type = CR_HDR_FD_ENT;
++	h.len = sizeof(*hh);
++	h.parent = 0;
++
++	hh->objref = objref;
++	hh->fd = fd;
++	hh->close_on_exec = coe;
++
++	ret = cr_write_obj(ctx, &h, hh);
++	if (ret < 0)
++		goto out;
++
++	/* new==1 if-and-only-if file was newly added to hash */
++	if (new)
++		ret = cr_write_fd_data(ctx, file, objref);
++
++out:
++	cr_hbuf_put(ctx, sizeof(*hh));
++	if (file)
++		fput(file);
++	return ret;
++}
++
++int cr_write_files(struct cr_ctx *ctx, struct task_struct *t)
++{
++	struct cr_hdr h;
++	struct cr_hdr_files *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct files_struct *files;
++	int *fdtable = NULL;
++	int nfds, n, ret;
++
++	h.type = CR_HDR_FILES;
++	h.len = sizeof(*hh);
++	h.parent = task_pid_vnr(t);
++
++	files = get_files_struct(t);
++
++	nfds = cr_scan_fds(files, &fdtable);
++	if (nfds < 0) {
++		ret = nfds;
++		goto out;
++	}
++
++	hh->objref = 0;	/* will be meaningful with multiple processes */
++	hh->nfds = nfds;
++
++	ret = cr_write_obj(ctx, &h, hh);
++	cr_hbuf_put(ctx, sizeof(*hh));
++	if (ret < 0)
++		goto out;
++
++	cr_debug("nfds %d\n", nfds);
++	for (n = 0; n < nfds; n++) {
++		ret = cr_write_fd_ent(ctx, files, fdtable[n]);
++		if (ret < 0)
++			break;
++	}
++
++ out:
++	kfree(fdtable);
++	put_files_struct(files);
++	return ret;
++}
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 7da696c..119090b 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -13,7 +13,7 @@
+ #include <linux/path.h>
+ #include <linux/fs.h>
+ 
+-#define CR_VERSION  1
++#define CR_VERSION  2
+ 
+ struct cr_ctx {
+ 	int crid;		/* unique checkpoint id */
+@@ -84,6 +84,7 @@ extern struct file *cr_read_open_fname(struct cr_ctx *ctx,
+ 
+ extern int do_checkpoint(struct cr_ctx *ctx, pid_t pid);
+ extern int cr_write_mm(struct cr_ctx *ctx, struct task_struct *t);
++extern int cr_write_files(struct cr_ctx *ctx, struct task_struct *t);
+ 
+ extern int do_restart(struct cr_ctx *ctx, pid_t pid);
+ extern int cr_read_mm(struct cr_ctx *ctx);
+diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
+index d78f0f1..8c3b5b2 100644
+--- a/include/linux/checkpoint_hdr.h
++++ b/include/linux/checkpoint_hdr.h
+@@ -17,7 +17,7 @@
+ /*
+  * To maintain compatibility between 32-bit and 64-bit architecture flavors,
+  * keep data 64-bit aligned: use padding for structure members, and use
+- * __attribute__ ((aligned (8))) for the entire structure.
++ * __attribute__((aligned(8))) for the entire structure.
+  */
+ 
+ /* records: generic header */
+@@ -45,6 +45,10 @@ enum {
+ 	CR_HDR_PGARR,
+ 	CR_HDR_MM_CONTEXT,
+ 
++	CR_HDR_FILES = 301,
++	CR_HDR_FD_ENT,
++	CR_HDR_FD_DATA,
++
+ 	CR_HDR_TAIL = 5001
+ };
+ 
+@@ -107,4 +111,29 @@ struct cr_hdr_pgarr {
+ 	__u64 nr_pages;		/* number of pages to saved */
+ } __attribute__((aligned(8)));
+ 
++struct cr_hdr_files {
++	__u32 objref;		/* identifier for shared objects */
++	__u32 nfds;
++} __attribute__((aligned(8)));
++
++struct cr_hdr_fd_ent {
++	__u32 objref;		/* identifier for shared objects */
++	__s32 fd;
++	__u32 close_on_exec;
++} __attribute__((aligned(8)));
++
++/* fd types */
++enum  fd_type {
++	CR_FD_FILE = 1,
++	CR_FD_DIR,
++};
++
++struct cr_hdr_fd_data {
++	__u16 fd_type;
++	__u16 f_mode;
++	__u32 f_flags;
++	__u64 f_pos;
++	__u64 f_version;
++} __attribute__((aligned(8)));
++
+ #endif /* _CHECKPOINT_CKPT_HDR_H_ */
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
