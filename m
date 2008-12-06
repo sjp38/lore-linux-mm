@@ -1,40 +1,53 @@
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB5KguwM016864
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:42:56 -0700
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB5Khe0G226512
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:43:40 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB5KhdqP010848
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 13:43:39 -0700
-Subject: Re: [PATCH] memory hotplug: run lru_add_drain_all() on each cpu
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1228482500.8392.15.camel@t60p>
-References: <1228339524.6598.11.camel@t60p>
-	 <1228342567.13111.11.camel@nimitz>  <1228482500.8392.15.camel@t60p>
-Content-Type: text/plain
-Date: Fri, 05 Dec 2008 12:43:38 -0800
-Message-Id: <1228509818.12681.21.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB60IYaR032634
+	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:18:34 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB60Jxb9203622
+	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:19:59 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB60JwC3016958
+	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:19:59 -0700
+Date: Fri, 5 Dec 2008 18:19:57 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v11][PATCH 00/13] Kernel based checkpoint/restart
+Message-ID: <20081206001957.GA29851@us.ibm.com>
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: gerald.schaefer@de.ibm.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, y-goto@jp.fujitsu.com, npiggin@suse.de
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-12-05 at 14:08 +0100, Gerald Schaefer wrote:
+Quoting Oren Laadan (orenl@cs.columbia.edu):
+> Checkpoint-restart (c/r): fixed races in file handling (comments from
+> from Al Viro). Updated and tested against v2.6.28-rc7 (feaf384...)
 > 
-> As explained above, the per-cpu pagevec layout should be independent
-> from NUMA or UNEVICTABLE_LRU, so I guess the right thing to do here
-> is completely remove the #ifdef as in the patch from Kosaki Motohiro
-> (or at least replace it with a CONFIG_SMP as suggested by Kamezawa
-> Hiroyuki).
+> We'd like these to make it into -mm. This version addresses the
+> last of the known bugs. Please pull at least the first 11 patches,
+> as they are similar to before.
+> 
+> Patches 1-11 are stable, providing self- and external- c/r of a
+> single process.
+> Patches 12 and 13 are newer, adding support for c/r of multiple
+> processes.
+> 
+> The git tree tracking v11, branch 'ckpt-v11' (and older versions):
+> 	git://git.ncl.cs.columbia.edu/pub/git/linux-cr.git
+> 
+> Restarting multiple processes requires 'mktree' userspace tool:
+> 	git://git.ncl.cs.columbia.edu/pub/git/user-cr.git
 
-Thanks for looking into it deeper.  That CONFIG_SMP thing really does
-look like the right solution.
+Thanks Oren, this set is working great for me.  hours of
+(run in container; while (1) { checkpoint; kill; restart in container;}
+went fine.  500 simultaneoush checkpoints of the same task
+went fine.  mktree works great.
 
--- Dave
+thanks,
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
