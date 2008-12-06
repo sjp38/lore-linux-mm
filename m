@@ -1,53 +1,51 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB60IYaR032634
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:18:34 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB60Jxb9203622
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:19:59 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB60JwC3016958
-	for <linux-mm@kvack.org>; Fri, 5 Dec 2008 17:19:59 -0700
-Date: Fri, 5 Dec 2008 18:19:57 -0600
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: [RFC v11][PATCH 00/13] Kernel based checkpoint/restart
-Message-ID: <20081206001957.GA29851@us.ibm.com>
-References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+Received: by wa-out-1112.google.com with SMTP id j37so115376waf.22
+        for <linux-mm@kvack.org>; Fri, 05 Dec 2008 16:32:31 -0800 (PST)
+Message-ID: <208aa0f00812051632h38fc0a5g58d233190436cc90@mail.gmail.com>
+Date: Fri, 5 Dec 2008 16:32:30 -0800
+From: "Edward Estabrook" <edward.estabrook.lkml@gmail.com>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+In-Reply-To: <20081205094447.GA3081@local>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
+	 <1228379942.5092.14.camel@twins> <20081204180809.GB3079@local>
+	 <1228461060.18899.8.camel@twins> <20081205094447.GA3081@local>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
+To: "Hans J. Koch" <hjk@linutronix.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Oren Laadan (orenl@cs.columbia.edu):
-> Checkpoint-restart (c/r): fixed races in file handling (comments from
-> from Al Viro). Updated and tested against v2.6.28-rc7 (feaf384...)
-> 
-> We'd like these to make it into -mm. This version addresses the
-> last of the known bugs. Please pull at least the first 11 patches,
-> as they are similar to before.
-> 
-> Patches 1-11 are stable, providing self- and external- c/r of a
-> single process.
-> Patches 12 and 13 are newer, adding support for c/r of multiple
-> processes.
-> 
-> The git tree tracking v11, branch 'ckpt-v11' (and older versions):
-> 	git://git.ncl.cs.columbia.edu/pub/git/linux-cr.git
-> 
-> Restarting multiple processes requires 'mktree' userspace tool:
-> 	git://git.ncl.cs.columbia.edu/pub/git/user-cr.git
+> Well, UIO already rapes the mmap interface by using the "offset" parameter to
+> pass in the number of the mapping.
 
-Thanks Oren, this set is working great for me.  hours of
-(run in container; while (1) { checkpoint; kill; restart in container;}
-went fine.  500 simultaneoush checkpoints of the same task
-went fine.  mktree works great.
+Exactly.
 
-thanks,
--serge
+> But I'll NAK the current concept, too. It's a UIO kernel driver's task to tell
+> userspace which memory a device has to offer. The UIO core prevents userspace
+> as much as possible from mapping anything different. And it should stay that
+> way.
+
+The ultimate purpose (I thought) of the UIO driver is to simplify
+driver development
+by pushing device control into userspace.  There is a very real need
+for efficient
+dynamic control over the DMA allocation of a device.  Why not 'allow' this to
+happen in userspace if it can be done safely and without breaking anything else?
+
+Remember that for devices employing ring buffers it is not a question of
+'how much memory a device has to offer' but rather 'how much system
+memory would the
+driver like to configure that device to use'.
+
+I don't want to stop my DMA engine and reload the driver to create
+more buffers (and I don't
+want to pre-allocate more than I need as contingency).
+
+Cheers,
+Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
