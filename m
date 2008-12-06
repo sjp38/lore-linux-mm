@@ -1,51 +1,74 @@
-Received: by wa-out-1112.google.com with SMTP id j37so115376waf.22
-        for <linux-mm@kvack.org>; Fri, 05 Dec 2008 16:32:31 -0800 (PST)
-Message-ID: <208aa0f00812051632h38fc0a5g58d233190436cc90@mail.gmail.com>
-Date: Fri, 5 Dec 2008 16:32:30 -0800
-From: "Edward Estabrook" <edward.estabrook.lkml@gmail.com>
-Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
-In-Reply-To: <20081205094447.GA3081@local>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Sat, 6 Dec 2008 11:47:57 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [RFC][PATCH -mmotm 1/4] memcg: don't trigger oom at page
+ migration
+Message-Id: <20081206114757.c323c63b.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20081205133925.GA10004@balbir.in.ibm.com>
+References: <20081205212208.31d904e0.nishimura@mxp.nes.nec.co.jp>
+	<20081205212304.f7018ea1.nishimura@mxp.nes.nec.co.jp>
+	<20081205133925.GA10004@balbir.in.ibm.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
-	 <1228379942.5092.14.camel@twins> <20081204180809.GB3079@local>
-	 <1228461060.18899.8.camel@twins> <20081205094447.GA3081@local>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Hans J. Koch" <hjk@linutronix.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: balbir@linux.vnet.ibm.com
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> Well, UIO already rapes the mmap interface by using the "offset" parameter to
-> pass in the number of the mapping.
+On Fri, 5 Dec 2008 19:09:26 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Exactly.
+> * Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> [2008-12-05 21:23:04]:
+> 
+> > I think triggering OOM at mem_cgroup_prepare_migration would be just a bit
+> > overkill.
+> > Returning -ENOMEM would be enough for mem_cgroup_prepare_migration.
+> > The caller would handle the case anyway.
+> > 
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > ---
+> >  mm/memcontrol.c |    2 +-
+> >  1 files changed, 1 insertions(+), 1 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 4dbce1d..50ee1be 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -1330,7 +1330,7 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+> >  	unlock_page_cgroup(pc);
+> > 
+> >  	if (mem) {
+> > -		ret = mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem);
+> > +		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+> >  		css_put(&mem->css);
+> >  	}
+> >  	*ptr = mem;
+> >
+> 
+> Seems reasonable to me. A comment indicating or adding a noreclaim
+> wrapper around __mem_cgroup_try_charge to indicate that no reclaim
+> will take place will be nice.
+> 
+Ah.. this flag to __mem_cgroup_try_charge doesn't mean "don't reclaim"
+but "don't cause oom after it tried to free memory but couldn't
+free enough memory after all".
 
-> But I'll NAK the current concept, too. It's a UIO kernel driver's task to tell
-> userspace which memory a device has to offer. The UIO core prevents userspace
-> as much as possible from mapping anything different. And it should stay that
-> way.
+Thanks,
+Daisuke Nishimura.
 
-The ultimate purpose (I thought) of the UIO driver is to simplify
-driver development
-by pushing device control into userspace.  There is a very real need
-for efficient
-dynamic control over the DMA allocation of a device.  Why not 'allow' this to
-happen in userspace if it can be done safely and without breaking anything else?
-
-Remember that for devices employing ring buffers it is not a question of
-'how much memory a device has to offer' but rather 'how much system
-memory would the
-driver like to configure that device to use'.
-
-I don't want to stop my DMA engine and reload the driver to create
-more buffers (and I don't
-want to pre-allocate more than I need as contingency).
-
-Cheers,
-Ed
+> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com> 
+> 
+> -- 
+> 	Balbir
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
