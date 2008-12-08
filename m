@@ -1,114 +1,117 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB7CYs5N026234
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sun, 7 Dec 2008 21:34:54 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5462745DE52
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2008 21:34:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F02B45DE51
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2008 21:34:54 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 002921DB8042
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2008 21:34:54 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 919F61DB803C
-	for <linux-mm@kvack.org>; Sun,  7 Dec 2008 21:34:53 +0900 (JST)
-Message-ID: <17283.10.75.179.62.1228653292.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20081207003138.2651f14b.akpm@linux-foundation.org>
-References: <49389B69.9010902@cn.fujitsu.com><20081205122024.3fcc1d0e.kamezawa.hiroyu@jp.fujitsu.com><20081205122458.a37ae8e0.kamezawa.hiroyu@jp.fujitsu.com>
-    <20081207003138.2651f14b.akpm@linux-foundation.org>
-Date: Sun, 7 Dec 2008 21:34:52 +0900 (JST)
-Subject: Re: [memcg BUG ?] failed to boot on IA64 with CONFIG_DISCONTIGMEM=y
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id mB81hk91026222
+	for <linux-mm@kvack.org>; Sun, 7 Dec 2008 17:43:46 -0800
+Received: from wf-out-1314.google.com (wfg24.prod.google.com [10.142.7.24])
+	by wpaz13.hot.corp.google.com with ESMTP id mB81hi2n029408
+	for <linux-mm@kvack.org>; Sun, 7 Dec 2008 17:43:45 -0800
+Received: by wf-out-1314.google.com with SMTP id 24so1044789wfg.7
+        for <linux-mm@kvack.org>; Sun, 07 Dec 2008 17:43:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;charset=us-ascii
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <493A4C1C.3020102@gmail.com>
+References: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com>
+	 <493A4B48.1050706@gmail.com> <493A4C1C.3020102@gmail.com>
+Date: Sun, 7 Dec 2008 17:43:44 -0800
+Message-ID: <604427e00812071743u79e6d1d3y7ba510a7ff3052ec@mail.gmail.com>
+Subject: Re: [RFC v2][PATCH]page_fault retry with NOPAGE_RETRY
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Mike Waychison <mikew@google.com>, David Rientjes <rientjes@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton said:
-> On Fri, 5 Dec 2008 12:24:58 +0900 KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->
->> On Fri, 5 Dec 2008 12:20:24 +0900
->> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>
->> > On Fri, 05 Dec 2008 11:09:29 +0800
->> > Li Zefan <lizf@cn.fujitsu.com> wrote:
->> >
->> > > Kernel version: 2.6.28-rc7
->> > > Arch: IA64
->> > > Memory model: DISCONTIGMEM
->> > >
->> > > ELILO boot: Uncompressing Linux... done
->> > > Loading file initrd-2.6.28-rc7-lizf.img...done
->> > > (frozen)
->> > >
->> > >
->> > > Booted successfully with cgroup_disable=memory, here is the dmesg:
->> > >
->> >
->> > thx, will dig into...Maybe you're the first person using DISCONTIGMEM
->> with
->> > empty_node after page_cgroup-alloc-at-boot.
->> >
->> > How about this ?
->>
->> Ahhh..sorry.
->>
->> this one please.
->> ==
->>
->> From: kamezawa.hiroyu@jp.fujitsu.com
->>
->> page_cgroup should ignore empty-nodes.
->>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> ---
->>  mm/page_cgroup.c |    3 +++
->>  1 file changed, 3 insertions(+)
->>
->> Index: mmotm-2.6.28-Dec03/mm/page_cgroup.c
->> ===================================================================
->> --- mmotm-2.6.28-Dec03.orig/mm/page_cgroup.c
->> +++ mmotm-2.6.28-Dec03/mm/page_cgroup.c
->> @@ -51,6 +51,9 @@ static int __init alloc_node_page_cgroup
->>  	start_pfn = NODE_DATA(nid)->node_start_pfn;
->>  	nr_pages = NODE_DATA(nid)->node_spanned_pages;
->>
->> +	if (!nr_pages)
->> +		return 0;
->> +
->>  	table_size = sizeof(struct page_cgroup) * nr_pages;
->>
->>  	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
->
-> Why did the kernel fail?
->
-> Either __alloc_bootmem_node_nopanic() succeeds, in which case the code
-> looks like it handles that OK.
->
-> Or __alloc_bootmem_node_nopanic() fails this zero-sized allocation, and
-> the code attempts to handle that, but fails to do so, which might be a
-> bug, and the above patch just papers over it.
->
-After this, print a message like "memcg cannot allocate memory, please try
-cgroup_disable=memory as boot option", and panic.
-This is a boot time failure which can be avoided by boot option.
+Thanks Torok for your experiment and that sounds great !
 
-> Of course, a full description of the problem will clear all this up.
-> Better changelogs, please.
+--Ying
+
+On Sat, Dec 6, 2008 at 1:55 AM, Torok Edwin <edwintorok@gmail.com> wrote:
+> On 2008-12-06 11:52, Torok Edwin wrote:
+>> On 2008-12-05 21:40, Ying Han wrote:
+>>
+>>> changelog[v2]:
+>>> - reduce the runtime overhead by extending the 'write' flag of
+>>>   handle_mm_fault() to indicate the retry hint.
+>>> - add another two branches in filemap_fault with retry logic.
+>>> - replace find_lock_page with find_lock_page_retry to make the code
+>>>   cleaner.
+>>>
+>>> todo:
+>>> - there is potential a starvation hole with the retry. By the time the
+>>>   retry returns, the pages might be released. we can make change by holding
+>>>   page reference as well as remembering what the page "was"(in case the
+>>>   file was truncated). any suggestion here are welcomed.
+>>>
+>>> I also made patches for all other arch. I am posting x86_64 here first and
+>>> i will post others by the time everyone feels comfortable of this patch.
+>>>
+>>> Edwin, please test this patch with your testcase and check if you get any
+>>> performance improvement of mmap over read. I added another two more places
+>>> in filemap_fault with retry logic which you might hit in your privous
+>>> experiment.
+>>>
+>>>
+>>
+>> I get much better results with this patch than with v1, thanks!
+>>
+>> mmap now scales almost as well as read does (there is a small ~5%
+>> overhead), which is a significant improvement over not scaling at all!
+>>
+>> Here are the results when running my testcase:
+>>
+>> Number of threads ->, 1,,, 2,,, 4,,, 8,,, 16
+>> Kernel version, read, mmap, mixed, read, mmap, mixed, read, mmap, mixed,
+>> read, mmap, mixed, read, mmap, mixed
+>> 2.6.28-rc7-tip, 27.55, 26.18, 27.06, 16.18, 16.97, 16.10, 11.06, 11.64,
+>> 11.41, 9.38, 9.97, 9.31, 9.37, 9.82, 9.3
+>>
+>>
+>> Here are the /proc/lock_stat output when running my testcase, contention
+>> is lower (34911+10462 vs 58590+7231), and waittime-total is better
+>> (57 601 464 vs 234 170 024)
+>>
+>> lock_stat version 0.3
+>> -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+>>                               class name    con-bounces    contentions
+>> waittime-min   waittime-max waittime-total    acq-bounces
+>> acquisitions   holdtime-min   holdtime-max holdtime-total
+>> ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+>>                         &mm->mmap_sem-W:          5843
+>> 10462           2.89      138824.72    14217159.52
+>> 18965          84205           1.81        5031.07      725293.65
+>>                          &mm->mmap_sem-R:         20208
+>> 34911           4.87      136797.26    57601464.49          55797
+>> 1110394           1.89      164918.52    30551371.71
+>>                          ---------------
+>>                            &mm->mmap_sem           5341
+>> [<ffffffff802bf9d7>] sys_munmap+0x47/0x80
+>>                            &mm->mmap_sem          28579
+>> [<ffffffff805d1c62>] do_page_fault+0x172/0xab0
+>>                            &mm->mmap_sem           5030
+>> [<ffffffff80211161>] sys_mmap+0xf1/0x140
+>>                            &mm->mmap_sem           6331
+>> [<ffffffff802a675e>] find_lock_page_retry+0xde/0xf0
+>>                          ---------------
+>>                            &mm->mmap_sem          13558
+>> [<ffffffff802a675e>] find_lock_page_retry+0xde/0xf0
+>>                            &mm->mmap_sem           4694
+>> [<ffffffff802bf9d7>] sys_munmap+0x47/0x80
+>>                            &mm->mmap_sem           3681
+>> [<ffffffff80211161>] sys_mmap+0xf1/0x140
+>>                            &mm->mmap_sem          23374
+>> [<ffffffff805d1c62>] do_page_fault+0x172/0xab0
+>>
+>>
+>> On clamd:
+>>
+>> Here holdtime-total is better (1 493 154 + 2 395 987 vs 2 087 538 + 2
+>> 514 673), and number of contentions on read
+>> (458 052 vs 5851
 >
-
-will do.
-
--Kame
-
+> typo, should have been: 458 052 vs 585 119
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
