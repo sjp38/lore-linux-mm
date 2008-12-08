@@ -1,8 +1,8 @@
-Date: Mon, 8 Dec 2008 11:05:11 +0900
+Date: Mon, 8 Dec 2008 11:08:10 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [PATCH -mmotm 3/4] memcg: avoid dead lock caused by race between
- oom and cpuset_attach
-Message-Id: <20081208110511.ad735d14.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -mmotm 4/4] memcg: change try_to_free_pages to
+ hierarchical_reclaim
+Message-Id: <20081208110810.a60d1810.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <20081208105824.f8f5d67b.nishimura@mxp.nes.nec.co.jp>
 References: <20081208105824.f8f5d67b.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
@@ -14,84 +14,57 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-mpol_rebind_mm(), which can be called from cpuset_attach(), does down_write(mm->mmap_sem).
-This means down_write(mm->mmap_sem) can be called under cgroup_mutex.
+mem_cgroup_hierarchicl_reclaim() works properly even when !use_hierarchy now
+(by memcg-hierarchy-avoid-unnecessary-reclaim.patch), so, instead of
+try_to_free_mem_cgroup_pages(), it should be used in many cases.
 
-OTOH, page fault path does down_read(mm->mmap_sem) and calls mem_cgroup_try_charge_xxx(),
-which may eventually calls mem_cgroup_out_of_memory(). And mem_cgroup_out_of_memory()
-calls cgroup_lock().
-This means cgroup_lock() can be called under down_read(mm->mmap_sem).
+The only exception is force_empty. The group has no children in this case.
 
-If those two paths race, dead lock can happen.
-
-This patch avoid this dead lock by:
-  - remove cgroup_lock() from mem_cgroup_out_of_memory().
-  - define new mutex (memcg_tasklist) and serialize mem_cgroup_move_task()
-    (->attach handler of memory cgroup) and mem_cgroup_out_of_memory.
 
 Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu,com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
- mm/memcontrol.c |    5 +++++
- mm/oom_kill.c   |    2 --
- 2 files changed, 5 insertions(+), 2 deletions(-)
+ mm/memcontrol.c |   12 ++++--------
+ 1 files changed, 4 insertions(+), 8 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 9877b03..fec4fc3 100644
+index fec4fc3..b2b5c57 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -51,6 +51,7 @@ static int really_do_swap_account __initdata = 1; /* for remember boot option*/
- #define do_swap_account		(0)
- #endif
+@@ -1400,8 +1400,7 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
+ 	rcu_read_unlock();
  
-+static DEFINE_MUTEX(memcg_tasklist);	/* can be hold under cgroup_mutex */
+ 	do {
+-		progress = try_to_free_mem_cgroup_pages(mem, gfp_mask, true,
+-							get_swappiness(mem));
++		progress = mem_cgroup_hierarchical_reclaim(mem, gfp_mask, true);
+ 		progress += mem_cgroup_check_under_limit(mem);
+ 	} while (!progress && --retry);
  
- /*
-  * Statistics for memory cgroup.
-@@ -797,7 +798,9 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+@@ -1468,10 +1467,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 		if (!ret)
+ 			break;
  
- 		if (!nr_retries--) {
- 			if (oom) {
-+				mutex_lock(&memcg_tasklist);
- 				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
-+				mutex_unlock(&memcg_tasklist);
- 				mem_over_limit->last_oom_jiffies = jiffies;
- 			}
- 			goto nomem;
-@@ -2173,10 +2176,12 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
- 				struct cgroup *old_cont,
- 				struct task_struct *p)
- {
-+	mutex_lock(&memcg_tasklist);
- 	/*
- 	 * FIXME: It's better to move charges of this process from old
- 	 * memcg to new memcg. But it's just on TODO-List now.
- 	 */
-+	mutex_unlock(&memcg_tasklist);
- }
+-		progress = try_to_free_mem_cgroup_pages(memcg,
+-							GFP_KERNEL,
+-							false,
+-							get_swappiness(memcg));
++		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
++							   false);
+   		if (!progress)			retry_count--;
+ 	}
  
- struct cgroup_subsys mem_cgroup_subsys = {
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index fd150e3..40ba050 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -429,7 +429,6 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
- 	unsigned long points = 0;
- 	struct task_struct *p;
+@@ -1515,8 +1512,7 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 			break;
  
--	cgroup_lock();
- 	read_lock(&tasklist_lock);
- retry:
- 	p = select_bad_process(&points, mem);
-@@ -444,7 +443,6 @@ retry:
- 		goto retry;
- out:
- 	read_unlock(&tasklist_lock);
--	cgroup_unlock();
- }
- #endif
- 
+ 		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+-		try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL, true,
+-					     get_swappiness(memcg));
++		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true);
+ 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 		if (curusage >= oldusage)
+ 			retry_count--;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
