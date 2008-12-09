@@ -1,102 +1,43 @@
-Subject: Re: [PATCH] - support inheritance of mlocks across fork/exec V2
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <1228771985.3726.32.camel@calx>
-References: <1227561707.6937.61.camel@lts-notebook>
-	 <20081125152651.b4c3c18f.akpm@linux-foundation.org>
-	 <1228331069.6693.73.camel@lts-notebook>
-	 <20081206220729.042a926e.akpm@linux-foundation.org>
-	 <1228770337.31442.44.camel@lts-notebook>  <1228771985.3726.32.camel@calx>
-Content-Type: text/plain
-Date: Tue, 09 Dec 2008 14:40:51 -0500
-Message-Id: <1228851652.6379.58.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mB9JfchG027708
+	for <linux-mm@kvack.org>; Tue, 9 Dec 2008 12:41:38 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mB9JgMBU187906
+	for <linux-mm@kvack.org>; Tue, 9 Dec 2008 12:42:22 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mB9JgLu7016025
+	for <linux-mm@kvack.org>; Tue, 9 Dec 2008 12:42:22 -0700
+Date: Tue, 9 Dec 2008 13:42:20 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: [RFC v11][PATCH 00/13] Kernel based checkpoint/restart
+Message-ID: <20081209194220.GA20101@us.ibm.com>
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Mackall <mpm@selenic.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com, linux-api@vger.kernel.org
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-08 at 15:33 -0600, Matt Mackall wrote:
-> On Mon, 2008-12-08 at 16:05 -0500, Lee Schermerhorn wrote:
-> > > > In support of a "lock prefix command"--e.g., mlock <cmd>
-> > <args> ...
-> > > > Analogous to taskset(1) for cpu affinity or numactl(8) for numa memory
-> > > > policy.
-> > > > 
-> > > > Together with patches to keep mlocked pages off the LRU, this will
-> > > > allow users/admins to lock down applications without modifying them,
-> > > > if their RLIMIT_MEMLOCK is sufficiently large, keeping their pages
-> > > > off the LRU and out of consideration for reclaim.
-> > > > 
-> > > > Potentially useful, as well, in real-time environments to force
-> > > > prefaulting and residency for applications that don't mlock themselves.
+Quoting Oren Laadan (orenl@cs.columbia.edu):
+> Checkpoint-restart (c/r): fixed races in file handling (comments from
+> from Al Viro). Updated and tested against v2.6.28-rc7 (feaf384...)
 > 
-> This is a bit scary to me. Privilege and mode inheritance across
-> processes is the root of many nasty surprises, security and otherwise.
+> We'd like these to make it into -mm. This version addresses the
+> last of the known bugs. Please pull at least the first 11 patches,
+> as they are similar to before.
 
-Hi, Matt:
+So far I'm finding no regressions and checkpoint/restart is working
+perfectly for me.
 
-Could you explain more about this issue?  I believe that the patch
-doesn't provide any privileges or capabilities that a process doesn't
-already have.  It just allows one to cause a process and, optionally,
-its descendants, to behave as if one had modified the sources to invoke
-mlockall() directly.  It is still subject to each individual task's
-resource limits.  At least, that was my intent.  
+Andrew, any chance of getting this round into -mm for some extra
+testing?
 
-> 
-> Here's a crazy alternative: add a flag to containers instead? I think
-> this is a better match to what you're trying to do and will keep people
-> from being surprised when an mlockall call in one thread causes a
-> fork/exec in another thread to crash their box, but only sometimes.
-
-Not so crazy.  It isn't really a better match, IMO [more below], but I
-can see providing a flag to enable/disable this ability in the
-container.  Initially, the default could be disabled.  If/when it's been
-around long enough that people are comfortable with it, perhaps the
-default could be flipped to enabled.
-
-As far as "what I'm trying to do":  I see this as exactly like using
-taskset to set the cpu affinity of a task, or numactl to set the task
-mempolicy without modifying the source.  If one had access to the
-program source and wouldn't, e.g., void a support contract by modifying
-it, one could just insert the calls into the source itself.  These would
-still be subject to, but "finer grain" than, external administrative
-controls, such as cpuset allowed mems and cpus.
-
-But, sometimes, it's very convenient to use the prefix commands to
-effect the same behavior.  I could certainly use it in the Oracle,
-SAP, ... benchmarking that I occasionally help out with.  Actually, as I
-have the patches, I can create custom kernels for the purpose of
-demonstrating the effects.  However, I think it would be useful for
-customers someday to have this feature in distro kernels.
-
-I don't understand your comment about threads and crashing the box. If
-an inherited mlockall() can crash Linux, then inserting the call into
-the source could also crash it.  I think that's a bug we'd need to fix
-in any case.  Indeed, using this facility during testing of the
-unevictable lru/mlocked pages work DID uncover bugs that I might not
-have seen otherwise.   If you meant "cause OOMs", I agree that this
-could happen, as well but, again, I think this would be the same
-behavior as if the calls were inserted into the source.
-
-Regarding one thread being surprised by what another thread did:  if you
-mean threads within the same executable, I'd expect them to part of the
-same program.  One hopes that someone knows the big picture--what all
-the threads are doing--obviating any such surprises.  But, I recall that
-you work/ed in the embedded space, and perhaps threads mean something
-different to you.
-
-Anyway...
-
-This is a pretty small patch that I can maintain out of tree for my own
-use in testing if people don't think its usefulness outweighs any
-concerns it raises.  Customers won't be able to use it, but thems the
-breaks.
-
-Regards,
-Lee
-> 
+thanks,
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
