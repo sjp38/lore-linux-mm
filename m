@@ -1,23 +1,23 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB9B58n1015368
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB9B7fCk024141
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 9 Dec 2008 20:05:08 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D3DC45DE52
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:05:08 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AA41B45DE53
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:05:07 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 849C51DB8042
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:05:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 242091DB803B
-	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:05:07 +0900 (JST)
-Date: Tue, 9 Dec 2008 20:04:13 +0900
+	Tue, 9 Dec 2008 20:07:41 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 68D4045DD7E
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:07:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 42AD845DD78
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:07:41 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 14FBB1DB803B
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:07:41 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B7BE31DB8037
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 20:07:40 +0900 (JST)
+Date: Tue, 9 Dec 2008 20:06:47 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/6] memcg: Documentation for internal implementation
-Message-Id: <20081209200413.d842ede4.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 1/6] memcg: fix pre_destory handler
+Message-Id: <20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -29,352 +29,253 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+better name for new flag is welcome.
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+==
+Because pre_destroy() handler is moved out to cgroup_lock() for
+avoiding dead-lock, now, cgroup's rmdir() does following sequence.
 
-Update/Fix document about implementation details of memcg.
+	cgroup_lock()
+	check children and tasks.
+	(A)
+	cgroup_unlock()
+	(B)
+	pre_destroy() for subsys;-----(1)
+	(C)
+	cgroup_lock();
+	(D)
+	Second check:check for -EBUSY again because we released the lock.
+	(E)
+	mark cgroup as removed.
+	(F)
+	unlink from lists.
+	cgroup_unlock();
+	dput()
+	=> when dentry's refcnt goes down to 0
+		destroy() handers for subsys
 
-Changelog:
- - applied Randy Dunlap's comments.
+memcg marks itself as "obsolete" when pre_destroy() is called at (1)
+But rmdir() can fail after pre_destroy(). So marking "obsolete" is bug.
+I'd like to fix sanity of pre_destroy() in cgroup layer.
+
+Considering above sequence, new tasks can be added while
+	(B) and (C)
+swap-in recored can be charged back to a cgroup after pre_destroy()
+	at (C) and (D), (E)
+(means cgrp's refcnt not comes from task but from other persistent objects.)
+
+This patch adds "cgroup_is_being_removed()" check. (better name is welcome)
+After this,
+
+	- cgroup is marked as CGRP_PRE_REMOVAL at (A)
+	- If Second check fails, CGRP_PRE_REMOVAL flag is removed.
+	- memcg's its own obsolete flag is removed.
+	- While CGROUP_PRE_REMOVAL, task attach will fail by -EBUSY.
+	  (task attach via clone() will not hit the case.)
+
+By this, we can trust pre_restroy()'s result.
+
+
+Note: if CGRP_REMOVED can be set and cleared, it should be used instead of
+      CGRP_PRE_REMOVAL.
+
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- Documentation/controllers/memcg_test.txt |  240 ++++++++++++++++++++++++++-----
- mm/memcontrol.c                          |    4 
- 2 files changed, 207 insertions(+), 37 deletions(-)
 
-Index: mmotm-2.6.28-Dec03/Documentation/controllers/memcg_test.txt
+---
+ include/linux/cgroup.h |    5 +++++
+ kernel/cgroup.c        |   18 +++++++++++++++++-
+ mm/memcontrol.c        |   36 ++++++++++++++++++++++++++----------
+ 3 files changed, 48 insertions(+), 11 deletions(-)
+
+Index: mmotm-2.6.28-Dec08/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.28-Dec03.orig/Documentation/controllers/memcg_test.txt
-+++ mmotm-2.6.28-Dec03/Documentation/controllers/memcg_test.txt
-@@ -1,59 +1,76 @@
- Memory Resource Controller(Memcg)  Implementation Memo.
--Last Updated: 2009/12/03
-+Last Updated: 2008/12/04
-+Base Kernel Version: based on 2.6.28-rc7-mm.
+--- mmotm-2.6.28-Dec08.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Dec08/mm/memcontrol.c
+@@ -166,7 +166,6 @@ struct mem_cgroup {
+ 	 */
+ 	bool use_hierarchy;
+ 	unsigned long	last_oom_jiffies;
+-	int		obsolete;
+ 	atomic_t	refcnt;
  
- Because VM is getting complex (one of reasons is memcg...), memcg's behavior
--is complex. This is a document for memcg's internal behavior and some test
--patterns tend to be racy.
-+is complex. This is a document for memcg's internal behavior.
-+Please note that implementation details can be changed.
+ 	unsigned int	swappiness;
+@@ -211,6 +210,24 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
  
--1. charges
-+(*) Topics on API should be in Documentation/controllers/memory.txt)
++static bool memcg_is_obsolete(struct mem_cgroup *mem)
++{
++	struct cgroup *cg = mem->css.cgroup;
++	/*
++	 * "Being Removed" means pre_destroy() handler is called.
++	 * After  "pre_destroy" handler is called, memcg should not
++	 * have any additional charges.
++	 * This means there are small races for mis-accounting. But this
++	 * mis-accounting should happen only under swap-in opration.
++	 * (Attachin new task will fail if cgroup is under rmdir()).
++	 */
 +
-+0. How to record usage ?
-+   2 objects are used.
++	if (!cg || cgroup_is_removed(cg) || cgroup_is_being_removed(cg))
++		return true;
++	return false;
++}
 +
-+   page_cgroup ....an object per page.
-+	Allocated at boot or memory hotplug. Freed at memory hot removal.
 +
-+   swap_cgroup ... an entry per swp_entry.
-+	Allocated at swapon(). Freed at swapoff().
-+
-+   The page_cgroup has USED bit and double count against a page_cgroup never
-+   occurs. swap_cgroup is used only when a charged page is swapped-out.
-+
-+1. Charge
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 					 struct page_cgroup *pc,
+ 					 bool charge)
+@@ -597,7 +614,7 @@ mem_cgroup_get_first_node(struct mem_cgr
+ 	struct cgroup *cgroup;
+ 	struct mem_cgroup *ret;
+ 	bool obsolete = (root_mem->last_scanned_child &&
+-				root_mem->last_scanned_child->obsolete);
++			memcg_is_obsolete(root_mem->last_scanned_child);
  
-    a page/swp_entry may be charged (usage += PAGE_SIZE) at
+ 	/*
+ 	 * Scan all children under the mem_cgroup mem
+@@ -1070,7 +1087,7 @@ int mem_cgroup_try_charge_swapin(struct 
+ 	ent.val = page_private(page);
  
--	mem_cgroup_newpage_newpage()
--	  called at new page fault and COW.
-+	mem_cgroup_newpage_charge()
-+	  Called at new page fault and Copy-On-Write.
- 
- 	mem_cgroup_try_charge_swapin()
--	  called at do_swap_page() and swapoff.
--	  followed by charge-commit-cancel protocol.
--	  (With swap accounting) at commit, charges recorded in swap is removed.
-+	  Called at do_swap_page() (page fault on swap entry) and swapoff.
-+	  Followed by charge-commit-cancel protocol. (With swap accounting)
-+	  At commit, a charge recorded in swap_cgroup is removed.
- 
- 	mem_cgroup_cache_charge()
--	  called at add_to_page_cache()
-+	  Called at add_to_page_cache()
- 
--	mem_cgroup_cache_charge_swapin)()
--	  called by shmem's swapin processing.
-+	mem_cgroup_cache_charge_swapin()
-+	  Called at shmem's swapin.
- 
- 	mem_cgroup_prepare_migration()
--	  called before migration. "extra" charge is done
--	  followed by charge-commit-cancel protocol.
-+	  Called before migration. "extra" charge is done and followed by
-+	  charge-commit-cancel protocol.
- 	  At commit, charge against oldpage or newpage will be committed.
- 
--2. uncharge
-+2. Uncharge
-   a page/swp_entry may be uncharged (usage -= PAGE_SIZE) by
- 
- 	mem_cgroup_uncharge_page()
--	  called when an anonymous page is unmapped. If the page is SwapCache
--	  uncharge is delayed until mem_cgroup_uncharge_swapcache().
-+	  Called when an anonymous page is fully unmapped. I.e., mapcount goes
-+	  to 0. If the page is SwapCache, uncharge is delayed until
-+	  mem_cgroup_uncharge_swapcache().
- 
- 	mem_cgroup_uncharge_cache_page()
--	  called when a page-cache is deleted from radix-tree. If the page is
--	  SwapCache, uncharge is delayed until mem_cgroup_uncharge_swapcache()
-+	  Called when a page-cache is deleted from radix-tree. If the page is
-+	  SwapCache, uncharge is delayed until mem_cgroup_uncharge_swapcache().
- 
- 	mem_cgroup_uncharge_swapcache()
--	  called when SwapCache is removed from radix-tree. the charge itself
-+	  Called when SwapCache is removed from radix-tree. The charge itself
- 	  is moved to swap_cgroup. (If mem+swap controller is disabled, no
--	  charge to swap.)
-+	  charge to swap occurs.)
- 
- 	mem_cgroup_uncharge_swap()
--	  called when swp_entry's refcnt goes down to be 0. charge against swap
-+	  Called when swp_entry's refcnt goes down to 0. A charge against swap
- 	  disappears.
- 
- 	mem_cgroup_end_migration(old, new)
--	at success of migration -> old is uncharged (if necessary), charge
--	to new is committed. at failure, charge to old is committed.
-+	At success of migration old is uncharged (if necessary), a charge
-+	to new page is committed. At failure, charge to old page is committed.
- 
- 3. charge-commit-cancel
--	In some case, we can't know this "charge" is valid or not at charge.
-+	In some case, we can't know this "charge" is valid or not at charging
-+	(because of races).
- 	To handle such case, there are charge-commit-cancel functions.
- 		mem_cgroup_try_charge_XXX
- 		mem_cgroup_commit_charge_XXX
-@@ -68,24 +85,164 @@ patterns tend to be racy.
- 
- 	At cancel(), simply usage -= PAGE_SIZE.
- 
--4. Typical Tests.
-+Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
-+
-+4. Anonymous
-+	Anonymous page is newly allocated at
-+		  - page fault into MAP_ANONYMOUS mapping.
-+		  - Copy-On-Write.
-+ 	It is charged right after it's allocated before doing any page table
-+	related operations. Of course, it's uncharged when another page is used
-+	for the fault address.
-+
-+	At freeing anonymous page (by exit() or munmap()), zap_pte() is called
-+	and pages for ptes are freed one by one.(see mm/memory.c). Uncharges
-+	are done at page_remove_rmap() when page_mapcount() goes down to 0.
-+
-+	Another page freeing is by page-reclaim (vmscan.c) and anonymous
-+	pages are swapped out. In this case, the page is marked as
-+	PageSwapCache(). uncharge() routine doesn't uncharge the page marked
-+	as SwapCache(). It's delayed until __delete_from_swap_cache().
-+
-+	4.1 Swap-in.
-+	At swap-in, the page is taken from swap-cache. There are 2 cases.
-+
-+	(a) If the SwapCache is newly allocated and read, it has no charges.
-+	(b) If the SwapCache has been mapped by processes, it has been
-+	    charged already.
-+
-+	In case (a), we charge it. In case (b), we don't charge it.
-+	(But racy state between (a) and (b) exists. We do check it.)
-+	At charging, a charge recorded in swap_cgroup is moved to page_cgroup.
-+
-+	4.2 Swap-out.
-+	At swap-out, typical state transition is below.
-+
-+	(a) add to swap cache. (marked as SwapCache)
-+	    swp_entry's refcnt += 1.
-+	(b) fully unmapped.
-+	    swp_entry's refcnt += # of ptes.
-+	(c) write back to swap.
-+	(d) delete from swap cache. (remove from SwapCache)
-+	    swp_entry's refcnt -= 1.
-+
-+
-+	At (b), the page is marked as SwapCache and not uncharged.
-+	At (d), the page is removed from SwapCache and a charge in page_cgroup
-+	is moved to swap_cgroup.
-+
-+	Finally, at task exit,
-+	(e) zap_pte() is called and swp_entry's refcnt -=1 -> 0.
-+	Here, a charge in swap_cgroup disappears.
-+
-+5. Page Cache
-+   	Page Cache is charged at
-+	- add_to_page_cache_locked().
-+
-+	uncharged at
-+	- __remove_from_page_cache().
-+
-+	The logic is very clear. (About migration, see below)
-+	Note: __remove_from_page_cache() is called by remove_from_page_cache()
-+	and __remove_mapping().
-+
-+6. Shmem(tmpfs) Page Cache
-+	Memcg's charge/uncharge have special handlers of shmem. The best way
-+	to understand shmem's page state transition is to read mm/shmem.c.
-+	But brief explanation of the behavior of memcg around shmem will be
-+	helpful to understand the logic.
-+
-+	Shmem's page (just leaf page, not direct/indirect block) can be on
-+		- radix-tree of shmem's inode.
-+		- SwapCache.
-+		- Both on radix-tree and SwapCache. This happens at swap-in
-+		  and swap-out,
-+
-+	It's charged when...
-+	- A new page is added to shmem's radix-tree.
-+	- A swp page is read. (move a charge from swap_cgroup to page_cgroup)
-+	It's uncharged when
-+	- A page is removed from radix-tree and not SwapCache.
-+	- When SwapCache is removed, a charge is moved to swap_cgroup.
-+	- When swp_entry's refcnt goes down to 0, a charge in swap_cgroup
-+	  disappears.
- 
--  Tests for racy cases.
-+7. Page Migration
-+   	One of the most complicated functions is page-migration-handler.
-+	Memcg has 2 routines. Assume that we are migrating a page's contents
-+	from OLDPAGE to NEWPAGE.
-+
-+	Usual migration logic is..
-+	(a) remove the page from LRU.
-+	(b) allocate NEWPAGE (migration target)
-+	(c) lock by lock_page().
-+	(d) unmap all mappings.
-+	(e-1) If necessary, replace entry in radix-tree.
-+	(e-2) move contents of a page.
-+	(f) map all mappings again.
-+	(g) pushback the page to LRU.
-+	(-) OLDPAGE will be freed.
-+
-+	Before (g), memcg should complete all necessary charge/uncharge to
-+	NEWPAGE/OLDPAGE.
-+
-+	The point is....
-+	- If OLDPAGE is anonymous, all charges will be dropped at (d) because
-+          try_to_unmap() drops all mapcount and the page will not be
-+	  SwapCache.
-+
-+	- If OLDPAGE is SwapCache, charges will be kept at (g) because
-+	  __delete_from_swap_cache() isn't called at (e-1)
-+
-+	- If OLDPAGE is page-cache, charges will be kept at (g) because
-+	  remove_from_swap_cache() isn't called at (e-1)
-+
-+	memcg provides following hooks.
-+
-+	- mem_cgroup_prepare_migration(OLDPAGE)
-+	  Called after (b) to account a charge (usage += PAGE_SIZE) against
-+	  memcg which OLDPAGE belongs to.
-+
-+        - mem_cgroup_end_migration(OLDPAGE, NEWPAGE)
-+	  Called after (f) before (g).
-+	  If OLDPAGE is used, commit OLDPAGE again. If OLDPAGE is already
-+	  charged, a charge by prepare_migration() is automatically canceled.
-+	  If NEWPAGE is used, commit NEWPAGE and uncharge OLDPAGE.
-+
-+	  But zap_pte() (by exit or munmap) can be called while migration,
-+	  we have to check if OLDPAGE/NEWPAGE is a valid page after commit().
-+
-+8. LRU
-+        Each memcg has its own private LRU. Now, it's handling is under global
-+	VM's control (means that it's handled under global zone->lru_lock).
-+	Almost all routines around memcg's LRU is called by global LRU's
-+	list management functions under zone->lru_lock().
-+
-+	A special function is mem_cgroup_isolate_pages(). This scans
-+	memcg's private LRU and call __isolate_lru_page() to extract a page
-+	from LRU.
-+	(By __isolate_lru_page(), the page is removed from both of global and
-+	 private LRU.)
- 
--  4.1 small limit to memcg.
-+
-+9. Typical Tests.
-+
-+ Tests for racy cases.
-+
-+ 9.1 Small limit to memcg.
- 	When you do test to do racy case, it's good test to set memcg's limit
- 	to be very small rather than GB. Many races found in the test under
- 	xKB or xxMB limits.
- 	(Memory behavior under GB and Memory behavior under MB shows very
- 	 different situation.)
- 
--  4.2 shmem
-+ 9.2 Shmem
- 	Historically, memcg's shmem handling was poor and we saw some amount
- 	of troubles here. This is because shmem is page-cache but can be
- 	SwapCache. Test with shmem/tmpfs is always good test.
- 
--  4.3 migration
--	For NUMA, migration is an another special. To do easy test, cpuset
-+ 9.3 Migration
-+	For NUMA, migration is an another special case. To do easy test, cpuset
- 	is useful. Following is a sample script to do migration.
- 
- 	mount -t cgroup -o cpuset none /opt/cpuset
-@@ -118,20 +275,20 @@ patterns tend to be racy.
- 	G2_TASK=`cat ${G2}/tasks`
- 	move_task "${G1_TASK}" ${G2} &
- 	--
--  4.4 memory hotplug.
-+ 9.4 Memory hotplug.
- 	memory hotplug test is one of good test.
- 	to offline memory, do following.
- 	# echo offline > /sys/devices/system/memory/memoryXXX/state
- 	(XXX is the place of memory)
- 	This is an easy way to test page migration, too.
- 
-- 4.5 mkdir/rmdir
-+ 9.5 mkdir/rmdir
- 	When using hierarchy, mkdir/rmdir test should be done.
--	tests like following.
-+	Use tests like the following.
- 
--	#echo 1 >/opt/cgroup/01/memory/use_hierarchy
--	#mkdir /opt/cgroup/01/child_a
--	#mkdir /opt/cgroup/01/child_b
-+	echo 1 >/opt/cgroup/01/memory/use_hierarchy
-+	mkdir /opt/cgroup/01/child_a
-+	mkdir /opt/cgroup/01/child_b
- 
- 	set limit to 01.
- 	add limit to 01/child_b
-@@ -143,3 +300,12 @@ patterns tend to be racy.
- 	/opt/cgroup/01/child_c
- 
- 	running new jobs in new group is also good.
-+
-+ 9.6 Mount with other subsystems.
-+	Mounting with other subsystems is a good test because there is a
-+	race and lock dependency with other cgroup subsystems.
-+
-+	example)
-+	# mount -t cgroup none /cgroup -t cpuset,memory,cpu,devices
-+
-+	and do task move, mkdir, rmdir etc...under this.
-Index: mmotm-2.6.28-Dec03/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-Dec03.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-Dec03/mm/memcontrol.c
-@@ -6,6 +6,10 @@
-  * Copyright 2007 OpenVZ SWsoft Inc
-  * Author: Pavel Emelianov <xemul@openvz.org>
+ 	mem = lookup_swap_cgroup(ent);
+-	if (!mem || mem->obsolete)
++	if (!mem || memcg_is_obsolete(mem))
+ 		goto charge_cur_mm;
+ 	*ptr = mem;
+ 	return __mem_cgroup_try_charge(NULL, mask, ptr, true);
+@@ -1104,7 +1121,7 @@ int mem_cgroup_cache_charge_swapin(struc
+ 		ent.val = page_private(page);
+ 		if (do_swap_account) {
+ 			mem = lookup_swap_cgroup(ent);
+-			if (mem && mem->obsolete)
++			if (mem && memcg_is_obsolete(mem))
+ 				mem = NULL;
+ 			if (mem)
+ 				mm = NULL;
+@@ -2050,9 +2067,6 @@ static struct mem_cgroup *mem_cgroup_all
+  * the number of reference from swap_cgroup and free mem_cgroup when
+  * it goes down to 0.
   *
-+ * Documentation is available at
-+ * 	Documentation/controllers/memory.txt
-+ * 	Documentation/controllers/memcg_test.txt
-+ *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
+- * When mem_cgroup is destroyed, mem->obsolete will be set to 0 and
+- * entry which points to this memcg will be ignore at swapin.
+- *
+  * Removal of cgroup itself succeeds regardless of refs from swap.
+  */
+ 
+@@ -2081,7 +2095,7 @@ static void mem_cgroup_get(struct mem_cg
+ static void mem_cgroup_put(struct mem_cgroup *mem)
+ {
+ 	if (atomic_dec_and_test(&mem->refcnt)) {
+-		if (!mem->obsolete)
++		if (!memcg_is_obsolete(mem))
+ 			return;
+ 		mem_cgroup_free(mem);
+ 	}
+@@ -2148,14 +2162,16 @@ static void mem_cgroup_pre_destroy(struc
+ 					struct cgroup *cont)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+-	mem->obsolete = 1;
+ 	mem_cgroup_force_empty(mem, false);
+ }
+ 
+ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
+ 				struct cgroup *cont)
+ {
+-	mem_cgroup_free(mem_cgroup_from_cont(cont));
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cont):
++	mem_cgroup_free(mem);
++	/* forget */
++	mem->css.cgroup = NULL;
+ }
+ 
+ static int mem_cgroup_populate(struct cgroup_subsys *ss,
+Index: mmotm-2.6.28-Dec08/include/linux/cgroup.h
+===================================================================
+--- mmotm-2.6.28-Dec08.orig/include/linux/cgroup.h
++++ mmotm-2.6.28-Dec08/include/linux/cgroup.h
+@@ -98,6 +98,8 @@ enum {
+ 	CGRP_RELEASABLE,
+ 	/* Control Group requires release notifications to userspace */
+ 	CGRP_NOTIFY_ON_RELEASE,
++	/* Control Group is preparing for death */
++	CGRP_PRE_REMOVAL,
+ };
+ 
+ struct cgroup {
+@@ -303,8 +305,11 @@ int cgroup_add_files(struct cgroup *cgrp
+ 			const struct cftype cft[],
+ 			int count);
+ 
++
+ int cgroup_is_removed(const struct cgroup *cgrp);
+ 
++int cgroup_is_being_removed(const struct cgroup *cgrp);
++
+ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
+ 
+ int cgroup_task_count(const struct cgroup *cgrp);
+Index: mmotm-2.6.28-Dec08/kernel/cgroup.c
+===================================================================
+--- mmotm-2.6.28-Dec08.orig/kernel/cgroup.c
++++ mmotm-2.6.28-Dec08/kernel/cgroup.c
+@@ -123,6 +123,11 @@ inline int cgroup_is_removed(const struc
+ 	return test_bit(CGRP_REMOVED, &cgrp->flags);
+ }
+ 
++inline int cgroup_is_being_removed(const struct cgroup *cgrp)
++{
++	return test_bit(CGRP_PRE_REMOVAL, &cgrp->flags);
++}
++
+ /* bits in struct cgroupfs_root flags field */
+ enum {
+ 	ROOT_NOPREFIX, /* mounted subsystems have no named prefix */
+@@ -1217,6 +1222,13 @@ int cgroup_attach_task(struct cgroup *cg
+ 	if (cgrp == oldcgrp)
+ 		return 0;
+ 
++	/*
++	 * This cgroup is under rmdir() operation. Never fails here when this
++ 	 * is called from clone().
++ 	 */
++	if (cgroup_is_being_removed(cgrp))
++		return -EBUSY;
++
+ 	for_each_subsys(root, ss) {
+ 		if (ss->can_attach) {
+ 			retval = ss->can_attach(ss, cgrp, tsk);
+@@ -2469,12 +2481,14 @@ static int cgroup_rmdir(struct inode *un
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
+-	mutex_unlock(&cgroup_mutex);
+ 
+ 	/*
+ 	 * Call pre_destroy handlers of subsys. Notify subsystems
+ 	 * that rmdir() request comes.
+ 	 */
++	set_bit(CGRP_PRE_REMOVAL, &cgrp->flags);
++	mutex_unlock(&cgroup_mutex);
++
+ 	cgroup_call_pre_destroy(cgrp);
+ 
+ 	mutex_lock(&cgroup_mutex);
+@@ -2483,12 +2497,14 @@ static int cgroup_rmdir(struct inode *un
+ 	if (atomic_read(&cgrp->count)
+ 	    || !list_empty(&cgrp->children)
+ 	    || cgroup_has_css_refs(cgrp)) {
++		clear_bit(CGRP_PRE_REMOVAL, &cgrp->flags);
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
+ 
+ 	spin_lock(&release_list_lock);
+ 	set_bit(CGRP_REMOVED, &cgrp->flags);
++	clear_bit(CGRP_PRE_REMOVAL, &cgrp->flags);
+ 	if (!list_empty(&cgrp->release_list))
+ 		list_del(&cgrp->release_list);
+ 	spin_unlock(&release_list_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
