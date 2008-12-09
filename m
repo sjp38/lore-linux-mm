@@ -1,46 +1,52 @@
-Subject: Re: [PATCH] - support inheritance of mlocks across fork/exec V2
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1228770337.31442.44.camel@lts-notebook>
-References: <1227561707.6937.61.camel@lts-notebook>
-	 <20081125152651.b4c3c18f.akpm@linux-foundation.org>
-	 <1228331069.6693.73.camel@lts-notebook>
-	 <20081206220729.042a926e.akpm@linux-foundation.org>
-	 <1228770337.31442.44.camel@lts-notebook>
-Content-Type: text/plain
-Date: Mon, 08 Dec 2008 15:33:05 -0600
-Message-Id: <1228771985.3726.32.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: by ey-out-1920.google.com with SMTP id 21so755460eyc.44
+        for <linux-mm@kvack.org>; Mon, 08 Dec 2008 18:02:35 -0800 (PST)
+Date: Tue, 9 Dec 2008 05:02:27 +0300
+From: Alexander Beregalov <a.beregalov@gmail.com>
+Subject: [PATCH] mm/memory: use uninitialized_var() macro for suppressing
+	gcc warnings
+Message-ID: <20081209020227.GA23948@orion>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com, linux-api@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2008-12-08 at 16:05 -0500, Lee Schermerhorn wrote:
-> > > In support of a "lock prefix command"--e.g., mlock <cmd>
-> <args> ...
-> > > Analogous to taskset(1) for cpu affinity or numactl(8) for numa memory
-> > > policy.
-> > > 
-> > > Together with patches to keep mlocked pages off the LRU, this will
-> > > allow users/admins to lock down applications without modifying them,
-> > > if their RLIMIT_MEMLOCK is sufficiently large, keeping their pages
-> > > off the LRU and out of consideration for reclaim.
-> > > 
-> > > Potentially useful, as well, in real-time environments to force
-> > > prefaulting and residency for applications that don't mlock themselves.
+uninitialized_var() macro was introduced in 94909914
+(Add unitialized_var() macro for suppressing gcc warnings)
 
-This is a bit scary to me. Privilege and mode inheritance across
-processes is the root of many nasty surprises, security and otherwise. 
+mm/memory.c:1485: warning: 'ptl' may be used uninitialized in this function
+mm/memory.c:561: warning: 'dst_ptl' may be used uninitialized in this function
 
-Here's a crazy alternative: add a flag to containers instead? I think
-this is a better match to what you're trying to do and will keep people
-from being surprised when an mlockall call in one thread causes a
-fork/exec in another thread to crash their box, but only sometimes.
+Signed-off-by: Alexander Beregalov <a.beregalov@gmail.com>
+---
 
--- 
-Mathematics is the supreme nostalgia of our time.
+ mm/memory.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index fc031d6..5610a45 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -558,7 +558,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		unsigned long addr, unsigned long end)
+ {
+ 	pte_t *src_pte, *dst_pte;
+-	spinlock_t *src_ptl, *dst_ptl;
++	spinlock_t *src_ptl, *uninitialized_var(dst_ptl);
+ 	int progress = 0;
+ 	int rss[2];
+ 
+@@ -1482,7 +1482,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
+ 			unsigned long pfn, pgprot_t prot)
+ {
+ 	pte_t *pte;
+-	spinlock_t *ptl;
++	spinlock_t *uninitialized_var(ptl);
+ 
+ 	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+ 	if (!pte)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
