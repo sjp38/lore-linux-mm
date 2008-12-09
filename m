@@ -1,97 +1,108 @@
-Received: by yx-out-1718.google.com with SMTP id 36so628153yxh.26
-        for <linux-mm@kvack.org>; Tue, 09 Dec 2008 04:54:42 -0800 (PST)
-Message-ID: <a4423d670812090454y72e2a0bdt8f6d53f0dc9b9ef2@mail.gmail.com>
-Date: Tue, 9 Dec 2008 15:54:42 +0300
-From: "Alexander Beregalov" <a.beregalov@gmail.com>
-Subject: next-20081209: pdflush: page allocation failure (xfs)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mB9ESYjc028566
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 9 Dec 2008 23:28:34 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 52AE545DE55
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 23:28:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A2F745DE52
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 23:28:34 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id E82A91DB8040
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 23:28:33 +0900 (JST)
+Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 863D21DB803E
+	for <linux-mm@kvack.org>; Tue,  9 Dec 2008 23:28:33 +0900 (JST)
+Message-ID: <3526.10.75.179.61.1228832912.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20081209122731.GB4174@balbir.in.ibm.com>
+References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
+    <20081209200915.41917722.kamezawa.hiroyu@jp.fujitsu.com>
+    <20081209122731.GB4174@balbir.in.ibm.com>
+Date: Tue, 9 Dec 2008 23:28:32 +0900 (JST)
+Subject: Re: [RFC][PATCH 4/6] Flat hierarchical reclaim by ID
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-next@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-I got the message during compiling of the kernel.
-(tainted by previous warning)
+Balbir Singh said:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-12-09
+> 20:09:15]:
+>
+>>
+>> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> Implement hierarchy reclaim by cgroup_id.
+>>
+>> What changes:
+>> 	- Page reclaim is not done by tree-walk algorithm
+>> 	- mem_cgroup->last_schan_child is changed to be ID, not pointer.
+>> 	- no cgroup_lock, done under RCU.
+>> 	- scanning order is just defined by ID's order.
+>> 	  (Scan by round-robin logic.)
+>>
+>> Changelog: v3 -> v4
+>> 	- adjusted to changes in base kernel.
+>> 	- is_acnestor() is moved to other patch.
+>>
+>> Changelog: v2 -> v3
+>> 	- fixed use_hierarchy==0 case
+>>
+>> Changelog: v1 -> v2
+>> 	- make use of css_tryget();
+>> 	- count # of loops rather than remembering position.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujisu.com>
+>
+> I have not yet run the patch, but the heuristics seem a lot like
+> magic. I am not against scanning by order, but is order the right way
+> to scan groups?
+My consideration is
+  - Both of current your implementation and this round robin is just
+    an example. I never think some kind of search algorighm detemined by
+    shape of tree is the best way.
+  - No one knows what order is the best, now. We have to find it.
+  - The best order will be determined by some kind of calculation rather
+    than shape of tree and must pass by tons of tests.
+    This needs much amount of time and patient work. VM management is not
+    so easy thing.
+    I think your soft-limit idea can be easily merged onto this patch set.
 
-x86_64, 2Gb of RAM
+> Does this order reflect their position in the hierarchy?
+  No. just scan IDs from last scannned one in RR.
+  BTW, can you show what an algorithm works well in following case ?
+  ex)
+    groupA/   limit=1G     usage=300M
+          01/ limit=600M   usage=600M
+          02/ limit=700M   usage=70M
+          03/ limit=100M   usage=30M
+   Which one should be shrinked at first and why ?
+   1) when group_A hit limits.
+   2) when group_A/01 hit limits.
+   3) when group_A/02 hit limits.
+   I can't now.
 
-pdflush: page allocation failure. order:0, mode:0x4000
-Pid: 30415, comm: pdflush Tainted: G        W  2.6.28-rc7-next-20081209 #3
-Call Trace:
- [<ffffffff8027c292>] __alloc_pages_internal+0x469/0x488
- [<ffffffff802c170d>] ? bvec_alloc_bs+0xdc/0x11a
- [<ffffffff8029b3b7>] alloc_slab_page+0x20/0x26
- [<ffffffff8029b6b4>] __slab_alloc+0x26c/0x596
- [<ffffffff802c170d>] ? bvec_alloc_bs+0xdc/0x11a
- [<ffffffff802c170d>] ? bvec_alloc_bs+0xdc/0x11a
- [<ffffffff8029bdbb>] kmem_cache_alloc+0x7b/0xbe
- [<ffffffff802c170d>] bvec_alloc_bs+0xdc/0x11a
- [<ffffffff802c17f4>] bio_alloc_bioset+0xa9/0x101
- [<ffffffff802c18b6>] bio_alloc+0x10/0x1f
- [<ffffffff80354781>] xfs_alloc_ioend_bio+0x23/0x52
- [<ffffffff80354838>] xfs_submit_ioend+0x56/0xd4
- [<ffffffff80354e9f>] xfs_page_state_convert+0x5e9/0x642
- [<ffffffff803536bb>] ? xfs_count_page_state+0x97/0xb6
- [<ffffffff803551cf>] xfs_vm_writepage+0xbe/0xf7
- [<ffffffff8027c490>] __writepage+0x15/0x3b
- [<ffffffff8027ce0b>] write_cache_pages+0x1cd/0x331
- [<ffffffff8027c47b>] ? __writepage+0x0/0x3b
- [<ffffffff8027cf91>] generic_writepages+0x22/0x28
- [<ffffffff803550f3>] xfs_vm_writepages+0x45/0x4e
- [<ffffffff8027cfc2>] do_writepages+0x2b/0x3b
- [<ffffffff802b8e98>] __writeback_single_inode+0x186/0x2fa
- [<ffffffff802b94c3>] ? generic_sync_sb_inodes+0x2bc/0x30a
- [<ffffffff802b9433>] generic_sync_sb_inodes+0x22c/0x30a
- [<ffffffff802b972b>] writeback_inodes+0x9d/0xf4
- [<ffffffff8027d118>] wb_kupdate+0xa3/0x11e
- [<ffffffff8027db96>] pdflush+0x11d/0x1d0
- [<ffffffff8027d075>] ? wb_kupdate+0x0/0x11e
- [<ffffffff8027da79>] ? pdflush+0x0/0x1d0
- [<ffffffff80249cfd>] kthread+0x49/0x76
- [<ffffffff8020c8fa>] child_rip+0xa/0x20
- [<ffffffff802314de>] ? finish_task_switch+0x0/0xb9
- [<ffffffff8020c2c0>] ? restore_args+0x0/0x30
- [<ffffffff80249cb4>] ? kthread+0x0/0x76
- [<ffffffff8020c8f0>] ? child_rip+0x0/0x20
-Mem-Info:
-DMA per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-CPU    1: hi:    0, btch:   1 usd:   0
-CPU    2: hi:    0, btch:   1 usd:   0
-CPU    3: hi:    0, btch:   1 usd:   0
-DMA32 per-cpu:
-CPU    0: hi:  186, btch:  31 usd: 109
-CPU    1: hi:  186, btch:  31 usd: 154
-CPU    2: hi:  186, btch:  31 usd:  76
-CPU    3: hi:  186, btch:  31 usd:  39
-Active_anon:46892 active_file:71530 inactive_anon:10315
- inactive_file:243246 unevictable:0 dirty:15089 writeback:1402 unstable:0
- free:1877 slab:116494 mapped:672 pagetables:401 bounce:0
-DMA free:1452kB min:40kB low:48kB high:60kB active_anon:0kB
-inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB
-present:15072kB pages_scanned:0 all_unreclaimable? yes
-lowmem_reserve[]: 0 1975 1975 1975
-DMA32 free:6056kB min:5664kB low:7080kB high:8496kB
-active_anon:187568kB inactive_anon:41260kB active_file:286120kB
-inactive_file:972984kB unevictable:0kB present:2023256kB
-pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0 0
-DMA: 1*4kB 1*8kB 0*16kB 1*32kB 2*64kB 2*128kB 2*256kB 1*512kB 0*1024kB
-0*2048kB 0*4096kB = 1452kB
-DMA32: 204*4kB 59*8kB 6*16kB 4*32kB 1*64kB 1*128kB 1*256kB 0*512kB
-0*1024kB 0*2048kB 1*4096kB = 6056kB
-314797 total pagecache pages
-0 pages in swap cache
-Swap cache stats: add 0, delete 0, find 0/0
-Free swap  = 3911788kB
-Total swap = 3911788kB
-523088 pages RAM
-22877 pages reserved
-224954 pages shared
-276682 pages non-shared
+   This patch itself uses round-robin and have no special order.
+   I think implenting good algorithm under this needs some amount of time.
+
+> Shouldn't id's belong to cgroups instead of just memory controller?
+If Paul rejects, I'll move this to memcg. But bio-cgroup people also use
+ID and, in this summer, I posted swap-cgroup-ID patch and asked to
+implement IDs under cgroup rather than subsys. (asked by Paul or you.)
+
+>From implementation, hierarchy code management at el. should go into
+cgroup.c and it gives us clear view rather than implemented under memcg.
+
+-Kame
+> I would push back ids to cgroups infrastructure.
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
