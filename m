@@ -1,97 +1,87 @@
-Subject: Re: [PATCH] - support inheritance of mlocks across fork/exec V2
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <1228851652.6379.58.camel@lts-notebook>
-References: <1227561707.6937.61.camel@lts-notebook>
-	 <20081125152651.b4c3c18f.akpm@linux-foundation.org>
-	 <1228331069.6693.73.camel@lts-notebook>
-	 <20081206220729.042a926e.akpm@linux-foundation.org>
-	 <1228770337.31442.44.camel@lts-notebook>  <1228771985.3726.32.camel@calx>
-	 <1228851652.6379.58.camel@lts-notebook>
+Subject: Question:  mmotm-081207 - Should i_mmap_writable go negative?
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Content-Type: text/plain
-Date: Tue, 09 Dec 2008 14:41:36 -0600
-Message-Id: <1228855296.3726.113.camel@calx>
+Date: Tue, 09 Dec 2008 15:47:46 -0500
+Message-Id: <1228855666.6379.84.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, riel@redhat.com, hugh@veritas.com, kosaki.motohiro@jp.fujitsu.com, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2008-12-09 at 14:40 -0500, Lee Schermerhorn wrote:
-> On Mon, 2008-12-08 at 15:33 -0600, Matt Mackall wrote:
-> > On Mon, 2008-12-08 at 16:05 -0500, Lee Schermerhorn wrote:
-> > > > > In support of a "lock prefix command"--e.g., mlock <cmd>
-> > > <args> ...
-> > > > > Analogous to taskset(1) for cpu affinity or numactl(8) for numa memory
-> > > > > policy.
-> > > > > 
-> > > > > Together with patches to keep mlocked pages off the LRU, this will
-> > > > > allow users/admins to lock down applications without modifying them,
-> > > > > if their RLIMIT_MEMLOCK is sufficiently large, keeping their pages
-> > > > > off the LRU and out of consideration for reclaim.
-> > > > > 
-> > > > > Potentially useful, as well, in real-time environments to force
-> > > > > prefaulting and residency for applications that don't mlock themselves.
-> > 
-> > This is a bit scary to me. Privilege and mode inheritance across
-> > processes is the root of many nasty surprises, security and otherwise.
-> 
-> Hi, Matt:
-> 
-> Could you explain more about this issue?  I believe that the patch
-> doesn't provide any privileges or capabilities that a process doesn't
-> already have.  It just allows one to cause a process and, optionally,
-> its descendants, to behave as if one had modified the sources to invoke
-> mlockall() directly.  It is still subject to each individual task's
-> resource limits.  At least, that was my intent.  
+I've been trying to figure out how to determine when the last shared
+mapping [vma with VM_SHARED] is removed from a mmap()ed file.  Looking
+at the sources, it appears that vma->vm_file->f_mapping->i_mmap_writable
+counts the number of vmas with VM_SHARED mapping the file.  However, in
+2.6.28-rc7-mmotm-081207, it appears that i_mmap_writable doesn't get
+incremented when a task fork()s, and can go negative when the parent and
+child both unmap the file.
 
-Again, it's about inheriting *something* across processes. This
-historically creates surprises. When the thing being inherited is a
-privilege, the surprises are security holes. I can't tell you what the
-surprises are, only that I expect there to be some.
+I instrumented a couple of functions in mmap.c that increment and
+decrement i_mmap_writable and then mapped a file sharable, fork(), and
+unmapped the file in the parent and child, using my memtoy ad hoc test
+program.  Here's what I see [again, on 2.6.28-rc7-mmotm-081207]--right
+after boot, so my test file should have zero mappers:
 
-mlockall is not a privilege in itself, but it is a non-standard mode of
-operation that most processes are not designed for or expecting, and it
-does relate to the handling of a finite resource with system stability
-implications. If the thing that turns on this mode is buried inside some
-poorly written app that decides it needs to mlockall somewhere, the
-'surprise' can occur far away - in the child of a child of a thread an
-hour later. And the surprise can be fatal - all memory eaten up, because
-our process just happened to run without an rlimit.
+--------
 
-I've seen this with RT. An app temporarily elevates itself to RT, and
-unrelatedly forks another process. The second short-lived process kicks
-off a daemon that sometime later consumes all CPU in a busy loop (in
-this case waiting on I/O that never happens because everything else is
-shut out).
+root@dropout(root):memtoy
+memtoy pid:  3301
+memtoy>file /tmp/zf1
+memtoy>map zf1 shared
 
-Doing it as a container parameter means that you explicitly recognize
-that 'everything in the container' gets this mode. And you've probably
-also given a thought to 'how big is this container' and the like as
-well.
+console:__vma_link_file:  vma: ffff8803fdc090b8 - mapping->i_mmap_writable: 0 -> 1
 
-> As far as "what I'm trying to do":  I see this as exactly like using
-> taskset to set the cpu affinity of a task, or numactl to set the task
-> mempolicy without modifying the source.
+memtoy>child c1
+memtoy:  child c1 - pid 3302
 
-Oh sure, I completely get that and I think it's a useful notion. And I
-think the above analogous interfaces have more or less the same issues,
-except that mlockall is a much older and more widely used API.
-Containers are a better match here too, but the above predate
-containers.
+me: I would have expected to see i_mmap_writable incremented again here, but
+me: saw no console output from my instrumentation.
 
->   If one had access to the
-> program source and wouldn't, e.g., void a support contract by modifying
-> it, one could just insert the calls into the source itself.
+memtoy>unmap zf1	# unmap in parent
 
-Huh? We would of course set up a container 'from the outside'. By
-comparison, your mlockall() call traditionally operates from 'from the
-inside', and you're proposing to add a flag and a helper program that
-makes it work 'from the outside' too. Which is a bit hackish.
+console:__remove_shared_vm_struct:  vma: ffff8803fdc090b8 - mapping->i_mmap_writable: 1 -> 0
+console:__remove_shared_vm_struct:  vma: ffff8803fdc090b8 - removed last shared mapping
 
--- 
-Mathematics is the supreme nostalgia of our time.
+memtoy>/c1 show
+  _____address______ ____length____ ____offset____ prot  share  name
+f 0x00007f000ae68000 0x000001000000 0x000000000000  rw- shared  /tmp/zf1
+
+me:  child still has zf1 mapped
+
+memtoy>/c1 unmap zf1	# unmap in child
+
+console:__remove_shared_vm_struct:  vma: ffff8803fe5d3170 - mapping->i_mmap_writable: 0 -> -1
+
+--------
+
+So, the file's i_mmap_writable goes negative.  Is this expected?
+
+If I remap the file, whether or not I restart memtoy, I see that it's
+i_mmap_writable has remained negative:
+
+-------
+memtoy>map zf1		# map private [!shared] - no change in i_mmap_writable
+
+console:__vma_link_file:  vma: ffff8805fd0590b8 - mapping->i_mmap_writable: -1 -> -1
+
+memtoy>unmap zf1	# unmap:  no change in i_mmap_writable
+
+console:__remove_shared_vm_struct:  vma: ffff8805fd0590b8 - mapping->i_mmap_writable: -1 -> -1
+
+memtoy>map zf1 shared	# mmap shared, again
+
+console:__vma_link_file:  vma: ffff8805fd0590b8 - mapping->i_mmap_writable: -1 -> 0
+
+--------
+
+I recall that this used to work [as I expected] at one time.
+
+Lee
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
