@@ -1,141 +1,178 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBABTgRk026213
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBABW4FY005308
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 10 Dec 2008 20:29:42 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9D1A645DE4F
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:29:42 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7DB3645DD72
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:29:42 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 65A4F1DB803B
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:29:42 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DED81DB803A
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:29:42 +0900 (JST)
-Message-ID: <29741.10.75.179.61.1228908581.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <6599ad830812100240g5e549a5cqe29cbea736788865@mail.gmail.com>
-References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com><20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
-    <6599ad830812100240g5e549a5cqe29cbea736788865@mail.gmail.com>
-Date: Wed, 10 Dec 2008 20:29:41 +0900 (JST)
-Subject: Re: [RFC][PATCH 1/6] memcg: fix pre_destory handler
+	Wed, 10 Dec 2008 20:32:04 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7835D45DD7E
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:32:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD2245DD7B
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:32:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 26DA31DB803E
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:32:04 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D05211DB8038
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 20:32:03 +0900 (JST)
+Message-ID: <31051.10.75.179.61.1228908723.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20081210105000.GC25467@balbir.in.ibm.com>
+References: <20081210051947.GH7593@balbir.in.ibm.com>
+    <20081210174906.7c1a1a50.kamezawa.hiroyu@jp.fujitsu.com>
+    <20081210105000.GC25467@balbir.in.ibm.com>
+Date: Wed, 10 Dec 2008 20:32:03 +0900 (JST)
+Subject: Re: [RFC][RFT] memcg fix cgroup_mutex deadlock when cpusetreclaims
+     memory
 From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain;charset=us-ascii
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, menage@google.com, KAMEZAWA Hiroyuki <kamezawa.hiroyuki@jp.fujitsu.com>, Daisuke Miyakawa <dmiyakawa@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage said:
-> The reason for needing this patch is because of the non-atomic locking
-> in cgroup_rmdir() that was introduced due to the circular locking
-> dependency between the hotplug lock and the cgroup_mutex.
+Balbir Singh said:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2008-12-10
+> 17:49:06]:
 >
-> But rather than adding a whole bunch more complexity, this looks like
-> another case that could be solved by the hierarchy_mutex patches that
-> I posted a while ago.
->
-removing cgroup_lock() from memcg's reclaim path is okay.
-(and I posted patch...)
-But, prevent css_get() after pre_destroy() is another problem.
-
-(BTW, I don't like hierarchy-walk-by-small-locks approarch now because
- I'd like to implement scan-and-stop-continue routine.
- See how readdir() aginst /proc scans PID. It's very roboust against
- very temporal PIDs.)
-
-> Those allow the cpuset hotplug notifier (and any other subsystem that
-> wants a stable hierarchy) to take ss->hierarchy_mutex, to prevent
-> mkdir/rmdir/bind in its hierarchy, which helps to remove the deadlock
-> that the above dropping of cgroup_mutex was introduced to work around.
->
+>> On Wed, 10 Dec 2008 10:49:47 +0530
+>> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 >>
->> Considering above sequence, new tasks can be added while
->>        (B) and (C)
->> swap-in recored can be charged back to a cgroup after pre_destroy()
->>        at (C) and (D), (E)
->> (means cgrp's refcnt not comes from task but from other persistent
->> objects.)
+>> > Hi,
+>> >
+>> > Here is a proposed fix for the memory controller cgroup_mutex deadlock
+>> > reported. It is lightly tested and reviewed. I need help with review
+>> > and test. Is the reported deadlock reproducible after this patch? A
+>> > careful review of the cpuset impact will also be highly appreciated.
+>> >
+>> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> >
+>> > cpuset_migrate_mm() holds cgroup_mutex throughout the duration of
+>> > do_migrate_pages(). The issue with that is that
+>> >
+>> > 1. It can lead to deadlock with memcg, as do_migrate_pages()
+>> >    enters reclaim
+>> > 2. It can lead to long latencies, preventing users from creating/
+>> >    destroying other cgroups anywhere else
+>> >
+>> > The patch holds callback_mutex through the duration of
+>> cpuset_migrate_mm() and
+>> > gives up cgroup_mutex while doing so.
+>> >
+>> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+>> > ---
+>> >
+>> >  include/linux/cpuset.h |   13 ++++++++++++-
+>> >  kernel/cpuset.c        |   23 ++++++++++++-----------
+>> >  2 files changed, 24 insertions(+), 12 deletions(-)
+>> >
+>> > diff -puN kernel/cgroup.c~cpuset-remove-cgroup-mutex-from-update-path
+>> kernel/cgroup.c
+>> > diff -puN kernel/cpuset.c~cpuset-remove-cgroup-mutex-from-update-path
+>> kernel/cpuset.c
+>> > --- a/kernel/cpuset.c~cpuset-remove-cgroup-mutex-from-update-path
+>> > +++ a/kernel/cpuset.c
+>> > @@ -369,7 +369,7 @@ static void guarantee_online_mems(const
+>> >   * task has been modifying its cpuset.
+>> >   */
+>> >
+>> > -void cpuset_update_task_memory_state(void)
+>> > +void __cpuset_update_task_memory_state(bool held)
+>> >  {
+>> >  	int my_cpusets_mem_gen;
+>> >  	struct task_struct *tsk = current;
+>> > @@ -380,7 +380,8 @@ void cpuset_update_task_memory_state(voi
+>> >  	rcu_read_unlock();
+>> >
+>> >  	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
+>> > -		mutex_lock(&callback_mutex);
+>> > +		if (!held)
+>> > +			mutex_lock(&callback_mutex);
+>> >  		task_lock(tsk);
+>> >  		cs = task_cs(tsk); /* Maybe changed when task not locked */
+>> >  		guarantee_online_mems(cs, &tsk->mems_allowed);
+>> > @@ -394,7 +395,8 @@ void cpuset_update_task_memory_state(voi
+>> >  		else
+>> >  			tsk->flags &= ~PF_SPREAD_SLAB;
+>> >  		task_unlock(tsk);
+>> > -		mutex_unlock(&callback_mutex);
+>> > +		if (!held)
+>> > +			mutex_unlock(&callback_mutex);
+>> >  		mpol_rebind_task(tsk, &tsk->mems_allowed);
+>> >  	}
+>> >  }
+>> > @@ -949,13 +951,15 @@ static int update_cpumask(struct cpuset
+>> >   *    so that the migration code can allocate pages on these nodes.
+>> >   *
+>> >   *    Call holding cgroup_mutex, so current's cpuset won't change
+>> > - *    during this call, as manage_mutex holds off any cpuset_attach()
+>> > + *    during this call, as callback_mutex holds off any
+>> cpuset_attach()
+>> >   *    calls.  Therefore we don't need to take task_lock around the
+>> >   *    call to guarantee_online_mems(), as we know no one is changing
+>> >   *    our task's cpuset.
+>> >   *
+>> >   *    Hold callback_mutex around the two modifications of our tasks
+>> > - *    mems_allowed to synchronize with cpuset_mems_allowed().
+>> > + *    mems_allowed to synchronize with cpuset_mems_allowed(). Give
+>> > + *    up cgroup_mutex to avoid deadlocking with other subsystems
+>> > + *    as we enter reclaim from do_migrate_pages().
+>> >   *
+>> >   *    While the mm_struct we are migrating is typically from some
+>> >   *    other task, the task_struct mems_allowed that we are hacking
+>> > @@ -976,17 +980,14 @@ static void cpuset_migrate_mm(struct mm_
+>> >  {
+>> >  	struct task_struct *tsk = current;
+>> >
+>> > -	cpuset_update_task_memory_state();
+>> > -
+>> > +	cgroup_unlock();
+>> >  	mutex_lock(&callback_mutex);
+>> > +	cpuset_update_task_memory_state_locked();
+>> >  	tsk->mems_allowed = *to;
+>> > -	mutex_unlock(&callback_mutex);
+>> > -
+>> >  	do_migrate_pages(mm, from, to, MPOL_MF_MOVE_ALL);
+>> > -
+>> > -	mutex_lock(&callback_mutex);
+>> >  	guarantee_online_mems(task_cs(tsk),&tsk->mems_allowed);
+>> >  	mutex_unlock(&callback_mutex);
+>> > +	cgroup_lock();
+>> >  }
+>> >
+>>
+>> Hmm...can't this happen ?
+>>
+>> Assume there is a task X and cgroup Z1 and Z2. Z1 and Z2 doesn't need to
+>> be in
+>> the same hierarchy.
+>> ==
+>> 	CPU A attach task X to cgroup Z1
+>> 		cgroup_lock()
+>> 			for_each_subsys_state()
 >
-> Which "persistent object" are you getting the css refcount from?
+> You mean for_each_subsys() right?
 >
-page_cgroup generated from swap_cgroup.
+>> 				=> attach(X,Z)
+>> 					=> migrate_mm()
+>> 						=> cgroup_unlock()
+>> 							migration
+>>
+>> 	CPU B attach task X to cgroup Z2 at the same time
+>> 		cgroup_lock()
+>> 			replace css_set.
+>> ==
+>>
+>> Works on CPU B can't break for_each_subsys_state() in CPU A ?
+>>
+>
+> for_each_subsys is hierarchy aware, so if we try to add the same task
+> to different hierachies, it should not be a problem right?
+>
+Ah, maybe. But what happens when Z1 and Z2 is the same hierarchy ?
+Are there some locks ?
 
-> Is the problem that swap references aren't refcounted because you want
-> to avoid swap from keeping a cgroup alive?
-Yes. There is no operations allows users to make swap on memory.
-> But you still want to be able to do css_get() on the mem_cgroup*
-obtained from a swap
-> reference, and be safely synchronized with concurrent rmdir operations
-> without having to take a heavy lock?
->
-yes. I don't want any locks.
-
-> The solution that I originally tried to use for this in an early
-> version of cgroups (but dropped as I thought it was not needed) was to
-> treat css->refcount as follows:
->
->  0 => trying to remove or removed
->  1 => normal state with no additional refs
->
-> So to get a reference on a possibly removed css we'd have:
->
-> int css_tryget(css) {
->   while (!atomic_inc_not_zero(&css->refcount)) {
->     if (test_bit(CSS_REMOVED, &css->flags)) {
->       return 0;
->     }
->   }
->   return 1;
-> }
->
-> and cgroup_rmdir would do:
->
-> for_each_subsys() {
->   if (cmpxchg(&css->refcount, 0, -1)) {
->     // busy, roll back -1s to 0s, give error
->     ...
->   }
-> }
-> // success
-> for_each_subsys() {
->   set_bit(CSS_REMOVED, &css->flags);
-> }
->
-> This makes it easy to have weak references to a css that can be
-> dropped in a destroy() callback.
-I tried similar patch and made it to use only one shared refcnt.
-(my previous patch...)
-
-We need rolling update of refcnts and rollback. Such code tends to make
-a hole (This was what my first patch did...).
-And there is no fundamental difference between my shared refcnt and
-css_tryget() patch. Maybe above will give us better cache localily.
-
-Anyway, I have no objections to rolling update of refcnt and tryget().
-If it's a way to go, I'll go ahead.
-
-> Would this maybe even remove the need for mem_cgroup_pre_destroy()?
->
-Yes and No. not sure. but my thinking is No.
-
-1. pre_destroy() is called by rmdir(), in synchronized manner.
-   This means that all refs in memcg will be removed at rmdir().
-   If we drop refs at destroy(), it happens when dput()'s refcnt finally
-   goes down to 0. This asynchronous manner is not good for users.
-
-2. Current pre_destroy() code is very young. And we don't find any
-   corner case in which pre_destroy() can't complete thier works.
-   So, I don't want to remove pre_destroy() for a while.
-
-3. Sometimes, pre_destroy() have to call try_to_free_pages() and
-   we cannot know we can call try_to_free_page() in dput().
-
-Thanks,
 -Kame
 
 
