@@ -1,70 +1,118 @@
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBAANjYN011851
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 10 Dec 2008 19:23:45 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E092145DE4F
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 19:23:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C7A4E45DD72
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 19:23:44 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B1FDD1DB8038
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 19:23:44 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6CC401DB803F
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 19:23:44 +0900 (JST)
-Message-ID: <61242.10.75.179.61.1228904624.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <6599ad830812100100i54132600he52504b4785542ec@mail.gmail.com>
-References: <20081205172642.565661b1.kamezawa.hiroyu@jp.fujitsu.com><20081205172845.2b9d89a5.kamezawa.hiroyu@jp.fujitsu.com><6599ad830812050139l5797f16kaf511f831b09e8f4@mail.gmail.com><62469.10.75.179.62.1228476245.squirrel@webmail-b.css.fujitsu.com>
-    <6599ad830812100100i54132600he52504b4785542ec@mail.gmail.com>
-Date: Wed, 10 Dec 2008 19:23:44 +0900 (JST)
-Subject: Re: [RFC][PATCH 1/4] New css->refcnt implementation.
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id mBAAeEQd020911
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 02:40:14 -0800
+Received: from qyk10 (qyk10.prod.google.com [10.241.83.138])
+	by zps75.corp.google.com with ESMTP id mBAAeDWT022983
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 02:40:13 -0800
+Received: by qyk10 with SMTP id 10so627013qyk.18
+        for <linux-mm@kvack.org>; Wed, 10 Dec 2008 02:40:13 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;charset=us-ascii
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 10 Dec 2008 02:40:13 -0800
+Message-ID: <6599ad830812100240g5e549a5cqe29cbea736788865@mail.gmail.com>
+Subject: Re: [RFC][PATCH 1/6] memcg: fix pre_destory handler
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage said:
-> On Fri, Dec 5, 2008 at 3:24 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> The basic rule is that you're only supposed to increment the css
->>> refcount if you have:
->>>
->>> - a reference to a task in the cgroup (that is pinned via task_lock()
->>> so it can't be moved away)
->>> or
->>> - an existing reference to the css
->>>
->> My problem is that we can do css_get() after pre_destroy() and
->> css's refcnt goes down to 0.
+On Tue, Dec 9, 2008 at 3:06 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> better name for new flag is welcome.
 >
-> But where are you getting the reference from in order to do css_get()?
-> Which call in mem cgroup are you concerned about?
+> ==
+> Because pre_destroy() handler is moved out to cgroup_lock() for
+> avoiding dead-lock, now, cgroup's rmdir() does following sequence.
 >
-mem_cgroup_try_charge_swapin() at el. all swap-in codes.
-In that functions, follwoing occurs.
-==
-    assume swp_entry which is being swapped-in
-    lookup swap_cgroup for swp_entry.
-    get memcg from swap_cgroup.
-    charge() against memcg got by swap_cgroup. charge() will do css_get()
-==
-Currently, mem_cgroup->obsolete is used for making this never happen.
-But, mem_cgroup->obsolete flag is broken,now.
-I'm looking for alternative. (see other patches. I know there are several
-ways to go.)
+>        cgroup_lock()
+>        check children and tasks.
+>        (A)
+>        cgroup_unlock()
+>        (B)
+>        pre_destroy() for subsys;-----(1)
+>        (C)
+>        cgroup_lock();
+>        (D)
+>        Second check:check for -EBUSY again because we released the lock.
+>        (E)
+>        mark cgroup as removed.
+>        (F)
+>        unlink from lists.
+>        cgroup_unlock();
+>        dput()
+>        => when dentry's refcnt goes down to 0
+>                destroy() handers for subsys
 
-*AND* any kinds of hierarchy-tree-walk algorithm may call css_get() against
-cgroup under rmdir() if it's not marked as REMOVED.
+The reason for needing this patch is because of the non-atomic locking
+in cgroup_rmdir() that was introduced due to the circular locking
+dependency between the hotplug lock and the cgroup_mutex.
 
-Thanks,
--Kame
+But rather than adding a whole bunch more complexity, this looks like
+another case that could be solved by the hierarchy_mutex patches that
+I posted a while ago.
+
+Those allow the cpuset hotplug notifier (and any other subsystem that
+wants a stable hierarchy) to take ss->hierarchy_mutex, to prevent
+mkdir/rmdir/bind in its hierarchy, which helps to remove the deadlock
+that the above dropping of cgroup_mutex was introduced to work around.
+
+>
+> Considering above sequence, new tasks can be added while
+>        (B) and (C)
+> swap-in recored can be charged back to a cgroup after pre_destroy()
+>        at (C) and (D), (E)
+> (means cgrp's refcnt not comes from task but from other persistent objects.)
+
+Which "persistent object" are you getting the css refcount from?
+
+Is the problem that swap references aren't refcounted because you want
+to avoid swap from keeping a cgroup alive? But you still want to be
+able to do css_get() on the mem_cgroup* obtained from a swap
+reference, and be safely synchronized with concurrent rmdir operations
+without having to take a heavy lock?
+
+The solution that I originally tried to use for this in an early
+version of cgroups (but dropped as I thought it was not needed) was to
+treat css->refcount as follows:
+
+ 0 => trying to remove or removed
+ 1 => normal state with no additional refs
+
+So to get a reference on a possibly removed css we'd have:
+
+int css_tryget(css) {
+  while (!atomic_inc_not_zero(&css->refcount)) {
+    if (test_bit(CSS_REMOVED, &css->flags)) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+and cgroup_rmdir would do:
+
+for_each_subsys() {
+  if (cmpxchg(&css->refcount, 0, -1)) {
+    // busy, roll back -1s to 0s, give error
+    ...
+  }
+}
+// success
+for_each_subsys() {
+  set_bit(CSS_REMOVED, &css->flags);
+}
+
+This makes it easy to have weak references to a css that can be
+dropped in a destroy() callback. Would this maybe even remove the need
+for mem_cgroup_pre_destroy()?
+
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
