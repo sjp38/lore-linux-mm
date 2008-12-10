@@ -1,149 +1,106 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBA4IFgm019156
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBA4a41N031802
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 10 Dec 2008 13:18:16 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AF90445DE51
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:18:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A64D45DE4E
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:18:15 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F8621DB803A
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:18:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F30101DB8041
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:18:11 +0900 (JST)
-Date: Wed, 10 Dec 2008 13:17:18 +0900
+	Wed, 10 Dec 2008 13:36:04 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A5E245DE63
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:36:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 25F9E45DE55
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:36:03 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E4F101DB8038
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:36:02 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 979821DB804D
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 13:36:01 +0900 (JST)
+Date: Wed, 10 Dec 2008 13:35:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/6] memcg: fix pre_destory handler
-Message-Id: <20081210131718.1210360e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081210120340.dd3e7aee.nishimura@mxp.nes.nec.co.jp>
-References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081210112815.d5098e9e.nishimura@mxp.nes.nec.co.jp>
-	<20081210115830.dd13b90b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20081210120340.dd3e7aee.nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH mmotm 1/2] cgroup: fix to stop adding a new task while rmdir
+ going on
+Message-Id: <20081210133508.3ee454ae.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Dec 2008 12:03:40 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+still need reviews.
+==
+Recently, pre_destroy() was moved to out of cgroup_lock() for avoiding
+dead lock. But, by this, serialization between task attach and rmdir()
+is lost.
 
-> On Wed, 10 Dec 2008 11:58:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Wed, 10 Dec 2008 11:28:15 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > On Tue, 9 Dec 2008 20:06:47 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > better name for new flag is welcome.
-> > > > 
-> > > > ==
-> > > > Because pre_destroy() handler is moved out to cgroup_lock() for
-> > > > avoiding dead-lock, now, cgroup's rmdir() does following sequence.
-> > > > 
-> > > > 	cgroup_lock()
-> > > > 	check children and tasks.
-> > > > 	(A)
-> > > > 	cgroup_unlock()
-> > > > 	(B)
-> > > > 	pre_destroy() for subsys;-----(1)
-> > > > 	(C)
-> > > > 	cgroup_lock();
-> > > > 	(D)
-> > > > 	Second check:check for -EBUSY again because we released the lock.
-> > > > 	(E)
-> > > > 	mark cgroup as removed.
-> > > > 	(F)
-> > > > 	unlink from lists.
-> > > > 	cgroup_unlock();
-> > > > 	dput()
-> > > > 	=> when dentry's refcnt goes down to 0
-> > > > 		destroy() handers for subsys
-> > > > 
-> > > > memcg marks itself as "obsolete" when pre_destroy() is called at (1)
-> > > > But rmdir() can fail after pre_destroy(). So marking "obsolete" is bug.
-> > > > I'd like to fix sanity of pre_destroy() in cgroup layer.
-> > > > 
-> > > > Considering above sequence, new tasks can be added while
-> > > > 	(B) and (C)
-> > > > swap-in recored can be charged back to a cgroup after pre_destroy()
-> > > > 	at (C) and (D), (E)
-> > > > (means cgrp's refcnt not comes from task but from other persistent objects.)
-> > > > 
-> > > > This patch adds "cgroup_is_being_removed()" check. (better name is welcome)
-> > > > After this,
-> > > > 
-> > > > 	- cgroup is marked as CGRP_PRE_REMOVAL at (A)
-> > > > 	- If Second check fails, CGRP_PRE_REMOVAL flag is removed.
-> > > > 	- memcg's its own obsolete flag is removed.
-> > > > 	- While CGROUP_PRE_REMOVAL, task attach will fail by -EBUSY.
-> > > > 	  (task attach via clone() will not hit the case.)
-> > > > 
-> > > > By this, we can trust pre_restroy()'s result.
-> > > > 
-> > > > 
-> > > I agrree to the direction of this patch, but I think it would be better
-> > > to split this into cgroup and memcg part.
-> > >
-> > Hmm, but "showing usage" part is necessary for this kind of patches.
-> >  
-> I see.
-> 
-> (snip)
-> > > > +	if (cgroup_is_being_removed(cgrp))
-> > > > +		return -EBUSY;
-> > > > +
-> > > >  	for_each_subsys(root, ss) {
-> > > >  		if (ss->can_attach) {
-> > > >  			retval = ss->can_attach(ss, cgrp, tsk);
-> > > > @@ -2469,12 +2481,14 @@ static int cgroup_rmdir(struct inode *un
-> > > >  		mutex_unlock(&cgroup_mutex);
-> > > >  		return -EBUSY;
-> > > >  	}
-> > > > -	mutex_unlock(&cgroup_mutex);
-> > > >  
-> > > >  	/*
-> > > >  	 * Call pre_destroy handlers of subsys. Notify subsystems
-> > > >  	 * that rmdir() request comes.
-> > > >  	 */
-> > > > +	set_bit(CGRP_PRE_REMOVAL, &cgrp->flags);
-> > > > +	mutex_unlock(&cgroup_mutex);
-> > > > +
-> > > >  	cgroup_call_pre_destroy(cgrp);
-> > > >  
-> > > Is there any case where pre_destory is called simultaneusly ?
-> > > 
-> > I can't catch what is your concern.
-> > 
-> > AFAIK, vfs_rmdir() is done under mutex to dentry
-> > ==
-> >  mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-> >  ...
-> >  vfs_rmdir()
-> > ==
-> > And calls to cgroup_rmdir() will be serialized.
-> > 
-> You're right. I missed that.
-> Thank you for your clarification.
-> 
-> 
+This adds CGRP_TRY_REMOVE flag to cgroup and check it at attaching.
+If attach_pid founds CGRP_TRY_REMOVE, it returns -EBUSY.
 
-I'll post updated one. maybe much clearer.
-
-Thanks,
--Kame
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
+---
+ include/linux/cgroup.h |    2 ++
+ kernel/cgroup.c        |   11 +++++++++++
+ 2 files changed, 13 insertions(+)
 
-> Thanks,
-> Daisuke Nishimura.
-> 
+Index: mmotm-2.6.28-Dec09/include/linux/cgroup.h
+===================================================================
+--- mmotm-2.6.28-Dec09.orig/include/linux/cgroup.h
++++ mmotm-2.6.28-Dec09/include/linux/cgroup.h
+@@ -98,6 +98,8 @@ enum {
+ 	CGRP_RELEASABLE,
+ 	/* Control Group requires release notifications to userspace */
+ 	CGRP_NOTIFY_ON_RELEASE,
++	/* Control Group is in rmdir() sequence. stop adding new tasks */
++	CGRP_TRY_REMOVE,
+ };
+ 
+ struct cgroup {
+Index: mmotm-2.6.28-Dec09/kernel/cgroup.c
+===================================================================
+--- mmotm-2.6.28-Dec09.orig/kernel/cgroup.c
++++ mmotm-2.6.28-Dec09/kernel/cgroup.c
+@@ -122,6 +122,11 @@ inline int cgroup_is_removed(const struc
+ {
+ 	return test_bit(CGRP_REMOVED, &cgrp->flags);
+ }
++/* cgroup is in rmdir() sequnece */
++static inline int cgroup_is_being_removed(const struct cgroup *cgrp)
++{
++	return test_bit(CGRP_TRY_REMOVE, &cgrp->flags);
++}
+ 
+ /* bits in struct cgroupfs_root flags field */
+ enum {
+@@ -1307,6 +1312,10 @@ static int cgroup_tasks_write(struct cgr
+ 	int ret;
+ 	if (!cgroup_lock_live_group(cgrp))
+ 		return -ENODEV;
++	if (cgroup_is_being_removed(cgrp)) {
++		cgroup_unlock();
++		return -EBUSY;
++	}
+ 	ret = attach_task_by_pid(cgrp, pid);
+ 	cgroup_unlock();
+ 	return ret;
+@@ -2469,6 +2478,7 @@ static int cgroup_rmdir(struct inode *un
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
++	set_bit(CGRP_TRY_REMOVE, &cgrp->flags);
+ 	mutex_unlock(&cgroup_mutex);
+ 
+ 	/*
+@@ -2483,6 +2493,7 @@ static int cgroup_rmdir(struct inode *un
+ 	if (atomic_read(&cgrp->count)
+ 	    || !list_empty(&cgrp->children)
+ 	    || cgroup_has_css_refs(cgrp)) {
++		clear_bit(CGRP_TRY_REMOVE, &cgrp->flags);
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
