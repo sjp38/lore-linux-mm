@@ -1,37 +1,77 @@
-From: Paul Menage <menage@google.com>
-Subject: Re: [RFC][PATCH 1/6] memcg: fix pre_destory handler
-Date: Wed, 10 Dec 2008 10:25:20 -0800
-Message-ID: <6599ad830812101025s4a8eab08v214ccc95565c398e@mail.gmail.com>
-References: <6599ad830812100240g5e549a5cqe29cbea736788865@mail.gmail.com>
-	 <29741.10.75.179.61.1228908581.squirrel@webmail-b.css.fujitsu.com>
-	 <20081210132559.GF25467@balbir.in.ibm.com>
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH] fix mapping_writably_mapped()
+Date: Wed, 10 Dec 2008 20:48:52 +0000 (GMT)
+Message-ID: <Pine.LNX.4.64.0812102043060.25282@blonde.anvils>
+References: <1228855666.6379.84.camel@lts-notebook>
+ <Pine.LNX.4.64.0812101312340.16066@blonde.anvils>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Return-path: <owner-linux-mm@kvack.org>
-Received: from wpaz9.hot.corp.google.com (wpaz9.hot.corp.google.com [172.24.198.73])
-	by smtp-out.google.com with ESMTP id mBAIPQeH014241
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 10:25:26 -0800
-Received: from qw-out-1920.google.com (qwk4.prod.google.com [10.241.195.132])
-	by wpaz9.hot.corp.google.com with ESMTP id mBAIPK4A016666
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 10:25:20 -0800
-Received: by qw-out-1920.google.com with SMTP id 4so172869qwk.24
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2008 10:25:20 -0800 (PST)
-In-Reply-To: <20081210132559.GF25467@balbir.in.ibm.com>
+In-Reply-To: <Pine.LNX.4.64.0812101312340.16066@blonde.anvils>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, nishimura@mxp.nes.nec.co.j
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, stable@kernel.org
 List-Id: linux-mm.kvack.org
 
-On Wed, Dec 10, 2008 at 5:25 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->
-> Paul, I can't find those patches in -mm. I will try and dig them out
-> from my mbox. I agree, we need a hierarchy_mutex, cgroup_mutex is
-> becoming the next BKL.
+Lee Schermerhorn noticed yesterday that I broke the mapping_writably_mapped
+test in 2.6.7!  Bad bad bug, good good find.
 
-It never actually went into -mm. I'll sync it with the latest tree and
-try to send it out today.
+The i_mmap_writable count must be incremented for VM_SHARED (just as
+i_writecount is for VM_DENYWRITE, but while holding the i_mmap_lock)
+when dup_mmap() copies the vma for fork: it has its own more optimal
+version of __vma_link_file(), and I missed this out.  So the count
+was later going down to 0 (dangerous) when one end unmapped, then
+wrapping negative (inefficient) when the other end unmapped.
 
-Paul
+The only impact on x86 would have been that setting a mandatory lock on
+a file which has at some time been opened O_RDWR and mapped MAP_SHARED
+(but not necessarily PROT_WRITE) across a fork, might fail with -EAGAIN
+when it should succeed, or succeed when it should fail.
+
+But those architectures which rely on flush_dcache_page() to flush
+userspace modifications back into the page before the kernel reads it,
+may in some cases have skipped the flush after such a fork - though any
+repetitive test will soon wrap the count negative, in which case it will
+flush_dcache_page() unnecessarily.
+
+Fix would be a two-liner, but mapping variable added, and comment moved.
+
+Reported-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
+---
+
+ kernel/fork.c |   15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+--- 2.6.28-rc7/kernel/fork.c	2008-11-15 23:09:30.000000000 +0000
++++ linux/kernel/fork.c	2008-12-10 12:49:13.000000000 +0000
+@@ -315,17 +315,20 @@ static int dup_mmap(struct mm_struct *mm
+ 		file = tmp->vm_file;
+ 		if (file) {
+ 			struct inode *inode = file->f_path.dentry->d_inode;
++			struct address_space *mapping = file->f_mapping;
++
+ 			get_file(file);
+ 			if (tmp->vm_flags & VM_DENYWRITE)
+ 				atomic_dec(&inode->i_writecount);
+-
+-			/* insert tmp into the share list, just after mpnt */
+-			spin_lock(&file->f_mapping->i_mmap_lock);
++			spin_lock(&mapping->i_mmap_lock);
++			if (tmp->vm_flags & VM_SHARED)
++				mapping->i_mmap_writable++;
+ 			tmp->vm_truncate_count = mpnt->vm_truncate_count;
+-			flush_dcache_mmap_lock(file->f_mapping);
++			flush_dcache_mmap_lock(mapping);
++			/* insert tmp into the share list, just after mpnt */
+ 			vma_prio_tree_add(tmp, mpnt);
+-			flush_dcache_mmap_unlock(file->f_mapping);
+-			spin_unlock(&file->f_mapping->i_mmap_lock);
++			flush_dcache_mmap_unlock(mapping);
++			spin_unlock(&mapping->i_mmap_lock);
+ 		}
+ 
+ 		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
