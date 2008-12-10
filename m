@@ -1,117 +1,167 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBA8JbIc019857
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBA8o3Jv026037
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 10 Dec 2008 17:19:38 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D42945DE68
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:19:37 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BAC645DE65
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:19:37 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E3641DB8046
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:19:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 80B0C1DB803C
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:19:29 +0900 (JST)
-Date: Wed, 10 Dec 2008 17:18:36 +0900
+	Wed, 10 Dec 2008 17:50:03 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E5DF45DE51
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:50:03 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 08FAB45DE4F
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:50:03 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E5E6A1DB803B
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:50:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D0871DB8045
+	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 17:49:59 +0900 (JST)
+Date: Wed, 10 Dec 2008 17:49:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][RFT] memcg fix cgroup_mutex deadlock when cpuset reclaims
  memory
-Message-Id: <20081210171836.b959d19b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081210164126.8b3be761.nishimura@mxp.nes.nec.co.jp>
+Message-Id: <20081210174906.7c1a1a50.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081210051947.GH7593@balbir.in.ibm.com>
 References: <20081210051947.GH7593@balbir.in.ibm.com>
-	<20081210151948.9a83f70a.nishimura@mxp.nes.nec.co.jp>
-	<20081210164126.8b3be761.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: balbir@linux.vnet.ibm.com, menage@google.com, Daisuke Miyakawa <dmiyakawa@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: balbir@linux.vnet.ibm.com
+Cc: menage@google.com, KAMEZAWA Hiroyuki <kamezawa.hiroyuki@jp.fujitsu.com>, Daisuke Miyakawa <dmiyakawa@google.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Dec 2008 16:41:26 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Wed, 10 Dec 2008 10:49:47 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Wed, 10 Dec 2008 15:19:48 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > On Wed, 10 Dec 2008 10:49:47 +0530, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > Hi,
-> > > 
-> > > Here is a proposed fix for the memory controller cgroup_mutex deadlock
-> > > reported. It is lightly tested and reviewed. I need help with review
-> > > and test. Is the reported deadlock reproducible after this patch? A
-> > > careful review of the cpuset impact will also be highly appreciated.
-> > > 
-> > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > 
-> > > cpuset_migrate_mm() holds cgroup_mutex throughout the duration of
-> > > do_migrate_pages(). The issue with that is that
-> > > 
-> > > 1. It can lead to deadlock with memcg, as do_migrate_pages()
-> > >    enters reclaim
-> > > 2. It can lead to long latencies, preventing users from creating/
-> > >    destroying other cgroups anywhere else
-> > > 
-> > > The patch holds callback_mutex through the duration of cpuset_migrate_mm() and
-> > > gives up cgroup_mutex while doing so.
-> > > 
-> > I agree changing cpuset_migrate_mm not to hold cgroup_mutex to fix the dead lock
-> > is one choice, and it looks good to me at the first impression.
-> > 
-> > But I'm not sure it's good to change cpuset(other subsystem) code because of memcg.
-> > 
-> > Anyway, I'll test this patch and report the result tomorrow.
-> > (Sorry, I don't have enough time today.)
-> > 
-> Unfortunately, this patch doesn't seem enough.
+> Hi,
 > 
-> This patch can fix dead lock caused by "circular lock of cgroup_mutex",
-> but cannot that of caused by "race between page reclaim and cpuset_attach(mpol_rebind_mm)".
+> Here is a proposed fix for the memory controller cgroup_mutex deadlock
+> reported. It is lightly tested and reviewed. I need help with review
+> and test. Is the reported deadlock reproducible after this patch? A
+> careful review of the cpuset impact will also be highly appreciated.
 > 
-> (The dead lock I fixed in memcg-avoid-dead-lock-caused-by-race-between-oom-and-cpuset_attach.patch
-> was caused by "race between memcg's oom and mpol_rebind_mm, and was independent of hierarchy.)
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-> I attach logs I got in testing this patch.
+> cpuset_migrate_mm() holds cgroup_mutex throughout the duration of
+> do_migrate_pages(). The issue with that is that
 > 
-Hmm, ok then, what you  mention to is this race.
---
-	cgroup_lock()
-		-> cpuset_attach()
-			-> down_write(&mm->mmap_sem);
+> 1. It can lead to deadlock with memcg, as do_migrate_pages()
+>    enters reclaim
+> 2. It can lead to long latencies, preventing users from creating/
+>    destroying other cgroups anywhere else
+> 
+> The patch holds callback_mutex through the duration of cpuset_migrate_mm() and
+> gives up cgroup_mutex while doing so.
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  include/linux/cpuset.h |   13 ++++++++++++-
+>  kernel/cpuset.c        |   23 ++++++++++++-----------
+>  2 files changed, 24 insertions(+), 12 deletions(-)
+> 
+> diff -puN kernel/cgroup.c~cpuset-remove-cgroup-mutex-from-update-path kernel/cgroup.c
+> diff -puN kernel/cpuset.c~cpuset-remove-cgroup-mutex-from-update-path kernel/cpuset.c
+> --- a/kernel/cpuset.c~cpuset-remove-cgroup-mutex-from-update-path
+> +++ a/kernel/cpuset.c
+> @@ -369,7 +369,7 @@ static void guarantee_online_mems(const 
+>   * task has been modifying its cpuset.
+>   */
+>  
+> -void cpuset_update_task_memory_state(void)
+> +void __cpuset_update_task_memory_state(bool held)
+>  {
+>  	int my_cpusets_mem_gen;
+>  	struct task_struct *tsk = current;
+> @@ -380,7 +380,8 @@ void cpuset_update_task_memory_state(voi
+>  	rcu_read_unlock();
+>  
+>  	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
+> -		mutex_lock(&callback_mutex);
+> +		if (!held)
+> +			mutex_lock(&callback_mutex);
+>  		task_lock(tsk);
+>  		cs = task_cs(tsk); /* Maybe changed when task not locked */
+>  		guarantee_online_mems(cs, &tsk->mems_allowed);
+> @@ -394,7 +395,8 @@ void cpuset_update_task_memory_state(voi
+>  		else
+>  			tsk->flags &= ~PF_SPREAD_SLAB;
+>  		task_unlock(tsk);
+> -		mutex_unlock(&callback_mutex);
+> +		if (!held)
+> +			mutex_unlock(&callback_mutex);
+>  		mpol_rebind_task(tsk, &tsk->mems_allowed);
+>  	}
+>  }
+> @@ -949,13 +951,15 @@ static int update_cpumask(struct cpuset 
+>   *    so that the migration code can allocate pages on these nodes.
+>   *
+>   *    Call holding cgroup_mutex, so current's cpuset won't change
+> - *    during this call, as manage_mutex holds off any cpuset_attach()
+> + *    during this call, as callback_mutex holds off any cpuset_attach()
+>   *    calls.  Therefore we don't need to take task_lock around the
+>   *    call to guarantee_online_mems(), as we know no one is changing
+>   *    our task's cpuset.
+>   *
+>   *    Hold callback_mutex around the two modifications of our tasks
+> - *    mems_allowed to synchronize with cpuset_mems_allowed().
+> + *    mems_allowed to synchronize with cpuset_mems_allowed(). Give
+> + *    up cgroup_mutex to avoid deadlocking with other subsystems
+> + *    as we enter reclaim from do_migrate_pages().
+>   *
+>   *    While the mm_struct we are migrating is typically from some
+>   *    other task, the task_struct mems_allowed that we are hacking
+> @@ -976,17 +980,14 @@ static void cpuset_migrate_mm(struct mm_
+>  {
+>  	struct task_struct *tsk = current;
+>  
+> -	cpuset_update_task_memory_state();
+> -
+> +	cgroup_unlock();
+>  	mutex_lock(&callback_mutex);
+> +	cpuset_update_task_memory_state_locked();
+>  	tsk->mems_allowed = *to;
+> -	mutex_unlock(&callback_mutex);
+> -
+>  	do_migrate_pages(mm, from, to, MPOL_MF_MOVE_ALL);
+> -
+> -	mutex_lock(&callback_mutex);
+>  	guarantee_online_mems(task_cs(tsk),&tsk->mems_allowed);
+>  	mutex_unlock(&callback_mutex);
+> +	cgroup_lock();
+>  }
+>  
 
-	down_read()
-		-> page fault
-			-> reclaim in memcg
-				-> cgroup_lock().
---
-What this patch tries to fix is this recursive locks
---
-	cgroup_lock()
-		-> cpuset_attach()
-			-> cpuset_migrate_mm()
-				-> charge to migration
-					-> go to reclaim and meet cgroup_lock.
---
+Hmm...can't this happen ?
 
+Assume there is a task X and cgroup Z1 and Z2. Z1 and Z2 doesn't need to be in
+the same hierarchy.
+== 
+	CPU A attach task X to cgroup Z1
+		cgroup_lock()
+			for_each_subsys_state()
+				=> attach(X,Z)
+					=> migrate_mm()
+						=> cgroup_unlock()
+							migration
 
-Right ?
+	CPU B attach task X to cgroup Z2 at the same time
+		cgroup_lock()
+			replace css_set.
+==
 
-BTW, releasing cgroup_lock() while attach() is going on is finally safe ?
-If not, can this lock for attach be replaced with (new) cgroup private mutex ?
+Works on CPU B can't break for_each_subsys_state() in CPU A ?
 
-a new mutex like this ?
---
-struct cgroup {
-	.....
-	mutex_t		attach_mutex; /* for serializing attach() ops. 
-					 while attach() is going on, rmdir() will fail */
-}
---
-Do we need the big lock of cgroup_lock for attach(), at last ?
+Sorry if I misunderstand.
 
+Thanks,
 -Kame
+
+		
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
