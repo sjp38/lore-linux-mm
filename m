@@ -1,46 +1,84 @@
-Received: from zps77.corp.google.com (zps77.corp.google.com [172.25.146.77])
-	by smtp-out.google.com with ESMTP id mBAMmdsb012468
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 14:48:39 -0800
-Received: from rv-out-0708.google.com (rvfb17.prod.google.com [10.140.179.17])
-	by zps77.corp.google.com with ESMTP id mBAMmbOi023248
-	for <linux-mm@kvack.org>; Wed, 10 Dec 2008 14:48:38 -0800
-Received: by rv-out-0708.google.com with SMTP id b17so671538rvf.46
-        for <linux-mm@kvack.org>; Wed, 10 Dec 2008 14:48:37 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20081210133508.3ee454ae.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081210133508.3ee454ae.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Wed, 10 Dec 2008 14:48:37 -0800
-Message-ID: <6599ad830812101448h46e1ea1cs80635611f9205962@mail.gmail.com>
-Subject: Re: [PATCH mmotm 1/2] cgroup: fix to stop adding a new task while
-	rmdir going on
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBB0MhXr019856
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 11 Dec 2008 09:22:44 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9651345DD7D
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2008 09:22:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 74B8445DD7B
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2008 09:22:43 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 57D001DB803C
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2008 09:22:43 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 09D971DB8038
+	for <linux-mm@kvack.org>; Thu, 11 Dec 2008 09:22:43 +0900 (JST)
+Date: Thu, 11 Dec 2008 09:21:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/6] memcg: fix pre_destory handler
+Message-Id: <20081211092150.b62f8c20.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830812101100v4dc7f124jded0d767b92e541a@mail.gmail.com>
+References: <20081209200213.0e2128c1.kamezawa.hiroyu@jp.fujitsu.com>
+	<20081209200647.a1fa76a9.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830812100240g5e549a5cqe29cbea736788865@mail.gmail.com>
+	<29741.10.75.179.61.1228908581.squirrel@webmail-b.css.fujitsu.com>
+	<6599ad830812101035v33dbc6cfh57aa5510f6d65d54@mail.gmail.com>
+	<6599ad830812101100v4dc7f124jded0d767b92e541a@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Paul Menage <menage@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 9, 2008 at 8:35 PM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> still need reviews.
-> ==
-> Recently, pre_destroy() was moved to out of cgroup_lock() for avoiding
-> dead lock. But, by this, serialization between task attach and rmdir()
-> is lost.
->
-> This adds CGRP_TRY_REMOVE flag to cgroup and check it at attaching.
-> If attach_pid founds CGRP_TRY_REMOVE, it returns -EBUSY.
+On Wed, 10 Dec 2008 11:00:35 -0800
+Paul Menage <menage@google.com> wrote:
 
-As I've mentioned in other threads, I think the fix is to restore the
-locking for pre_destroy(), and solve the other potential deadlocks in
-better ways.
+> On Wed, Dec 10, 2008 at 10:35 AM, Paul Menage <menage@google.com> wrote:
+> > On Wed, Dec 10, 2008 at 3:29 AM, KAMEZAWA Hiroyuki
+> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >>
+> >> (BTW, I don't like hierarchy-walk-by-small-locks approarch now because
+> >>  I'd like to implement scan-and-stop-continue routine.
+> >>  See how readdir() aginst /proc scans PID. It's very roboust against
+> >>  very temporal PIDs.)
+> >
+> > So you mean that you want to be able to sleep, and then contine
+> > approximately where you left off, without keeping any kind of
+> > reference count on the last cgroup that you touched? OK, so in that
+> > case I agree that you would need some kind of hierarch
+> 
+> Oops, didn't finish that sentence.
+> 
+> I agree that you'd need some kind of hierarchical-restart. But I'd
+> like to play with / look at your cgroup-id patch more closely and see
+> if we can come up with something simpler that still does what you
+> want.
+> 
+Sure, I have to do, too. It's still too young.
 
-This patch can result in an attach falsely getting an EBUSY when it
-shouldn't really do so (since the cgroup wasn't really going away).
+> One particular problem with the patch as it stands is that the ids
+> should be per-css, not per-cgroup, since a css can move between
+> hierarchies and hence between cgroups. (Currently only at bind/unbind
+> time, but it still results in a cgroup change).
+> 
 
-Paul
+If per-css, looking up function will be
+==
+struct cgroup_subsys_state *cgroup_css_lookup(subsys_id, id)
+==
+Do you mean this ? 
+
+ok, I'll implement and see what happens. Maybe I'll move hooks to prepare/destroy IDs
+to subsys layer and assign ID only when subsys want IDs.
+
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
