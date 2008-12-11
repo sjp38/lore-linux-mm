@@ -1,81 +1,160 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1757884AbYLLLQS@vger.kernel.org>
-Message-ID: <46730.10.75.179.61.1229080565.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20081212184341.b62903a7.nishimura@mxp.nes.nec.co.jp>
-References: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
-    <20081212184341.b62903a7.nishimura@mxp.nes.nec.co.jp>
-Date: Fri, 12 Dec 2008 20:16:05 +0900 (JST)
-Subject: Re: [BUGFIX][PATCH mmotm] memcg fix swap accounting leak
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1757226AbYLKTGS@vger.kernel.org>
+Message-ID: <49416494.6040009@goop.org>
+Date: Thu, 11 Dec 2008 11:05:56 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=us-ascii
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: linux-kernel-owner@vger.kernel.org
 List-Archive: <https://lore.kernel.org/lkml/>
 List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Daisuke Nishimura said:
->
->         /*
->          * The page isn't present yet, go ahead with the fault.
->          *
->          * Be careful about the sequence of operations here.
->          * To get its accounting right, reuse_swap_page() must be called
->          * while the page is counted on swap but not yet in mapcount i.e.
->          * before page_add_anon_rmap() and swap_free(); try_to_free_swap()
->          * must be called after the swap_free(), or it will never succeed.
->          * And mem_cgroup_commit_charge_swapin(), which uses the swp_entry
->          * in page->private, must be called before reuse_swap_page(),
->          * which may delete_from_swap_cache().
->          */
->
-> Hmm.. should we save page->private before calling reuse_swap_page and pass
-> it
-> to mem_cgroup_commit_charge_swapin(I think it cannot be changed because
-> the page
-> is locked)?
->
-seems not necessary (see below).  I'll fix comment if I uses my pc tomorrow..
+Hi Nick,
 
-Considering 2 cases,
- A. the SwapCache is already chareged before try_charge_swapin()
- B. the SwapCache is very new and not charged before try_charge_swapin()
+In Xen when we're killing the lazy vmalloc aliases, we're only concerned 
+about the pagetable references to the mapped pages, not the TLB entries. 
+For the most part eliminating the TLB flushes would be a performance 
+optimisation, but there's at least one case where we need to shoot down 
+aliases in an interrupt-disabled section, so the TLB shootdown IPIs 
+would potentially deadlock.
 
-Case A.
-   0. We have charge of PAGE_SIZE to this page before reach here.
-   1. try_charge_swapin() is called and charge += PAGE_SIZE
-   2. reuse_swap_page() is called.
-          when delete_from_swap_cache() is called..
-          2-a. if already mapped, no change in charges.
-          2-b. if not mapped, charge-=PAGE_SIZE. PCG_USED bit is cleared.
-               and charge-record is written into swap_cgroup
-          not called.
-          2-c. no changes in charge.
-   3. commit_charge is called.
-          3-a. PCG_USED bit is set, so charge -= PAGE_SIZE.
-          3-b. PCG_USED bit is cleared and so we set PCG_USED bit and no
-               changes in charge.
-          3-c. no changes in charge.
-   4-b. swap_free() will clear record in swap_cgroup.
+I'm wondering what your thoughts are about this approach?
 
-   Then, finally we have PAGE_SIZE of charge to this page.
+I'm not super-happy with the changes to __purge_vmap_area_lazy(), but 
+given that we need a tri-state policy selection there, adding an enum is 
+clearer than adding another boolean argument.
 
-Case B.
-   0. We have no charges to this page.
-   1. try_charge_swapin() is called and charge += PAGE_SIZE.
-   2. reuse_swap_page() is called.
-         2-a if delete_from_swap_cache() is called.
-         the page is not mapped. but PCG_USED bit is not set.
-         so, no change in charges finally. (just recorded in swap_cgroup)
-         2-b. not called ... no changes in charge.
-   3. commit_charge() is called and set PCG_USED bit. no changes in charnge.
-   4. swap_free() is called and clear record in swap_cgroup.
-
-   Then, finally we have PAGE_SIZE of charge to this page.
-
-
+It also raises the question of how many callers of vm_unmap_aliases() 
+really care about flushing the tlbs. Presumably if we're shooting down 
+some stray vmalloc mappings then nobody is actually using them at the 
+time, and any corresponding TLB entries are residual. Or does leaving 
+them around leave open the possibility of unwanted speculative 
+references which could violate memory type rules?  Perhaps callers who 
+care about that could arrange their own tlb flush?
 
 Thanks,
--Kame
+    J
+
+===================================================================
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -41,6 +41,7 @@
+ extern void *vm_map_ram(struct page **pages, unsigned int count,
+ 				int node, pgprot_t prot);
+ extern void vm_unmap_aliases(void);
++extern void __vm_unmap_aliases(int allow_flush);
+ 
+ #ifdef CONFIG_MMU
+ extern void __init vmalloc_init(void);
+===================================================================
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -458,18 +458,26 @@
+ 
+ static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
+ 
++enum purge_flush {
++	PURGE_FLUSH_NEVER,
++	PURGE_FLUSH_IF_NEEDED,
++	PURGE_FLUSH_FORCE
++};
++
+ /*
+  * Purges all lazily-freed vmap areas.
+  *
+  * If sync is 0 then don't purge if there is already a purge in progress.
+- * If force_flush is 1, then flush kernel TLBs between *start and *end even
+- * if we found no lazy vmap areas to unmap (callers can use this to optimise
+- * their own TLB flushing).
++ * 'flush' sets the TLB flushing policy between *start and *end:
++ *    PURGE_FLUSH_NEVER     caller doesn't care about TLB state, so don't flush
++ *    PURGE_FLUSH_IF_NEEDED flush if we found a lazy vmap area to unmap
++ *    PURGE_FLUSH_FORCE     always flush, to allow callers to optimise their own flushing
++ *
+  * Returns with *start = min(*start, lowest purged address)
+  *              *end = max(*end, highest purged address)
+  */
+ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+-					int sync, int force_flush)
++				   int sync, enum purge_flush flush)
+ {
+ 	static DEFINE_SPINLOCK(purge_lock);
+ 	LIST_HEAD(valist);
+@@ -481,7 +489,7 @@
+ 	 * should not expect such behaviour. This just simplifies locking for
+ 	 * the case that isn't actually used at the moment anyway.
+ 	 */
+-	if (!sync && !force_flush) {
++	if (!sync && flush != PURGE_FLUSH_FORCE) {
+ 		if (!spin_trylock(&purge_lock))
+ 			return;
+ 	} else
+@@ -508,7 +516,7 @@
+ 		atomic_sub(nr, &vmap_lazy_nr);
+ 	}
+ 
+-	if (nr || force_flush)
++	if ((nr && flush == PURGE_FLUSH_IF_NEEDED) || flush == PURGE_FLUSH_FORCE)
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+ 	if (nr) {
+@@ -528,7 +536,7 @@
+ {
+ 	unsigned long start = ULONG_MAX, end = 0;
+ 
+-	__purge_vmap_area_lazy(&start, &end, 0, 0);
++	__purge_vmap_area_lazy(&start, &end, 0, PURGE_FLUSH_IF_NEEDED);
+ }
+ 
+ /*
+@@ -538,7 +546,7 @@
+ {
+ 	unsigned long start = ULONG_MAX, end = 0;
+ 
+-	__purge_vmap_area_lazy(&start, &end, 1, 0);
++	__purge_vmap_area_lazy(&start, &end, 1, PURGE_FLUSH_IF_NEEDED);
+ }
+ 
+ /*
+@@ -847,11 +855,11 @@
+  * be sure that none of the pages we have control over will have any aliases
+  * from the vmap layer.
+  */
+-void vm_unmap_aliases(void)
++void __vm_unmap_aliases(int allow_flush)
+ {
+ 	unsigned long start = ULONG_MAX, end = 0;
+ 	int cpu;
+-	int flush = 0;
++	enum purge_flush flush = PURGE_FLUSH_IF_NEEDED;
+ 
+ 	if (unlikely(!vmap_initialized))
+ 		return;
+@@ -875,7 +883,7 @@
+ 				s = vb->va->va_start + (i << PAGE_SHIFT);
+ 				e = vb->va->va_start + (j << PAGE_SHIFT);
+ 				vunmap_page_range(s, e);
+-				flush = 1;
++				flush = PURGE_FLUSH_FORCE;
+ 
+ 				if (s < start)
+ 					start = s;
+@@ -891,7 +899,13 @@
+ 		rcu_read_unlock();
+ 	}
+ 
+-	__purge_vmap_area_lazy(&start, &end, 1, flush);
++	__purge_vmap_area_lazy(&start, &end, 1,
++			       allow_flush ? flush : PURGE_FLUSH_NEVER);
++}
++
++void vm_unmap_aliases(void)
++{
++	__vm_unmap_aliases(1);
+ }
+ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
+ 
