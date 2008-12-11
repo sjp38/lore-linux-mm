@@ -1,64 +1,84 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1756674AbYLKPkA@vger.kernel.org>
-Date: Thu, 11 Dec 2008 15:39:47 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC][PATCH] mm: the page of MIGRATE_RESERVE don't insert into
-	pcp
-Message-ID: <20081211153947.GA27315@csn.ul.ie>
-References: <Pine.LNX.4.64.0811071244330.5387@quilx.com> <20081205154006.GA19366@csn.ul.ie> <20081207172115.53E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1754795AbYLKIGI@vger.kernel.org>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH for -mm] bailing out check first
+Message-Id: <20081211170321.500B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20081207172115.53E1.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 11 Dec 2008 17:05:42 +0900 (JST)
 Sender: linux-kernel-owner@vger.kernel.org
 List-Archive: <https://lore.kernel.org/lkml/>
 List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 07, 2008 at 05:22:48PM +0900, KOSAKI Motohiro wrote:
-> > 
-> > ====== CUT HERE ======
-> > From: Mel Gorman <mel@csn.ul.ie>
-> > Subject: [RFC] Split per-cpu list into one-list-per-migrate-type
-> > 
-> > Currently the per-cpu page allocator searches the PCP list for pages of the
-> > correct migrate-type to reduce the possibility of pages being inappropriate
-> > placed from a fragmentation perspective. This search is potentially expensive
-> > in a fast-path and undesirable. Splitting the per-cpu list into multiple lists
-> > increases the size of a per-cpu structure and this was potentially a major
-> > problem at the time the search was introduced. These problem has been
-> > mitigated as now only the necessary number of structures is allocated for the
-> > running system.
-> > 
-> > This patch replaces a list search in the per-cpu allocator with one list
-> > per migrate type that should be in use by the per-cpu allocator - namely
-> > unmovable, reclaimable and movable.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> Great.
-> 
-> this patch works well on my box too.
-> and my review didn't find any bug.
-> 
-> very thanks.
-> 
-> 	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
+Hi
 
-Thanks very much for the review. I guess in principal I should stick
-with this patch then and go with another revision so. Are there any
-concerns about the increase in size of a per-cpu structure or are we
-confident that it'll be kept to a minimum with the cpu_alloc stuff?
+This patch intent to fix trivial problem of rvr bailing out patch.
+Is this useful?
 
-Similarly, are there suggestions on how to prove more conclusively that
-this is a performance win? I saw between 1% and 2% on tbench on some
-machines but not all so preferably we'd be more confident. Intuitively,
-the patch makes sense that it would be faster to me but I'd prove it for
-sure if possible.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
+==
+Subject: [PATCH for -mm] bailing out check first
+
+current reclaim bailing out logic has a bit inefficiency.
+
+example, if system has 4 node and reclaim logic can get enough memory from first node,
+current logic works as following.
+
+1. reclaim node-1 and success reclaim enough memory.
+   then, bailing out happend.
+2. shrink_zones() call shrink_zone(node-2) and scan 32 page on each lru list.
+   after that, shrink_zone stop node-2 reclaim by bailing out logic.
+3. shrink_zones() call shrink_zone(node-3) ...
+4. shrink_zones() call shrink_zone(node-4) ...
+
+step 2-4 are unnecessary.
+it can be removed.
+
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c |   19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1452,15 +1452,6 @@ static void shrink_zone(int priority, st
+ 
+ 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+ 					nr[LRU_INACTIVE_FILE]) {
+-		for_each_evictable_lru(l) {
+-			if (nr[l]) {
+-				nr_to_scan = min(nr[l], swap_cluster_max);
+-				nr[l] -= nr_to_scan;
+-
+-				nr_reclaimed += shrink_list(l, nr_to_scan,
+-							    zone, sc, priority);
+-			}
+-		}
+ 		/*
+ 		 * On large memory systems, scan >> priority can become
+ 		 * really large. This is fine for the starting priority;
+@@ -1472,6 +1463,16 @@ static void shrink_zone(int priority, st
+ 		if (nr_reclaimed > swap_cluster_max &&
+ 		    priority < DEF_PRIORITY && !current_is_kswapd())
+ 			break;
++
++		for_each_evictable_lru(l) {
++			if (nr[l]) {
++				nr_to_scan = min(nr[l], swap_cluster_max);
++				nr[l] -= nr_to_scan;
++
++				nr_reclaimed += shrink_list(l, nr_to_scan,
++							    zone, sc, priority);
++			}
++		}
+ 	}
+ 
+ 	sc->nr_reclaimed = nr_reclaimed;
