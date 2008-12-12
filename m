@@ -1,36 +1,31 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A61406B00A9
-	for <linux-mm@kvack.org>; Wed, 31 Dec 2008 17:53:44 -0500 (EST)
-Date: Wed, 31 Dec 2008 16:53:28 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] cpuset,mm: fix allocating page cache/slab object on the
- unallowed node when memory spread is set
-In-Reply-To: <20081230142805.3c6f78e3.akpm@linux-foundation.org>
-Message-ID: <Pine.LNX.4.64.0812311648250.21443@quilx.com>
-References: <49547B93.5090905@cn.fujitsu.com> <20081230142805.3c6f78e3.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: miaox@cn.fujitsu.com, menage@google.com, penberg@cs.helsinki.fi, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1759275AbYLLRZe@vger.kernel.org>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <208aa0f00812051632h38fc0a5g58d233190436cc90@mail.gmail.com>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com>
+	 <1228379942.5092.14.camel@twins> <20081204180809.GB3079@local>
+	 <1228461060.18899.8.camel@twins> <20081205094447.GA3081@local>
+	 <208aa0f00812051632h38fc0a5g58d233190436cc90@mail.gmail.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Dec 2008 18:25:12 +0100
+Message-Id: <1229102712.13566.14.camel@twins>
+Mime-Version: 1.0
+Sender: linux-kernel-owner@vger.kernel.org
+List-Archive: <https://lore.kernel.org/lkml/>
+List-Post: <mailto:linux-kernel@vger.kernel.org>
+To: Edward Estabrook <edward.estabrook.lkml@gmail.com>
+Cc: "Hans J. Koch" <hjk@linutronix.de>, edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Dec 2008, Andrew Morton wrote:
+On Fri, 2008-12-05 at 16:32 -0800, Edward Estabrook wrote:
+> > Well, UIO already rapes the mmap interface by using the "offset" parameter to
+> > pass in the number of the mapping.
+> 
+> Exactly.
 
-> d) How does slub handle this problem?
+Had I known about it then, I'd NAK'd it, but I guess now that its
+already merged changing it will be hard :/
 
-SLUB understands memory policies to apply to the pages from which
-objects are acquired. MPOL_INTERLEAVE applies to the pages acquired
-by the allocator not to individual objects acquired by the user of the
-allocator from these pages.
-
-With that point of view most of the memory policy handling can be pushed
-into the page allocator.
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Also, having done something bad in the past doesn't mean you can
+continue doing the wrong thing.
