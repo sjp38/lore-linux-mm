@@ -1,95 +1,111 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1757945AbYLLIfX@vger.kernel.org>
-Date: Fri, 12 Dec 2008 17:34:10 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH mmotm] memcg show real limit under hierarchy mode
-Message-Id: <20081212173410.5085a9a1.kamezawa.hiroyu@jp.fujitsu.com>
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1758203AbYLLJxq@vger.kernel.org>
+Date: Fri, 12 Dec 2008 18:43:41 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [BUGFIX][PATCH mmotm] memcg fix swap accounting leak
+Message-Id: <20081212184341.b62903a7.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: linux-kernel-owner@vger.kernel.org
 List-Archive: <https://lore.kernel.org/lkml/>
 List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
+(add CC: Hugh Dickins <hugh@veritas.com>)
 
-From:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, 12 Dec 2008 17:29:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Fix swap-page-fault charge leak of memcg.
+> 
+> Now, memcg has hooks to swap-out operation and checks SwapCache is really
+> unused or not. That check depends on contents of struct page.
+> I.e. If PageAnon(page) && page_mapped(page), the page is recoginized as
+> still-in-use.
+> 
+> Now, reuse_swap_page() calles delete_from_swap_cache() before establishment
+> of any rmap. Then, in followinig sequence
+> 
+> 	(Page fault with WRITE)
+> 	Assume the page is SwapCache "on memory (still charged)"
+> 	try_charge() (charge += PAGESIZE)
+> 	commit_charge()
+> 	   => (Check page_cgroup and found PCG_USED bit, charge-=PAGE_SIZE
+> 	       because it seems already charged.)
+> 	reuse_swap_page()
+> 		-> delete_from_swapcache()
+> 			-> mem_cgroup_uncharge_swapcache() (charge -= PAGESIZE)
+> 	......
+> 
+> too much uncharge.....
+> 
+> To avoid this,  move commit_charge() after page_mapcount() goes up to 1.
+> By this,
+>         Assume the page is SwapCache "on memory"
+> 	try_charge()		(charge += PAGESIZE)
+> 	reuse_swap_page()	(may charge -= PAGESIZE if PCG_USED is set)
+> 	commit_charge()		(Ony if page_cgroup is marked as PCG_USED,
+> 				 charge -= PAGESIZE)
+> Accounting will be correct.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Show "real" limit of memcg.
-This helps my debugging and maybe useful for users.
+I've confirmed that the problem you reported offline is fixed, but...
 
-While testing hierarchy like this
+> ---
+>  mm/memory.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Index: mmotm-2.6.28-Dec11/mm/memory.c
+> ===================================================================
+> --- mmotm-2.6.28-Dec11.orig/mm/memory.c
+> +++ mmotm-2.6.28-Dec11/mm/memory.c
+> @@ -2433,17 +2433,17 @@ static int do_swap_page(struct mm_struct
+>  	 * which may delete_from_swap_cache().
+>  	 */
+>  
+The comment here says:
 
-	mount -t cgroup none /cgroup -t memory
-	mkdir /cgroup/A
-	set use_hierarchy==1 to "A"
-	mkdir /cgroup/A/01
-	mkdir /cgroup/A/01/02
-	mkdir /cgroup/A/01/03
-	mkdir /cgroup/A/01/03/04
-	mkdir /cgroup/A/08
-	mkdir /cgroup/A/08/01
-	....
-and set each own limit to them, "real" limit of each memcg is unclear.
-This patch shows real limit by checking all ancestors.
+        /*
+         * The page isn't present yet, go ahead with the fault.
+         *
+         * Be careful about the sequence of operations here.
+         * To get its accounting right, reuse_swap_page() must be called
+         * while the page is counted on swap but not yet in mapcount i.e.
+         * before page_add_anon_rmap() and swap_free(); try_to_free_swap()
+         * must be called after the swap_free(), or it will never succeed.
+         * And mem_cgroup_commit_charge_swapin(), which uses the swp_entry
+         * in page->private, must be called before reuse_swap_page(),
+         * which may delete_from_swap_cache().
+         */
 
-Changelog: (v1) -> (v2)
-	- remove "if" and use "min(a,b)"
+Hmm.. should we save page->private before calling reuse_swap_page and pass it
+to mem_cgroup_commit_charge_swapin(I think it cannot be changed because the page
+is locked)?
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
-Index: mmotm-2.6.28-Dec11/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-Dec11.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-Dec11/mm/memcontrol.c
-@@ -1757,6 +1757,34 @@ static int mem_cgroup_write(struct cgrou
- 	return ret;
- }
- 
-+static void memcg_get_hierarchical_limit(struct mem_cgroup *memcg,
-+		unsigned long long *mem_limit, unsigned long long *memsw_limit)
-+{
-+	struct cgroup *cgroup;
-+	unsigned long long min_limit, min_memsw_limit, tmp;
-+
-+	min_limit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-+	min_memsw_limit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-+	cgroup = memcg->css.cgroup;
-+	if (!memcg->use_hierarchy)
-+		goto out;
-+
-+	while (cgroup->parent) {
-+		cgroup = cgroup->parent;
-+		memcg = mem_cgroup_from_cont(cgroup);
-+		if (!memcg->use_hierarchy)
-+			break;
-+		tmp = res_counter_read_u64(&memcg->res, RES_LIMIT);
-+		min_limit = min(min_limit, tmp);
-+		tmp = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-+		min_memsw_limit = min(min_memsw_limit, tmp);
-+	}
-+out:
-+	*mem_limit = min_limit;
-+	*memsw_limit = min_memsw_limit;
-+	return;
-+}
-+
- static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
- {
- 	struct mem_cgroup *mem;
-@@ -1830,6 +1858,13 @@ static int mem_control_stat_show(struct 
- 		cb->fill(cb, "unevictable", unevictable * PAGE_SIZE);
- 
- 	}
-+	{
-+		unsigned long long limit, memsw_limit;
-+		memcg_get_hierarchical_limit(mem_cont, &limit, &memsw_limit);
-+		cb->fill(cb, "hierarchical_memory_limit", limit);
-+		if (do_swap_account)
-+			cb->fill(cb, "hierarchical_memsw_limit", memsw_limit);
-+	}
- 
- #ifdef CONFIG_DEBUG_VM
- 	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
+
+Thanks,
+Daisuke Nishimura. 
+
+> -	mem_cgroup_commit_charge_swapin(page, ptr);
+>  	inc_mm_counter(mm, anon_rss);
+>  	pte = mk_pte(page, vma->vm_page_prot);
+>  	if (write_access && reuse_swap_page(page)) {
+>  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
+>  		write_access = 0;
+>  	}
+> -
+>  	flush_icache_page(vma, page);
+>  	set_pte_at(mm, address, page_table, pte);
+>  	page_add_anon_rmap(page, vma, address);
+> +	/* It's better to call commit-charge after rmap is established */
+> +	mem_cgroup_commit_charge_swapin(page, ptr);
+>  
+>  	swap_free(entry);
+>  	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> 
