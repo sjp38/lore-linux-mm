@@ -1,111 +1,90 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1758203AbYLLJxq@vger.kernel.org>
-Date: Fri, 12 Dec 2008 18:43:41 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [BUGFIX][PATCH mmotm] memcg fix swap accounting leak
-Message-Id: <20081212184341.b62903a7.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081212172930.282caa38.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1758164AbYLLMV1@vger.kernel.org>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [RFC][PATCH] Give up reclaim quickly when fatal signal received.
+Message-Id: <20081212211621.62F5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 12 Dec 2008 21:21:11 +0900 (JST)
 Sender: linux-kernel-owner@vger.kernel.org
 List-Archive: <https://lore.kernel.org/lkml/>
 List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Hugh Dickins <hugh@veritas.com>, nishimura@mxp.nes.nec.co.jp
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-(add CC: Hugh Dickins <hugh@veritas.com>)
 
-On Fri, 12 Dec 2008 17:29:30 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Fix swap-page-fault charge leak of memcg.
-> 
-> Now, memcg has hooks to swap-out operation and checks SwapCache is really
-> unused or not. That check depends on contents of struct page.
-> I.e. If PageAnon(page) && page_mapped(page), the page is recoginized as
-> still-in-use.
-> 
-> Now, reuse_swap_page() calles delete_from_swap_cache() before establishment
-> of any rmap. Then, in followinig sequence
-> 
-> 	(Page fault with WRITE)
-> 	Assume the page is SwapCache "on memory (still charged)"
-> 	try_charge() (charge += PAGESIZE)
-> 	commit_charge()
-> 	   => (Check page_cgroup and found PCG_USED bit, charge-=PAGE_SIZE
-> 	       because it seems already charged.)
-> 	reuse_swap_page()
-> 		-> delete_from_swapcache()
-> 			-> mem_cgroup_uncharge_swapcache() (charge -= PAGESIZE)
-> 	......
-> 
-> too much uncharge.....
-> 
-> To avoid this,  move commit_charge() after page_mapcount() goes up to 1.
-> By this,
->         Assume the page is SwapCache "on memory"
-> 	try_charge()		(charge += PAGESIZE)
-> 	reuse_swap_page()	(may charge -= PAGESIZE if PCG_USED is set)
-> 	commit_charge()		(Ony if page_cgroup is marked as PCG_USED,
-> 				 charge -= PAGESIZE)
-> Accounting will be correct.
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I don't mesure any performance yet.
+This is purely discussion purpose patch.
 
-I've confirmed that the problem you reported offline is fixed, but...
+==
+Subject: [RFC][PATCH] Give up reclaim quickly when fatal signal received.
 
-> ---
->  mm/memory.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> Index: mmotm-2.6.28-Dec11/mm/memory.c
-> ===================================================================
-> --- mmotm-2.6.28-Dec11.orig/mm/memory.c
-> +++ mmotm-2.6.28-Dec11/mm/memory.c
-> @@ -2433,17 +2433,17 @@ static int do_swap_page(struct mm_struct
->  	 * which may delete_from_swap_cache().
->  	 */
->  
-The comment here says:
+In some hosting service and data center and HPC server, process watching
+daemon watch to exist bad boy process periodically. and if exist, the watcher
+send SIGKILL to bad boy. 
+It assume to dead SIGKILLed process immediately.
 
-        /*
-         * The page isn't present yet, go ahead with the fault.
-         *
-         * Be careful about the sequence of operations here.
-         * To get its accounting right, reuse_swap_page() must be called
-         * while the page is counted on swap but not yet in mapcount i.e.
-         * before page_add_anon_rmap() and swap_free(); try_to_free_swap()
-         * must be called after the swap_free(), or it will never succeed.
-         * And mem_cgroup_commit_charge_swapin(), which uses the swp_entry
-         * in page->private, must be called before reuse_swap_page(),
-         * which may delete_from_swap_cache().
-         */
+In the other hand, reclaim is generally very slow processing.
+if process is reclaiming, the process is not dead long time although process
+die can make much free memory than reclaim.
 
-Hmm.. should we save page->private before calling reuse_swap_page and pass it
-to mem_cgroup_commit_charge_swapin(I think it cannot be changed because the page
-is locked)?
+But, there is one big risk. there are low quality and poor error handling
+driver in the world. alloc_page(GFP_KERNEL) failure can expose these 
+poor driver mistake and panic kernel.
 
 
-Thanks,
-Daisuke Nishimura. 
+Luckily, any driver don't use __GFP_RECLAIMABLE and __GFP_MOVABLE. these flags 
+indicate caller need for userland memory.
+Therefore we can assume this flag mean alloc_pages() failure safe.
 
-> -	mem_cgroup_commit_charge_swapin(page, ptr);
->  	inc_mm_counter(mm, anon_rss);
->  	pte = mk_pte(page, vma->vm_page_prot);
->  	if (write_access && reuse_swap_page(page)) {
->  		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
->  		write_access = 0;
->  	}
-> -
->  	flush_icache_page(vma, page);
->  	set_pte_at(mm, address, page_table, pte);
->  	page_add_anon_rmap(page, vma, address);
-> +	/* It's better to call commit-charge after rmap is established */
-> +	mem_cgroup_commit_charge_swapin(page, ptr);
->  
->  	swap_free(entry);
->  	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
-> 
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/page_alloc.c |    3 +++
+ mm/vmscan.c     |   11 +++++++++++
+ 2 files changed, 14 insertions(+)
+
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1536,6 +1536,9 @@ restart:
+ 	/* This allocation should allow future memory freeing. */
+ 
+ rebalance:
++	if ((gfp_mask & GFP_MOVABLE_MASK) && fatal_signal_pending(current))
++		goto nopage;
++
+ 	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+ 			&& !in_interrupt()) {
+ 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1514,6 +1514,11 @@ static void shrink_zones(int priority, s
+ 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+ 		if (!populated_zone(zone))
+ 			continue;
++
++		if ((sc->gfp_mask & GFP_MOVABLE_MASK) &&
++		    fatal_signal_pending(current))
++			break;
++
+ 		/*
+ 		 * Take care memory controller reclaiming has small influence
+ 		 * to global LRU.
+@@ -1610,6 +1615,12 @@ static unsigned long do_try_to_free_page
+ 			ret = sc->nr_reclaimed;
+ 			goto out;
+ 		}
++		if ((sc->gfp_mask & GFP_MOVABLE_MASK) &&
++		    fatal_signal_pending(current)) {
++			/* if ret = 0, caller invoke oom killer. */
++			ret = 1;
++			goto out;
++		}
+ 
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
