@@ -1,90 +1,37 @@
-Return-Path: <linux-kernel-owner+w=401wt.eu-S1758164AbYLLMV1@vger.kernel.org>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH] Give up reclaim quickly when fatal signal received.
-Message-Id: <20081212211621.62F5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Return-Path: <linux-kernel-owner+w=401wt.eu-S1754053AbYLMAaO@vger.kernel.org>
+Date: Sat, 13 Dec 2008 01:29:35 +0100
+From: "Hans J. Koch" <hjk@linutronix.de>
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+Message-ID: <20081213002934.GB3084@local>
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com> <1228379942.5092.14.camel@twins> <20081204180809.GB3079@local> <1228461060.18899.8.camel@twins> <20081205094447.GA3081@local> <208aa0f00812051632h38fc0a5g58d233190436cc90@mail.gmail.com> <1229102712.13566.14.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 12 Dec 2008 21:21:11 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1229102712.13566.14.camel@twins>
 Sender: linux-kernel-owner@vger.kernel.org
 List-Archive: <https://lore.kernel.org/lkml/>
 List-Post: <mailto:linux-kernel@vger.kernel.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Edward Estabrook <edward.estabrook.lkml@gmail.com>, "Hans J. Koch" <hjk@linutronix.de>, edward_estabrook@agilent.com, linux-kernel@vger.kernel.org, gregkh@suse.de, edward.estabrook@gmail.com, hugh <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Dec 12, 2008 at 06:25:12PM +0100, Peter Zijlstra wrote:
+> On Fri, 2008-12-05 at 16:32 -0800, Edward Estabrook wrote:
+> > > Well, UIO already rapes the mmap interface by using the "offset" parameter to
+> > > pass in the number of the mapping.
+> > 
+> > Exactly.
+> 
+> Had I known about it then, I'd NAK'd it, but I guess now that its
+> already merged changing it will be hard :/
 
-I don't mesure any performance yet.
-This is purely discussion purpose patch.
+It was in -mm for half a year before it went to mainline in 2.6.23, the
+documentation being present all the time. It was discussed intensively
+on lkml, and several core kernel developers reviewed it. The special use
+of the mmap() offset parameter was never even mentioned by anybody. I
+remember that so well because I actually expected critizism, but everybody
+was fine with it. And to be honest, even though it's unusual, I still find
+it a good solution.
 
-==
-Subject: [RFC][PATCH] Give up reclaim quickly when fatal signal received.
-
-In some hosting service and data center and HPC server, process watching
-daemon watch to exist bad boy process periodically. and if exist, the watcher
-send SIGKILL to bad boy. 
-It assume to dead SIGKILLed process immediately.
-
-In the other hand, reclaim is generally very slow processing.
-if process is reclaiming, the process is not dead long time although process
-die can make much free memory than reclaim.
-
-But, there is one big risk. there are low quality and poor error handling
-driver in the world. alloc_page(GFP_KERNEL) failure can expose these 
-poor driver mistake and panic kernel.
-
-
-Luckily, any driver don't use __GFP_RECLAIMABLE and __GFP_MOVABLE. these flags 
-indicate caller need for userland memory.
-Therefore we can assume this flag mean alloc_pages() failure safe.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/page_alloc.c |    3 +++
- mm/vmscan.c     |   11 +++++++++++
- 2 files changed, 14 insertions(+)
-
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1536,6 +1536,9 @@ restart:
- 	/* This allocation should allow future memory freeing. */
- 
- rebalance:
-+	if ((gfp_mask & GFP_MOVABLE_MASK) && fatal_signal_pending(current))
-+		goto nopage;
-+
- 	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
- 			&& !in_interrupt()) {
- 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-Index: b/mm/vmscan.c
-===================================================================
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1514,6 +1514,11 @@ static void shrink_zones(int priority, s
- 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
- 		if (!populated_zone(zone))
- 			continue;
-+
-+		if ((sc->gfp_mask & GFP_MOVABLE_MASK) &&
-+		    fatal_signal_pending(current))
-+			break;
-+
- 		/*
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
-@@ -1610,6 +1615,12 @@ static unsigned long do_try_to_free_page
- 			ret = sc->nr_reclaimed;
- 			goto out;
- 		}
-+		if ((sc->gfp_mask & GFP_MOVABLE_MASK) &&
-+		    fatal_signal_pending(current)) {
-+			/* if ret = 0, caller invoke oom killer. */
-+			ret = 1;
-+			goto out;
-+		}
- 
- 		/*
- 		 * Try to write back as many pages as we just scanned.  This
+Thanks,
+Hans
