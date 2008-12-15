@@ -1,65 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kvack.org (Postfix) with SMTP id BF4CA6B0060
-	for <linux-mm@kvack.org>; Sun, 14 Dec 2008 21:04:12 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBF25REX013040
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 15 Dec 2008 11:05:27 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E46A245DE53
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 11:05:26 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AD15245DE55
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 11:05:26 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 35CC41DB8013
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 11:05:26 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 715681DB8023
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 11:05:25 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kvack.org (Postfix) with ESMTP id B5B816B0074
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 04:51:35 -0500 (EST)
+Date: Mon, 15 Dec 2008 10:53:11 +0100
+From: Lukas Hejtmanek <xhejtman@ics.muni.cz>
 Subject: Re: 2.6.28-rc8 big regression in VM
-In-Reply-To: <20081215011645.GA9707@localhost>
-References: <20081213095815.GA7143@ics.muni.cz> <20081215011645.GA9707@localhost>
-Message-Id: <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <20081215095311.GB4422@ics.muni.cz>
+References: <20081213095815.GA7143@ics.muni.cz> <20081215011645.GA9707@localhost> <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 15 Dec 2008 11:05:24 +0900 (JST)
+Content-Type: multipart/mixed; boundary="9amGYk9869ThD9tj"
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Lukas Hejtmanek <xhejtman@ics.muni.cz>
-Cc: kosaki.motohiro@jp.fujitsu.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Lukas
+On Mon, Dec 15, 2008 at 11:05:24AM +0900, KOSAKI Motohiro wrote:
+> I also don't reproduce your problem.
+> Could you get output of "cat /proc/meminfo", not only free command?
 
-(cc to linux-mm)
+attached meminfo and vmstat after dropping caches.
 
-> On Sat, Dec 13, 2008 at 11:58:15AM +0200, Lukas Hejtmanek wrote:
-> > On Sat, Dec 13, 2008 at 09:21:15AM +0800, Wu Fengguang wrote:
-> > > I cannot reproduce it on 2.6.28-rc7, compiling 2.6.28-rc8...
-> > > 
-> > > # free; echo 3 > /proc/sys/vm/drop_caches; free
-> > >              total       used       free     shared    buffers     cached
-> > > Mem:          1940        109       1831          0          0         42
-> > > -/+ buffers/cache:         66       1873
-> > > Swap:            0          0          0
-> > >              total       used       free     shared    buffers     cached
-> > > Mem:          1940         62       1877          0          0          7
-> > > -/+ buffers/cache:         55       1884
-> > > Swap:            0          0          0
-> > > 
-> > > > once the whole memory is eaten by the cache, the system is pretty unusable.
-> > > 
-> > > What's your kconfig?
-> > 
-> > attached.
+-- 
+Lukas Hejtmanek
 
-I also don't reproduce your problem.
-Could you get output of "cat /proc/meminfo", not only free command?
+MemTotal:        2016688 kB
+MemFree:         1528748 kB
+Buffers:             424 kB
+Cached:           140060 kB
+SwapCached:            0 kB
+Active:           353252 kB
+Inactive:          47332 kB
+Active(anon):     329884 kB
+Inactive(anon):        4 kB
+Active(file):      23368 kB
+Inactive(file):    47328 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       1542232 kB
+SwapFree:        1542232 kB
+Dirty:                64 kB
+Writeback:             0 kB
+AnonPages:        260100 kB
+Mapped:            85036 kB
+Slab:              24708 kB
+SReclaimable:       8532 kB
+SUnreclaim:        16176 kB
+PageTables:        10324 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     2550576 kB
+Committed_AS:     576152 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:      332160 kB
+VmallocChunk:   34359404539 kB
+DirectMap4k:       45760 kB
+DirectMap2M:     2009088 kB
 
-
+nr_free_pages 382094
+nr_inactive_anon 1
+nr_active_anon 82469
+nr_inactive_file 11835
+nr_active_file 5905
+nr_unevictable 0
+nr_mlock 0
+nr_anon_pages 65025
+nr_mapped 21228
+nr_file_pages 35187
+nr_dirty 17
+nr_writeback 0
+nr_slab_reclaimable 2133
+nr_slab_unreclaimable 4043
+nr_page_table_pages 2581
+nr_unstable 0
+nr_bounce 0
+nr_vmscan_write 0
+nr_writeback_temp 0
+pgpgin 271982
+pgpgout 10689
+pswpin 0
+pswpout 0
+pgalloc_dma 120
+pgalloc_dma32 593606
+pgalloc_normal 0
+pgalloc_movable 0
+pgfree 976064
+pgactivate 13699
+pgdeactivate 0
+pgfault 947747
+pgmajfault 1688
+pgrefill_dma 0
+pgrefill_dma32 0
+pgrefill_normal 0
+pgrefill_movable 0
+pgsteal_dma 0
+pgsteal_dma32 0
+pgsteal_normal 0
+pgsteal_movable 0
+pgscan_kswapd_dma 0
+pgscan_kswapd_dma32 0
+pgscan_kswapd_normal 0
+pgscan_kswapd_movable 0
+pgscan_direct_dma 0
+pgscan_direct_dma32 0
+pgscan_direct_normal 0
+pgscan_direct_movable 0
+pginodesteal 0
+slabs_scanned 30080
+kswapd_steal 0
+kswapd_inodesteal 0
+pageoutrun 0
+allocstall 0
+pgrotated 0
+unevictable_pgs_culled 1
+unevictable_pgs_scanned 0
+unevictable_pgs_rescued 9
+unevictable_pgs_mlocked 9
+unevictable_pgs_munlocked 9
+unevictable_pgs_cleared 0
+unevictable_pgs_stranded 0
+unevictable_pgs_mlockfreed 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
