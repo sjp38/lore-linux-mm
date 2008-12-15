@@ -1,38 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kvack.org (Postfix) with ESMTP id B5B816B0074
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 04:51:35 -0500 (EST)
-Date: Mon, 15 Dec 2008 10:53:11 +0100
-From: Lukas Hejtmanek <xhejtman@ics.muni.cz>
+	by kvack.org (Postfix) with SMTP id 983546B0074
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 05:55:42 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBFAv18x019563
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 15 Dec 2008 19:57:01 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D8522AEA81
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 19:57:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EB431EF081
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 19:57:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 01D051DB803A
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 19:57:01 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 95BACE18005
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 19:56:57 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: 2.6.28-rc8 big regression in VM
-Message-ID: <20081215095311.GB4422@ics.muni.cz>
-References: <20081213095815.GA7143@ics.muni.cz> <20081215011645.GA9707@localhost> <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20081215095311.GB4422@ics.muni.cz>
+References: <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081215095311.GB4422@ics.muni.cz>
+Message-Id: <20081215193305.06C4.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="9amGYk9869ThD9tj"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20081215110231.00DF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 15 Dec 2008 19:56:57 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Lukas Hejtmanek <xhejtman@ics.muni.cz>
+Cc: kosaki.motohiro@jp.fujitsu.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 15, 2008 at 11:05:24AM +0900, KOSAKI Motohiro wrote:
-> I also don't reproduce your problem.
-> Could you get output of "cat /proc/meminfo", not only free command?
+> On Mon, Dec 15, 2008 at 11:05:24AM +0900, KOSAKI Motohiro wrote:
+> > I also don't reproduce your problem.
+> > Could you get output of "cat /proc/meminfo", not only free command?
+> 
+> attached meminfo and vmstat after dropping caches.
 
-attached meminfo and vmstat after dropping caches.
-
--- 
-Lukas Hejtmanek
 
 MemTotal:        2016688 kB
 MemFree:         1528748 kB
 Buffers:             424 kB
 Cached:           140060 kB
 SwapCached:            0 kB
-Active:           353252 kB
-Inactive:          47332 kB
 Active(anon):     329884 kB
 Inactive(anon):        4 kB
 Active(file):      23368 kB
@@ -45,84 +56,18 @@ Dirty:                64 kB
 Writeback:             0 kB
 AnonPages:        260100 kB
 Mapped:            85036 kB
-Slab:              24708 kB
-SReclaimable:       8532 kB
-SUnreclaim:        16176 kB
-PageTables:        10324 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:     2550576 kB
-Committed_AS:     576152 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:      332160 kB
-VmallocChunk:   34359404539 kB
-DirectMap4k:       45760 kB
-DirectMap2M:     2009088 kB
 
-nr_free_pages 382094
-nr_inactive_anon 1
-nr_active_anon 82469
-nr_inactive_file 11835
-nr_active_file 5905
-nr_unevictable 0
-nr_mlock 0
-nr_anon_pages 65025
-nr_mapped 21228
-nr_file_pages 35187
-nr_dirty 17
-nr_writeback 0
-nr_slab_reclaimable 2133
-nr_slab_unreclaimable 4043
-nr_page_table_pages 2581
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 0
-nr_writeback_temp 0
-pgpgin 271982
-pgpgout 10689
-pswpin 0
-pswpout 0
-pgalloc_dma 120
-pgalloc_dma32 593606
-pgalloc_normal 0
-pgalloc_movable 0
-pgfree 976064
-pgactivate 13699
-pgdeactivate 0
-pgfault 947747
-pgmajfault 1688
-pgrefill_dma 0
-pgrefill_dma32 0
-pgrefill_normal 0
-pgrefill_movable 0
-pgsteal_dma 0
-pgsteal_dma32 0
-pgsteal_normal 0
-pgsteal_movable 0
-pgscan_kswapd_dma 0
-pgscan_kswapd_dma32 0
-pgscan_kswapd_normal 0
-pgscan_kswapd_movable 0
-pgscan_direct_dma 0
-pgscan_direct_dma32 0
-pgscan_direct_normal 0
-pgscan_direct_movable 0
-pginodesteal 0
-slabs_scanned 30080
-kswapd_steal 0
-kswapd_inodesteal 0
-pageoutrun 0
-allocstall 0
-pgrotated 0
-unevictable_pgs_culled 1
-unevictable_pgs_scanned 0
-unevictable_pgs_rescued 9
-unevictable_pgs_mlocked 9
-unevictable_pgs_munlocked 9
-unevictable_pgs_cleared 0
-unevictable_pgs_stranded 0
-unevictable_pgs_mlockfreed 0
+
+Usually, Cached - tmpfs ~= Active(file) + Inactive(file).
+tmpfs file isn't droppable.
+
+We should see Active(file) + Inactive(file) (= 70696kB) instead Cached.
+In addition, drop_cache sysctl can't drop Mapped memory.
+
+Then, this value isn't so wonder value, IMHO.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
