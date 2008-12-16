@@ -1,124 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9976E6B0070
-	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 18:40:45 -0500 (EST)
-Received: by yx-out-1718.google.com with SMTP id 36so1136258yxh.26
-        for <linux-mm@kvack.org>; Mon, 15 Dec 2008 15:42:12 -0800 (PST)
-Message-ID: <28c262360812151542g2ac032fay6c5b03d846d05a77@mail.gmail.com>
-Date: Tue, 16 Dec 2008 08:42:12 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: [rfc][patch] SLQB slab allocator
-In-Reply-To: <20081212002518.GH8294@wotan.suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 630786B0072
+	for <linux-mm@kvack.org>; Mon, 15 Dec 2008 20:26:54 -0500 (EST)
+Message-ID: <49470433.4050504@goop.org>
+Date: Mon, 15 Dec 2008 17:28:19 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
+References: <49416494.6040009@goop.org> <200707241052.13825.nickpiggin@yahoo.com.au> <4941C568.4070207@goop.org> <200707241140.12945.nickpiggin@yahoo.com.au>
+In-Reply-To: <200707241140.12945.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20081212002518.GH8294@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Nick.
-I am interested in SLQB.
-So I tested slqb, slub, slab by kernel compile time.
+Nick Piggin wrote:
+> On Friday 12 December 2008 12:59, Jeremy Fitzhardinge wrote:
+>   
+>> Nick Piggin wrote:
+>>     
+>>> Hi,
+>>>
+>>> On Friday 12 December 2008 06:05, Jeremy Fitzhardinge wrote:
+>>>       
+>>>> Hi Nick,
+>>>>
+>>>> In Xen when we're killing the lazy vmalloc aliases, we're only concerned
+>>>> about the pagetable references to the mapped pages, not the TLB entries.
+>>>>         
+>>> Hm? Why is that? Why wouldn't it matter if some page table page gets
+>>> written to via a stale TLB?
+>>>       
+>> No.  Well, yes, it would, but Xen itself will do whatever tlb flushes
+>> are necessary to keep it safe (it must, since it doesn't trust guest
+>> kernels).  It's fairly clever about working out which cpus need flushing
+>> and if other flushes have already done the job.
+>>     
+>
+> OK. Yeah, then the problem is simply that the guest may reuse that virtual
+> memory for another vmap.
+>   
 
-make all -j 8
+Hm.  What you would you think of a "deferred tlb flush" flag (or 
+something) to cause the next vmap to do the tlb flushes, in the case the 
+vunmap happens in a context where the flushes can't be done?
 
-slqb and slub not DEBUG.
-my test environment is as follows.
-
-cpu family	: 6
-model		: 15
-model name	: Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
-stepping	: 11
-cpu MHz		: 1600.000
-cache size	: 4096 KB
-
-Below is average for ten time test.
-
-slab :
-user : 2376.484, system : 192.616 elapsed : 12:22.0
-slub :
-user : 2378.439, system : 194.989 elapsed : 12:22.4
-slqb :
-user : 2380.556, system : 194.801 elapsed : 12:23.0
-
-so, slqb is rather slow although it is a big difference.
-Interestingly, slqb consumes less time than slub in system.
-
-And I found some trivial bug. :)
-
-<snip>
-
-> +static struct slqb_page *new_slab_page(struct kmem_cache *s, gfp_t flags, int node)
-> +{
-> +       struct slqb_page *page;
-> +       void *start;
-> +       void *last;
-> +       void *p;
-> +
-> +       BUG_ON(flags & GFP_SLAB_BUG_MASK);
-> +
-> +       page = allocate_slab(s,
-> +               flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
-> +       if (!page)
-> +               goto out;
-> +
-> +       page->flags |= 1 << PG_slab;
-
-PG_slab set is redundant.
-It's already set in alloc_slqb_pags_node.
-
-> +       start = page_address(&page->page);
-> +
-> +       if (unlikely(slab_poison(s)))
-> +               memset(start, POISON_INUSE, PAGE_SIZE << s->order);
-
-<snip>
-
-> +void kfree(const void *object)
-> +{
-> +       struct kmem_cache *s;
-> +       struct page *p;
-> +       struct slqb_page *page;
-> +       unsigned long flags;
-> +
-> +       if (unlikely(ZERO_OR_NULL_PTR(object)))
-> +               return;
-> +
-> +       p = virt_to_page(object);
-> +       prefetch(p);
-> +       prefetchw(object);
-> +
-> +#ifdef CONFIG_SLQB_DEBUG
-> +       page = (struct slqb_page *)compound_head(p);
-> +       s = page->list->cache;
-> +       debug_check_no_locks_freed(object, s->objsize);
-> +       if (likely(object) && unlikely(slab_debug(s))) {
-> +               if (unlikely(!free_debug_processing(s, object, __builtin_return_address(0))))
-> +                       return;
-> +       }
-> +#endif
-> +
-> +       local_irq_save(flags);
-> +#ifndef CONFIG_SLQB_DEBUG
-> +       page = (struct slqb_page *)compound_head(p);
-> +       s = page->list->cache;
-> +#endif
-
-If it is not defined CONFIG_SLQB_DEBUG, page is garbage.
-
-> +       __slab_free(s, page, object);
-> +       local_irq_restore(flags);
-> +}
-> +EXPORT_SYMBOL(kfree);
-> +
-
-
--- 
-Kinds regards,
-MinChan Kim
+    J
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
