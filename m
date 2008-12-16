@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E72676B008C
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 17:42:21 -0500 (EST)
-Message-ID: <49482F14.1040407@google.com>
-Date: Tue, 16 Dec 2008 14:43:32 -0800
-From: Mike Waychison <mikew@google.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F82B6B0093
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 18:41:37 -0500 (EST)
+Message-ID: <49483D01.1050603@cs.columbia.edu>
+Date: Tue, 16 Dec 2008 18:42:57 -0500
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
 Subject: Re: [RFC v11][PATCH 03/13] General infrastructure for checkpoint
  restart
 References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>	 <1228498282-11804-4-git-send-email-orenl@cs.columbia.edu>	 <49482394.10006@google.com> <1229465641.17206.350.camel@nimitz>
 In-Reply-To: <1229465641.17206.350.camel@nimitz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, jeremy@goop.org, arnd@arndb.de, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+Cc: Mike Waychison <mikew@google.com>, jeremy@goop.org, arnd@arndb.de, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
+
+
 
 Dave Hansen wrote:
 > On Tue, 2008-12-16 at 13:54 -0800, Mike Waychison wrote:
@@ -45,23 +47,31 @@ Dave Hansen wrote:
 > those buffers really are temporary.  But, in a case where we want to do
 > a really fast checkpoint (to reduce "downtime" during the checkpoint) we
 > store the image entirely in kernel memory to be written out later.
+
+Precisely.
+
+Note that by "store the image entirely" we mean everything that cannot
+be saved COW - so memory pages are not duplicated; the rest of the data
+tends to take less than 5-10% of the total size.
+
+Buffering the checkpoint image in kernel is useful to reduce downtime
+during checkpoint, and also useful for super-fast rollback of a task
+(or container) by always keeping everything in memory.
+
+This abstraction is also useful for restart, e.g. to implement read-ahead
+of the checkpoint image into the kernel.
+
+Note also that in the future we will have larger headers (e.g. to record
+the state of a socket), and there may be some nested calls (e.g. to dump
+a connected unix-domain socket we will want to first save the "parent"
+listening socket, and also there is nesting in restart).
+
+Instead of using the stack for some headers and memory allocation for
+other headers, this abstraction provides a standard interface for all
+checkpoint/restart code (and the actual implementation may vary for
+different purposes).
+
 > 
-
-Hmm, if I'm understanding you correctly, adding ref counts explicitly 
-(like you suggest below)  would be used to let a lower layer defer 
-writes.  Seems like this could be just as easily done with explicits 
-kmallocs and transferring ownership of the allocated memory to the 
-in-kernel representation handling layer below (which in turn queues the 
-data structures for writes).
-
-Any such layer would probably need to hold references to objects 
-enqueued for write-out, so they will still a full cleanup path in case 
-of success/error/abort (which means that any advantage of creating a 
-pool of allocations for O(1) cleanup disappears).
-
-Reference counting these guys doesn't have a clear advantage to me. 
-They seem to have a pretty linear lifetime.
-
 > In that case, cr_hbuf_put() stops doing anything at all because we keep
 > the memory around.
 > 
@@ -102,9 +112,25 @@ They seem to have a pretty linear lifetime.
 > 		kref_get(buf->kref);
 > 	}
 > }
-> 
-> -- Dave
-> 
+
+Yes, something like that, except you can do without the reference count
+since the buffer is tied to 'struct cr_ctx'; so this is what I had in
+mind:
+
+In non-buffering mode - as it is now - cr_kwrite() will write the data out.
+
+In buffering mode (not implemented yet), cr_write() will either do nothing
+(if we borrow from the current code, that uses a temp buffer), or attach
+the 'struct cr_buf' to the 'struct cr_ctx' (if we borrow Dave's suggestion
+above).
+
+In buffering mode, we'll also need 'cr_writeout()' which will write out
+the entire buffer to the 'struct file'.  (This function will do nothing
+in non-buffering mode).
+
+Finally, the buffers will be freed when the 'struct cr_ctx' is cleaned.
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
