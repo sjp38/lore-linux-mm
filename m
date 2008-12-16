@@ -1,85 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EFC86B0085
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 14:27:39 -0500 (EST)
-Date: Tue, 16 Dec 2008 11:28:39 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id EF7D56B008C
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 16:53:19 -0500 (EST)
+Message-ID: <49482394.10006@google.com>
+Date: Tue, 16 Dec 2008 13:54:28 -0800
+From: Mike Waychison <mikew@google.com>
+MIME-Version: 1.0
 Subject: Re: [RFC v11][PATCH 03/13] General infrastructure for checkpoint
  restart
-In-Reply-To: <4947FBC8.2000601@google.com>
-Message-ID: <alpine.LFD.2.00.0812161116380.14014@localhost.localdomain>
-References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu> <1228498282-11804-4-git-send-email-orenl@cs.columbia.edu> <4947FBC8.2000601@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu> <1228498282-11804-4-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1228498282-11804-4-git-send-email-orenl@cs.columbia.edu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mike Waychison <mikew@google.com>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, jeremy@goop.org, arnd@arndb.de, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: jeremy@goop.org, arnd@arndb.de, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Linux Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
+Oren Laadan wrote:
+> diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+> index 375129c..bd14ef9 100644
+> --- a/checkpoint/sys.c
+> +++ b/checkpoint/sys.c
 
+> +/*
+> + * During checkpoint and restart the code writes outs/reads in data
+> + * to/from the checkpoint image from/to a temporary buffer (ctx->hbuf).
+> + * Because operations can be nested, use cr_hbuf_get() to reserve space
+> + * in the buffer, then cr_hbuf_put() when you no longer need that space.
+> + */
 
-On Tue, 16 Dec 2008, Mike Waychison wrote:
-> 
-> set_fs(fs) here
+This seems a bit over-kill for buffer management no?  The only large 
+header seems to be cr_hdr_head and the blowup comes from utsinfo string 
+data (which could easily be moved out to be in it's own CR_HDR_STRING 
+blocks).
 
-Btw, this all is an excellent example of why people should try to aim for 
-small functions and use lots of them.
+Wouldn't it be easier to use stack-local storage than balancing the 
+cr_hbuf_get/put routines?
 
-It's often _way_ more readable to do
-
-	static inline int __some_fn(...)
-	{
-		.. do the real work here ..
-	}
-
-	int some_fn(...)
-	{
-		int retval;
-
-		prepare();
-		retval = __some_fn(..)
-		finish();
-
-		return retval;
-	}
-
-where "prepare/finish" can be about locking, or set_fs(), or allocation 
-and de-allocation of temporary buffers, or any number of things like that.
-
-With set_fs() in particular, the wrapper function also tends to be the 
-perfect place to change a regular (kernel) pointer into a user pointer. 
-IOW, it's the place to make sparse happy, where you can do things like
-
-	uptr = (__force void __user *)ptr;
-
-and comment on the fact that the forced user pointer cast is valid only 
-because of the set_fs().
-
-Because it looks like the code isn't sparse-clean.
-
-Btw, I also think that code like this is bogus:
-
-	nwrite = file->f_op->write(file, addr, nleft, &file->f_pos);
-
-because you're not supposed to pass in the raw file->f_pos to that 
-function. It's fundamentally thread-unsafe. I realize that maybe you don't 
-care, but the thing is, you're supposed to do
-
-	loff_t pos = file->pos;
-	..
-	nwrite = file->f_op->write(file, addr, nleft, &pos);
-	..
-	file->f_pos = pos;
-
-and in fact preferably use "file_pos_read()" and "file_pos_write()" (but 
-we've never exposed them outside of fs/read_write.c, so I guess we should 
-do that).
-
-And yes, I realize that some code does take the address of f_pos directly 
-(splice, nfsctl, others), and I realize that it works, but it's still bad 
-form. Please don't add more of them.
-
-			Linus
+> +
+> +/*
+> + * ctx->hbuf is used to hold headers and data of known (or bound),
+> + * static sizes. In some cases, multiple headers may be allocated in
+> + * a nested manner. The size should accommodate all headers, nested
+> + * or not, on all archs.
+> + */
+> +#define CR_HBUF_TOTAL  (8 * 4096)
+> +
+> +/**
+> + * cr_hbuf_get - reserve space on the hbuf
+> + * @ctx: checkpoint context
+> + * @n: number of bytes to reserve
+> + *
+> + * Returns pointer to reserved space
+> + */
+> +void *cr_hbuf_get(struct cr_ctx *ctx, int n)
+> +{
+> +	void *ptr;
+> +
+> +	/*
+> +	 * Since requests depend on logic and static header sizes (not on
+> +	 * user data), space should always suffice, unless someone either
+> +	 * made a structure bigger or call path deeper than expected.
+> +	 */
+> +	BUG_ON(ctx->hpos + n > CR_HBUF_TOTAL);
+> +	ptr = ctx->hbuf + ctx->hpos;
+> +	ctx->hpos += n;
+> +	return ptr;
+> +}
+> +
+> +/**
+> + * cr_hbuf_put - unreserve space on the hbuf
+> + * @ctx: checkpoint context
+> + * @n: number of bytes to reserve
+> + */
+> +void cr_hbuf_put(struct cr_ctx *ctx, int n)
+> +{
+> +	BUG_ON(ctx->hpos < n);
+> +	ctx->hpos -= n;
+> +}
+> +
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
