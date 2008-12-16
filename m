@@ -1,219 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3DD6B007F
-	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 06:35:30 -0500 (EST)
-Message-Id: <20081216113653.252690000@menage.corp.google.com>
-References: <20081216113055.713856000@menage.corp.google.com>
-Date: Tue, 16 Dec 2008 03:30:58 -0800
-From: menage@google.com
-Subject: [PATCH 3/3] CGroups: Add css_tryget()
-Content-Disposition: inline; filename=cgroup_refcnt.patch
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 2219C6B0085
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 13:42:03 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mBGIgu0H004542
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 11:42:56 -0700
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mBGIhcfx167702
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 11:43:38 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mBGIhaHf028022
+	for <linux-mm@kvack.org>; Tue, 16 Dec 2008 11:43:38 -0700
+Subject: Re: [RFC v11][PATCH 00/13] Kernel based checkpoint/restart
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>
+Content-Type: text/plain
+Date: Tue, 16 Dec 2008 10:43:32 -0800
+Message-Id: <1229453012.17206.322.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, lizf@cn.fujitsu.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm <akpm@linuxfoundation.org>
+Cc: containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Linux Torvalds <torvalds@osdl.org>, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, MinChan Kim <minchan.kim@gmail.com>, arnd@arndb.de, jeremy@goop.org, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-This patch adds css_tryget(), that obtains a counted reference on a
-CSS.  It is used in situations where the caller has a "weak" reference
-to the CSS, i.e. one that does not protect the cgroup from removal via
-a reference count, but would instead be cleaned up by a destroy()
-callback.
+Andrew,
 
-css_tryget() will return true on success, or false if the cgroup is
-being removed.
+I just realized that you weren't cc'd on these when they were posted.
 
-This is similar to Kamezawa Hiroyuki's patch from a week or two ago,
-but with the difference that in the event of css_tryget() racing with
-a cgroup_rmdir(), css_tryget() will only return false if the cgroup
-really does get removed.
+Can we give them a run in -mm?  As far as I know, all review comments
+have been addressed and there's nothing outstanding.
 
-This implementation is done by biasing css->refcnt, so that a refcnt
-of 1 means "releasable" and 0 means "released or releasing". In the
-event of a race, css_tryget() distinguishes between "released" and
-"releasing" by checking for the CSS_REMOVED flag in css->flags.
+On Fri, 2008-12-05 at 12:31 -0500, Oren Laadan wrote:
+> Checkpoint-restart (c/r): fixed races in file handling (comments from
+> from Al Viro). Updated and tested against v2.6.28-rc7 (feaf384...)
+> 
+> We'd like these to make it into -mm. This version addresses the
+> last of the known bugs. Please pull at least the first 11 patches,
+> as they are similar to before.
+> 
+> Patches 1-11 are stable, providing self- and external- c/r of a
+> single process.
+> Patches 12 and 13 are newer, adding support for c/r of multiple
+> processes.
+> 
+> The git tree tracking v11, branch 'ckpt-v11' (and older versions):
+> 	git://git.ncl.cs.columbia.edu/pub/git/linux-cr.git
+> 
+> Restarting multiple processes requires 'mktree' userspace tool:
+> 	git://git.ncl.cs.columbia.edu/pub/git/user-cr.git
+> 
+> Oren.
+> 
+> 
+> --
+> Why do we want it?  It allows containers to be moved between physical
+> machines' kernels in the same way that VMWare can move VMs between
+> physical machines' hypervisors.  There are currently at least two
+> out-of-tree implementations of this in the commercial world (IBM's
+> Metacluster and Parallels' OpenVZ/Virtuozzo) and several in the academic
+> world like Zap.
+> 
+> Why do we need it in mainline now?  Because we already have plenty of
+> out-of-tree ones, and  want to know what an in-tree one will be like.   :)  
+> What *I* want right now is the extra review and scrutiny that comes with
+> a mainline submission to make sure we're not going in a direction
+> contrary to the community.
+> 
+> This only supports pretty simple apps.  But, I trust Ingo when he says:
+> >> > > Generally, if something works for simple apps already (in a robust, 
+> >> > > compatible and supportable way) and users find it "very cool", then 
+> >> > > support for more complex apps is not far in the future.  but if you
+> >> > > want to support more complex apps straight away, it takes forever and
+> >> > > gets ugly.
+> 
+> We're *certainly* going to be changing the ABI (which is the format of
+> the checkpoint).  I'd like to follow the model that we used for
+> ext4-dev, which is to make it very clear that this is a development-only
+> feature for now.  Perhaps we do that by making the interface only
+> available through debugfs or something similar for now.  Or, reserving
+> the syscall numbers but require some runtime switch to be thrown before
+> they can be used.  I'm open to suggestions here.
+> --
+> 
+> --
+> Todo:
+> - Add support for x86-64 and improve ABI
+> - Refine or change syscall interface
+> - Handle multiple namespaces in a container (e.g. save the filesystem
+>   namespaces state with the file descriptors)
+> - Security (without CAPS_SYS_ADMIN files restore may fail)
+> 
+> Changelog:
+> 
+> [2008-Dec-05] v11:
+>   - Use contents of 'init->fs->root' instead of pointing to it
+>   - Ignore symlinks (there is no such thing as an open symlink)
+>   - cr_scan_fds() retries from scratch if it hits size limits
+>   - Add missing test for VM_MAYSHARE when dumping memory
+>   - Improve documentation about: behavior when tasks aren't fronen,
+>     life span of the object hash, references to objects in the hash
+> 
+> [2008-Nov-26] v10:
+>   - Grab vfs root of container init, rather than current process
+>   - Acquire dcache_lock around call to __d_path() in cr_fill_name()
+>   - Force end-of-string in cr_read_string() (fix possible DoS)
+>   - Introduce cr_write_buffer(), cr_read_buffer() and cr_read_buf_type()
+> 
+> [2008-Nov-10] v9:
+>   - Support multiple processes c/r
+>   - Extend checkpoint header with archtiecture dependent header 
+>   - Misc bug fixes (see individual changelogs)
+>   - Rebase to v2.6.28-rc3.
+> 
+> [2008-Oct-29] v8:
+>   - Support "external" checkpoint
+>   - Include Dave Hansen's 'deny-checkpoint' patch
+>   - Split docs in Documentation/checkpoint/..., and improve contents
+> 
+> [2008-Oct-17] v7:
+>   - Fix save/restore state of FPU
+>   - Fix argument given to kunmap_atomic() in memory dump/restore
+> 
+> [2008-Oct-07] v6:
+>   - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
+>     (even though it's not really needed)
+>   - Add assumptions and what's-missing to documentation
+>   - Misc fixes and cleanups
+> 
+> [2008-Sep-11] v5:
+>   - Config is now 'def_bool n' by default
+>   - Improve memory dump/restore code (following Dave Hansen's comments)
+>   - Change dump format (and code) to allow chunks of <vaddrs, pages>
+>     instead of one long list of each
+>   - Fix use of follow_page() to avoid faulting in non-present pages
+>   - Memory restore now maps user pages explicitly to copy data into them,
+>     instead of reading directly to user space; got rid of mprotect_fixup()
+>   - Remove preempt_disable() when restoring debug registers
+>   - Rename headers files s/ckpt/checkpoint/
+>   - Fix misc bugs in files dump/restore
+>   - Fixes and cleanups on some error paths
+>   - Fix misc coding style
+> 
+> [2008-Sep-09] v4:
+>   - Various fixes and clean-ups
+>   - Fix calculation of hash table size
+>   - Fix header structure alignment
+>   - Use stand list_... for cr_pgarr
+> 
+> [2008-Aug-29] v3:
+>   - Various fixes and clean-ups
+>   - Use standard hlist_... for hash table
+>   - Better use of standard kmalloc/kfree
+> 
+> [2008-Aug-20] v2:
+>   - Added Dump and restore of open files (regular and directories)
+>   - Added basic handling of shared objects, and improve handling of
+>     'parent tag' concept
+>   - Added documentation
+>   - Improved ABI, 64bit padding for image data
+>   - Improved locking when saving/restoring memory
+>   - Added UTS information to header (release, version, machine)
+>   - Cleanup extraction of filename from a file pointer
+>   - Refactor to allow easier reviewing
+>   - Remove requirement for CAPS_SYS_ADMIN until we come up with a
+>     security policy (this means that file restore may fail)
+>   - Other cleanup and response to comments for v1
+> 
+> [2008-Jul-29] v1:
+>   - Initial version: support a single task with address space of only
+>     private anonymous or file-mapped VMAs; syscalls ignore pid/crid
+>     argument and act on current process.
+> 
+> --
+> At the containers mini-conference before OLS, the consensus among
+> all the stakeholders was that doing checkpoint/restart in the kernel
+> as much as possible was the best approach.  With this approach, the
+> kernel will export a relatively opaque 'blob' of data to userspace
+> which can then be handed to the new kernel at restore time.
+> 
+> This is different than what had been proposed before, which was
+> that a userspace application would be responsible for collecting
+> all of this data.  We were also planning on adding lots of new,
+> little kernel interfaces for all of the things that needed
+> checkpointing.  This unites those into a single, grand interface.
+> 
+> The 'blob' will contain copies of select portions of kernel
+> structures such as vmas and mm_structs.  It will also contain
+> copies of the actual memory that the process uses.  Any changes
+> in this blob's format between kernel revisions can be handled by
+> an in-userspace conversion program.
+> 
+> This is a similar approach to virtually all of the commercial
+> checkpoint/restart products out there, as well as the research
+> project Zap.
+> 
+> These patches basically serialize internel kernel state and write
+> it out to a file descriptor.  The checkpoint and restore are done
+> with two new system calls: sys_checkpoint and sys_restart.
+> 
+> In this incarnation, they can only work checkpoint and restore a
+> single task. The task's address space may consist of only private,
+> simple vma's - anonymous or file-mapped. The open files may consist
+> of only simple files and directories.
+> --
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- Dave
 
-Signed-off-by: Paul Menage <menage@google.com>
-
----
- include/linux/cgroup.h |   38 +++++++++++++++++++++++++-----
- kernel/cgroup.c        |   61 ++++++++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 88 insertions(+), 11 deletions(-)
-
-Index: hierarchy_lock-mmotm-2008-12-09/include/linux/cgroup.h
-===================================================================
---- hierarchy_lock-mmotm-2008-12-09.orig/include/linux/cgroup.h
-+++ hierarchy_lock-mmotm-2008-12-09/include/linux/cgroup.h
-@@ -52,9 +52,9 @@ struct cgroup_subsys_state {
- 	 * hierarchy structure */
- 	struct cgroup *cgroup;
- 
--	/* State maintained by the cgroup system to allow
--	 * subsystems to be "busy". Should be accessed via css_get()
--	 * and css_put() */
-+	/* State maintained by the cgroup system to allow subsystems
-+	 * to be "busy". Should be accessed via css_get(),
-+	 * css_tryget() and and css_put(). */
- 
- 	atomic_t refcnt;
- 
-@@ -64,11 +64,14 @@ struct cgroup_subsys_state {
- /* bits in struct cgroup_subsys_state flags field */
- enum {
- 	CSS_ROOT, /* This CSS is the root of the subsystem */
-+	CSS_REMOVED, /* This CSS is dead */
- };
- 
- /*
-- * Call css_get() to hold a reference on the cgroup;
-- *
-+ * Call css_get() to hold a reference on the css; it can be used
-+ * for a reference obtained via:
-+ * - an existing ref-counted reference to the css
-+ * - task->cgroups for a locked task
-  */
- 
- static inline void css_get(struct cgroup_subsys_state *css)
-@@ -77,9 +80,32 @@ static inline void css_get(struct cgroup
- 	if (!test_bit(CSS_ROOT, &css->flags))
- 		atomic_inc(&css->refcnt);
- }
-+
-+static inline bool css_is_removed(struct cgroup_subsys_state *css)
-+{
-+	return test_bit(CSS_REMOVED, &css->flags);
-+}
-+
-+/*
-+ * Call css_tryget() to take a reference on a css if your existing
-+ * (known-valid) reference isn't already ref-counted. Returns false if
-+ * the css has been destroyed.
-+ */
-+
-+static inline bool css_tryget(struct cgroup_subsys_state *css)
-+{
-+	if (test_bit(CSS_ROOT, &css->flags))
-+		return true;
-+	while (!atomic_inc_not_zero(&css->refcnt)) {
-+		if (test_bit(CSS_REMOVED, &css->flags))
-+			return false;
-+	}
-+	return true;
-+}
-+
- /*
-  * css_put() should be called to release a reference taken by
-- * css_get()
-+ * css_get() or css_tryget()
-  */
- 
- extern void __css_put(struct cgroup_subsys_state *css);
-Index: hierarchy_lock-mmotm-2008-12-09/kernel/cgroup.c
-===================================================================
---- hierarchy_lock-mmotm-2008-12-09.orig/kernel/cgroup.c
-+++ hierarchy_lock-mmotm-2008-12-09/kernel/cgroup.c
-@@ -2321,7 +2321,7 @@ static void init_cgroup_css(struct cgrou
- 			       struct cgroup *cgrp)
- {
- 	css->cgroup = cgrp;
--	atomic_set(&css->refcnt, 0);
-+	atomic_set(&css->refcnt, 1);
- 	css->flags = 0;
- 	if (cgrp == dummytop)
- 		set_bit(CSS_ROOT, &css->flags);
-@@ -2453,7 +2453,7 @@ static int cgroup_has_css_refs(struct cg
- {
- 	/* Check the reference count on each subsystem. Since we
- 	 * already established that there are no tasks in the
--	 * cgroup, if the css refcount is also 0, then there should
-+	 * cgroup, if the css refcount is also 1, then there should
- 	 * be no outstanding references, so the subsystem is safe to
- 	 * destroy. We scan across all subsystems rather than using
- 	 * the per-hierarchy linked list of mounted subsystems since
-@@ -2474,12 +2474,62 @@ static int cgroup_has_css_refs(struct cg
- 		 * matter, since it can only happen if the cgroup
- 		 * has been deleted and hence no longer needs the
- 		 * release agent to be called anyway. */
--		if (css && atomic_read(&css->refcnt))
-+		if (css && (atomic_read(&css->refcnt) > 1))
- 			return 1;
- 	}
- 	return 0;
- }
- 
-+/*
-+ * Atomically mark all (or else none) of the cgroup's CSS objects as
-+ * CSS_REMOVED. Return true on success, or false if the cgroup has
-+ * busy subsystems. Call with cgroup_mutex held
-+ */
-+
-+static int cgroup_clear_css_refs(struct cgroup *cgrp)
-+{
-+	struct cgroup_subsys *ss;
-+	unsigned long flags;
-+	bool failed = false;
-+	local_irq_save(flags);
-+	for_each_subsys(cgrp->root, ss) {
-+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
-+		int refcnt;
-+		do {
-+			/* We can only remove a CSS with a refcnt==1 */
-+			refcnt = atomic_read(&css->refcnt);
-+			if (refcnt > 1) {
-+				failed = true;
-+				goto done;
-+			}
-+			BUG_ON(!refcnt);
-+			/*
-+			 * Drop the refcnt to 0 while we check other
-+			 * subsystems. This will cause any racing
-+			 * css_tryget() to spin until we set the
-+			 * CSS_REMOVED bits or abort
-+			 */
-+		} while (atomic_cmpxchg(&css->refcnt, refcnt, 0) != refcnt);
-+	}
-+ done:
-+	for_each_subsys(cgrp->root, ss) {
-+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
-+		if (failed) {
-+			/*
-+			 * Restore old refcnt if we previously managed
-+			 * to clear it from 1 to 0
-+			 */
-+			if (!atomic_read(&css->refcnt))
-+				atomic_set(&css->refcnt, 1);
-+		} else {
-+			/* Commit the fact that the CSS is removed */
-+			set_bit(CSS_REMOVED, &css->flags);
-+		}
-+	}
-+	local_irq_restore(flags);
-+	return !failed;
-+}
-+
- static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
- {
- 	struct cgroup *cgrp = dentry->d_fsdata;
-@@ -2510,7 +2560,7 @@ static int cgroup_rmdir(struct inode *un
- 
- 	if (atomic_read(&cgrp->count)
- 	    || !list_empty(&cgrp->children)
--	    || cgroup_has_css_refs(cgrp)) {
-+	    || !cgroup_clear_css_refs(cgrp)) {
- 		mutex_unlock(&cgroup_mutex);
- 		return -EBUSY;
- 	}
-@@ -3065,7 +3115,8 @@ void __css_put(struct cgroup_subsys_stat
- {
- 	struct cgroup *cgrp = css->cgroup;
- 	rcu_read_lock();
--	if (atomic_dec_and_test(&css->refcnt) && notify_on_release(cgrp)) {
-+	if ((atomic_dec_return(&css->refcnt) == 1) &&
-+	    notify_on_release(cgrp)) {
- 		set_bit(CGRP_RELEASABLE, &cgrp->flags);
- 		check_for_release(cgrp);
- 	}
-
---
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
