@@ -1,83 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2CB916B00A2
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 06:25:48 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBHBRV3G013880
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 17 Dec 2008 20:27:31 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C03345DE52
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AD5545DE51
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 01D051DB8014
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5A51DB8012
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:30 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] mm: kill page_queue_congested()
-Message-Id: <20081217202547.FF22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E0D856B00A2
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 06:38:09 -0500 (EST)
+Subject: Re: [PATCH] mm: kill page_queue_congested()
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20081217202547.FF22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20081217202547.FF22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: Wed, 17 Dec 2008 20:27:30 +0900 (JST)
+Date: Wed, 17 Dec 2008 12:39:50 +0100
+Message-Id: <1229513990.9487.73.camel@twins>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2008-12-17 at 20:27 +0900, KOSAKI Motohiro wrote:
+> ==
+> Subject: [PATCH] mm: kill page_queue_congested()
+> 
+> page_queue_congested() was introduced at 2002.
+> but it is unused until now at all.
+> 
+> it can be removed.
 
-==
-Subject: [PATCH] mm: kill page_queue_congested()
+Or we can hook it up in vmscan, and skip congested pages on high scan
+order or something..
 
-page_queue_congested() was introduced at 2002.
-but it is unused until now at all.
-
-it can be removed.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/swapfile.c |   20 --------------------
- 1 file changed, 20 deletions(-)
-
-Index: b/mm/swapfile.c
-===================================================================
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1203,26 +1203,6 @@ out:
- 	return ret;
- }
- 
--#if 0	/* We don't need this yet */
--#include <linux/backing-dev.h>
--int page_queue_congested(struct page *page)
--{
--	struct backing_dev_info *bdi;
--
--	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
--
--	if (PageSwapCache(page)) {
--		swp_entry_t entry = { .val = page_private(page) };
--		struct swap_info_struct *sis;
--
--		sis = get_swap_info_struct(swp_type(entry));
--		bdi = sis->bdev->bd_inode->i_mapping->backing_dev_info;
--	} else
--		bdi = page->mapping->backing_dev_info;
--	return bdi_write_congested(bdi);
--}
--#endif
--
- asmlinkage long sys_swapoff(const char __user * specialfile)
- {
- 	struct swap_info_struct * p = NULL;
-
-
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/swapfile.c |   20 --------------------
+>  1 file changed, 20 deletions(-)
+> 
+> Index: b/mm/swapfile.c
+> ===================================================================
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1203,26 +1203,6 @@ out:
+>  	return ret;
+>  }
+>  
+> -#if 0	/* We don't need this yet */
+> -#include <linux/backing-dev.h>
+> -int page_queue_congested(struct page *page)
+> -{
+> -	struct backing_dev_info *bdi;
+> -
+> -	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
+> -
+> -	if (PageSwapCache(page)) {
+> -		swp_entry_t entry = { .val = page_private(page) };
+> -		struct swap_info_struct *sis;
+> -
+> -		sis = get_swap_info_struct(swp_type(entry));
+> -		bdi = sis->bdev->bd_inode->i_mapping->backing_dev_info;
+> -	} else
+> -		bdi = page->mapping->backing_dev_info;
+> -	return bdi_write_congested(bdi);
+> -}
+> -#endif
+> -
+>  asmlinkage long sys_swapoff(const char __user * specialfile)
+>  {
+>  	struct swap_info_struct * p = NULL;
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
