@@ -1,91 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 95D776B009F
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 06:07:30 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBHB9E9U021234
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2CB916B00A2
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 06:25:48 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBHBRV3G013880
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 17 Dec 2008 20:09:14 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 00AFE45DE61
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:09:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFAED45DE51
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:09:13 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B10C71DB803F
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:09:13 +0900 (JST)
+	Wed, 17 Dec 2008 20:27:31 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C03345DE52
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1AD5545DE51
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 01D051DB8014
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:31 +0900 (JST)
 Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 66B8C1DB803A
-	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:09:13 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AD5A51DB8012
+	for <linux-mm@kvack.org>; Wed, 17 Dec 2008 20:27:30 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] remove CONFIG_OUT_OF_LINE_PFN_TO_PAGE
-Message-Id: <20081217200812.FF1E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [PATCH] mm: kill page_queue_congested()
+Message-Id: <20081217202547.FF22.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 17 Dec 2008 20:09:12 +0900 (JST)
+Date: Wed, 17 Dec 2008 20:27:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
 
-Now, any architecture don't use CONFIG_OUT_OF_LINE_PFN_TO_PAGE at all.
+==
+Subject: [PATCH] mm: kill page_queue_congested()
+
+page_queue_congested() was introduced at 2002.
+but it is unused until now at all.
+
 it can be removed.
 
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- include/asm-generic/memory_model.h |    7 -------
- mm/page_alloc.c                    |   13 -------------
- 2 files changed, 20 deletions(-)
+ mm/swapfile.c |   20 --------------------
+ 1 file changed, 20 deletions(-)
 
-Index: b/include/asm-generic/memory_model.h
+Index: b/mm/swapfile.c
 ===================================================================
---- a/include/asm-generic/memory_model.h
-+++ b/include/asm-generic/memory_model.h
-@@ -69,15 +69,8 @@
- })
- #endif /* CONFIG_FLATMEM/DISCONTIGMEM/SPARSEMEM */
- 
--#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
--struct page;
--/* this is useful when inlined pfn_to_page is too big */
--extern struct page *pfn_to_page(unsigned long pfn);
--extern unsigned long page_to_pfn(struct page *page);
--#else
- #define page_to_pfn __page_to_pfn
- #define pfn_to_page __pfn_to_page
--#endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
- 
- #endif /* __ASSEMBLY__ */
- 
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4593,19 +4593,6 @@ void *__init alloc_large_system_hash(con
- 	return table;
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1203,26 +1203,6 @@ out:
+ 	return ret;
  }
  
--#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
--struct page *pfn_to_page(unsigned long pfn)
+-#if 0	/* We don't need this yet */
+-#include <linux/backing-dev.h>
+-int page_queue_congested(struct page *page)
 -{
--	return __pfn_to_page(pfn);
--}
--unsigned long page_to_pfn(struct page *page)
--{
--	return __page_to_pfn(page);
--}
--EXPORT_SYMBOL(pfn_to_page);
--EXPORT_SYMBOL(page_to_pfn);
--#endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */
+-	struct backing_dev_info *bdi;
 -
- /* Return a pointer to the bitmap storing bits affecting a block of pages */
- static inline unsigned long *get_pageblock_bitmap(struct zone *zone,
- 							unsigned long pfn)
+-	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
+-
+-	if (PageSwapCache(page)) {
+-		swp_entry_t entry = { .val = page_private(page) };
+-		struct swap_info_struct *sis;
+-
+-		sis = get_swap_info_struct(swp_type(entry));
+-		bdi = sis->bdev->bd_inode->i_mapping->backing_dev_info;
+-	} else
+-		bdi = page->mapping->backing_dev_info;
+-	return bdi_write_congested(bdi);
+-}
+-#endif
+-
+ asmlinkage long sys_swapoff(const char __user * specialfile)
+ {
+ 	struct swap_info_struct * p = NULL;
 
 
 --
