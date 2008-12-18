@@ -1,32 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 589A66B0047
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 13:41:39 -0500 (EST)
-Message-ID: <494A99EF.6070400@flurg.com>
-Date: Thu, 18 Dec 2008 12:43:59 -0600
-From: "David M. Lloyd" <dmlloyd@flurg.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BD5296B0044
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 14:58:39 -0500 (EST)
+Message-ID: <494AABDB.80408@cs.columbia.edu>
+Date: Thu, 18 Dec 2008 15:00:27 -0500
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
-References: <494009D7.4020602@vlnb.net> <494012C4.7090304@vlnb.net> <20081210214500.GA24212@ioremap.net> <4941590F.3070705@vlnb.net> <1229022734.3266.67.camel@localhost.localdomain> <4942BAB8.4050007@vlnb.net> <1229110673.3262.94.camel@localhost.localdomain> <49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org> <4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net>
-In-Reply-To: <494A97DD.7080503@vlnb.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC v11][PATCH 05/13] Dump memory address space
+References: <1228498282-11804-1-git-send-email-orenl@cs.columbia.edu>	 <1228498282-11804-6-git-send-email-orenl@cs.columbia.edu>	 <4949B4ED.9060805@google.com>  <494A2F94.2090800@cs.columbia.edu> <1229615676.17206.518.camel@nimitz>
+In-Reply-To: <1229615676.17206.518.camel@nimitz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Vladislav Bolkhovitin <vst@vlnb.net>
-Cc: linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Mike Waychison <mikew@google.com>, jeremy@goop.org, arnd@arndb.de, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On 12/18/2008 12:35 PM, Vladislav Bolkhovitin wrote:
-> An iSCSI target driver iSCSI-SCST was a part of the patchset 
-> (http://lkml.org/lkml/2008/12/10/293). For it a nice optimization to 
-> have TCP zero-copy transmit of user space data was implemented. Patch, 
-> implementing this optimization was also sent in the patchset, see 
-> http://lkml.org/lkml/2008/12/10/296.
 
-I'm probably ignorant of about 90% of the context here, but isn't this the 
-sort of problem that was supposed to have been solved by vmsplice(2)?
 
-- DML
+Dave Hansen wrote:
+> On Thu, 2008-12-18 at 06:10 -0500, Oren Laadan wrote:
+>>>> +    for (i = pgarr->nr_used; i--; /**/)
+>>>> +        page_cache_release(pgarr->pages[i]);
+>>> This is sorta hard to read (and non-intuitive).  Is it easier to do:
+>>>
+>>> for (i = 0; i < pgarr->nr_used; i++)
+>>>     page_cache_release(pgarr->pages[i]);
+>>>
+>>> It shouldn't matter what order you release the pages in..
+>> Was meant to avoid a dereference to 'pgarr->nr_used' in the comparison.
+>> (though I doubt if the performance impact is at all visible)
+> 
+> That's a bit to aggressive an optimization.  You two piqued my
+> curiosity, so I tried a little experiment with this .c file:
+> 
+> extern void bar(int i);
+> 
+> struct s {
+>         int *array;
+>         int size;
+> };
+> 
+> extern struct s *s;
+> void foo(void)
+> {
+>         int i;
+> #ifdef OREN
+>         for (i = s->size; i--; )
+> #else
+>         for (i = 0; i < s->size; i++)
+> #endif
+>                 bar(s->array[i]);
+> }
+> 
+> for O in "" -O -O1 -O2 -O3 -Os; do
+> 	gcc -DOREN $O -c f1.c -o oren.o;
+> 	gcc $O -c f1.c -o mike.o;
+> 	echo -n Oren:; objdump -d oren.o | grep ret;
+> 	echo -n Mike:; objdump -d mike.o | grep ret;
+> done
+
+For what it's worth, the idea was to improve time... (not code length).
+I changed the code anyway (in response to another comment).
+
+Oren.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
