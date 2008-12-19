@@ -1,184 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C873F6B0047
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 01:18:07 -0500 (EST)
-Date: Fri, 19 Dec 2008 07:20:12 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [rfc][patch 2/2] mnt_want_write speedup 2
-Message-ID: <20081219062012.GB16268@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081219061937.GA16268@wotan.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 89F0D6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 01:32:16 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ6YL6L017795
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 19 Dec 2008 15:34:22 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BB69345DD80
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 15:34:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 977FF45DD7E
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 15:34:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AA1C1DB803C
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 15:34:21 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 325A51DB8038
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 15:34:21 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Corruption with O_DIRECT and unaligned user buffers
+In-Reply-To: <20081218152952.GW24856@random.random>
+References: <20081119165819.GE19209@random.random> <20081218152952.GW24856@random.random>
+Message-Id: <20081219151118.A0AC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 19 Dec 2008 15:34:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <haveblue@us.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hi
 
-This patch speeds up lmbench lat_mmap test by about another 2% after the
-first patch.
+I don't undestand your patch yet. just dumb question.
 
-Before:
- avg = 462.286
- std = 5.46106
 
-After:
- avg = 453.12
- std = 9.58257
+> Problem this only fixes it for rhel and other kernels that don't have
+> get_user_pages_fast yet. You really have to think at some way to
+> serialize get_user_pages_fast for this and ksm. get_user_pages_fast
+> makes it a unfixable bug to mark any anon pte from readwrite to
+> readonly when there could be O_DIRECT on it, this has to be solved
+> sooner or later...
 
-(50 runs of each, stddev gives a reasonable confidence)
+I'm confused.
 
-It does this by introducing mnt_clone_write, which avoids some heavyweight
-operations of mnt_want_write if called on a vfsmount which we know already
-has a write count; and mnt_want_write_file, which can call mnt_clone_write
-if the file is open for write.
+I think gup_pte_range() doesn't change pte attribute.
+Could you explain why get_user_pages_fast() is evil?
 
-After these two patches, mnt_want_write and mnt_drop_write go from 7% on
-the profile down to 1.3% (including mnt_clone_write).
 
----
- fs/file_table.c       |    3 +--
- fs/inode.c            |    2 +-
- fs/namespace.c        |   38 ++++++++++++++++++++++++++++++++++++++
- fs/open.c             |    4 ++--
- fs/xattr.c            |    4 ++--
- include/linux/mount.h |    2 ++
- 6 files changed, 46 insertions(+), 7 deletions(-)
+> So last detail, I take it as safe not to check if the pte is writeable
+> after handle_mm_fault returns as the new address space is private and
+> the page fault couldn't possibly race with anything (i.e. pte_same is
+> guaranteed to succeed). For the mainline version we can remove the
+> page lock and replace with smb_wmb in add_to_swap_cache and smp_rmb in
+> the page_count/PG_swapcache read to remove that trylockpage. Given
+> smp_wmb is barrier() it should worth it.
 
-Index: linux-2.6/fs/file_table.c
-===================================================================
---- linux-2.6.orig/fs/file_table.c
-+++ linux-2.6/fs/file_table.c
-@@ -210,8 +210,7 @@ int init_file(struct file *file, struct
- 	 */
- 	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
- 		file_take_write(file);
--		error = mnt_want_write(mnt);
--		WARN_ON(error);
-+		mnt_clone_write(mnt);
- 	}
- 	return error;
- }
-Index: linux-2.6/fs/inode.c
-===================================================================
---- linux-2.6.orig/fs/inode.c
-+++ linux-2.6/fs/inode.c
-@@ -1249,7 +1249,7 @@ void file_update_time(struct file *file)
- 	if (IS_NOCMTIME(inode))
- 		return;
- 
--	err = mnt_want_write(file->f_path.mnt);
-+	err = mnt_want_write_file(file->f_path.mnt, file);
- 	if (err)
- 		return;
- 
-Index: linux-2.6/fs/namespace.c
-===================================================================
---- linux-2.6.orig/fs/namespace.c
-+++ linux-2.6/fs/namespace.c
-@@ -264,6 +264,44 @@ out:
- EXPORT_SYMBOL_GPL(mnt_want_write);
- 
- /**
-+ * mnt_clone_write - get write access to a mount
-+ * @mnt: the mount on which to take a write
-+ *
-+ * This is effectively like mnt_want_write, except
-+ * it must only be used to take an extra write reference
-+ * on a mountpoint that we already know has a write reference
-+ * on it. This allows some optimisation.
-+ *
-+ * After finished, mnt_drop_write must be called as usual to
-+ * drop the reference.
-+ */
-+void mnt_clone_write(struct vfsmount *mnt)
-+{
-+	preempt_disable();
-+	inc_mnt_writers(mnt);
-+	preempt_enable();
-+}
-+EXPORT_SYMBOL_GPL(mnt_clone_write);
-+
-+/**
-+ * mnt_want_write_file - get write access to a file's mount
-+ * @file: the file who's mount on which to take a write
-+ *
-+ * This is like mnt_want_write, but it takes a file and can
-+ * do some optimisations if the file is open for write already
-+ */
-+int mnt_want_write_file(struct vfsmount *mnt, struct file *file)
-+{
-+	if (!(file->f_mode & FMODE_WRITE))
-+		return mnt_want_write(mnt);
-+	else {
-+		mnt_clone_write(mnt);
-+		return 0;
-+	}
-+}
-+EXPORT_SYMBOL_GPL(mnt_want_write_file);
-+
-+/**
-  * mnt_drop_write - give up write access to a mount
-  * @mnt: the mount on which to give up write access
-  *
-Index: linux-2.6/fs/open.c
-===================================================================
---- linux-2.6.orig/fs/open.c
-+++ linux-2.6/fs/open.c
-@@ -597,7 +597,7 @@ asmlinkage long sys_fchmod(unsigned int
- 
- 	audit_inode(NULL, dentry);
- 
--	err = mnt_want_write(file->f_path.mnt);
-+	err = mnt_want_write_file(file->f_path.mnt, file);
- 	if (err)
- 		goto out_putf;
- 	mutex_lock(&inode->i_mutex);
-@@ -748,7 +748,7 @@ asmlinkage long sys_fchown(unsigned int
- 	if (!file)
- 		goto out;
- 
--	error = mnt_want_write(file->f_path.mnt);
-+	error = mnt_want_write_file(file->f_path.mnt, file);
- 	if (error)
- 		goto out_fput;
- 	dentry = file->f_path.dentry;
-Index: linux-2.6/fs/xattr.c
-===================================================================
---- linux-2.6.orig/fs/xattr.c
-+++ linux-2.6/fs/xattr.c
-@@ -302,7 +302,7 @@ sys_fsetxattr(int fd, const char __user
- 		return error;
- 	dentry = f->f_path.dentry;
- 	audit_inode(NULL, dentry);
--	error = mnt_want_write(f->f_path.mnt);
-+	error = mnt_want_write_file(f->f_path.mnt, f);
- 	if (!error) {
- 		error = setxattr(dentry, name, value, size, flags);
- 		mnt_drop_write(f->f_path.mnt);
-@@ -533,7 +533,7 @@ sys_fremovexattr(int fd, const char __us
- 		return error;
- 	dentry = f->f_path.dentry;
- 	audit_inode(NULL, dentry);
--	error = mnt_want_write(f->f_path.mnt);
-+	error = mnt_want_write_file(f->f_path.mnt, f);
- 	if (!error) {
- 		error = removexattr(dentry, name);
- 		mnt_drop_write(f->f_path.mnt);
-Index: linux-2.6/include/linux/mount.h
-===================================================================
---- linux-2.6.orig/include/linux/mount.h
-+++ linux-2.6/include/linux/mount.h
-@@ -90,6 +90,8 @@ static inline struct vfsmount *mntget(st
- }
- 
- extern int mnt_want_write(struct vfsmount *mnt);
-+extern int mnt_want_write_file(struct vfsmount *mnt, struct file *file);
-+extern void mnt_clone_write(struct vfsmount *mnt);
- extern void mnt_drop_write(struct vfsmount *mnt);
- extern void mntput_no_expire(struct vfsmount *mnt);
- extern void mnt_pin(struct vfsmount *mnt);
+Why rhel can't use memory barrier?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
