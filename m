@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E880A6B0047
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 21:04:52 -0500 (EST)
-Received: from wpaz24.hot.corp.google.com (wpaz24.hot.corp.google.com [172.24.198.88])
-	by smtp-out.google.com with ESMTP id mBJ26oPK015342
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 18:06:51 -0800
-Received: from qyk13 (qyk13.prod.google.com [10.241.83.141])
-	by wpaz24.hot.corp.google.com with ESMTP id mBJ26mUr032441
-	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 18:06:49 -0800
-Received: by qyk13 with SMTP id 13so783257qyk.5
-        for <linux-mm@kvack.org>; Thu, 18 Dec 2008 18:06:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20081217140318.c6832440.akpm@linux-foundation.org>
-References: <20081216113055.713856000@menage.corp.google.com>
-	 <20081217140318.c6832440.akpm@linux-foundation.org>
-Date: Thu, 18 Dec 2008 18:06:48 -0800
-Message-ID: <6599ad830812181806h461ef9d6xb3b99da290ae521f@mail.gmail.com>
-Subject: Re: [PATCH 0/3] CGroups: Hierarchy locking/refcount changes
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2F0386B0047
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 21:20:20 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ2MNpT022385
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Dec 2008 11:22:23 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 639BE45DD81
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 11:22:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D8B245DD78
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 11:22:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B1AC31DB8048
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 11:22:22 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 644B31DB8041
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 11:22:22 +0900 (JST)
+Date: Fri, 19 Dec 2008 11:21:25 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Corruption with O_DIRECT and unaligned user buffers
+Message-Id: <20081219112125.75bbda2b.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081218152952.GW24856@random.random>
+References: <491DAF8E.4080506@quantum.com>
+	<200811191526.00036.nickpiggin@yahoo.com.au>
+	<20081119165819.GE19209@random.random>
+	<20081218152952.GW24856@random.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kamezawa.hiroyu@jp.fujitsu.com, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 17, 2008 at 2:03 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> cgroups-make-root_list-contains-active-hierarchies-only.patch
-> cgroups-add-inactive-subsystems-to-rootnodesubsys_list.patch
-> cgroups-add-inactive-subsystems-to-rootnodesubsys_list-fix.patch
-> cgroups-introduce-link_css_set-to-remove-duplicate-code.patch
-> cgroups-introduce-link_css_set-to-remove-duplicate-code-fix.patch
->
-> it wasn't clear to me whether you still had issues with them, or
-> whether updates were expected?
+On Thu, 18 Dec 2008 16:29:52 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-I think that with the fix patches they should be fine.
+> @@ -484,11 +476,34 @@
+>  	if (page) {
+>  		get_page(page);
+>  		page_dup_rmap(page);
+> +		if (is_cow_mapping(vm_flags) && PageAnon(page)) {
+> +			if (unlikely(TestSetPageLocked(page)))
+> +				forcecow = 1;
+> +			else {
+> +				if (unlikely(page_count(page) !=
+> +					     page_mapcount(page)
+> +					     + !!PageSwapCache(page)))
+> +					forcecow = 1;
+> +				unlock_page(page);
+> +			}
+> +		}
+>  		rss[!!PageAnon(page)]++;
+>  	}
+ - Why do you check only Anon rather than all MAP_PRIVATE mappings ?
 
-Paul
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
