@@ -1,93 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E5386B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 10:29:59 -0500 (EST)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id mBJFVH6I024234
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 10:31:17 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mBJFW5XL187556
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 10:32:07 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mBJGWFnt002591
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 11:32:15 -0500
-Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20081219070311.GA26419@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de>
-	 <1229669697.17206.602.camel@nimitz>  <20081219070311.GA26419@wotan.suse.de>
-Content-Type: text/plain
-Date: Fri, 19 Dec 2008 07:32:01 -0800
-Message-Id: <1229700721.17206.634.camel@nimitz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 490E86B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 12:06:27 -0500 (EST)
+Date: Sat, 20 Dec 2008 02:08:36 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [bug][mmtom] memcg: MEM_CGROUP_ZSTAT underflow
+Message-Id: <20081220020836.aed6199a.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20081219182929.428380df.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20081219172903.7ca9b123.nishimura@mxp.nes.nec.co.jp>
+	<20081219182929.428380df.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2008-12-19 at 08:03 +0100, Nick Piggin wrote:
-> On Thu, Dec 18, 2008 at 10:54:57PM -0800, Dave Hansen wrote:
-> > On Fri, 2008-12-19 at 07:19 +0100, Nick Piggin wrote:
-> > > @@ -369,24 +283,34 @@ static int mnt_make_readonly(struct vfsm
-> > >  {
-> > >         int ret = 0;
-> > > 
-> > > -       lock_mnt_writers();
-> > > +       spin_lock(&vfsmount_lock);
-> > > +       mnt->mnt_flags |= MNT_WRITE_HOLD;
-> > >         /*
-> > > -        * With all the locks held, this value is stable
-> > > +        * After storing MNT_WRITE_HOLD, we'll read the counters. This store
-> > > +        * should be visible before we do.
-> > >          */
-> > > -       if (atomic_read(&mnt->__mnt_writers) > 0) {
-> > > +       smp_mb();
-> > > +
-> > > +       /*
-> > > +        * With writers on hold, if this value is zero, then there are definitely
-> > > +        * no active writers (although held writers may subsequently increment
-> > > +        * the count, they'll have to wait, and decrement it after seeing
-> > > +        * MNT_READONLY).
-> > > +        */
-> > > +       if (count_mnt_writers(mnt) > 0) {
-> > >                 ret = -EBUSY;
-> > 
-> > OK, I think this is one of the big races inherent with this approach.
-> > There's nothing in here to ensure that no one is in the middle of an
-> > update during this code.  The preempt_disable() will, of course, reduce
-> > the window, but I think there's still a race here.
+On Fri, 19 Dec 2008 18:29:29 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Fri, 19 Dec 2008 17:29:03 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 > 
-> MNT_WRITE_HOLD is set, so any writer that has already made it past
-> the MNT_WANT_WRITE loop will have its count visible here. Any writer
-> that has not made it past that loop will wait until the slowpath
-> completes and then the fastpath will go on to check whether the
-> mount is still writeable.
+> > Hi.
+> > 
+> > Current(I'm testing 2008-12-16-15-50 with some patches, though) memcg have
+> > MEM_CGROUP_ZSTAT underflow problem.
+> > 
+> > How to reproduce:
+> > - make a directory, set mem.limit.
+> > - run some programs exceeding mem.limit.
+> > - make another directory, and all the tasks in old directory to new one.
+> > - New directory's "inactive_anon" in memory.stat underflows.
+> > 
+> > From my investigation:
+> > - This problem seems to happen only when swapping anonymous pages. It seems
+> >   not to happen about shmem.
+> > - After removing memcg-fix-swap-accounting-leak-v3.patch(and of course
+> >   memcg-fix-swap-accounting-leak-doc-fix.patch), this problem doesn't happen.
+> > 
+> > Thoughts?
+> > 
+> 
+> Thanks, then we need v4 ...but it just because my memcg-synchronized-lru.patch's
+> assumption about SwapCache was broken or not sane.
+> 
+> It assumes pc->page_cgroup is not changed after added to LRU, but now, it changes
+> because it can be dropped from SwapCache and new pc->mem_cgroup can be assigned.
+> Maybe mem_cgroup_lru_fixup() isn't enough, now.
+> 
+make sense.
 
-Ahh, got it.  I'm slowly absorbing the barriers.  Not the normal way, I
-code.
+> Then..could you try this ? I can't do test right now, sorry.
+Yes, this patch fixes the probrem.
 
-I thought there was another race with MNT_WRITE_HOLD since mnt_flags
-isn't really managed atomically.  But, by only modifying with the
-vfsmount_lock, I think it is OK.
+Just a few comments.
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> As memcg-fix-swap-accounting-leak-v3.patch pointed out, SwapCache
+> can be not SwapCache before commit.
+> 
+> In this case, 
+> 	- the page is completely uncharged.
+> 	- but still on Old LRU.
+> 	- pc->mem_cgroup is changed before it's removed from LRU.
+> 
+> For avoiding race, remove page_cgroup from old LRU before we call commit.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  mm/memcontrol.c |   21 +++++++++++++++++++++
+>  1 file changed, 21 insertions(+)
+> 
+> Index: mmotm-Dec-17/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-Dec-17.orig/mm/memcontrol.c
+> +++ mmotm-Dec-17/mm/memcontrol.c
+> @@ -1152,12 +1152,27 @@ int mem_cgroup_cache_charge_swapin(struc
+>  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+>  {
+>  	struct page_cgroup *pc;
+> +	struct zone *zone;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!ptr)
+>  		return;
+> +
+>  	pc = lookup_page_cgroup(page);
+> +
+> +	zone = page_zone(page);
+> +	spin_lock(&zone->lru_lock);
+> +	if (!PageSwapCache(page) && !list_empty(&pc->lru)) {
+list_empty check isn't necessarily needed(mem_cgroup_del_lru does it).
 
-I also wondered if there was a possibility of getting a spurious -EBUSY
-when remounting r/w->r/o.  But, that turned out to just happen when the
-fs was *already* r/o.  So that looks good.
+> +		/*
+> + 		 * We need to forget old LRU before modifying pc->mem_cgroup.
+> + 		 * This is necessary only when the page is already uncharged
+> + 		 * by delete_from_swap_cache().
+> + 		 * (Nothing happens when pc->mem_cgroup is NULL.)
+> +  		 */
+I think mem_cgroup_del_lru causes NULL pointer dereference bug
+in !pc->mem_cgroup case.
 
-While this has cleared out a huge amount of complexity, I can't stop
-wondering if this could be done with a wee bit more "normal" operations.
-I'm pretty sure I couldn't have come up with this by myself, and I'm a
-bit worried that I wouldn't be able to find a race in it if one reared
-its ugly head.  
+> +		mem_cgroup_del_lru(page);
+> +	}
+> +	spin_unlock(&zone->lru_lock);
+>  	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+> @@ -1246,6 +1261,12 @@ __mem_cgroup_uncharge_common(struct page
+>  
+>  	mem_cgroup_charge_statistics(mem, pc, false);
+>  	ClearPageCgroupUsed(pc);
+> +	/*
+> + 	 * Don't clear pc->mem_cgroup because del_from_lru() will see this.
+> + 	 * The fully unchaged page is assumed to be freed after us, so it's
+> + 	 * safe. When this page is reused before free, we have to be careful.
+> + 	 * (In SwapCache case...it can happen.)
+> +  	 */
+>  
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	unlock_page_cgroup(pc);
+> 
 
-Is there a real good reason to allocate the percpu counters dynamically?
-Might as well stick them in the vfsmount and let the one
-kmem_cache_zalloc() in alloc_vfsmnt() do a bit larger of an allocation.
-Did you think that was going to bloat it to a compound allocation or
-something?  I hate the #ifdefs. :)
 
--- Dave
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
