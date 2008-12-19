@@ -1,40 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 612B96B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 15:32:38 -0500 (EST)
-Date: Fri, 19 Dec 2008 21:34:45 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: Corruption with O_DIRECT and unaligned user buffers
-Message-ID: <20081219203445.GB6383@random.random>
-References: <491DAF8E.4080506@quantum.com> <200811191526.00036.nickpiggin@yahoo.com.au> <20081119165819.GE19209@random.random> <20081218152952.GW24856@random.random> <494B8AD5.3090901@cn.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5683B6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:56:04 -0500 (EST)
+Date: Sat, 20 Dec 2008 00:58:17 +0300
+From: Evgeniy Polyakov <zbr@ioremap.net>
+Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
+Message-ID: <20081219215817.GA704@ioremap.net>
+References: <1229110673.3262.94.camel@localhost.localdomain> <49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org> <4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net> <494A99EF.6070400@flurg.com> <494BDBC5.7050701@vlnb.net> <20081219190701.GP32491@kernel.dk> <494BF361.1090003@vlnb.net> <20081219192736.GQ32491@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <494B8AD5.3090901@cn.fujitsu.com>
+In-Reply-To: <20081219192736.GQ32491@kernel.dk>
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Wang Chen <wangchen@cn.fujitsu.com>
+To: Jens Axboe <jens.axboe@oracle.com>
+Cc: Vladislav Bolkhovitin <vst@vlnb.net>, "David M. Lloyd" <dmlloyd@flurg.com>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 19, 2008 at 07:51:49PM +0800, Li Zefan wrote:
-> > diff -ur rhel-5.2/kernel/fork.c x/kernel/fork.c
-> > --- rhel-5.2/kernel/fork.c	2008-07-10 17:26:43.000000000 +0200
-> > +++ x/kernel/fork.c	2008-12-18 15:57:31.000000000 +0100
-> > @@ -368,7 +368,7 @@
-> >  		rb_parent = &tmp->vm_rb;
-> >  
-> >  		mm->map_count++;
-> > -		retval = copy_page_range(mm, oldmm, mpnt);
-> > +		retval = copy_page_range(mm, oldmm, tmp);
-> >  
-> 
-> Could you explain a bit why this change is needed?
+On Fri, Dec 19, 2008 at 08:27:36PM +0100, Jens Axboe (jens.axboe@oracle.com) wrote:
+> What is missing, as I wrote, is the 'release on ack' and not on pipe
+> buffer release. This is similar to the get_page/put_page stuff you did
+> in your patch, but don't go claiming that zero-copy transmit is a
+> Vladislav original - the ->sendpage() does no copies.
 
-This change is needed to pass the child vma (not the parent vma) to
-handle_mm_fault. We run handle_mm_fault on the child not on the
-parent, so the vma passed to handle_mm_fault has to be the one of the
-child obviously. It won't make a difference for the other users of the
-vma because both vma are basically the same. Nick did it btw.
+Just my small rant: it does, when underlying device does not support
+hardware tx checksumming and scatter/gather, which is likely exception
+than a rule for the modern NICs.
+
+As of having notifications of the received ack (or from user's point of
+view notification of the freeing of the buffer), I have following idea
+in mind: extend skb ahsred info by copy of the frag array and additional
+destructor field, which will be invoked when not only skb but also all
+its clones are freed (that's when shared info is freed), so that user
+could save some per-page context in fraglist and work with it when data
+is not used anymore.
+
+Extending page or skb structure is a no-go for sure, and actually even
+shared info is not rubber, but there we can at least add something...
+
+If only destructor field is allowed (similar patch was not rejected),
+scsi can save its pages in the tree (indexed by the page pointer) and
+traverse it when destructor is invoked selecting pages found in the
+freed skb.
+
+-- 
+	Evgeniy Polyakov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
