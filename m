@@ -1,43 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D5736B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 06:24:35 -0500 (EST)
-Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
-From: Andi Kleen <andi@firstfloor.org>
-References: <494009D7.4020602@vlnb.net> <494012C4.7090304@vlnb.net>
-	<20081210214500.GA24212@ioremap.net> <4941590F.3070705@vlnb.net>
-	<1229022734.3266.67.camel@localhost.localdomain>
-	<4942BAB8.4050007@vlnb.net>
-	<1229110673.3262.94.camel@localhost.localdomain>
-	<49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org>
-	<4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net>
-Date: Fri, 19 Dec 2008 12:27:23 +0100
-In-Reply-To: <494A97DD.7080503@vlnb.net> (Vladislav Bolkhovitin's message of "Thu, 18 Dec 2008 21:35:09 +0300")
-Message-ID: <87zlisz9pg.fsf@basil.nowhere.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4A3416B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 06:50:54 -0500 (EST)
+Message-ID: <494B8AD5.3090901@cn.fujitsu.com>
+Date: Fri, 19 Dec 2008 19:51:49 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: Corruption with O_DIRECT and unaligned user buffers
+References: <491DAF8E.4080506@quantum.com> <200811191526.00036.nickpiggin@yahoo.com.au> <20081119165819.GE19209@random.random> <20081218152952.GW24856@random.random>
+In-Reply-To: <20081218152952.GW24856@random.random>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Vladislav Bolkhovitin <vst@vlnb.net>
-Cc: linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Wang Chen <wangchen@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Vladislav Bolkhovitin <vst@vlnb.net> writes:
->
->  - Although usage of struct page to keep network related pointer might
-> look as a layering violation, it isn't. I wrote in
-> http://lkml.org/lkml/2008/12/15/190 why.
+> diff -ur rhel-5.2/kernel/fork.c x/kernel/fork.c
+> --- rhel-5.2/kernel/fork.c	2008-07-10 17:26:43.000000000 +0200
+> +++ x/kernel/fork.c	2008-12-18 15:57:31.000000000 +0100
+> @@ -368,7 +368,7 @@
+>  		rb_parent = &tmp->vm_rb;
+>  
+>  		mm->map_count++;
+> -		retval = copy_page_range(mm, oldmm, mpnt);
+> +		retval = copy_page_range(mm, oldmm, tmp);
+>  
 
-Sorry but extending struct page for this is really a bad idea because
-of the extreme memory overhead even when it's not used (which is a 
-problem on distribution kernels) Find some other way to store this
-information.  Even for patches with more general value it was not
-acceptable.
+Could you explain a bit why this change is needed?
 
--Andi
+Seems this is a revert of the following commit:
+
+commit 0b0db14c536debd92328819fe6c51a49717e8440
+Author: Hugh Dickins <hugh@veritas.com>
+Date:   Mon Nov 21 21:32:20 2005 -0800
+
+    [PATCH] unpaged: copy_page_range vma
+
+    For copy_one_pte's print_bad_pte to show the task correctly (instead of
+    "???"), dup_mmap must pass down parent vma rather than child vma.
+
+    Signed-off-by: Hugh Dickins <hugh@veritas.com>
+    Signed-off-by: Andrew Morton <akpm@osdl.org>
+    Signed-off-by: Linus Torvalds <torvalds@osdl.org>
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e0d0b77..1c1cf8d 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -263,7 +263,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+                rb_parent = &tmp->vm_rb;
+
+                mm->map_count++;
+-               retval = copy_page_range(mm, oldmm, tmp);
++               retval = copy_page_range(mm, oldmm, mpnt);
+
+                if (tmp->vm_ops && tmp->vm_ops->open)
+                        tmp->vm_ops->open(tmp);
 
 
--- 
-ak@linux.intel.com
+>  		if (tmp->vm_ops && tmp->vm_ops->open)
+>  			tmp->vm_ops->open(tmp);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
