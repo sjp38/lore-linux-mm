@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5B86B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 12:33:34 -0500 (EST)
-Date: Fri, 19 Dec 2008 09:35:14 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [rfc][patch] unlock_page speedup
-In-Reply-To: <20081218233549.cb451bc8.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.2.00.0812190926000.14014@localhost.localdomain>
-References: <20081219072909.GC26419@wotan.suse.de> <20081218233549.cb451bc8.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0CEF26B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 12:34:50 -0500 (EST)
+Message-ID: <494BDBC5.7050701@vlnb.net>
+Date: Fri, 19 Dec 2008 20:37:09 +0300
+From: Vladislav Bolkhovitin <vst@vlnb.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
+References: <494009D7.4020602@vlnb.net> <494012C4.7090304@vlnb.net> <20081210214500.GA24212@ioremap.net> <4941590F.3070705@vlnb.net> <1229022734.3266.67.camel@localhost.localdomain> <4942BAB8.4050007@vlnb.net> <1229110673.3262.94.camel@localhost.localdomain> <49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org> <4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net> <494A99EF.6070400@flurg.com>
+In-Reply-To: <494A99EF.6070400@flurg.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: "David M. Lloyd" <dmlloyd@flurg.com>
+Cc: linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Thu, 18 Dec 2008, Andrew Morton wrote:
->
-> On Fri, 19 Dec 2008 08:29:09 +0100 Nick Piggin <npiggin@suse.de> wrote:
+David M. Lloyd, on 12/18/2008 09:43 PM wrote:
+> On 12/18/2008 12:35 PM, Vladislav Bolkhovitin wrote:
+>> An iSCSI target driver iSCSI-SCST was a part of the patchset 
+>> (http://lkml.org/lkml/2008/12/10/293). For it a nice optimization to 
+>> have TCP zero-copy transmit of user space data was implemented. Patch, 
+>> implementing this optimization was also sent in the patchset, see 
+>> http://lkml.org/lkml/2008/12/10/296.
 > 
-> > Introduce a new page flag, PG_waiters
-> 
-> Leaving how many?  fs-cache wants to take two more.
+> I'm probably ignorant of about 90% of the context here, but isn't this the 
+> sort of problem that was supposed to have been solved by vmsplice(2)?
 
-Hmm. Do we ever use lock_page() on anything but page-cache pages and the 
-buffer cache?
+No, vmsplice can't help here. ISCSI-SCST is a kernel space driver. But, 
+even if it was a user space driver, vmsplice wouldn't change anything 
+much. It doesn't have a possibility for a user to know, when 
+transmission of the data finished. So, it is intended to be used as: 
+vmsplice() buffer -> munmap() the buffer -> mmap() new buffer -> 
+vmsplice() it. But on the mmap() stage kernel has to zero all the newly 
+mapped pages and zeroing memory isn't much faster, than copying it. 
+Hence, there would be no considerable performance increase.
 
-We _could_ decide to try to move the whole locking into the "mapping" 
-field, and use a few more bits in the low bits of the pointer. Right now 
-we just use one bit (PAGE_MAPPING_ANON), but if we just make the rule be 
-that "struct address_space" has to be 8-byte aligned, then we'd have two 
-more bits available there, and we could hide the lock bit and the 
-contention bit there too.
-
-This actually would have a _really_ nice effect, in that if we do this, 
-then I suspect that we could eventually even make the bits in "flags" be 
-non-atomic. The lock bit really is special. The other bits tend to be 
-either pretty static over allocation, or things that should be set only 
-when the page is locked.
-
-I dunno. But it sounds like a reasonable thing to do, and it would free 
-one bit from the page flags, rather than use yet another one. And because 
-locking is special and because we already have to access that "mapping" 
-pointer specially, I don't think the impact would be very invasive.
-
-				Linus
+Thanks,
+Vlad
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
