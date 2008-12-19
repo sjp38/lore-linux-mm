@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DECE46B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 01:50:37 -0500 (EST)
-Date: Fri, 19 Dec 2008 07:52:42 +0100
-From: Nick Piggin <npiggin@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 0C32E6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 01:52:50 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mBJ6rEDT002955
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 23:53:14 -0700
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mBJ6sw4c191006
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 23:54:58 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mBJ6sweU021523
+	for <linux-mm@kvack.org>; Thu, 18 Dec 2008 23:54:58 -0700
 Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
-Message-ID: <20081219065242.GD16268@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de> <1229668492.17206.594.camel@nimitz>
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081219061937.GA16268@wotan.suse.de>
+References: <20081219061937.GA16268@wotan.suse.de>
+Content-Type: text/plain
+Date: Thu, 18 Dec 2008 22:54:57 -0800
+Message-Id: <1229669697.17206.602.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1229668492.17206.594.camel@nimitz>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: Nick Piggin <npiggin@suse.de>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 18, 2008 at 10:34:52PM -0800, Dave Hansen wrote:
-> On Fri, 2008-12-19 at 07:19 +0100, Nick Piggin wrote:
-> > Hi. Fun, chasing down performance regressions.... I wonder what people think
-> > about these patches? Is it OK to bloat struct vfsmount? Any races?
+On Fri, 2008-12-19 at 07:19 +0100, Nick Piggin wrote:
+> @@ -369,24 +283,34 @@ static int mnt_make_readonly(struct vfsm
+>  {
+>         int ret = 0;
 > 
-> Very cool stuff, Nick.  I especially like how much it simplifies things
-> and removes *SO* much code.
+> -       lock_mnt_writers();
+> +       spin_lock(&vfsmount_lock);
+> +       mnt->mnt_flags |= MNT_WRITE_HOLD;
+>         /*
+> -        * With all the locks held, this value is stable
+> +        * After storing MNT_WRITE_HOLD, we'll read the counters. This store
+> +        * should be visible before we do.
+>          */
+> -       if (atomic_read(&mnt->__mnt_writers) > 0) {
+> +       smp_mb();
+> +
+> +       /*
+> +        * With writers on hold, if this value is zero, then there are definitely
+> +        * no active writers (although held writers may subsequently increment
+> +        * the count, they'll have to wait, and decrement it after seeing
+> +        * MNT_READONLY).
+> +        */
+> +       if (count_mnt_writers(mnt) > 0) {
+>                 ret = -EBUSY;
 
-Thanks.
+OK, I think this is one of the big races inherent with this approach.
+There's nothing in here to ensure that no one is in the middle of an
+update during this code.  The preempt_disable() will, of course, reduce
+the window, but I think there's still a race here.
 
- 
-> Bloating the vfsmount was one of the things that really, really tried to
-> avoid.  When I start to think about the SGI machines, it gets me really
-> worried.  I went to a lot of trouble to make sure that the per-vfsmount
-> memory overhead didn't scale with the number of cpus.
+Is this where you wanted to put the synchronize_rcu()?  That's a nice
+touch because although *that* will ensure that no one is in the middle
+of an increment here and that they will, at worst, be blocking on the
+MNT_WRITE_HOLD thing.
 
-Well, OTOH, the SGI machines have a lot of memory ;) I *think* that
-not many systems probably have thousands of mounts (given that the
-mount hashtable is fixed sized single page), but I might be wrong
-which is why I ask here.
+I kinda remember going down this path a few times, bu you may have
+cracked the problem.  Dunno.  I need to stare at the code a bit more
+before I'm convinced.  I'm optimistic, but a bit skeptical this can
+work. :)
 
-Let's say a 4096 CPU machine with one mount for each CPU (4096 mounts),
-I think should only use about 128MB total for the counters. OK, yes
-that is a lot ;) but not exactly insane for such machine size.
+I am really wondering where all the cost is that you're observing in
+those benchmarks.  Have you captured any profiles by chance?
 
-Say for 32 CPU system with 10,000 mounts, it's 9MB.
-
-
-> > This could
-> > be made even faster if mnt_make_readonly could tolerate a really high latency
-> > synchronize_rcu()... can it?)
-> 
-> Yes, I think it can tolerate it.  There's a lot of work to do, and we
-> already have to go touch all the other per-cpu objects.  There also
-> tends to be writeout when this happens, so I don't think a few seconds,
-> even, will be noticed.
-
-That would be good. After the first patch, mnt_want_write still shows up
-on profiles and almost oall the hits come right after the msync from
-the smp_mb there.
-
-It would be really nice to use RCU here. I think it might allow us to
-eliminate the memory barriers.
-
-
-> > This patch speeds up lmbench lat_mmap test by about 8%. lat_mmap is set up
-> > basically to mmap a 64MB file on tmpfs, fault in its pages, then unmap it.
-> > A microbenchmark yes, but it exercises some important paths in the mm.
-> 
-> Do you know where the overhead actually came from?  Was it the
-> spinlocks?  Was removing all the atomic ops what really helped?
-
-I thnk about 95% of the unhalted cycles were hit against the two
-instructions after the call to spin_lock. It wasn't actually flipping 
-the write counter per-cpu cache as far as I could see. I didn't save
-the instruction level profiles, but I'll do another run if people
-think it will be sane to use RCU here.
-
-> I'll take a more in-depth look at your code tomorrow and see if I see
-> any races.
-
-Thanks.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
