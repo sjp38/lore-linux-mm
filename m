@@ -1,59 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3B8C56B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 04:39:11 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ9fHOn004022
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Dec 2008 18:41:17 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 01A7145DE58
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:41:16 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 673C245DE50
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:41:15 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3DF621DB8046
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:41:15 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D2361DB8038
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:41:14 +0900 (JST)
-Date: Fri, 19 Dec 2008 18:40:17 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [bug][mmtom] memcg: MEM_CGROUP_ZSTAT underflow
-Message-Id: <20081219184017.7da8748e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081219182929.428380df.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20081219172903.7ca9b123.nishimura@mxp.nes.nec.co.jp>
-	<20081219182929.428380df.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5736B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 06:24:35 -0500 (EST)
+Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
+From: Andi Kleen <andi@firstfloor.org>
+References: <494009D7.4020602@vlnb.net> <494012C4.7090304@vlnb.net>
+	<20081210214500.GA24212@ioremap.net> <4941590F.3070705@vlnb.net>
+	<1229022734.3266.67.camel@localhost.localdomain>
+	<4942BAB8.4050007@vlnb.net>
+	<1229110673.3262.94.camel@localhost.localdomain>
+	<49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org>
+	<4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net>
+Date: Fri, 19 Dec 2008 12:27:23 +0100
+In-Reply-To: <494A97DD.7080503@vlnb.net> (Vladislav Bolkhovitin's message of "Thu, 18 Dec 2008 21:35:09 +0300")
+Message-ID: <87zlisz9pg.fsf@basil.nowhere.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Hugh Dickins <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Vladislav Bolkhovitin <vst@vlnb.net>
+Cc: linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Dec 2008 18:29:29 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+Vladislav Bolkhovitin <vst@vlnb.net> writes:
+>
+>  - Although usage of struct page to keep network related pointer might
+> look as a layering violation, it isn't. I wrote in
+> http://lkml.org/lkml/2008/12/15/190 why.
 
-> +	/*
-> + 	 * Don't clear pc->mem_cgroup because del_from_lru() will see this.
-> + 	 * The fully unchaged page is assumed to be freed after us, so it's
-> + 	 * safe. When this page is reused before free, we have to be careful.
-> + 	 * (In SwapCache case...it can happen.)
-> +  	 */
->  
-Maybe this is better.
-==
-       /*
-         * Don't clear pc->mem_cgroup because del_from_lru() may see this.
-         * If this page is fully unchaged, it's assumed to be freed soon,or it
-         * is isolated from LRU.  When this page is reused before free
-         * (and on LRU), we have to be careful.
-         * (In SwapCache case...it can happen.)
-         */
-==
-Hmm.
+Sorry but extending struct page for this is really a bad idea because
+of the extreme memory overhead even when it's not used (which is a 
+problem on distribution kernels) Find some other way to store this
+information.  Even for patches with more general value it was not
+acceptable.
+
+-Andi
+
+
+-- 
+ak@linux.intel.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
