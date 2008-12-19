@@ -1,82 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A97C6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 02:01:05 -0500 (EST)
-Date: Fri, 19 Dec 2008 08:03:11 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
-Message-ID: <20081219070311.GA26419@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de> <1229669697.17206.602.camel@nimitz>
+	by kanga.kvack.org (Postfix) with SMTP id 6A2CD6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 02:18:04 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ7KALf005255
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Dec 2008 16:20:10 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD35145DD79
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8279245DD7A
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B82AD1DB8044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:09 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 379AA1DB804A
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:08 +0900 (JST)
+Date: Fri, 19 Dec 2008 16:19:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Corruption with O_DIRECT and unaligned user buffers
+Message-Id: <20081219161911.dcf15331.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081218152952.GW24856@random.random>
+References: <491DAF8E.4080506@quantum.com>
+	<200811191526.00036.nickpiggin@yahoo.com.au>
+	<20081119165819.GE19209@random.random>
+	<20081218152952.GW24856@random.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1229669697.17206.602.camel@nimitz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 18, 2008 at 10:54:57PM -0800, Dave Hansen wrote:
-> On Fri, 2008-12-19 at 07:19 +0100, Nick Piggin wrote:
-> > @@ -369,24 +283,34 @@ static int mnt_make_readonly(struct vfsm
-> >  {
-> >         int ret = 0;
+On Thu, 18 Dec 2008 16:29:52 +0100
+Andrea Arcangeli <aarcange@redhat.com> wrote:
+
+> On Wed, Nov 19, 2008 at 05:58:19PM +0100, Andrea Arcangeli wrote:
+> > On Wed, Nov 19, 2008 at 03:25:59PM +1100, Nick Piggin wrote:
+> > > The solution either involves synchronising forks and get_user_pages,
+> > > or probably better, to do copy on fork rather than COW in the case
+> > > that we detect a page is subject to get_user_pages. The trick is in
+> > > the details :)
 > > 
-> > -       lock_mnt_writers();
-> > +       spin_lock(&vfsmount_lock);
-> > +       mnt->mnt_flags |= MNT_WRITE_HOLD;
-> >         /*
-> > -        * With all the locks held, this value is stable
-> > +        * After storing MNT_WRITE_HOLD, we'll read the counters. This store
-> > +        * should be visible before we do.
-> >          */
-> > -       if (atomic_read(&mnt->__mnt_writers) > 0) {
-> > +       smp_mb();
-> > +
-> > +       /*
-> > +        * With writers on hold, if this value is zero, then there are definitely
-> > +        * no active writers (although held writers may subsequently increment
-> > +        * the count, they'll have to wait, and decrement it after seeing
-> > +        * MNT_READONLY).
-> > +        */
-> > +       if (count_mnt_writers(mnt) > 0) {
-> >                 ret = -EBUSY;
+
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Subject: fork-o_direct-race
 > 
-> OK, I think this is one of the big races inherent with this approach.
-> There's nothing in here to ensure that no one is in the middle of an
-> update during this code.  The preempt_disable() will, of course, reduce
-> the window, but I think there's still a race here.
-
-MNT_WRITE_HOLD is set, so any writer that has already made it past
-the MNT_WANT_WRITE loop will have its count visible here. Any writer
-that has not made it past that loop will wait until the slowpath
-completes and then the fastpath will go on to check whether the
-mount is still writeable.
-
-
-> Is this where you wanted to put the synchronize_rcu()?  That's a nice
-> touch because although *that* will ensure that no one is in the middle
-> of an increment here and that they will, at worst, be blocking on the
-> MNT_WRITE_HOLD thing.
-
-Basically the synchronize_rcu would go in place of the smp_mb() here,
-and it would automatically eliminate the corresponding smp_mb() in
-the fastpath (because a quiescent state on a CPU is guaranteed to
-include a barrier).
-
- 
-> I kinda remember going down this path a few times, bu you may have
-> cracked the problem.  Dunno.  I need to stare at the code a bit more
-> before I'm convinced.  I'm optimistic, but a bit skeptical this can
-> work. :)
+> Think a thread writing constantly to the last 512bytes of a page, while another
+> thread read and writes to/from the first 512bytes of the page. We can lose
+> O_DIRECT reads, the very moment we mark any pte wrprotected because a third
+> unrelated thread forks off a child.
 > 
-> I am really wondering where all the cost is that you're observing in
-> those benchmarks.  Have you captured any profiles by chance?
+> This fixes it by never wprotecting anon ptes if there can be any direct I/O in
+> flight to the page, and by instantiating a readonly pte and triggering a COW in
+> the child. The only trouble here are O_DIRECT reads (writes to memory, read
+> from disk). Checking the page_count under the PT lock guarantees no
+> get_user_pages could be running under us because if somebody wants to write to
+> the page, it has to break any cow first and that requires taking the PT lock in
+> follow_page before increasing the page count.
+> 
+> The COW triggered inside fork will run while the parent pte is read-write, this
+> is not usual but that's ok as it's only a page copy and it doesn't modify the
+> page contents.
+> 
+> In the long term there should be a smp_wmb() in between page_cache_get and
+> SetPageSwapCache in __add_to_swap_cache and a smp_rmb in between the
+> PageSwapCache and the page_count() to remove the trylock op.
+> 
+> Fixed version of original patch from Nick Piggin.
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Yes, as I said, the cycles seem to be in the spin_lock instructions.
-It's hard to see _exactly_ what's going on with oprofile and an out
-of order CPU, but the cycles as I said are all right after spin_lock
-returns. 
+Confirmed this fixes the problem.
+
+Hmm, but, fork() gets slower. 
+
+Result of cost-of-fork() on ia64.
+==
+  size of memory  before  after
+  Anon=1M   	, 0.07ms, 0.08ms
+  Anon=10M  	, 0.17ms, 0.22ms
+  Anon=100M 	, 1.15ms, 1.64ms
+  Anon=1000M	, 11.5ms, 15.821ms
+==
+
+fork() cost is 135% when the process has 1G of Anon.
+
+test program is below. (used "/usr/bin/time" for measurement.)
+==
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+
+int main(int argc, char *argv[])
+{
+        int size, i, status;
+        char *c;
+
+        size = atoi(argv[1]) * 1024 * 1024;
+        c = malloc(size);
+        memset(c, 0,size);
+        for (i = 0; i < 5000; i++) {
+                if (!fork()) {
+                        exit(0);
+                }
+                wait(&status);
+        }
+}
+==
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
