@@ -1,86 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 10EDD6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 03:51:46 -0500 (EST)
-Date: Fri, 19 Dec 2008 09:53:50 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] unlock_page speedup
-Message-ID: <20081219085350.GF26419@wotan.suse.de>
-References: <20081219072909.GC26419@wotan.suse.de> <20081218233549.cb451bc8.akpm@linux-foundation.org> <20081219075328.GD26419@wotan.suse.de> <20081218235957.d657b7ac.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8C89B6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 04:28:20 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ9URiL012831
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 19 Dec 2008 18:30:27 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id EED9845DE55
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:30:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8FA4D45DE4F
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:30:26 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A3241DB801F
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:30:26 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FAEA1DB801A
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 18:30:26 +0900 (JST)
+Date: Fri, 19 Dec 2008 18:29:29 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [bug][mmtom] memcg: MEM_CGROUP_ZSTAT underflow
+Message-Id: <20081219182929.428380df.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081219172903.7ca9b123.nishimura@mxp.nes.nec.co.jp>
+References: <20081219172903.7ca9b123.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20081218235957.d657b7ac.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Hugh Dickins <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 18, 2008 at 11:59:57PM -0800, Andrew Morton wrote:
-> On Fri, 19 Dec 2008 08:53:28 +0100 Nick Piggin <npiggin@suse.de> wrote:
+On Fri, 19 Dec 2008 17:29:03 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+
+> Hi.
 > 
-> > On Thu, Dec 18, 2008 at 11:35:49PM -0800, Andrew Morton wrote:
-> > > On Fri, 19 Dec 2008 08:29:09 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> > > 
-> > > > Introduce a new page flag, PG_waiters
-> > > 
-> > > Leaving how many?
-> > 
-> > Don't know...
+> Current(I'm testing 2008-12-16-15-50 with some patches, though) memcg have
+> MEM_CGROUP_ZSTAT underflow problem.
 > 
-> Need to know!  page.flags is prime real estate and we should decide
-> whether gaining 2% in a particular microbenchmark is our best use of it
+> How to reproduce:
+> - make a directory, set mem.limit.
+> - run some programs exceeding mem.limit.
+> - make another directory, and all the tasks in old directory to new one.
+> - New directory's "inactive_anon" in memory.stat underflows.
+> 
+> From my investigation:
+> - This problem seems to happen only when swapping anonymous pages. It seems
+>   not to happen about shmem.
+> - After removing memcg-fix-swap-accounting-leak-v3.patch(and of course
+>   memcg-fix-swap-accounting-leak-doc-fix.patch), this problem doesn't happen.
+> 
+> Thoughts?
+> 
 
-OK, good question. Honest answer is I don't really know. all
-the different archs and memory models.. it's not something
-I can exactly work out at a glance.
+Thanks, then we need v4 ...but it just because my memcg-synchronized-lru.patch's
+assumption about SwapCache was broken or not sane.
 
-Keep in mind that it is page lock. We unlock it for every
-file backed fault, COW fault, every truncate or invalidate,
-every pagecache IO, write(2) etc etc. So the gain is not huge,
-but it is definitely a common workload.
+It assumes pc->page_cgroup is not changed after added to LRU, but now, it changes
+because it can be dropped from SwapCache and new pc->mem_cgroup can be assigned.
+Maybe mem_cgroup_lru_fixup() isn't enough, now.
 
-On powerpc the gain is much larger, because smp_mb__after_clear_bit
-is really heavyweight in comparison to the lock release ordering.
-Same would apply to ia64.
+Then..could you try this ? I can't do test right now, sorry.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+As memcg-fix-swap-accounting-leak-v3.patch pointed out, SwapCache
+can be not SwapCache before commit.
+
+In this case, 
+	- the page is completely uncharged.
+	- but still on Old LRU.
+	- pc->mem_cgroup is changed before it's removed from LRU.
+
+For avoiding race, remove page_cgroup from old LRU before we call commit.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+Index: mmotm-Dec-17/mm/memcontrol.c
+===================================================================
+--- mmotm-Dec-17.orig/mm/memcontrol.c
++++ mmotm-Dec-17/mm/memcontrol.c
+@@ -1152,12 +1152,27 @@ int mem_cgroup_cache_charge_swapin(struc
+ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+ {
+ 	struct page_cgroup *pc;
++	struct zone *zone;
  
-> > I thought the page-flags.h obfuscation project was
-> > supposed to make that clearer to work out. There are what, 21 flags
-> > used now. If everything is coded properly, then the memory model
-> > should automatically kick its metadata out of page flags if it gets
-> > too big.
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	if (!ptr)
+ 		return;
++
+ 	pc = lookup_page_cgroup(page);
++
++	zone = page_zone(page);
++	spin_lock(&zone->lru_lock);
++	if (!PageSwapCache(page) && !list_empty(&pc->lru)) {
++		/*
++ 		 * We need to forget old LRU before modifying pc->mem_cgroup.
++ 		 * This is necessary only when the page is already uncharged
++ 		 * by delete_from_swap_cache().
++ 		 * (Nothing happens when pc->mem_cgroup is NULL.)
++  		 */
++		mem_cgroup_del_lru(page);
++	}
++	spin_unlock(&zone->lru_lock);
+ 	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+@@ -1246,6 +1261,12 @@ __mem_cgroup_uncharge_common(struct page
+ 
+ 	mem_cgroup_charge_statistics(mem, pc, false);
+ 	ClearPageCgroupUsed(pc);
++	/*
++ 	 * Don't clear pc->mem_cgroup because del_from_lru() will see this.
++ 	 * The fully unchaged page is assumed to be freed after us, so it's
++ 	 * safe. When this page is reused before free, we have to be careful.
++ 	 * (In SwapCache case...it can happen.)
++  	 */
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	unlock_page_cgroup(pc);
+
+
+
+
+
+
+
 > 
-> That would be nice :)
+> Thanks,
+> Daisuke Nishimura.
 > 
-> > But most likely it will just blow up.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> If we use them all _now_, as I proposed, we'll find out about that.
-
-Well but it would push out the memory model metadata out of line
-sooner (on smaller configs) which is undesirable.
-
-But I think any extra page flags are always a bad thing, whether
-or not we've reached the limit. Conceptually it is still using
-a resource, even if not in reality.
-
-But one nice thing about this flag is that it's simple to drop if we
-ever need to reclaim it. Unlike "feature" features, that can never
-be dropped and must always be maintained...
-
-
-> > Probably we want
-> > at least a few flags for memory model on 32-bit for smaller systems
-> > (big NUMA 32-bit systems probably don't matter much anymore).
-> > 
-> > 
-> > >  fs-cache wants to take two more.
-> > 
-> > fs-cache is getting merged?
-> 
-> See thread titled "Pull request for FS-Cache, including NFS patches"
-
-Oh, ok thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
