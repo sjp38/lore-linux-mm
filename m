@@ -1,64 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 757796B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 02:58:00 -0500 (EST)
-Date: Thu, 18 Dec 2008 23:59:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [rfc][patch] unlock_page speedup
-Message-Id: <20081218235957.d657b7ac.akpm@linux-foundation.org>
-In-Reply-To: <20081219075328.GD26419@wotan.suse.de>
-References: <20081219072909.GC26419@wotan.suse.de>
-	<20081218233549.cb451bc8.akpm@linux-foundation.org>
-	<20081219075328.GD26419@wotan.suse.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ECBB6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 03:28:28 -0500 (EST)
+Date: Fri, 19 Dec 2008 17:29:03 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [bug][mmtom] memcg: MEM_CGROUP_ZSTAT underflow
+Message-Id: <20081219172903.7ca9b123.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 19 Dec 2008 08:53:28 +0100 Nick Piggin <npiggin@suse.de> wrote:
+Hi.
 
-> On Thu, Dec 18, 2008 at 11:35:49PM -0800, Andrew Morton wrote:
-> > On Fri, 19 Dec 2008 08:29:09 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > Introduce a new page flag, PG_waiters
-> > 
-> > Leaving how many?
-> 
-> Don't know...
+Current(I'm testing 2008-12-16-15-50 with some patches, though) memcg have
+MEM_CGROUP_ZSTAT underflow problem.
 
-Need to know!  page.flags is prime real estate and we should decide
-whether gaining 2% in a particular microbenchmark is our best use of it
+How to reproduce:
+- make a directory, set mem.limit.
+- run some programs exceeding mem.limit.
+- make another directory, and all the tasks in old directory to new one.
+- New directory's "inactive_anon" in memory.stat underflows.
 
-> I thought the page-flags.h obfuscation project was
-> supposed to make that clearer to work out. There are what, 21 flags
-> used now. If everything is coded properly, then the memory model
-> should automatically kick its metadata out of page flags if it gets
-> too big.
+>From my investigation:
+- This problem seems to happen only when swapping anonymous pages. It seems
+  not to happen about shmem.
+- After removing memcg-fix-swap-accounting-leak-v3.patch(and of course
+  memcg-fix-swap-accounting-leak-doc-fix.patch), this problem doesn't happen.
 
-That would be nice :)
+Thoughts?
 
-> But most likely it will just blow up.
 
-If we use them all _now_, as I proposed, we'll find out about that.
-
-> Probably we want
-> at least a few flags for memory model on 32-bit for smaller systems
-> (big NUMA 32-bit systems probably don't matter much anymore).
-> 
-> 
-> >  fs-cache wants to take two more.
-> 
-> fs-cache is getting merged?
-
-See thread titled "Pull request for FS-Cache, including NFS patches"
-
-> Wow, I've wanted to review that.
-
-That would be good.
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
