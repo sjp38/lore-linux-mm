@@ -1,40 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C23C46B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 12:45:33 -0500 (EST)
-Date: Fri, 19 Dec 2008 19:00:09 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
-Message-ID: <20081219180009.GP25779@one.firstfloor.org>
-References: <4941590F.3070705@vlnb.net> <1229022734.3266.67.camel@localhost.localdomain> <4942BAB8.4050007@vlnb.net> <1229110673.3262.94.camel@localhost.localdomain> <49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org> <4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net> <87zlisz9pg.fsf@basil.nowhere.org> <494BDBFC.7060707@vlnb.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <494BDBFC.7060707@vlnb.net>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id E32D86B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 12:53:29 -0500 (EST)
+Date: Fri, 19 Dec 2008 09:55:13 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [rfc][patch] unlock_page speedup
+In-Reply-To: <alpine.LFD.2.00.0812190926000.14014@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0812190941120.14014@localhost.localdomain>
+References: <20081219072909.GC26419@wotan.suse.de> <20081218233549.cb451bc8.akpm@linux-foundation.org> <alpine.LFD.2.00.0812190926000.14014@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
-To: Vladislav Bolkhovitin <vst@vlnb.net>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Sure, this is why I propose to disable that option by default in 
-> distribution kernels, so it would produce no harm.
 
-That would make the option useless for most users. You might as well
-not bother merging then.
 
-> first, only then enable that option, then rebuild the kernel. (I'm 
-> repeating it to make sure you didn't miss this my point; it was in the 
-> part of my original message, which you cut out.)
+On Fri, 19 Dec 2008, Linus Torvalds wrote:
+> 
+> Hmm. Do we ever use lock_page() on anything but page-cache pages and the 
+> buffer cache?
 
-That was such a ridiculous suggestion, I didn't take it seriously.
+Looking closer, I don't think we do. 
 
-Also it should be really not rocket science to use a separate 
-table for this.
+The issue with using the low bits in page->mapping is that sometimes that 
+field doesn't exist, and we use other members of that union:
 
--Andi
+ - spinlock_t ptr	 	- page table pages
+ - struct kmem_cache *slab	- slab allocations
+ - struct page *first_page	- compound tail pages
 
--- 
-ak@linux.intel.com
+but I cannot see how lock_page() could ever be valid for any of them. We 
+use lock_page() for things that we do IO on, or that are mapped into user 
+space. And while we can map compound pages into user space, we'd better 
+not be locking random parts of it - we have to lock the whole thing (ie 
+the first one, not the tails).
+
+And we even have a way to verify it - we can make lock_page() verify the 
+page flags for at least things like "not a slab page or a compound tail". 
+I guess we don't mark page table pages any special way, so I don't see how 
+we can add an assert for that use, but verifying that we never do 
+lock_page() on a page table page should be trivial.
+
+So it should work.
+
+That said, I did notice a problem. Namely that while the VM code is good 
+about looking at ->mapping (because it doesn't know whether the page is 
+anonymous or a true mapping), much of the filesystem code is _not_ careful 
+about page->mapping, since the filesystem code knows a-priori that the 
+mapping pointer must be an inode mapping (or we'd not have called it).
+
+So filesystems do tend to do things like
+
+	struct inode *inode = page->mapping->host;
+
+and while the low bit of mapping is magic, those code-paths don't care 
+because they depend on it being zero.
+
+So hiding the lock bit there would involve a lot more work than I naively 
+expected before looking closer. We'd have to change the name (to 
+"_mapping", presumably), and make all users use an accessor function to 
+make code like the above do
+
+	struct inode *inode = page_mapping(page)->host;
+
+or something (we migth want to have a "page_host_inode()" helper to do it, 
+it seems to be the most common reason for accessing "->mapping" that 
+there is.
+
+So it could be done pretty mechanically, but it's still a _big_ change. 
+Maybe not worth it, unless we can really translate it into some other 
+advantage (ie real simplification of page flag access)
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
