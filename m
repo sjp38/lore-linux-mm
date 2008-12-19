@@ -1,121 +1,292 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6A2CD6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 02:18:04 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBJ7KALf005255
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 19 Dec 2008 16:20:10 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD35145DD79
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:10 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8279245DD7A
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:10 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B82AD1DB8044
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:09 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 379AA1DB804A
-	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 16:20:08 +0900 (JST)
-Date: Fri, 19 Dec 2008 16:19:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: Corruption with O_DIRECT and unaligned user buffers
-Message-Id: <20081219161911.dcf15331.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20081218152952.GW24856@random.random>
-References: <491DAF8E.4080506@quantum.com>
-	<200811191526.00036.nickpiggin@yahoo.com.au>
-	<20081119165819.GE19209@random.random>
-	<20081218152952.GW24856@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E3906B0044
+	for <linux-mm@kvack.org>; Fri, 19 Dec 2008 02:27:04 -0500 (EST)
+Date: Fri, 19 Dec 2008 08:29:09 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [rfc][patch] unlock_page speedup
+Message-ID: <20081219072909.GC26419@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Dec 2008 16:29:52 +0100
-Andrea Arcangeli <aarcange@redhat.com> wrote:
+Here is another one (background: lmbench lat_mmap primarily MAP_SHARED fault
+benchmark has regressed quite a bit since anybody last cared to look, I'm
+trying to find some improvements).
 
-> On Wed, Nov 19, 2008 at 05:58:19PM +0100, Andrea Arcangeli wrote:
-> > On Wed, Nov 19, 2008 at 03:25:59PM +1100, Nick Piggin wrote:
-> > > The solution either involves synchronising forks and get_user_pages,
-> > > or probably better, to do copy on fork rather than COW in the case
-> > > that we detect a page is subject to get_user_pages. The trick is in
-> > > the details :)
-> > 
+OK, so one thing we do is lock the page in the page fault path to cover some
+nasty races... This patch gets back another 2% (453.12us to 442.9us), by
+speeding up unlock_page by using an extra bit to signal contention. This
+actually helps powerpc far more than x86, but I'm glad to see x86 still
+has a nice win from avoiding the function call and hash cacheline lookup.
 
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Subject: fork-o_direct-race
-> 
-> Think a thread writing constantly to the last 512bytes of a page, while another
-> thread read and writes to/from the first 512bytes of the page. We can lose
-> O_DIRECT reads, the very moment we mark any pte wrprotected because a third
-> unrelated thread forks off a child.
-> 
-> This fixes it by never wprotecting anon ptes if there can be any direct I/O in
-> flight to the page, and by instantiating a readonly pte and triggering a COW in
-> the child. The only trouble here are O_DIRECT reads (writes to memory, read
-> from disk). Checking the page_count under the PT lock guarantees no
-> get_user_pages could be running under us because if somebody wants to write to
-> the page, it has to break any cow first and that requires taking the PT lock in
-> follow_page before increasing the page count.
-> 
-> The COW triggered inside fork will run while the parent pte is read-write, this
-> is not usual but that's ok as it's only a page copy and it doesn't modify the
-> page contents.
-> 
-> In the long term there should be a smp_wmb() in between page_cache_get and
-> SetPageSwapCache in __add_to_swap_cache and a smp_rmb in between the
-> PageSwapCache and the page_count() to remove the trylock op.
-> 
-> Fixed version of original patch from Nick Piggin.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+lat_mmap profile goes from looking like this (after the mnt_want_write patches)
+CPU: AMD64 family10, speed 2000 MHz (estimated)
+Counted CPU_CLK_UNHALTED events (Cycles outside of halt state) with a unit mask of 0x00 (No unit mask) count 10000
+samples  %        symbol name
+254150   14.5889  __do_fault
+163003    9.3568  unmap_vmas
+110232    6.3276  mark_page_accessed
+77864     4.4696  __up_read
+75864     4.3548  page_waitqueue     <<<<
+69984     4.0173  handle_mm_fault
+66945     3.8428  do_page_fault
+66457     3.8148  retint_swapgs
+65413     3.7549  shmem_getpage
+62904     3.6109  file_update_time
+61430     3.5262  set_page_dirty
+53425     3.0667  unlock_page        <<<<
 
-Confirmed this fixes the problem.
+To this:
+3119      0.1430  unlock_page
+0         0.0000  page_waitqueue
 
-Hmm, but, fork() gets slower. 
-
-Result of cost-of-fork() on ia64.
-==
-  size of memory  before  after
-  Anon=1M   	, 0.07ms, 0.08ms
-  Anon=10M  	, 0.17ms, 0.22ms
-  Anon=100M 	, 1.15ms, 1.64ms
-  Anon=1000M	, 11.5ms, 15.821ms
-==
-
-fork() cost is 135% when the process has 1G of Anon.
-
-test program is below. (used "/usr/bin/time" for measurement.)
-==
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+--
+Introduce a new page flag, PG_waiters, to signal there are processes waiting on
+PG_lock; and use it to avoid memory barriers and waitqueue hash lookup in the
+unlock_page fastpath.
 
 
-int main(int argc, char *argv[])
-{
-        int size, i, status;
-        char *c;
+---
+ include/linux/page-flags.h |    4 +-
+ include/linux/pagemap.h    |    7 ++-
+ kernel/wait.c              |    3 -
+ mm/filemap.c               |   89 ++++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 81 insertions(+), 22 deletions(-)
 
-        size = atoi(argv[1]) * 1024 * 1024;
-        c = malloc(size);
-        memset(c, 0,size);
-        for (i = 0; i < 5000; i++) {
-                if (!fork()) {
-                        exit(0);
-                }
-                wait(&status);
-        }
-}
-==
-
-
-
-
+Index: linux-2.6/include/linux/page-flags.h
+===================================================================
+--- linux-2.6.orig/include/linux/page-flags.h
++++ linux-2.6/include/linux/page-flags.h
+@@ -71,6 +71,7 @@
+  */
+ enum pageflags {
+ 	PG_locked,		/* Page is locked. Don't touch. */
++	PG_waiters,		/* Page has PG_locked waiters. */
+ 	PG_error,
+ 	PG_referenced,
+ 	PG_uptodate,
+@@ -181,6 +182,7 @@ static inline int TestClearPage##uname(s
+ struct page;	/* forward declaration */
+ 
+ TESTPAGEFLAG(Locked, locked)
++PAGEFLAG(Waiters, waiters)
+ PAGEFLAG(Error, error)
+ PAGEFLAG(Referenced, referenced) TESTCLEARFLAG(Referenced, referenced)
+ PAGEFLAG(Dirty, dirty) TESTSCFLAG(Dirty, dirty) __CLEARPAGEFLAG(Dirty, dirty)
+@@ -373,7 +375,7 @@ static inline void __ClearPageTail(struc
+ #endif
+ 
+ #define PAGE_FLAGS	(1 << PG_lru   | 1 << PG_private   | 1 << PG_locked | \
+-			 1 << PG_buddy | 1 << PG_writeback | \
++			 1 << PG_waiters | 1 << PG_buddy | 1 << PG_writeback | \
+ 			 1 << PG_slab  | 1 << PG_swapcache | 1 << PG_active | \
+ 			 __PG_UNEVICTABLE | __PG_MLOCKED)
+ 
+Index: linux-2.6/include/linux/pagemap.h
+===================================================================
+--- linux-2.6.orig/include/linux/pagemap.h
++++ linux-2.6/include/linux/pagemap.h
+@@ -189,7 +189,7 @@ static inline int page_cache_add_specula
+ 	if (unlikely(!atomic_add_unless(&page->_count, count, 0)))
+ 		return 0;
+ #endif
+-	VM_BUG_ON(PageCompound(page) && page != compound_head(page));
++	VM_BUG_ON(PageTail(page));
+ 
+ 	return 1;
+ }
+@@ -353,6 +353,7 @@ static inline void lock_page_nosync(stru
+  * Never use this directly!
+  */
+ extern void wait_on_page_bit(struct page *page, int bit_nr);
++extern void __wait_on_page_locked(struct page *page);
+ 
+ /* 
+  * Wait for a page to be unlocked.
+@@ -363,8 +364,9 @@ extern void wait_on_page_bit(struct page
+  */
+ static inline void wait_on_page_locked(struct page *page)
+ {
++	might_sleep();
+ 	if (PageLocked(page))
+-		wait_on_page_bit(page, PG_locked);
++		__wait_on_page_locked(page);
+ }
+ 
+ /* 
+@@ -372,6 +374,7 @@ static inline void wait_on_page_locked(s
+  */
+ static inline void wait_on_page_writeback(struct page *page)
+ {
++	might_sleep();
+ 	if (PageWriteback(page))
+ 		wait_on_page_bit(page, PG_writeback);
+ }
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c
++++ linux-2.6/mm/filemap.c
+@@ -180,6 +180,7 @@ static int sync_page(void *word)
+ 	if (mapping && mapping->a_ops && mapping->a_ops->sync_page)
+ 		mapping->a_ops->sync_page(page);
+ 	io_schedule();
++
+ 	return 0;
+ }
+ 
+@@ -526,12 +527,6 @@ struct page *__page_cache_alloc(gfp_t gf
+ EXPORT_SYMBOL(__page_cache_alloc);
+ #endif
+ 
+-static int __sleep_on_page_lock(void *word)
+-{
+-	io_schedule();
+-	return 0;
+-}
+-
+ /*
+  * In order to wait for pages to become available there must be
+  * waitqueues associated with pages. By using a hash table of
+@@ -564,6 +559,22 @@ void wait_on_page_bit(struct page *page,
+ }
+ EXPORT_SYMBOL(wait_on_page_bit);
+ 
++/*
++ * If PageWaiters was found to be set at unlock time, __wake_page_waiters
++ * should be called to actually perform the wakeup of waiters.
++ */
++static void __wake_page_waiters(struct page *page)
++{
++	ClearPageWaiters(page);
++	/*
++	 * The smp_mb() is necessary to enforce ordering between the clear_bit
++	 * and the read of the waitqueue (to avoid SMP races with a parallel
++	 * __wait_on_page_locked()).
++	 */
++	smp_mb__after_clear_bit();
++	wake_up_page(page, PG_locked);
++}
++
+ /**
+  * unlock_page - unlock a locked page
+  * @page: the page
+@@ -580,8 +591,8 @@ void unlock_page(struct page *page)
+ {
+ 	VM_BUG_ON(!PageLocked(page));
+ 	clear_bit_unlock(PG_locked, &page->flags);
+-	smp_mb__after_clear_bit();
+-	wake_up_page(page, PG_locked);
++	if (unlikely(PageWaiters(page)))
++		__wake_page_waiters(page);
+ }
+ EXPORT_SYMBOL(unlock_page);
+ 
+@@ -611,22 +622,59 @@ EXPORT_SYMBOL(end_page_writeback);
+  * chances are that on the second loop, the block layer's plug list is empty,
+  * so sync_page() will then return in state TASK_UNINTERRUPTIBLE.
+  */
+-void __lock_page(struct page *page)
++void  __lock_page(struct page *page)
+ {
++	wait_queue_head_t *wq = page_waitqueue(page);
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+ 
+-	__wait_on_bit_lock(page_waitqueue(page), &wait, sync_page,
+-							TASK_UNINTERRUPTIBLE);
++	do {
++		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
++		SetPageWaiters(page);
++		if (likely(PageLocked(page)))
++			sync_page(page);
++	} while (!trylock_page(page));
++	finish_wait(wq, &wait.wait);
+ }
+ EXPORT_SYMBOL(__lock_page);
+ 
+-int __lock_page_killable(struct page *page)
++int  __lock_page_killable(struct page *page)
++{
++	wait_queue_head_t *wq = page_waitqueue(page);
++	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
++	int err = 0;
++
++	do {
++		prepare_to_wait(wq, &wait.wait, TASK_KILLABLE);
++		SetPageWaiters(page);
++		if (likely(PageLocked(page))) {
++			err = sync_page_killable(page);
++			if (err)
++				break;
++		}
++	} while (!trylock_page(page));
++	finish_wait(wq, &wait.wait);
++
++	return err;
++}
++
++void  __wait_on_page_locked(struct page *page)
+ {
++	wait_queue_head_t *wq = page_waitqueue(page);
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+ 
+-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+-					sync_page_killable, TASK_KILLABLE);
++	do {
++		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
++		SetPageWaiters(page);
++		if (likely(PageLocked(page)))
++			sync_page(page);
++	} while (PageLocked(page));
++	finish_wait(wq, &wait.wait);
++
++	/* Clean up a potentially dangling PG_waiters */
++	if (unlikely(PageWaiters(page)))
++		__wake_page_waiters(page);
+ }
++EXPORT_SYMBOL(__wait_on_page_locked);
+ 
+ /**
+  * __lock_page_nosync - get a lock on the page, without calling sync_page()
+@@ -635,11 +683,18 @@ int __lock_page_killable(struct page *pa
+  * Variant of lock_page that does not require the caller to hold a reference
+  * on the page's mapping.
+  */
+-void __lock_page_nosync(struct page *page)
++void  __lock_page_nosync(struct page *page)
+ {
++	wait_queue_head_t *wq = page_waitqueue(page);
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+-	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
+-							TASK_UNINTERRUPTIBLE);
++
++	do {
++		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
++		SetPageWaiters(page);
++		if (likely(PageLocked(page)))
++			io_schedule();
++	} while (!trylock_page(page));
++	finish_wait(wq, &wait.wait);
+ }
+ 
+ /**
+Index: linux-2.6/kernel/wait.c
+===================================================================
+--- linux-2.6.orig/kernel/wait.c
++++ linux-2.6/kernel/wait.c
+@@ -134,8 +134,7 @@ int wake_bit_function(wait_queue_t *wait
+ 		= container_of(wait, struct wait_bit_queue, wait);
+ 
+ 	if (wait_bit->key.flags != key->flags ||
+-			wait_bit->key.bit_nr != key->bit_nr ||
+-			test_bit(key->bit_nr, key->flags))
++			wait_bit->key.bit_nr != key->bit_nr)
+ 		return 0;
+ 	else
+ 		return autoremove_wake_function(wait, mode, sync, key);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
