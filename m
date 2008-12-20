@@ -1,40 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id B97586B0044
-	for <linux-mm@kvack.org>; Sat, 20 Dec 2008 10:53:18 -0500 (EST)
-Date: Sat, 20 Dec 2008 16:55:36 +0100
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 33CE36B0055
+	for <linux-mm@kvack.org>; Sat, 20 Dec 2008 11:00:00 -0500 (EST)
+Date: Sat, 20 Dec 2008 17:02:20 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: Corruption with O_DIRECT and unaligned user buffers
-Message-ID: <20081220155536.GD6383@random.random>
-References: <491DAF8E.4080506@quantum.com> <200811191526.00036.nickpiggin@yahoo.com.au> <20081119165819.GE19209@random.random> <20081218152952.GW24856@random.random> <20081219161911.dcf15331.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20081220160220.GE6383@random.random>
+References: <20081119165819.GE19209@random.random> <20081218152952.GW24856@random.random> <20081219151118.A0AC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20081219161911.dcf15331.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20081219151118.A0AC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Tim LaBerge <tim.laberge@quantum.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 19, 2008 at 04:19:11PM +0900, KAMEZAWA Hiroyuki wrote:
-> Result of cost-of-fork() on ia64.
-> ==
->   size of memory  before  after
->   Anon=1M   	, 0.07ms, 0.08ms
->   Anon=10M  	, 0.17ms, 0.22ms
->   Anon=100M 	, 1.15ms, 1.64ms
->   Anon=1000M	, 11.5ms, 15.821ms
-> ==
-> 
-> fork() cost is 135% when the process has 1G of Anon.
+Hello!
 
-Not sure where the 135% number comes from. The above number shows a
-performance decrease of 27% or a time increase of 37% which I hope is
-inline with the overhead introduced by the TestSetPageLocked in the
-fast path (which I didn't expect to be so bad), but that it's almost
-trivial to eliminate with a smb_wmb in add_to_swap_cache and a smb_rmb
-in fork. So we'll need to repeat this measurement after replacing the
-TestSetPageLocked with smb_rmb.
+On Fri, Dec 19, 2008 at 03:34:20PM +0900, KOSAKI Motohiro wrote:
+> I think gup_pte_range() doesn't change pte attribute.
+> Could you explain why get_user_pages_fast() is evil?
+
+It's evil because it was assumed that by just relying on the
+local_irq_disable() to prevent the smp tlb flush IPI to run, it'd be
+enough to simulate a 'current' pagetable walk that allowed the current
+task to run entirely lockless.
+
+Problem is that by being totally lockless it prevents us to know if a
+page is under direct-io or not. And if a page is under direct IO with
+writing to memory (reading from memory we cannot care less, it's
+always ok) we can't merge pages in ksm or we can't mark the pte
+readonly in fork etc... If we do things break. The entirely lockless
+(but atomic) pagetable walk done by the cpu is different from gup_fast
+because the one done by the cpu will never end up writing to the page
+through the pci bus in DMA, so the moment the IPI runs whatever I/O is
+interrupted (not the case for gup_fast, when gup_fast returns and the
+IPI runs and page is then available for sharing to ksm or pte marked
+readonly, the direct DMA is still in flight). That's why gup_fast
+*can't* be 100% lockless as today, otherwise it's unfixable and broken
+and it's not just ksm. This very O_DIRECT bug in fork is 100%
+unfixable without adding some serialization to gup_fast. So my patch
+fixes it fully only for kernels before the introduction of gup_fast...
+
+My suggestion is to reintroduced the big reader lock (br_lock) of
+2.4 and have gup_fast take the read side of it, and fork/ksm take the
+write side. It must no be a write-starving lock like the 2.4 one
+though or fork would hang forever on large smp. It should be still
+faster than get_user_pages.
+
+> Why rhel can't use memory barrier?
+
+Oh it can, just I didn't implemented immediately as I wanted to ship a
+simpler patch first, but given the 27% slowdown measured in later
+email, I'll definitely have to replace the TestSetPageLocked with
+smb_rmb and see if the introduced overhead goes away.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
