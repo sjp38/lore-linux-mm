@@ -1,62 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 907FB6B0044
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 01:27:52 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBM6RnoB016527
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 34C636B0044
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 01:56:21 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBM6uIBe028233
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 22 Dec 2008 15:27:50 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AAA8F45DE52
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FCDC45DE50
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 10F3F1DB8037
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B0ABB1DB803C
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:48 +0900 (JST)
-Date: Mon, 22 Dec 2008 15:26:50 +0900
+	Mon, 22 Dec 2008 15:56:18 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EB7F45DE51
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:56:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE1C745DD79
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:56:17 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 918371DB8044
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:56:17 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 303271DB8043
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:56:17 +0900 (JST)
+Date: Mon, 22 Dec 2008 15:55:18 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH][mmotm] memcg use css_tryget fix
-Message-Id: <20081222152650.207cf149.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH][mmotm] memcg fix LRU accounting for SwapCache.
+Message-Id: <20081222155518.bc277de4.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I'm sorry for that I'm still generating new bugs...sigh.
+This works well in my environment. Nishimura-san, could you test this ?
+
 -Kame
-=
+==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-root_mem->last_scanned_child can be NULL here.
-This may cause NULL pointer access when hierarchy is used.
-This is a fix for memcg-use-css-tryget-in-memcg.patch
+Now, a page can be deleted from SwapCache while do_swap_page().
+memcg-fix-swap-accounting-leak-v3.patch handles that, but, LRU handling
+is still broken.
+(above behavior broke assumption of memcg-synchronized-lru patch.)
 
+This patch is a fix for LRU handling (especially for per-zone counters).
+At charging SwapCache,
+ - Remove page_cgroup from LRU if it's not used.
+ - Add page cgroup to LRU if it's not linked to.
+
+Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memcontrol.c |   59 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 9 deletions(-)
 
 Index: mmotm-2.6.28-Dec19/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.28-Dec19.orig/mm/memcontrol.c
 +++ mmotm-2.6.28-Dec19/mm/memcontrol.c
-@@ -656,7 +656,7 @@ mem_cgroup_get_first_node(struct mem_cgr
+@@ -331,8 +331,12 @@ void mem_cgroup_del_lru_list(struct page
+ 		return;
+ 	pc = lookup_page_cgroup(page);
+ 	/* can happen while we handle swapcache. */
+-	if (list_empty(&pc->lru))
++	if (list_empty(&pc->lru) || !pc->mem_cgroup)
+ 		return;
++	/*
++	 * We don't check PCG_USED bit. It's cleared when the "page" is finally
++	 * removed from global LRU.
++	 */
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	mem = pc->mem_cgroup;
+ 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+@@ -379,16 +383,44 @@ void mem_cgroup_add_lru_list(struct page
+ 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+ 	list_add(&pc->lru, &mz->lists[lru]);
+ }
++
+ /*
+- * To add swapcache into LRU. Be careful to all this function.
+- * zone->lru_lock shouldn't be held and irq must not be disabled.
++ * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
++ * lru because the page may.be reused after it's fully uncharged (because of
++ * SwapCache behavior).To handle that, unlink page_cgroup from LRU at chargin
++ * it again.This function is only used for charging SwapCache. It's done under
++ * lock_page and expected that zone->lru_lock is never held.
+  */
+-static void mem_cgroup_lru_fixup(struct page *page)
++static bool mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
++{
++	unsigned long flags;
++	struct zone *zone = page_zone(page);
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++
++	spin_lock_irqsave(&zone->lru_lock, flags);
++	/*
++	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
++	 * is guarded by lock_page() because the page is SwapCache.
++	 */
++	if (!PageCgroupUsed(pc))
++		mem_cgroup_del_lru_list(page, page_lru(page));
++	spin_unlock_irqrestore(&zone->lru_lock, flags);
++}
++
++static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
+ {
+-	if (!isolate_lru_page(page))
+-		putback_lru_page(page);
++	unsigned long flags;
++	struct zone *zone = page_zone(page);
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++
++	spin_lock_irqsave(&zone->lru_lock, flags);
++	/* link when the page is linked to LRU but page_cgroup isn't */
++	if (PageLRU(page) && list_empty(&pc->lru))
++		mem_cgroup_add_lru_list(page, page_lru(page));
++	spin_unlock_irqrestore(&zone->lru_lock, flags);
+ }
  
- 	if (!root_mem->last_scanned_child || obsolete) {
++
+ void mem_cgroup_move_lists(struct page *page,
+ 			   enum lru_list from, enum lru_list to)
+ {
+@@ -1161,8 +1193,11 @@ int mem_cgroup_cache_charge_swapin(struc
+ 					mem = NULL; /* charge to current */
+ 			}
+ 		}
++		/* SwapCache may be still linked to LRU now. */
++		mem_cgroup_lru_del_before_commit_swapcache(page);
+ 		ret = mem_cgroup_charge_common(page, mm, mask,
+ 				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
++		mem_cgroup_lru_add_after_commit_swapcache(page);
+ 		/* drop extra refcnt from tryget */
+ 		if (mem)
+ 			css_put(&mem->css);
+@@ -1178,8 +1213,6 @@ int mem_cgroup_cache_charge_swapin(struc
+ 	}
+ 	if (!locked)
+ 		unlock_page(page);
+-	/* add this page(page_cgroup) to the LRU we want. */
+-	mem_cgroup_lru_fixup(page);
  
--		if (obsolete)
-+		if (obsolete && root_mem->last_scanned_child)
- 			mem_cgroup_put(root_mem->last_scanned_child);
+ 	return ret;
+ }
+@@ -1194,7 +1227,9 @@ void mem_cgroup_commit_charge_swapin(str
+ 	if (!ptr)
+ 		return;
+ 	pc = lookup_page_cgroup(page);
++	mem_cgroup_lru_del_before_commit_swapcache(page);
+ 	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
++	mem_cgroup_lru_add_after_commit_swapcache(page);
+ 	/*
+ 	 * Now swap is on-memory. This means this page may be
+ 	 * counted both as mem and swap....double count.
+@@ -1213,7 +1248,7 @@ void mem_cgroup_commit_charge_swapin(str
  
- 		cgroup = list_first_entry(&root_mem->css.cgroup->children,
+ 	}
+ 	/* add this page(page_cgroup) to the LRU we want. */
+-	mem_cgroup_lru_fixup(page);
++
+ }
+ 
+ void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
+@@ -1281,6 +1316,12 @@ __mem_cgroup_uncharge_common(struct page
+ 
+ 	mem_cgroup_charge_statistics(mem, pc, false);
+ 	ClearPageCgroupUsed(pc);
++	/*
++	 * pc->mem_cgroup is not cleared here. It will be accessed when it's
++	 * freed from LRU. This is safe because uncharged page is expected not
++	 * to be reused (freed soon). Exception is SwapCache, it's handled by
++	 * special functions.
++	 */
+ 
+ 	mz = page_cgroup_zoneinfo(pc);
+ 	unlock_page_cgroup(pc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
