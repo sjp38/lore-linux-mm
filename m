@@ -1,62 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D4C26B0044
-	for <linux-mm@kvack.org>; Sun, 21 Dec 2008 23:35:30 -0500 (EST)
-Date: Mon, 22 Dec 2008 05:35:26 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
-Message-ID: <20081222043526.GC13406@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de> <1229669697.17206.602.camel@nimitz> <20081219070311.GA26419@wotan.suse.de> <1229700721.17206.634.camel@nimitz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 907FB6B0044
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 01:27:52 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBM6RnoB016527
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 22 Dec 2008 15:27:50 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AAA8F45DE52
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FCDC45DE50
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 10F3F1DB8037
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:49 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B0ABB1DB803C
+	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 15:27:48 +0900 (JST)
+Date: Mon, 22 Dec 2008 15:26:50 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH][mmotm] memcg use css_tryget fix
+Message-Id: <20081222152650.207cf149.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1229700721.17206.634.camel@nimitz>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 19, 2008 at 07:32:01AM -0800, Dave Hansen wrote:
-> On Fri, 2008-12-19 at 08:03 +0100, Nick Piggin wrote:
-> > MNT_WRITE_HOLD is set, so any writer that has already made it past
-> > the MNT_WANT_WRITE loop will have its count visible here. Any writer
-> > that has not made it past that loop will wait until the slowpath
-> > completes and then the fastpath will go on to check whether the
-> > mount is still writeable.
-> 
-> Ahh, got it.  I'm slowly absorbing the barriers.  Not the normal way, I
-> code.
-> 
-> I thought there was another race with MNT_WRITE_HOLD since mnt_flags
-> isn't really managed atomically.  But, by only modifying with the
-> vfsmount_lock, I think it is OK.
-> 
-> I also wondered if there was a possibility of getting a spurious -EBUSY
-> when remounting r/w->r/o.  But, that turned out to just happen when the
-> fs was *already* r/o.  So that looks good.
-> 
-> While this has cleared out a huge amount of complexity, I can't stop
-> wondering if this could be done with a wee bit more "normal" operations.
-> I'm pretty sure I couldn't have come up with this by myself, and I'm a
-> bit worried that I wouldn't be able to find a race in it if one reared
-> its ugly head.  
+I'm sorry for that I'm still generating new bugs...sigh.
+-Kame
+=
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-It could be done with a seqcounter I think, but that adds more branches,
-variables, and barriers to this fastpath. Perhaps I should simply add
-a bit more documentation.
+root_mem->last_scanned_child can be NULL here.
+This may cause NULL pointer access when hierarchy is used.
+This is a fix for memcg-use-css-tryget-in-memcg.patch
 
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: mmotm-2.6.28-Dec19/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.28-Dec19.orig/mm/memcontrol.c
++++ mmotm-2.6.28-Dec19/mm/memcontrol.c
+@@ -656,7 +656,7 @@ mem_cgroup_get_first_node(struct mem_cgr
  
-> Is there a real good reason to allocate the percpu counters dynamically?
-> Might as well stick them in the vfsmount and let the one
-> kmem_cache_zalloc() in alloc_vfsmnt() do a bit larger of an allocation.
-> Did you think that was going to bloat it to a compound allocation or
-> something?  I hate the #ifdefs. :)
-
-Distros want to ship big NR_CPUS kernels and have them run reasonably on
-small num_possible_cpus() systems. But also, it would help to avoid
-cacheline bouncing from false sharing (allocpercpu.c code can also mess
-this bug for small objects like these counters, but that's a problem
-with the allocpercpu code which should be fixed anyway).
+ 	if (!root_mem->last_scanned_child || obsolete) {
+ 
+-		if (obsolete)
++		if (obsolete && root_mem->last_scanned_child)
+ 			mem_cgroup_put(root_mem->last_scanned_child);
+ 
+ 		cgroup = list_first_entry(&root_mem->css.cgroup->children,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
