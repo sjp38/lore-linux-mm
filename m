@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 600E26B0044
-	for <linux-mm@kvack.org>; Sun, 21 Dec 2008 23:03:34 -0500 (EST)
-Date: Mon, 22 Dec 2008 04:51:49 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D4C26B0044
+	for <linux-mm@kvack.org>; Sun, 21 Dec 2008 23:35:30 -0500 (EST)
+Date: Mon, 22 Dec 2008 05:35:26 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch] unlock_page speedup
-Message-ID: <20081222035149.GI26419@wotan.suse.de>
-References: <20081219072909.GC26419@wotan.suse.de> <20081218233549.cb451bc8.akpm@linux-foundation.org> <alpine.LFD.2.00.0812190926000.14014@localhost.localdomain>
+Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
+Message-ID: <20081222043526.GC13406@wotan.suse.de>
+References: <20081219061937.GA16268@wotan.suse.de> <1229669697.17206.602.camel@nimitz> <20081219070311.GA26419@wotan.suse.de> <1229700721.17206.634.camel@nimitz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0812190926000.14014@localhost.localdomain>
+In-Reply-To: <1229700721.17206.634.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 19, 2008 at 09:35:14AM -0800, Linus Torvalds wrote:
+On Fri, Dec 19, 2008 at 07:32:01AM -0800, Dave Hansen wrote:
+> On Fri, 2008-12-19 at 08:03 +0100, Nick Piggin wrote:
+> > MNT_WRITE_HOLD is set, so any writer that has already made it past
+> > the MNT_WANT_WRITE loop will have its count visible here. Any writer
+> > that has not made it past that loop will wait until the slowpath
+> > completes and then the fastpath will go on to check whether the
+> > mount is still writeable.
 > 
+> Ahh, got it.  I'm slowly absorbing the barriers.  Not the normal way, I
+> code.
 > 
-> On Thu, 18 Dec 2008, Andrew Morton wrote:
-> >
-> > On Fri, 19 Dec 2008 08:29:09 +0100 Nick Piggin <npiggin@suse.de> wrote:
-> > 
-> > > Introduce a new page flag, PG_waiters
-> > 
-> > Leaving how many?  fs-cache wants to take two more.
+> I thought there was another race with MNT_WRITE_HOLD since mnt_flags
+> isn't really managed atomically.  But, by only modifying with the
+> vfsmount_lock, I think it is OK.
 > 
-> Hmm. Do we ever use lock_page() on anything but page-cache pages and the 
-> buffer cache?
+> I also wondered if there was a possibility of getting a spurious -EBUSY
+> when remounting r/w->r/o.  But, that turned out to just happen when the
+> fs was *already* r/o.  So that looks good.
 > 
-> We _could_ decide to try to move the whole locking into the "mapping" 
-> field, and use a few more bits in the low bits of the pointer. Right now 
-> we just use one bit (PAGE_MAPPING_ANON), but if we just make the rule be 
-> that "struct address_space" has to be 8-byte aligned, then we'd have two 
-> more bits available there, and we could hide the lock bit and the 
-> contention bit there too.
-> 
-> This actually would have a _really_ nice effect, in that if we do this, 
-> then I suspect that we could eventually even make the bits in "flags" be 
-> non-atomic. The lock bit really is special. The other bits tend to be 
-> either pretty static over allocation, or things that should be set only 
-> when the page is locked.
-> 
-> I dunno. But it sounds like a reasonable thing to do, and it would free 
-> one bit from the page flags, rather than use yet another one. And because 
-> locking is special and because we already have to access that "mapping" 
-> pointer specially, I don't think the impact would be very invasive.
+> While this has cleared out a huge amount of complexity, I can't stop
+> wondering if this could be done with a wee bit more "normal" operations.
+> I'm pretty sure I couldn't have come up with this by myself, and I'm a
+> bit worried that I wouldn't be able to find a race in it if one reared
+> its ugly head.  
 
-I did a patch for that at one point. It doesn't go very far to allowing
-non-atomic page flags, but it allows non-atomic unlock_page. But Hugh
-wanted to put PG_swapcache in there, so I put it on the shelf for a while.
+It could be done with a seqcounter I think, but that adds more branches,
+variables, and barriers to this fastpath. Perhaps I should simply add
+a bit more documentation.
 
+ 
+> Is there a real good reason to allocate the percpu counters dynamically?
+> Might as well stick them in the vfsmount and let the one
+> kmem_cache_zalloc() in alloc_vfsmnt() do a bit larger of an allocation.
+> Did you think that was going to bloat it to a compound allocation or
+> something?  I hate the #ifdefs. :)
+
+Distros want to ship big NR_CPUS kernels and have them run reasonably on
+small num_possible_cpus() systems. But also, it would help to avoid
+cacheline bouncing from false sharing (allocpercpu.c code can also mess
+this bug for small objects like these counters, but that's a problem
+with the allocpercpu code which should be fixed anyway).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
