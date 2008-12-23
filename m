@@ -1,101 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 02EFC6B0044
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 14:11:10 -0500 (EST)
-Message-ID: <495137DC.8050204@vlnb.net>
-Date: Tue, 23 Dec 2008 22:11:24 +0300
-From: Vladislav Bolkhovitin <vst@vlnb.net>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D50D46B0044
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 16:33:18 -0500 (EST)
+Message-ID: <495158F4.5090904@qualcomm.com>
+Date: Tue, 23 Dec 2008 13:32:36 -0800
+From: Max Krasnyansky <maxk@qualcomm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC]: Support for zero-copy TCP transmit of user space data
-References: <4942BAB8.4050007@vlnb.net> <1229110673.3262.94.camel@localhost.localdomain> <49469ADB.6010709@vlnb.net> <20081215231801.GA27168@infradead.org> <4947FA1C.2090509@vlnb.net> <494A97DD.7080503@vlnb.net> <494A99EF.6070400@flurg.com> <494BDBC5.7050701@vlnb.net> <20081219190701.GP32491@kernel.dk> <494BF361.1090003@vlnb.net> <20081219192736.GQ32491@kernel.dk>
-In-Reply-To: <20081219192736.GQ32491@kernel.dk>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [PATCH 1/1] Userspace I/O (UIO): Add support for userspace DMA
+References: <43FC624C55D8C746A914570B66D642610367F29B@cos-us-mb03.cos.agilent.com> <1228379942.5092.14.camel@twins> <Pine.LNX.4.64.0812041026340.6340@blonde.anvils>
+In-Reply-To: <Pine.LNX.4.64.0812041026340.6340@blonde.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jens Axboe <jens.axboe@oracle.com>
-Cc: "David M. Lloyd" <dmlloyd@flurg.com>, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, James Bottomley <James.Bottomley@HansenPartnership.com>, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, scst-devel@lists.sourceforge.net, Bart Van Assche <bart.vanassche@gmail.com>, netdev@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "edward_estabrook@agilent.com" <edward_estabrook@agilent.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hjk@linutronix.de" <hjk@linutronix.de>, "gregkh@suse.de" <gregkh@suse.de>, "edward.estabrook@gmail.com" <edward.estabrook@gmail.com>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 List-ID: <linux-mm.kvack.org>
 
-Jens Axboe, on 12/19/2008 10:27 PM wrote:
->>>>>> An iSCSI target driver iSCSI-SCST was a part of the patchset 
->>>>>> (http://lkml.org/lkml/2008/12/10/293). For it a nice optimization to 
->>>>>> have TCP zero-copy transmit of user space data was implemented. Patch, 
->>>>>> implementing this optimization was also sent in the patchset, see 
->>>>>> http://lkml.org/lkml/2008/12/10/296.
->>>>> I'm probably ignorant of about 90% of the context here, but isn't this 
->>>>> the sort of problem that was supposed to have been solved by vmsplice(2)?
->>>> No, vmsplice can't help here. ISCSI-SCST is a kernel space driver. But, 
->>>> even if it was a user space driver, vmsplice wouldn't change anything 
->>>> much. It doesn't have a possibility for a user to know, when 
->>>> transmission of the data finished. So, it is intended to be used as: 
->>>> vmsplice() buffer -> munmap() the buffer -> mmap() new buffer -> 
->>>> vmsplice() it. But on the mmap() stage kernel has to zero all the newly 
->>>> mapped pages and zeroing memory isn't much faster, than copying it. 
->>>> Hence, there would be no considerable performance increase.
->>> vmsplice() isn't the right choice, but splice() very well could be. You
->>> could easily use splice internally as well. The vmsplice() part sort-of
->>> applies in the sense that you want to fill pages into a pipe, which is
->>> essentially what vmsplice() does. You'd need some helper to do that.
->> Sorry, Jens, but splice() works only if there is a file handle on the 
->> another side, so user space doesn't see data buffers. But SCST needs to 
->> serve a wider usage cases, like reading data with decompression from a 
->> virtual tape, where decompression is done in user space. For those only 
->> complete zero-copy network send, which I implemented, can give the best 
->> performance.
+Hugh Dickins wrote:
+> On Thu, 4 Dec 2008, Peter Zijlstra wrote:
+>> On Wed, 2008-12-03 at 14:39 -0700, edward_estabrook@agilent.com wrote:
+>>> The gist of this implementation is to overload uio's mmap
+>>> functionality to allocate and map a new DMA region on demand.  The
+>>> bus-specific DMA address as returned by dma_alloc_coherent is made
+>>> available to userspace in the 1st long word of the newly created
+>>> region (as well as through the conventional 'addr' file in sysfs).  
+>>>
+>>> To allocate a DMA region you use the following:
+>>> /* Pass this magic number to mmap as offset to dynamically allocate a
+>>> chunk of memory */ #define DMA_MEM_ALLOCATE_MMAP_OFFSET 0xFFFFF000UL
+>>> ...
+>>> Comments appreciated!
+>> Yuck!
+>>
+>> Why not create another special device that will give you DMA memory when
+>> you mmap it? That would also allow you to obtain the physical address
+>> without this utter horrid hack of writing it in the mmap'ed memory.
+>>
+>> /dev/uioN-dma would seem like a fine name for that.
 > 
-> __splice_from_pipe() takes a pipe, a descriptor and an actor. There's
-> absolutely ZERO reason you could not reuse most of that for this
-> implementation. The big bonus here is that getting the put correct from
-> networking would even make splice() better for everyone. Win for Linux,
-> win for you since it'll make it MUCH easier for you to get this stuff
-> in. Looking at your original patch and I almost think it's a flame bait
-> to induce discussion (nothing wrong with that, that approach works quite
-> well and has been used before). There's no way in HELL that it'd ever be
-> a merge candidate. And I suspect you know that, at least I hope you do
-> or you are farther away from going forward with this than you think.
-> 
-> So don't look at splice() the system call, look at the infrastructure
-> and check if that could be useful for your case. To me it looks
-> absolutely like it could, if you goal is just zero-copy transmit.
+> I couldn't agree more.  It sounds fine as a local hack for Edward to
+> try out some functionality he needed in a hurry; but as something
+> that should enter the mainline kernel in that form - no.
 
-I looked at the splice code again to make sure I don't miss anything. 
-__splice_from_pipe() leads to pipe_to_sendpage(), which leads to 
-sock_sendpage, then to sock->sendpage(). Sorry, but I don't see any 
-point why to go over all the complicated splice infrastructure instead 
-of directly call sock->sendpage(), as I do.
+Agree with Peter and Hugh here. Also I have a use case where I need to share
+DMA buffers between two or more devices. So I think we need a generic DMA
+device that does operations like alloc, mmap, etc. Mmapped regions can then be
+used with UIO devices.
+I'll put together a prototype of that some time early next year.
 
-> The
-> only missing piece is dropping the reference and signalling page
-> consumption at the right point, which is when the data is safe to be
-> reused. That very bit is missing, but that should be all as far as I can
-> tell.
+Max
 
-This is exactly what I implemented in the patch we are discussing.
-
->>> And
->>> the ack-on-xmit-done bits is something that splice-to-socket needs
->>> anyway, so I think it'd be quite a suitable choice for this.
->> So, are you writing that splice() could also benefit from the zero-copy 
->> transmit feature, like I implemented?
-> 
-> I like how you want to reinvent everything, perhaps you should spend a
-> little more time looking into various other approaches? splice() already
-> does zero-copy network transmit, there are no copies going on. Ideally,
-> you'd have zero copies moving data into your pipe, but migrade/move
-> isn't quite there yet. But that doesn't apply to your case at all.
-> 
-> What is missing, as I wrote, is the 'release on ack' and not on pipe
-> buffer release. This is similar to the get_page/put_page stuff you did
-> in your patch, but don't go claiming that zero-copy transmit is a
-> Vladislav original - the ->sendpage() does no copies.
-
-Jens, I have never claimed I reinvented ->sendpage(). Quite opposite, I 
-use it. I only extended it by a missing feature. Although, seems, since 
-you were misleaded, I should apologize for not too good description of 
-the patch.
-
-Thanks,
-Vlad
 
 
 
