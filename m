@@ -1,81 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 38B3E6B005C
-	for <linux-mm@kvack.org>; Mon, 22 Dec 2008 20:29:55 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBN1OuGt016296
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 23 Dec 2008 10:24:56 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E98D45DD72
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 10:24:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 25C6545DD75
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 10:24:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A76DC1DB8043
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 10:24:55 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 559211DB803E
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 10:24:55 +0900 (JST)
-Date: Tue, 23 Dec 2008 10:23:56 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH mmotm] memcg: avoid reclaim_stat oops when disabled
-Message-Id: <20081223102356.27faab7b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <Pine.LNX.4.64.0812230116210.20371@blonde.anvils>
-References: <Pine.LNX.4.64.0812230116210.20371@blonde.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6F3D06B0044
+	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 05:37:13 -0500 (EST)
+Received: by rv-out-0708.google.com with SMTP id f25so2164082rvb.26
+        for <linux-mm@kvack.org>; Tue, 23 Dec 2008 02:37:11 -0800 (PST)
+Date: Tue, 23 Dec 2008 19:37:01 +0900
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: [PATCH] failslab for SLUB
+Message-ID: <20081223103616.GA7217@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Dec 2008 01:24:56 +0000 (GMT)
-Hugh Dickins <hugh@veritas.com> wrote:
+Currently fault-injection capability for SLAB allocator is only available
+to SLAB. This patch makes it available to SLUB, too.
 
-> mem_cgroup_get_reclaim_stat_from_page() oopses in page_cgroup_zoneinfo()
-> when you boot with cgroup_disabled=memory: it needs to check for that.
-> 
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+---
+ lib/Kconfig.debug |    1 
+ mm/slub.c         |   66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+)
 
-Oh, thanks.
-
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> ---
-> Follow memcg-add-zone_reclaim_stat-reclaim-stat-trivial-fixes.patch
-> 
->  mm/memcontrol.c |    9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
-> 
-> --- mmotm/mm/memcontrol.c	2008-12-16 18:05:31.000000000 +0000
-> +++ fixed/mm/memcontrol.c	2008-12-16 19:30:02.000000000 +0000
-> @@ -496,9 +496,14 @@ struct zone_reclaim_stat *mem_cgroup_get
->  struct zone_reclaim_stat *
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  {
-> -	struct page_cgroup *pc = lookup_page_cgroup(page);
-> -	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
-> +	struct page_cgroup *pc;
-> +	struct mem_cgroup_per_zone *mz;
->  
-> +	if (mem_cgroup_disabled())
-> +		return NULL;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	mz = page_cgroup_zoneinfo(pc);
->  	if (!mz)
->  		return NULL;
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Index: 2.6-rc/mm/slub.c
+===================================================================
+--- 2.6-rc.orig/mm/slub.c
++++ 2.6-rc/mm/slub.c
+@@ -24,6 +24,7 @@
+ #include <linux/kallsyms.h>
+ #include <linux/memory.h>
+ #include <linux/math64.h>
++#include <linux/fault-inject.h>
+ 
+ /*
+  * Lock order:
+@@ -1573,6 +1574,68 @@ debug:
+ 	goto unlock_out;
+ }
+ 
++#ifdef CONFIG_FAILSLAB
++
++static struct {
++	struct fault_attr attr;
++	u32 ignore_gfp_wait;
++#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
++	struct dentry *ignore_gfp_wait_file;
++#endif
++} failslub = {
++	.attr = FAULT_ATTR_INITIALIZER,
++	.ignore_gfp_wait = 1,
++};
++
++static bool should_failslub(struct kmem_cache *s, gfp_t gfpflags)
++{
++	if (gfpflags & __GFP_NOFAIL)
++		return false;
++	if (failslub.ignore_gfp_wait && (gfpflags & __GFP_WAIT))
++		return false;
++
++	return should_fail(&failslub.attr, s->objsize);
++}
++
++#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
++
++static int __init failslub_debugfs(void)
++{
++	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
++	struct dentry *dir;
++	int err;
++
++	err = init_fault_attr_dentries(&failslub.attr, "failslab");
++	if (err)
++		return err;
++	dir = failslub.attr.dentries.dir;
++
++	failslub.ignore_gfp_wait_file =
++		debugfs_create_bool("ignore-gfp-wait", mode, dir,
++				      &failslub.ignore_gfp_wait);
++
++	if (!failslub.ignore_gfp_wait_file) {
++		err = -ENOMEM;
++		debugfs_remove(failslub.ignore_gfp_wait_file);
++		cleanup_fault_attr_dentries(&failslub.attr);
++	}
++
++	return err;
++}
++
++late_initcall(failslub_debugfs);
++
++#endif /* CONFIG_FAULT_INJECTION_DEBUG_FS */
++
++#else /* CONFIG_FAILSLAB */
++
++static inline bool should_failslub(struct kmem_cache *cachep, gfp_t flags)
++{
++	return false;
++}
++
++#endif /* CONFIG_FAILSLAB */
++
+ /*
+  * Inlined fastpath so that allocation functions (kmalloc, kmem_cache_alloc)
+  * have the fastpath folded into their functions. So no function call
+@@ -1591,6 +1654,9 @@ static __always_inline void *slab_alloc(
+ 	unsigned long flags;
+ 	unsigned int objsize;
+ 
++	if (should_failslub(s, gfpflags))
++		return NULL;
++
+ 	local_irq_save(flags);
+ 	c = get_cpu_slab(s, smp_processor_id());
+ 	objsize = c->objsize;
+Index: 2.6-rc/lib/Kconfig.debug
+===================================================================
+--- 2.6-rc.orig/lib/Kconfig.debug
++++ 2.6-rc/lib/Kconfig.debug
+@@ -699,6 +699,7 @@ config FAULT_INJECTION
+ config FAILSLAB
+ 	bool "Fault-injection capability for kmalloc"
+ 	depends on FAULT_INJECTION
++	depends on SLAB || SLUB
+ 	help
+ 	  Provide fault-injection capability for kmalloc.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
