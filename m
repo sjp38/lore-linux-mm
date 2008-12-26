@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 862AD6B004F
-	for <linux-mm@kvack.org>; Tue, 23 Dec 2008 17:22:34 -0500 (EST)
-Received: by ewy3 with SMTP id 3so2909963ewy.14
-        for <linux-mm@kvack.org>; Tue, 23 Dec 2008 14:22:32 -0800 (PST)
-Message-ID: <961aa3350812231422u39adc12dna71060186f9026e0@mail.gmail.com>
-Date: Wed, 24 Dec 2008 07:22:31 +0900
-From: "Akinobu Mita" <akinobu.mita@gmail.com>
-Subject: Re: [PATCH] fix unmap_vmas() with NULL vma
-In-Reply-To: <20081223150618.GB3215@cmpxchg.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3E7B46B0044
+	for <linux-mm@kvack.org>; Fri, 26 Dec 2008 01:38:56 -0500 (EST)
+Message-ID: <49547B93.5090905@cn.fujitsu.com>
+Date: Fri, 26 Dec 2008 14:37:07 +0800
+From: Miao Xie <miaox@cn.fujitsu.com>
+Reply-To: miaox@cn.fujitsu.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH] cpuset,mm: fix allocating page cache/slab object on the unallowed
+ node when memory spread is set
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20081223103820.GB7217@localhost.localdomain>
-	 <20081223150618.GB3215@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Paul Menage <menage@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>
+Cc: Linux-Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Why bail out this late?  We can save the other stuff in exit_mmap() as
-> well if we have no mmaps.
->
-> Granted, the path is dead cold so the extra call overhead doesn't
-> matter but I think the check is logically better placed in
-> exit_mmap().
+The task still allocated the page caches on old node after modifying its
+cpuset's mems when 'memory_spread_page' was set, it is caused by the old
+mem_allowed_list of the task. Slab has the same problem.
 
-Looks good, this patch should go in.
+This patch fixes this bug.
 
->        Hannes
->
-> ---
-> Subject: mm: check for no mmaps in exit_mmap()
->
-> When dup_mmap() ooms we can end up with mm->mmap == NULL.  The error
-> path does mmput() and unmap_vmas() gets a NULL vma which it
-> dereferences.
->
-> In exit_mmap() there is nothing to do at all for this case, we can
-> cancel the callpath right there.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index d4855a6..b9d1636 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2091,6 +2091,9 @@ void exit_mmap(struct mm_struct *mm)
->        arch_exit_mmap(mm);
->        mmu_notifier_release(mm);
->
-> +       if (!mm->mmap)
-> +               return;
-> +
->        if (mm->locked_vm) {
->                vma = mm->mmap;
->                while (vma) {
->
+Signed-off-by: Miao Xie <miaox@cn.fujitsu.com>
+---
+ mm/filemap.c |    3 +++
+ mm/slab.c    |    3 +++
+ 2 files changed, 6 insertions(+), 0 deletions(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index f3e5f89..d978983 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -517,6 +517,9 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ #ifdef CONFIG_NUMA
+ struct page *__page_cache_alloc(gfp_t gfp)
+ {
++	if ((gfp & __GFP_WAIT) && !in_interrupt())
++		cpuset_update_task_memory_state();
++
+ 	if (cpuset_do_page_mem_spread()) {
+ 		int n = cpuset_mem_spread_node();
+ 		return alloc_pages_node(n, gfp, 0);
+diff --git a/mm/slab.c b/mm/slab.c
+index 0918751..3b6e3d7 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3460,6 +3460,9 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
+ 	if (should_failslab(cachep, flags))
+ 		return NULL;
+ 
++	if ((flags & __GFP_WAIT) && !in_interrupt())
++		cpuset_update_task_memory_state();
++
+ 	cache_alloc_debugcheck_before(cachep, flags);
+ 	local_irq_save(save_flags);
+ 	objp = __do_cache_alloc(cachep, flags);
+-- 
+1.5.4.rc3
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
