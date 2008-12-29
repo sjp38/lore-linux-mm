@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A70076B0089
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 04:18:01 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7735A6B005C
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 04:18:00 -0500 (EST)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v12][PATCH 14/14] Restart multiple processes
-Date: Mon, 29 Dec 2008 04:16:27 -0500
-Message-Id: <1230542187-10434-15-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v12][PATCH 10/14] Restore open file descriprtors
+Date: Mon, 29 Dec 2008 04:16:23 -0500
+Message-Id: <1230542187-10434-11-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
 References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -13,488 +13,323 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Restarting of multiple processes expects all restarting tasks to call
-sys_restart(). Once inside the system call, each task will restart
-itself at the same order that they were saved. The internals of the
-syscall will take care of in-kernel synchronization bewteen tasks.
+Restore open file descriptors: for each FD read 'struct cr_hdr_fd_ent'
+and lookup objref in the hash table; if not found (first occurence), read
+in 'struct cr_hdr_fd_data', create a new FD and register in the hash.
+Otherwise attach the file pointer from the hash as an FD.
 
-This patch does _not_ create the task tree in the kernel. Instead it
-assumes that all tasks are created in some way and then invoke the
-restart syscall. You can use the userspace mktree.c program to do
-that.
-
-The init task (*) has a special role: it allocates the restart context
-(ctx), and coordinates the operation. In particular, it first waits
-until all participating tasks enter the kernel, and provides them the
-common restart context. Once everyone in ready, it begins to restart
-itself.
-
-In contrast, the other tasks enter the kernel, locate the init task (*)
-and grab its restart context, and then wait for their turn to restore.
-
-When a task (init or not) completes its restart, it hands the control
-over to the next in line, by waking that task.
-
-An array of pids (the one saved during the checkpoint) is used to
-synchronize the operation. The first task in the array is the init
-task (*). The restart context (ctx) maintain a "current position" in
-the array, which indicates which task is currently active. Once the
-currently active task completes its own restart, it increments that
-position and wakes up the next task.
-
-Restart assumes that userspace provides meaningful data, otherwise
-it's garbage-in-garbage-out. In this case, the syscall may block
-indefinitely, but in TASK_INTERRUPTIBLE, so the user can ctrl-c or
-otherwise kill the stray restarting tasks.
-
-In terms of security, restart runs as the user the invokes it, so it
-will not allow a user to do more than is otherwise permitted by the
-usual system semantics and policy.
-
-Currently we ignore threads and zombies, as well as session ids.
-Add support for multiple processes
-
-(*) For containers, restart should be called inside a fresh container
-by the init task of that container. However, it is also possible to
-restart applications not necessarily inside a container, and without
-restoring the original pids of the processes (that is, provided that
-the application can tolerate such behavior). This is useful to allow
-multi-process restart of tasks not isolated inside a container, and
-also for debugging.
+This patch only handles basic FDs - regular files, directories and also
+symbolic links.
 
 Changelog[v12]:
   - Replace obsolete cr_debug() with pr_debug()
 
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
----
- checkpoint/restart.c       |  214 +++++++++++++++++++++++++++++++++++++++++++-
- checkpoint/sys.c           |   34 ++++++--
- include/linux/checkpoint.h |   23 ++++-
- include/linux/sched.h      |    1 +
- 4 files changed, 258 insertions(+), 14 deletions(-)
+Changelog[v6]:
+  - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
+    (even though it's not really needed)
 
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
+ checkpoint/Makefile        |    2 +-
+ checkpoint/restart.c       |    4 +
+ checkpoint/rstr_file.c     |  248 ++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/checkpoint.h |    1 +
+ 4 files changed, 254 insertions(+), 1 deletions(-)
+ create mode 100644 checkpoint/rstr_file.c
+
+diff --git a/checkpoint/Makefile b/checkpoint/Makefile
+index 7496695..88bbc10 100644
+--- a/checkpoint/Makefile
++++ b/checkpoint/Makefile
+@@ -3,4 +3,4 @@
+ #
+ 
+ obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+-		ckpt_mem.o rstr_mem.o ckpt_file.o
++		ckpt_mem.o rstr_mem.o ckpt_file.o rstr_file.o
 diff --git a/checkpoint/restart.c b/checkpoint/restart.c
-index 0c46abf..6b4cd75 100644
+index 536d017..ece05b7 100644
 --- a/checkpoint/restart.c
 +++ b/checkpoint/restart.c
-@@ -10,6 +10,7 @@
- 
- #include <linux/version.h>
- #include <linux/sched.h>
-+#include <linux/wait.h>
- #include <linux/file.h>
- #include <linux/magic.h>
- #include <linux/checkpoint.h>
-@@ -276,30 +277,235 @@ static int cr_read_task(struct cr_ctx *ctx)
- 	return ret;
- }
- 
-+/* cr_read_tree - read the tasks tree into the checkpoint context */
-+static int cr_read_tree(struct cr_ctx *ctx)
-+{
-+	struct cr_hdr_tree *hh = cr_hbuf_get(ctx, sizeof(*hh));
-+	int parent, size, ret = -EINVAL;
+@@ -261,6 +261,10 @@ static int cr_read_task(struct cr_ctx *ctx)
+ 	pr_debug("memory: ret %d\n", ret);
+ 	if (ret < 0)
+ 		goto out;
++	ret = cr_read_files(ctx);
++	pr_debug("files: ret %d\n", ret);
++	if (ret < 0)
++		goto out;
+ 	ret = cr_read_thread(ctx);
+ 	pr_debug("thread: ret %d\n", ret);
+ 	if (ret < 0)
+diff --git a/checkpoint/rstr_file.c b/checkpoint/rstr_file.c
+new file mode 100644
+index 0000000..f44b081
+--- /dev/null
++++ b/checkpoint/rstr_file.c
+@@ -0,0 +1,248 @@
++/*
++ *  Checkpoint file descriptors
++ *
++ *  Copyright (C) 2008 Oren Laadan
++ *
++ *  This file is subject to the terms and conditions of the GNU General Public
++ *  License.  See the file COPYING in the main directory of the Linux
++ *  distribution for more details.
++ */
 +
-+	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_TREE);
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/fs.h>
++#include <linux/file.h>
++#include <linux/fdtable.h>
++#include <linux/fsnotify.h>
++#include <linux/syscalls.h>
++#include <linux/checkpoint.h>
++#include <linux/checkpoint_hdr.h>
++
++#include "checkpoint_file.h"
++
++static int cr_close_all_fds(struct files_struct *files)
++{
++	int *fdtable;
++	int nfds;
++
++	nfds = cr_scan_fds(files, &fdtable);
++	if (nfds < 0)
++		return nfds;
++	while (nfds--)
++		sys_close(fdtable[nfds]);
++	kfree(fdtable);
++	return 0;
++}
++
++/**
++ * cr_attach_file - attach a lonely file ptr to a file descriptor
++ * @file: lonely file pointer
++ */
++static int cr_attach_file(struct file *file)
++{
++	int fd = get_unused_fd_flags(0);
++
++	if (fd >= 0) {
++		fsnotify_open(file->f_path.dentry);
++		fd_install(fd, file);
++	}
++	return fd;
++}
++
++/**
++ * cr_attach_get_file - attach (and get) lonely file ptr to a file descriptor
++ * @file: lonely file pointer
++ */
++static int cr_attach_get_file(struct file *file)
++{
++	int fd = get_unused_fd_flags(0);
++
++	if (fd >= 0) {
++		fsnotify_open(file->f_path.dentry);
++		get_file(file);
++		fd_install(fd, file);
++	}
++	return fd;
++}
++
++#define CR_SETFL_MASK (O_APPEND|O_NONBLOCK|O_NDELAY|FASYNC|O_DIRECT|O_NOATIME)
++
++/* cr_read_fd_data - restore the state of a given file pointer */
++static int
++cr_read_fd_data(struct cr_ctx *ctx, struct files_struct *files, int rparent)
++{
++	struct cr_hdr_fd_data *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct file *file;
++	int parent, ret;
++	int fd = 0;	/* pacify gcc warning */
++
++	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FD_DATA);
++	pr_debug("rparent %d parent %d flags %#x mode %#x how %d\n",
++		 rparent, parent, hh->f_flags, hh->f_mode, hh->fd_type);
 +	if (parent < 0) {
 +		ret = parent;
 +		goto out;
-+	} else if (parent != 0)
++	}
++
++	ret = -EINVAL;
++
++	if (parent != rparent)
 +		goto out;
 +
-+	if (hh->tasks_nr < 0)
-+		goto out;
++	/* FIX: more sanity checks on f_flags, f_mode etc */
 +
-+	ctx->pids_nr = hh->tasks_nr;
-+	size = sizeof(*ctx->pids_arr) * ctx->pids_nr;
-+	if (size < 0)		/* overflow ? */
-+		goto out;
-+
-+	ctx->pids_arr = kmalloc(size, GFP_KERNEL);
-+	if (!ctx->pids_arr) {
-+		ret = -ENOMEM;
++	switch (hh->fd_type) {
++	case CR_FD_FILE:
++	case CR_FD_DIR:
++		file = cr_read_open_fname(ctx, hh->f_flags, hh->f_mode);
++		break;
++	default:
 +		goto out;
 +	}
-+	ret = cr_kread(ctx, ctx->pids_arr, size);
++
++	if (IS_ERR(file)) {
++		ret = PTR_ERR(file);
++		goto out;
++	}
++
++	/* FIX: need to restore uid, gid, owner etc */
++
++	/* adding <objref,file> to the hash will keep a reference to it */
++	ret = cr_obj_add_ref(ctx, file, parent, CR_OBJ_FILE, 0);
++	if (ret < 0) {
++		filp_close(file, NULL);
++		goto out;
++	}
++
++	fd = cr_attach_file(file);	/* no need to cleanup 'file' below */
++	if (fd < 0) {
++		ret = fd;
++		filp_close(file, NULL);
++		goto out;
++	}
++
++	ret = sys_fcntl(fd, F_SETFL, hh->f_flags & CR_SETFL_MASK);
++	if (ret < 0)
++		goto out;
++	ret = vfs_llseek(file, hh->f_pos, SEEK_SET);
++	if (ret == -ESPIPE)	/* ignore error on non-seekable files */
++		ret = 0;
++
++	ret = 0;
++ out:
++	cr_hbuf_put(ctx, sizeof(*hh));
++	return ret < 0 ? ret : fd;
++}
++
++/**
++ * cr_read_fd_ent - restore the state of a given file descriptor
++ * @ctx: checkpoint context
++ * @files: files_struct pointer
++ * @parent: parent objref
++ *
++ * Restores the state of a file descriptor; looks up the objref (in the
++ * header) in the hash table, and if found picks the matching file and
++ * use it; otherwise calls cr_read_fd_data to restore the file too.
++ */
++static int
++cr_read_fd_ent(struct cr_ctx *ctx, struct files_struct *files, int rparent)
++{
++	struct cr_hdr_fd_ent *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct file *file;
++	int newfd, parent, ret;
++
++	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FD_ENT);
++	pr_debug("rparent %d parent %d ref %d fd %d c.o.e %d\n",
++		 rparent, parent, hh->objref, hh->fd, hh->close_on_exec);
++	if (parent < 0) {
++		ret = parent;
++		goto out;
++	}
++
++	ret = -EINVAL;
++
++	if (parent != rparent)
++		goto out;
++	if (hh->objref <= 0)
++		goto out;
++
++	file = cr_obj_get_by_ref(ctx, hh->objref, CR_OBJ_FILE);
++	if (IS_ERR(file)) {
++		ret = PTR_ERR(file);
++		goto out;
++	}
++
++	if (file) {
++		/* reuse file descriptor found in the hash table */
++		newfd = cr_attach_get_file(file);
++	} else {
++		/* create new file pointer (and register in hash table) */
++		newfd = cr_read_fd_data(ctx, files, hh->objref);
++	}
++
++	if (newfd < 0) {
++		ret = newfd;
++		goto out;
++	}
++
++	pr_debug("newfd got %d wanted %d\n", newfd, hh->fd);
++
++	/* if newfd isn't desired fd then reposition it */
++	if (newfd != hh->fd) {
++		ret = sys_dup2(newfd, hh->fd);
++		if (ret < 0)
++			goto out;
++		sys_close(newfd);
++	}
++
++	if (hh->close_on_exec)
++		set_close_on_exec(hh->fd, 1);
++
++	ret = 0;
 + out:
 +	cr_hbuf_put(ctx, sizeof(*hh));
 +	return ret;
 +}
 +
-+static int cr_wait_task(struct cr_ctx *ctx)
++int cr_read_files(struct cr_ctx *ctx)
 +{
-+	pid_t pid = task_pid_vnr(current);
++	struct cr_hdr_files *hh = cr_hbuf_get(ctx, sizeof(*hh));
++	struct files_struct *files = current->files;
++	int i, parent, ret;
 +
-+	pr_debug("pid %d waiting\n", pid);
-+	return wait_event_interruptible(ctx->waitq, ctx->pids_active == pid);
-+}
-+
-+static int cr_next_task(struct cr_ctx *ctx)
-+{
-+	struct task_struct *tsk;
-+
-+	ctx->pids_pos++;
-+
-+	pr_debug("pids_pos %d %d\n", ctx->pids_pos, ctx->pids_nr);
-+	if (ctx->pids_pos == ctx->pids_nr) {
-+		complete(&ctx->complete);
-+		return 0;
-+	}
-+
-+	ctx->pids_active = ctx->pids_arr[ctx->pids_pos].vpid;
-+
-+	pr_debug("pids_next %d\n", ctx->pids_active);
-+
-+	rcu_read_lock();
-+	tsk = find_task_by_pid_ns(ctx->pids_active, ctx->root_nsproxy->pid_ns);
-+	if (tsk)
-+		wake_up_process(tsk);
-+	rcu_read_unlock();
-+
-+	if (!tsk) {
-+		ctx->pids_err = -ESRCH;
-+		complete(&ctx->complete);
-+		return -ESRCH;
-+	}
-+
-+	return 0;
-+}
-+
-+/* FIXME: this should be per container */
-+DECLARE_WAIT_QUEUE_HEAD(cr_restart_waitq);
-+
-+static int do_restart_task(struct cr_ctx *ctx, pid_t pid)
-+{
-+	struct task_struct *root_task;
-+	int ret;
-+
-+	rcu_read_lock();
-+	root_task = find_task_by_pid_ns(pid, current->nsproxy->pid_ns);
-+	if (root_task)
-+		get_task_struct(root_task);
-+	rcu_read_unlock();
-+
-+	if (!root_task)
-+		return -EINVAL;
-+
-+	/*
-+	 * wait for container init to initialize the restart context, then
-+	 * grab a reference to that context, and if we're the last task to
-+	 * do it, notify the container init.
-+	 */
-+	ret = wait_event_interruptible(cr_restart_waitq,
-+				       root_task->checkpoint_ctx);
-+	if (ret < 0)
-+		goto out;
-+
-+	task_lock(root_task);
-+	ctx = root_task->checkpoint_ctx;
-+	if (ctx)
-+		cr_ctx_get(ctx);
-+	task_unlock(root_task);
-+
-+	if (!ctx) {
-+		ret = -EAGAIN;
++	parent = cr_read_obj_type(ctx, hh, sizeof(*hh), CR_HDR_FILES);
++	if (parent < 0) {
++		ret = parent;
 +		goto out;
 +	}
 +
-+	if (atomic_dec_and_test(&ctx->tasks_count))
-+		complete(&ctx->complete);
++	ret = -EINVAL;
++#if 0	/* activate when containers are used */
++	if (parent != task_pid_vnr(current))
++		goto out;
++#endif
++	pr_debug("objref %d nfds %d\n", hh->objref, hh->nfds);
++	if (hh->objref < 0 || hh->nfds < 0)
++		goto out;
 +
-+	/* wait for our turn, do the restore, and tell next task in line */
-+	ret = cr_wait_task(ctx);
++	if (hh->nfds > sysctl_nr_open) {
++		ret = -EMFILE;
++		goto out;
++	}
++
++	/* point of no return -- close all file descriptors */
++	ret = cr_close_all_fds(files);
 +	if (ret < 0)
 +		goto out;
-+	ret = cr_read_task(ctx);
-+	if (ret < 0)
-+		goto out;
-+	ret = cr_next_task(ctx);
 +
++	for (i = 0; i < hh->nfds; i++) {
++		ret = cr_read_fd_ent(ctx, files, hh->objref);
++		if (ret < 0)
++			break;
++	}
++
++	ret = 0;
 + out:
-+	cr_ctx_put(ctx);
-+	put_task_struct(root_task);
++	cr_hbuf_put(ctx, sizeof(*hh));
 +	return ret;
 +}
-+
-+static int cr_wait_all_tasks_start(struct cr_ctx *ctx)
-+{
-+	int ret;
-+
-+	if (ctx->pids_nr == 1)
-+		return 0;
-+
-+	init_completion(&ctx->complete);
-+	current->checkpoint_ctx = ctx;
-+
-+	wake_up_all(&cr_restart_waitq);
-+
-+	ret = wait_for_completion_interruptible(&ctx->complete);
-+	if (ret < 0)
-+		return ret;
-+
-+	task_lock(current);
-+	current->checkpoint_ctx = NULL;
-+	task_unlock(current);
-+
-+	return 0;
-+}
-+
-+static int cr_wait_all_tasks_finish(struct cr_ctx *ctx)
-+{
-+	int ret;
-+
-+	if (ctx->pids_nr == 1)
-+		return 0;
-+
-+	init_completion(&ctx->complete);
-+
-+	ret = cr_next_task(ctx);
-+	if (ret < 0)
-+		return ret;
-+
-+	ret = wait_for_completion_interruptible(&ctx->complete);
-+	if (ret < 0)
-+		return ret;
-+
-+	return 0;
-+}
-+
- /* setup restart-specific parts of ctx */
- static int cr_ctx_restart(struct cr_ctx *ctx, pid_t pid)
- {
-+	ctx->root_pid = pid;
-+	ctx->root_task = current;
-+	ctx->root_nsproxy = current->nsproxy;
-+
-+	get_task_struct(ctx->root_task);
-+	get_nsproxy(ctx->root_nsproxy);
-+
-+	atomic_set(&ctx->tasks_count, ctx->pids_nr - 1);
-+
- 	return 0;
- }
- 
--int do_restart(struct cr_ctx *ctx, pid_t pid)
-+static int do_restart_root(struct cr_ctx *ctx, pid_t pid)
- {
- 	int ret;
- 
-+	ret = cr_read_head(ctx);
-+	if (ret < 0)
-+		goto out;
-+	ret = cr_read_tree(ctx);
-+	if (ret < 0)
-+		goto out;
-+
- 	ret = cr_ctx_restart(ctx, pid);
- 	if (ret < 0)
- 		goto out;
--	ret = cr_read_head(ctx);
-+
-+	/* wait for all other tasks to enter do_restart_task() */
-+	ret = cr_wait_all_tasks_start(ctx);
- 	if (ret < 0)
- 		goto out;
-+
- 	ret = cr_read_task(ctx);
- 	if (ret < 0)
- 		goto out;
--	ret = cr_read_tail(ctx);
-+
-+	/* wait for all other tasks to complete do_restart_task() */
-+	ret = cr_wait_all_tasks_finish(ctx);
- 	if (ret < 0)
- 		goto out;
- 
--	/* on success, adjust the return value if needed [TODO] */
-+	ret = cr_read_tail(ctx);
-+
-  out:
- 	return ret;
- }
-+
-+int do_restart(struct cr_ctx *ctx, pid_t pid)
-+{
-+	int ret;
-+
-+	if (ctx)
-+		ret = do_restart_root(ctx, pid);
-+	else
-+		ret = do_restart_task(ctx, pid);
-+
-+	/* on success, adjust the return value if needed [TODO] */
-+	return ret;
-+}
-diff --git a/checkpoint/sys.c b/checkpoint/sys.c
-index 0436ef3..f26b0c6 100644
---- a/checkpoint/sys.c
-+++ b/checkpoint/sys.c
-@@ -167,6 +167,8 @@ static void cr_task_arr_free(struct cr_ctx *ctx)
- 
- static void cr_ctx_free(struct cr_ctx *ctx)
- {
-+	BUG_ON(atomic_read(&ctx->refcount));
-+
- 	if (ctx->file)
- 		fput(ctx->file);
- 
-@@ -185,6 +187,8 @@ static void cr_ctx_free(struct cr_ctx *ctx)
- 	if (ctx->root_task)
- 		put_task_struct(ctx->root_task);
- 
-+	kfree(ctx->pids_arr);
-+
- 	kfree(ctx);
- }
- 
-@@ -199,8 +203,10 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 
- 	ctx->flags = flags;
- 
-+	atomic_set(&ctx->refcount, 0);
- 	INIT_LIST_HEAD(&ctx->pgarr_list);
- 	INIT_LIST_HEAD(&ctx->pgarr_pool);
-+	init_waitqueue_head(&ctx->waitq);
- 
- 	err = -EBADF;
- 	ctx->file = fget(fd);
-@@ -215,6 +221,7 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 	if (cr_objhash_alloc(ctx) < 0)
- 		goto err;
- 
-+	atomic_inc(&ctx->refcount);
- 	return ctx;
- 
-  err:
-@@ -222,6 +229,17 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
- 	return ERR_PTR(err);
- }
- 
-+void cr_ctx_get(struct cr_ctx *ctx)
-+{
-+	atomic_inc(&ctx->refcount);
-+}
-+
-+void cr_ctx_put(struct cr_ctx *ctx)
-+{
-+	if (ctx && atomic_dec_and_test(&ctx->refcount))
-+		cr_ctx_free(ctx);
-+}
-+
- /**
-  * sys_checkpoint - checkpoint a container
-  * @pid: pid of the container init(1) process
-@@ -249,7 +267,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
- 	if (!ret)
- 		ret = ctx->crid;
- 
--	cr_ctx_free(ctx);
-+	cr_ctx_put(ctx);
- 	return ret;
- }
- 
-@@ -264,7 +282,7 @@ asmlinkage long sys_checkpoint(pid_t pid, int fd, unsigned long flags)
-  */
- asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
- {
--	struct cr_ctx *ctx;
-+	struct cr_ctx *ctx = NULL;
- 	pid_t pid;
- 	int ret;
- 
-@@ -272,15 +290,17 @@ asmlinkage long sys_restart(int crid, int fd, unsigned long flags)
- 	if (flags)
- 		return -EINVAL;
- 
--	ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
--	if (IS_ERR(ctx))
--		return PTR_ERR(ctx);
--
- 	/* FIXME: for now, we use 'crid' as a pid */
- 	pid = (pid_t) crid;
- 
-+	if (pid == task_pid_vnr(current))
-+		ctx = cr_ctx_alloc(fd, flags | CR_CTX_RSTR);
-+
-+	if (IS_ERR(ctx))
-+		return PTR_ERR(ctx);
-+
- 	ret = do_restart(ctx, pid);
- 
--	cr_ctx_free(ctx);
-+	cr_ctx_put(ctx);
- 	return ret;
- }
 diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 86fcec9..041bd4d 100644
+index 59cc515..ea9ab4c 100644
 --- a/include/linux/checkpoint.h
 +++ b/include/linux/checkpoint.h
-@@ -13,10 +13,11 @@
- #include <linux/fs.h>
- #include <linux/path.h>
- #include <linux/sched.h>
-+#include <asm/atomic.h>
+@@ -89,6 +89,7 @@ extern int cr_write_files(struct cr_ctx *ctx, struct task_struct *t);
  
- #ifdef CONFIG_CHECKPOINT_RESTART
+ extern int do_restart(struct cr_ctx *ctx, pid_t pid);
+ extern int cr_read_mm(struct cr_ctx *ctx);
++extern int cr_read_files(struct cr_ctx *ctx);
  
--#define CR_VERSION  2
-+#define CR_VERSION  3
- 
- struct cr_ctx {
- 	int crid;		/* unique checkpoint id */
-@@ -34,8 +35,7 @@ struct cr_ctx {
- 	void *hbuf;		/* temporary buffer for headers */
- 	int hpos;		/* position in headers buffer */
- 
--	struct task_struct **tasks_arr;	/* array of all tasks in container */
--	int tasks_nr;			/* size of tasks array */
-+	atomic_t refcount;
- 
- 	struct cr_objhash *objhash;	/* hash for shared objects */
- 
-@@ -43,6 +43,20 @@ struct cr_ctx {
- 	struct list_head pgarr_pool;	/* pool of empty page arrays chain */
- 
- 	struct path fs_mnt;	/* container root (FIXME) */
-+
-+	/* [multi-process checkpoint] */
-+	struct task_struct **tasks_arr; /* array of all tasks [checkpoint] */
-+	int tasks_nr;                   /* size of tasks array */
-+
-+	/* [multi-process restart] */
-+	struct cr_hdr_pids *pids_arr;	/* array of all pids [restart] */
-+	int pids_nr;			/* size of pids array */
-+	int pids_pos;			/* position pids array */
-+	int pids_err;			/* error occured ? */
-+	pid_t pids_active;		/* pid of (next) active task */
-+	atomic_t tasks_count;		/* sync of restarting tasks */
-+	struct completion complete;	/* sync of restarting tasks */
-+	wait_queue_head_t waitq;	/* sync of restarting tasks */
- };
- 
- /* cr_ctx: flags */
-@@ -55,6 +69,9 @@ extern int cr_kread(struct cr_ctx *ctx, void *buf, int count);
- extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
- extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
- 
-+extern void cr_ctx_get(struct cr_ctx *ctx);
-+extern void cr_ctx_put(struct cr_ctx *ctx);
-+
- /* shared objects handling */
- 
- enum {
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index faa2ec6..0150e90 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1359,6 +1359,7 @@ struct task_struct {
- 
- #ifdef CONFIG_CHECKPOINT_RESTART
- 	atomic_t may_checkpoint;
-+	struct cr_ctx *checkpoint_ctx;
- #endif
- };
- 
+ #ifdef pr_fmt
+ #undef pr_fmt
 -- 
 1.5.4.3
 
