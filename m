@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B9DBA6B007E
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 04:17:55 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FBC76B0087
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 04:17:56 -0500 (EST)
 From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v12][PATCH 09/14] Dump open file descriptors
-Date: Mon, 29 Dec 2008 04:16:22 -0500
-Message-Id: <1230542187-10434-10-git-send-email-orenl@cs.columbia.edu>
+Subject: [RFC v12][PATCH 08/14] Infrastructure for shared objects
+Date: Mon, 29 Dec 2008 04:16:21 -0500
+Message-Id: <1230542187-10434-9-git-send-email-orenl@cs.columbia.edu>
 In-Reply-To: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
 References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
@@ -13,126 +13,68 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-Dump the files_struct of a task with 'struct cr_hdr_files', followed by
-all open file descriptors. Because the 'struct file' corresponding to an
-FD can be shared, each they are assigned an objref and registered in the
-object hash. A reference to the 'file *' is kept for as long as it lives
-in the hash (the hash is only cleaned up at the end of the checkpoint).
+Infrastructure to handle objects that may be shared and referenced by
+multiple tasks or other objects, e..g open files, memory address space
+etc.
 
-For each open FD there is a 'struct cr_hdr_fd_ent' with the FD, its
-close-on-exec property, and the objref of the corresponding 'file *'.
-If the FD is to be saved (first time) then this is followed by a
-'struct cr_hdr_fd_data' with the FD state. Then will come the next FD
-and so on.
+The state of shared objects is saved once. On the first encounter, the
+state is dumped and the object is assigned a unique identifier (objref)
+and also stored in a hash table (indexed by its physical kenrel address).
+>From then on the object will be found in the hash and only its identifier
+is saved.
 
-Recall that it is assumed that all tasks possibly sharing the file table
-are frozen. If this assumption breaks, then the behavior is *undefined*:
-checkpoint may fail, or restart from the resulting image file will fail.
+On restart the identifier is looked up in the hash table; if not found
+then the state is read, the object is created, and added to the hash
+table (this time indexed by its identifier). Otherwise, the object in
+the hash table is used.
 
-This patch only handles basic FDs - regular files, directories.
+The hash is "one-way": objects added to it are never deleted until the
+hash it discarded. The hash is discarded at the end of checkpoint or
+restart, whether successful or not.
 
-Changelog[v12]:
-  - Replace obsolete cr_debug() with pr_debug()
+The hash keeps a reference to every object that is added to it, matching
+the object's type, and maintains this reference during its lifetime.
+Therefore, it is always safe to use an object that is stored in the hash.
 
 Changelog[v11]:
-  - Discard handling of opened symlinks (there is no such thing)
-  - cr_scan_fds() retries from scratch if hits size limits
+  - Doc: be explicit about grabbing a reference and object lifetime
 
-Changelog[v9]:
-  - Fix a couple of leaks in cr_write_files()
-  - Drop useless kfree from cr_scan_fds()
+Changelog[v4]:
+  - Fix calculation of hash table size
 
-Changelog[v8]:
-  - initialize 'coe' to workaround gcc false warning
-
-Changelog[v6]:
-  - Balance all calls to cr_hbuf_get() with matching cr_hbuf_put()
-    (even though it's not really needed)
+Changelog[v3]:
+  - Use standard hlist_... for hash table
 
 Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
 Acked-by: Serge Hallyn <serue@us.ibm.com>
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/checkpoint_hdr.h |    2 +-
- checkpoint/Makefile                   |    2 +-
- checkpoint/checkpoint.c               |    4 +
- checkpoint/checkpoint_file.h          |   17 +++
- checkpoint/ckpt_file.c                |  224 +++++++++++++++++++++++++++++++++
- include/linux/checkpoint.h            |    3 +-
- include/linux/checkpoint_hdr.h        |   31 +++++-
- 7 files changed, 279 insertions(+), 4 deletions(-)
- create mode 100644 checkpoint/checkpoint_file.h
- create mode 100644 checkpoint/ckpt_file.c
+ checkpoint/Makefile        |    2 +-
+ checkpoint/objhash.c       |  278 ++++++++++++++++++++++++++++++++++++++++++++
+ checkpoint/sys.c           |    4 +
+ include/linux/checkpoint.h |   20 +++
+ 4 files changed, 303 insertions(+), 1 deletions(-)
+ create mode 100644 checkpoint/objhash.c
 
-diff --git a/arch/x86/include/asm/checkpoint_hdr.h b/arch/x86/include/asm/checkpoint_hdr.h
-index 6185548..43f21e4 100644
---- a/arch/x86/include/asm/checkpoint_hdr.h
-+++ b/arch/x86/include/asm/checkpoint_hdr.h
-@@ -15,7 +15,7 @@
- /*
-  * To maintain compatibility between 32-bit and 64-bit architecture flavors,
-  * keep data 64-bit aligned: use padding for structure members, and use
-- * __attribute__ ((aligned (8))) for the entire structure.
-+ * __attribute__((aligned (8))) for the entire structure.
-  *
-  * Quoting Arnd Bergmann:
-  *   "This structure has an odd multiple of 32-bit members, which means
 diff --git a/checkpoint/Makefile b/checkpoint/Makefile
-index 9843fb9..7496695 100644
+index ac35033..9843fb9 100644
 --- a/checkpoint/Makefile
 +++ b/checkpoint/Makefile
-@@ -3,4 +3,4 @@
+@@ -2,5 +2,5 @@
+ # Makefile for linux checkpoint/restart.
  #
  
- obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
--		ckpt_mem.o rstr_mem.o
-+		ckpt_mem.o rstr_mem.o ckpt_file.o
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index 5c47184..dd0f527 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -233,6 +233,10 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
- 	pr_debug("memory: ret %d\n", ret);
- 	if (ret < 0)
- 		goto out;
-+	ret = cr_write_files(ctx, t);
-+	pr_debug("files: ret %d\n", ret);
-+	if (ret < 0)
-+		goto out;
- 	ret = cr_write_thread(ctx, t);
- 	pr_debug("thread: ret %d\n", ret);
- 	if (ret < 0)
-diff --git a/checkpoint/checkpoint_file.h b/checkpoint/checkpoint_file.h
+-obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o \
++obj-$(CONFIG_CHECKPOINT_RESTART) += sys.o checkpoint.o restart.o objhash.o \
+ 		ckpt_mem.o rstr_mem.o
+diff --git a/checkpoint/objhash.c b/checkpoint/objhash.c
 new file mode 100644
-index 0000000..9dc3eba
+index 0000000..13d3e5d
 --- /dev/null
-+++ b/checkpoint/checkpoint_file.h
-@@ -0,0 +1,17 @@
-+#ifndef _CHECKPOINT_CKPT_FILE_H_
-+#define _CHECKPOINT_CKPT_FILE_H_
++++ b/checkpoint/objhash.c
+@@ -0,0 +1,278 @@
 +/*
-+ *  Checkpoint file descriptors
-+ *
-+ *  Copyright (C) 2008 Oren Laadan
-+ *
-+ *  This file is subject to the terms and conditions of the GNU General Public
-+ *  License.  See the file COPYING in the main directory of the Linux
-+ *  distribution for more details.
-+ */
-+
-+#include <linux/fdtable.h>
-+
-+int cr_scan_fds(struct files_struct *files, int **fdtable);
-+
-+#endif /* _CHECKPOINT_CKPT_FILE_H_ */
-diff --git a/checkpoint/ckpt_file.c b/checkpoint/ckpt_file.c
-new file mode 100644
-index 0000000..e3097ac
---- /dev/null
-+++ b/checkpoint/ckpt_file.c
-@@ -0,0 +1,224 @@
-+/*
-+ *  Checkpoint file descriptors
++ *  Checkpoint-restart - object hash infrastructure to manage shared objects
 + *
 + *  Copyright (C) 2008 Oren Laadan
 + *
@@ -142,294 +84,333 @@ index 0000000..e3097ac
 + */
 +
 +#include <linux/kernel.h>
-+#include <linux/sched.h>
 +#include <linux/file.h>
-+#include <linux/fdtable.h>
++#include <linux/hash.h>
 +#include <linux/checkpoint.h>
-+#include <linux/checkpoint_hdr.h>
 +
-+#include "checkpoint_file.h"
-+
-+#define CR_DEFAULT_FDTABLE  256		/* an initial guess */
-+
-+/**
-+ * cr_scan_fds - scan file table and construct array of open fds
-+ * @files: files_struct pointer
-+ * @fdtable: (output) array of open fds
-+ *
-+ * Returns the number of open fds found, and also the file table
-+ * array via *fdtable. The caller should free the array.
-+ *
-+ * The caller must validate the file descriptors collected in the
-+ * array before using them, e.g. by using fcheck_files(), in case
-+ * the task's fdtable changes in the meantime.
-+ */
-+int cr_scan_fds(struct files_struct *files, int **fdtable)
-+{
-+	struct fdtable *fdt;
-+	int *fds = NULL;
-+	int i, n;
-+	int tot = CR_DEFAULT_FDTABLE;
-+
-+	/*
-+	 * We assume that all tasks possibly sharing the file table are
-+	 * frozen (or we our a single process and we checkpoint ourselves).
-+	 * Therefore, we can safely proceed after krealloc() from where we
-+	 * left off. Otherwise the file table may be modified by another
-+	 * task after we scan it. The behavior is this case is undefined,
-+	 * and either and either checkpoint or restart will likely fail.
-+	 */
-+ retry:
-+	fds = krealloc(fds, tot * sizeof(*fds), GFP_KERNEL);
-+	if (!fds)
-+		return -ENOMEM;
-+
-+	spin_lock(&files->file_lock);
-+	rcu_read_lock();
-+	fdt = files_fdtable(files);
-+	for (n = 0, i = 0; i < fdt->max_fds; i++) {
-+		if (!fcheck_files(files, i))
-+			continue;
-+		if (n == tot) {
-+			spin_unlock(&files->file_lock);
-+			rcu_read_unlock();
-+			tot *= 2;	/* won't overflow: kmalloc will fail */
-+			goto retry;
-+		}
-+		fds[n++] = i;
-+	}
-+	rcu_read_unlock();
-+	spin_unlock(&files->file_lock);
-+
-+	*fdtable = fds;
-+	return n;
-+}
-+
-+/* cr_write_fd_data - dump the state of a given file pointer */
-+static int cr_write_fd_data(struct cr_ctx *ctx, struct file *file, int parent)
-+{
-+	struct cr_hdr h;
-+	struct cr_hdr_fd_data *hh = cr_hbuf_get(ctx, sizeof(*hh));
-+	struct dentry *dent = file->f_dentry;
-+	struct inode *inode = dent->d_inode;
-+	enum fd_type fd_type;
-+	int ret;
-+
-+	h.type = CR_HDR_FD_DATA;
-+	h.len = sizeof(*hh);
-+	h.parent = parent;
-+
-+	hh->f_flags = file->f_flags;
-+	hh->f_mode = file->f_mode;
-+	hh->f_pos = file->f_pos;
-+	hh->f_version = file->f_version;
-+	/* FIX: need also file->uid, file->gid, file->f_owner, etc */
-+
-+	switch (inode->i_mode & S_IFMT) {
-+	case S_IFREG:
-+		fd_type = CR_FD_FILE;
-+		break;
-+	case S_IFDIR:
-+		fd_type = CR_FD_DIR;
-+		break;
-+	default:
-+		cr_hbuf_put(ctx, sizeof(*hh));
-+		return -EBADF;
-+	}
-+
-+	/* FIX: check if the file/dir/link is unlinked */
-+	hh->fd_type = fd_type;
-+
-+	ret = cr_write_obj(ctx, &h, hh);
-+	cr_hbuf_put(ctx, sizeof(*hh));
-+	if (ret < 0)
-+		return ret;
-+
-+	return cr_write_fname(ctx, &file->f_path, &ctx->fs_mnt);
-+}
-+
-+/**
-+ * cr_write_fd_ent - dump the state of a given file descriptor
-+ * @ctx: checkpoint context
-+ * @files: files_struct pointer
-+ * @fd: file descriptor
-+ *
-+ * Saves the state of the file descriptor; looks up the actual file
-+ * pointer in the hash table, and if found saves the matching objref,
-+ * otherwise calls cr_write_fd_data to dump the file pointer too.
-+ */
-+static int
-+cr_write_fd_ent(struct cr_ctx *ctx, struct files_struct *files, int fd)
-+{
-+	struct cr_hdr h;
-+	struct cr_hdr_fd_ent *hh = cr_hbuf_get(ctx, sizeof(*hh));
-+	struct file *file;
-+	struct fdtable *fdt;
-+	int objref, new, ret;
-+	int coe = 0;	/* avoid gcc warning */
-+
-+	rcu_read_lock();
-+	fdt = files_fdtable(files);
-+	file = fcheck_files(files, fd);
-+	if (file) {
-+		coe = FD_ISSET(fd, fdt->close_on_exec);
-+		get_file(file);
-+	}
-+	rcu_read_unlock();
-+
-+	/* sanity check (although this shouldn't happen) */
-+	if (!file) {
-+		ret = -EBADF;
-+		goto out;
-+	}
-+
-+	/* adding 'file' to the hash will keep a reference to it */
-+	new = cr_obj_add_ptr(ctx, file, &objref, CR_OBJ_FILE, 0);
-+	pr_debug("fd %d objref %d file %p c-o-e %d)\n", fd, objref, file, coe);
-+
-+	if (new < 0) {
-+		ret = new;
-+		goto out;
-+	}
-+
-+	h.type = CR_HDR_FD_ENT;
-+	h.len = sizeof(*hh);
-+	h.parent = 0;
-+
-+	hh->objref = objref;
-+	hh->fd = fd;
-+	hh->close_on_exec = coe;
-+
-+	ret = cr_write_obj(ctx, &h, hh);
-+	if (ret < 0)
-+		goto out;
-+
-+	/* new==1 if-and-only-if file was newly added to hash */
-+	if (new)
-+		ret = cr_write_fd_data(ctx, file, objref);
-+
-+out:
-+	cr_hbuf_put(ctx, sizeof(*hh));
-+	if (file)
-+		fput(file);
-+	return ret;
-+}
-+
-+int cr_write_files(struct cr_ctx *ctx, struct task_struct *t)
-+{
-+	struct cr_hdr h;
-+	struct cr_hdr_files *hh = cr_hbuf_get(ctx, sizeof(*hh));
-+	struct files_struct *files;
-+	int *fdtable = NULL;
-+	int nfds, n, ret;
-+
-+	h.type = CR_HDR_FILES;
-+	h.len = sizeof(*hh);
-+	h.parent = task_pid_vnr(t);
-+
-+	files = get_files_struct(t);
-+
-+	nfds = cr_scan_fds(files, &fdtable);
-+	if (nfds < 0) {
-+		ret = nfds;
-+		goto out;
-+	}
-+
-+	hh->objref = 0;	/* will be meaningful with multiple processes */
-+	hh->nfds = nfds;
-+
-+	ret = cr_write_obj(ctx, &h, hh);
-+	cr_hbuf_put(ctx, sizeof(*hh));
-+	if (ret < 0)
-+		goto out;
-+
-+	pr_debug("nfds %d\n", nfds);
-+	for (n = 0; n < nfds; n++) {
-+		ret = cr_write_fd_ent(ctx, files, fdtable[n]);
-+		if (ret < 0)
-+			break;
-+	}
-+
-+ out:
-+	kfree(fdtable);
-+	put_files_struct(files);
-+	return ret;
-+}
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index 0ad4940..59cc515 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -13,7 +13,7 @@
- #include <linux/path.h>
- #include <linux/fs.h>
- 
--#define CR_VERSION  1
-+#define CR_VERSION  2
- 
- struct cr_ctx {
- 	int crid;		/* unique checkpoint id */
-@@ -85,6 +85,7 @@ extern struct file *cr_read_open_fname(struct cr_ctx *ctx,
- 
- extern int do_checkpoint(struct cr_ctx *ctx, pid_t pid);
- extern int cr_write_mm(struct cr_ctx *ctx, struct task_struct *t);
-+extern int cr_write_files(struct cr_ctx *ctx, struct task_struct *t);
- 
- extern int do_restart(struct cr_ctx *ctx, pid_t pid);
- extern int cr_read_mm(struct cr_ctx *ctx);
-diff --git a/include/linux/checkpoint_hdr.h b/include/linux/checkpoint_hdr.h
-index f3997da..cf6a637 100644
---- a/include/linux/checkpoint_hdr.h
-+++ b/include/linux/checkpoint_hdr.h
-@@ -17,7 +17,7 @@
- /*
-  * To maintain compatibility between 32-bit and 64-bit architecture flavors,
-  * keep data 64-bit aligned: use padding for structure members, and use
-- * __attribute__ ((aligned (8))) for the entire structure.
-+ * __attribute__((aligned (8))) for the entire structure.
-  *
-  * Quoting Arnd Bergmann:
-  *   "This structure has an odd multiple of 32-bit members, which means
-@@ -54,6 +54,10 @@ enum {
- 	CR_HDR_PGARR,
- 	CR_HDR_MM_CONTEXT,
- 
-+	CR_HDR_FILES = 301,
-+	CR_HDR_FD_ENT,
-+	CR_HDR_FD_DATA,
-+
- 	CR_HDR_TAIL = 5001
- };
- 
-@@ -116,4 +120,29 @@ struct cr_hdr_pgarr {
- 	__u64 nr_pages;		/* number of pages to saved */
- } __attribute__((aligned(8)));
- 
-+struct cr_hdr_files {
-+	__u32 objref;		/* identifier for shared objects */
-+	__u32 nfds;
-+} __attribute__((aligned(8)));
-+
-+struct cr_hdr_fd_ent {
-+	__u32 objref;		/* identifier for shared objects */
-+	__s32 fd;
-+	__u32 close_on_exec;
-+} __attribute__((aligned(8)));
-+
-+/* fd types */
-+enum  fd_type {
-+	CR_FD_FILE = 1,
-+	CR_FD_DIR,
++struct cr_objref {
++	int objref;
++	void *ptr;
++	unsigned short type;
++	unsigned short flags;
++	struct hlist_node hash;
 +};
 +
-+struct cr_hdr_fd_data {
-+	__u16 fd_type;
-+	__u16 f_mode;
-+	__u32 f_flags;
-+	__u64 f_pos;
-+	__u64 f_version;
-+} __attribute__((aligned(8)));
++struct cr_objhash {
++	struct hlist_head *head;
++	int next_free_objref;
++};
 +
- #endif /* _CHECKPOINT_CKPT_HDR_H_ */
++#define CR_OBJHASH_NBITS  10
++#define CR_OBJHASH_TOTAL  (1UL << CR_OBJHASH_NBITS)
++
++static void cr_obj_ref_drop(struct cr_objref *obj)
++{
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		fput((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
++	}
++}
++
++static void cr_obj_ref_grab(struct cr_objref *obj)
++{
++	switch (obj->type) {
++	case CR_OBJ_FILE:
++		get_file((struct file *) obj->ptr);
++		break;
++	default:
++		BUG();
++	}
++}
++
++static void cr_objhash_clear(struct cr_objhash *objhash)
++{
++	struct hlist_head *h = objhash->head;
++	struct hlist_node *n, *t;
++	struct cr_objref *obj;
++	int i;
++
++	for (i = 0; i < CR_OBJHASH_TOTAL; i++) {
++		hlist_for_each_entry_safe(obj, n, t, &h[i], hash) {
++			cr_obj_ref_drop(obj);
++			kfree(obj);
++		}
++	}
++}
++
++void cr_objhash_free(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash = ctx->objhash;
++
++	if (objhash) {
++		cr_objhash_clear(objhash);
++		kfree(objhash->head);
++		kfree(ctx->objhash);
++		ctx->objhash = NULL;
++	}
++}
++
++int cr_objhash_alloc(struct cr_ctx *ctx)
++{
++	struct cr_objhash *objhash;
++	struct hlist_head *head;
++
++	objhash = kzalloc(sizeof(*objhash), GFP_KERNEL);
++	if (!objhash)
++		return -ENOMEM;
++	head = kzalloc(CR_OBJHASH_TOTAL * sizeof(*head), GFP_KERNEL);
++	if (!head) {
++		kfree(objhash);
++		return -ENOMEM;
++	}
++
++	objhash->head = head;
++	objhash->next_free_objref = 1;
++
++	ctx->objhash = objhash;
++	return 0;
++}
++
++static struct cr_objref *cr_obj_find_by_ptr(struct cr_ctx *ctx, void *ptr)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
++
++	h = &ctx->objhash->head[hash_ptr(ptr, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->ptr == ptr)
++			return obj;
++	return NULL;
++}
++
++static struct cr_objref *cr_obj_find_by_objref(struct cr_ctx *ctx, int objref)
++{
++	struct hlist_head *h;
++	struct hlist_node *n;
++	struct cr_objref *obj;
++
++	h = &ctx->objhash->head[hash_ptr((void *) objref, CR_OBJHASH_NBITS)];
++	hlist_for_each_entry(obj, n, h, hash)
++		if (obj->objref == objref)
++			return obj;
++	return NULL;
++}
++
++/**
++ * cr_obj_new - allocate an object and add to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Allocate an object referring to @ptr and add to the hash table.
++ * If @objref is zero, assign a unique object reference and use @ptr
++ * as a hash key [checkpoint]. Else use @objref as a key [restart].
++ * In both cases, grab a reference (depending on @type) to said obejct.
++ */
++static struct cr_objref *cr_obj_new(struct cr_ctx *ctx, void *ptr, int objref,
++				    unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int i;
++
++	obj = kmalloc(sizeof(*obj), GFP_KERNEL);
++	if (!obj)
++		return NULL;
++
++	obj->ptr = ptr;
++	obj->type = type;
++	obj->flags = flags;
++
++	if (objref) {
++		/* use @objref to index (restart) */
++		obj->objref = objref;
++		i = hash_ptr((void *) objref, CR_OBJHASH_NBITS);
++	} else {
++		/* use @ptr to index, assign objref (checkpoint) */
++		obj->objref = ctx->objhash->next_free_objref++;;
++		i = hash_ptr(ptr, CR_OBJHASH_NBITS);
++	}
++
++	hlist_add_head(&obj->hash, &ctx->objhash->head[i]);
++	cr_obj_ref_grab(obj);
++	return obj;
++}
++
++/**
++ * cr_obj_add_ptr - add an object to the hash table if not already there
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique object reference [output]
++ * @type: object type
++ * @flags: object flags
++ *
++ * Look up the object pointed to by @ptr in the hash table. If it isn't
++ * already found there, then add the object to the table, and allocate a
++ * fresh unique object reference (objref). Grab a reference to every
++ * object that is added, and maintain the reference until the entire
++ * hash is free. 
++ *
++ * Fills the unique objref of the object into @objref.
++ * 
++ * [This is used during checkpoint].
++ *
++ * Returns 0 if found, 1 if added, < 0 on error
++ */
++int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++		   unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++	int ret = 0;
++
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj) {
++		obj = cr_obj_new(ctx, ptr, 0, type, flags);
++		if (!obj)
++			return -ENOMEM;
++		else
++			ret = 1;
++	} else if (obj->type != type)	/* sanity check */
++		return -EINVAL;
++	*objref = obj->objref;
++	return ret;
++}
++
++/**
++ * cr_obj_add_ref - add an object with unique objref to the hash table
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @objref: unique identifier - object reference
++ * @type: object type
++ * @flags: object flags
++ *
++ * Add the object pointer to by @ptr and identified by unique object
++ * reference given by @objref to the hash table (indexed by @objref).
++ * Grab a reference to every object that is added, and maintain the
++ * reference until the entire hash is free. 
++ *
++ * [This is used during restart].
++ */
++int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++		   unsigned short type, unsigned short flags)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_new(ctx, ptr, objref, type, flags);
++	return obj ? 0 : -ENOMEM;
++}
++
++/**
++ * cr_obj_get_by_ptr - find the unique object reference of an object
++ * @ctx: checkpoint context
++ * @ptr: pointer to object
++ * @type: object type
++ *
++ * Look up the unique object reference (objref) of the object pointed
++ * to by @ptr, and return that number, or 0 if not found.
++ *
++ * [This is used during checkpoint].
++ */
++int cr_obj_get_by_ptr(struct cr_ctx *ctx, void *ptr, unsigned short type)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_find_by_ptr(ctx, ptr);
++	if (!obj)
++		return -ESRCH;
++	if (obj->type != type)
++		return -EINVAL;
++	return obj->objref;
++}
++
++/**
++ * cr_obj_get_by_ref - find an object given its unique object reference
++ * @ctx: checkpoint context
++ * @objref: unique identifier - object reference
++ * @type: object type
++ *
++ * Look up the object who is identified by unique object reference that
++ * is specified by @objref, and return a pointer to that matching object,
++ * or NULL if not found.
++ *
++ * [This is used during restart].
++ */
++void *cr_obj_get_by_ref(struct cr_ctx *ctx, int objref, unsigned short type)
++{
++	struct cr_objref *obj;
++
++	obj = cr_obj_find_by_objref(ctx, objref);
++	if (!obj)
++		return NULL;
++	if (obj->type != type)
++		return ERR_PTR(-EINVAL);
++	return obj->ptr;
++}
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index b5242fe..a506b3a 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -161,6 +161,7 @@ static void cr_ctx_free(struct cr_ctx *ctx)
+ 	path_put(&ctx->fs_mnt);		/* safe with NULL pointers */
+ 
+ 	cr_pgarr_free(ctx);
++	cr_objhash_free(ctx);
+ 
+ 	kfree(ctx);
+ }
+@@ -189,6 +190,9 @@ static struct cr_ctx *cr_ctx_alloc(int fd, unsigned long flags)
+ 	if (!ctx->hbuf)
+ 		goto err;
+ 
++	if (cr_objhash_alloc(ctx) < 0)
++		goto err;
++
+ 	return ctx;
+ 
+  err:
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index 06b6e5a..0ad4940 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -29,6 +29,8 @@ struct cr_ctx {
+ 	void *hbuf;		/* temporary buffer for headers */
+ 	int hpos;		/* position in headers buffer */
+ 
++	struct cr_objhash *objhash;	/* hash for shared objects */
++
+ 	struct list_head pgarr_list;	/* page array to dump VMA contents */
+ 	struct list_head pgarr_pool;	/* pool of empty page arrays chain */
+ 
+@@ -45,6 +47,24 @@ extern int cr_kread(struct cr_ctx *ctx, void *buf, int count);
+ extern void *cr_hbuf_get(struct cr_ctx *ctx, int n);
+ extern void cr_hbuf_put(struct cr_ctx *ctx, int n);
+ 
++/* shared objects handling */
++
++enum {
++	CR_OBJ_FILE = 1,
++	CR_OBJ_MAX
++};
++
++extern void cr_objhash_free(struct cr_ctx *ctx);
++extern int cr_objhash_alloc(struct cr_ctx *ctx);
++extern void *cr_obj_get_by_ref(struct cr_ctx *ctx,
++			       int objref, unsigned short type);
++extern int cr_obj_get_by_ptr(struct cr_ctx *ctx,
++			     void *ptr, unsigned short type);
++extern int cr_obj_add_ptr(struct cr_ctx *ctx, void *ptr, int *objref,
++			  unsigned short type, unsigned short flags);
++extern int cr_obj_add_ref(struct cr_ctx *ctx, void *ptr, int objref,
++			  unsigned short type, unsigned short flags);
++
+ struct cr_hdr;
+ 
+ extern int cr_write_obj(struct cr_ctx *ctx, struct cr_hdr *h, void *buf);
 -- 
 1.5.4.3
 
