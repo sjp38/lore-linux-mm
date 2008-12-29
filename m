@@ -1,163 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C9E426B0088
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 04:18:07 -0500 (EST)
-From: Oren Laadan <orenl@cs.columbia.edu>
-Subject: [RFC v12][PATCH 12/14] Track in-kernel when we expect checkpoint/restart to work
-Date: Mon, 29 Dec 2008 04:16:25 -0500
-Message-Id: <1230542187-10434-13-git-send-email-orenl@cs.columbia.edu>
-In-Reply-To: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
-References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 818026B0044
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 18:00:41 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id mBTMxJ7Y010176
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 15:59:19 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id mBTN0dCH202794
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 16:00:39 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id mBTN0dDx014325
+	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 16:00:39 -0700
+Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20081222043526.GC13406@wotan.suse.de>
+References: <20081219061937.GA16268@wotan.suse.de>
+	 <1229669697.17206.602.camel@nimitz> <20081219070311.GA26419@wotan.suse.de>
+	 <1229700721.17206.634.camel@nimitz>  <20081222043526.GC13406@wotan.suse.de>
+Content-Type: text/plain
+Date: Mon, 29 Dec 2008 15:00:37 -0800
+Message-Id: <1230591637.19452.129.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>, Oren Laadan <orenl@cs.columbia.edu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+On Mon, 2008-12-22 at 05:35 +0100, Nick Piggin wrote:
+> > Is there a real good reason to allocate the percpu counters dynamically?
+> > Might as well stick them in the vfsmount and let the one
+> > kmem_cache_zalloc() in alloc_vfsmnt() do a bit larger of an allocation.
+> > Did you think that was going to bloat it to a compound allocation or
+> > something?  I hate the #ifdefs. :)
+> 
+> Distros want to ship big NR_CPUS kernels and have them run reasonably on
+> small num_possible_cpus() systems. But also, it would help to avoid
+> cacheline bouncing from false sharing (allocpercpu.c code can also mess
+> this bug for small objects like these counters, but that's a problem
+> with the allocpercpu code which should be fixed anyway).
 
-Suggested by Ingo.
+I guess we could also play the old trick:
 
-Checkpoint/restart is going to be a long effort to get things working.
-We're going to have a lot of things that we know just don't work for
-a long time.  That doesn't mean that it will be useless, it just means
-that there's some complicated features that we are going to have to
-work incrementally to fix.
+struct vfsmount
+{
+	...
+	int mnt_writers[0];
+};
 
-This patch introduces a new mechanism to help the checkpoint/restart
-developers.  A new function pair: task/process_deny_checkpoint() is
-created.  When called, these tell the kernel that we *know* that the
-process has performed some activity that will keep it from being
-properly checkpointed.
+And just 
 
-The 'flag' is an atomic_t for now so that we can have some level
-of atomicity and make sure to only warn once.
+void __init mnt_init(void)
+{
+...
+	int size = sizeof(struct vfsmount) + num_possible_cpus() * sizeof(int)
 
-For now, this is a one-way trip.  Once a process is no longer
-'may_checkpoint' capable, neither it nor its children ever will be.
-This can, of course, be fixed up in the future.  We might want to
-reset the flag when a new pid namespace is created, for instance.
+-       mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
++       mnt_cache = kmem_cache_create("mnt_cache", size,
+                        0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
----
- checkpoint/checkpoint.c    |    6 ++++++
- include/linux/checkpoint.h |   33 ++++++++++++++++++++++++++++++++-
- include/linux/sched.h      |    4 ++++
- kernel/fork.c              |   10 ++++++++++
- 4 files changed, 52 insertions(+), 1 deletions(-)
+That should save us the dereference from the pointer and still let it be
+pretty flexible.  
 
-diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
-index e0af8a2..35e3c6b 100644
---- a/checkpoint/checkpoint.c
-+++ b/checkpoint/checkpoint.c
-@@ -233,6 +233,12 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
- 		return -EAGAIN;
- 	}
- 
-+	if (!atomic_read(&t->may_checkpoint)) {
-+		pr_warning("c/r: task %d may not checkpoint\n",
-+			   task_pid_vnr(t));
-+		return -EBUSY;
-+	}
-+
- 	ret = cr_write_task_struct(ctx, t);
- 	pr_debug("task_struct: ret %d\n", ret);
- 	if (ret < 0)
-diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
-index cf54f47..e867b95 100644
---- a/include/linux/checkpoint.h
-+++ b/include/linux/checkpoint.h
-@@ -10,8 +10,11 @@
-  *  distribution for more details.
-  */
- 
--#include <linux/path.h>
- #include <linux/fs.h>
-+#include <linux/path.h>
-+#include <linux/sched.h>
-+
-+#ifdef CONFIG_CHECKPOINT_RESTART
- 
- #define CR_VERSION  2
- 
-@@ -99,4 +102,32 @@ extern int cr_read_files(struct cr_ctx *ctx);
- 
- #define pr_fmt(fmt) "[%d:c/r:%s] " fmt, task_pid_vnr(current), __func__
- 
-+static inline void __task_deny_checkpointing(struct task_struct *task,
-+		char *file, int line)
-+{
-+	if (!atomic_dec_and_test(&task->may_checkpoint))
-+		return;
-+	printk(KERN_INFO "process performed an action that can not be "
-+			"checkpointed at: %s:%d\n", file, line);
-+	WARN_ON(1);
-+}
-+#define process_deny_checkpointing(p)  \
-+	__task_deny_checkpointing(p, __FILE__, __LINE__)
-+
-+/*
-+ * For now, we're not going to have a distinction between
-+ * tasks and processes for the purpose of c/r.  But, allow
-+ * these two calls anyway to make new users at least think
-+ * about it.
-+ */
-+#define task_deny_checkpointing(p)  \
-+	__task_deny_checkpointing(p, __FILE__, __LINE__)
-+
-+#else
-+
-+static inline void task_deny_checkpointing(struct task_struct *task) {}
-+static inline void process_deny_checkpointing(struct task_struct *task) {}
-+
-+#endif
-+
- #endif /* _CHECKPOINT_CKPT_H_ */
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 55e30d1..faa2ec6 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1356,6 +1356,10 @@ struct task_struct {
- 	unsigned long default_timer_slack_ns;
- 
- 	struct list_head	*scm_work_list;
-+
-+#ifdef CONFIG_CHECKPOINT_RESTART
-+	atomic_t may_checkpoint;
-+#endif
- };
- 
- /*
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 495da2e..085ce56 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -196,6 +196,13 @@ void __init fork_init(unsigned long mempages)
- 	init_task.signal->rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
- 	init_task.signal->rlim[RLIMIT_SIGPENDING] =
- 		init_task.signal->rlim[RLIMIT_NPROC];
-+
-+#ifdef CONFIG_CHECKPOINT_RESTART
-+	/*
-+	 * This probably won't stay set for long...
-+	 */
-+	atomic_set(&init_task.may_checkpoint, 1);
-+#endif
- }
- 
- int __attribute__((weak)) arch_dup_task_struct(struct task_struct *dst,
-@@ -246,6 +253,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
- 	tsk->btrace_seq = 0;
- #endif
- 	tsk->splice_pipe = NULL;
-+#ifdef CONFIG_CHECKPOINT_RESTART
-+	atomic_set(&tsk->may_checkpoint, atomic_read(&orig->may_checkpoint));
-+#endif
- 	return tsk;
- 
- out:
--- 
-1.5.4.3
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
