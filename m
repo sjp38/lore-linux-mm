@@ -1,130 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 497446B0044
-	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 13:59:24 -0500 (EST)
-Date: Tue, 30 Dec 2008 18:59:19 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: stop kswapd's infinite loop at high order
-	allocation
-Message-ID: <20081230185919.GA17725@csn.ul.ie>
-References: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9956B0044
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 17:28:53 -0500 (EST)
+Date: Tue, 30 Dec 2008 14:28:05 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] cpuset,mm: fix allocating page cache/slab object on the
+ unallowed node when memory spread is set
+Message-Id: <20081230142805.3c6f78e3.akpm@linux-foundation.org>
+In-Reply-To: <49547B93.5090905@cn.fujitsu.com>
+References: <49547B93.5090905@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, wassim dagash <wassim.dagash@gmail.com>
+To: miaox@cn.fujitsu.com
+Cc: menage@google.com, cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Dec 30, 2008 at 07:55:47PM +0900, KOSAKI Motohiro wrote:
-> 
-> ok, wassim confirmed this patch works well.
-> 
-> 
-> ==
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Subject: [PATCH] mm: kswapd stop infinite loop at high order allocation
-> 
-> Wassim Dagash reported following kswapd infinite loop problem.
-> 
->   kswapd runs in some infinite loop trying to swap until order 10 of zone
->   highmem is OK, While zone higmem (as I understand) has nothing to do
->   with contiguous memory (cause there is no 1-1 mapping) which means
->   kswapd will continue to try to balance order 10 of zone highmem
->   forever (or until someone release a very large chunk of highmem).
-> 
-> He proposed remove contenious checking on highmem at all.
-> However hugepage on highmem need contenious highmem page.
-> 
+On Fri, 26 Dec 2008 14:37:07 +0800
+Miao Xie <miaox@cn.fujitsu.com> wrote:
 
-I'm lacking the original problem report, but contiguous order-10 pages are
-indeed required for hugepages in highmem and reclaiming for them should not
-be totally disabled at any point. While no 1-1 mapping exists for the kernel,
-contiguity is still required.
+> The task still allocated the page caches on old node after modifying its
+> cpuset's mems when 'memory_spread_page' was set, it is caused by the old
+> mem_allowed_list of the task. Slab has the same problem.
 
-kswapd gets a sc.order when it is known there is a process trying to get
-high-order pages so it can reclaim at that order in an attempt to prevent
-future direct reclaim at a high-order. Your patch does not appear to depend on
-GFP_KERNEL at all so I found the comment misleading. Furthermore, asking it to
-loop again at order-0 means it may scan and reclaim more memory unnecessarily
-seeing as all_zones_ok was calculated based on a high-order value, not order-0.
+ok...
 
-While constantly looping trying to balance for high-orders is indeed bad,
-I'm unconvinced this is the correct change. As we have already gone through
-a priorities and scanned everything at the high-order, would it not make
-more sense to do just give up with something like the following?
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index f3e5f89..d978983 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -517,6 +517,9 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+>  #ifdef CONFIG_NUMA
+>  struct page *__page_cache_alloc(gfp_t gfp)
+>  {
+> +	if ((gfp & __GFP_WAIT) && !in_interrupt())
+> +		cpuset_update_task_memory_state();
+> +
+>  	if (cpuset_do_page_mem_spread()) {
+>  		int n = cpuset_mem_spread_node();
+>  		return alloc_pages_node(n, gfp, 0);
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 0918751..3b6e3d7 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3460,6 +3460,9 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
+>  	if (should_failslab(cachep, flags))
+>  		return NULL;
+>  
+> +	if ((flags & __GFP_WAIT) && !in_interrupt())
+> +		cpuset_update_task_memory_state();
+> +
+>  	cache_alloc_debugcheck_before(cachep, flags);
+>  	local_irq_save(save_flags);
+>  	objp = __do_cache_alloc(cachep, flags);
 
-       /*
-        * If zones are still not balanced, loop again and continue attempting
-        * to rebalance the system. For high-order allocations, fragmentation
-        * can prevent the zones being rebalanced no matter how hard kswapd
-        * works, particularly on systems with little or no swap. For costly
-        * orders, just give up and assume interested processes will either
-        * direct reclaim or wake up kswapd as necessary.
-        */
-        if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
-                cond_resched();
+Problems.
 
-                try_to_freeze();
+a) There's no need to test in_interrupt().  Any caller who passed us
+   __GFP_WAIT from interrupt context is horridly buggy and needs to be
+   fixed.
 
-                goto loop_again;
-        }
+b) Even if the caller _did_ set __GFP_WAIT, there's no guarantee
+   that we're deadlock safe here.  Does anyone ever do a __GFP_WAIT
+   allocation while holding callback_mutex?  If so, it'll deadlock.
 
-I used PAGE_ALLOC_COSTLY_ORDER instead of sc.order == 0 because we are
-expected to support allocations up to that order in a fairly reliable fashion.
+c) These are two of the kernel's hottest code paths.  We really
+   really really really don't want to be polling for some dopey
+   userspace admin change on each call to __cache_alloc()!
 
-> To add infinite loop stopper is simple and good.
-> 
-> 
-> 
-> Reported-by: wassim dagash <wassim.dagash@gmail.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-For the moment
-
-NAKed-by: Mel Gorman <mel@csn.ul.ie>
-
-How about the following (compile-tested-only) patch?
-
-=============
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH] mm: stop kswapd's infinite loop at high order allocation
-
-  kswapd runs in some infinite loop trying to swap until order 10 of zone
-  highmem is OK.... kswapd will continue to try to balance order 10 of zone
-  highmem forever (or until someone release a very large chunk of highmem).
-
-For costly high-order allocations, the system may never be balanced due to
-fragmentation but kswapd should not infinitely loop as a result. The
-following patch lets kswapd stop reclaiming in the event it cannot
-balance zones and the order is high-order.
-
-Reported-by: wassim dagash <wassim.dagash@gmail.com>
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 62e7f62..03ed9a0 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1867,7 +1867,16 @@ out:
- 
- 		zone->prev_priority = temp_priority[i];
- 	}
--	if (!all_zones_ok) {
-+
-+	/*
-+	 * If zones are still not balanced, loop again and continue attempting
-+	 * to rebalance the system. For high-order allocations, fragmentation
-+	 * can prevent the zones being rebalanced no matter how hard kswapd
-+	 * works, particularly on systems with little or no swap. For costly
-+	 * orders, just give up and assume interested processes will either
-+	 * direct reclaim or wake up kswapd as necessary.
-+	 */
-+	if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
- 		cond_resched();
- 
- 		try_to_freeze();
+d) How does slub handle this problem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
