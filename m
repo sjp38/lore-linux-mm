@@ -1,38 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 390EB6B0044
-	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 06:27:16 -0500 (EST)
-Message-ID: <495A058C.7060105@goop.org>
-Date: Tue, 30 Dec 2008 22:27:08 +1100
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 497446B0044
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 13:59:24 -0500 (EST)
+Date: Tue, 30 Dec 2008 18:59:19 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: stop kswapd's infinite loop at high order
+	allocation
+Message-ID: <20081230185919.GA17725@csn.ul.ie>
+References: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
-References: <49416494.6040009@goop.org> <200707241140.12945.nickpiggin@yahoo.com.au> <49470433.4050504@goop.org> <200812301442.37654.nickpiggin@yahoo.com.au>
-In-Reply-To: <200812301442.37654.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, wassim dagash <wassim.dagash@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> I have patches to move the tlb flushing to an asynchronous process context...
-> but all tweaks to that (including flushing at vmap) are just variations on the
-> existing flushing scheme and don't solve your problem, so I don't think we
-> really need to change that for the moment (my patches are mainly for latency
-> improvement and to allow vunmap to be usable from interrupt context).
->   
+On Tue, Dec 30, 2008 at 07:55:47PM +0900, KOSAKI Motohiro wrote:
+> 
+> ok, wassim confirmed this patch works well.
+> 
+> 
+> ==
+> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Subject: [PATCH] mm: kswapd stop infinite loop at high order allocation
+> 
+> Wassim Dagash reported following kswapd infinite loop problem.
+> 
+>   kswapd runs in some infinite loop trying to swap until order 10 of zone
+>   highmem is OK, While zone higmem (as I understand) has nothing to do
+>   with contiguous memory (cause there is no 1-1 mapping) which means
+>   kswapd will continue to try to balance order 10 of zone highmem
+>   forever (or until someone release a very large chunk of highmem).
+> 
+> He proposed remove contenious checking on highmem at all.
+> However hugepage on highmem need contenious highmem page.
+> 
 
-Well, that's basically what I want - I want to use vunmap in an 
-interrupts-disabled context.  Any other possibility of deferring tlb 
-flushes is pure bonus and not all that important.
+I'm lacking the original problem report, but contiguous order-10 pages are
+indeed required for hugepages in highmem and reclaiming for them should not
+be totally disabled at any point. While no 1-1 mapping exists for the kernel,
+contiguity is still required.
 
-But it also occurred to me that Xen doesn't use IPIs for cross-cpu TLB 
-flushes (it goes to hypercall), so it shouldn't be an issue anyway.  I 
-haven't had a chance to look at what's really going on there.
+kswapd gets a sc.order when it is known there is a process trying to get
+high-order pages so it can reclaim at that order in an attempt to prevent
+future direct reclaim at a high-order. Your patch does not appear to depend on
+GFP_KERNEL at all so I found the comment misleading. Furthermore, asking it to
+loop again at order-0 means it may scan and reclaim more memory unnecessarily
+seeing as all_zones_ok was calculated based on a high-order value, not order-0.
 
-    J
+While constantly looping trying to balance for high-orders is indeed bad,
+I'm unconvinced this is the correct change. As we have already gone through
+a priorities and scanned everything at the high-order, would it not make
+more sense to do just give up with something like the following?
+
+       /*
+        * If zones are still not balanced, loop again and continue attempting
+        * to rebalance the system. For high-order allocations, fragmentation
+        * can prevent the zones being rebalanced no matter how hard kswapd
+        * works, particularly on systems with little or no swap. For costly
+        * orders, just give up and assume interested processes will either
+        * direct reclaim or wake up kswapd as necessary.
+        */
+        if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
+                cond_resched();
+
+                try_to_freeze();
+
+                goto loop_again;
+        }
+
+I used PAGE_ALLOC_COSTLY_ORDER instead of sc.order == 0 because we are
+expected to support allocations up to that order in a fairly reliable fashion.
+
+> To add infinite loop stopper is simple and good.
+> 
+> 
+> 
+> Reported-by: wassim dagash <wassim.dagash@gmail.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+For the moment
+
+NAKed-by: Mel Gorman <mel@csn.ul.ie>
+
+How about the following (compile-tested-only) patch?
+
+=============
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] mm: stop kswapd's infinite loop at high order allocation
+
+  kswapd runs in some infinite loop trying to swap until order 10 of zone
+  highmem is OK.... kswapd will continue to try to balance order 10 of zone
+  highmem forever (or until someone release a very large chunk of highmem).
+
+For costly high-order allocations, the system may never be balanced due to
+fragmentation but kswapd should not infinitely loop as a result. The
+following patch lets kswapd stop reclaiming in the event it cannot
+balance zones and the order is high-order.
+
+Reported-by: wassim dagash <wassim.dagash@gmail.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 62e7f62..03ed9a0 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1867,7 +1867,16 @@ out:
+ 
+ 		zone->prev_priority = temp_priority[i];
+ 	}
+-	if (!all_zones_ok) {
++
++	/*
++	 * If zones are still not balanced, loop again and continue attempting
++	 * to rebalance the system. For high-order allocations, fragmentation
++	 * can prevent the zones being rebalanced no matter how hard kswapd
++	 * works, particularly on systems with little or no swap. For costly
++	 * orders, just give up and assume interested processes will either
++	 * direct reclaim or wake up kswapd as necessary.
++	 */
++	if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
+ 		cond_resched();
+ 
+ 		try_to_freeze();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
