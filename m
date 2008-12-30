@@ -1,58 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 308316B0044
-	for <linux-mm@kvack.org>; Mon, 29 Dec 2008 23:02:31 -0500 (EST)
-Date: Tue, 30 Dec 2008 05:02:25 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [rfc][patch 1/2] mnt_want_write speedup 1
-Message-ID: <20081230040225.GB27679@wotan.suse.de>
-References: <20081219061937.GA16268@wotan.suse.de> <1229669697.17206.602.camel@nimitz> <20081219070311.GA26419@wotan.suse.de> <1229700721.17206.634.camel@nimitz> <20081222043526.GC13406@wotan.suse.de> <1230591637.19452.129.camel@nimitz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1230591637.19452.129.camel@nimitz>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E9AED6B0044
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 05:55:51 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id mBUAtmw2032749
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 30 Dec 2008 19:55:49 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CAD3845DE4F
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 19:55:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AF8A545DD72
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 19:55:48 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CBE61DB8037
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 19:55:48 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4A84E1DB8038
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 19:55:48 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm: stop kswapd's infinite loop at high order allocation
+Message-Id: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Dec 2008 19:55:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, wassim dagash <wassim.dagash@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 29, 2008 at 03:00:37PM -0800, Dave Hansen wrote:
-> On Mon, 2008-12-22 at 05:35 +0100, Nick Piggin wrote:
-> > > Is there a real good reason to allocate the percpu counters dynamically?
-> > > Might as well stick them in the vfsmount and let the one
-> > > kmem_cache_zalloc() in alloc_vfsmnt() do a bit larger of an allocation.
-> > > Did you think that was going to bloat it to a compound allocation or
-> > > something?  I hate the #ifdefs. :)
-> > 
-> > Distros want to ship big NR_CPUS kernels and have them run reasonably on
-> > small num_possible_cpus() systems. But also, it would help to avoid
-> > cacheline bouncing from false sharing (allocpercpu.c code can also mess
-> > this bug for small objects like these counters, but that's a problem
-> > with the allocpercpu code which should be fixed anyway).
-> 
-> I guess we could also play the old trick:
-> 
-> struct vfsmount
-> {
-> 	...
-> 	int mnt_writers[0];
-> };
-> 
-> And just 
-> 
-> void __init mnt_init(void)
-> {
-> ...
-> 	int size = sizeof(struct vfsmount) + num_possible_cpus() * sizeof(int)
-> 
-> -       mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
-> +       mnt_cache = kmem_cache_create("mnt_cache", size,
->                         0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-> 
-> That should save us the dereference from the pointer and still let it be
-> pretty flexible.  
 
-Still results in cacheline contention, however...
+ok, wassim confirmed this patch works well.
+
+
+==
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm: kswapd stop infinite loop at high order allocation
+
+Wassim Dagash reported following kswapd infinite loop problem.
+
+  kswapd runs in some infinite loop trying to swap until order 10 of zone
+  highmem is OK, While zone higmem (as I understand) has nothing to do
+  with contiguous memory (cause there is no 1-1 mapping) which means
+  kswapd will continue to try to balance order 10 of zone highmem
+  forever (or until someone release a very large chunk of highmem).
+
+He proposed remove contenious checking on highmem at all.
+However hugepage on highmem need contenious highmem page.
+
+To add infinite loop stopper is simple and good.
+
+
+
+Reported-by: wassim dagash <wassim.dagash@gmail.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1872,6 +1872,17 @@ out:
+ 
+ 		try_to_freeze();
+ 
++		/*
++		 * When highmem is very fragmented,
++		 * alloc_pages(GFP_KERNEL, very-high-order) can cause
++		 * infinite loop because zone_watermark_ok(highmem) failed.
++		 * However, alloc_pages(GFP_KERNEL..) indicate highmem memory
++		 * continuousness isn't necessary.
++		 * Therefore we don't want contenious check at 2nd loop.
++		 */
++		if (nr_reclaimed < SWAP_CLUSTER_MAX)
++			order = sc.order = 0;
++
+ 		goto loop_again;
+ 	}
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
