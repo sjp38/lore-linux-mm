@@ -1,102 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1D5D56B007E
-	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 23:01:24 -0500 (EST)
-Message-ID: <495AEE1E.9050303@cn.fujitsu.com>
-Date: Wed, 31 Dec 2008 11:59:26 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+	by kanga.kvack.org (Postfix) with SMTP id 5D6A76B0083
+	for <linux-mm@kvack.org>; Tue, 30 Dec 2008 23:54:19 -0500 (EST)
+Received: by wa-out-1112.google.com with SMTP id j37so3264587waf.22
+        for <linux-mm@kvack.org>; Tue, 30 Dec 2008 20:54:17 -0800 (PST)
+Message-ID: <2f11576a0812302054rd26d8bcw6a113b3abefe8965@mail.gmail.com>
+Date: Wed, 31 Dec 2008 13:54:17 +0900
+From: "KOSAKI Motohiro" <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: stop kswapd's infinite loop at high order allocation
+In-Reply-To: <20081230185919.GA17725@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH] cpuset,mm: fix allocating page cache/slab object on the
- unallowed node when memory spread is set
-References: <49547B93.5090905@cn.fujitsu.com> <20081230142805.3c6f78e3.akpm@linux-foundation.org> <200812311413.45127.nickpiggin@yahoo.com.au>
-In-Reply-To: <200812311413.45127.nickpiggin@yahoo.com.au>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20081230185919.GA17725@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, menage@google.com, cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, wassim dagash <wassim.dagash@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-on 2008-12-31 11:13 Nick Piggin wrote:
-> On Wednesday 31 December 2008 09:28:05 Andrew Morton wrote:
->> On Fri, 26 Dec 2008 14:37:07 +0800
+Hi
+
+thank you for reviewing.
+
+>> ==
+>> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Subject: [PATCH] mm: kswapd stop infinite loop at high order allocation
 >>
->> Miao Xie <miaox@cn.fujitsu.com> wrote:
->>> The task still allocated the page caches on old node after modifying its
->>> cpuset's mems when 'memory_spread_page' was set, it is caused by the old
->>> mem_allowed_list of the task. Slab has the same problem.
->> ok...
+>> Wassim Dagash reported following kswapd infinite loop problem.
 >>
->>> diff --git a/mm/filemap.c b/mm/filemap.c
->>> index f3e5f89..d978983 100644
->>> --- a/mm/filemap.c
->>> +++ b/mm/filemap.c
->>> @@ -517,6 +517,9 @@ int add_to_page_cache_lru(struct page *page, struct
->>> address_space *mapping, #ifdef CONFIG_NUMA
->>>  struct page *__page_cache_alloc(gfp_t gfp)
->>>  {
->>> +	if ((gfp & __GFP_WAIT) && !in_interrupt())
->>> +		cpuset_update_task_memory_state();
->>> +
->>>  	if (cpuset_do_page_mem_spread()) {
->>>  		int n = cpuset_mem_spread_node();
->>>  		return alloc_pages_node(n, gfp, 0);
->>> diff --git a/mm/slab.c b/mm/slab.c
->>> index 0918751..3b6e3d7 100644
->>> --- a/mm/slab.c
->>> +++ b/mm/slab.c
->>> @@ -3460,6 +3460,9 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t
->>> flags, void *caller) if (should_failslab(cachep, flags))
->>>  		return NULL;
->>>
->>> +	if ((flags & __GFP_WAIT) && !in_interrupt())
->>> +		cpuset_update_task_memory_state();
->>> +
-> 
-> These paths are pretty performance critical. Why don't cpusets code do this
-> work in the slowpath where the cpuset's mems_allowed gets changed rather
-> than putting these calls all over the place with apparently no real rhyme or
-> reason :( (this is not against your patch, but just this part of the cpusets
-> design)
-
-I see. I will do it.
-
->>>  	cache_alloc_debugcheck_before(cachep, flags);
->>>  	local_irq_save(save_flags);
->>>  	objp = __do_cache_alloc(cachep, flags);
->> Problems.
+>>   kswapd runs in some infinite loop trying to swap until order 10 of zone
+>>   highmem is OK, While zone higmem (as I understand) has nothing to do
+>>   with contiguous memory (cause there is no 1-1 mapping) which means
+>>   kswapd will continue to try to balance order 10 of zone highmem
+>>   forever (or until someone release a very large chunk of highmem).
 >>
->> a) There's no need to test in_interrupt().  Any caller who passed us
->>    __GFP_WAIT from interrupt context is horridly buggy and needs to be
->>    fixed.
-> 
-> Right. There are existing sites that do the same check, which is probably
-> where it is copied from.
+>> He proposed remove contenious checking on highmem at all.
+>> However hugepage on highmem need contenious highmem page.
+>>
+>
+> I'm lacking the original problem report, but contiguous order-10 pages are
+> indeed required for hugepages in highmem and reclaiming for them should not
+> be totally disabled at any point. While no 1-1 mapping exists for the kernel,
+> contiguity is still required.
 
-I will do cleanup in the next patch.
-Thanks!
+correct.
+but that's ok.
 
-> 
->> b) Even if the caller _did_ set __GFP_WAIT, there's no guarantee
->>    that we're deadlock safe here.  Does anyone ever do a __GFP_WAIT
->>    allocation while holding callback_mutex?  If so, it'll deadlock.
-> 
-> It's static to cpuset.c, so I'd hope not.
-> 
-> 
->> c) These are two of the kernel's hottest code paths.  We really
->>    really really really don't want to be polling for some dopey
->>    userspace admin change on each call to __cache_alloc()!
-> 
-> Yeah, right. Let's try to fix cpuset.c instead...
-> 
->> d) How does slub handle this problem?
-> 
-> SLUB seems to do a "sloppy" kind of memory policy allocation, where it just
-> relies on the page allocator to hand us the correct page and AFAIKS does not
-> exactly obey this stuff all the time.
+my patch only change corner case bahavior and only disable high-order
+when priority==0. typical hugepage reclaim don't need and don't reach
+priority==0.
 
+and sorry. I agree with my "2nd loop"  word of the patch comment is a
+bit misleading.
+
+
+> kswapd gets a sc.order when it is known there is a process trying to get
+> high-order pages so it can reclaim at that order in an attempt to prevent
+> future direct reclaim at a high-order. Your patch does not appear to depend on
+> GFP_KERNEL at all so I found the comment misleading. Furthermore, asking it to
+> loop again at order-0 means it may scan and reclaim more memory unnecessarily
+> seeing as all_zones_ok was calculated based on a high-order value, not order-0.
+
+Yup. my patch doesn't depend on GFP_KERNEL.
+
+but, Why order-0 means it may scan more memory unnecessary?
+all_zones_ok() is calculated by zone_watermark_ok() and zone_watermark_ok()
+depend on order argument. and my patch set order variable to 0 too.
+
+
+> While constantly looping trying to balance for high-orders is indeed bad,
+> I'm unconvinced this is the correct change. As we have already gone through
+> a priorities and scanned everything at the high-order, would it not make
+> more sense to do just give up with something like the following?
+>
+>       /*
+>        * If zones are still not balanced, loop again and continue attempting
+>        * to rebalance the system. For high-order allocations, fragmentation
+>        * can prevent the zones being rebalanced no matter how hard kswapd
+>        * works, particularly on systems with little or no swap. For costly
+>        * orders, just give up and assume interested processes will either
+>        * direct reclaim or wake up kswapd as necessary.
+>        */
+>        if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
+>                cond_resched();
+>
+>                try_to_freeze();
+>
+>                goto loop_again;
+>        }
+>
+> I used PAGE_ALLOC_COSTLY_ORDER instead of sc.order == 0 because we are
+> expected to support allocations up to that order in a fairly reliable fashion.
+
+my comment is bellow.
+
+
+> =============
+> From: Mel Gorman <mel@csn.ul.ie>
+> Subject: [PATCH] mm: stop kswapd's infinite loop at high order allocation
+>
+>  kswapd runs in some infinite loop trying to swap until order 10 of zone
+>  highmem is OK.... kswapd will continue to try to balance order 10 of zone
+>  highmem forever (or until someone release a very large chunk of highmem).
+>
+> For costly high-order allocations, the system may never be balanced due to
+> fragmentation but kswapd should not infinitely loop as a result. The
+> following patch lets kswapd stop reclaiming in the event it cannot
+> balance zones and the order is high-order.
+>
+> Reported-by: wassim dagash <wassim.dagash@gmail.com>
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 62e7f62..03ed9a0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1867,7 +1867,16 @@ out:
+>
+>                zone->prev_priority = temp_priority[i];
+>        }
+> -       if (!all_zones_ok) {
+> +
+> +       /*
+> +        * If zones are still not balanced, loop again and continue attempting
+> +        * to rebalance the system. For high-order allocations, fragmentation
+> +        * can prevent the zones being rebalanced no matter how hard kswapd
+> +        * works, particularly on systems with little or no swap. For costly
+> +        * orders, just give up and assume interested processes will either
+> +        * direct reclaim or wake up kswapd as necessary.
+> +        */
+> +       if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
+>                cond_resched();
+>
+>                try_to_freeze();
+
+this patch seems no good.
+kswapd come this point every SWAP_CLUSTER_MAX reclaimed because to avoid
+unnecessary priority variable decreasing.
+then "nr_reclaimed >= SWAP_CLUSTER_MAX" indicate kswapd need reclaim more.
+
+kswapd purpose is "reclaim until pages_high", not reclaim
+SWAP_CLUSTER_MAX pages.
+
+if your patch applied and kswapd start to reclaim for hugepage, kswapd
+exit balance_pgdat() function after to reclaim only 32 pages
+(SWAP_CLUSTER_MAX).
+
+In the other hand, "nr_reclaimed < SWAP_CLUSTER_MAX" mean kswapd can't
+reclaim enough
+page although priority == 0.
+in this case, retry is worthless.
+
+sorting out again.
+"goto loop_again" reaching happend by two case.
+
+1. kswapd reclaimed SWAP_CLUSTER_MAX pages.
+    at that time, kswapd reset priority variable to prevent
+unnecessary priority decreasing.
+    I don't hope this behavior change.
+2. kswapd scanned until priority==0.
+    this case is debatable. my patch reset any order to 0. but
+following code is also considerable to me. (sorry for tab corrupted,
+current my mail environment is very poor)
+
+
+code-A:
+       if (!all_zones_ok) {
+              if ((nr_reclaimed >= SWAP_CLUSTER_MAX) ||
+                 (sc.order <= PAGE_ALLOC_COSTLY_ORDER)) {
+                          cond_resched();
+                           try_to_freeze();
+                           goto loop_again;
+                }
+       }
+
+or
+
+code-B:
+       if (!all_zones_ok) {
+              cond_resched();
+               try_to_freeze();
+
+              if (nr_reclaimed >= SWAP_CLUSTER_MAX)
+                           goto loop_again;
+
+              if (sc.order <= PAGE_ALLOC_COSTLY_ORDER)) {
+                           order = sc.order = 0;
+                           goto loop_again;
+              }
+       }
+
+
+However, I still like my original proposal because ..
+  - code-A forget to order-1 (for stack) allocation also can cause
+infinite loop.
+  - code-B doesn't simpler than my original proposal.
+
+What do you think it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
