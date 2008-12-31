@@ -1,468 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id B68686B0088
-	for <linux-mm@kvack.org>; Wed, 31 Dec 2008 05:08:37 -0500 (EST)
-Date: Wed, 31 Dec 2008 11:08:16 +0100
-From: Jiri Pirko <jpirko@redhat.com>
-Subject: Re: [PATCH for -mm] getrusage: fill ru_maxrss value
-Message-ID: <20081231110816.5f80e265@psychotron.englab.brq.redhat.com>
-In-Reply-To: <20081230201052.128B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20081230201052.128B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 054AE6B008C
+	for <linux-mm@kvack.org>; Wed, 31 Dec 2008 06:06:23 -0500 (EST)
+Date: Wed, 31 Dec 2008 11:06:19 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] mm: stop kswapd's infinite loop at high order
+	allocation
+Message-ID: <20081231110619.GA20534@csn.ul.ie>
+References: <20081230195006.1286.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081230185919.GA17725@csn.ul.ie> <20081231013233.GB32239@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20081231013233.GB32239@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, wassim dagash <wassim.dagash@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Dec 2008 20:15:33 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
-> Hi
+On Wed, Dec 31, 2008 at 02:32:33AM +0100, Nick Piggin wrote:
+> On Tue, Dec 30, 2008 at 06:59:19PM +0000, Mel Gorman wrote:
+> > On Tue, Dec 30, 2008 at 07:55:47PM +0900, KOSAKI Motohiro wrote:
+> > > 
+> > > ok, wassim confirmed this patch works well.
+> > > 
+> > > 
+> > > ==
+> > > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > > Subject: [PATCH] mm: kswapd stop infinite loop at high order allocation
+> > > 
+> > > Wassim Dagash reported following kswapd infinite loop problem.
+> > > 
+> > >   kswapd runs in some infinite loop trying to swap until order 10 of zone
+> > >   highmem is OK, While zone higmem (as I understand) has nothing to do
+> > >   with contiguous memory (cause there is no 1-1 mapping) which means
+> > >   kswapd will continue to try to balance order 10 of zone highmem
+> > >   forever (or until someone release a very large chunk of highmem).
+> > > 
+> > > He proposed remove contenious checking on highmem at all.
+> > > However hugepage on highmem need contenious highmem page.
+> > > 
+> > 
+> > I'm lacking the original problem report, but contiguous order-10 pages are
+> > indeed required for hugepages in highmem and reclaiming for them should not
+> > be totally disabled at any point. While no 1-1 mapping exists for the kernel,
+> > contiguity is still required.
 > 
-> Oleg, Jiri, this is my getrusage testcase and proposal patch.
-> Could you please review it?
-> 
-> 
-> 
-> Changes Jiris's last version
->   - At wait_task_zombie(), parent process doesn't only collect child maxrss,
->     but also cmaxrss.
-Yes, this is what we were missing so far.
-
->   - ru_maxrss inherit at exec()
->   - style fixes.
-
-New patch seems almost fine to me. Only I do not like usage of max()
-macro in do_exit() and in de_thread(). It's unnecessary and little
-wasting (yes only a little :)). This two spots would be maybe better
-solved with if(<).
-
-> 
-> Applied after: introduce-get_mm_hiwater_xxx-fix-taskstats-hiwater_xxx-accounting.patch
-> ==
-> From: Signed-off-by: Jiri Pirko <jpirko@redhat.com>
-> Subject: [PATCH for -mm] getrusage: fill ru_maxrss value
-> 
-> This patch makes ->ru_maxrss value in struct rusage filled accordingly to
-> rss hiwater mark. This struct is filled as a parameter to
-> getrusage syscall. ->ru_maxrss value is set to KBs which is the way it
-> is done in BSD systems. /usr/bin/time (gnu time) application converts
-> ->ru_maxrss to KBs which seems to be incorrect behavior. Maintainer of
-> this util was notified by me with the patch which corrects it and cc'ed.
-> 
-> To make this happen we extend struct signal_struct by two fields. The
-> first one is ->maxrss which we use to store rss hiwater of the task. The
-> second one is ->cmaxrss which we use to store highest rss hiwater of all
-> task childs. These values are used in k_getrusage() to actually fill
-> ->ru_maxrss. k_getrusage() uses current rss hiwater value directly
-> if mm struct exists.
-> 
-> Note:
-> exec() clear mm->hiwater_rss, but doesn't clear sig->maxrss.
-> it is intetionally behavior. *BSD getrusage have exec() inheriting.
-> 
-> 
-> Test progmam and test case
-> ===========================
-> 
-> getrusage.c
-> ----
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <string.h>
-> #include <sys/types.h>
-> #include <sys/time.h>
-> #include <sys/resource.h>
-> #include <sys/types.h>
-> #include <sys/wait.h>
-> #include <unistd.h>
-> #include <signal.h>
-> 
-> static void consume(int mega)
-> {
-> 	size_t sz = mega * 1024 * 1024;
-> 	void *ptr;
-> 
-> 	ptr = malloc(sz);
-> 	memset(ptr, 0, sz);
-> 	usleep(1);  /* BSD rusage statics need to sleep 1 tick */
-> }
-> 
-> static void show_rusage(char *prefix)
-> {
-> 	int err, err2;
-> 	struct rusage rusage_self;
-> 	struct rusage rusage_children;
-> 
-> 	printf("%s: ", prefix);
-> 	err = getrusage(RUSAGE_SELF, &rusage_self);
-> 	if (!err)
-> 		printf("self %ld ", rusage_self.ru_maxrss);
-> 	err2 = getrusage(RUSAGE_CHILDREN, &rusage_children);
-> 	if (!err2)
-> 		printf("children %ld ", rusage_children.ru_maxrss);
-> 
-> 	printf("\n");
-> }
-> 
-> int main(int argc, char** argv)
-> {
-> 	int status;
-> 	int c;
-> 	int need_sleep_before_wait = 0;
-> 	int consume_large_memory_at_first = 0;
-> 	int create_child_at_first = 0;
-> 	int sigign = 0;
-> 	int create_child_before_exec = 0;
-> 	int after_fork_test = 0;
-> 
-> 	while ((c = getopt(argc, argv, "ceflsz")) != -1) {
-> 		switch (c) {
-> 		case 'c':
-> 			create_child_at_first = 1;
-> 			break;
-> 		case 'e':
-> 			create_child_before_exec = 1;
-> 			break;
-> 		case 'f':
-> 			after_fork_test = 1;
-> 			break;
-> 		case 'l':
-> 			consume_large_memory_at_first = 1;
-> 			break;
-> 		case 's':
-> 			sigign = 1;
-> 			break;
-> 		case 'z':
-> 			need_sleep_before_wait = 1;
-> 			break;
-> 		default:
-> 			break;
-> 		}
-> 	}
-> 
-> 	if (consume_large_memory_at_first)
-> 		consume(100);   
-> 
-> 	if (create_child_at_first)
-> 		system("./child -q"); 
-> 	
-> 	if (sigign)
-> 		signal(SIGCHLD, SIG_IGN);
-> 
-> 	if (fork()) {
-> 		usleep(1);
-> 		if (need_sleep_before_wait)
-> 			sleep(3); /* children become zombie */
-> 		show_rusage("pre_wait");
-> 		wait(&status);
-> 		show_rusage("post_wait");
-> 	} else {
-> 		usleep(1);
-> 		show_rusage("fork");
-> 		
-> 		if (after_fork_test) {
-> 			consume(30);
-> 			show_rusage("fork2");
-> 		}
-> 		if (create_child_before_exec) {
-> 			system("./child -lq"); 
-> 			usleep(1);
-> 			show_rusage("fork3");
-> 		}
-> 
-> 		execl("./child", "child", 0);
-> 		exit(0);
-> 	}
-> 	     
-> 	return 0;
-> }
-> 
-> child.c
-> ----
-> #include <sys/types.h>
-> #include <unistd.h>
-> #include <sys/types.h>
-> #include <sys/wait.h>
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <string.h>
-> #include <sys/types.h>
-> #include <sys/time.h>
-> #include <sys/resource.h>
-> 
-> static void consume(int mega)
-> {
-> 	size_t sz = mega * 1024 * 1024;
-> 	void *ptr;
-> 
-> 	ptr = malloc(sz);
-> 	memset(ptr, 0, sz);
-> 	usleep(1);  /* BSD rusage statics need to sleep 1 tick */
-> }
-> 
-> static void show_rusage(char *prefix)
-> {
-> 	int err, err2;
-> 	struct rusage rusage_self;
-> 	struct rusage rusage_children;
-> 
-> 	printf("%s: ", prefix);
-> 	err = getrusage(RUSAGE_SELF, &rusage_self);
-> 	if (!err)
-> 		printf("self %ld ", rusage_self.ru_maxrss);
-> 	err2 = getrusage(RUSAGE_CHILDREN, &rusage_children);
-> 	if (!err2)
-> 		printf("children %ld ", rusage_children.ru_maxrss);
-> 
-> 	printf("\n");
-> 
-> }
-> 
-> 
-> int main(int argc, char** argv)
-> {
-> 	int status;
-> 	int c;
-> 	int silent = 0;
-> 	int light_weight = 0;
-> 
-> 	while ((c = getopt(argc, argv, "lq")) != -1) {
-> 		switch (c) {
-> 		case 'l':
-> 			light_weight = 1;
-> 			break;
-> 		case 'q':
-> 			silent = 1;
-> 			break;
-> 		default:
-> 			break;
-> 		}
-> 	}
-> 
-> 	if (!silent)
-> 		show_rusage("exec");
-> 
-> 	if (fork()) {
-> 		if (light_weight)
-> 			consume(400);
-> 		else
-> 			consume(700);
-> 		wait(&status);
-> 	} else {
-> 		if (light_weight)
-> 			consume(600);
-> 		else
-> 			consume(900);
-> 
-> 		exit(0);
-> 	}
-> 
-> 	return 0;
-> }
-> 
-> testcase
-> ==================
-> 1. inherit fork?
->    
->    test way:
->    	% ./getrusage -lc 
-> 
->    bsd result:
->    	fork line is "fork: self 0 children 0".
-> 
->    	-> rusage sholdn't be inherit by fork.
-> 	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-> 
-> 2. inherit exec?
-> 
->    test way:
->    	% ./getrusage -lce
-> 
->    bsd result:
->    	fork3: self 103204 children 60000 
-> 	exec: self 103204 children 60000
-> 
->    	fork3 and exec line are the same.
-> 
->    	-> rusage shold be inherit by exec.
-> 	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-> 
-> 3. getrusage(RUSAGE_CHILDREN) collect grandchild statics?
-> 
->    test way:
->    	% ./getrusage
-> 
->    bsd result:
->    	post_wait line is about "post_wait: self 0 children 90000".
-> 
-> 	-> RUSAGE_CHILDREN can collect grandchild.
-> 
-> 4. zombie, but not waited children collect or not?
-> 
->    test way:
->    	% ./getrusage -z
-> 
->    bsd result:
->    	pre_wait line is "pre_wait: self 0 children 0".
-> 
-> 	-> zombie child process (not waited-for child process)
-> 	   isn't accounted.
-> 
-> 5. SIG_IGN collect or not
-> 
->    test way:
->    	% ./getrusage -s
-> 
->    bsd result:
->    	post_wait line is "post_wait: self 0 children 0".
-> 
-> 	-> if SIGCHLD is ignored, children isn't accounted.
-> 
-> 6. fork and malloc
->    test way:
->    	% ./getrusage -lcf
-> 
->    bsd result:
->    	fork line is "fork: self 0 children 0".
->    	fork2 line is about "fork: self 130000 children 0".
-> 
->    	-> rusage sholdn't be inherit by fork.
-> 	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-> 	   but additional memory cunsumption cause right
-> 	   maxrss calculation.
-> 
-Testcases look good. Thanks for doing this.
-
-> 
-> Signed-off-by: Jiri Pirko <jpirko@redhat.com>
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> ---
->  fs/exec.c             |    5 +++++
->  include/linux/sched.h |    1 +
->  kernel/exit.c         |    6 ++++++
->  kernel/fork.c         |    1 +
->  kernel/sys.c          |   15 +++++++++++++++
->  5 files changed, 28 insertions(+)
-> 
-> Index: b/include/linux/sched.h
-> ===================================================================
-> --- a/include/linux/sched.h	2008-12-29 23:27:59.000000000 +0900
-> +++ b/include/linux/sched.h	2008-12-30 03:25:23.000000000 +0900
-> @@ -562,6 +562,7 @@ struct signal_struct {
->  	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
->  	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
->  	unsigned long inblock, oublock, cinblock, coublock;
-> +	unsigned long maxrss, cmaxrss;
->  	struct task_io_accounting ioac;
->  
->  	/*
-> Index: b/kernel/exit.c
-> ===================================================================
-> --- a/kernel/exit.c	2008-12-29 23:27:59.000000000 +0900
-> +++ b/kernel/exit.c	2008-12-30 17:35:51.000000000 +0900
-> @@ -1053,6 +1053,10 @@ NORET_TYPE void do_exit(long code)
->  	if (group_dead) {
->  		hrtimer_cancel(&tsk->signal->real_timer);
->  		exit_itimers(tsk->signal);
-> +		if (tsk->mm) {
-> +			unsigned long maxrss = get_mm_hiwater_rss(tsk->mm);
-> +			tsk->signal->maxrss = max(maxrss, tsk->signal->maxrss);
-> +		}
->  	}
->  	acct_collect(code, group_dead);
->  	if (group_dead)
-> @@ -1349,6 +1353,8 @@ static int wait_task_zombie(struct task_
->  		psig->coublock +=
->  			task_io_get_oublock(p) +
->  			sig->oublock + sig->coublock;
-> +		psig->cmaxrss = max(max(sig->maxrss, sig->cmaxrss),
-> +				    psig->cmaxrss);
->  		task_io_accounting_add(&psig->ioac, &p->ioac);
->  		task_io_accounting_add(&psig->ioac, &sig->ioac);
->  		spin_unlock_irq(&p->parent->sighand->siglock);
-> Index: b/kernel/fork.c
-> ===================================================================
-> --- a/kernel/fork.c	2008-12-25 08:26:37.000000000 +0900
-> +++ b/kernel/fork.c	2008-12-30 03:48:09.000000000 +0900
-> @@ -849,6 +849,7 @@ static int copy_signal(unsigned long clo
->  	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
->  	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
->  	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
-> +	sig->maxrss = sig->cmaxrss = 0;
->  	task_io_accounting_init(&sig->ioac);
->  	taskstats_tgid_init(sig);
->  
-> Index: b/kernel/sys.c
-> ===================================================================
-> --- a/kernel/sys.c	2008-12-25 08:26:37.000000000 +0900
-> +++ b/kernel/sys.c	2008-12-30 04:04:18.000000000 +0900
-> @@ -1569,6 +1569,7 @@ static void k_getrusage(struct task_stru
->  			r->ru_majflt = p->signal->cmaj_flt;
->  			r->ru_inblock = p->signal->cinblock;
->  			r->ru_oublock = p->signal->coublock;
-> +			r->ru_maxrss = p->signal->cmaxrss;
->  
->  			if (who == RUSAGE_CHILDREN)
->  				break;
-> @@ -1583,6 +1584,8 @@ static void k_getrusage(struct task_stru
->  			r->ru_majflt += p->signal->maj_flt;
->  			r->ru_inblock += p->signal->inblock;
->  			r->ru_oublock += p->signal->oublock;
-> +			if (r->ru_maxrss < p->signal->maxrss)
-> +				r->ru_maxrss = p->signal->maxrss;
->  			t = p;
->  			do {
->  				accumulate_thread_rusage(t, r);
-> @@ -1598,6 +1601,18 @@ static void k_getrusage(struct task_stru
->  out:
->  	cputime_to_timeval(utime, &r->ru_utime);
->  	cputime_to_timeval(stime, &r->ru_stime);
-> +
-> +	if (who != RUSAGE_CHILDREN) {
-> +		struct mm_struct *mm = get_task_mm(p);
-> +		if (mm) {
-> +			unsigned long maxrss = get_mm_hiwater_rss(mm);
-> +
-> +			if (r->ru_maxrss < maxrss)
-> +				r->ru_maxrss = maxrss;
-> +			mmput(mm);
-> +		}
-> +	}
-> +	r->ru_maxrss <<= PAGE_SHIFT - 10;
->  }
->  
->  int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
-> Index: b/fs/exec.c
-> ===================================================================
-> --- a/fs/exec.c	2008-12-25 08:26:37.000000000 +0900
-> +++ b/fs/exec.c	2008-12-30 17:42:32.000000000 +0900
-> @@ -774,6 +774,7 @@ static int de_thread(struct task_struct 
->  	spinlock_t *lock = &oldsighand->siglock;
->  	struct task_struct *leader = NULL;
->  	int count;
-> +	unsigned long maxrss = 0;
->  
->  	if (thread_group_empty(tsk))
->  		goto no_thread_group;
-> @@ -870,6 +871,10 @@ static int de_thread(struct task_struct 
->  	sig->notify_count = 0;
->  
->  no_thread_group:
-> +	if (current->mm)
-> +		maxrss = get_mm_hiwater_rss(current->mm);
-> +	sig->maxrss = max(sig->maxrss, maxrss);
-> +
->  	exit_itimers(sig);
->  	flush_itimer_signals();
->  	if (leader)
-> 
+> This doesn't totally disable them. It disables asynchronous reclaim for them
+> until the next time kswapd kicks is kicked by a higher order allocator. The
+> guy who kicked us off this time should go into direct reclaim.
 > 
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I get that. The check to bail out is made after we've already done the
+scanning. I wanted to be clear that contiguity in highmem is required for
+hugepages.
+
+> 
+> > kswapd gets a sc.order when it is known there is a process trying to get
+> > high-order pages so it can reclaim at that order in an attempt to prevent
+> > future direct reclaim at a high-order. Your patch does not appear to depend on
+> > GFP_KERNEL at all so I found the comment misleading. Furthermore, asking it to
+> > loop again at order-0 means it may scan and reclaim more memory unnecessarily
+> > seeing as all_zones_ok was calculated based on a high-order value, not order-0.
+> 
+> It shouldn't, because it should check all that.
+> 
+
+Ok, with KOSAKI's patch we
+
+1. Set order to 0 (and stop kswapd doing what it was asked to do)
+2. goto loop_again
+3. nr_reclaimed gets set to 0 (meaning we lose that value, but no biggie
+   as it doesn't get used by the caller anyway)
+4. Reset all priorities
+5. Do something like the following
+
+	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+		...
+		all_zones_ok = 1;
+		for (i = pgdat->nr_zones - 1; i >= 0; i--) {
+			...
+			if (inactive_anon_is_low(zone)) {
+				shrink_active_list(SWAP_CLUSTER_MAX, zone,
+					&sc, priority, 0);
+			}
+
+			if (!zone_watermark_ok(zone, order, zone->pages_high,
+					0, 0)) {
+				end_zone = i;
+				break;
+			}
+		}
+	}
+
+  So, by looping around, we could end up shrinking the active list again
+  before we recheck the zone watermarks depending on the size of the
+  inactive lists.
+
+If the size of the lists is ok, I agree that we'll go through the lists,
+do no reclaiming and exit out, albeit returning 0 when we have reclaimed pages.
+
+> 
+> > While constantly looping trying to balance for high-orders is indeed bad,
+> > I'm unconvinced this is the correct change. As we have already gone through
+> > a priorities and scanned everything at the high-order, would it not make
+> > more sense to do just give up with something like the following?
+> > 
+> >        /*
+> >         * If zones are still not balanced, loop again and continue attempting
+> >         * to rebalance the system. For high-order allocations, fragmentation
+> >         * can prevent the zones being rebalanced no matter how hard kswapd
+> >         * works, particularly on systems with little or no swap. For costly
+> >         * orders, just give up and assume interested processes will either
+> >         * direct reclaim or wake up kswapd as necessary.
+> >         */
+> >         if (!all_zones_ok && sc.order <= PAGE_ALLOC_COSTLY_ORDER) {
+> >                 cond_resched();
+> > 
+> >                 try_to_freeze();
+> > 
+> >                 goto loop_again;
+> >         }
+> > 
+> > I used PAGE_ALLOC_COSTLY_ORDER instead of sc.order == 0 because we are
+> > expected to support allocations up to that order in a fairly reliable fashion.
+> 
+> I actually think it's better to do it for all orders, because that
+> constant is more or less arbitrary.
+
+i.e.
+
+if (!all_zones_ok && sc.order == 0) {
+
+? or something else
+
+What I did miss was that we have 
+
+                if (nr_reclaimed >= SWAP_CLUSTER_MAX)
+                        break;
+
+so with my patch, kswapd is bailing out early without trying to reclaim for
+high-orders that hard. That was not what I intended as it means we only ever
+really rebalance the full system for order-0 pages and for everything else we
+do relatively light scanning. The impact is that high-order users will direct
+reclaim rather than depending on kswapd scanning very heavily. Arguably,
+this is a good thing.
+
+However, it also means that KOSAKI's and my patches only differs in that mine
+bails early and KOSAKI rechecks everything at order-0, possibly reclaiming
+more. If the comment was not so misleading, I'd have been a lot happier.
+
+> It is possible a zone might become
+> too fragmented to support this, but the allocating process has been OOMed or
+> had their allocation satisfied from another zone. kswapd would have no way
+> out of the loop even if the system no longer requires higher order allocations.
+> 
+> IOW, I don't see a big downside, and there is a real upside.
+> 
+> I think the patch is good.
+> 
+
+Which one, KOSAKI's or my one?
+
+Here is my one again which bails out for any high-order allocation after
+just light scanning.
+
+====
