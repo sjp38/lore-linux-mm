@@ -1,136 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B8C66B00D7
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 17:13:19 -0500 (EST)
-Date: Mon, 5 Jan 2009 14:13:13 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH for -mm] getrusage: fill ru_maxrss value
-Message-Id: <20090105141313.a4abd475.akpm@linux-foundation.org>
-In-Reply-To: <20090105163204.3ec9ff10@psychotron.englab.brq.redhat.com>
-References: <20081230201052.128B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081231110816.5f80e265@psychotron.englab.brq.redhat.com>
-	<20081231213705.1293.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20090103175913.GA21180@redhat.com>
-	<2f11576a0901031313u791d7dcex94b927cc56026e40@mail.gmail.com>
-	<20090105163204.3ec9ff10@psychotron.englab.brq.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D4ADB6B00A6
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 18:39:13 -0500 (EST)
+Received: from spaceape10.eur.corp.google.com (spaceape10.eur.corp.google.com [172.28.16.144])
+	by smtp-out.google.com with ESMTP id n05NdAUq017061
+	for <linux-mm@kvack.org>; Mon, 5 Jan 2009 15:39:11 -0800
+Received: from rv-out-0708.google.com (rvfc5.prod.google.com [10.140.180.5])
+	by spaceape10.eur.corp.google.com with ESMTP id n05NcNbl017172
+	for <linux-mm@kvack.org>; Mon, 5 Jan 2009 15:39:07 -0800
+Received: by rv-out-0708.google.com with SMTP id c5so8351447rvf.10
+        for <linux-mm@kvack.org>; Mon, 05 Jan 2009 15:39:07 -0800 (PST)
+MIME-Version: 1.0
+Date: Mon, 5 Jan 2009 15:39:07 -0800
+Message-ID: <604427e00901051539x52ab85bcua94cd8036e5b619a@mail.gmail.com>
+Subject: [PATCH]Fix: 32bit binary has 64bit address of stack vma
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jiri Pirko <jpirko@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, linux-kernel@vger.kernel.org, hugh@veritas.com, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 5 Jan 2009 16:32:04 +0100
-Jiri Pirko <jpirko@redhat.com> wrote:
+From: Ying Han <yinghan@google.com>
 
-> Changelog
-> v2 -> v3
->   - in k_getrusage() use (inherited) sig->maxrss value in case of
->     RUSAGE_THREAD
+Fix 32bit binary get 64bit stack vma offset.
 
-The patch which you sent was mysteriously truncated - the kernel/sys.c hunk
-is partly missing.  So I took that bit from the earlier version of the patch.
+32bit binary running on 64bit system, the /proc/pid/maps shows for the
+vma represents stack get a 64bit adress:
+ff96c000-ff981000 rwxp 7ffffffea000 00:00 0 [stack]
 
-Please check that the below is still identical to your version 3.
+Signed-off-by:	Ying Han <yinghan@google.com>
 
+fs/exec.c                     |    5 +-
 
-diff -puN fs/exec.c~getrusage-fill-ru_maxrss-value fs/exec.c
---- a/fs/exec.c~getrusage-fill-ru_maxrss-value
-+++ a/fs/exec.c
-@@ -864,6 +864,13 @@ static int de_thread(struct task_struct 
- 	sig->notify_count = 0;
- 
- no_thread_group:
-+	if (current->mm) {
-+		unsigned long hiwater_rss = get_mm_hiwater_rss(current->mm);
-+
-+		if (sig->maxrss < hiwater_rss)
-+			sig->maxrss = hiwater_rss;
-+	}
-+
- 	exit_itimers(sig);
- 	flush_itimer_signals();
- 
-diff -puN include/linux/sched.h~getrusage-fill-ru_maxrss-value include/linux/sched.h
---- a/include/linux/sched.h~getrusage-fill-ru_maxrss-value
-+++ a/include/linux/sched.h
-@@ -560,6 +560,7 @@ struct signal_struct {
- 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
- 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
- 	unsigned long inblock, oublock, cinblock, coublock;
-+	unsigned long maxrss, cmaxrss;
- 	struct task_io_accounting ioac;
- 
+diff --git a/fs/exec.c b/fs/exec.c
+index 4e834f1..8c3eff4 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -517,6 +517,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, uns
+ 	unsigned long length = old_end - old_start;
+ 	unsigned long new_start = old_start - shift;
+ 	unsigned long new_end = old_end - shift;
++	unsigned long new_pgoff = new_start >> PAGE_SHIFT;
+ 	struct mmu_gather *tlb;
+
+ 	BUG_ON(new_start > new_end);
+@@ -531,7 +532,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, uns
  	/*
-diff -puN kernel/exit.c~getrusage-fill-ru_maxrss-value kernel/exit.c
---- a/kernel/exit.c~getrusage-fill-ru_maxrss-value
-+++ a/kernel/exit.c
-@@ -1053,6 +1053,12 @@ NORET_TYPE void do_exit(long code)
- 	if (group_dead) {
- 		hrtimer_cancel(&tsk->signal->real_timer);
- 		exit_itimers(tsk->signal);
-+		if (tsk->mm) {
-+			unsigned long hiwater_rss = get_mm_hiwater_rss(tsk->mm);
-+
-+			if (tsk->signal->maxrss < hiwater_rss)
-+				tsk->signal->maxrss = hiwater_rss;
-+		}
- 	}
- 	acct_collect(code, group_dead);
- 	if (group_dead)
-@@ -1296,6 +1302,7 @@ static int wait_task_zombie(struct task_
- 		struct signal_struct *psig;
- 		struct signal_struct *sig;
- 		struct task_cputime cputime;
-+		unsigned long maxrss;
- 
- 		/*
- 		 * The resource counters for the group leader are in its
-@@ -1347,6 +1354,9 @@ static int wait_task_zombie(struct task_
- 		psig->coublock +=
- 			task_io_get_oublock(p) +
- 			sig->oublock + sig->coublock;
-+		maxrss = max(sig->maxrss, sig->cmaxrss);
-+		if (psig->cmaxrss < maxrss)
-+			psig->cmaxrss = maxrss;
- 		task_io_accounting_add(&psig->ioac, &p->ioac);
- 		task_io_accounting_add(&psig->ioac, &sig->ioac);
- 		spin_unlock_irq(&p->parent->sighand->siglock);
-diff -puN kernel/fork.c~getrusage-fill-ru_maxrss-value kernel/fork.c
---- a/kernel/fork.c~getrusage-fill-ru_maxrss-value
-+++ a/kernel/fork.c
-@@ -851,6 +851,7 @@ static int copy_signal(unsigned long clo
- 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
- 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
- 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
-+	sig->maxrss = sig->cmaxrss = 0;
- 	task_io_accounting_init(&sig->ioac);
- 	taskstats_tgid_init(sig);
- 
-diff -puN kernel/sys.c~getrusage-fill-ru_maxrss-value kernel/sys.c
---- a/kernel/sys.c~getrusage-fill-ru_maxrss-value
-+++ a/kernel/sys.c
-@@ -1676,6 +1676,18 @@ static void k_getrusage(struct task_stru
- out:
- 	cputime_to_timeval(utime, &r->ru_utime);
- 	cputime_to_timeval(stime, &r->ru_stime);
-+
-+	if (who != RUSAGE_CHILDREN) {
-+		struct mm_struct *mm = get_task_mm(p);
-+		if (mm) {
-+			unsigned long hiwater_rss = get_mm_hiwater_rss(mm);
-+
-+			if (maxrss < hiwater_rss)
-+				maxrss = hiwater_rss;
-+			mmput(mm);
-+		}
-+	}
-+	r->ru_maxrss <<= PAGE_SHIFT - 10;
+ 	 * cover the whole range: [new_start, old_end)
+ 	 */
+-	vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL);
++	vma_adjust(vma, new_start, old_end, new_pgoff, NULL);
+
+ 	/*
+ 	 * move the page tables downwards, on failure we rely on
+@@ -564,7 +565,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, uns
+ 	/*
+ 	 * shrink the vma to just the new range.
+ 	 */
+-	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
++	vma_adjust(vma, new_start, new_end, new_pgoff, NULL);
+
+ 	return 0;
  }
- 
- int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
