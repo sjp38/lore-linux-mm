@@ -1,138 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D44D86B00A6
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 11:41:41 -0500 (EST)
-Date: Mon, 5 Jan 2009 17:41:35 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch] mm: fix lockless pagecache reordering bug (was Re: BUG: soft lockup - is this XFS problem?)
-Message-ID: <20090105164135.GC32675@wotan.suse.de>
-References: <gifgp1$8ic$1@ger.gmane.org> <20081223171259.GA11945@infradead.org> <20081230042333.GC27679@wotan.suse.de> <20090103214443.GA6612@infradead.org> <20090105014821.GA367@wotan.suse.de> <20090105041959.GC367@wotan.suse.de> <20090105064838.GA5209@wotan.suse.de> <49623384.2070801@aon.at>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <49623384.2070801@aon.at>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C536E6B00AA
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 12:31:15 -0500 (EST)
+Date: Mon, 5 Jan 2009 09:30:55 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [patch] mm: fix lockless pagecache reordering bug (was Re: BUG:
+ soft lockup - is this XFS problem?)
+In-Reply-To: <20090105164135.GC32675@wotan.suse.de>
+Message-ID: <alpine.LFD.2.00.0901050859430.3057@localhost.localdomain>
+References: <gifgp1$8ic$1@ger.gmane.org> <20081223171259.GA11945@infradead.org> <20081230042333.GC27679@wotan.suse.de> <20090103214443.GA6612@infradead.org> <20090105014821.GA367@wotan.suse.de> <20090105041959.GC367@wotan.suse.de> <20090105064838.GA5209@wotan.suse.de>
+ <49623384.2070801@aon.at> <20090105164135.GC32675@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Peter Klotz <peter.klotz@aon.at>, Linus Torvalds <torvalds@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Roman Kononov <kernel@kononov.ftml.net>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Peter Klotz <peter.klotz@aon.at>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Christoph Hellwig <hch@infradead.org>, Roman Kononov <kernel@kononov.ftml.net>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-This patch should be applied to 2.6.29 and 27/28 stable kernels, please.
---
 
-Peter Klotz and Roman Kononov both reported a bug where in XFS workloads where
-they were seeing softlockups in find_get_pages
-(http://oss.sgi.com/bugzilla/show_bug.cgi?id=805).
+On Mon, 5 Jan 2009, Nick Piggin wrote:
+> 
+> This patch should be applied to 2.6.29 and 27/28 stable kernels, please.
 
-Basically it would go into an "infinite" loop, although it would sometimes be
-able to break out of the loop depending on the phase of the moon.
+No. I think this patch is utter crap. But please feel free to educate me 
+on why that is not the case.
 
-This turns out to be a bug in the lockless pagecache patch. There is a missing
-compiler barrier in the "increment reference count unless it was zero" failure
-case of the lockless pagecache protocol in the gang lookup functions.
+Here's my explanation:
 
-This would cause the compiler to use a cached value of struct page pointer to
-retry the operation with, rather than reload it. So the page might have been
-removed from pagecache and freed (refcount==0) but the lookup would not correctly
-notice the page is no longer in pagecache, and keep attempting to increment the
-refcount and failing, until the page gets reallocated for something else. This
-isn't a data corruption because the condition will be properly handled if the
-page does get reallocated. However it can result in a lockup. 
+Not only is it ugly (which is already sufficient ground to suspect it is 
+wrong or could at least be done better), but reading the comment, it makes 
+no sense at all. You only put the barrier in the "goto repeat" case, but 
+the thing is, if you worry about radix tree slot not being reloaded in the 
+repeat case, then you damn well should worry about it not being reloaded 
+in the non-repeat case too!
 
-Add a the required compiler barrier and comment to fix this.
+The code is immediately followed by a test to see that the page is still 
+the same in the slot, ie this:
 
-Assembly snippet from find_get_pages, before:
-.L220:
-        movq    (%rbx), %rax    #* ivtmp.1162, tmp82
-        movq    (%rax), %rdi    #, prephitmp.1149
-.L218:
-        testb   $1, %dil        #, prephitmp.1149
-        jne     .L217   #,
-        testq   %rdi, %rdi      # prephitmp.1149
-        je      .L203   #,
-        cmpq    $-1, %rdi       #, prephitmp.1149
-        je      .L217   #,
-        movl    8(%rdi), %esi   # <variable>._count.counter, c
-        testl   %esi, %esi      # c
-        je      .L218   #,
+                /*
+                 * Has the page moved?
+                 * This is part of the lockless pagecache protocol. See
+                 * include/linux/pagemap.h for details.
+                 */
+                if (unlikely(page != *pagep)) {
 
-after:
-.L212:
-        movq    (%rbx), %rax    #* ivtmp.1109, tmp81
-        movq    (%rax), %rdi    #, ret
-        testb   $1, %dil        #, ret
-        jne     .L211   #,
-        testq   %rdi, %rdi      # ret
-        je      .L197   #,
-        cmpq    $-1, %rdi       #, ret
-        je      .L211   #,
-        movl    8(%rdi), %esi   # <variable>._count.counter, c
-        testl   %esi, %esi      # c
-        je      .L212   #,
+and if you need a barrier for the repeat case, you need one for this case 
+too.
 
-(notice the obvious infinite loop in the first example, if page->count remains 0)
+In other words, it looks like you fixed the symptom, but not the real 
+cause! That's now how we work in the kernel.
 
-The problem was noticed and resolved on 2.6.27 stable kernels, and also applies
-upstream (where I was able to reproduce it and verify the fix).
+The real cause, btw, appears to be that radix_tree_deref_slot() is a piece 
+of slimy sh*t, and has not been correctly updated to RCU. The proper fix 
+doesn't require any barriers that I can see - I think the proper fix is 
+this simple one-liner.
 
-Reported-by: Peter Klotz <peter.klotz@aon.at>
-Reported-by: Roman Kononov <kononov@ftml.net>
-Tested-by: Peter Klotz <peter.klotz@aon.at>
-Tested-by: Roman Kononov <kononov@ftml.net>
-Signed-off-by: Nick Piggin <npiggin@suse.de>
+If you use RCU to protect a data structure, then any data loaded from that 
+data structure that can change due to RCU should be loaded with 
+"rcu_dereference()". 
+
+Now, I can't test this, because it makes absolutely no difference for me 
+(the diff isn't empty, but the asm changes seem to be all due to just gcc 
+variable numbering changing). I can't seem to see the buggy code. Maybe it 
+needs a specific compiler version, or some specific config option to 
+trigger?
+
+So because I can't see the issue, I also obviously can't verify that it's 
+the only possible case. Maybe there is some other memory access that 
+should also be done with the proper rcu accessors?
+
+Of course, it's also possible that we should just put a barrier in 
+page_cache_get_speculative(). That doesn't seem to make a whole lot of 
+conceptual sense, though (the same way that your barrier() didn't make any 
+sense - I don't see that the barrier has absolutely _anything_ to do with 
+whether the speculative getting of the page fails or not!)
+
+In general, I'd like fewer "band-aid" patches, and more "deep thinking" 
+patches. I'm not saying mine is very deep either, but I think it's at 
+least scrathing the surface of the real problem rather than just trying to 
+cover it up.
+
+		Linus
+
 ---
-Index: linux-2.6/mm/filemap.c
-===================================================================
---- linux-2.6.orig/mm/filemap.c	2009-01-05 17:22:57.000000000 +1100
-+++ linux-2.6/mm/filemap.c	2009-01-05 17:28:40.000000000 +1100
-@@ -794,8 +794,19 @@ repeat:
- 		if (unlikely(page == RADIX_TREE_RETRY))
- 			goto restart;
- 
--		if (!page_cache_get_speculative(page))
-+		if (!page_cache_get_speculative(page)) {
-+			/*
-+			 * A failed page_cache_get_speculative operation does
-+			 * not imply any barriers (Documentation/atomic_ops.txt),
-+			 * and as such, we must force the compiler to deref the
-+			 * radix-tree slot again rather than using the cached
-+			 * value (because we need to give up if the page has been
-+			 * removed from the radix-tree, rather than looping until
-+			 * it gets reused for something else).
-+			 */
-+			barrier();
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *((void **)pages[i]))) {
-@@ -850,8 +861,11 @@ repeat:
- 		if (page->mapping == NULL || page->index != index)
- 			break;
- 
--		if (!page_cache_get_speculative(page))
-+		if (!page_cache_get_speculative(page)) {
-+			/* barrier: see find_get_pages() */
-+			barrier();
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *((void **)pages[i]))) {
-@@ -904,8 +918,11 @@ repeat:
- 		if (unlikely(page == RADIX_TREE_RETRY))
- 			goto restart;
- 
--		if (!page_cache_get_speculative(page))
-+		if (!page_cache_get_speculative(page)) {
-+			/* barrier: see find_get_pages() */
-+			barrier();
- 			goto repeat;
-+		}
- 
- 		/* Has the page moved? */
- 		if (unlikely(page != *((void **)pages[i]))) {
+ include/linux/radix-tree.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index a916c66..355f6e8 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -136,7 +136,7 @@ do {									\
+  */
+ static inline void *radix_tree_deref_slot(void **pslot)
+ {
+-	void *ret = *pslot;
++	void *ret = rcu_dereference(*pslot);
+ 	if (unlikely(radix_tree_is_indirect_ptr(ret)))
+ 		ret = RADIX_TREE_RETRY;
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
