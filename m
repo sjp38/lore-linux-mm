@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E7F566B00AD
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 01:55:55 -0500 (EST)
-Date: Mon, 5 Jan 2009 07:55:51 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] acpi: do not use kmem caches
-Message-ID: <20090105065551.GB5209@wotan.suse.de>
-References: <1228138641.14439.18.camel@penberg-laptop> <4933EE8A.2010007@gmail.com> <20081201161404.GE10790@wotan.suse.de> <4934149A.4020604@gmail.com> <20081201172044.GB14074@infradead.org> <alpine.LFD.2.00.0812011241080.3197@localhost.localdomain> <20081201181047.GK10790@wotan.suse.de> <alpine.LFD.2.00.0812311649230.3854@localhost.localdomain> <20090105041440.GB367@wotan.suse.de> <982D8D05B6407A49AD506E6C3AC8E7D6BFEEA2A60C@caralain.haven.nynaeve.net>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id DDAA86B00C2
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 03:03:48 -0500 (EST)
+Date: Mon, 5 Jan 2009 09:02:43 +0100
+From: Jens Axboe <jens.axboe@oracle.com>
+Subject: Re: [PATCH, RFC] Use WRITE_SYNC in __block_write_full_page() if WBC_SYNC_ALL
+Message-ID: <20090105080241.GX32491@kernel.dk>
+References: <E1LJatq-00061O-0e@closure.thunk.org> <20090104142303.98762f81.akpm@linux-foundation.org> <20090104224351.GF22958@mit.edu> <20090104151927.1f1603c6.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <982D8D05B6407A49AD506E6C3AC8E7D6BFEEA2A60C@caralain.haven.nynaeve.net>
+In-Reply-To: <20090104151927.1f1603c6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Skywing <Skywing@valhallalegends.com>
-Cc: Len Brown <lenb@kernel.org>, Christoph Hellwig <hch@infradead.org>, Alexey Starikovskiy <aystarik@gmail.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Theodore Tso <tytso@mit.edu>, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 04, 2009 at 11:43:55PM -0600, Skywing wrote:
-> -----Original Message-----
-> From: linux-acpi-owner@vger.kernel.org [mailto:linux-acpi-owner@vger.kernel.org] On Behalf Of Nick Piggin
-> Sent: Sunday, January 04, 2009 11:15 PM
-> To: Len Brown
-> Cc: Christoph Hellwig; Alexey Starikovskiy; Pekka Enberg; Linux Memory Management List; linux-acpi@vger.kernel.org
-> Subject: Re: [patch][rfc] acpi: do not use kmem caches
+On Sun, Jan 04 2009, Andrew Morton wrote:
+> On Sun, 4 Jan 2009 17:43:51 -0500 Theodore Tso <tytso@mit.edu> wrote:
 > 
-> > > I think they are here to stay.  We are running
-> > > an interpreter in kernel-space with arbitrary input,
-> > > so I think the ability to easily isolate run-time memory leaks
-> > > on a non-debug system is important.
-> > I don't really see the connection. Or why being an interpreter is so
-> > special. Filesystems, network stack, etc run in kernel with arbitrary
-> > input. If kmem caches are part of a security strategy, then it's
-> > broken... You'd surely have to detect bad input before the interpreter
-> > turns it into a memory leak (or recover afterward, in which case it
-> > isn't a leak).
+> > On Sun, Jan 04, 2009 at 02:23:03PM -0800, Andrew Morton wrote:
+> > > > Following up with an e-mail thread started by Arjan two months ago,
+> > > > (subject: [PATCH] Give kjournald a IOPRIO_CLASS_RT io priority), I have
+> > > > a patch, just sent to linux-ext4@vger.kernel.org, which fixes the jbd2
+> > > > layer to submit journal writes via submit_bh() with WRITE_SYNC.
+> > > > Hopefully this might be enough of a priority boost so we don't have to
+> > > > force a higher I/O priority level via a buffer_head flag.  However,
+> > > > while looking through the code paths, in ordered data mode, we end up
+> > > > flushing data pages via the page writeback paths on a per-inode basis,
+> > > > and I noticed that even though we are passing in
+> > > > wbc.sync_mode=WBC_SYNC_ALL, __block_write_full_page() is using
+> > > > submit_bh(WRITE, bh) instead of submit_bh(WRITE_SYNC).
+> > > 
+> > > But this is all the wrong way to fix the problem, isn't it?
+> > > 
+> > > The problem is that at one particular point, the current transaction
+> > > blocks callers behind the committing transaction's IO completion.
+> > > 
+> > > Did anyone look at fixing that?  ISTR concluding that a data copy and
+> > > shadow-bh arrangement might be needed.
+> > 
+> > I haven't had time to really drill down into the jbd code yet, and
+> > yes, eventually we probably want to do this.
 > 
-> I think that the purposes of these was to act as a debugging aid, for example, if there were BIOS-supplied AML that was triggering a leak.  The point being here that a network card driver has a much more well-defined set of what can happen than a fully pluggable interpreter for third party code.
+> We do.
+> 
+> >  Still, if we are
+> > submitting I/O which we are going to end up waiting on, we really
+> > should submit it with WRITE_SYNC, and this patch should optimize
+> > writes in other situations; for example, if we fsync() a file, we will
+> > also end up calling block_write_full_page(), and so supplying the
+> > WRITE_SYNC hint to the block layer would be a Good Thing.
+> 
+> Is it?  WRITE_SYNC means "unplug the queue after this bh/BIO".  By setting
+> it against every bh, don't we risk the generation of more BIOs and
+> the loss of merging opportunities?
 
-It just seems like different shades to me, rather than some completely
-different thing. A single network driver, maybe, but consider that untrusted
-input influences a very large part of the entire network stack... Or a
-filesystem.
+But it also implies that the io scheduler will treat the IO as sync even
+if it is a write, which seems to be the very effect that Ted is looking
+for as well.
 
-Basically, if the data is really untrusted or likely to result in a leak,
-then it should be detected and sanitized properly, rather than being allowed
-to leak.
+Perhaps we should seperate it into two behavioural flags instead and
+make the unplugging explicit.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
