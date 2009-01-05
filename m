@@ -1,477 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id BEF626B00A5
-	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 10:33:06 -0500 (EST)
-Date: Mon, 5 Jan 2009 16:32:04 +0100
-From: Jiri Pirko <jpirko@redhat.com>
-Subject: Re: [PATCH for -mm] getrusage: fill ru_maxrss value
-Message-ID: <20090105163204.3ec9ff10@psychotron.englab.brq.redhat.com>
-In-Reply-To: <2f11576a0901031313u791d7dcex94b927cc56026e40@mail.gmail.com>
-References: <20081230201052.128B.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20081231110816.5f80e265@psychotron.englab.brq.redhat.com>
-	<20081231213705.1293.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20090103175913.GA21180@redhat.com>
-	<2f11576a0901031313u791d7dcex94b927cc56026e40@mail.gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id D44D86B00A6
+	for <linux-mm@kvack.org>; Mon,  5 Jan 2009 11:41:41 -0500 (EST)
+Date: Mon, 5 Jan 2009 17:41:35 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: fix lockless pagecache reordering bug (was Re: BUG: soft lockup - is this XFS problem?)
+Message-ID: <20090105164135.GC32675@wotan.suse.de>
+References: <gifgp1$8ic$1@ger.gmane.org> <20081223171259.GA11945@infradead.org> <20081230042333.GC27679@wotan.suse.de> <20090103214443.GA6612@infradead.org> <20090105014821.GA367@wotan.suse.de> <20090105041959.GC367@wotan.suse.de> <20090105064838.GA5209@wotan.suse.de> <49623384.2070801@aon.at>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49623384.2070801@aon.at>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, Hugh
- Dickins <hugh@veritas.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Klotz <peter.klotz@aon.at>, Linus Torvalds <torvalds@linux-foundation.org>, stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Roman Kononov <kernel@kononov.ftml.net>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Changelog
-v2 -> v3
-  - in k_getrusage() use (inherited) sig->maxrss value in case of
-    RUSAGE_THREAD
+Hi,
 
-v1 -> v2
-  - Removed unnecessary max() macro
-  - To avoid ru_maxrss recalculation in k_getrusage()
-  - style fixes
+This patch should be applied to 2.6.29 and 27/28 stable kernels, please.
+--
 
-Jiri's resend3 -> v1
- - At wait_task_zombie(), parent process doesn't only collect child maxrss,
-   but also cmaxrss.
- - ru_maxrss inherit at exec()
- - style fixes
+Peter Klotz and Roman Kononov both reported a bug where in XFS workloads where
+they were seeing softlockups in find_get_pages
+(http://oss.sgi.com/bugzilla/show_bug.cgi?id=805).
 
+Basically it would go into an "infinite" loop, although it would sometimes be
+able to break out of the loop depending on the phase of the moon.
 
-Applied after: introduce-get_mm_hiwater_xxx-fix-taskstats-hiwater_xxx-accounting.patch
-==
-From: Signed-off-by: Jiri Pirko <jpirko@redhat.com>
-Subject: [PATCH for -mm] getrusage: fill ru_maxrss value
+This turns out to be a bug in the lockless pagecache patch. There is a missing
+compiler barrier in the "increment reference count unless it was zero" failure
+case of the lockless pagecache protocol in the gang lookup functions.
 
-This patch makes ->ru_maxrss value in struct rusage filled accordingly to
-rss hiwater mark. This struct is filled as a parameter to
-getrusage syscall. ->ru_maxrss value is set to KBs which is the way it
-is done in BSD systems. /usr/bin/time (gnu time) application converts
-->ru_maxrss to KBs which seems to be incorrect behavior. Maintainer of
-this util was notified by me with the patch which corrects it and cc'ed.
+This would cause the compiler to use a cached value of struct page pointer to
+retry the operation with, rather than reload it. So the page might have been
+removed from pagecache and freed (refcount==0) but the lookup would not correctly
+notice the page is no longer in pagecache, and keep attempting to increment the
+refcount and failing, until the page gets reallocated for something else. This
+isn't a data corruption because the condition will be properly handled if the
+page does get reallocated. However it can result in a lockup. 
 
-To make this happen we extend struct signal_struct by two fields. The
-first one is ->maxrss which we use to store rss hiwater of the task. The
-second one is ->cmaxrss which we use to store highest rss hiwater of all
-task childs. These values are used in k_getrusage() to actually fill
-->ru_maxrss. k_getrusage() uses current rss hiwater value directly
-if mm struct exists.
+Add a the required compiler barrier and comment to fix this.
 
-Note:
-exec() clear mm->hiwater_rss, but doesn't clear sig->maxrss.
-it is intetionally behavior. *BSD getrusage have exec() inheriting.
+Assembly snippet from find_get_pages, before:
+.L220:
+        movq    (%rbx), %rax    #* ivtmp.1162, tmp82
+        movq    (%rax), %rdi    #, prephitmp.1149
+.L218:
+        testb   $1, %dil        #, prephitmp.1149
+        jne     .L217   #,
+        testq   %rdi, %rdi      # prephitmp.1149
+        je      .L203   #,
+        cmpq    $-1, %rdi       #, prephitmp.1149
+        je      .L217   #,
+        movl    8(%rdi), %esi   # <variable>._count.counter, c
+        testl   %esi, %esi      # c
+        je      .L218   #,
 
+after:
+.L212:
+        movq    (%rbx), %rax    #* ivtmp.1109, tmp81
+        movq    (%rax), %rdi    #, ret
+        testb   $1, %dil        #, ret
+        jne     .L211   #,
+        testq   %rdi, %rdi      # ret
+        je      .L197   #,
+        cmpq    $-1, %rdi       #, ret
+        je      .L211   #,
+        movl    8(%rdi), %esi   # <variable>._count.counter, c
+        testl   %esi, %esi      # c
+        je      .L212   #,
 
-Test progmam and test case
-===========================
+(notice the obvious infinite loop in the first example, if page->count remains 0)
 
-getrusage.c
-----
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <signal.h>
+The problem was noticed and resolved on 2.6.27 stable kernels, and also applies
+upstream (where I was able to reproduce it and verify the fix).
 
-static void consume(int mega)
-{
-	size_t sz = mega * 1024 * 1024;
-	void *ptr;
-
-	ptr = malloc(sz);
-	memset(ptr, 0, sz);
-	usleep(1);  /* BSD rusage statics need to sleep 1 tick */
-}
-
-static void show_rusage(char *prefix)
-{
-	int err, err2;
-	struct rusage rusage_self;
-	struct rusage rusage_children;
-
-	printf("%s: ", prefix);
-	err = getrusage(RUSAGE_SELF, &rusage_self);
-	if (!err)
-		printf("self %ld ", rusage_self.ru_maxrss);
-	err2 = getrusage(RUSAGE_CHILDREN, &rusage_children);
-	if (!err2)
-		printf("children %ld ", rusage_children.ru_maxrss);
-
-	printf("\n");
-}
-
-int main(int argc, char** argv)
-{
-	int status;
-	int c;
-	int need_sleep_before_wait = 0;
-	int consume_large_memory_at_first = 0;
-	int create_child_at_first = 0;
-	int sigign = 0;
-	int create_child_before_exec = 0;
-	int after_fork_test = 0;
-
-	while ((c = getopt(argc, argv, "ceflsz")) != -1) {
-		switch (c) {
-		case 'c':
-			create_child_at_first = 1;
-			break;
-		case 'e':
-			create_child_before_exec = 1;
-			break;
-		case 'f':
-			after_fork_test = 1;
-			break;
-		case 'l':
-			consume_large_memory_at_first = 1;
-			break;
-		case 's':
-			sigign = 1;
-			break;
-		case 'z':
-			need_sleep_before_wait = 1;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (consume_large_memory_at_first)
-		consume(100);   
-
-	if (create_child_at_first)
-		system("./child -q"); 
-	
-	if (sigign)
-		signal(SIGCHLD, SIG_IGN);
-
-	if (fork()) {
-		usleep(1);
-		if (need_sleep_before_wait)
-			sleep(3); /* children become zombie */
-		show_rusage("pre_wait");
-		wait(&status);
-		show_rusage("post_wait");
-	} else {
-		usleep(1);
-		show_rusage("fork");
-		
-		if (after_fork_test) {
-			consume(30);
-			show_rusage("fork2");
-		}
-		if (create_child_before_exec) {
-			system("./child -lq"); 
-			usleep(1);
-			show_rusage("fork3");
-		}
-
-		execl("./child", "child", 0);
-		exit(0);
-	}
-	     
-	return 0;
-}
-
-child.c
-----
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-
-static void consume(int mega)
-{
-	size_t sz = mega * 1024 * 1024;
-	void *ptr;
-
-	ptr = malloc(sz);
-	memset(ptr, 0, sz);
-	usleep(1);  /* BSD rusage statics need to sleep 1 tick */
-}
-
-static void show_rusage(char *prefix)
-{
-	int err, err2;
-	struct rusage rusage_self;
-	struct rusage rusage_children;
-
-	printf("%s: ", prefix);
-	err = getrusage(RUSAGE_SELF, &rusage_self);
-	if (!err)
-		printf("self %ld ", rusage_self.ru_maxrss);
-	err2 = getrusage(RUSAGE_CHILDREN, &rusage_children);
-	if (!err2)
-		printf("children %ld ", rusage_children.ru_maxrss);
-
-	printf("\n");
-
-}
-
-
-int main(int argc, char** argv)
-{
-	int status;
-	int c;
-	int silent = 0;
-	int light_weight = 0;
-
-	while ((c = getopt(argc, argv, "lq")) != -1) {
-		switch (c) {
-		case 'l':
-			light_weight = 1;
-			break;
-		case 'q':
-			silent = 1;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (!silent)
-		show_rusage("exec");
-
-	if (fork()) {
-		if (light_weight)
-			consume(400);
-		else
-			consume(700);
-		wait(&status);
-	} else {
-		if (light_weight)
-			consume(600);
-		else
-			consume(900);
-
-		exit(0);
-	}
-
-	return 0;
-}
-
-testcase
-==================
-1. inherit fork?
-   
-   test way:
-   	% ./getrusage -lc 
-
-   bsd result:
-   	fork line is "fork: self 0 children 0".
-
-   	-> rusage sholdn't be inherit by fork.
-	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-
-2. inherit exec?
-
-   test way:
-   	% ./getrusage -lce
-
-   bsd result:
-   	fork3: self 103204 children 60000 
-	exec: self 103204 children 60000
-
-   	fork3 and exec line are the same.
-
-   	-> rusage shold be inherit by exec.
-	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-
-3. getrusage(RUSAGE_CHILDREN) collect grandchild statics?
-
-   test way:
-   	% ./getrusage
-
-   bsd result:
-   	post_wait line is about "post_wait: self 0 children 90000".
-
-	-> RUSAGE_CHILDREN can collect grandchild.
-
-4. zombie, but not waited children collect or not?
-
-   test way:
-   	% ./getrusage -z
-
-   bsd result:
-   	pre_wait line is "pre_wait: self 0 children 0".
-
-	-> zombie child process (not waited-for child process)
-	   isn't accounted.
-
-5. SIG_IGN collect or not
-
-   test way:
-   	% ./getrusage -s
-
-   bsd result:
-   	post_wait line is "post_wait: self 0 children 0".
-
-	-> if SIGCHLD is ignored, children isn't accounted.
-
-6. fork and malloc
-   test way:
-   	% ./getrusage -lcf
-
-   bsd result:
-   	fork line is "fork: self 0 children 0".
-   	fork2 line is about "fork: self 130000 children 0".
-
-   	-> rusage sholdn't be inherit by fork.
-	   (both RUSAGE_SELF and RUSAGE_CHILDREN)
-	   but additional memory cunsumption cause right
-	   maxrss calculation.
-
-
-Signed-off-by: Jiri Pirko <jpirko@redhat.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reported-by: Peter Klotz <peter.klotz@aon.at>
+Reported-by: Roman Kononov <kononov@ftml.net>
+Tested-by: Peter Klotz <peter.klotz@aon.at>
+Tested-by: Roman Kononov <kononov@ftml.net>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- fs/exec.c             |    7 +++++++
- include/linux/sched.h |    1 +
- kernel/exit.c         |   10 ++++++++++
- kernel/fork.c         |    1 +
- kernel/sys.c          |   17 +++++++++++++++++
- 5 files changed, 36 insertions(+), 0 deletions(-)
-
-diff --git a/fs/exec.c b/fs/exec.c
-index 3ef9cf9..b939ef5 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -867,6 +867,13 @@ static int de_thread(struct task_struct *tsk)
- 	sig->notify_count = 0;
+Index: linux-2.6/mm/filemap.c
+===================================================================
+--- linux-2.6.orig/mm/filemap.c	2009-01-05 17:22:57.000000000 +1100
++++ linux-2.6/mm/filemap.c	2009-01-05 17:28:40.000000000 +1100
+@@ -794,8 +794,19 @@ repeat:
+ 		if (unlikely(page == RADIX_TREE_RETRY))
+ 			goto restart;
  
- no_thread_group:
-+	if (current->mm) {
-+		unsigned long hiwater_rss = get_mm_hiwater_rss(current->mm);
-+
-+		if (sig->maxrss < hiwater_rss)
-+			sig->maxrss = hiwater_rss;
-+	}
-+
- 	exit_itimers(sig);
- 	flush_itimer_signals();
- 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index ea41513..62a0f45 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -560,6 +560,7 @@ struct signal_struct {
- 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
- 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
- 	unsigned long inblock, oublock, cinblock, coublock;
-+	unsigned long maxrss, cmaxrss;
- 	struct task_io_accounting ioac;
- 
- 	/*
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 1a8c22f..5c0d601 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -1060,6 +1060,12 @@ NORET_TYPE void do_exit(long code)
- 	if (group_dead) {
- 		hrtimer_cancel(&tsk->signal->real_timer);
- 		exit_itimers(tsk->signal);
-+		if (tsk->mm) {
-+			unsigned long hiwater_rss = get_mm_hiwater_rss(tsk->mm);
-+
-+			if (tsk->signal->maxrss < hiwater_rss)
-+				tsk->signal->maxrss = hiwater_rss;
+-		if (!page_cache_get_speculative(page))
++		if (!page_cache_get_speculative(page)) {
++			/*
++			 * A failed page_cache_get_speculative operation does
++			 * not imply any barriers (Documentation/atomic_ops.txt),
++			 * and as such, we must force the compiler to deref the
++			 * radix-tree slot again rather than using the cached
++			 * value (because we need to give up if the page has been
++			 * removed from the radix-tree, rather than looping until
++			 * it gets reused for something else).
++			 */
++			barrier();
+ 			goto repeat;
 +		}
- 	}
- 	acct_collect(code, group_dead);
- 	if (group_dead)
-@@ -1303,6 +1309,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
- 		struct signal_struct *psig;
- 		struct signal_struct *sig;
- 		struct task_cputime cputime;
-+		unsigned long maxrss;
  
- 		/*
- 		 * The resource counters for the group leader are in its
-@@ -1354,6 +1361,9 @@ static int wait_task_zombie(struct task_struct *p, int options,
- 		psig->coublock +=
- 			task_io_get_oublock(p) +
- 			sig->oublock + sig->coublock;
-+		maxrss = max(sig->maxrss, sig->cmaxrss);
-+		if (psig->cmaxrss < maxrss)
-+			psig->cmaxrss = maxrss;
- 		task_io_accounting_add(&psig->ioac, &p->ioac);
- 		task_io_accounting_add(&psig->ioac, &sig->ioac);
- 		spin_unlock_irq(&p->parent->sighand->siglock);
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 43cbf30..35bec65 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -846,6 +846,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
- 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
- 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
- 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
-+	sig->maxrss = sig->cmaxrss = 0;
- 	task_io_accounting_init(&sig->ioac);
- 	taskstats_tgid_init(sig);
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *((void **)pages[i]))) {
+@@ -850,8 +861,11 @@ repeat:
+ 		if (page->mapping == NULL || page->index != index)
+ 			break;
  
-diff --git a/kernel/sys.c b/kernel/sys.c
-index d356d79..f5ca281 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -1622,12 +1622,14 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
- 	unsigned long flags;
- 	cputime_t utime, stime;
- 	struct task_cputime cputime;
-+	unsigned long maxrss = 0;
- 
- 	memset((char *) r, 0, sizeof *r);
- 	utime = stime = cputime_zero;
- 
- 	if (who == RUSAGE_THREAD) {
- 		accumulate_thread_rusage(p, r);
-+		maxrss = p->signal->maxrss;
- 		goto out;
- 	}
- 
-@@ -1645,6 +1647,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
- 			r->ru_majflt = p->signal->cmaj_flt;
- 			r->ru_inblock = p->signal->cinblock;
- 			r->ru_oublock = p->signal->coublock;
-+			maxrss = p->signal->cmaxrss;
- 
- 			if (who == RUSAGE_CHILDREN)
- 				break;
-@@ -1659,6 +1662,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
- 			r->ru_majflt += p->signal->maj_flt;
- 			r->ru_inblock += p->signal->inblock;
- 			r->ru_oublock += p->signal->oublock;
-+			if (maxrss < p->signal->maxrss)
-+				maxrss = p->signal->maxrss;
- 			t = p;
- 			do {
- 				accumulate_thread_rusage(t, r);
-@@ -1674,6 +1679,18 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
- out:
- 	cputime_to_timeval(utime, &r->ru_utime);
- 	cputime_to_timeval(stime, &r->ru_stime);
-+
-+	if (who != RUSAGE_CHILDREN) {
-+		struct mm_struct *mm = get_task_mm(p);
-+		if (mm) {
-+			unsigned long hiwater_rss = get_mm_hiwater_rss(mm);
-+
-+			if (maxrss < hiwater_rss)
-+				maxrss = hiwater_rss;
-+			mmput(mm);
+-		if (!page_cache_get_speculative(page))
++		if (!page_cache_get_speculative(page)) {
++			/* barrier: see find_get_pages() */
++			barrier();
+ 			goto repeat;
 +		}
-
-
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *((void **)pages[i]))) {
+@@ -904,8 +918,11 @@ repeat:
+ 		if (unlikely(page == RADIX_TREE_RETRY))
+ 			goto restart;
+ 
+-		if (!page_cache_get_speculative(page))
++		if (!page_cache_get_speculative(page)) {
++			/* barrier: see find_get_pages() */
++			barrier();
+ 			goto repeat;
++		}
+ 
+ 		/* Has the page moved? */
+ 		if (unlikely(page != *((void **)pages[i]))) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
