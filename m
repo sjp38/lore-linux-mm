@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D37A6B0047
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 13:41:28 -0500 (EST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 46AE16B0047
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 13:41:32 -0500 (EST)
 Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n07IfL9J012872
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 00:11:21 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n07IdgFO4317330
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 00:09:42 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n07IfK3C014512
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 05:41:20 +1100
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n07IfRQ1029545
+	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 00:11:27 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n07IdmtR4444340
+	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 00:09:48 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n07IfQll023916
+	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 00:11:26 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Thu, 08 Jan 2009 00:11:23 +0530
-Message-Id: <20090107184123.18062.81916.sendpatchset@localhost.localdomain>
+Date: Thu, 08 Jan 2009 00:11:28 +0530
+Message-Id: <20090107184128.18062.96016.sendpatchset@localhost.localdomain>
 In-Reply-To: <20090107184110.18062.41459.sendpatchset@localhost.localdomain>
 References: <20090107184110.18062.41459.sendpatchset@localhost.localdomain>
-Subject: [RFC][PATCH 2/4] Memory controller soft limit interface
+Subject: [RFC][PATCH 3/4] Memory controller soft limit organize cgroups
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
@@ -24,145 +24,168 @@ List-ID: <linux-mm.kvack.org>
 
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Add an interface to allow get/set of soft limits. Soft limits for memory plus
-swap controller (memsw) is currently not supported. Resource counters have
-been enhanced to support soft limits and new type RES_SOFT_LIMIT has been
-added. Unlike hard limits, soft limits can be directly set and do not
-need any reclaim or checks before setting them to a newer value.
+This patch introduces a RB-Tree for storing memory cgroups that are over their
+soft limit. The overall goal is to
+
+1. Add a memory cgroup to the RB-Tree when the soft limit is exceeded.
+   We are careful about updates, updates take place only after a particular
+   time interval has passed
+2. We remove the node from the RB-Tree when the usage goes below the soft
+   limit
+
+The next set of patches will exploit the RB-Tree to get the group that is
+over its soft limit by the largest amount and reclaim from it, when we
+face memory contention.
 
 Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- include/linux/res_counter.h |   39 ++++++++++++++++++++++++++++++++++
- kernel/res_counter.c        |    3 ++
- mm/memcontrol.c             |   20 +++++++++++++++++
- 3 files changed, 62 insertions(+)
+ mm/memcontrol.c |   78 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 78 insertions(+)
 
-diff -puN mm/memcontrol.c~memcg-add-soft-limit-interface mm/memcontrol.c
---- a/mm/memcontrol.c~memcg-add-soft-limit-interface
+diff -puN mm/memcontrol.c~memcg-organize-over-soft-limit-groups mm/memcontrol.c
+--- a/mm/memcontrol.c~memcg-organize-over-soft-limit-groups
 +++ a/mm/memcontrol.c
-@@ -1811,6 +1811,20 @@ static int mem_cgroup_write(struct cgrou
- 		else
- 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
- 		break;
-+	case RES_SOFT_LIMIT:
-+		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		if (ret)
-+			break;
-+		/*
-+		 * For memsw, soft limits are hard to implement in terms
-+		 * of semantics, for now, we support soft limits for
-+		 * control without swap
-+		 */
-+		if (type == _MEM)
-+			ret = res_counter_set_soft_limit(&memcg->res, val);
-+		else
-+			ret = -EINVAL;
-+		break;
- 	default:
- 		ret = -EINVAL; /* should be BUG() ? */
- 		break;
-@@ -2010,6 +2024,12 @@ static struct cftype mem_cgroup_files[] 
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
-+		.name = "soft_limit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
-+		.write_string = mem_cgroup_write,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
- 		.name = "failcnt",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
- 		.trigger = mem_cgroup_reset,
-diff -puN include/linux/res_counter.h~memcg-add-soft-limit-interface include/linux/res_counter.h
---- a/include/linux/res_counter.h~memcg-add-soft-limit-interface
-+++ a/include/linux/res_counter.h
-@@ -35,6 +35,10 @@ struct res_counter {
- 	 */
- 	unsigned long long limit;
- 	/*
-+	 * the limit that usage can be exceed
-+	 */
-+	unsigned long long soft_limit;
-+	/*
- 	 * the number of unsuccessful attempts to consume the resource
- 	 */
- 	unsigned long long failcnt;
-@@ -85,6 +89,7 @@ enum {
- 	RES_MAX_USAGE,
- 	RES_LIMIT,
- 	RES_FAILCNT,
-+	RES_SOFT_LIMIT,
+@@ -28,6 +28,7 @@
+ #include <linux/bit_spinlock.h>
+ #include <linux/rcupdate.h>
+ #include <linux/mutex.h>
++#include <linux/rbtree.h>
+ #include <linux/slab.h>
+ #include <linux/swap.h>
+ #include <linux/spinlock.h>
+@@ -119,6 +120,13 @@ struct mem_cgroup_lru_info {
  };
  
  /*
-@@ -130,6 +135,28 @@ static inline bool res_counter_limit_che
- 	return false;
- }
- 
-+/**
-+ * Get the difference between the usage and the soft limit
-+ * @cnt: The counter
-+ *
-+ * Returns 0 if usage is less than or equal to soft limit
-+ * The difference between usage and soft limit, otherwise.
++ * Cgroups above their limits are maintained in a RB-Tree, independent of
++ * their hierarchy representation
 + */
-+static inline unsigned long long
-+res_counter_soft_limit_excess(struct res_counter *cnt)
-+{
-+	unsigned long long excess;
-+	unsigned long flags;
++static struct rb_root mem_cgroup_soft_limit_exceeded_groups;
++static DEFINE_MUTEX(memcg_soft_limit_tree_mutex);
 +
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	if (cnt->usage <= cnt->soft_limit)
-+		excess = 0;
-+	else
-+		excess = cnt->usage - cnt->soft_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return excess;
-+}
-+
- /*
-  * Helper function to detect if the cgroup is within it's limit or
-  * not. It's currently called from cgroup_rss_prepare()
-@@ -178,4 +205,16 @@ static inline int res_counter_set_limit(
- 	return ret;
- }
++/*
+  * The memory controller data structure. The memory controller controls both
+  * page cache and RSS per cgroup. We would eventually like to provide
+  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
+@@ -166,12 +174,18 @@ struct mem_cgroup {
  
-+static inline int
-+res_counter_set_soft_limit(struct res_counter *cnt,
-+				unsigned long long soft_limit)
-+{
-+	unsigned long flags;
+ 	unsigned int	swappiness;
+ 
++	struct rb_node mem_cgroup_node;
++	unsigned long long usage_in_excess;
++	unsigned long last_tree_update;
 +
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	cnt->soft_limit = soft_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return 0;
+ 	/*
+ 	 * statistics. This must be placed at the end of memcg.
+ 	 */
+ 	struct mem_cgroup_stat stat;
+ };
+ 
++#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ)
++
+ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+ 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
+@@ -203,6 +217,39 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+ 
++static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
++{
++	struct rb_node **p = &mem_cgroup_soft_limit_exceeded_groups.rb_node;
++	struct rb_node *parent = NULL;
++	struct mem_cgroup *mem_node;
++
++	mutex_lock(&memcg_soft_limit_tree_mutex);
++	while (*p) {
++		parent = *p;
++		mem_node = rb_entry(parent, struct mem_cgroup, mem_cgroup_node);
++		if (mem->usage_in_excess < mem_node->usage_in_excess)
++			p = &(*p)->rb_left;
++		/*
++		 * We can't avoid mem cgroups that are over their soft
++		 * limit by the same amount
++		 */
++		else if (mem->usage_in_excess >= mem_node->usage_in_excess)
++			p = &(*p)->rb_right;
++	}
++	rb_link_node(&mem->mem_cgroup_node, parent, p);
++	rb_insert_color(&mem->mem_cgroup_node,
++			&mem_cgroup_soft_limit_exceeded_groups);
++	mem->last_tree_update = jiffies;
++	mutex_unlock(&memcg_soft_limit_tree_mutex);
 +}
 +
- #endif
-diff -puN kernel/res_counter.c~memcg-add-soft-limit-interface kernel/res_counter.c
---- a/kernel/res_counter.c~memcg-add-soft-limit-interface
-+++ a/kernel/res_counter.c
-@@ -19,6 +19,7 @@ void res_counter_init(struct res_counter
++static void mem_cgroup_remove_exceeded(struct mem_cgroup *mem)
++{
++	mutex_lock(&memcg_soft_limit_tree_mutex);
++	rb_erase(&mem->mem_cgroup_node, &mem_cgroup_soft_limit_exceeded_groups);
++	mutex_unlock(&memcg_soft_limit_tree_mutex);
++}
++
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 					 struct page_cgroup *pc,
+ 					 bool charge)
+@@ -917,6 +964,10 @@ static void __mem_cgroup_commit_charge(s
+ 				     struct page_cgroup *pc,
+ 				     enum charge_type ctype)
  {
- 	spin_lock_init(&counter->lock);
- 	counter->limit = (unsigned long long)LLONG_MAX;
-+	counter->soft_limit = (unsigned long long)LLONG_MAX;
- 	counter->parent = parent;
++	unsigned long long prev_usage_in_excess, new_usage_in_excess;
++	bool updated_tree = false;
++	unsigned long next_update;
++
+ 	/* try_charge() can return NULL to *memcg, taking care of it. */
+ 	if (!mem)
+ 		return;
+@@ -937,6 +988,30 @@ static void __mem_cgroup_commit_charge(s
+ 	mem_cgroup_charge_statistics(mem, pc, true);
+ 
+ 	unlock_page_cgroup(pc);
++
++	mem_cgroup_get(mem);
++	prev_usage_in_excess = mem->usage_in_excess;
++	new_usage_in_excess = res_counter_soft_limit_excess(&mem->res);
++
++	next_update = mem->last_tree_update + MEM_CGROUP_TREE_UPDATE_INTERVAL;
++	if (new_usage_in_excess && time_after(jiffies, next_update)) {
++		if (prev_usage_in_excess)
++			mem_cgroup_remove_exceeded(mem);
++		mem_cgroup_insert_exceeded(mem);
++		updated_tree = true;
++	} else if (prev_usage_in_excess && !new_usage_in_excess) {
++		mem_cgroup_remove_exceeded(mem);
++		updated_tree = true;
++	}
++
++	if (updated_tree) {
++		mutex_lock(&memcg_soft_limit_tree_mutex);
++		mem->last_tree_update = jiffies;
++		mem->usage_in_excess = new_usage_in_excess;
++		mutex_unlock(&memcg_soft_limit_tree_mutex);
++	}
++	mem_cgroup_put(mem);
++
  }
  
-@@ -101,6 +102,8 @@ res_counter_member(struct res_counter *c
- 		return &counter->limit;
- 	case RES_FAILCNT:
- 		return &counter->failcnt;
-+	case RES_SOFT_LIMIT:
-+		return &counter->soft_limit;
- 	};
+ /**
+@@ -2218,6 +2293,7 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	if (cont->parent == NULL) {
+ 		enable_swap_cgroup();
+ 		parent = NULL;
++		mem_cgroup_soft_limit_exceeded_groups = RB_ROOT;
+ 	} else {
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
+@@ -2231,6 +2307,8 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		res_counter_init(&mem->memsw, NULL);
+ 	}
+ 	mem->last_scanned_child = NULL;
++	mem->usage_in_excess = 0;
++	mem->last_tree_update = 0;	/* Yes, time begins at 0 here */
+ 	spin_lock_init(&mem->reclaim_param_lock);
  
- 	BUG();
+ 	if (parent)
 _
 
 -- 
