@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 070616B0044
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 11:25:46 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 045CA6B0044
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 11:40:00 -0500 (EST)
+Date: Wed, 7 Jan 2009 08:39:01 -0800 (PST)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: Increase dirty_ratio and dirty_background_ratio?
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090107154517.GA5565@duck.suse.cz>
-References: <20090107154517.GA5565@duck.suse.cz>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: Wed, 07 Jan 2009 17:25:46 +0100
-Message-Id: <1231345546.11687.314.camel@twins>
-Mime-Version: 1.0
+In-Reply-To: <1231345546.11687.314.camel@twins>
+Message-ID: <alpine.LFD.2.00.0901070833430.3057@localhost.localdomain>
+References: <20090107154517.GA5565@duck.suse.cz> <1231345546.11687.314.camel@twins>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-01-07 at 16:45 +0100, Jan Kara wrote:
-> Hi,
+
+
+On Wed, 7 Jan 2009, Peter Zijlstra wrote:
 > 
->   I'm writing mainly to gather opinions of clever people here ;). In commit
-> 07db59bd6b0f279c31044cba6787344f63be87ea (in April 2007) Linus has
-> decreased default /proc/sys/vm/dirty_ratio from 40 to 10 and
-> /proc/sys/vm/dirty_background_ratio from 10 to 5. 
+> >   So the question is: What kind of workloads are lower limits supposed to
+> > help? Desktop? Has anybody reported that they actually help? I'm asking
+> > because we are probably going to increase limits to the old values for
+> > SLES11 if we don't see serious negative impact on other workloads...
+> 
+> Adding some CCs.
+> 
+> The idea was that 40% of the memory is a _lot_ these days, and writeback
+> times will be huge for those hitting sync or similar. By lowering these
+> you'd smooth that out a bit.
 
-> While tracking
-> performance regressions in SLES11 wrt SLES10 we noted that this has severely
-> affected perfomance of some workloads using Berkeley DB (basically because
-> what the database does is that it creates a file almost as big as available
-> memory, mmaps it and randomly scribbles all over it and with lower limits
-> it gets much earlier throttled / pdflush is more aggressive writing back
-> stuff which is counterproductive in this particular case).
+Not just a bit. If you have 4GB of RAM (not at all unusual for even just a 
+regular desktop, never mind a "real" workstation), it's simply crazy to 
+allow 1.5GB of dirty memory. Not unless you have a really wicked RAID 
+system with great write performance that can push it out to disk (with 
+seeking) in just a few seconds.
 
->   So the question is: What kind of workloads are lower limits supposed to
-> help? Desktop? Has anybody reported that they actually help? I'm asking
-> because we are probably going to increase limits to the old values for
-> SLES11 if we don't see serious negative impact on other workloads...
+And few people have that.
 
-Adding some CCs.
+For a server, where throughput matters but latency generally does not, go 
+ahead and raise it. But please don't raise it for anything sane. The only 
+time it makes sense upping that percentage is for some odd special-case 
+benchmark that otherwise can fit the dirty data set in memory, and never 
+syncs it (ie it deletes all the files after generating them).
 
-The idea was that 40% of the memory is a _lot_ these days, and writeback
-times will be huge for those hitting sync or similar. By lowering these
-you'd smooth that out a bit.
+In other words, yes, 40% dirty can make a big difference to benchmarks, 
+but is almost never actually a good idea any more.
 
+That said, the _right_ thing to do is to 
+
+ (a) limit dirty by number of bytes (in addition to having a percentage 
+     limit). Current -git adds support for that.
+
+ (b) scale it dynamically by your IO performance. No, current -git does 
+     _not_ support this.
+
+but just upping the percentage is not a good idea.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
