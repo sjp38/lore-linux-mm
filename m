@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 718336B0047
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 13:56:51 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n07It934005706
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 05:55:09 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n07Ivgh02158720
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 05:57:42 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n07Iukxf026936
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 05:56:46 +1100
-Date: Thu, 8 Jan 2009 00:26:27 +0530
-From: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 0/4] Memory controller soft limit patches
-Message-ID: <20090107185627.GL4145@linux.vnet.ibm.com>
-Reply-To: Dhaval Giani <dhaval@linux.vnet.ibm.com>
-References: <20090107184110.18062.41459.sendpatchset@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090107184110.18062.41459.sendpatchset@localhost.localdomain>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 97F826B0044
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 15:51:32 -0500 (EST)
+Date: Wed, 07 Jan 2009 12:51:33 -0800 (PST)
+Message-Id: <20090107.125133.214628094.davem@davemloft.net>
+Subject: Re: Increase dirty_ratio and dirty_background_ratio?
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <alpine.LFD.2.00.0901070833430.3057@localhost.localdomain>
+References: <20090107154517.GA5565@duck.suse.cz>
+	<1231345546.11687.314.camel@twins>
+	<alpine.LFD.2.00.0901070833430.3057@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: torvalds@linux-foundation.org
+Cc: peterz@infradead.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 08, 2009 at 12:11:10AM +0530, Balbir Singh wrote:
-> 
-> Here is v1 of the new soft limit implementation. Soft limits is a new feature
-> for the memory resource controller, something similar has existed in the
-> group scheduler in the form of shares. We'll compare shares and soft limits
-> below. I've had soft limit implementations earlier, but I've discarded those
-> approaches in favour of this one.
-> 
-> Soft limits are the most useful feature to have for environments where
-> the administrator wants to overcommit the system, such that only on memory
-> contention do the limits become active. The current soft limits implementation
-> provides a soft_limit_in_bytes interface for the memory controller and not
-> for memory+swap controller. The implementation maintains an RB-Tree of groups
-> that exceed their soft limit and starts reclaiming from the group that
-> exceeds this limit by the maximum amount.
-> 
-> This is an RFC implementation and is not meant for inclusion
-> 
-> TODOs
-> 
-> 1. The shares interface is not yet implemented, the current soft limit
->    implementation is not yet hierarchy aware. The end goal is to add
->    a shares interface on top of soft limits and to maintain shares in
->    a manner similar to the group scheduler
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 7 Jan 2009 08:39:01 -0800 (PST)
 
-Just to clarify, when there is no contention, you want to share memory
-proportionally?
+> On Wed, 7 Jan 2009, Peter Zijlstra wrote:
+> > 
+> > >   So the question is: What kind of workloads are lower limits supposed to
+> > > help? Desktop? Has anybody reported that they actually help? I'm asking
+> > > because we are probably going to increase limits to the old values for
+> > > SLES11 if we don't see serious negative impact on other workloads...
+> > 
+> > Adding some CCs.
+> > 
+> > The idea was that 40% of the memory is a _lot_ these days, and writeback
+> > times will be huge for those hitting sync or similar. By lowering these
+> > you'd smooth that out a bit.
+> 
+> Not just a bit. If you have 4GB of RAM (not at all unusual for even just a 
+> regular desktop, never mind a "real" workstation), it's simply crazy to 
+> allow 1.5GB of dirty memory. Not unless you have a really wicked RAID 
+> system with great write performance that can push it out to disk (with 
+> seeking) in just a few seconds.
+> 
+> And few people have that.
+> 
+> For a server, where throughput matters but latency generally does not, go 
+> ahead and raise it. But please don't raise it for anything sane. The only 
+> time it makes sense upping that percentage is for some odd special-case 
+> benchmark that otherwise can fit the dirty data set in memory, and never 
+> syncs it (ie it deletes all the files after generating them).
+> 
+> In other words, yes, 40% dirty can make a big difference to benchmarks, 
+> but is almost never actually a good idea any more.
 
-thanks,
--- 
-regards,
-Dhaval
+I have to say that my workstation is still helped by reverting this
+change and all I do is play around in GIT trees and read email.
+
+It's a slow UltraSPARC-IIIi 1.5GHz machine with a very slow IDE disk
+and 2GB of ram.
+
+With the dirty ratio changeset there, I'm waiting for disk I/O
+seemingly all the time.  Without it, I only feel the machine seize up
+in disk I/O when I really punish it.
+
+Maybe all the dirty I/O is from my not using 'noatime', and if that's
+how I should "fix" this then we can ask why isn't it the default? :)
+
+I did mention this when the original changeset went into the tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
