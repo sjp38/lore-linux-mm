@@ -1,194 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD696B00E9
-	for <linux-mm@kvack.org>; Tue,  6 Jan 2009 22:21:23 -0500 (EST)
-Message-ID: <49641F9B.9020803@cs.columbia.edu>
-Date: Tue, 06 Jan 2009 22:20:59 -0500
-From: Oren Laadan <orenl@cs.columbia.edu>
-MIME-Version: 1.0
-Subject: Re: [RFC v12][PATCH 14/14] Restart multiple processes
-References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu> <1230542187-10434-15-git-send-email-orenl@cs.columbia.edu> <20090104201957.GA12725@us.ibm.com>
-In-Reply-To: <20090104201957.GA12725@us.ibm.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C08A86B00EB
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 01:55:21 -0500 (EST)
+Date: Wed, 7 Jan 2009 07:55:17 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH] Remove needless lock and list in vmap
+Message-ID: <20090107065517.GB21629@wotan.suse.de>
+References: <20090107054713.GA1416@barrios-desktop>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20090107054713.GA1416@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: "Serge E. Hallyn" <serue@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>
+To: stable@kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-Serge E. Hallyn wrote:
-> Quoting Oren Laadan (orenl@cs.columbia.edu):
->> Restarting of multiple processes expects all restarting tasks to call
->> sys_restart(). Once inside the system call, each task will restart
->> itself at the same order that they were saved. The internals of the
->> syscall will take care of in-kernel synchronization bewteen tasks.
-
-[...]
-
-> Thanks, Oren.
+On Wed, Jan 07, 2009 at 02:47:13PM +0900, MinChan Kim wrote:
+> Anyone don't use vmap's dirty_list.
+> I am not sure this is thing Nick's future work on purpose.
+> If it is a dummy, we can remove dirty list and related codes
+> to handle list and locking.
 > 
-> Acked-by: Serge Hallyn <serue@us.ibm.com>
+> Also, In free_vmap_block, we don't have to check empty free_list.
+> That's becuase before calling free_vmap_block, vb_free always checks
+> empty of vb->free_list.
 > 
-> with a few comments below.
-
-Thanks for the comments.
-
-[...]
-
->> +/* FIXME: this should be per container */
->> +DECLARE_WAIT_QUEUE_HEAD(cr_restart_waitq);
->> +
->> +static int do_restart_task(struct cr_ctx *ctx, pid_t pid)
+> Now except vb_free, Anywhere don't call free_vmap_block.
+> so, we can remove that check and locking.
 > 
-> Passing ctx in here, when it is always NULL, is just a bit
-> confusing, and, since you goto out and cr_ctx_put(ctx) without
-> initializing ctx, you make verifying that that's ok a step
-> harder.
-> 
-> Do you intend to ever pass in non-NULL in later patches?
+> If it is nick's intention to work in future, please, ignore this patch. 
 
-Yes; for instance I expect Andrey's create-tasks-in-kernel patch
-(when ready) to eventually have each thread call do_restart_task().
-I also liked the symmetry with do_restart_root()...
+It was going to be an attempt to optimise flushing a bit, but I never
+finished writing the code. Either way, it doesn't belong upstream until
+time as it is needed, so your patch is good.
 
-You are correct that it's confusing now, so I'll take it out.
-
-> 
->> +{
->> +	struct task_struct *root_task;
->> +	int ret;
->> +
->> +	rcu_read_lock();
->> +	root_task = find_task_by_pid_ns(pid, current->nsproxy->pid_ns);
->> +	if (root_task)
->> +		get_task_struct(root_task);
->> +	rcu_read_unlock();
->> +
->> +	if (!root_task)
->> +		return -EINVAL;
->> +
->> +	/*
->> +	 * wait for container init to initialize the restart context, then
->> +	 * grab a reference to that context, and if we're the last task to
->> +	 * do it, notify the container init.
->> +	 */
->> +	ret = wait_event_interruptible(cr_restart_waitq,
->> +				       root_task->checkpoint_ctx);
-> 
-> Would seem more sensible to do the above using the ctx which
-> you grabbed under task_lock(root_task) next.  Your whole
-> locking of root_task->checkpoint_ctx seems haphazard (see below).
-
-At this point 'root_task->checkpoint_ctx' may still be NULL if the
-container init did not yet initialize it. That's why we first wait
-for it to become non-NULL.
-
-The code solves a coordination problem between the container init and
-the other tasks, given that:
-a) the order in which they call sys_restart() is unknown
-b) the container init creates a 'ctx' that is to be used by everyone
-
-The container init simply (1) allocates a shared 'ctx' and makes it
-visible via 'root_task->chcekpoint_ctx', then waits for all tasks to
-grab it (thus, be ready to restart), then initiates the restart chain,
-and finally waits for all tasks to finish.
-
-The other tasks, because of (a) and (b), may enter the kernel before
-the container init completes its step (1). So they must first wait
-for that 'ctx' to be available
-
-> 
->> +	if (ret < 0)
->> +		goto out;
->> +
->> +	task_lock(root_task);
->> +	ctx = root_task->checkpoint_ctx;
->> +	if (ctx)
->> +		cr_ctx_get(ctx);
->> +	task_unlock(root_task);
-
-So the other tasks work in two steps:
-1) wait for the container init ->checkpoint_ctx (we don't know when !)
-2) grab a reference to that 'ctx'
-
-Step (2) ensures that our reference to 'ctx' is valid even if the
-container init exits (due to error, signal etc). The last user of
-the 'ctx' will be the one to actually free it.
-
-I use the lock to protect against time-of-check to time-of-use race
-(e.g.the container init may exit due to an error or a signal); the
-container init also grabs the lock before clearing its ->checkpoint_ctx.
-
->> +
->> +	if (!ctx) {
->> +		ret = -EAGAIN;
->> +		goto out;
->> +	}
->> +
->> +	if (atomic_dec_and_test(&ctx->tasks_count))
->> +		complete(&ctx->complete);
->> +
->> +	/* wait for our turn, do the restore, and tell next task in line */
->> +	ret = cr_wait_task(ctx);
->> +	if (ret < 0)
->> +		goto out;
->> +	ret = cr_read_task(ctx);
->> +	if (ret < 0)
->> +		goto out;
->> +	ret = cr_next_task(ctx);
->> +
->> + out:
->> +	cr_ctx_put(ctx);
->> +	put_task_struct(root_task);
->> +	return ret;
->> +}
->> +
->> +static int cr_wait_all_tasks_start(struct cr_ctx *ctx)
->> +{
->> +	int ret;
->> +
->> +	if (ctx->pids_nr == 1)
->> +		return 0;
->> +
->> +	init_completion(&ctx->complete);
->> +	current->checkpoint_ctx = ctx;
->> +
->> +	wake_up_all(&cr_restart_waitq);
->> +
->> +	ret = wait_for_completion_interruptible(&ctx->complete);
->> +	if (ret < 0)
->> +		return ret;
->> +
->> +	task_lock(current);
->> +	current->checkpoint_ctx = NULL;
->> +	task_unlock(current);
-> 
-> Who can you be racing with here?  All other tasks should have
-> already dereferenced current->checkpoint_ctx.
-> 
-> If you want to always lock root_task around setting and
-> reading of (root_task|current)->checkpoint_ctx, that's
-> ok, but I think you can sufficiently argue that your
-> completion is completely protecint readers from the sole
-> writer.
-
-Only lock around clearing and reading; setting is safe.
-
-The completion is interruptible so that you can signal or kill
-the container init if something goes wrong, e.g. bad checkpoint
-image causes it to wait for non-existing processes forever.
-
-At a second glance, the clearing of '->checkpoint_ctx' must
-happen regardless of whether an error occurred, so the test for
-'ret < 0' should follow (and not precede) it.
-
-[...]
+Can you just put a BUG_ON(!list_empty(&vb->free_list)); in free_vmap_block?
+Then add Acked-by: Nick Piggin <npiggin@suse.de>
 
 Thanks,
+Nick
 
-Oren.
+> 
+> Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/vmalloc.c |   19 ++-----------------
+>  1 files changed, 2 insertions(+), 17 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 1ddb77b..1f79883 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -629,10 +629,7 @@ struct vmap_block {
+>  	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
+>  	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+>  	union {
+> -		struct {
+> -			struct list_head free_list;
+> -			struct list_head dirty_list;
+> -		};
+> +		struct list_head free_list;
+>  		struct rcu_head rcu_head;
+>  	};
+>  };
+> @@ -699,7 +696,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+>  	bitmap_zero(vb->alloc_map, VMAP_BBMAP_BITS);
+>  	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
+>  	INIT_LIST_HEAD(&vb->free_list);
+> -	INIT_LIST_HEAD(&vb->dirty_list);
+>  
+>  	vb_idx = addr_to_vb_idx(va->va_start);
+>  	spin_lock(&vmap_block_tree_lock);
+> @@ -730,13 +726,6 @@ static void free_vmap_block(struct vmap_block *vb)
+>  	struct vmap_block *tmp;
+>  	unsigned long vb_idx;
+>  
+> -	spin_lock(&vb->vbq->lock);
+> -	if (!list_empty(&vb->free_list))
+> -		list_del(&vb->free_list);
+> -	if (!list_empty(&vb->dirty_list))
+> -		list_del(&vb->dirty_list);
+> -	spin_unlock(&vb->vbq->lock);
+> -
+>  	vb_idx = addr_to_vb_idx(vb->va->va_start);
+>  	spin_lock(&vmap_block_tree_lock);
+>  	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
+> @@ -820,11 +809,7 @@ static void vb_free(const void *addr, unsigned long size)
+>  
+>  	spin_lock(&vb->lock);
+>  	bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order);
+> -	if (!vb->dirty) {
+> -		spin_lock(&vb->vbq->lock);
+> -		list_add(&vb->dirty_list, &vb->vbq->dirty);
+> -		spin_unlock(&vb->vbq->lock);
+> -	}
+> +
+>  	vb->dirty += 1UL << order;
+>  	if (vb->dirty == VMAP_BBMAP_BITS) {
+>  		BUG_ON(vb->free || !list_empty(&vb->free_list));
+> -- 
+> 1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
