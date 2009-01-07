@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C08A86B00EB
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 01:55:21 -0500 (EST)
-Date: Wed, 7 Jan 2009 07:55:17 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C48F6B00EC
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 01:55:44 -0500 (EST)
+Date: Wed, 7 Jan 2009 07:55:41 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH] Remove needless lock and list in vmap
-Message-ID: <20090107065517.GB21629@wotan.suse.de>
+Message-ID: <20090107065541.GC21629@wotan.suse.de>
 References: <20090107054713.GA1416@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -30,15 +30,7 @@ On Wed, Jan 07, 2009 at 02:47:13PM +0900, MinChan Kim wrote:
 > 
 > If it is nick's intention to work in future, please, ignore this patch. 
 
-It was going to be an attempt to optimise flushing a bit, but I never
-finished writing the code. Either way, it doesn't belong upstream until
-time as it is needed, so your patch is good.
-
-Can you just put a BUG_ON(!list_empty(&vb->free_list)); in free_vmap_block?
-Then add Acked-by: Nick Piggin <npiggin@suse.de>
-
-Thanks,
-Nick
+I should add, it isn't really required for -stable.
 
 > 
 > Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
