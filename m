@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4753D6B0047
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 11:49:00 -0500 (EST)
-Date: Thu, 8 Jan 2009 08:48:23 -0800 (PST)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id ECC1C6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 11:55:15 -0500 (EST)
 Subject: Re: Increase dirty_ratio and dirty_background_ratio?
-In-Reply-To: <20090108.082413.156881254.davem@davemloft.net>
-Message-ID: <alpine.LFD.2.00.0901080842180.3283@localhost.localdomain>
-References: <alpine.LFD.2.00.0901070833430.3057@localhost.localdomain> <20090107.125133.214628094.davem@davemloft.net> <20090108030245.e7c8ceaf.akpm@linux-foundation.org> <20090108.082413.156881254.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <alpine.LFD.2.00.0901080842180.3283@localhost.localdomain>
+References: <alpine.LFD.2.00.0901070833430.3057@localhost.localdomain>
+	 <20090107.125133.214628094.davem@davemloft.net>
+	 <20090108030245.e7c8ceaf.akpm@linux-foundation.org>
+	 <20090108.082413.156881254.davem@davemloft.net>
+	 <alpine.LFD.2.00.0901080842180.3283@localhost.localdomain>
+Content-Type: text/plain
+Date: Thu, 08 Jan 2009 11:55:01 -0500
+Message-Id: <1231433701.14304.24.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, peterz@infradead.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, peterz@infradead.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Thu, 8 Jan 2009, David Miller wrote:
-
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Date: Thu, 8 Jan 2009 03:02:45 -0800
+On Thu, 2009-01-08 at 08:48 -0800, Linus Torvalds wrote:
 > 
-> > The kernel can't get this right - it doesn't know the usage
-> > patterns/workloads, etc.
+> On Thu, 8 Jan 2009, David Miller wrote:
 > 
-> I don't agree with that.
+> > From: Andrew Morton <akpm@linux-foundation.org>
+> > Date: Thu, 8 Jan 2009 03:02:45 -0800
+> > 
+> > > The kernel can't get this right - it doesn't know the usage
+> > > patterns/workloads, etc.
+> > 
+> > I don't agree with that.
+> 
+> We can certainly try to tune it better. 
+> 
 
-We can certainly try to tune it better. 
+Does it make sense to hook into kupdate?  If kupdate finds it can't meet
+the no-data-older-than 30 seconds target, it lowers the sync/async combo
+down to some reasonable bottom.  
 
-And I do agree that we did a very drastic reduction in the dirty limits, 
-and we can probably look at raising it up a bit. I definitely do not want 
-to go back to the old 40% dirty model, but I could imagine 10/20% for 
-async/sync (it's 5/10 now, isn't it?)
+If it finds it is going to sleep without missing the target, raise the
+combo up to some reasonable top.
 
-But I do not want to be guided by benchmarks per se, unless they are 
-latency-sensitive. And one of the reasons for the drastic reduction was 
-that there was actually a real deadlock situation with the old limits, 
-although we solved that one twice - first by reducing the limits 
-drastically, and then by making them be relative to the non-highmem memory 
-(rather than all of it).
+-chris
 
-So in effect, we actually reduced the limits more than originally 
-intended, although that particular effect should be noticeable mainly just 
-on 32-bit x86.
-
-I'm certainly open to tuning. As long as "tuning" doesn't involve 
-something insane like dbench numbers.
-
-			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
