@@ -1,106 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D3D8F6B004F
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 05:18:49 -0500 (EST)
-Date: Thu, 8 Jan 2009 19:15:20 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [RFC][PATCH 4/4] memcg: make oom less frequently
-Message-Id: <20090108191520.df9c1d92.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090108190818.b663ce20.nishimura@mxp.nes.nec.co.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A070E6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 05:59:04 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n08Ax2lc018858
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 8 Jan 2009 19:59:02 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B527E45DE4F
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 19:59:01 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 86ADD45DD72
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 19:59:01 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FE9F1DB8037
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 19:59:01 +0900 (JST)
+Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C54FE18001
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 19:59:01 +0900 (JST)
+Message-ID: <36699.10.75.179.62.1231412340.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090108191430.af89e037.nishimura@mxp.nes.nec.co.jp>
 References: <20090108190818.b663ce20.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+    <20090108191430.af89e037.nishimura@mxp.nes.nec.co.jp>
+Date: Thu, 8 Jan 2009 19:59:00 +0900 (JST)
+Subject: Re: [RFC][PATCH 1/4] memcg: fix
+     formem_cgroup_get_reclaim_stat_from_page
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=us-ascii
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com, nishimura@mxp.nes.nec.co.jp
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-In previous implementation, mem_cgroup_try_charge checked the return
-value of mem_cgroup_try_to_free_pages, and just retried if some pages
-had been reclaimed.
-But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
-only checks whether the usage is less than the limit.
+Daisuke Nishimura said:
 
-This patch tries to change the behavior as before to cause oom less frequently.
+>     Call Trace:
+>      [<ffffffff8028ea17>] ? ____pagevec_lru_add+0xc1/0x13c
+>      [<ffffffff8028ec34>] ? drain_cpu_pagevecs+0x36/0x89
+>      [<ffffffff802a4f8c>] ? swapin_readahead+0x78/0x98
+>      [<ffffffff8029a37a>] ? handle_mm_fault+0x3d9/0x741
+>      [<ffffffff804da654>] ? do_page_fault+0x3ce/0x78c
+>      [<ffffffff804d7a42>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+>      [<ffffffff804d860f>] ? page_fault+0x1f/0x30
+>     Code: cc 55 48 8d af b8 0d 00 00 48 89 f7 53 89 d3 e8 39 85 02 00 48
+> 63 d3 48 ff 44 d5 10 45 85 e4 74 05 48 ff 44 d5 00 48 85 c0 74 0e <48>
+> ff 44 d0 10 45 85 e4 74 04 48 ff 04 d0 5b 5d 41 5c c3 41 54
+>     RIP  [<ffffffff8028e710>] update_page_reclaim_stat+0x2f/0x42
+>      RSP <ffff8801ee457da8>
+>
+>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+yes. PageCgroupUsed() should be cheked.
+or
+list_empty(&pc->lru) should be checked under zone->lock.
+Your fix seems reasonable.
 
-To prevent try_charge from getting stuck in infinite loop,
-MEM_CGROUP_RECLAIM_RETRIES_MAX is defined.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
+> ---
+>  mm/memcontrol.c |    4 ++++
+>  1 files changed, 4 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e2996b8..62e69d8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -559,6 +559,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page
+> *page)
+>  		return NULL;
+>
+>  	pc = lookup_page_cgroup(page);
+> +	smp_rmb();
+> +	if (!PageCgroupUsed(pc))
+> +		return NULL;
+> +
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	if (!mz)
+>  		return NULL;
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   16 ++++++++++++----
- 1 files changed, 12 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 804c054..fedd76b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -42,6 +42,7 @@
- 
- struct cgroup_subsys mem_cgroup_subsys __read_mostly;
- #define MEM_CGROUP_RECLAIM_RETRIES	5
-+#define MEM_CGROUP_RECLAIM_RETRIES_MAX	32
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- /* Turned on only when memory cgroup is enabled && really_do_swap_account = 0 */
-@@ -770,10 +771,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 	 * but there might be left over accounting, even after children
- 	 * have left.
- 	 */
--	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
-+	ret += try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
- 					   get_swappiness(root_mem));
- 	if (mem_cgroup_check_under_limit(root_mem))
--		return 0;
-+		return 1;	/* indicate reclaim has succeeded */
- 	if (!root_mem->use_hierarchy)
- 		return ret;
- 
-@@ -785,10 +786,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 			next_mem = mem_cgroup_get_next_node(root_mem);
- 			continue;
- 		}
--		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
-+		ret += try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
- 						   get_swappiness(next_mem));
- 		if (mem_cgroup_check_under_limit(root_mem))
--			return 0;
-+			return 1;	/* indicate reclaim has succeeded */
- 		next_mem = mem_cgroup_get_next_node(root_mem);
- 	}
- 	return ret;
-@@ -820,6 +821,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- {
- 	struct mem_cgroup *mem, *mem_over_limit;
- 	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	int nr_retries_max = MEM_CGROUP_RECLAIM_RETRIES_MAX;
- 	struct res_counter *fail_res;
- 
- 	if (unlikely(test_thread_flag(TIF_MEMDIE))) {
-@@ -871,8 +873,13 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 		if (!(gfp_mask & __GFP_WAIT))
- 			goto nomem;
- 
-+		if (!nr_retries_max--)
-+			goto oom;
-+
- 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
- 							noswap);
-+		if (ret)
-+			continue;
- 
- 		/*
- 		 * try_to_free_mem_cgroup_pages() might not give us a full
-@@ -886,6 +893,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 			continue;
- 
- 		if (!nr_retries--) {
-+oom:
- 			if (oom) {
- 				mutex_lock(&memcg_tasklist);
- 				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
