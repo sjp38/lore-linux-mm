@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 17F5E6B0044
-	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 23:41:17 -0500 (EST)
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id n084dcA2019630
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 15:39:38 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n084f7Oo285286
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 15:41:08 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n084f7H3001938
-	for <linux-mm@kvack.org>; Thu, 8 Jan 2009 15:41:07 +1100
-Date: Thu, 8 Jan 2009 10:11:08 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 3/4] Memory controller soft limit organize cgroups
-Message-ID: <20090108044108.GG7294@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090107184110.18062.41459.sendpatchset@localhost.localdomain> <20090107184128.18062.96016.sendpatchset@localhost.localdomain> <20090108101148.96e688f4.kamezawa.hiroyu@jp.fujitsu.com> <20090108042558.GC7294@balbir.in.ibm.com> <20090108132855.77d3d3d4.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090108132855.77d3d3d4.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id C10D46B0044
+	for <linux-mm@kvack.org>; Wed,  7 Jan 2009 23:46:09 -0500 (EST)
+Date: Thu, 8 Jan 2009 13:41:33 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 0/4] Memory controller soft limit patches
+Message-Id: <20090108134133.6edf461f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090108035930.GB7294@balbir.in.ibm.com>
+References: <20090107184110.18062.41459.sendpatchset@localhost.localdomain>
+	<20090108093040.22d5f281.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090108035930.GB7294@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>
+To: balbir@linux.vnet.ibm.com
+Cc: nishimura@mxp.nes.nec.co.jp, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, riel@redhat.com, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-01-08 13:28:55]:
-
-> On Thu, 8 Jan 2009 09:55:58 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >   1. please fix current bugs on hierarchy management, before new feature.
+> >      AFAIK, OOM-Kill under hierarchy is broken. (I have patches but waits for
+> >      merge window close.)
 > 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-01-08 10:11:48]:
-> > > Hmm,  Could you clarify following ?
-> > >   
-> > >   - Usage of memory at insertsion and usage of memory at reclaim is different.
-> > >     So, this *sorted* order by RB-tree isn't the best order in general.
-> > 
-> > True, but we frequently update the tree at an interval of HZ/4.
-> > Updating at every page fault sounded like an overkill and building the
-> > entire tree at reclaim is an overkill too.
-> > 
-> "sort" is not necessary.
-> If this feature is implemented as background daemon,
-> just select the worst one at each iteration is enough.
+> I've not hit the OOM-kill issue under hierarchy so far, is the OOM
+> killer selecting a bad task to kill? I'll debug/reproduce the issue.
+> I am not posting these patches for inclusion, fixing bugs is
+> definitely the highest priority.
+> 
+I agree.
 
-OK, definitely an alternative worth considering, but the trade-off is
-lazy building (your suggestion), which involves actively seeing the
-usage of all cgroups (and if they are large, O(c), c is number of
-cgroups can be quite a bit) versus building the tree as and when the
-fault occurs and controlled by some interval.
+Just FYI, I have several bug fix patches for current memcg(that is for .29).
+I've been testing them now, and it survives my test(rmdir aftre task move
+under memory pressure and page migration) w/o big problem(except oom) for hours
+in both use_hierarchy==0/1 case.
 
--- 
-	Balbir
+> >      I wonder there will be some others. Lockdep error which Nishimura reported
+> >      are all fixed now ?
+> 
+> I run all my kernels and tests with lockdep enabled, I did not see any
+> lockdep errors showing up.
+> 
+I think Paul's hierarchy_mutex patches fixed the dead lock, I haven't seen
+the dead lock after the patch.
+(Although, it may cause another dead lock when other subsystems are added.)
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
