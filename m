@@ -1,134 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EE04C6B0044
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 21:32:09 -0500 (EST)
-Date: Fri, 9 Jan 2009 11:29:22 +0900
+	by kanga.kvack.org (Postfix) with ESMTP id D96FD6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 21:38:26 -0500 (EST)
+Date: Fri, 9 Jan 2009 11:34:58 +0900
 From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 4/4] memcg: make oom less frequently
-Message-Id: <20090109112922.68881c05.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090109110358.8a0d991a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 1/4] memcg: fix for
+ mem_cgroup_get_reclaim_stat_from_page
+Message-Id: <20090109113458.d9a1320d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090109100531.03cd998f.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090108190818.b663ce20.nishimura@mxp.nes.nec.co.jp>
-	<20090108191520.df9c1d92.nishimura@mxp.nes.nec.co.jp>
-	<44480.10.75.179.62.1231413588.squirrel@webmail-b.css.fujitsu.com>
-	<20090109104416.9bf4aab7.nishimura@mxp.nes.nec.co.jp>
-	<20090109110358.8a0d991a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090108191430.af89e037.nishimura@mxp.nes.nec.co.jp>
+	<4966A117.9030201@cn.fujitsu.com>
+	<20090109100531.03cd998f.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com
+Cc: nishimura@mxp.nes.nec.co.jp, Li Zefan <lizf@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Jan 2009 11:03:58 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Fri, 9 Jan 2009 10:44:16 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Fri, 9 Jan 2009 10:05:31 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Fri, 09 Jan 2009 08:57:59 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
 > 
-> > > To handle live-lock situation as "reclaimed memory is stolen very soon",
-> > > should we check signal_pending(current) or some flags ?
-> > > 
-> > > IMHO, using jiffies to detect how long we should retry is easy to understand
-> > > ....like
-> > >  "if memory charging cannot make progress for XXXX minutes,
-> > >   trigger some notifier or show some flag to user via cgroupfs interface.
-> > >   to show we're tooooooo busy."
-> > > 
-> > Good Idea.
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index e2996b8..62e69d8 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -559,6 +559,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+> > >  		return NULL;
+> > >  
+> > >  	pc = lookup_page_cgroup(page);
+> > > +	smp_rmb();
 > > 
-> > But I think it would be enough for now to check signal_pending(curren) and
-> > return -ENOMEM.
+> > It is better to add a comment to explain this smp_rmb. I think it's recommended
+> > that every memory barrier has a comment.
 > > 
-> > How about this one?
+> Ah, yes. good point.
 > 
-> Hmm, looks much simpler.
+> Maybe text like this
+> /*
+>  * Used bit is set without atomic ops but after smp_wmb().
+>  * For making pc->mem_cgroup visible, insert smp_rmb() here.
+>  */
 > 
-> > ===
-> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > 
-> > In previous implementation, mem_cgroup_try_charge checked the return
-> > value of mem_cgroup_try_to_free_pages, and just retried if some pages
-> > had been reclaimed.
-> > But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
-> > only checks whether the usage is less than the limit.
-> > 
-> > This patch tries to change the behavior as before to cause oom less frequently.
-> > 
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  mm/memcontrol.c |   14 ++++++++++----
-> >  1 files changed, 10 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index dc38a0e..2ab0a5c 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -770,10 +770,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> >  	 * but there might be left over accounting, even after children
-> >  	 * have left.
-> >  	 */
-> > -	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
-> > +	ret += try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
-> >  					   get_swappiness(root_mem));
-> >  	if (mem_cgroup_check_under_limit(root_mem))
-> > -		return 0;
-> > +		return 1;	/* indicate reclaim has succeeded */
-> >  	if (!root_mem->use_hierarchy)
-> >  		return ret;
-> >  
-> > @@ -784,10 +784,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
-> >  			next_mem = mem_cgroup_get_next_node(root_mem);
-> >  			continue;
-> >  		}
-> > -		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
-> > +		ret += try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
-> >  						   get_swappiness(next_mem));
-> >  		if (mem_cgroup_check_under_limit(root_mem))
-> > -			return 0;
-> > +			return 1;	/* indicate reclaim has succeeded */
-> >  		next_mem = mem_cgroup_get_next_node(root_mem);
-> >  	}
-> >  	return ret;
-> > @@ -870,8 +870,13 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
-> >  		if (!(gfp_mask & __GFP_WAIT))
-> >  			goto nomem;
-> >  
-> > +		if (signal_pending(current))
-> > +			goto oom;
-> > +
-> 
-> I think it's better to avoid to add this check *now*. and "signal is pending" 
-> doesn't mean oom situation.
-> 
-hmm.. charge is assumed to return 0 or -ENOMEM, what should we return on
-signal_pending case ?
+OK. I'll add this comment.
 
-In case of shmem for example, if charge at shmem_getpage fails by -ENOMEM, 
-shmem_fault returns VM_FAULT_OOM, so pagefault_out_of_memory would be called.
-If memcg had not invoked oom-killer, system wide oom would be invoked.
-
-> Hmm..Maybe we can tell "please retry page fault again, it's too long latency in
-> memory reclaim and you received signal." in future.
-> 
-OK.
-
-> IMHO, only quick path which we can add here now is
-> ==
-> 	if (test_thread_flag(TIG_MEMDIE)) { /* This thread is killed by OOM */
-> 		*memcg = NULL;
-> 		return 0;
-> 	}
-> ==
-> like this.
-> 
-> Anyway, please discuss this "quick exit path" in other patch and just remove 
-> siginal check.
-> 
-> Other part looks ok to me.
-> 
-Thanks :)
-
-I'll update this one by removing the signal_pendign check.
+BTW, mem_cgroup_rotate_lru_list and mem_cgroup_add_lru_list have similar code.
+(mem_cgroup_add_lru_list has some comment already.)
+Should I update them too ?
 
 
 Thanks,
