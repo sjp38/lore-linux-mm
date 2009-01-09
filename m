@@ -1,191 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 735B26B0044
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 20:09:37 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0919YoV016863
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 9 Jan 2009 10:09:34 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AD6CD45DE5C
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 10:09:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C36C45DE55
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 10:09:33 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 058811DB803B
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 10:09:33 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7D7961DB803F
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 10:09:32 +0900 (JST)
-Date: Fri, 9 Jan 2009 10:08:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/4] memcg: fix for mem_cgroup_hierarchical_reclaim
-Message-Id: <20090109100830.3e9c90e0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <39822.10.75.179.62.1231412881.squirrel@webmail-b.css.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4196B0044
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 20:46:59 -0500 (EST)
+Date: Fri, 9 Jan 2009 10:44:16 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 4/4] memcg: make oom less frequently
+Message-Id: <20090109104416.9bf4aab7.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <44480.10.75.179.62.1231413588.squirrel@webmail-b.css.fujitsu.com>
 References: <20090108190818.b663ce20.nishimura@mxp.nes.nec.co.jp>
-	<20090108191501.dc469a51.nishimura@mxp.nes.nec.co.jp>
-	<39822.10.75.179.62.1231412881.squirrel@webmail-b.css.fujitsu.com>
+	<20090108191520.df9c1d92.nishimura@mxp.nes.nec.co.jp>
+	<44480.10.75.179.62.1231413588.squirrel@webmail-b.css.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com
+Cc: nishimura@mxp.nes.nec.co.jp, linux-mm@kvack.org, linux-kernel@vger.kernel.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Jan 2009 20:08:01 +0900 (JST)
-"KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
+On Thu, 8 Jan 2009 20:19:48 +0900 (JST), "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 > Daisuke Nishimura said:
-> > If root_mem has no children, last_scaned_child is set to root_mem itself.
-> > But after some children added to root_mem, mem_cgroup_get_next_node can
-> > mem_cgroup_put the root_mem although root_mem has not been mem_cgroup_get.
+> > In previous implementation, mem_cgroup_try_charge checked the return
+> > value of mem_cgroup_try_to_free_pages, and just retried if some pages
+> > had been reclaimed.
+> > But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
+> > only checks whether the usage is less than the limit.
 > >
-> > This patch fixes this behavior by:
-> > - Set last_scanned_child to NULL if root_mem has no children or DFS search
-> >   has returned to root_mem itself(root_mem is not a "child" of root_mem).
-> >   Make mem_cgroup_get_first_node return root_mem in this case.
-> >   There are no mem_cgroup_get/put for root_mem.
-> > - Rename mem_cgroup_get_next_node to __mem_cgroup_get_next_node, and
-> >   mem_cgroup_get_first_node to mem_cgroup_get_next_node.
-> >   Make mem_cgroup_hierarchical_reclaim call only new
-> > mem_cgroup_get_next_node.
+> > This patch tries to change the behavior as before to cause oom less
+> > frequently.
+> >
+> > To prevent try_charge from getting stuck in infinite loop,
+> > MEM_CGROUP_RECLAIM_RETRIES_MAX is defined.
 > >
 > >
 > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
-> Hmm, seems necessary fix. Then, it's better to rebase my patch on to this.
+> I think this is necessary change.
+> My version of hierarchy reclaim will do this.
 > 
-> Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> But RETRIES_MAX is not clear ;) please use one counter.
 > 
-> Maybe simpler one can be written but my patch remove all this out later....
+> And why MAX=32 ?
+I inserted printk and counted the loop count on oom(tested with 4 children).
+It seemed 32 would be enough.
+
+> > +		if (ret)
+> > +			continue;
+> seems to do enough work.
 > 
-How about this ? (just an exmaple and not tested, sorry)
+> While memory can be reclaimed, it's not dead lock.
+I see.
+I introduced this max count because mmap_sem might be hold for a long time
+at page fault, but this is not "dead" lock as you say.
+
+> To handle live-lock situation as "reclaimed memory is stolen very soon",
+> should we check signal_pending(current) or some flags ?
+> 
+> IMHO, using jiffies to detect how long we should retry is easy to understand
+> ....like
+>  "if memory charging cannot make progress for XXXX minutes,
+>   trigger some notifier or show some flag to user via cgroupfs interface.
+>   to show we're tooooooo busy."
+> 
+Good Idea.
+
+But I think it would be enough for now to check signal_pending(curren) and
+return -ENOMEM.
+
+How about this one?
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+In previous implementation, mem_cgroup_try_charge checked the return
+value of mem_cgroup_try_to_free_pages, and just retried if some pages
+had been reclaimed.
+But now, try_charge(and mem_cgroup_hierarchical_reclaim called from it)
+only checks whether the usage is less than the limit.
+
+This patch tries to change the behavior as before to cause oom less frequently.
 
 
-
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 ---
- mm/memcontrol.c |   52 ++++++++++++++++++++++------------------------------
- 1 file changed, 22 insertions(+), 30 deletions(-)
+ mm/memcontrol.c |   14 ++++++++++----
+ 1 files changed, 10 insertions(+), 4 deletions(-)
 
-Index: mmotm-2.6.28-Jan7/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.28-Jan7.orig/mm/memcontrol.c
-+++ mmotm-2.6.28-Jan7/mm/memcontrol.c
-@@ -621,6 +621,7 @@ static struct mem_cgroup *
- mem_cgroup_get_next_node(struct mem_cgroup *curr, struct mem_cgroup *root_mem)
- {
- 	struct cgroup *cgroup, *curr_cgroup, *root_cgroup;
-+	struct mem_cgroup *orig = root_mem->last_scanned_child;
- 
- 	curr_cgroup = curr->css.cgroup;
- 	root_cgroup = root_mem->css.cgroup;
-@@ -629,19 +630,15 @@ mem_cgroup_get_next_node(struct mem_cgro
- 		/*
- 		 * Walk down to children
- 		 */
--		mem_cgroup_put(curr);
- 		cgroup = list_entry(curr_cgroup->children.next,
- 						struct cgroup, sibling);
- 		curr = mem_cgroup_from_cont(cgroup);
--		mem_cgroup_get(curr);
- 		goto done;
- 	}
- 
- visit_parent:
- 	if (curr_cgroup == root_cgroup) {
--		mem_cgroup_put(curr);
- 		curr = root_mem;
--		mem_cgroup_get(curr);
- 		goto done;
- 	}
- 
-@@ -649,11 +646,9 @@ visit_parent:
- 	 * Goto next sibling
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index dc38a0e..2ab0a5c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -770,10 +770,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 	 * but there might be left over accounting, even after children
+ 	 * have left.
  	 */
- 	if (curr_cgroup->sibling.next != &curr_cgroup->parent->children) {
--		mem_cgroup_put(curr);
- 		cgroup = list_entry(curr_cgroup->sibling.next, struct cgroup,
- 						sibling);
- 		curr = mem_cgroup_from_cont(cgroup);
--		mem_cgroup_get(curr);
- 		goto done;
+-	ret = try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
++	ret += try_to_free_mem_cgroup_pages(root_mem, gfp_mask, noswap,
+ 					   get_swappiness(root_mem));
+ 	if (mem_cgroup_check_under_limit(root_mem))
+-		return 0;
++		return 1;	/* indicate reclaim has succeeded */
+ 	if (!root_mem->use_hierarchy)
+ 		return ret;
+ 
+@@ -784,10 +784,10 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+ 			next_mem = mem_cgroup_get_next_node(root_mem);
+ 			continue;
+ 		}
+-		ret = try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
++		ret += try_to_free_mem_cgroup_pages(next_mem, gfp_mask, noswap,
+ 						   get_swappiness(next_mem));
+ 		if (mem_cgroup_check_under_limit(root_mem))
+-			return 0;
++			return 1;	/* indicate reclaim has succeeded */
+ 		next_mem = mem_cgroup_get_next_node(root_mem);
  	}
- 
-@@ -664,7 +659,10 @@ visit_parent:
- 	goto visit_parent;
- 
- done:
-+	if (orig)
-+		mem_cgroup_put(orig);
- 	root_mem->last_scanned_child = curr;
-+	mem_cgroup_get(curr);
- 	return curr;
- }
- 
-@@ -677,35 +675,25 @@ static struct mem_cgroup *
- mem_cgroup_get_first_node(struct mem_cgroup *root_mem)
- {
- 	struct cgroup *cgroup;
--	struct mem_cgroup *ret;
--	bool obsolete;
-+	struct mem_cgroup *ret, *orig;
- 
--	obsolete = mem_cgroup_is_obsolete(root_mem->last_scanned_child);
--
--	/*
--	 * Scan all children under the mem_cgroup mem
--	 */
- 	mutex_lock(&mem_cgroup_subsys.hierarchy_mutex);
--	if (list_empty(&root_mem->css.cgroup->children)) {
--		ret = root_mem;
--		goto done;
--	}
--
--	if (!root_mem->last_scanned_child || obsolete) {
--
--		if (obsolete && root_mem->last_scanned_child)
--			mem_cgroup_put(root_mem->last_scanned_child);
-+	orig = root_mem->last_scanned_child;
- 
--		cgroup = list_first_entry(&root_mem->css.cgroup->children,
--				struct cgroup, sibling);
--		ret = mem_cgroup_from_cont(cgroup);
-+	if (!orig) {
-+		if (list_empty(&root_mem->css.cgroup->children)) {
-+			ret = root_mem;
-+		} else {
-+			cgroup =
-+			    list_first_entry(&root_mem->css.cgroup->children,
-+					struct cgroup, sibling);
-+			ret = mem_cgroup_from_cont(cgroup);
-+		}
-+		root_mem->last_scanned_child = ret;
- 		mem_cgroup_get(ret);
--	} else
-+	} else /* get_next_node will manage refcnt */
- 		ret = mem_cgroup_get_next_node(root_mem->last_scanned_child,
- 						root_mem);
--
--done:
--	root_mem->last_scanned_child = ret;
- 	mutex_unlock(&mem_cgroup_subsys.hierarchy_mutex);
  	return ret;
- }
-@@ -2232,7 +2220,11 @@ static void mem_cgroup_pre_destroy(struc
- static void mem_cgroup_destroy(struct cgroup_subsys *ss,
- 				struct cgroup *cont)
- {
--	mem_cgroup_put(mem_cgroup_from_cont(cont));
-+	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-+
-+	if (mem->last_scanned_child == mem)
-+		mem_cgroup_put(mem);
-+	mem_cgroup_put(mem);
- }
+@@ -870,8 +870,13 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 		if (!(gfp_mask & __GFP_WAIT))
+ 			goto nomem;
  
- static int mem_cgroup_populate(struct cgroup_subsys *ss,
++		if (signal_pending(current))
++			goto oom;
++
+ 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
+ 							noswap);
++		if (ret)
++			continue;
+ 
+ 		/*
+ 		 * try_to_free_mem_cgroup_pages() might not give us a full
+@@ -885,6 +890,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 			continue;
+ 
+ 		if (!nr_retries--) {
++oom:
+ 			if (oom) {
+ 				mutex_lock(&memcg_tasklist);
+ 				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
