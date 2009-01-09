@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 17B536B0044
-	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 15:01:04 -0500 (EST)
-Date: Thu, 08 Jan 2009 12:01:01 -0800 (PST)
-Message-Id: <20090108.120101.182003946.davem@davemloft.net>
-Subject: Re: Increase dirty_ratio and dirty_background_ratio?
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20090108195728.GC14560@duck.suse.cz>
-References: <1231433701.14304.24.camel@think.oraclecorp.com>
-	<alpine.LFD.2.00.0901080858500.3283@localhost.localdomain>
-	<20090108195728.GC14560@duck.suse.cz>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 385776B0044
+	for <linux-mm@kvack.org>; Thu,  8 Jan 2009 19:58:57 -0500 (EST)
+Message-ID: <4966A117.9030201@cn.fujitsu.com>
+Date: Fri, 09 Jan 2009 08:57:59 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH 1/4] memcg: fix for mem_cgroup_get_reclaim_stat_from_page
+References: <20090108190818.b663ce20.nishimura@mxp.nes.nec.co.jp> <20090108191430.af89e037.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090108191430.af89e037.nishimura@mxp.nes.nec.co.jp>
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: jack@suse.cz
-Cc: torvalds@linux-foundation.org, chris.mason@oracle.com, akpm@linux-foundation.org, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, balbir@linux.vnet.ibm.com, menage@google.com
 List-ID: <linux-mm.kvack.org>
 
-From: Jan Kara <jack@suse.cz>
-Date: Thu, 8 Jan 2009 20:57:28 +0100
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e2996b8..62e69d8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -559,6 +559,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+>  		return NULL;
+>  
+>  	pc = lookup_page_cgroup(page);
+> +	smp_rmb();
 
->   But I think there are workloads for which this is suboptimal to say the
-> least. Imagine you do some crazy LDAP database crunching or other similar load
-> which randomly writes to a big file (big means it's size is rougly
-> comparable to your available memory). Kernel finds pdflush isn't able to
-> flush the data fast enough so we decrease dirty limits. This results in
-> even more agressive flushing but that makes things even worse (in a sence
-> that your application runs slower and the disk is busy all the time anyway).
-> This is the kind of load where we observe problems currently.
+It is better to add a comment to explain this smp_rmb. I think it's recommended
+that every memory barrier has a comment.
 
-I'm pretty sure this is what I see as well.
-
-If you just barely fit your working GIT state into memory, and you are
-not using "noatime" on that partition, doing a bunch of git operations
-is just going to trigger all of this forced and blocking writeback on
-the atime dirtying of the inodes, and this will subsequently grind
-your machine to a halt if your disk is slow.
+> +	if (!PageCgroupUsed(pc))
+> +		return NULL;
+> +
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	if (!mz)
+>  		return NULL;
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
