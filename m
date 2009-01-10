@@ -1,59 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B8F706B009C
-	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 19:49:32 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0A0nT8q003318
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 10 Jan 2009 09:49:29 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 791B245DD74
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2009 09:49:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EC5345DD72
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2009 09:49:30 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C34C21DB803C
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2009 09:49:28 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 817DF1DB803A
-	for <linux-mm@kvack.org>; Sat, 10 Jan 2009 09:49:28 +0900 (JST)
-Message-ID: <8c182b969c7f3c9c583b879709767ed7.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <6599ad830901091623i2c3f6ce1ma88c845074b7c013@mail.gmail.com>
-References: <20090108182556.621e3ee6.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090108182817.2c393351.kamezawa.hiroyu@jp.fujitsu.com>
-    <6599ad830901091623i2c3f6ce1ma88c845074b7c013@mail.gmail.com>
-Date: Sat, 10 Jan 2009 09:49:28 +0900 (JST)
-Subject: Re: [RFC][PATCH 1/4] cgroup: support per cgroup subsys state ID
- (CSS  ID)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D6496B009E
+	for <linux-mm@kvack.org>; Fri,  9 Jan 2009 20:33:01 -0500 (EST)
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id n0A1Wv0p018375
+	for <linux-mm@kvack.org>; Sat, 10 Jan 2009 01:32:57 GMT
+Received: from rv-out-0506.google.com (rvbf6.prod.google.com [10.140.82.6])
+	by zps38.corp.google.com with ESMTP id n0A1WsY1012246
+	for <linux-mm@kvack.org>; Fri, 9 Jan 2009 17:32:55 -0800
+Received: by rv-out-0506.google.com with SMTP id f6so10016940rvb.3
+        for <linux-mm@kvack.org>; Fri, 09 Jan 2009 17:32:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
+In-Reply-To: <20090109163725.11294fb1.akpm@linux-foundation.org>
+References: <604427e00901051539x52ab85bcua94cd8036e5b619a@mail.gmail.com>
+	 <604427e00901081840pa6dcc41u9a7a5c69302c7b60@mail.gmail.com>
+	 <604427e00901091627n7c909abt6aa1f01c181ad65d@mail.gmail.com>
+	 <20090109163725.11294fb1.akpm@linux-foundation.org>
+Date: Fri, 9 Jan 2009 17:32:54 -0800
+Message-ID: <604427e00901091732reaef7b5u6ccd89ffb840dbb8@mail.gmail.com>
+Subject: Re: [PATCH]Fix: 32bit binary has 64bit address of stack vma
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Paul Menage <menage@google.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mikew@google.com, rohitseth@google.com, linux-api@vger.kernel.org, oleg@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Paul Menage さんは書きました：
-> On Thu, Jan 8, 2009 at 1:28 AM, KAMEZAWA Hiroyuki
-> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> + *
->> + * Looking up and scanning function should be called under
->> rcu_read_lock().
->> + * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for all
->> calls.
+On Fri, Jan 9, 2009 at 4:37 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 9 Jan 2009 16:27:07 -0800
+> Ying Han <yinghan@google.com> wrote:
 >
-> Can you clarify here - do you mean "not necessary for any calls"
-> (calls to what?) or "not necessary for some calls"? I presume the
-> former.
+>> friendly ping...
 >
-Ah, sorry bad text.
+> We'll get there.  We're in the merge window now, so I tend to defer
+> non-serious bugfixes until things are a bit quieter.
+Thank you Andrew .
 
-not necessary for any calls related to css_id.
-
--Kame
-
+>
+>> On Thu, Jan 8, 2009 at 6:40 PM, Ying Han <yinghan@google.com> wrote:
+>> > On Mon, Jan 5, 2009 at 3:39 PM, Ying Han <yinghan@google.com> wrote:
+>> >> From: Ying Han <yinghan@google.com>
+>> >>
+>> >> Fix 32bit binary get 64bit stack vma offset.
+>> >>
+>> >> 32bit binary running on 64bit system, the /proc/pid/maps shows for the
+>> >> vma represents stack get a 64bit adress:
+>> >> ff96c000-ff981000 rwxp 7ffffffea000 00:00 0 [stack]
+>
+> That changelog hurts my brain.
+hm, i will change it for better reading.
+>
+>> >> Signed-off-by:  Ying Han <yinghan@google.com>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
