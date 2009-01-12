@@ -1,95 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9136B005C
-	for <linux-mm@kvack.org>; Mon, 12 Jan 2009 18:11:04 -0500 (EST)
-Date: Mon, 12 Jan 2009 15:10:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH]Fix: 32bit binary has 64bit address of stack vma
-Message-Id: <20090112151029.9e810ade.akpm@linux-foundation.org>
-In-Reply-To: <496BCCCF.70202@google.com>
-References: <604427e00901051539x52ab85bcua94cd8036e5b619a@mail.gmail.com>
-	<20090112145939.5ae28ada.akpm@linux-foundation.org>
-	<496BCCCF.70202@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id A36F86B0055
+	for <linux-mm@kvack.org>; Mon, 12 Jan 2009 18:15:10 -0500 (EST)
+Date: Mon, 12 Jan 2009 17:14:52 -0600
+From: Nathan Lynch <ntl@pobox.com>
+Subject: Re: [RFC v12][PATCH 13/14] Checkpoint multiple processes
+Message-ID: <20090112231452.GC6850@localdomain>
+References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu>
+ <1230542187-10434-14-git-send-email-orenl@cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1230542187-10434-14-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
-To: Mike Waychison <mikew@google.com>
-Cc: yinghan@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rohitseth@google.com
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter
+ Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 12 Jan 2009 15:05:51 -0800
-Mike Waychison <mikew@google.com> wrote:
+> +/* count number of tasks in tree (and optionally fill pid's in array) */
+> +static int cr_tree_count_tasks(struct cr_ctx *ctx)
+> +{
+> +	struct task_struct *root = ctx->root_task;
+> +	struct task_struct *task = root;
+> +	struct task_struct *parent = NULL;
+> +	struct task_struct **tasks_arr = ctx->tasks_arr;
+> +	int tasks_nr = ctx->tasks_nr;
+> +	int nr = 0;
+> +
+> +	read_lock(&tasklist_lock);
+> +
+> +	/* count tasks via DFS scan of the tree */
+> +	while (1) {
+> +		if (tasks_arr) {
+> +			/* unlikely, but ... */
+> +			if (nr == tasks_nr)
+> +				return -EBUSY;	/* cleanup in cr_ctx_free() */
 
-> > Subject: fs/exec.c: fix value of vma->vm_pgoff for the stack VMA of 32-bit processes
-> > From: Ying Han <yinghan@google.com>
-> > 
-> > With a 32 bit binary running on a 64 bit system, the /proc/pid/maps for
-> > the [stack] VMA displays a 64-bit address:
-> > 
-> > ff96c000-ff981000 rwxp 7ffffffea000 00:00 0 [stack]
-> > 
-> > This is because vma->vm_pgoff for that VMA is incorrectly being stored in
-> > units of offset-in-bytes.  It should be stored in units of offset-in-pages.
-> > 
-> 
-> The problem is that the offset was stored without taking into account 
-> the shift.
+Returns without unlocking tasklist_lock?
 
-Sigh.  Is it efficient to have me sitting here reverse-engineering the
-code, writing your changelog?
-
-
-
-From: Ying Han <yinghan@google.com>
-
-With a 32 bit binary running on a 64 bit system, the /proc/pid/maps for
-the [stack] VMA displays a 64-bit address:
-
-ff96c000-ff981000 rwxp 7ffffffea000 00:00 0 [stack]
-
-This is because vma->vm_pgoff for that VMA is not being updated for the
-shift of the stack VMA.
-
-Signed-off-by: Ying Han <yinghan@google.com>
-Cc: Mike Waychison <mikew@google.com>
-Cc: Hugh Dickins <hugh@veritas.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/exec.c |    5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff -puN fs/exec.c~fs-execc-fix-value-of-vma-vm_pgoff-for-the-stack-vma-of-32-bit-processes fs/exec.c
---- a/fs/exec.c~fs-execc-fix-value-of-vma-vm_pgoff-for-the-stack-vma-of-32-bit-processes
-+++ a/fs/exec.c
-@@ -509,6 +509,7 @@ static int shift_arg_pages(struct vm_are
- 	unsigned long length = old_end - old_start;
- 	unsigned long new_start = old_start - shift;
- 	unsigned long new_end = old_end - shift;
-+	unsigned long new_pgoff = new_start >> PAGE_SHIFT;
- 	struct mmu_gather *tlb;
- 
- 	BUG_ON(new_start > new_end);
-@@ -523,7 +524,7 @@ static int shift_arg_pages(struct vm_are
- 	/*
- 	 * cover the whole range: [new_start, old_end)
- 	 */
--	vma_adjust(vma, new_start, old_end, vma->vm_pgoff, NULL);
-+	vma_adjust(vma, new_start, old_end, new_pgoff, NULL);
- 
- 	/*
- 	 * move the page tables downwards, on failure we rely on
-@@ -556,7 +557,7 @@ static int shift_arg_pages(struct vm_are
- 	/*
- 	 * shrink the vma to just the new range.
- 	 */
--	vma_adjust(vma, new_start, new_end, vma->vm_pgoff, NULL);
-+	vma_adjust(vma, new_start, new_end, new_pgoff, NULL);
- 
- 	return 0;
- }
-_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
