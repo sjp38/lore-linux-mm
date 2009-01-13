@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D4CC36B004F
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 06:50:43 -0500 (EST)
-Date: Tue, 13 Jan 2009 12:50:29 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [Xen-devel] Re: OOPS and panic on 2.6.29-rc1 on xen-x86
-Message-ID: <20090113115029.GA12055@elte.hu>
-References: <20090112172613.GA8746@shion.is.fushizen.net> <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com> <1231838731.4823.2.camel@leto.intern.saout.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 928996B004F
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 12:05:39 -0500 (EST)
+Message-ID: <496CC9D8.6040909@google.com>
+Date: Tue, 13 Jan 2009 09:05:28 -0800
+From: Mike Waychison <mikew@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1231838731.4823.2.camel@leto.intern.saout.de>
+Subject: Re: mmotm 2009-01-12-16-53 uploaded
+References: <200901130053.n0D0rhev023334@imap1.linux-foundation.org> <20090113181317.48e910af.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090113181317.48e910af.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christophe Saout <christophe@saout.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bryan Donlan <bdonlan@gmail.com>, linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, xen-devel@lists.xensource.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-
-* Christophe Saout <christophe@saout.de> wrote:
-
-> Hi Bryan,
+KAMEZAWA Hiroyuki wrote:
+> On Mon, 12 Jan 2009 16:53:43 -0800
+> akpm@linux-foundation.org wrote:
 > 
-> > I've bisected the bug in question, and the faulty commit appears to be:
-> > commit e97a630eb0f5b8b380fd67504de6cedebb489003
-> > Author: Nick Piggin <npiggin@suse.de>
-> > Date:   Tue Jan 6 14:39:19 2009 -0800
-> > 
-> >     mm: vmalloc use mutex for purge
-> > 
-> >     The vmalloc purge lock can be a mutex so we can sleep while a purge is
-> >     going on (purge involves a global kernel TLB invalidate, so it can take
-> >     quite a while).
-> > 
-> >     Signed-off-by: Nick Piggin <npiggin@suse.de>
-> >     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> >     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> > 
-> > The bug is easily reproducable by a kernel build on -j4 - it will
-> > generally OOPS and panic before the build completes.
-> > Also, I've tested it with ext3, and it still occurs, so it seems
-> > unrelated to btrfs at least :)
+>> The mm-of-the-moment snapshot 2009-01-12-16-53 has been uploaded to
+>>
+>>    http://userweb.kernel.org/~akpm/mmotm/
+>>
+>> and will soon be available at
+>>
+>>    git://git.zen-sources.org/zen/mmotm.git
+>>
 > 
-> Nice!
+> After rtc compile fix, the kernel boots.
 > 
-> Reverting this also fixes the BUG() I was seeing when testing the Dom0
-> patches on 2.6.29-rc1+tip.  It just ran stable for an hour compiling
-> gimp and playing music on my notebook (and then I had to leave).
+> But with CONFIG_DEBUG_VM, I saw BUG_ON() at 
+> 
+> fork() -> ...
+> 	-> copy_page_range() ...
+> 		-> copy_one_pte()
+> 			->page_dup_rmap()
+> 				-> __page_check_anon_rmap().
+> 
+> BUG_ON(page->index != linear_page_index(vma, address)); 
+> fires. (from above, the page is ANON.)
+> 
+> It seems page->index == 0x7FFFFFFE here and the page seems to be
+> the highest address of stack.
+> 
+> This is caused by
+>  fs-execc-fix-value-of-vma-vm_pgoff-for-the-stack-vma-of-32-bit-processes.patch 
+> 
+> 
+> This is a fix.
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> pgoff is *not* vma->vm_start >> PAGE_SHIFT.
+> And no adjustment is necessary (when it maps the same start
+> before/after adjust vma.)
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> Index: mmotm-2.6.29-Jan12/fs/exec.c
+> ===================================================================
+> --- mmotm-2.6.29-Jan12.orig/fs/exec.c
+> +++ mmotm-2.6.29-Jan12/fs/exec.c
+> @@ -509,7 +509,7 @@ static int shift_arg_pages(struct vm_are
+>  	unsigned long length = old_end - old_start;
+>  	unsigned long new_start = old_start - shift;
+>  	unsigned long new_end = old_end - shift;
+> -	unsigned long new_pgoff = new_start >> PAGE_SHIFT;
+> +	unsigned long new_pgoff = vma->vm_pgoff;
+>  	struct mmu_gather *tlb;
+>  
+>  	BUG_ON(new_start > new_end);
+> 
 
-okay - i've reverted it in tip/master so that testing can continue - but 
-the upstream fix (or revert) should be done via the MM folks.
-
-	Ingo
+This patch is just reverting the behaviour back to having a 64bit pgoff. 
+  Best just reverting the patch for the time being.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
