@@ -1,53 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 242496B0062
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 04:27:35 -0500 (EST)
-Subject: Re: [Xen-devel] Re: OOPS and panic on 2.6.29-rc1 on xen-x86
-From: Christophe Saout <christophe@saout.de>
-In-Reply-To: <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
-References: <20090112172613.GA8746@shion.is.fushizen.net>
-	 <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 13 Jan 2009 10:25:31 +0100
-Message-Id: <1231838731.4823.2.camel@leto.intern.saout.de>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F8D76B004F
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 05:33:29 -0500 (EST)
+Date: Tue, 13 Jan 2009 18:45:33 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [PATCH -rc] some fixes for memcg
+Message-Id: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bryan Donlan <bdonlan@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Nick Piggin <npiggin@suse.de>, linux-mm@kvack.org, xen-devel@lists.xensource.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi Bryan,
+Hi, Andrew.
 
-> I've bisected the bug in question, and the faulty commit appears to be:
-> commit e97a630eb0f5b8b380fd67504de6cedebb489003
-> Author: Nick Piggin <npiggin@suse.de>
-> Date:   Tue Jan 6 14:39:19 2009 -0800
-> 
->     mm: vmalloc use mutex for purge
-> 
->     The vmalloc purge lock can be a mutex so we can sleep while a purge is
->     going on (purge involves a global kernel TLB invalidate, so it can take
->     quite a while).
-> 
->     Signed-off-by: Nick Piggin <npiggin@suse.de>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> 
-> The bug is easily reproducable by a kernel build on -j4 - it will
-> generally OOPS and panic before the build completes.
-> Also, I've tested it with ext3, and it still occurs, so it seems
-> unrelated to btrfs at least :)
+These are some fixes for memcg that has been pushed into mainline.
 
-Nice!
+They are based on 2.6.29-rc1.
 
-Reverting this also fixes the BUG() I was seeing when testing the Dom0
-patches on 2.6.29-rc1+tip.  It just ran stable for an hour compiling
-gimp and playing music on my notebook (and then I had to leave).
+[1/4] fix mem_cgroup_get_reclaim_stat_from_page
+
+[2/4] fix error path of mem_cgroup_move_parent
+
+[3/4] fix hierarchical reclaim
+
+[4/4] make oom less frequently
+
 
 Thanks,
-	Christophe
-
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
