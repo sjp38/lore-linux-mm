@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0C26B004F
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 21:59:14 -0500 (EST)
-Date: Wed, 14 Jan 2009 03:59:10 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: OOPS and panic on 2.6.29-rc1 on xen-x86
-Message-ID: <20090114025910.GA17395@wotan.suse.de>
-References: <20090112172613.GA8746@shion.is.fushizen.net> <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 965EC6B004F
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 22:01:51 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0E31mAH031770
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 14 Jan 2009 12:01:49 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 27AEF45DD76
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 12:01:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04BB845DD75
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 12:01:50 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5FBA21DB803E
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 12:01:48 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E4FA91DB8041
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 12:01:47 +0900 (JST)
+Date: Wed, 14 Jan 2009 12:00:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 4/4] cgroup-memcg fix frequent EBUSY at rmdir
+Message-Id: <20090114120044.2ecf13db.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <6599ad830901131848gf7f6996iead1276bc50753b8@mail.gmail.com>
+References: <20090108182556.621e3ee6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090108183529.b4fd99f4.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901131848gf7f6996iead1276bc50753b8@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Bryan Donlan <bdonlan@gmail.com>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
+To: Paul Menage <menage@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 12, 2009 at 11:54:32PM -0500, Bryan Donlan wrote:
-> On Mon, Jan 12, 2009 at 12:26 PM, Bryan Donlan <bdonlan@gmail.com> wrote:
-> > [resending with log/config inline as my previous message seems to have
-> >  been eaten by vger's spam filters]
-> >
-> > Hi,
-> >
-> > After testing 2.6.29-rc1 on xen-x86 with a btrfs root filesystem, I
-> > got the OOPS quoted below and a hard freeze shortly after boot.
-> > Boot messages and config are attached.
-> >
-> > This is on a test system, so I'd be happy to test any patches.
-> >
-> > Thanks,
-> >
-> > Bryan Donlan
-> 
-> I've bisected the bug in question, and the faulty commit appears to be:
-> commit e97a630eb0f5b8b380fd67504de6cedebb489003
-> Author: Nick Piggin <npiggin@suse.de>
-> Date:   Tue Jan 6 14:39:19 2009 -0800
-> 
->     mm: vmalloc use mutex for purge
-> 
->     The vmalloc purge lock can be a mutex so we can sleep while a purge is
->     going on (purge involves a global kernel TLB invalidate, so it can take
->     quite a while).
-> 
->     Signed-off-by: Nick Piggin <npiggin@suse.de>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> 
-> The bug is easily reproducable by a kernel build on -j4 - it will
-> generally OOPS and panic before the build completes.
-> Also, I've tested it with ext3, and it still occurs, so it seems
-> unrelated to btrfs at least :)
-> 
-> >
-> > ------------[ cut here ]------------
-> > Kernel BUG at c05ef80d [verbose debug info unavailable]
-> > invalid opcode: 0000 [#1] SMP
-> > last sysfs file: /sys/block/xvdc/size
-> > Modules linked in:
+On Tue, 13 Jan 2009 18:48:43 -0800
+Paul Menage <menage@google.com> wrote:
 
-It is bugging in schedule somehow, but you don't have verbose debug
-info compiled in. Can you compile that in and reproduce if you have
-the time?
+> On Thu, Jan 8, 2009 at 1:35 AM, KAMEZAWA Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > +       if (ret == -EAGAIN) { /* subsys asks us to retry later */
+> > +               mutex_unlock(&cgroup_mutex);
+> > +               cond_resched();
+> > +               goto retry;
+> > +       }
+> 
+> This spinning worries me a bit. It might be better to do an
+> interruptible sleep until the relevant CSS's refcount goes down to
+> zero. 
 
-Going bug here might indicate that there is some other problem with
-the Xen and/or vmalloc code, regardless of reverting this patch.
+Hmm, add wait_queue to css and wake it up at css_put() ?
+
+like this ?
+==
+__css_put()
+{
+	if (atomi_dec_return(&css->refcnt) == 1) {
+		if (notify_on_release(cgrp) {
+			.....
+		}
+		if (someone_waiting_rmdir(css)) {
+			wake_up_him().
+		}
+	}
+}
+==
+
+> And is there no way that the memory controller can hang on to a
+> reference indefinitely, if the cgroup still has some pages charged to
+> it?
+> 
+pre_destroy() is for that.  Now, If there are still references from "page"
+after pre_destroy(), it's bug.
+swap-in after pre_destory() may add new refs from pages.
+(I implemented reference from "swap" to be memcg internal refcnt not to css.)
+
+Allowing Ctrl-C/alarm() here by signal_pending() will be better, anyway.
 
 Thanks,
-Nick
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
