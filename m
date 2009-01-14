@@ -1,27 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 505646B004F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 03:22:50 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0E8Mlck009597
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 14 Jan 2009 17:22:47 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 59D7D45DD83
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:22:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2884445DD7E
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:22:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A21621DB8037
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:22:43 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CE7F1DB804B
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:22:42 +0900 (JST)
-Date: Wed, 14 Jan 2009 17:21:38 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D16C6B004F
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 03:30:53 -0500 (EST)
+Date: Wed, 14 Jan 2009 17:29:12 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 Subject: Re: [PATCH] memcg: fix return value of mem_cgroup_hierarchy_write()
-Message-Id: <20090114172138.d73a8be8.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090114172912.95a78542.nishimura@mxp.nes.nec.co.jp>
 In-Reply-To: <496D9E0C.4060806@cn.fujitsu.com>
 References: <496D9E0C.4060806@cn.fujitsu.com>
 Mime-Version: 1.0
@@ -29,31 +13,18 @@ Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jan 2009 16:10:52 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
-
+On Wed, 14 Jan 2009 16:10:52 +0800, Li Zefan <lizf@cn.fujitsu.com> wrote:
 > When there are sub-dirs, writing to memory.use_hierarchy returns -EBUSY,
 > this doesn't seem to fit the meaning of EBUSY, and is inconsistent with
 > memory.swappiness, which returns -EINVAL in this case.
 > 
-
-Hmm...I'm not sure what error code is the best.
-
-In usual, -EINVAL means parameter to write() is bad. In this case, it isn't.
-
-Considering that, -EBUSY seems ok at returning error because of children.
-How about change swappiness to return -EBUSY ?
+I also think -EBUSY is not so bad in this case.
 
 Thanks,
--Kame
-
-
-
-
-
+Daisuke Nishimura.
 
 > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 > ---
@@ -91,7 +62,6 @@ Thanks,
 >  
 > -- 
 > 1.5.4.rc3
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
