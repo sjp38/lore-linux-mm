@@ -1,45 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EC70C6B004F
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 21:48:59 -0500 (EST)
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id n0E2mtlr002596
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 18:48:55 -0800
-Received: from rv-out-0708.google.com (rvfb17.prod.google.com [10.140.179.17])
-	by zps38.corp.google.com with ESMTP id n0E2migl000929
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 18:48:44 -0800
-Received: by rv-out-0708.google.com with SMTP id b17so327047rvf.36
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2009 18:48:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090108183529.b4fd99f4.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090108182556.621e3ee6.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090108183529.b4fd99f4.kamezawa.hiroyu@jp.fujitsu.com>
-Date: Tue, 13 Jan 2009 18:48:43 -0800
-Message-ID: <6599ad830901131848gf7f6996iead1276bc50753b8@mail.gmail.com>
-Subject: Re: [RFC][PATCH 4/4] cgroup-memcg fix frequent EBUSY at rmdir
-From: Paul Menage <menage@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0C26B004F
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 21:59:14 -0500 (EST)
+Date: Wed, 14 Jan 2009 03:59:10 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: OOPS and panic on 2.6.29-rc1 on xen-x86
+Message-ID: <20090114025910.GA17395@wotan.suse.de>
+References: <20090112172613.GA8746@shion.is.fushizen.net> <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
+To: Bryan Donlan <bdonlan@gmail.com>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 8, 2009 at 1:35 AM, KAMEZAWA Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> +       if (ret == -EAGAIN) { /* subsys asks us to retry later */
-> +               mutex_unlock(&cgroup_mutex);
-> +               cond_resched();
-> +               goto retry;
-> +       }
+On Mon, Jan 12, 2009 at 11:54:32PM -0500, Bryan Donlan wrote:
+> On Mon, Jan 12, 2009 at 12:26 PM, Bryan Donlan <bdonlan@gmail.com> wrote:
+> > [resending with log/config inline as my previous message seems to have
+> >  been eaten by vger's spam filters]
+> >
+> > Hi,
+> >
+> > After testing 2.6.29-rc1 on xen-x86 with a btrfs root filesystem, I
+> > got the OOPS quoted below and a hard freeze shortly after boot.
+> > Boot messages and config are attached.
+> >
+> > This is on a test system, so I'd be happy to test any patches.
+> >
+> > Thanks,
+> >
+> > Bryan Donlan
+> 
+> I've bisected the bug in question, and the faulty commit appears to be:
+> commit e97a630eb0f5b8b380fd67504de6cedebb489003
+> Author: Nick Piggin <npiggin@suse.de>
+> Date:   Tue Jan 6 14:39:19 2009 -0800
+> 
+>     mm: vmalloc use mutex for purge
+> 
+>     The vmalloc purge lock can be a mutex so we can sleep while a purge is
+>     going on (purge involves a global kernel TLB invalidate, so it can take
+>     quite a while).
+> 
+>     Signed-off-by: Nick Piggin <npiggin@suse.de>
+>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> 
+> The bug is easily reproducable by a kernel build on -j4 - it will
+> generally OOPS and panic before the build completes.
+> Also, I've tested it with ext3, and it still occurs, so it seems
+> unrelated to btrfs at least :)
+> 
+> >
+> > ------------[ cut here ]------------
+> > Kernel BUG at c05ef80d [verbose debug info unavailable]
+> > invalid opcode: 0000 [#1] SMP
+> > last sysfs file: /sys/block/xvdc/size
+> > Modules linked in:
 
-This spinning worries me a bit. It might be better to do an
-interruptible sleep until the relevant CSS's refcount goes down to
-zero. And is there no way that the memory controller can hang on to a
-reference indefinitely, if the cgroup still has some pages charged to
-it?
+It is bugging in schedule somehow, but you don't have verbose debug
+info compiled in. Can you compile that in and reproduce if you have
+the time?
 
-Paul
+Going bug here might indicate that there is some other problem with
+the Xen and/or vmalloc code, regardless of reverting this patch.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
