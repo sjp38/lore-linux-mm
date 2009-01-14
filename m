@@ -1,67 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D16C6B004F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 03:30:53 -0500 (EST)
-Date: Wed, 14 Jan 2009 17:29:12 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+	by kanga.kvack.org (Postfix) with ESMTP id 37B146B004F
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 03:38:43 -0500 (EST)
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id n0E8cQWq020754
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 19:38:26 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0E8caTg057670
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 19:38:36 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0E8cZmo000749
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 19:38:36 +1100
+Date: Wed, 14 Jan 2009 14:08:35 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [PATCH] memcg: fix return value of mem_cgroup_hierarchy_write()
-Message-Id: <20090114172912.95a78542.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <496D9E0C.4060806@cn.fujitsu.com>
+Message-ID: <20090114083835.GL27129@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 References: <496D9E0C.4060806@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <496D9E0C.4060806@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jan 2009 16:10:52 +0800, Li Zefan <lizf@cn.fujitsu.com> wrote:
+* Li Zefan <lizf@cn.fujitsu.com> [2009-01-14 16:10:52]:
+
 > When there are sub-dirs, writing to memory.use_hierarchy returns -EBUSY,
 > this doesn't seem to fit the meaning of EBUSY, and is inconsistent with
 > memory.swappiness, which returns -EINVAL in this case.
 > 
-I also think -EBUSY is not so bad in this case.
-
-Thanks,
-Daisuke Nishimura.
-
 > Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> ---
->  mm/memcontrol.c |   10 +++++-----
->  1 files changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index bc8f101..2497f7d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1760,6 +1760,9 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  	struct cgroup *parent = cont->parent;
->  	struct mem_cgroup *parent_mem = NULL;
->  
-> +	if (val != 0 && val != 1)
-> +		return -EINVAL;
-> +
->  	if (parent)
->  		parent_mem = mem_cgroup_from_cont(parent);
->  
-> @@ -1773,12 +1776,9 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  	 * set if there are no children.
->  	 */
->  	if ((!parent_mem || !parent_mem->use_hierarchy) &&
-> -				(val == 1 || val == 0)) {
-> -		if (list_empty(&cont->children))
-> +	    list_empty(&cont->children))
->  			mem->use_hierarchy = val;
-> -		else
-> -			retval = -EBUSY;
-> -	} else
-> +	else
->  		retval = -EINVAL;
->  	cgroup_unlock();
->  
-> -- 
-> 1.5.4.rc3
+
+The patch does much more than the changelog says. The reason for EBUSY
+is that the group is in use due to children or existing references and
+tasks. I think EBUSY is the correct error code to return.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
