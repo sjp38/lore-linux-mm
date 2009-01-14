@@ -1,50 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 9911E6B005C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:40:27 -0500 (EST)
-Date: Wed, 14 Jan 2009 12:40:12 -0600 (CST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <20090114155923.GC1616@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0901141219140.26507@quilx.com>
-References: <20090114090449.GE2942@wotan.suse.de>
- <84144f020901140253s72995188vb35a79501c38eaa3@mail.gmail.com>
- <20090114114707.GA24673@wotan.suse.de> <84144f020901140544v56b856a4w80756b90f5b59f26@mail.gmail.com>
- <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com>
- <20090114150900.GC25401@wotan.suse.de> <20090114152207.GD25401@wotan.suse.de>
- <84144f020901140730l747b4e06j41fb8a35daeaf6c8@mail.gmail.com>
- <20090114155923.GC1616@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD696B005C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 15:24:04 -0500 (EST)
+Subject: [PATCH RFC] Lost wakeups from lock_page_killable()
+From: Chris Mason <chris.mason@oracle.com>
+Content-Type: text/plain
+Date: Wed, 14 Jan 2009 15:23:52 -0500
+Message-Id: <1231964632.8269.47.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jan 2009, Nick Piggin wrote:
+Chuck has been debugging a problem with NFS mounts where procs are
+getting stuck waiting on the page lock.  He did a bunch of work around
+tracking the last person to lock the page and then printing out the page
+state when it found stuck procs.
 
-> Well if you would like to consider SLQB as a fix for SLUB, that's
-> fine by me ;) Actually I guess it is a valid way to look at the problem:
-> SLQB solves the OLTP regression, so the only question is "what is the
-> downside of it?".
+The end result showed that procs were waiting to lock pages that were
+not actually locked.  The workload involved a well known commercial
+database that was being shutdown via sql shutdown abort
 
-The downside is that it brings the SLAB stuff back that SLUB was
-designed to avoid. Queue expiration. The use of timers to expire at
-uncontrollable intervals for user space. Object dispersal
-in the kernel address space. Memory policy handling in the slab
-allocator. Even seems to include periodic moving of objects between
-queues. The NUMA stuff is still a bit foggy to me since it seems to assume
-a mapping between cpus and nodes. There are cpuless nodes as well as
-memoryless cpus.
+After trying to blame NFS for a really long time I think
+lock_page_killable may be the cause.
 
-SLQB maybe a good cleanup for SLAB. Its good that it is based on the
-cleaned up code in SLUB but the fundamental design is SLAB (or rather the
-Solaris allocator from which we got the design for all the queuing stuff
-in the first place). It preserves many of the drawbacks of that code.
+lock_page and lock_page_killable both call __wait_on_bit_lock, and so
+both end up using prepare_to_wait_exclusive().  This means that when
+someone does finally unlock the page, only one process is going to get
+woken up.
 
-If SLQB would replace SLAB then there would be a lot of shared code
-(debugging for example). Having a generic slab allocator framework may
-then be possible within which a variety of algorithms may be implemented.
+So, procA holding the page lock, procB and procC are waiting on the
+lock.
+
+procA: lock_page() // success
+procB: lock_page_killable(), sync_page_killable(), io_schedule()
+procC: lock_page_killable(), sync_page_killable(), io_schedule()
+
+procA: unlock, wake_up_page(page, PG_locked)
+procA: wake up procB
+
+happy admin: kill procB
+
+procB: wakes into sync_page_killable(), notices the signal and returns
+-EINTR
+
+procB: __wait_on_bit_lock sees the action() func returns < 0 and does
+not take the page lock
+
+procB: lock_page_killable() returns < 0 and exits happily.
+
+procC: sleeping in io_schedule() forever unless someone else locks the
+page.
+
+The patch below is entirely untested but may do a better job of
+explaining what I think the bug is.  I'm hoping I can trigger it locally
+with a few dd commands mixed with a lot of kill commands.
+
+-chris
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ceba0bd..e1184fa 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -623,9 +623,20 @@ EXPORT_SYMBOL(__lock_page);
+ int __lock_page_killable(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
++	int ret;
+ 
+-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
++	ret = __wait_on_bit_lock(page_waitqueue(page), &wait,
+ 					sync_page_killable, TASK_KILLABLE);
++	/*
++	 * wait_on_bit_lock uses prepare_to_wait_exclusive, so if multiple
++	 * procs were waiting on this page, we were the only proc woken up.
++	 *
++	 * if ret != 0, we didn't actually get the lock.  We need to
++	 * make sure any other waiters don't sleep forever.
++	 */
++	if (ret)
++		wake_up_page(page, PG_locked);
++	return ret;
+ }
+ 
+ /**
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
