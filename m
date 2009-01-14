@@ -1,56 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2217F6B004F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 08:57:00 -0500 (EST)
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [202.81.18.234])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id n0EDuieR027102
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 00:56:44 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0EDuedm2019572
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 00:56:40 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0EDtcHH005278
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 00:55:38 +1100
-Date: Wed, 14 Jan 2009 19:25:39 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 5/4] memcg: don't call res_counter_uncharge when
-	obsolete
-Message-ID: <20090114135539.GA21516@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp> <20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C8F566B0055
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 09:08:41 -0500 (EST)
+Date: Wed, 14 Jan 2009 14:08:35 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [RFC][PATCH] don't show pgoff of vma if vma is pure ANON (was
+ Re: mmotm 2009-01-12-16-53 uploaded)
+In-Reply-To: <20090114162245.923c4caf.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0901141349410.5465@blonde.anvils>
+References: <200901130053.n0D0rhev023334@imap1.linux-foundation.org>
+ <20090113181317.48e910af.kamezawa.hiroyu@jp.fujitsu.com> <496CC9D8.6040909@google.com>
+ <20090114162245.923c4caf.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mike Waychison <mikew@google.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
 List-ID: <linux-mm.kvack.org>
 
-* Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> [2009-01-14 17:51:21]:
+On Wed, 14 Jan 2009, KAMEZAWA Hiroyuki wrote:
+> Hmm, is this brutal ?
+> 
+> ==
+> Recently, it's argued that what proc/pid/maps shows is ugly when a
+> 32bit binary runs on 64bit host.
+> 
+> /proc/pid/maps outputs vma's pgoff member but vma->pgoff is of no use
+> information is the vma is for ANON.
+> By this patch, /proc/pid/maps shows just 0 if no file backing store.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
 
-> This is a new one. Please review.
-> 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> mem_cgroup_get ensures that the memcg that has been got can be accessed
-> even after the directory has been removed, but it doesn't ensure that parents
-> of it can be accessed: parents might have been freed already by rmdir.
-> 
-> This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
-> climb up the tree.
-> 
-> Check if the memcg is obsolete, and don't call res_counter_uncharge when obsole.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Brutal, but sensible enough: revert to how things looked before
+we ever starting putting vm_pgoff to work on anonymous areas.
 
-I liked the earlier, EBUSY approach that ensured that parents could
-not go away if children exist. IMHO, the code has gotten too complex
-and has too many corner cases. Time to revisit it.
+I slightly regret losing that visible clue to whether an anonymous
+vma has ever been mremap moved.  But have I ever actually used that
+info?  No, never.
 
--- 
-	Balbir
+I presume you test !vma->vm_file so the lines fit in, fair enough.
+But I think you'll find checkpatch.pl protests at "(!vma->vm_file)?"
+
+I dislike its decisions on the punctuation of the ternary operator
+- perhaps even more than Andrew dislikes the operator itself!
+Do we write a space before a question mark? no: nor before a colon;
+but I also dislike getting into checkpatch.pl arguments!
+
+While you're there, I'd also be inclined to make task_nommu.c
+use the same loff_t cast as task_mmu.c is using.
+
+Hugh
+
+> Index: mmotm-2.6.29-Jan13/fs/proc/task_mmu.c
+> ===================================================================
+> --- mmotm-2.6.29-Jan13.orig/fs/proc/task_mmu.c
+> +++ mmotm-2.6.29-Jan13/fs/proc/task_mmu.c
+> @@ -220,7 +220,8 @@ static void show_map_vma(struct seq_file
+>  			flags & VM_WRITE ? 'w' : '-',
+>  			flags & VM_EXEC ? 'x' : '-',
+>  			flags & VM_MAYSHARE ? 's' : 'p',
+> -			((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
+> +			(!vma->vm_file)? 0 :
+> +				((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
+>  			MAJOR(dev), MINOR(dev), ino, &len);
+>  
+>  	/*
+> Index: mmotm-2.6.29-Jan13/fs/proc/task_nommu.c
+> ===================================================================
+> --- mmotm-2.6.29-Jan13.orig/fs/proc/task_nommu.c
+> +++ mmotm-2.6.29-Jan13/fs/proc/task_nommu.c
+> @@ -143,7 +143,8 @@ static int nommu_vma_show(struct seq_fil
+>  		   flags & VM_WRITE ? 'w' : '-',
+>  		   flags & VM_EXEC ? 'x' : '-',
+>  		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
+> -		   (unsigned long long) vma->vm_pgoff << PAGE_SHIFT,
+> +		   (!vma->vm_file) ? 0 :
+> +			(unsigned long long) vma->vm_pgoff << PAGE_SHIFT,
+>  		   MAJOR(dev), MINOR(dev), ino, &len);
+>  
+>  	if (file) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
