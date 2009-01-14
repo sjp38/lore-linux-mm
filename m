@@ -1,69 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1069F6B004F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 01:45:36 -0500 (EST)
-Received: by yx-out-1718.google.com with SMTP id 36so165452yxh.26
-        for <linux-mm@kvack.org>; Tue, 13 Jan 2009 22:45:35 -0800 (PST)
-Message-ID: <28c262360901132245j8fe121naf1d6b1450b4cade@mail.gmail.com>
-Date: Wed, 14 Jan 2009 15:45:35 +0900
-From: "MinChan Kim" <minchan.kim@gmail.com>
-Subject: Re: lowmemory android driver not needed?
-In-Reply-To: <d6200be20901131830r7103ff8eoe0314f9faf89d89b@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 4E3566B004F
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 01:48:13 -0500 (EST)
+Message-ID: <496D8A76.9040509@cn.fujitsu.com>
+Date: Wed, 14 Jan 2009 14:47:18 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
-Content-Disposition: inline
-References: <20090114010223.GA21380@kroah.com>
-	 <20090114021801.GA14759@bulgaria.corp.google.com>
-	 <d6200be20901131830r7103ff8eoe0314f9faf89d89b@mail.gmail.com>
+Subject: Re: [RFC][PATCH] memcg: fix a race when setting memcg.swappiness
+References: <496D5AE2.2020403@cn.fujitsu.com> <20090114132616.3cb7d568.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090114132616.3cb7d568.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: =?UTF-8?Q?Arve_Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@surriel.com>, linux-mm <linux-mm@kvack.org>
-Cc: Brian Swetland <swetland@google.com>, Greg KH <greg@kroah.com>, arve@google.com, San Mehat <san@android.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Robert Love <rlove@google.com>, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-SGksIEFydmUuCgpPbiBXZWQsIEphbiAxNCwgMjAwOSBhdCAxMTozMCBBTSwgQXJ2ZSBIasO4bm5l
-dsOlZyA8YXJ2ZUBhbmRyb2lkLmNvbT4gd3JvdGU6Cj4gVGhlIG9vbSBraWxsZXIgZG9lcyBub3Qg
-a2ljayBpbiB1bnRpbCBhbGwgY2FjaGVzIGFyZSBlbXB0aWVkLiBPdXIgdXNlcgo+IHNwYWNlIGNv
-ZGUgY2hhbmdlcyB0aGUgb29tX2FkaiB2YWx1ZSBvZiBwcm9jZXNzZXMgdGhhdCBhcmUgbm8gbG9u
-Z2VyCj4gaW4gdGhlIGZvcmVncm91bmQgc28gdGhhdCB0aGV5IGtpbGxlZCBmaXJzdCAodGhlIHBy
-b2Nlc3Mgc2F2ZXMgaXRzCj4gc3RhdGUgYnV0IGRvZXMgbm90IGV4aXQpLiBUbyBhdm9pZCBleGNl
-c3NpdmUgZGVtYW5kIHBhZ2luZywgdGhlIGxvdwo+IG1lbW9yeSBraWxsZXIgd2lsbCBraWxsIHRo
-ZXNlIHByb2Nlc3NlcyB3aGVuIHRoZSBtZW1vcnkgYXZhaWxhYmxlCj4gZHJvcHMgYmVsb3cgYSB0
-aHJlc2hvbGQuCgoKSXQgaGF2ZSBzb21lIHByb2JsZW1zLiAoZHJpdmVycy9zdGFnaW5nL2FuZHJv
-aWQvbHdtZW1vcnlraWxsZXIuYykKCjEuIGxvd21lbV9zaHJpbmsgZnVuY3Rpb24gaGF2ZSB0byBh
-bnN3ZXIgYWJvdXQgdm0ncyBxdWVyeSB0aGUgY2FjaGUgc2l6ZSBmYXN0LgoyLiBpdCBkb24ndCBj
-b25zaWRlciBwYWdlIHNpemUgYW5kIG1lbW9yeSBzaXplIHdoZW4gaXQgbWFrZQpsb3dtZW1fbWlu
-ZnJlZSdzIHZhbHVlcy4KMy4gSWYgc3lzdGVtIGhhdmUgbWFueSBwcm9jZXNzZXMsIGZvcl9lYWNo
-X3Byb2Nlc3MgdGFrZSBhIGxvbmcgdGltZS4KaXQgbWF5IHJlc3VsdCBzeXN0ZW0gbGF0ZW5jeSBh
-bHRob3VnaCBsb3dtZW1raWxsZXIgaW50ZW5kIHRvIGF2b2lkCmxhdGVuY3kuCjQuIE1vc3QgaW1w
-b3J0YW50IHRoaW5nLiBDb3VsZCB3ZSB1c2UgbWVtb3J5IGNvbnRyb2xsZXIgaW5zdGVhZCBvZgps
-b3dtZW1raWxsZXIgPyBJIGFtIG5vdCBzdXJlIHNpbmNlIEkgZG9uJ3QgZm9sbG93IHVwIG1lbW9y
-eSBjb250cm9sbGVyCmluIHRoZXNlIGRheXMuCgpJIHRoaW5rIHdlIGhhdmUgdG8gdXNlIGV4aXN0
-aW5nIGZhY2lsaXR5IGlmIHBvc3NpYmxlLgpQcmV2aW91c2x5LCBUaGVyZSBhcmUgc2ltaWxhciBr
-aW5kcyBvZiBwYXRjaGVzLiBidXQgSXQgY2FuJ3QgbWVyZ2UKbWFpbmxpbmUgZHVlIHRvIHNvbWUg
-aXNzdWUuICBUaGV5IGNhbiBjb21tZW50IGFib3V0IGxvd21lbWtpbGxlci4gSQp3aWxsIENDIHRo
-ZW0uCgo+IC0tCj4gQXJ2ZSBIasO4bm5ldsOlZwo+Cj4KPiBPbiBUdWUsIEphbiAxMywgMjAwOSBh
-dCA2OjE4IFBNLCBCcmlhbiBTd2V0bGFuZCA8c3dldGxhbmRAZ29vZ2xlLmNvbT4gd3JvdGU6Cj4+
-Cj4+IExvb3BpbmcgaW4gQXJ2ZSB3aG8gd3JvdGUgdGhlIGxvdyBtZW1vcnkga2lsbGVyIGFuZCBj
-YW4gZXhwbGFpbiB0aGluZ3MKPj4gaW4gbW9yZSBkZXRhaWwuCj4+Cj4+IEJyaWFuCj4+Cj4+IFtH
-cmVnIEtIIDxncmVnQGtyb2FoLmNvbT5dCj4+PiBIaSBTYW4sCj4+Pgo+Pj4gQWxhbiBDb3ggcG9p
-bnRlZCBtZSBhdCB0aGUgL3Byb2MvPHBpZD4vb29tX2FkaiBmaWxlIHRoYXQgY29udHJvbHMgdGhl
-Cj4+PiBvb20ta2lsbGVyIHNjb3JlIGZvciBhbnkgcHJvY2VzcyBhcyBiZWluZyBtb3JlIHRoYW4g
-c3VmZmljZW50IHRvIGNvbnRyb2wKPj4+IHRoZSBvb20ga2lsbGVyLgo+Pj4KPj4+IFRoaXMgbWFr
-ZXMgbWUgd29uZGVyIHdoeSB5b3Ugd3JvdGUgdGhlIGFuZHJvaWQgbG93bWVtbG9yeWtpbGxlciBk
-cml2ZXI/Cj4+Pgo+Pj4gV2hhdCBpcyB0aGF0IGRyaXZlciBmb3IgdGhhdCBpcyBub3QgYWxyZWFk
-eSBwcmVzZW50IGluIHRoZSBleGlzdGluZwo+Pj4gb29tXyogdmFsdWVzIGZvciBldmVyeSBwcm9j
-ZXNzPwo+Pj4KPj4+IHRoYW5rcywKPj4+Cj4+PiBncmVnIGstaAo+PiAtLQo+PiBUbyB1bnN1YnNj
-cmliZSBmcm9tIHRoaXMgbGlzdDogc2VuZCB0aGUgbGluZSAidW5zdWJzY3JpYmUgbGludXgta2Vy
-bmVsIiBpbgo+PiB0aGUgYm9keSBvZiBhIG1lc3NhZ2UgdG8gbWFqb3Jkb21vQHZnZXIua2VybmVs
-Lm9yZwo+PiBNb3JlIG1ham9yZG9tbyBpbmZvIGF0ICBodHRwOi8vdmdlci5rZXJuZWwub3JnL21h
-am9yZG9tby1pbmZvLmh0bWwKPj4gUGxlYXNlIHJlYWQgdGhlIEZBUSBhdCAgaHR0cDovL3d3dy50
-dXgub3JnL2xrbWwvCj4+Cj4gLS0KPiBUbyB1bnN1YnNjcmliZSBmcm9tIHRoaXMgbGlzdDogc2Vu
-ZCB0aGUgbGluZSAidW5zdWJzY3JpYmUgbGludXgta2VybmVsIiBpbgo+IHRoZSBib2R5IG9mIGEg
-bWVzc2FnZSB0byBtYWpvcmRvbW9Admdlci5rZXJuZWwub3JnCj4gTW9yZSBtYWpvcmRvbW8gaW5m
-byBhdCAgaHR0cDovL3ZnZXIua2VybmVsLm9yZy9tYWpvcmRvbW8taW5mby5odG1sCj4gUGxlYXNl
-IHJlYWQgdGhlIEZBUSBhdCAgaHR0cDovL3d3dy50dXgub3JnL2xrbWwvCj4KCgoKLS0gCktpbmRz
-IHJlZ2FyZHMsCk1pbkNoYW4gS2ltCg==
+KAMEZAWA Hiroyuki wrote:
+> On Wed, 14 Jan 2009 11:24:18 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
+> 
+>> (suppose: memcg->use_hierarchy == 0 and memcg->swappiness == 60)
+>>
+>> echo 10 > /memcg/0/swappiness   |
+>>   mem_cgroup_swappiness_write() |
+>>     ...                         | echo 1 > /memcg/0/use_hierarchy
+>>                                 | mkdir /mnt/0/1
+>>                                 |   sub_memcg->swappiness = 60;
+>>     memcg->swappiness = 10;     |
+>>
+>> In the above scenario, we end up having 2 different swappiness
+>> values in a single hierarchy.
+>>
+>> Note we can't use hierarchy_lock here, because it doesn't protect
+>> the create() method.
+>>
+>> Though IMO use cgroup_lock() in simple write functions is OK,
+>> Paul would like to avoid it. And he sugguested use a counter to
+>> count the number of children instead of check cgrp->children list:
+>>
+>> =================
+>> create() does:
+>>
+>> lock memcg_parent
+>> memcg->swappiness = memcg->parent->swappiness;
+>> memcg_parent->child_count++;
+>> unlock memcg_parent
+>>
+>> and write() does:
+>>
+>> lock memcg
+>> if (!memcg->child_count) {
+>>   memcg->swappiness = swappiness;
+>> } else {
+>>   report error;
+>> }
+>> unlock memcg
+>>
+>> destroy() does:
+>> lock memcg_parent
+>> memcg_parent->child_count--;
+>> unlock memcg_parent
+>>
+>> =================
+>>
+>> And there is a suble differnce with checking cgrp->children,
+>> that a cgroup is removed from parent's list in cgroup_rmdir(),
+>> while memcg->child_count is decremented in cgroup_diput().
+>>
+>>
+>> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> 
+> Seems reasonable, but, hmm...
+> 
+
+Do you mean you agree to avoid using cgroup_lock()?
+
+> Why hierarchy_mutex can't be used for create() ?
+> 
+
+We can make hierarchy_mutex work for this race by:
+
+@@ -2403,16 +2403,18 @@ static long cgroup_create(struct cgroup *parent, struct
+        if (notify_on_release(parent))
+                set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+
++       cgroup_lock_hierarchy(root);
++
+        for_each_subsys(root, ss) {
+                struct cgroup_subsys_state *css = ss->create(ss, cgrp);
+                if (IS_ERR(css)) {
++                       cgroup_unlock_hierarchy(root);
+                        err = PTR_ERR(css);
+                        goto err_destroy;
+                }
+                init_cgroup_css(css, ss, cgrp);
+        }
+
+-       cgroup_lock_hierarchy(root);
+        list_add(&cgrp->sibling, &cgrp->parent->children);
+        cgroup_unlock_hierarchy(root);
+        root->number_of_cgroups++;
+
+But this may not be what we want, because hierarchy_mutex is meant to be
+lightweight, so it's not held while subsys callbacks are invoked, except
+bind().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
