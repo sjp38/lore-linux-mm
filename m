@@ -1,87 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 95F186B005C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:30:39 -0500 (EST)
-Date: Wed, 14 Jan 2009 15:30:32 -0700
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH RFC] Lost wakeups from lock_page_killable()
-Message-ID: <20090114223031.GU29283@parisc-linux.org>
-References: <1231964632.8269.47.camel@think.oraclecorp.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id E1BAA6B005C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 17:32:21 -0500 (EST)
+Message-ID: <496E67DA.7050503@cs.columbia.edu>
+Date: Wed, 14 Jan 2009 17:31:54 -0500
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1231964632.8269.47.camel@think.oraclecorp.com>
+Subject: Re: [RFC v12][PATCH 01/14] Create syscalls: sys_checkpoint,	sys_restart
+References: <1230542187-10434-1-git-send-email-orenl@cs.columbia.edu> <1230542187-10434-2-git-send-email-orenl@cs.columbia.edu> <20090114180441.GD21516@balbir.in.ibm.com>
+In-Reply-To: <20090114180441.GD21516@balbir.in.ibm.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, "chuck.lever" <chuck.lever@oracle.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mike Waychison <mikew@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 14, 2009 at 03:23:52PM -0500, Chris Mason wrote:
-> Chuck has been debugging a problem with NFS mounts where procs are
-> getting stuck waiting on the page lock.  He did a bunch of work around
-> tracking the last person to lock the page and then printing out the page
-> state when it found stuck procs.
 
-Yes, I can testify to Chuck's hard work on this.  I hadn't managed to
-figure out this problem ... I was blaming lock_page_killable() but
-couldn't see the bug.
 
-> lock_page and lock_page_killable both call __wait_on_bit_lock, and so
-> both end up using prepare_to_wait_exclusive().  This means that when
-> someone does finally unlock the page, only one process is going to get
-> woken up.
-
-Yeah.  This is a Bad API, IMO.  It doesn't contain the word 'exclusive'
-in it, so I had no idea that __wait_on_bit_lock was an exclusive wait.
-Sure, if I'd drilled down further, I'd've noticed that, and maybe having
-the word 'exlcusive' in the name of the function wouldn't've made me
-spot the bug, but I think it's worth changing.
-
-> So, procA holding the page lock, procB and procC are waiting on the
-> lock.
+Balbir Singh wrote:
+> * Oren Laadan <orenl@cs.columbia.edu> [2008-12-29 04:16:14]:
 > 
-> procA: lock_page() // success
-> procB: lock_page_killable(), sync_page_killable(), io_schedule()
-> procC: lock_page_killable(), sync_page_killable(), io_schedule()
+>> Create trivial sys_checkpoint and sys_restore system calls. They will
+>> enable to checkpoint and restart an entire container, to and from a
+>> checkpoint image file descriptor.
+>>
+>> The syscalls take a file descriptor (for the image file) and flags as
+>> arguments. For sys_checkpoint the first argument identifies the target
+>> container; for sys_restart it will identify the checkpoint image.
+>>
+>> A checkpoint, much like a process coredump, dumps the state of multiple
+>> processes at once, including the state of the container. The checkpoint
+>> image is written to (and read from) the file descriptor directly from
+>> the kernel. This way the data is generated and then pushed out naturally
+>> as resources and tasks are scanned to save their state. This is the
+>> approach taken by, e.g., Zap and OpenVZ.
+>>
+>> By using a return value and not a file descriptor, we can distinguish
+>> between a return from checkpoint, a return from restart (in case of a
+>> checkpoint that includes self, i.e. a task checkpointing its own
+>> container, or itself), and an error condition, in a manner analogous
+>> to a fork() call.
+>>
+>> We don't use copyin()/copyout() because it requires holding the entire
 > 
-> procA: unlock, wake_up_page(page, PG_locked)
-> procA: wake up procB
-> 
-> happy admin: kill procB
-> 
-> procB: wakes into sync_page_killable(), notices the signal and returns
-> -EINTR
-> 
-> procB: __wait_on_bit_lock sees the action() func returns < 0 and does
-> not take the page lock
-> 
-> procB: lock_page_killable() returns < 0 and exits happily.
-> 
-> procC: sleeping in io_schedule() forever unless someone else locks the
-> page.
+>               ^^^^^^^^^^^^^^^^^^^ Do you mean get_user_pages(),
+> copy_to/from_user()?
 
-Yeah.  That works.  Of course, if you're multithreaded and you have
-threads B1 B2 B3 B4 B5 B6 ... waiting on the same page, killing procB is
-going to give you a fairly high likelihood of procC getting stuck.
+Yes, I meant copy_to/from_user() ...
 
-Since procC is also sleeping in a killable state, you can kill procC too.
-Chuck asked "Why isn't anyone else seeing this?" and I think the answer
-is that they are, but who's reporting it?  It just gets written off
-as "^C didn't work.  Try harder." and eventually everything dies, so
-nobody's going to file a bug against the kernel ... it's clearly an
-application bug.
+Oren.
 
-> The patch below is entirely untested but may do a better job of
-> explaining what I think the bug is.  I'm hoping I can trigger it locally
-> with a few dd commands mixed with a lot of kill commands.
-
-The patch looks sane to me.
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
