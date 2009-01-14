@@ -1,111 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E97C26B004F
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 22:25:12 -0500 (EST)
-Message-ID: <496D5AE2.2020403@cn.fujitsu.com>
-Date: Wed, 14 Jan 2009 11:24:18 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: [RFC][PATCH] memcg: fix a race when setting memcg.swappiness
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C04FC6B004F
+	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 22:29:42 -0500 (EST)
+Date: Wed, 14 Jan 2009 04:29:32 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: Increase dirty_ratio and dirty_background_ratio?
+Message-ID: <20090114032932.GC17395@wotan.suse.de>
+References: <alpine.LFD.2.00.0901070833430.3057@localhost.localdomain> <20090107.125133.214628094.davem@davemloft.net> <20090108030245.e7c8ceaf.akpm@linux-foundation.org> <20090108.082413.156881254.davem@davemloft.net> <alpine.LFD.2.00.0901080842180.3283@localhost.localdomain> <1231433701.14304.24.camel@think.oraclecorp.com> <alpine.LFD.2.00.0901080858500.3283@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.0901080858500.3283@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Chris Mason <chris.mason@oracle.com>, David Miller <davem@davemloft.net>, akpm@linux-foundation.org, peterz@infradead.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(suppose: memcg->use_hierarchy == 0 and memcg->swappiness == 60)
+On Thu, Jan 08, 2009 at 09:05:01AM -0800, Linus Torvalds wrote:
+> 
+> 
+> On Thu, 8 Jan 2009, Chris Mason wrote:
+> > 
+> > Does it make sense to hook into kupdate?  If kupdate finds it can't meet
+> > the no-data-older-than 30 seconds target, it lowers the sync/async combo
+> > down to some reasonable bottom.  
+> > 
+> > If it finds it is going to sleep without missing the target, raise the
+> > combo up to some reasonable top.
+> 
+> I like autotuning, so that sounds like an intriguing approach. It's worked 
+> for us before (ie VM).
+> 
+> That said, 30 seconds sounds like a _loong_ time for something like this. 
+> I'd use the normal 5-second dirty_writeback_interval for this: if we can't 
+> clean the whole queue in that normal background writeback interval, then 
+> we try to lower the tagets. We already have that "congestion_wait()" thing 
+> there, that would be a logical place, methinks.
+> 
+> I'm not sure how to raise them, though. We don't want to raise any limits 
+> just because the user suddenly went idle. I think the raising should 
+> happen if we hit the sync/async ratio, and we haven't lowered in the last 
+> 30 seconds or something like that.
 
-echo 10 > /memcg/0/swappiness   |
-  mem_cgroup_swappiness_write() |
-    ...                         | echo 1 > /memcg/0/use_hierarchy
-                                | mkdir /mnt/0/1
-                                |   sub_memcg->swappiness = 60;
-    memcg->swappiness = 10;     |
+The other problem is that the pagecache is quite far removed from the
+block device. Writeback can go to different devices, and those devices
+might have different speeds at different times or different patterns.
 
-In the above scenario, we end up having 2 different swappiness
-values in a single hierarchy.
-
-Note we can't use hierarchy_lock here, because it doesn't protect
-the create() method.
-
-Though IMO use cgroup_lock() in simple write functions is OK,
-Paul would like to avoid it. And he sugguested use a counter to
-count the number of children instead of check cgrp->children list:
-
-=================
-create() does:
-
-lock memcg_parent
-memcg->swappiness = memcg->parent->swappiness;
-memcg_parent->child_count++;
-unlock memcg_parent
-
-and write() does:
-
-lock memcg
-if (!memcg->child_count) {
-  memcg->swappiness = swappiness;
-} else {
-  report error;
-}
-unlock memcg
-
-destroy() does:
-lock memcg_parent
-memcg_parent->child_count--;
-unlock memcg_parent
-
-=================
-
-And there is a suble differnce with checking cgrp->children,
-that a cgroup is removed from parent's list in cgroup_rmdir(),
-while memcg->child_count is decremented in cgroup_diput().
-
-
-Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
----
- mm/memcontrol.c |   10 +++++++++-
- 1 files changed, 9 insertions(+), 1 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e2996b8..0274223 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1971,6 +1971,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
- 	struct mem_cgroup *parent;
-+
- 	if (val > 100)
- 		return -EINVAL;
- 
-@@ -1978,15 +1979,22 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
- 		return -EINVAL;
- 
- 	parent = mem_cgroup_from_cont(cgrp->parent);
-+
-+	cgroup_lock();
-+
- 	/* If under hierarchy, only empty-root can set this value */
- 	if ((parent->use_hierarchy) ||
--	    (memcg->use_hierarchy && !list_empty(&cgrp->children)))
-+	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-+		cgroup_unlock();
- 		return -EINVAL;
-+	}
- 
- 	spin_lock(&memcg->reclaim_param_lock);
- 	memcg->swappiness = val;
- 	spin_unlock(&memcg->reclaim_param_lock);
- 
-+	cgroup_unlock();
-+
- 	return 0;
- }
- 
--- 
-1.5.4.rc3
+We might autosize our dirty data to 500MB when doing linear writes because
+our block device is happily cleaning them at 100MB/s and latency is
+great. But then if some process inserts even 20MB worth of very seeky dirty
+pages, the time to flush can go up by an order of magnitude. Let alone
+500MB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
