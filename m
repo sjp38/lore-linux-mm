@@ -1,146 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id D400B6B004F
-	for <linux-mm@kvack.org>; Tue, 13 Jan 2009 23:27:27 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0E4RPHj009999
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 14 Jan 2009 13:27:25 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 52E592AEA81
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:27:25 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2832A1EF081
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:27:25 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 076CD1DB803C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:27:25 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8315E1DB805D
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:27:21 +0900 (JST)
-Date: Wed, 14 Jan 2009 13:26:16 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg: fix a race when setting memcg.swappiness
-Message-Id: <20090114132616.3cb7d568.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <496D5AE2.2020403@cn.fujitsu.com>
-References: <496D5AE2.2020403@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 019516B004F
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 00:30:21 -0500 (EST)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n0E5FENx028793
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 10:45:14 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0E5UHFr2920702
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 11:00:18 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n0E5UCBc001326
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:30:13 +1100
+Date: Wed, 14 Jan 2009 11:00:15 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 1/4] Memory controller soft limit documentation
+Message-ID: <20090114053015.GK27129@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090107184110.18062.41459.sendpatchset@localhost.localdomain> <20090107184116.18062.8379.sendpatchset@localhost.localdomain> <6599ad830901131745t704428dav6fbf69aa315285b1@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <6599ad830901131745t704428dav6fbf69aa315285b1@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Paul Menage <menage@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jan 2009 11:24:18 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+* Paul Menage <menage@google.com> [2009-01-13 17:45:54]:
 
-> (suppose: memcg->use_hierarchy == 0 and memcg->swappiness == 60)
+> On Wed, Jan 7, 2009 at 10:41 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > -7. TODO
+> > +7. Soft limits
+> > +
+> > +Soft limits allow for greater sharing of memory. The idea behind soft limits
+> > +is to allow control groups to use as much of the memory as needed, provided
+> > +
+> > +a. There is no memory contention
+> > +b. They do not exceed their hard limit
+> > +
+> > +When the system detects memory contention (through do_try_to_free_pages(),
+> > +while allocating), control groups are pushed back to their soft limits if
+> > +possible. If the soft limit of each control group is very high, they are
+> > +pushed back as much as possible to make sure that one control group does not
+> > +starve the others.
 > 
-> echo 10 > /memcg/0/swappiness   |
->   mem_cgroup_swappiness_write() |
->     ...                         | echo 1 > /memcg/0/use_hierarchy
->                                 | mkdir /mnt/0/1
->                                 |   sub_memcg->swappiness = 60;
->     memcg->swappiness = 10;     |
+> Can you give an example here of how to implement the following setup:
 > 
-> In the above scenario, we end up having 2 different swappiness
-> values in a single hierarchy.
+> - we have a high-priority latency-sensitive server job A and a bunch
+> of low-priority batch jobs B, C and D
 > 
-> Note we can't use hierarchy_lock here, because it doesn't protect
-> the create() method.
+> - each job *may* need up to 2GB of memory, but generally each tends to
+> use <1GB of memory
 > 
-> Though IMO use cgroup_lock() in simple write functions is OK,
-> Paul would like to avoid it. And he sugguested use a counter to
-> count the number of children instead of check cgrp->children list:
+> - we want to run all four jobs on a 4GB machine
 > 
-> =================
-> create() does:
+> - we don't want A to ever have to wait for memory to be reclaimed (as
+> it's serving latency-sensitive queries), so the kernel should be
+> squashing B/C/D down *before* memory actually runs out.
 > 
-> lock memcg_parent
-> memcg->swappiness = memcg->parent->swappiness;
-> memcg_parent->child_count++;
-> unlock memcg_parent
-> 
-> and write() does:
-> 
-> lock memcg
-> if (!memcg->child_count) {
->   memcg->swappiness = swappiness;
-> } else {
->   report error;
-> }
-> unlock memcg
-> 
-> destroy() does:
-> lock memcg_parent
-> memcg_parent->child_count--;
-> unlock memcg_parent
-> 
-> =================
-> 
-> And there is a suble differnce with checking cgrp->children,
-> that a cgroup is removed from parent's list in cgroup_rmdir(),
-> while memcg->child_count is decremented in cgroup_diput().
-> 
-> 
-> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> Is this possible with the proposed hard/soft limit setup? Or do we
+> need some additional support for keeping a pool of pre-reserved free
+> memory available?
 
-Seems reasonable, but, hmm...
+This is a more complex scenario, It sounds like B/C and D should be
+hard limited to 2G or another value, depending on how much you want to
+pre-reserve for A (all B/C and D should be in the same cgroup). Then
+you want to use soft limits within the B/C/D cgroup. You don't want to
+hard limit A, but just setup a 2G soft limit for it.
 
-Why hierarchy_mutex can't be used for create() ?
+The notion of prioritized jobs and reservation does not exist yet, but
+once we support soft limits and overcommit via soft limits, we could
+consider looking at what design aspects would help with it.
 
--Kame
-
-> ---
->  mm/memcontrol.c |   10 +++++++++-
->  1 files changed, 9 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e2996b8..0274223 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1971,6 +1971,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
->  	struct mem_cgroup *parent;
-> +
->  	if (val > 100)
->  		return -EINVAL;
->  
-> @@ -1978,15 +1979,22 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
->  		return -EINVAL;
->  
->  	parent = mem_cgroup_from_cont(cgrp->parent);
-> +
-> +	cgroup_lock();
-> +
->  	/* If under hierarchy, only empty-root can set this value */
->  	if ((parent->use_hierarchy) ||
-> -	    (memcg->use_hierarchy && !list_empty(&cgrp->children)))
-> +	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-> +		cgroup_unlock();
->  		return -EINVAL;
-> +	}
->  
->  	spin_lock(&memcg->reclaim_param_lock);
->  	memcg->swappiness = val;
->  	spin_unlock(&memcg->reclaim_param_lock);
->  
-> +	cgroup_unlock();
-> +
->  	return 0;
->  }
->  
-> -- 
-> 1.5.4.rc3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
