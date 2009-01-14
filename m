@@ -1,163 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2BA726B004F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 02:30:19 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0E7UGBx022242
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 14 Jan 2009 16:30:16 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E59F745DD7E
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:30:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BD99F45DD7B
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:30:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B5A91DB8040
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:30:15 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 329651DB803F
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:30:15 +0900 (JST)
-Date: Wed, 14 Jan 2009 16:29:11 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg: fix a race when setting memcg.swappiness
-Message-Id: <20090114162911.6090bfba.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <496D929E.9040408@cn.fujitsu.com>
-References: <496D5AE2.2020403@cn.fujitsu.com>
-	<20090114132616.3cb7d568.kamezawa.hiroyu@jp.fujitsu.com>
-	<496D8A76.9040509@cn.fujitsu.com>
-	<20090114160551.143d7980.kamezawa.hiroyu@jp.fujitsu.com>
-	<496D929E.9040408@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 28E626B004F
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 03:11:29 -0500 (EST)
+Message-ID: <496D9DFA.1050602@cn.fujitsu.com>
+Date: Wed, 14 Jan 2009 16:10:34 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH] memcg: fix a race when setting memory.swappiness
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Linux Containers <containers@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Paul Menage <menage@google.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Jan 2009 15:22:06 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+(suppose: memcg->use_hierarchy == 0 and memcg->swappiness == 60)
 
-> KAMEZAWA Hiroyuki wrote:
-> > On Wed, 14 Jan 2009 14:47:18 +0800
-> > Li Zefan <lizf@cn.fujitsu.com> wrote:
-> > 
-> >> KAMEZAWA Hiroyuki wrote:
-> >>> On Wed, 14 Jan 2009 11:24:18 +0800
-> >>> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> >>>
-> >>>> (suppose: memcg->use_hierarchy == 0 and memcg->swappiness == 60)
-> >>>>
-> >>>> echo 10 > /memcg/0/swappiness   |
-> >>>>   mem_cgroup_swappiness_write() |
-> >>>>     ...                         | echo 1 > /memcg/0/use_hierarchy
-> >>>>                                 | mkdir /mnt/0/1
-> >>>>                                 |   sub_memcg->swappiness = 60;
-> >>>>     memcg->swappiness = 10;     |
-> >>>>
-> >>>> In the above scenario, we end up having 2 different swappiness
-> >>>> values in a single hierarchy.
-> >>>>
-> >>>> Note we can't use hierarchy_lock here, because it doesn't protect
-> >>>> the create() method.
-> >>>>
-> >>>> Though IMO use cgroup_lock() in simple write functions is OK,
-> >>>> Paul would like to avoid it. And he sugguested use a counter to
-> >>>> count the number of children instead of check cgrp->children list:
-> >>>>
-> >>>> =================
-> >>>> create() does:
-> >>>>
-> >>>> lock memcg_parent
-> >>>> memcg->swappiness = memcg->parent->swappiness;
-> >>>> memcg_parent->child_count++;
-> >>>> unlock memcg_parent
-> >>>>
-> >>>> and write() does:
-> >>>>
-> >>>> lock memcg
-> >>>> if (!memcg->child_count) {
-> >>>>   memcg->swappiness = swappiness;
-> >>>> } else {
-> >>>>   report error;
-> >>>> }
-> >>>> unlock memcg
-> >>>>
-> >>>> destroy() does:
-> >>>> lock memcg_parent
-> >>>> memcg_parent->child_count--;
-> >>>> unlock memcg_parent
-> >>>>
-> >>>> =================
-> >>>>
-> >>>> And there is a suble differnce with checking cgrp->children,
-> >>>> that a cgroup is removed from parent's list in cgroup_rmdir(),
-> >>>> while memcg->child_count is decremented in cgroup_diput().
-> >>>>
-> >>>>
-> >>>> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> >>> Seems reasonable, but, hmm...
-> >>>
-> >> Do you mean you agree to avoid using cgroup_lock()?
-> >>
-> >>> Why hierarchy_mutex can't be used for create() ?
-> >>>
-> >> We can make hierarchy_mutex work for this race by:
-> >>
-> >> @@ -2403,16 +2403,18 @@ static long cgroup_create(struct cgroup *parent, struct
-> >>         if (notify_on_release(parent))
-> >>                 set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
-> >>
-> >> +       cgroup_lock_hierarchy(root);
-> >> +
-> >>         for_each_subsys(root, ss) {
-> >>                 struct cgroup_subsys_state *css = ss->create(ss, cgrp);
-> >>                 if (IS_ERR(css)) {
-> >> +                       cgroup_unlock_hierarchy(root);
-> >>                         err = PTR_ERR(css);
-> >>                         goto err_destroy;
-> >>                 }
-> >>                 init_cgroup_css(css, ss, cgrp);
-> >>         }
-> >>
-> >> -       cgroup_lock_hierarchy(root);
-> >>         list_add(&cgrp->sibling, &cgrp->parent->children);
-> >>         cgroup_unlock_hierarchy(root);
-> >>         root->number_of_cgroups++;
-> >>
-> >> But this may not be what we want, because hierarchy_mutex is meant to be
-> >> lightweight, so it's not held while subsys callbacks are invoked, except
-> >> bind().
-> >>
-> > 
-> > Ah, I see your point. But "we can't trust hieararchy_lock for create()"
-> > is a probelm.  How about following ?
-> 
-> Yes, it can be a problem I think, so should be used carefully..
-> 
-> > ==
-> > for_each-subsys(root,ss) {
-> > 	if (ss->create) {
-> > 		mutex_lock(&ss->hierarchy_mutex);
-> > 		css = ss->create(ss, cgroup);
-> > 		mutex_unlock(&ss->hierarchy_mutex);
-> > 		if (IS_ERR(...)) {
-> > 		}
-> > 	}
-> 
-> This won't work. :(
-> 
-> The lock should include both create() and list_add(&cgrp->sibling, &cgrp->parent->children);
-> 
-> 
-I see.  Hmm...it seems that we have to use cgroup_lock, now. please go ahead.
-memory.use_hierarchy file also uses cgroup_lock.
+echo 10 > /memcg/0/swappiness   |
+  mem_cgroup_swappiness_write() |
+    ...                         | echo 1 > /memcg/0/use_hierarchy
+                                | mkdir /mnt/0/1
+                                |   sub_memcg->swappiness = 60;
+    memcg->swappiness = 10;     |
 
-Acked-by; KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+In the above scenario, we end up having 2 different swappiness
+values in a single hierarchy.
 
-Thank you!
--Kame
+We should hold cgroup_lock() when cheking cgrp->children list.
+
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/memcontrol.c |   10 +++++++++-
+ 1 files changed, 9 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fb62b43..bc8f101 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1992,6 +1992,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup *parent;
++
+ 	if (val > 100)
+ 		return -EINVAL;
+ 
+@@ -1999,15 +2000,22 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ 		return -EINVAL;
+ 
+ 	parent = mem_cgroup_from_cont(cgrp->parent);
++
++	cgroup_lock();
++
+ 	/* If under hierarchy, only empty-root can set this value */
+ 	if ((parent->use_hierarchy) ||
+-	    (memcg->use_hierarchy && !list_empty(&cgrp->children)))
++	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
++		cgroup_unlock();
+ 		return -EINVAL;
++	}
+ 
+ 	spin_lock(&memcg->reclaim_param_lock);
+ 	memcg->swappiness = val;
+ 	spin_unlock(&memcg->reclaim_param_lock);
+ 
++	cgroup_unlock();
++
+ 	return 0;
+ }
+ 
+-- 
+1.5.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
