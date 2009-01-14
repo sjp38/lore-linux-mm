@@ -1,91 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AD696B005C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 15:24:04 -0500 (EST)
-Subject: [PATCH RFC] Lost wakeups from lock_page_killable()
-From: Chris Mason <chris.mason@oracle.com>
-Content-Type: text/plain
-Date: Wed, 14 Jan 2009 15:23:52 -0500
-Message-Id: <1231964632.8269.47.camel@think.oraclecorp.com>
-Mime-Version: 1.0
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 577ED6B005C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:05:47 -0500 (EST)
+Received: by qyk5 with SMTP id 5so775237qyk.14
+        for <linux-mm@kvack.org>; Wed, 14 Jan 2009 13:05:45 -0800 (PST)
+Message-ID: <3e8340490901141305x7155cf10ueed386646d6e21ee@mail.gmail.com>
+Date: Wed, 14 Jan 2009 16:05:45 -0500
+From: "Bryan Donlan" <bdonlan@gmail.com>
+Subject: Re: OOPS and panic on 2.6.29-rc1 on xen-x86
+In-Reply-To: <20090114025910.GA17395@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+References: <20090112172613.GA8746@shion.is.fushizen.net>
+	 <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
+	 <20090114025910.GA17395@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Chuck has been debugging a problem with NFS mounts where procs are
-getting stuck waiting on the page lock.  He did a bunch of work around
-tracking the last person to lock the page and then printing out the page
-state when it found stuck procs.
+On Tue, Jan 13, 2009 at 9:59 PM, Nick Piggin <npiggin@suse.de> wrote:
+> On Mon, Jan 12, 2009 at 11:54:32PM -0500, Bryan Donlan wrote:
+>> On Mon, Jan 12, 2009 at 12:26 PM, Bryan Donlan <bdonlan@gmail.com> wrote:
+>> > [resending with log/config inline as my previous message seems to have
+>> >  been eaten by vger's spam filters]
+>> >
+>> > Hi,
+>> >
+>> > After testing 2.6.29-rc1 on xen-x86 with a btrfs root filesystem, I
+>> > got the OOPS quoted below and a hard freeze shortly after boot.
+>> > Boot messages and config are attached.
+>> >
+>> > This is on a test system, so I'd be happy to test any patches.
+>> >
+>> > Thanks,
+>> >
+>> > Bryan Donlan
+>>
+>> I've bisected the bug in question, and the faulty commit appears to be:
+>> commit e97a630eb0f5b8b380fd67504de6cedebb489003
+>> Author: Nick Piggin <npiggin@suse.de>
+>> Date:   Tue Jan 6 14:39:19 2009 -0800
+>>
+>>     mm: vmalloc use mutex for purge
+>>
+>>     The vmalloc purge lock can be a mutex so we can sleep while a purge is
+>>     going on (purge involves a global kernel TLB invalidate, so it can take
+>>     quite a while).
+>>
+>>     Signed-off-by: Nick Piggin <npiggin@suse.de>
+>>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+>>
+>> The bug is easily reproducable by a kernel build on -j4 - it will
+>> generally OOPS and panic before the build completes.
+>> Also, I've tested it with ext3, and it still occurs, so it seems
+>> unrelated to btrfs at least :)
+>>
+>> >
+>> > ------------[ cut here ]------------
+>> > Kernel BUG at c05ef80d [verbose debug info unavailable]
+>> > invalid opcode: 0000 [#1] SMP
+>> > last sysfs file: /sys/block/xvdc/size
+>> > Modules linked in:
+>
+> It is bugging in schedule somehow, but you don't have verbose debug
+> info compiled in. Can you compile that in and reproduce if you have
+> the time?
 
-The end result showed that procs were waiting to lock pages that were
-not actually locked.  The workload involved a well known commercial
-database that was being shutdown via sql shutdown abort
+Sure - which config option would that be? CONFIG_DEBUG_BUGVERBOSE?
 
-After trying to blame NFS for a really long time I think
-lock_page_killable may be the cause.
-
-lock_page and lock_page_killable both call __wait_on_bit_lock, and so
-both end up using prepare_to_wait_exclusive().  This means that when
-someone does finally unlock the page, only one process is going to get
-woken up.
-
-So, procA holding the page lock, procB and procC are waiting on the
-lock.
-
-procA: lock_page() // success
-procB: lock_page_killable(), sync_page_killable(), io_schedule()
-procC: lock_page_killable(), sync_page_killable(), io_schedule()
-
-procA: unlock, wake_up_page(page, PG_locked)
-procA: wake up procB
-
-happy admin: kill procB
-
-procB: wakes into sync_page_killable(), notices the signal and returns
--EINTR
-
-procB: __wait_on_bit_lock sees the action() func returns < 0 and does
-not take the page lock
-
-procB: lock_page_killable() returns < 0 and exits happily.
-
-procC: sleeping in io_schedule() forever unless someone else locks the
-page.
-
-The patch below is entirely untested but may do a better job of
-explaining what I think the bug is.  I'm hoping I can trigger it locally
-with a few dd commands mixed with a lot of kill commands.
-
--chris
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ceba0bd..e1184fa 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -623,9 +623,20 @@ EXPORT_SYMBOL(__lock_page);
- int __lock_page_killable(struct page *page)
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
-+	int ret;
- 
--	return __wait_on_bit_lock(page_waitqueue(page), &wait,
-+	ret = __wait_on_bit_lock(page_waitqueue(page), &wait,
- 					sync_page_killable, TASK_KILLABLE);
-+	/*
-+	 * wait_on_bit_lock uses prepare_to_wait_exclusive, so if multiple
-+	 * procs were waiting on this page, we were the only proc woken up.
-+	 *
-+	 * if ret != 0, we didn't actually get the lock.  We need to
-+	 * make sure any other waiters don't sleep forever.
-+	 */
-+	if (ret)
-+		wake_up_page(page, PG_locked);
-+	return ret;
- }
- 
- /**
-
+> Going bug here might indicate that there is some other problem with
+> the Xen and/or vmalloc code, regardless of reverting this patch.
+>
+> Thanks,
+> Nick
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
