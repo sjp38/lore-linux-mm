@@ -1,215 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C5AAA6B005C
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 01:40:40 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0F6eb13031567
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 15 Jan 2009 15:40:37 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3706145DE62
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:40:37 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CFD4245DE57
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:40:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A4E431DB8038
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:40:36 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DDD1E18001
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:40:36 +0900 (JST)
-Date: Thu, 15 Jan 2009 15:39:31 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 5/4] memcg: don't call res_counter_uncharge when
- obsolete
-Message-Id: <20090115153931.85b56d94.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
-References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
-	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
-	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
-	<20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
-	<20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115111420.8559bdb3.nishimura@mxp.nes.nec.co.jp>
-	<20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B3B206B005C
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 02:15:22 -0500 (EST)
+Message-ID: <496EE25E.3030703@cn.fujitsu.com>
+Date: Thu, 15 Jan 2009 15:14:38 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] [PATCH] memcg: fix infinite loop
+References: <496ED2B7.5050902@cn.fujitsu.com>	<20090115061557.GD30358@balbir.in.ibm.com> <20090115153134.632ebc85.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090115153134.632ebc85.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Jan 2009 13:38:14 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Thu, 15 Jan 2009 11:14:20 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > > > To handle the problem "parent may be obsolete",
-> > > > > 
-> > > > > call mem_cgroup_get(parent) at create()
-> > > > > call mem_cgroup_put(parent) at freeing memcg.
-> > > > >      (regardless of use_hierarchy.)
-> > > > > 
-> > > > > is clearer way to go, I think.
-> > > > > 
-> > > > > I wonder whether there is  mis-accounting problem or not..
-> > > > > 
-> hmm, after more consideration, although this patch can prevent the BUG,
-> it can leak memsw accounting of parents because memsw of parents, which
-> have been incremented by charge, does not decremented.
+KAMEZAWA Hiroyuki wrote:
+> On Thu, 15 Jan 2009 11:45:57 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> I'll try pet/put parent approach..
-> Or any other good ideas ?
+>> * Li Zefan <lizf@cn.fujitsu.com> [2009-01-15 14:07:51]:
+>>
+>>> 1. task p1 is in /memcg/0
+>>> 2. p1 does mmap(4096*2, MAP_LOCKED)
+>>> 3. echo 4096 > /memcg/0/memory.limit_in_bytes
+>>>
+>>> The above 'echo' will never return, unless p1 exited or freed the memory.
+>>> The cause is we can't reclaim memory from p1, so the while loop in
+>>> mem_cgroup_resize_limit() won't break.
+>>>
+>>> This patch fixes it by decrementing retry_count regardless the return value
+>>> of mem_cgroup_hierarchical_reclaim().
+>>>
+>> The problem definitely seems to exist, shouldn't we fix reclaim to
+>> return 0, so that we know progress is not made and retry count
+>> decrements? 
+>>
 > 
-"don't free parent's css_id until all chilredn are freed" is necessary for my
-CSS ID. I'll rebase my patch on to yours.
+> The behavior is correct. And we already check signal_pending() in the loop.
+> Ctrl-C or SIGALARM will works better than checking retry count.
 
-thanks,
--Kame
+But this behavior seems like a regression. Please try it in 2.6.28, you'll see
+it returns EBUSY immediately.
 
+Looks like the return value of mem_cgroup_hierarchical_reclaim() is buggy ?
 
-
-
+>  But adding a new control file, memory.resize_timeout to check timeout is a choice.
+> 
+> Second thought is.
+> thanks to Kosaki at el, LRU for locked pages is now visible in memory.stat
+> file. So, we may able to have clever way.
+> 
+> == 
+>  unevictable = mem_cgroup_get_all_zonestat(mem, LRU_UNEVICLABLE);
+>  if (newlimit < unevictable)
+> 	break;
+> ==
+> But considering hierarchy, this can be complex.
+> please don't modify current behavior for a while, I'll try to write "hierarchical stat"
+> with CSS_ID patch set's easy hierarchy walk.
 > 
 > Thanks,
-> Daisuke Nishimura.
+> -Kame
 > 
-> > > > > So, adding css_tryget() around problematic code can be a fix.
-> > > > > --
-> > > > >   mem = swap_cgroup_record();
-> > > > >   if (css_tryget(&mem->css)) {
-> > > > >       res_counter_uncharge(&mem->memsw, PAZE_SIZE);
-> > > > >       css_put(&mem->css)
-> > > > >   }
-> > > > > --
-> > > > > I like css_tryget() rather than mem_cgroup_obsolete().
-> > > > I agree.
-> > > > The updated version is attached.
-> > > > 
-> > > > 
-> > > > Thanks,
-> > > > Daisuke nishimura.
-> > > > 
-> > > > > To be honest, I'd like to remove memcg special stuff when I can.
-> > > > > 
-> > > > > Thanks,
-> > > > > -Kame
-> > > > > 
-> > > > ===
-> > > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > 
-> > > > mem_cgroup_get ensures that the memcg that has been got can be accessed
-> > > > even after the directory has been removed, but it doesn't ensure that parents
-> > > > of it can be accessed: parents might have been freed already by rmdir.
-> > > > 
-> > > > This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
-> > > > climb up the tree.
-> > > > 
-> > > > Check if the memcg is obsolete by css_tryget, and don't call
-> > > > res_counter_uncharge when obsole.
-> > > > 
-> > > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > seems nice loock.
-> > > 
-> > > 
-> > > > ---
-> > > >  mm/memcontrol.c |   15 ++++++++++++---
-> > > >  1 files changed, 12 insertions(+), 3 deletions(-)
-> > > > 
-> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > > index fb62b43..4e3b100 100644
-> > > > --- a/mm/memcontrol.c
-> > > > +++ b/mm/memcontrol.c
-> > > > @@ -1182,7 +1182,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> > > >  		/* avoid double counting */
-> > > >  		mem = swap_cgroup_record(ent, NULL);
-> > > >  		if (mem) {
-> > > > -			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > > > +			if (!css_tryget(&mem->css)) {
-> > > > +				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > > > +				css_put(&mem->css);
-> > > > +			}
-> > > >  			mem_cgroup_put(mem);
-> > > >  		}
-> > > >  	}
-> > > 
-> > > I think css_tryget() returns "ture" at success....
-> > > 
-> > > So,
-> > > ==
-> > > 	if (mem && css_tryget(&mem->css))
-> > > 		res_counter....
-> > > 
-> > > is correct.
-> > > 
-> > > -Kame
-> > > 
-> > Ooops! you are right.
-> > Sorry for my silly mistake..
-> > 
-> > "mem" is checked beforehand, so I think css_tryget would be enough.
-> > I'm now testing the attached one.
-> > 
-> > 
-> > Thanks,
-> > Daisuke Nishimura.
-> > ===
-> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > 
-> > mem_cgroup_get ensures that the memcg that has been got can be accessed
-> > even after the directory has been removed, but it doesn't ensure that parents
-> > of it can be accessed: parents might have been freed already by rmdir.
-> > 
-> > This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
-> > climb up the tree.
-> > 
-> > Check if the memcg is obsolete by css_tryget, and don't call
-> > res_counter_uncharge when obsole.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > ---
-> >  mm/memcontrol.c |   15 ++++++++++++---
-> >  1 files changed, 12 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index fb62b43..b9d5271 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1182,7 +1182,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> >  		/* avoid double counting */
-> >  		mem = swap_cgroup_record(ent, NULL);
-> >  		if (mem) {
-> > -			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +			if (css_tryget(&mem->css)) {
-> > +				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +				css_put(&mem->css);
-> > +			}
-> >  			mem_cgroup_put(mem);
-> >  		}
-> >  	}
-> > @@ -1252,7 +1255,10 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-> >  		struct mem_cgroup *memcg;
-> >  		memcg = swap_cgroup_record(ent, NULL);
-> >  		if (memcg) {
-> > -			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> > +			if (css_tryget(&memcg->css)) {
-> > +				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> > +				css_put(&memcg->css);
-> > +			}
-> >  			mem_cgroup_put(memcg);
-> >  		}
-> >  
-> > @@ -1397,7 +1403,10 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
-> >  
-> >  	memcg = swap_cgroup_record(ent, NULL);
-> >  	if (memcg) {
-> > -		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> > +		if (css_tryget(&memcg->css)) {
-> > +			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> > +			css_put(&memcg->css);
-> > +		}
-> >  		mem_cgroup_put(memcg);
-> >  	}
-> >  }
 > 
 
 --
