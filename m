@@ -1,173 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 405A06B005C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 21:30:38 -0500 (EST)
-Date: Thu, 15 Jan 2009 11:14:20 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [RFC][PATCH 5/4] memcg: don't call res_counter_uncharge when
- obsolete
-Message-Id: <20090115111420.8559bdb3.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
-	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
-	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
-	<20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
-	<20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0BE366B005C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 21:44:19 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0F2iHsq029674
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 15 Jan 2009 11:44:17 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 48BA22AEA81
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 11:44:17 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 15EF31EF082
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 11:44:17 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F1A21E08001
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 11:44:16 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A12C61DB8043
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 11:44:16 +0900 (JST)
+Date: Thu, 15 Jan 2009 11:43:12 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] don't show pgoff of vma if vma is pure ANON (was
+ Re: mmotm 2009-01-12-16-53 uploaded)
+Message-Id: <20090115114312.e42a0dba.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0901141349410.5465@blonde.anvils>
+References: <200901130053.n0D0rhev023334@imap1.linux-foundation.org>
+	<20090113181317.48e910af.kamezawa.hiroyu@jp.fujitsu.com>
+	<496CC9D8.6040909@google.com>
+	<20090114162245.923c4caf.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0901141349410.5465@blonde.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Mike Waychison <mikew@google.com>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, yinghan@google.com
 List-ID: <linux-mm.kvack.org>
 
-> > > To handle the problem "parent may be obsolete",
-> > > 
-> > > call mem_cgroup_get(parent) at create()
-> > > call mem_cgroup_put(parent) at freeing memcg.
-> > >      (regardless of use_hierarchy.)
-> > > 
-> > > is clearer way to go, I think.
-> > > 
-> > > I wonder whether there is  mis-accounting problem or not..
-> > > 
-> > > So, adding css_tryget() around problematic code can be a fix.
-> > > --
-> > >   mem = swap_cgroup_record();
-> > >   if (css_tryget(&mem->css)) {
-> > >       res_counter_uncharge(&mem->memsw, PAZE_SIZE);
-> > >       css_put(&mem->css)
-> > >   }
-> > > --
-> > > I like css_tryget() rather than mem_cgroup_obsolete().
-> > I agree.
-> > The updated version is attached.
+On Wed, 14 Jan 2009 14:08:35 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
+
+> On Wed, 14 Jan 2009, KAMEZAWA Hiroyuki wrote:
+> > Hmm, is this brutal ?
 > > 
+> > ==
+> > Recently, it's argued that what proc/pid/maps shows is ugly when a
+> > 32bit binary runs on 64bit host.
 > > 
-> > Thanks,
-> > Daisuke nishimura.
+> > /proc/pid/maps outputs vma's pgoff member but vma->pgoff is of no use
+> > information is the vma is for ANON.
+> > By this patch, /proc/pid/maps shows just 0 if no file backing store.
 > > 
-> > > To be honest, I'd like to remove memcg special stuff when I can.
-> > > 
-> > > Thanks,
-> > > -Kame
-> > > 
-> > ===
-> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > 
-> > mem_cgroup_get ensures that the memcg that has been got can be accessed
-> > even after the directory has been removed, but it doesn't ensure that parents
-> > of it can be accessed: parents might have been freed already by rmdir.
-> > 
-> > This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
-> > climb up the tree.
-> > 
-> > Check if the memcg is obsolete by css_tryget, and don't call
-> > res_counter_uncharge when obsole.
-> > 
-> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> seems nice loock.
-> 
-> 
+> > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > ---
-> >  mm/memcontrol.c |   15 ++++++++++++---
-> >  1 files changed, 12 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index fb62b43..4e3b100 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1182,7 +1182,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> >  		/* avoid double counting */
-> >  		mem = swap_cgroup_record(ent, NULL);
-> >  		if (mem) {
-> > -			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +			if (!css_tryget(&mem->css)) {
-> > +				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> > +				css_put(&mem->css);
-> > +			}
-> >  			mem_cgroup_put(mem);
-> >  		}
-> >  	}
 > 
-> I think css_tryget() returns "ture" at success....
+> Brutal, but sensible enough: revert to how things looked before
+> we ever starting putting vm_pgoff to work on anonymous areas.
 > 
-> So,
-> ==
-> 	if (mem && css_tryget(&mem->css))
-> 		res_counter....
+> I slightly regret losing that visible clue to whether an anonymous
+> vma has ever been mremap moved.  But have I ever actually used that
+> info?  No, never.
 > 
-> is correct.
+> I presume you test !vma->vm_file so the lines fit in, fair enough.
+> But I think you'll find checkpatch.pl protests at "(!vma->vm_file)?"
 > 
-> -Kame
+> I dislike its decisions on the punctuation of the ternary operator
+> - perhaps even more than Andrew dislikes the operator itself!
+> Do we write a space before a question mark? no: nor before a colon;
+> but I also dislike getting into checkpatch.pl arguments!
 > 
-Ooops! you are right.
-Sorry for my silly mistake..
-
-"mem" is checked beforehand, so I think css_tryget would be enough.
-I'm now testing the attached one.
-
+> While you're there, I'd also be inclined to make task_nommu.c
+> use the same loff_t cast as task_mmu.c is using.
+> 
+Ok, I'll try to update to reasonable style.
 
 Thanks,
-Daisuke Nishimura.
-===
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+-Kame
 
-mem_cgroup_get ensures that the memcg that has been got can be accessed
-even after the directory has been removed, but it doesn't ensure that parents
-of it can be accessed: parents might have been freed already by rmdir.
 
-This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
-climb up the tree.
-
-Check if the memcg is obsolete by css_tryget, and don't call
-res_counter_uncharge when obsole.
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   15 ++++++++++++---
- 1 files changed, 12 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fb62b43..b9d5271 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1182,7 +1182,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		/* avoid double counting */
- 		mem = swap_cgroup_record(ent, NULL);
- 		if (mem) {
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+			if (css_tryget(&mem->css)) {
-+				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-+				css_put(&mem->css);
-+			}
- 			mem_cgroup_put(mem);
- 		}
- 	}
-@@ -1252,7 +1255,10 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
- 		struct mem_cgroup *memcg;
- 		memcg = swap_cgroup_record(ent, NULL);
- 		if (memcg) {
--			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-+			if (css_tryget(&memcg->css)) {
-+				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-+				css_put(&memcg->css);
-+			}
- 			mem_cgroup_put(memcg);
- 		}
- 
-@@ -1397,7 +1403,10 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
- 
- 	memcg = swap_cgroup_record(ent, NULL);
- 	if (memcg) {
--		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-+		if (css_tryget(&memcg->css)) {
-+			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-+			css_put(&memcg->css);
-+		}
- 		mem_cgroup_put(memcg);
- 	}
- }
+> Hugh
+> 
+> > Index: mmotm-2.6.29-Jan13/fs/proc/task_mmu.c
+> > ===================================================================
+> > --- mmotm-2.6.29-Jan13.orig/fs/proc/task_mmu.c
+> > +++ mmotm-2.6.29-Jan13/fs/proc/task_mmu.c
+> > @@ -220,7 +220,8 @@ static void show_map_vma(struct seq_file
+> >  			flags & VM_WRITE ? 'w' : '-',
+> >  			flags & VM_EXEC ? 'x' : '-',
+> >  			flags & VM_MAYSHARE ? 's' : 'p',
+> > -			((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
+> > +			(!vma->vm_file)? 0 :
+> > +				((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
+> >  			MAJOR(dev), MINOR(dev), ino, &len);
+> >  
+> >  	/*
+> > Index: mmotm-2.6.29-Jan13/fs/proc/task_nommu.c
+> > ===================================================================
+> > --- mmotm-2.6.29-Jan13.orig/fs/proc/task_nommu.c
+> > +++ mmotm-2.6.29-Jan13/fs/proc/task_nommu.c
+> > @@ -143,7 +143,8 @@ static int nommu_vma_show(struct seq_fil
+> >  		   flags & VM_WRITE ? 'w' : '-',
+> >  		   flags & VM_EXEC ? 'x' : '-',
+> >  		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
+> > -		   (unsigned long long) vma->vm_pgoff << PAGE_SHIFT,
+> > +		   (!vma->vm_file) ? 0 :
+> > +			(unsigned long long) vma->vm_pgoff << PAGE_SHIFT,
+> >  		   MAJOR(dev), MINOR(dev), ino, &len);
+> >  
+> >  	if (file) {
+> > 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
