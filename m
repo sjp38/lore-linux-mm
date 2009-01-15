@@ -1,71 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F12056B005C
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 01:03:36 -0500 (EST)
-Date: Thu, 15 Jan 2009 07:03:30 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090115060330.GB17810@wotan.suse.de>
-References: <20090114090449.GE2942@wotan.suse.de> <84144f020901140253s72995188vb35a79501c38eaa3@mail.gmail.com> <20090114114707.GA24673@wotan.suse.de> <84144f020901140544v56b856a4w80756b90f5b59f26@mail.gmail.com> <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com> <20090114150900.GC25401@wotan.suse.de> <Pine.LNX.4.64.0901141158090.26507@quilx.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0901141158090.26507@quilx.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 281F06B005C
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 01:08:34 -0500 (EST)
+Message-ID: <496ED2B7.5050902@cn.fujitsu.com>
+Date: Thu, 15 Jan 2009 14:07:51 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [RFC] [PATCH] memcg: fix infinite loop
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 14, 2009 at 12:01:32PM -0600, Christoph Lameter wrote:
-> On Wed, 14 Jan 2009, Nick Piggin wrote:
-> 
-> > Right, but that regression isn't my only problem with SLUB. I think
-> > higher order allocations could be much more damaging for more a wider
-> > class of users. It is less common to see higher order allocation failure
-> > reports in places other than lkml, where people tend to have systems
-> > stay up longer and/or do a wider range of things with them.
-> 
-> The higher orders can fail and will then result in the allocator doing
-> order 0 allocs. It is not a failure condition.
+1. task p1 is in /memcg/0
+2. p1 does mmap(4096*2, MAP_LOCKED)
+3. echo 4096 > /memcg/0/memory.limit_in_bytes
 
-But they increase pressure on the resource and reduce availability to
-other higher order allocations. They accelerate the breakdown of the
-anti-frag heuristics, and they make slab internal fragmentation worse.
-They also simply cost more to allocate and free and reclaim.
+The above 'echo' will never return, unless p1 exited or freed the memory.
+The cause is we can't reclaim memory from p1, so the while loop in
+mem_cgroup_resize_limit() won't break.
 
+This patch fixes it by decrementing retry_count regardless the return value
+of mem_cgroup_hierarchical_reclaim().
 
-> Higher orders are an
-> advantage because they localize variables of the same type and therefore
-> reduce TLB pressure.
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+---
+ mm/memcontrol.c |   15 ++++-----------
+ 1 files changed, 4 insertions(+), 11 deletions(-)
 
-They are also a disadvantage. The disadvantages are very real. The
-advantage is a bit theoretical (how much really is it going to help
-going from 4K to 32K, if you still have hundreds or thousands of
-slabs anyway?). Also, there is no reason why the other allocators
-cannot use higher orer allocations, but their big advantage is that
-they don't need to.
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fb62b43..1995098 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1524,11 +1524,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ {
  
-> > The idea of removing queues doesn't seem so good to me. Queues are good.
-> > You amortize or avoid all sorts of things with queues. We have them
-> > everywhere in the kernel ;)
-> 
-> Queues require maintenance which introduces variability because queue
-> cleaning has to be done periodically and the queues grow in number if NUMA
-> scenarios have to be handled effectively. This is a big problem for low
-> latency applications (like in HPC). Spending far too much time optimizing
-> queue cleaning in SLAB lead to the SLUB idea.
+ 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
+-	int progress;
+ 	u64 memswlimit;
+ 	int ret = 0;
+ 
+-	while (retry_count) {
++	while (retry_count--) {
+ 		if (signal_pending(current)) {
+ 			ret = -EINTR;
+ 			break;
+@@ -1551,9 +1550,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 		if (!ret)
+ 			break;
+ 
+-		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
+-							   false);
+-  		if (!progress)			retry_count--;
++		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, false);
+ 	}
+ 
+ 	return ret;
+@@ -1563,13 +1560,13 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+ 	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
+-	u64 memlimit, oldusage, curusage;
++	u64 memlimit;
+ 	int ret;
+ 
+ 	if (!do_swap_account)
+ 		return -EINVAL;
+ 
+-	while (retry_count) {
++	while (retry_count--) {
+ 		if (signal_pending(current)) {
+ 			ret = -EINTR;
+ 			break;
+@@ -1592,11 +1589,7 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 		if (!ret)
+ 			break;
+ 
+-		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true);
+-		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+-		if (curusage >= oldusage)
+-			retry_count--;
+ 	}
+ 	return ret;
+ }
+-- 
+1.5.4.rc3
 
-I'd like to see any real numbers showing this is a problem. Queue
-trimming in SLQB can easily be scaled or tweaked to change latency
-characteristics. The fact is that it isn't a very critical or highly
-tuned operation. It happens _very_ infrequently in the large scheme
-of things, and could easily be changed if there is a problem.
-
-What you have in SLUB IMO is not obviously better because it effectively
-has sizeable queues in higher order partial and free pages and the
-active page, which simply never get trimmed, AFAIKS. This can be harmful
-for slab internal fragmentation as well in some situations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
