@@ -1,117 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7A54F6B005C
-	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 19:19:38 -0500 (EST)
-Received: by qyk5 with SMTP id 5so864287qyk.14
-        for <linux-mm@kvack.org>; Wed, 14 Jan 2009 16:19:29 -0800 (PST)
-Message-ID: <3e8340490901141619g3c32ebads482d1176efbd98a3@mail.gmail.com>
-Date: Wed, 14 Jan 2009 19:19:29 -0500
-From: "Bryan Donlan" <bdonlan@gmail.com>
-Subject: Re: OOPS and panic on 2.6.29-rc1 on xen-x86
-In-Reply-To: <20090114025910.GA17395@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 97FD66B005C
+	for <linux-mm@kvack.org>; Wed, 14 Jan 2009 20:18:27 -0500 (EST)
+Date: Thu, 15 Jan 2009 10:03:30 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 5/4] memcg: don't call res_counter_uncharge when
+ obsolete
+Message-Id: <20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
+References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
+	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
+	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-References: <20090112172613.GA8746@shion.is.fushizen.net>
-	 <3e8340490901122054q4af2b4cm3303c361477defc0@mail.gmail.com>
-	 <20090114025910.GA17395@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-kernel@vger.kernel.org, xen-devel@lists.xensource.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jan 13, 2009 at 9:59 PM, Nick Piggin <npiggin@suse.de> wrote:
-> On Mon, Jan 12, 2009 at 11:54:32PM -0500, Bryan Donlan wrote:
->> On Mon, Jan 12, 2009 at 12:26 PM, Bryan Donlan <bdonlan@gmail.com> wrote:
->> > [resending with log/config inline as my previous message seems to have
->> >  been eaten by vger's spam filters]
->> >
->> > Hi,
->> >
->> > After testing 2.6.29-rc1 on xen-x86 with a btrfs root filesystem, I
->> > got the OOPS quoted below and a hard freeze shortly after boot.
->> > Boot messages and config are attached.
->> >
->> > This is on a test system, so I'd be happy to test any patches.
->> >
->> > Thanks,
->> >
->> > Bryan Donlan
->>
->> I've bisected the bug in question, and the faulty commit appears to be:
->> commit e97a630eb0f5b8b380fd67504de6cedebb489003
->> Author: Nick Piggin <npiggin@suse.de>
->> Date:   Tue Jan 6 14:39:19 2009 -0800
->>
->>     mm: vmalloc use mutex for purge
->>
->>     The vmalloc purge lock can be a mutex so we can sleep while a purge is
->>     going on (purge involves a global kernel TLB invalidate, so it can take
->>     quite a while).
->>
->>     Signed-off-by: Nick Piggin <npiggin@suse.de>
->>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->>
->> The bug is easily reproducable by a kernel build on -j4 - it will
->> generally OOPS and panic before the build completes.
->> Also, I've tested it with ext3, and it still occurs, so it seems
->> unrelated to btrfs at least :)
->>
->> >
->> > ------------[ cut here ]------------
->> > Kernel BUG at c05ef80d [verbose debug info unavailable]
->> > invalid opcode: 0000 [#1] SMP
->> > last sysfs file: /sys/block/xvdc/size
->> > Modules linked in:
->
-> It is bugging in schedule somehow, but you don't have verbose debug
-> info compiled in. Can you compile that in and reproduce if you have
-> the time?
->
-> Going bug here might indicate that there is some other problem with
-> the Xen and/or vmalloc code, regardless of reverting this patch.
->
-> Thanks,
-> Nick
->
+On Wed, 14 Jan 2009 22:43:05 +0900 (JST), "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> Daisuke Nishimura さんは書きました：
+> > This is a new one. Please review.
+> >
+> > ===
+> > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> >
+> > mem_cgroup_get ensures that the memcg that has been got can be accessed
+> > even after the directory has been removed, but it doesn't ensure that
+> > parents
+> > of it can be accessed: parents might have been freed already by rmdir.
+> >
+> > This causes a bug in case of use_hierarchy==1, because
+> > res_counter_uncharge
+> > climb up the tree.
+> >
+> > Check if the memcg is obsolete, and don't call res_counter_uncharge when
+> > obsole.
+> >
+> Hmm, did you see panic ?
+I saw 2 types of bugs, A: spinlock lockup and B: general protection fault.
+(described below)
 
-Here's one from a config with CONFIG_DEBUG_BUGVERBOSE:
+Those bugs happened in case of (use_hierarchy && do_swap_account),
+and didn't happen (at leaset I haven't seen) in case of
+(!use_hierarchy && do_swap_account) nor (use_hierarchy && !do_swap_account).
+And, they didn't happen with this patch applied all through the last night.
 
-------------[ cut here ]------------
-kernel BUG at /root/linux-2.6/arch/x86/include/asm/mmu_context_32.h:39!
-invalid opcode: 0000 [#1] SMP
-last sysfs file:
-Modules linked in:
-
-Pid: 13, comm: ksoftirqd/3 Not tainted (2.6.29-rc1badwdebug #18)
-EIP: 0061:[<c0597e2c>] EFLAGS: 00010087 CPU: 3
-EIP is at schedule+0x52c/0x980
-EAX: d5b47580 EBX: 00000003 ECX: 00000000 EDX: d5b2de40
-ESI: c12f9200 EDI: d5b2de40 EBP: d6059030 ESP: d6071f40
- DS: 007b ES: 007b FS: 00d8 GS: 0000 SS: 0069
-Process ksoftirqd/3 (pid: 13, ti=d6070000 task=d6059030 task.ti=d6070000)
-Stack:
- c06c0d80 c06c0e00 c06c0200 c0105cf6 c06c0200 c06c0200 c06c0200 d60edbd0
- c0599c10 d5b2de40 c0776200 c06c0d80 c06c0e00 c12f5ec0 d6059030 d60591c4
- 00000003 00000100 c0165e73 c684ddb8 00000012 d6070200 d60591c4 c070b5d4
+A: spinlock lockup
+===
+BUG: spinlock lockup on CPU#1, mmapstress10/27706, ffff880
+3a41ef0a0
+Pid: 27706, comm: mmapstress10 Not tainted 2.6.28-git12-7c
+99bf20 #1
 Call Trace:
- [<c0105cf6>] check_events+0x8/0x12
- [<c0599c10>] _spin_unlock_irqrestore+0x20/0x40
- [<c0165e73>] rcu_process_callbacks+0x33/0x40
- [<c0105cf6>] check_events+0x8/0x12
- [<c0105c5f>] xen_restore_fl_direct_end+0x0/0x1
- [<c013354d>] ksoftirqd+0xdd/0x120
- [<c0133470>] ksoftirqd+0x0/0x120
- [<c0142769>] kthread+0x39/0x70
- [<c0142730>] kthread+0x0/0x70
- [<c0108d53>] kernel_thread_helper+0x7/0x10
-Code: 00 00 e9 0a fe ff ff e8 d3 1f 00 00 8d 76 00 e9 33 fb ff ff 89
-f0 e8 e4 e5 b6 ff 90 51 52 ff 15 a8 df 6b c0 5a 59 e9 52 fe ff ff <0f>
-0b eb fe a1 00 2b 6f c0 8b 6c 24 40 05 e8 03 00 00 89 44 24
-EIP: [<c0597e2c>] schedule+0x52c/0x980 SS:ESP 0069:d6071f40
----[ end trace 60197587eb4e6dfb ]---
+ [<ffffffff803687ba>] _raw_spin_lock+0xfb/0x122
+ [<ffffffff804d83b7>] _spin_lock+0x4e/0x5f
+ [<ffffffff8026f999>] res_counter_uncharge+0x2a/0x70
+ [<ffffffff8026f999>] res_counter_uncharge+0x2a/0x70
+ [<ffffffff802a5ddc>] swap_info_get+0x6a/0xa3
+ [<ffffffff802b72a2>] mem_cgroup_uncharge_swap+0x2a/0x35
+ [<ffffffff802a6059>] swap_entry_free+0x8f/0x93
+ [<ffffffff802a6076>] swap_free+0x19/0x28
+ [<ffffffff802a572d>] delete_from_swap_cache+0x36/0x43
+ [<ffffffff802a6be9>] free_swap_and_cache+0xb1/0xeb
+ [<ffffffff80299e77>] unmap_vmas+0x57f/0x837
+ [<ffffffff8029e426>] exit_mmap+0xa5/0x11c
+ [<ffffffff80239f78>] mmput+0x41/0x9f
+ [<ffffffff8023ddeb>] exit_mm+0x102/0x10d
+ [<ffffffff8023f36a>] do_exit+0x1a2/0x73e
+ [<ffffffff80246317>] __dequeue_signal+0x15/0x11c
+ [<ffffffff8023f979>] do_group_exit+0x73/0xa5
+ [<ffffffff8024870a>] get_signal_to_deliver+0x34f/0x3a1
+ [<ffffffff8020b212>] do_notify_resume+0x8c/0x7a5
+ [<ffffffff80250f64>] lock_hrtimer_base+0x1b/0x3c
+ [<ffffffff8025474e>] getnstimeofday+0x57/0xb6
+ [<ffffffff80251314>] ktime_get_ts+0x22/0x4b
+ [<ffffffff802513bf>] ktime_get+0xc/0x41
+ [<ffffffff802511fa>] hrtimer_nanosleep+0xa5/0xf1
+ [<ffffffff80250d24>] hrtimer_wakeup+0x0/0x22
+ [<ffffffff8020bf58>] sysret_signal+0x7c/0xcb
+===
+
+  This context has hold swap_lock already, so other contexts trying to hold
+  swap_lock also get spinlock lockup bug.
+
+B: general protection fault
+===
+general protection fault: 0000 [#1] SMP
+last sysfs file: /sys/devices/system/cpu/cpu15/cache/index1/shared_cpu_map
+CPU 3
+Modules linked in: ipt_REJECT xt_tcpudp iptable_filter ip_tables x_tables bridge stp ipv6
+autofs4 hidp rfcomm l2cap bluetooth sunrpc dm_mirror dm_region_hash dm_log dm_multipath dm
+_mod sbs sbshc battery ac lp sg rtc_cmos rtc_core ide_cd_mod parport_pc rtc_lib parport se
+rio_raw cdrom acpi_memhotplug button e1000 i2c_i801 i2c_core shpchp pcspkr ata_piix libata
+ megaraid_mbox megaraid_mm sd_mod scsi_mod ext3 jbd ehci_hcd ohci_hcd uhci_hcd [last unloa
+ded: microcode]
+Pid: 8051, comm: bash Not tainted 2.6.29-rc1-0ed85935 #1
+RIP: 0010:[<ffffffff80368620>]  [<ffffffff80368620>] _raw_spin_trylock+0x0/0x39
+RSP: 0000:ffff8800bb995e00  EFLAGS: 00010092
+RAX: ffff88010b54a620 RBX: 0097040900455377 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0097040900455377
+RBP: 009704090045538f R08: 0000000000000002 R09: 0000000000000001
+R10: ffffe2000c861640 R11: ffffffff8026f9b5 R12: 0000000000000296
+R13: 0000000000001000 R14: ffff8801003cf080 R15: 00007fa79a932028
+FS:  00007fa79a9316f0(0000) GS:ffff8803af7d7a80(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+CR2: 00007fa79a932028 CR3: 00000000cc8e0000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process bash (pid: 8051, threadinfo ffff8800bb994000, task ffff88010b54a620)
+Stack:
+ ffffffff804d8f1e ffffffff8026f9b5 0097040900455377 0097040900455357
+ ffffffff8026f9b5 0000000000000282 ffff88010e1a2000 ffffe2000c861640
+ ffff8801094f9000 0000000000000000 ffffffff802b7371 00000001ed3e8025
+Call Trace:
+ [<ffffffff804d8f1e>] ? _spin_lock+0x35/0x5f
+ [<ffffffff8026f9b5>] ? res_counter_uncharge+0x2a/0x70
+ [<ffffffff8026f9b5>] ? res_counter_uncharge+0x2a/0x70
+ [<ffffffff802b7371>] ? mem_cgroup_commit_charge_swapin+0x74/0x8a
+ [<ffffffff8029ad00>] ? handle_mm_fault+0x5e3/0x750
+ [<ffffffff804db70a>] ? do_page_fault+0x3b2/0x73e
+ [<ffffffff804d96ef>] ? page_fault+0x1f/0x30
+Code: 31 c0 e8 5f 4a ed ff 48 c7 c7 da df 5c 80 31 c0 e8 51 4a ed ff c7 05 cc d5 33 00 01
+00 00 00 c7 05 62 c7 de 00 00 00 00 00 58 c3 <0f> b7 07 38 e0 8d 88 00 01 00 00 75 05 f0 6
+6 0f b1 0f 0f 94 c1
+RIP  [<ffffffff80368620>] _raw_spin_trylock+0x0/0x39
+ RSP <ffff8800bb995e00>
+---[ end trace 1ecf768aff114688 ]---
+===
+
+
+> To handle the problem "parent may be obsolete",
+> 
+> call mem_cgroup_get(parent) at create()
+> call mem_cgroup_put(parent) at freeing memcg.
+>      (regardless of use_hierarchy.)
+> 
+> is clearer way to go, I think.
+> 
+> I wonder whether there is  mis-accounting problem or not..
+> 
+> So, adding css_tryget() around problematic code can be a fix.
+> --
+>   mem = swap_cgroup_record();
+>   if (css_tryget(&mem->css)) {
+>       res_counter_uncharge(&mem->memsw, PAZE_SIZE);
+>       css_put(&mem->css)
+>   }
+> --
+> I like css_tryget() rather than mem_cgroup_obsolete().
+I agree.
+The updated version is attached.
+
+
+Thanks,
+Daisuke nishimura.
+
+> To be honest, I'd like to remove memcg special stuff when I can.
+> 
+> Thanks,
+> -Kame
+> 
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+mem_cgroup_get ensures that the memcg that has been got can be accessed
+even after the directory has been removed, but it doesn't ensure that parents
+of it can be accessed: parents might have been freed already by rmdir.
+
+This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
+climb up the tree.
+
+Check if the memcg is obsolete by css_tryget, and don't call
+res_counter_uncharge when obsole.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |   15 ++++++++++++---
+ 1 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fb62b43..4e3b100 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1182,7 +1182,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 		/* avoid double counting */
+ 		mem = swap_cgroup_record(ent, NULL);
+ 		if (mem) {
+-			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++			if (!css_tryget(&mem->css)) {
++				res_counter_uncharge(&mem->memsw, PAGE_SIZE);
++				css_put(&mem->css);
++			}
+ 			mem_cgroup_put(mem);
+ 		}
+ 	}
+@@ -1252,7 +1255,10 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+ 		struct mem_cgroup *memcg;
+ 		memcg = swap_cgroup_record(ent, NULL);
+ 		if (memcg) {
+-			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
++			if (!css_tryget(&memcg->css)) {
++				res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
++				css_put(&memcg->css);
++			}
+ 			mem_cgroup_put(memcg);
+ 		}
+ 
+@@ -1397,7 +1403,10 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ 
+ 	memcg = swap_cgroup_record(ent, NULL);
+ 	if (memcg) {
+-		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
++		if (!css_tryget(&memcg->css)) {
++			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
++			css_put(&memcg->css);
++		}
+ 		mem_cgroup_put(memcg);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
