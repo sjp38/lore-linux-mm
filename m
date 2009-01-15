@@ -1,122 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3145F6B005C
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 02:49:35 -0500 (EST)
-Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
-	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id n0F7xpxp022898
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 19:00:23 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0F7QGDO065014
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 18:26:18 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0F7QGKp016515
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 18:26:16 +1100
-Date: Thu, 15 Jan 2009 12:56:11 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC] [PATCH] memcg: fix infinite loop
-Message-ID: <20090115072611.GE30358@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <496ED2B7.5050902@cn.fujitsu.com> <20090115061557.GD30358@balbir.in.ibm.com> <20090115153134.632ebc85.kamezawa.hiroyu@jp.fujitsu.com> <496EE25E.3030703@cn.fujitsu.com> <20090115162126.cf040c63.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090115162126.cf040c63.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6F76B005C
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 02:51:25 -0500 (EST)
+Date: Thu, 15 Jan 2009 16:45:37 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [RFC][PATCH] memcg: get/put parents at create/free
+Message-Id: <20090115164537.d402e95f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
+References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
+	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
+	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
+	<20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
+	<20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090115111420.8559bdb3.nishimura@mxp.nes.nec.co.jp>
+	<20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: nishimura@mxp.nes.nec.co.jp, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-01-15 16:21:26]:
+On Thu, 15 Jan 2009 13:38:14 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> On Thu, 15 Jan 2009 11:14:20 +0900, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> > > > > To handle the problem "parent may be obsolete",
+> > > > > 
+> > > > > call mem_cgroup_get(parent) at create()
+> > > > > call mem_cgroup_put(parent) at freeing memcg.
+> > > > >      (regardless of use_hierarchy.)
+> > > > > 
+> > > > > is clearer way to go, I think.
+> > > > > 
+> > > > > I wonder whether there is  mis-accounting problem or not..
+> > > > > 
+> hmm, after more consideration, although this patch can prevent the BUG,
+> it can leak memsw accounting of parents because memsw of parents, which
+> have been incremented by charge, does not decremented.
+> 
+> I'll try pet/put parent approach..
+> Or any other good ideas ?
+> 
+I attach a tryial patch.
 
-> On Thu, 15 Jan 2009 15:14:38 +0800
-> Li Zefan <lizf@cn.fujitsu.com> wrote:
-> 
-> > KAMEZAWA Hiroyuki wrote:
-> > > On Thu, 15 Jan 2009 11:45:57 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > >> * Li Zefan <lizf@cn.fujitsu.com> [2009-01-15 14:07:51]:
-> > >>
-> > >>> 1. task p1 is in /memcg/0
-> > >>> 2. p1 does mmap(4096*2, MAP_LOCKED)
-> > >>> 3. echo 4096 > /memcg/0/memory.limit_in_bytes
-> > >>>
-> > >>> The above 'echo' will never return, unless p1 exited or freed the memory.
-> > >>> The cause is we can't reclaim memory from p1, so the while loop in
-> > >>> mem_cgroup_resize_limit() won't break.
-> > >>>
-> > >>> This patch fixes it by decrementing retry_count regardless the return value
-> > >>> of mem_cgroup_hierarchical_reclaim().
-> > >>>
-> > >> The problem definitely seems to exist, shouldn't we fix reclaim to
-> > >> return 0, so that we know progress is not made and retry count
-> > >> decrements? 
-> > >>
-> > > 
-> > > The behavior is correct. And we already check signal_pending() in the loop.
-> > > Ctrl-C or SIGALARM will works better than checking retry count.
-> > 
-> > But this behavior seems like a regression. Please try it in 2.6.28, you'll see
-> > it returns EBUSY immediately.
-> > 
-> > Looks like the return value of mem_cgroup_hierarchical_reclaim() is buggy ?
-> > 
-> 
-> This is intentional behavior change by
-> ==
->  memcg-make-oom-less-frequently.patch
-> ==
-> 
-> try_to_free_page() returns positive value if try_to_free_page() reclaims at
-> least 1 pages. It itself doesn't seem to be buggy.
-> 
-> What buggy is resize_limit's retry-out check code, I think.
-> 
-> How about following ?
-> ==
-> 	while (1) {
-> 		if (signal_pending())
-> 			break;
-> 		try to set limit ....
-> 		...
-> 		ret = mem_cgroup_hierarchical_reclaim(memcg,  GFP_KERNEL, false);
-> 		total_progress += ret;	
-> 
-> 		if (total_progress > (memcg->res.usage - val) * 2) {
-> 			/*
-> 			 * It seems we reclaimed twice of necessary
-> 			 * pages...this memcg is busy
-> 			 */
-> 			ret = -EBUSY;
-> 			break;
+It has been working fine so far(for about 1 hour).
 
-I think we need the nr_retries here as well, we should refuse to
-resize_limit beyond a certain number of retries. In the case that Li
-mentioned total_progress will be 0, since we cannot reclaim anything.
-I prefer a nr_retries based approach for failure.
+Thanks,
+Daisuke Nishimura.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-> 		}
-> 	}
-> ==
-> 
-> Thanks,
-> -Kame
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+mem_cgroup_get ensures that the memcg that has been got can be accessed
+even after the directory has been removed, but it doesn't ensure that parents
+of it can be accessed: parents might have been freed already by rmdir.
 
--- 
-	Balbir
+This causes a bug in case of use_hierarchy==1, because res_counter_uncharge
+climb up the tree.
+
+This patch tries to fix this probrem by getting parents at create, and
+putting them at freeing.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |   33 ++++++++++++++++++++++++++++++++-
+ 1 files changed, 32 insertions(+), 1 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index fb62b43..b4aed07 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -202,6 +202,8 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
+ 
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
++static void mem_cgroup_get_parents(struct mem_cgroup *mem);
++static void mem_cgroup_put_parents(struct mem_cgroup *mem);
+ 
+ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+ 					 struct page_cgroup *pc,
+@@ -2185,10 +2187,38 @@ static void mem_cgroup_get(struct mem_cgroup *mem)
+ 
+ static void mem_cgroup_put(struct mem_cgroup *mem)
+ {
+-	if (atomic_dec_and_test(&mem->refcnt))
++	if (atomic_dec_and_test(&mem->refcnt)) {
++		mem_cgroup_put_parents(mem);
+ 		__mem_cgroup_free(mem);
++	}
++}
++
++static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
++{
++	if (!mem->res.parent)
++		return NULL;
++	return mem_cgroup_from_res_counter(mem->res.parent, res);
++}
++
++static void mem_cgroup_get_parents(struct mem_cgroup *mem)
++{
++	struct mem_cgroup *parent = parent_mem_cgroup(mem);
++
++	while (parent) {
++		mem_cgroup_get(parent);
++		parent = parent_mem_cgroup(parent);
++	}
+ }
+ 
++static void mem_cgroup_put_parents(struct mem_cgroup *mem)
++{
++	struct mem_cgroup *parent = parent_mem_cgroup(mem);
++
++	while (parent) {
++		mem_cgroup_put(parent);
++		parent = parent_mem_cgroup(parent);
++	}
++}
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ static void __init enable_swap_cgroup(void)
+@@ -2237,6 +2267,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+ 	if (parent)
+ 		mem->swappiness = get_swappiness(parent);
+ 	atomic_set(&mem->refcnt, 1);
++	mem_cgroup_get_parents(mem);
+ 	return &mem->css;
+ free_out:
+ 	__mem_cgroup_free(mem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
