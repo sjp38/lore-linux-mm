@@ -1,107 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C83906B005C
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 01:19:36 -0500 (EST)
-Date: Thu, 15 Jan 2009 07:19:31 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090115061931.GC17810@wotan.suse.de>
-References: <84144f020901140253s72995188vb35a79501c38eaa3@mail.gmail.com> <20090114114707.GA24673@wotan.suse.de> <84144f020901140544v56b856a4w80756b90f5b59f26@mail.gmail.com> <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com> <20090114150900.GC25401@wotan.suse.de> <20090114152207.GD25401@wotan.suse.de> <84144f020901140730l747b4e06j41fb8a35daeaf6c8@mail.gmail.com> <20090114155923.GC1616@wotan.suse.de> <Pine.LNX.4.64.0901141219140.26507@quilx.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 943B86B0062
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 01:20:46 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0F6KiAK006074
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 15 Jan 2009 15:20:44 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 61A0345DD75
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:20:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3ACFB45DD72
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:20:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9EF4A1DB803F
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:20:41 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 16AF01DB8048
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 15:20:41 +0900 (JST)
+Date: Thu, 15 Jan 2009 15:19:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 2/4] memcg: use CSS ID in memcg
+Message-Id: <20090115151936.9836878f.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090112121424.GC27129@balbir.in.ibm.com>
+References: <20090108182556.621e3ee6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090108183003.accef865.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090112121424.GC27129@balbir.in.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0901141219140.26507@quilx.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "menage@google.com" <menage@google.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 14, 2009 at 12:40:12PM -0600, Christoph Lameter wrote:
-> On Wed, 14 Jan 2009, Nick Piggin wrote:
+On Mon, 12 Jan 2009 17:44:24 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+					   get_swappiness(next_mem));
+> > +	struct mem_cgroup *victim;
+> > +	unsigned long start_age;
+> > +	int ret, total = 0;
+> > +	/*
+> > +	 * Reclaim memory from cgroups under root_mem in round robin.
+> > +	 */
+> > +	start_age = root_mem->scan_age;
+> > +
+> > +	while (time_after((start_age + 2UL), root_mem->scan_age)) {
 > 
-> > Well if you would like to consider SLQB as a fix for SLUB, that's
-> > fine by me ;) Actually I guess it is a valid way to look at the problem:
-> > SLQB solves the OLTP regression, so the only question is "what is the
-> > downside of it?".
+> This is confusing, why do we use time_after with scan_age. scan_age
+> seems to be incremented every time we scan and has no relationship
+> with time. 
+
+time_after() is useful macro for checking counter which can go MAX-1->MAX->0->1>...
+
+
+> The second thing is what happens if time_after() always
+> returns 0, if we've been aggressively scanning? 
+That never happens.
+
+> The logic needs some  commenting, why the magic number 2?
 > 
-> The downside is that it brings the SLAB stuff back that SLUB was
-> designed to avoid. Queue expiration.
+memcg->scan_age is update when 
+ - the memcg is root of hierarchy.
+ - we reclaim memory from memcg.
 
-What's this mean? Something distinct from periodic timer?
+So, memcg->scan_age is update by 2 means, all memcg under hierarchy is accessed
+by reclaim routine.
 
-> The use of timers to expire at
-> uncontrollable intervals for user space.
-
-I am not convinced this is a problem. I would like to see evidence
-that it is a problem, but I have only seen assertions.
-
-Definitely it is not uncontrollable. And not unchangeable. It is
-about the least sensitive part of the allocator because in a serious
-workload, the queues will continually be bounded by watermarks rather
-than timer reaping.
-
-
-> Object dispersal
-> in the kernel address space.
-
-You mean due to lower order allocations?
-1. I have not seen any results showing this gives a practical performance
-   increase, let alone one that offsets the downsides of using higher
-   order allocations.
-2. Increased internal fragmentation may also have the opposite effect and
-   result in worse packing.
-3. There is no reason why SLQB can't use higher order allocations if this
-   is a significant win.
-
-
-> Memory policy handling in the slab
-> allocator.
-
-I see no reason why this should be a problem. The SLUB merge just asserted
-it would be a problem. But actually SLAB seems to handle it just fine, and
-SLUB also doesn't always obey memory policies, so I consider that to be a
-worse problem, at least until it is justified by performance numbers that
-show otherwise.
-
-
-> Even seems to include periodic moving of objects between
-> queues.
-
-The queues expire slowly. Same as SLAB's arrays. You are describing the
-implementation, and not the problems it has.
-
-
-> The NUMA stuff is still a bit foggy to me since it seems to assume
-> a mapping between cpus and nodes. There are cpuless nodes as well as
-> memoryless cpus.
-
-That needs a little bit of work, but my primary focus is to come up
-with a design that has competitive performance in the most important
-cases.
-
-There needs to be some fallback cases added to slowpaths to handle
-these things, but I don't see why it would take much work.
-
+example) Consider hierarhy like this.
  
-> SLQB maybe a good cleanup for SLAB. Its good that it is based on the
-> cleaned up code in SLUB but the fundamental design is SLAB (or rather the
-> Solaris allocator from which we got the design for all the queuing stuff
-> in the first place). It preserves many of the drawbacks of that code.
+          xxx(ID=8)
+             /yyy (ID=4)
+             /zzz (ID=9)
+             /www (ID=3)
 
-It is _like_ slab. It avoids the major drawbacks of large footprint of
-array caches, and O(N^2) memory consumption behaviour, and corner cases
-where scalability is poor. The queueing behaviour of SLAB IMO is not
-a drawback and it is a big reaon why SLAB is so good.
+In this case, scan will be done in following order
 
- 
-> If SLQB would replace SLAB then there would be a lot of shared code
-> (debugging for example). Having a generic slab allocator framework may
-> then be possible within which a variety of algorithms may be implemented.
+  .....->3->4->8->9->3->4->8->9->...
+(start point is determined by last_scanned_child)
 
-The goal is to replace SLAB and SLUB. Anything less would be a failure
-on behalf of SLQB. Shared code is not a bad thing, but the major problem
-is the actual core behaviour of the allocator because it affects almost
-everywhere in the kernel and splitting userbase is not a good thing.
+everytime we visit "8", 8's scan_age is updated.
+
+So, if we see "8"  2 times, all other groups 4,9,3 is all accessed for freeing
+memory. (by me or other threads.)
+
+
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
