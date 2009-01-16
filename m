@@ -1,80 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 673A86B0044
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 02:50:56 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0G7orOs009968
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id C6FB06B0044
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 03:08:32 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0G88UTa021911
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 16 Jan 2009 16:50:53 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7112045DE4F
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 16:50:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3215E45DE53
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 16:50:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D7B2C1DB8038
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 16:50:52 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 70DAE1DB805B
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 16:50:52 +0900 (JST)
-Date: Fri, 16 Jan 2009 16:49:47 +0900
+	Fri, 16 Jan 2009 17:08:30 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D586745DD72
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 17:08:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A700D45DD70
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 17:08:29 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 920E41DB803E
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 17:08:29 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4587D1DB803A
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 17:08:29 +0900 (JST)
+Date: Fri, 16 Jan 2009 17:07:24 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 3/4] memcg: hierarchical reclaim by CSS ID
-Message-Id: <20090116164947.0c3cb725.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <497038CD.8010505@cn.fujitsu.com>
-References: <20090115192120.9956911b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115192943.7c1df53a.kamezawa.hiroyu@jp.fujitsu.com>
-	<496FE30C.1090300@cn.fujitsu.com>
-	<20090116103810.5ef55cc3.kamezawa.hiroyu@jp.fujitsu.com>
-	<496FE791.9030208@cn.fujitsu.com>
-	<20090116112211.ea4231aa.kamezawa.hiroyu@jp.fujitsu.com>
-	<497038CD.8010505@cn.fujitsu.com>
+Subject: Re: [BUG] memcg: panic when rmdir()
+Message-Id: <20090116170724.d2ad8344.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <497025E8.8050207@cn.fujitsu.com>
+References: <497025E8.8050207@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jan 2009 15:35:41 +0800
+On Fri, 16 Jan 2009 14:15:04 +0800
 Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-> >>>>> +	while (!ret) {
-> >>>>> +		rcu_read_lock();
-> >>>>> +		nextid = root_mem->last_scanned_child + 1;
-> >>>>> +		css = css_get_next(&mem_cgroup_subsys, nextid, &root_mem->css,
-> >>>>> +				   &found);
-> >>>>> +		if (css && css_is_populated(css) && css_tryget(css))
-> >>>> I don't see why you need to check css_is_populated(css) ?
-> >>>>
-> >>> Main reason is for sanity. I don't like to hold css->refcnt of not populated css.
-> >> I think this is a rare case. It's just a very short period when a cgroup is
-> >> being created but not yet fully created.
-> >>
-> >>> Second reason is for avoinding unnecessary calls to try_to_free_pages(),
-> >>> it's heavy. I should also add mem->res.usage == 0 case for skipping but not yet.
-> >>>
-> >> And if mem->res.usage == 0 is checked, css_is_popuated() is just redundant.
-> >>
-> > Hmm ? Can I check mem->res.usage before css_tryget() ?
-> > 
+> Found this when testing memory resource controller, can be triggered
+> with:
+> - CONFIG_CGROUP_MEM_RES_CTLR_SWAP=n
+> - or CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y
+> - or CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y && boot with noswapaccount
 > 
-> I think you can. If css != NULL, css is valid (otherwise how can we access css->flags
-> in css_tryget), so mem is valid. Correct me if I'm wrong. :)
-> 
-Ok, I'll remove css_is_populated(). (I alread removed it in my local set.)
 
-BTW, because we can access cgroup outside of cgroup_lock via CSS ID scanning,
-I want some way to confirm this cgroup is worth to be looked into or not.
+Li-san, could you try this ? I myself can't reproduce the bug yet...
+==
 
-*And* I think it's better to mark cgroup as NOT VALID in which initialization is
-not complete.
-And it's better to notify user that "you should rmdir this incomplete cgroup"
-when populate() finally fails. Do you have  idea ?
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
--Kame
+Now, at swapoff, even while try_charge() fails, commit is executed.
+This is bug and make refcnt of cgroup_subsys_state minus, finally.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+Index: mmotm-2.6.29-Jan14/mm/swapfile.c
+===================================================================
+--- mmotm-2.6.29-Jan14.orig/mm/swapfile.c
++++ mmotm-2.6.29-Jan14/mm/swapfile.c
+@@ -698,8 +698,10 @@ static int unuse_pte(struct vm_area_stru
+ 	pte_t *pte;
+ 	int ret = 1;
+ 
+-	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page, GFP_KERNEL, &ptr))
++	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page, GFP_KERNEL, &ptr)) {
+ 		ret = -ENOMEM;
++		goto out_nolock;
++	}
+ 
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
+@@ -723,6 +725,7 @@ static int unuse_pte(struct vm_area_stru
+ 	activate_page(page);
+ out:
+ 	pte_unmap_unlock(pte, ptl);
++out_nolock:
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
