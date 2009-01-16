@@ -1,133 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D64D6B0081
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 21:29:59 -0500 (EST)
-Date: Fri, 16 Jan 2009 11:25:07 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [BUGFIX][PATCH] memcg: get/put parents at create/free
-Message-Id: <20090116112507.701e044d.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090116111702.fba37439.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
-	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
-	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
-	<20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
-	<20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115111420.8559bdb3.nishimura@mxp.nes.nec.co.jp>
-	<20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
-	<20090115164537.d402e95f.nishimura@mxp.nes.nec.co.jp>
-	<20090115165453.271848d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115171315.965da4e3.nishimura@mxp.nes.nec.co.jp>
-	<20090115172336.0ed780bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115175131.9542ae59.nishimura@mxp.nes.nec.co.jp>
-	<20090115181056.74a938d5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090116105009.7cabac46.nishimura@mxp.nes.nec.co.jp>
-	<20090115181243.8dad9052.akpm@linux-foundation.org>
-	<20090116111702.fba37439.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 82AAB6B0044
+	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 21:57:11 -0500 (EST)
+Date: Fri, 16 Jan 2009 03:57:08 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] mm: fix assertion
+Message-ID: <20090116025708.GJ17810@wotan.suse.de>
+References: <20090114062816.GA15671@wotan.suse.de> <Pine.LNX.4.64.0901151132320.22151@quilx.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0901151132320.22151@quilx.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jan 2009 11:17:02 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Thu, 15 Jan 2009 18:12:43 -0800
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On Thu, Jan 15, 2009 at 11:35:45AM -0600, Christoph Lameter wrote:
+> You still have a
 > 
-> > On Fri, 16 Jan 2009 10:50:09 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > This version works well in my test.
-> > > 
-> > > Andrew, please pick up this one.
-> > > 
-> > > ===
-> > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > 
-> > > The lifetime of struct cgroup and struct mem_cgroup is different and
-> > > mem_cgroup has its own reference count for handling references from swap_cgroup.
-> > > 
-> > > This causes strange problem that the parent mem_cgroup dies while
-> > > child mem_cgroup alive, and this problem causes a bug in case of use_hierarchy==1
-> > > because res_counter_uncharge climbs up the tree.
-> > > 
-> > > This patch is for avoiding it by getting the parent at create, and
-> > > putting it at freeing.
-> > > 
-> > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > Reviewed-by; KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > ---
-> > >  mm/memcontrol.c |   23 ++++++++++++++++++++++-
-> > >  1 files changed, 22 insertions(+), 1 deletions(-)
-> > > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index fb62b43..45e1b51 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -202,6 +202,8 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
-> > >  
-> > >  static void mem_cgroup_get(struct mem_cgroup *mem);
-> > >  static void mem_cgroup_put(struct mem_cgroup *mem);
-> > > +static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-> > > +static void mem_cgroup_get_parent(struct mem_cgroup *mem);
-> > >  
-> > >  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
-> > >  					 struct page_cgroup *pc,
-> > > @@ -2185,10 +2187,28 @@ static void mem_cgroup_get(struct mem_cgroup *mem)
-> > >  
-> > >  static void mem_cgroup_put(struct mem_cgroup *mem)
-> > >  {
-> > > -	if (atomic_dec_and_test(&mem->refcnt))
-> > > +	if (atomic_dec_and_test(&mem->refcnt)) {
-> > > +		struct mem_cgroup *parent = parent_mem_cgroup(mem);
-> > >  		__mem_cgroup_free(mem);
-> > > +		if (parent)
-> > > +			mem_cgroup_put(parent);
-> > > +	}
-> > > +}
-> > > +
-> > > +static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
-> > > +{
-> > > +	if (!mem->res.parent)
-> > > +		return NULL;
-> > > +	return mem_cgroup_from_res_counter(mem->res.parent, res);
-> > >  }
-> > >  
-> > > +static void mem_cgroup_get_parent(struct mem_cgroup *mem)
-> > > +{
-> > > +	struct mem_cgroup *parent = parent_mem_cgroup(mem);
-> > > +
-> > > +	if (parent)
-> > > +		mem_cgroup_get(parent);
-> > > +}
-> > >  
-> > >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> > >  static void __init enable_swap_cgroup(void)
-> > > @@ -2237,6 +2257,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
-> > >  	if (parent)
-> > >  		mem->swappiness = get_swappiness(parent);
-> > >  	atomic_set(&mem->refcnt, 1);
-> > > +	mem_cgroup_get_parent(mem);
-> > >  	return &mem->css;
-> > >  free_out:
-> > >  	__mem_cgroup_free(mem);
-> > 
-> > It seems strange that we add a little helper function for the get(),
-> > but open-code the put()?
-> > 
-> Maybe I don't feel this as strange because I saw update history of this patch ;(
-> As you pointed out, I like open-code rather than helper here. Nishimura-san,
-> could you update ?
+>   VM_BUG_ON(PageTail(page));
 > 
-Sure.
+> in page_cache_get_speculative() which will verify that the
+> successfully acquired speculative reference is not a compound tail.
 
-The patch has gone into mmotm already, so I'll send a fix patch.
+Good point.
+ 
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
-please wait for a while
+Thanks
 
-
-Thanks,
-Daisuke Nishimura.
+> 
+> On Wed, 14 Jan 2009, Nick Piggin wrote:
+> 
+> > (I ran into this when debugging the lockless pagecache barrier problem btw)
+> >
+> > --
+> >
+> > This assertion is incorrect for lockless pagecache. By definition if we have an
+> > unpinned page that we are trying to take a speculative reference to, it may
+> > become the tail of a compound page at any time (if it is freed, then reallocated
+> > as a compound page).
+> >
+> > It was still a valid assertion for the vmscan.c LRU isolation case, but it
+> > doesn't seem incredibly helpful... if somebody wants it, they can put it back
+> > directly where it applies in the vmscan code.
+> >
+> > Signed-off-by: Nick Piggin <npiggin@suse.de>
+> > ---
+> > Index: linux-2.6/include/linux/mm.h
+> > ===================================================================
+> > --- linux-2.6.orig/include/linux/mm.h	2009-01-05 14:53:29.000000000 +1100
+> > +++ linux-2.6/include/linux/mm.h	2009-01-05 14:53:54.000000000 +1100
+> > @@ -270,7 +270,6 @@ static inline int put_page_testzero(stru
+> >   */
+> >  static inline int get_page_unless_zero(struct page *page)
+> >  {
+> > -	VM_BUG_ON(PageTail(page));
+> >  	return atomic_inc_not_zero(&page->_count);
+> >  }
+> >
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
