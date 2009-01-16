@@ -1,23 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2BD6B0044
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 00:57:49 -0500 (EST)
-Date: Thu, 15 Jan 2009 22:57:30 -0700
-From: Matthew Wilcox <matthew@wil.cx>
+	by kanga.kvack.org (Postfix) with ESMTP id D762B6B0044
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 00:59:31 -0500 (EST)
+Date: Fri, 16 Jan 2009 06:59:27 +0100
+From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH] Remove needless flush_dcache_page call
-Message-ID: <20090116055729.GF31013@parisc-linux.org>
+Message-ID: <20090116055927.GA22810@wotan.suse.de>
 References: <20090116052804.GA18737@barrios-desktop> <20090116053338.GC31013@parisc-linux.org> <20090116055119.GA6515@barrios-desktop>
-MIME-Version: 1.0
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20090116055119.GA6515@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
 To: MinChan Kim <minchan.kim@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org
+Cc: Matthew Wilcox <matthew@wil.cx>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, Jan 16, 2009 at 02:51:19PM +0900, MinChan Kim wrote:
 > On Thu, Jan 15, 2009 at 10:33:38PM -0700, Matthew Wilcox wrote:
+> > On Fri, Jan 16, 2009 at 02:28:04PM +0900, MinChan Kim wrote:
+> > > Now, Anyone don't maintain cramfs.
+> > > I don't know who is maintain romfs. so I send this patch to linux-mm, 
+> > > lkml, linux-dev. 
+> > > 
+> > > I am not sure my thought is right. 
+> > > 
+> > > When readpage is called, page with argument in readpage is just new 
+> > > allocated because kernel can't find that page in page cache. 
+> > > 
+> > > At this time, any user process can't map the page to their address space. 
+> > > so, I think D-cache aliasing probelm never occur. 
+> > > 
+> > > It make sense ?
+> > 
 > > Sorry, no.  You have to call fluch_dcache_page() in two situations --
 > > when the kernel is going to read some data that userspace wrote, *and*
 > > when userspace is going to read some data that the kernel wrote.  From a
@@ -41,22 +56,15 @@ On Fri, Jan 16, 2009 at 02:51:19PM +0900, MinChan Kim wrote:
 > 
 > who and where call flush_dcache_page in mpage_readpage call path?
 
-Most I/O devices will do DMA to the page in question and thus the kernel
-hasn't written to it and the CPU won't have the data in cache.  For the
-few devices which can't do DMA, it's the responsibility of the device
-driver to call flush_dcache_page() (or some other flushing primitive).
-See the gdth driver for an example:
+I think if the page is populated via IO, then it is responsibility of the
+IO layers (eg dma API) to ensure caches are consistent. Presumably this
+would include calling flush_dcache_page if we CPU is being used for
+the copies (eg. see drivers/block/brd.c).
 
-            address = kmap_atomic(sg_page(sl), KM_BIO_SRC_IRQ) + sl->offset;
-            memcpy(address, buffer, cpnow);
-            flush_dcache_page(sg_page(sl));
-            kunmap_atomic(address, KM_BIO_SRC_IRQ);
-
--- 
-Matthew Wilcox				Intel Open Source Technology Centre
-"Bill, look, we understand that you're interested in selling us this
-operating system, but compare it to ours.  We can't possibly take such
-a retrograde step."
+But there are quite possibly holes around here because not as much testing
+is done on CPUs with these kinds of caches. Eg. brd probably should be
+doing a flush_dcache_page in the rw == WRITE direction AFAIKS, so it picks
+up user aliases here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
