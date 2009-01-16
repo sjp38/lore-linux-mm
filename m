@@ -1,103 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id ED7C86B0044
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 04:24:57 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0G9OtHF009492
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 16 Jan 2009 18:24:55 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 8981945DE4F
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 18:24:55 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C01045DD72
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 18:24:55 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 514481DB803A
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 18:24:55 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 100F41DB8037
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 18:24:55 +0900 (JST)
-Date: Fri, 16 Jan 2009 18:23:51 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX] [PATCH] memcg: fix refcnt handling at swapoff
-Message-Id: <20090116182351.42c3ff7e.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090116181235.320d372b.kamezawa.hiroyu@jp.fujitsu.com>
-References: <497025E8.8050207@cn.fujitsu.com>
-	<20090116170724.d2ad8344.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090116172651.3e11fb0c.nishimura@mxp.nes.nec.co.jp>
-	<20090116181235.320d372b.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF3E6B004F
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 09:28:47 -0500 (EST)
+Subject: [PATCH] Avoid lost wakeups in lock_page_killable()
+From: Chris Mason <chris.mason@oracle.com>
+Content-Type: text/plain
+Date: Fri, 16 Jan 2009 09:28:27 -0500
+Message-Id: <1232116107.21473.14.camel@think.oraclecorp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>
+To: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jan 2009 18:12:35 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> How-to-reproduce.
-> 
-> In shell-A
->   #mount -t cgroup none /opt/cgroup
->   #mkdir /opt/cgroup/xxx/
->   #echo 0 > /opt/cgroup/xxx/tasks
->   #Run malloc 100M on this and sleep. ---(*)
-> 
-> In shell-B.
->   #echo 40M > /opt/cgroup/xxx/memory.limit_in_bytes.
->   Then, you'll see 60M of swap.
->   #/sbin/swapoff -a 
->   Then, you'll see OOM-Kill against (*)
->   #echo shell-A > /opt/cgroup/tasks
->   make /opt/cgroup/xxx/ empty
->   #rmdir /opt/cgroup/xxx
-> 
-> => panics.
-> 
-I'll update how-to-test text under Documentation/ later.
--Kame
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+lock_page and lock_page_killable both call __wait_on_bit_lock, and
+both end up using prepare_to_wait_exclusive().  This means that when
+someone does finally unlock the page, only one process is going to get
+woken up.
 
-Now, at swapoff, even while try_charge() fails, commit is executed.
-This is bug and make refcnt of cgroup_subsys_state minus, finally.
+But lock_page_killable can exit without taking the lock.  If nobody
+else comes in and locks the page, any other waiters will wait forever.
 
-Reported-by: Li Zefan <lizf@cn.fujitsu.com>
-Tested-by: Li Zefan <lizf@cn.fujitsu.com>
-Tested-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Reviewed-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/swapfile.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+For example, procA holding the page lock, procB and procC are waiting on
+the lock.
 
-Index: mmotm-2.6.29-Jan14/mm/swapfile.c
-===================================================================
---- mmotm-2.6.29-Jan14.orig/mm/swapfile.c
-+++ mmotm-2.6.29-Jan14/mm/swapfile.c
-@@ -698,8 +698,10 @@ static int unuse_pte(struct vm_area_stru
- 	pte_t *pte;
- 	int ret = 1;
+procA: lock_page() // success
+procB: lock_page_killable(), sync_page_killable(), io_schedule()
+procC: lock_page_killable(), sync_page_killable(), io_schedule()
+
+procA: unlock, wake_up_page(page, PG_locked)
+procA: wake up procB
+
+happy admin: kill procB
+
+procB: wakes into sync_page_killable(), notices the signal and returns
+-EINTR
+
+procB: __wait_on_bit_lock sees the action() func returns < 0 and does
+not take the page lock
+
+procB: lock_page_killable() returns < 0 and exits happily.
+
+procC: sleeping in io_schedule() forever unless someone else locks the
+page.
+
+This was seen in production on systems where the database was shutting
+down.  Testing shows the patch fixes things.
+
+Chuck Lever did all the hard work here, with a page lock debugging
+patch that proved we were missing a wakeup.  
+
+Every version of lock_page_killable() should need this.
+
+Signed-off-by: Chris Mason <chris.mason@oracle.com>
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ceba0bd..e1184fa 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -623,9 +623,20 @@ EXPORT_SYMBOL(__lock_page);
+ int __lock_page_killable(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
++	int ret;
  
--	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page, GFP_KERNEL, &ptr))
-+	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page, GFP_KERNEL, &ptr)) {
- 		ret = -ENOMEM;
-+		goto out_nolock;
-+	}
- 
- 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
- 	if (unlikely(!pte_same(*pte, swp_entry_to_pte(entry)))) {
-@@ -723,6 +725,7 @@ static int unuse_pte(struct vm_area_stru
- 	activate_page(page);
- out:
- 	pte_unmap_unlock(pte, ptl);
-+out_nolock:
- 	return ret;
+-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
++	ret = __wait_on_bit_lock(page_waitqueue(page), &wait,
+ 					sync_page_killable, TASK_KILLABLE);
++	/*
++	 * wait_on_bit_lock uses prepare_to_wait_exclusive, so if multiple
++	 * procs were waiting on this page, we were the only proc woken up.
++	 *
++	 * if ret != 0, we didn't actually get the lock.  We need to
++	 * make sure any other waiters don't sleep forever.
++	 */
++	if (ret)
++		wake_up_page(page, PG_locked);
++	return ret;
  }
  
+ /**
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
