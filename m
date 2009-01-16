@@ -1,134 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 47E5F6B0044
-	for <linux-mm@kvack.org>; Thu, 15 Jan 2009 23:32:29 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0G4WQT1026078
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 16 Jan 2009 13:32:26 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C69845DE4F
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 13:32:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1207045DE53
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 13:32:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E37841DB803E
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 13:32:25 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 67CB11DB8038
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 13:32:25 +0900 (JST)
-Date: Fri, 16 Jan 2009 13:31:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: get/put parents at create/free
-Message-Id: <20090116133121.2f50d71d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090116132253.69cf80ea.nishimura@mxp.nes.nec.co.jp>
-References: <20090113184533.6ffd2af9.nishimura@mxp.nes.nec.co.jp>
-	<20090114175121.275ecd59.nishimura@mxp.nes.nec.co.jp>
-	<7602a77a9fc6b1e8757468048fde749a.squirrel@webmail-b.css.fujitsu.com>
-	<20090115100330.37d89d3d.nishimura@mxp.nes.nec.co.jp>
-	<20090115110044.3a863af8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115111420.8559bdb3.nishimura@mxp.nes.nec.co.jp>
-	<20090115133814.a52460fa.nishimura@mxp.nes.nec.co.jp>
-	<20090115164537.d402e95f.nishimura@mxp.nes.nec.co.jp>
-	<20090115165453.271848d9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115171315.965da4e3.nishimura@mxp.nes.nec.co.jp>
-	<20090115172336.0ed780bb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115175131.9542ae59.nishimura@mxp.nes.nec.co.jp>
-	<20090115181056.74a938d5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090116105009.7cabac46.nishimura@mxp.nes.nec.co.jp>
-	<20090116132253.69cf80ea.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3F9C96B0044
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 00:28:16 -0500 (EST)
+Received: by rv-out-0708.google.com with SMTP id f25so1322539rvb.26
+        for <linux-mm@kvack.org>; Thu, 15 Jan 2009 21:28:14 -0800 (PST)
+Date: Fri, 16 Jan 2009 14:28:04 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] Remove needless flush_dcache_page call
+Message-ID: <20090116052804.GA18737@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@openvz.org>, Li Zefan <lizf@cn.fujitsu.com>, Paul Menage <menage@google.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+Cc: npiggin@suse.de, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jan 2009 13:22:53 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Now, Anyone don't maintain cramfs.
+I don't know who is maintain romfs. so I send this patch to linux-mm, 
+lkml, linux-dev. 
 
-> This is a fix for memcg-get-put-parents-at-create-free.patch.
-> 
+I am not sure my thought is right. 
 
-Thank you, I'll test. 
+When readpage is called, page with argument in readpage is just new 
+allocated because kernel can't find that page in page cache. 
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+At this time, any user process can't map the page to their address space. 
+so, I think D-cache aliasing probelm never occur. 
 
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> Andrew suggested that it's strange to add a little helper function for get(),
-> while put() is open-code.
-> 
-> This patch also adds a few comments.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  mm/memcontrol.c |   20 ++++++++++----------
->  1 files changed, 10 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 45e1b51..92790e4 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -203,7 +203,6 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
->  static void mem_cgroup_get(struct mem_cgroup *mem);
->  static void mem_cgroup_put(struct mem_cgroup *mem);
->  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-> -static void mem_cgroup_get_parent(struct mem_cgroup *mem);
->  
->  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
->  					 struct page_cgroup *pc,
-> @@ -2195,6 +2194,9 @@ static void mem_cgroup_put(struct mem_cgroup *mem)
->  	}
->  }
->  
-> +/*
-> + * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
-> + */
->  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
->  {
->  	if (!mem->res.parent)
-> @@ -2202,14 +2204,6 @@ static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem)
->  	return mem_cgroup_from_res_counter(mem->res.parent, res);
->  }
->  
-> -static void mem_cgroup_get_parent(struct mem_cgroup *mem)
-> -{
-> -	struct mem_cgroup *parent = parent_mem_cgroup(mem);
-> -
-> -	if (parent)
-> -		mem_cgroup_get(parent);
-> -}
-> -
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  static void __init enable_swap_cgroup(void)
->  {
-> @@ -2247,6 +2241,13 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	if (parent && parent->use_hierarchy) {
->  		res_counter_init(&mem->res, &parent->res);
->  		res_counter_init(&mem->memsw, &parent->memsw);
-> +		/*
-> +		 * We increment refcnt of the parent to ensure that we can
-> +		 * safely access it on res_counter_charge/uncharge.
-> +		 * This refcnt will be decremented when freeing this
-> +		 * mem_cgroup(see mem_cgroup_put).
-> +		 */
-> +		mem_cgroup_get(parent);
->  	} else {
->  		res_counter_init(&mem->res, NULL);
->  		res_counter_init(&mem->memsw, NULL);
-> @@ -2257,7 +2258,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
->  	if (parent)
->  		mem->swappiness = get_swappiness(parent);
->  	atomic_set(&mem->refcnt, 1);
-> -	mem_cgroup_get_parent(mem);
->  	return &mem->css;
->  free_out:
->  	__mem_cgroup_free(mem);
-> 
+It make sense ?
+
+---
+diff --git a/arch/arm/mach-integrator/clock.h b/arch/arm/mach-integrator/clock.h
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
+index a07338d..40c8b84 100644
+--- a/fs/cramfs/inode.c
++++ b/fs/cramfs/inode.c
+@@ -492,7 +492,6 @@ static int cramfs_readpage(struct file *file, struct page * page)
+ 		pgdata = kmap(page);
+ 	memset(pgdata + bytes_filled, 0, PAGE_CACHE_SIZE - bytes_filled);
+ 	kunmap(page);
+-	flush_dcache_page(page);
+ 	SetPageUptodate(page);
+ 	unlock_page(page);
+ 	return 0;
+diff --git a/fs/romfs/inode.c b/fs/romfs/inode.c
+index 98a232f..d008262 100644
+--- a/fs/romfs/inode.c
++++ b/fs/romfs/inode.c
+@@ -454,7 +454,6 @@ romfs_readpage(struct file *file, struct page * page)
+ 
+ 	if (!result)
+ 		SetPageUptodate(page);
+-	flush_dcache_page(page);
+ 
+ 	unlock_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
