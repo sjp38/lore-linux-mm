@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3F9C96B0044
-	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 00:28:16 -0500 (EST)
-Received: by rv-out-0708.google.com with SMTP id f25so1322539rvb.26
-        for <linux-mm@kvack.org>; Thu, 15 Jan 2009 21:28:14 -0800 (PST)
-Date: Fri, 16 Jan 2009 14:28:04 +0900
-From: MinChan Kim <minchan.kim@gmail.com>
-Subject: [PATCH] Remove needless flush_dcache_page call
-Message-ID: <20090116052804.GA18737@barrios-desktop>
+	by kanga.kvack.org (Postfix) with ESMTP id E438E6B0044
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2009 00:33:58 -0500 (EST)
+Date: Thu, 15 Jan 2009 22:33:38 -0700
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: Re: [PATCH] Remove needless flush_dcache_page call
+Message-ID: <20090116053338.GC31013@parisc-linux.org>
+References: <20090116052804.GA18737@barrios-desktop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090116052804.GA18737@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Cc: npiggin@suse.de, akpm@linux-foundation.org
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, npiggin@suse.de, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Now, Anyone don't maintain cramfs.
-I don't know who is maintain romfs. so I send this patch to linux-mm, 
-lkml, linux-dev. 
+On Fri, Jan 16, 2009 at 02:28:04PM +0900, MinChan Kim wrote:
+> Now, Anyone don't maintain cramfs.
+> I don't know who is maintain romfs. so I send this patch to linux-mm, 
+> lkml, linux-dev. 
+> 
+> I am not sure my thought is right. 
+> 
+> When readpage is called, page with argument in readpage is just new 
+> allocated because kernel can't find that page in page cache. 
+> 
+> At this time, any user process can't map the page to their address space. 
+> so, I think D-cache aliasing probelm never occur. 
+> 
+> It make sense ?
 
-I am not sure my thought is right. 
+Sorry, no.  You have to call fluch_dcache_page() in two situations --
+when the kernel is going to read some data that userspace wrote, *and*
+when userspace is going to read some data that the kernel wrote.  From a
+quick look at the patch, this seems to be the second case.  The kernel
+wrote data to a pagecache page, and userspace should be able to read it.
 
-When readpage is called, page with argument in readpage is just new 
-allocated because kernel can't find that page in page cache. 
+To understand why this is necessary, consider a processor which is
+virtually indexed and has a writeback cache.  The kernel writes to a
+page, then a user process reads from the same page through a different
+address.  The cache doesn't find the data the kernel wrote because it
+has a different virtual index, so userspace reads stale data.
 
-At this time, any user process can't map the page to their address space. 
-so, I think D-cache aliasing probelm never occur. 
-
-It make sense ?
-
----
-diff --git a/arch/arm/mach-integrator/clock.h b/arch/arm/mach-integrator/clock.h
-deleted file mode 100644
-index e69de29..0000000
-diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-index a07338d..40c8b84 100644
---- a/fs/cramfs/inode.c
-+++ b/fs/cramfs/inode.c
-@@ -492,7 +492,6 @@ static int cramfs_readpage(struct file *file, struct page * page)
- 		pgdata = kmap(page);
- 	memset(pgdata + bytes_filled, 0, PAGE_CACHE_SIZE - bytes_filled);
- 	kunmap(page);
--	flush_dcache_page(page);
- 	SetPageUptodate(page);
- 	unlock_page(page);
- 	return 0;
-diff --git a/fs/romfs/inode.c b/fs/romfs/inode.c
-index 98a232f..d008262 100644
---- a/fs/romfs/inode.c
-+++ b/fs/romfs/inode.c
-@@ -454,7 +454,6 @@ romfs_readpage(struct file *file, struct page * page)
- 
- 	if (!result)
- 		SetPageUptodate(page);
--	flush_dcache_page(page);
- 
- 	unlock_page(page);
+-- 
+Matthew Wilcox				Intel Open Source Technology Centre
+"Bill, look, we understand that you're interested in selling us this
+operating system, but compare it to ours.  We can't possibly take such
+a retrograde step."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
