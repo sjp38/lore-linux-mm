@@ -1,162 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 92A1F6B0096
-	for <linux-mm@kvack.org>; Sat, 17 Jan 2009 11:30:46 -0500 (EST)
-Date: Sat, 17 Jan 2009 17:32:36 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] Avoid lost wakeups in lock_page_killable()
-Message-ID: <20090117163236.GA2660@cmpxchg.org>
-References: <1232116107.21473.14.camel@think.oraclecorp.com> <20090117124821.GA1859@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 7DCD06B0099
+	for <linux-mm@kvack.org>; Sat, 17 Jan 2009 12:12:05 -0500 (EST)
+Received: by bwz3 with SMTP id 3so165970bwz.14
+        for <linux-mm@kvack.org>; Sat, 17 Jan 2009 09:12:02 -0800 (PST)
+Message-ID: <8c5a844a0901170912l48bab3fuc306bd77622bb53f@mail.gmail.com>
+Date: Sat, 17 Jan 2009 19:12:02 +0200
+From: "Daniel Lowengrub" <lowdanie@gmail.com>
+Subject: [PATCH 2.6.28 1/2] memory: improve find_vma
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20090117124821.GA1859@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jan 17, 2009 at 01:48:21PM +0100, Johannes Weiner wrote:
-> On Fri, Jan 16, 2009 at 09:28:27AM -0500, Chris Mason wrote:
-> > 
-> > lock_page and lock_page_killable both call __wait_on_bit_lock, and
-> > both end up using prepare_to_wait_exclusive().  This means that when
-> > someone does finally unlock the page, only one process is going to get
-> > woken up.
-> > 
-> > But lock_page_killable can exit without taking the lock.  If nobody
-> > else comes in and locks the page, any other waiters will wait forever.
-> > 
-> > For example, procA holding the page lock, procB and procC are waiting on
-> > the lock.
-> > 
-> > procA: lock_page() // success
-> > procB: lock_page_killable(), sync_page_killable(), io_schedule()
-> > procC: lock_page_killable(), sync_page_killable(), io_schedule()
-> > 
-> > procA: unlock, wake_up_page(page, PG_locked)
-> > procA: wake up procB
-> > 
-> > happy admin: kill procB
-> > 
-> > procB: wakes into sync_page_killable(), notices the signal and returns
-> > -EINTR
-> > 
-> > procB: __wait_on_bit_lock sees the action() func returns < 0 and does
-> > not take the page lock
-> > 
-> > procB: lock_page_killable() returns < 0 and exits happily.
-> > 
-> > procC: sleeping in io_schedule() forever unless someone else locks the
-> > page.
-> > 
-> > This was seen in production on systems where the database was shutting
-> > down.  Testing shows the patch fixes things.
-> > 
-> > Chuck Lever did all the hard work here, with a page lock debugging
-> > patch that proved we were missing a wakeup.  
-> > 
-> > Every version of lock_page_killable() should need this.
-> > 
-> > Signed-off-by: Chris Mason <chris.mason@oracle.com>
-> > 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index ceba0bd..e1184fa 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -623,9 +623,20 @@ EXPORT_SYMBOL(__lock_page);
-> >  int __lock_page_killable(struct page *page)
-> >  {
-> >  	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
-> > +	int ret;
-> >  
-> > -	return __wait_on_bit_lock(page_waitqueue(page), &wait,
-> > +	ret = __wait_on_bit_lock(page_waitqueue(page), &wait,
-> >  					sync_page_killable, TASK_KILLABLE);
-> > +	/*
-> > +	 * wait_on_bit_lock uses prepare_to_wait_exclusive, so if multiple
-> > +	 * procs were waiting on this page, we were the only proc woken up.
-> > +	 *
-> > +	 * if ret != 0, we didn't actually get the lock.  We need to
-> > +	 * make sure any other waiters don't sleep forever.
-> > +	 */
-> > +	if (ret)
-> > +		wake_up_page(page, PG_locked);
-> > +	return ret;
-> >  }
-> 
-> Hmm, I wonder whether this is the right place to fix it up.  We
-> inherit the problem from the wait layer as the exclusive waiting is
-> hidden in __wait_on_bit_lock().  Would it make more sense to fix it up
-> right there?
-> 
-> 	Hannes
-> 
-> diff --git a/kernel/wait.c b/kernel/wait.c
-> index cd87131..77217e9 100644
-> --- a/kernel/wait.c
-> +++ b/kernel/wait.c
-> @@ -194,10 +194,14 @@ EXPORT_SYMBOL(__wait_on_bit_lock);
->  int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
->  					int (*action)(void *), unsigned mode)
->  {
-> +	int ret;
->  	wait_queue_head_t *wq = bit_waitqueue(word, bit);
->  	DEFINE_WAIT_BIT(wait, word, bit);
->  
-> -	return __wait_on_bit_lock(wq, &wait, action, mode);
-> +	ret = __wait_on_bit_lock(wq, &wait, action, mode);
-> +	if (ret)
-> +		__wake_up_bit(wq, word, bit);
-> +	return ret;
->  }
->  EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
+The goal of this patch is to improve the efficiency of the find_vma
+function in mm/mmap.c. The function first checks whether the vma
+stored in the cache is the one it's looking for. Currently, it's
+possible for the cache to be correct and still get rejected because
+the function checks whether the given address is inside the vma in the
+cache, not whether the cached vma is the smallest one that's bigger
+than the address.  To solve this problem I turned the list of vma's
+into a doubly linked list, and using that list made a function that
+can check if a given vma is the one that find_vma is looking for.
+This gives a greater number of cache hits than the standerd method.
+The doubly linked list can be used to optimize other parts of the
+memory management as well.  I'll implement some of those possibilities
+in the next patch.
+Signed-off-by: Daniel Lowengrub <lowdanie@gmail.com>
+------------------------------------------------------------------------------------------------------------------------
+diff -uNr linux-2.6.28.vanilla/include/linux/mm_types.h
+linux-2.6.28.new/include/linux/mm_types.h
+--- linux-2.6.28.vanilla/include/linux/mm_types.h	2008-12-25
+01:26:37.000000000 +0200
++++ linux-2.6.28.new/include/linux/mm_types.h	2009-01-16
+15:19:15.000000000 +0200
+@@ -108,8 +108,9 @@
+ 	unsigned long vm_end;		/* The first byte after our end address
+ 					   within vm_mm. */
 
-This was of course the wrong place.  Sorry.  Next try.
+-	/* linked list of VM areas per task, sorted by address */
++	/* doubly linked list of VM areas per task, sorted by address */
+ 	struct vm_area_struct *vm_next;
++	struct vm_area_struct *vm_prev;
 
-Peter, this also fixes the spurious wake up as __wake_up_bit() checks
-if there are waiters on the queue up front.
+ 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
+ 	unsigned long vm_flags;		/* Flags, see mm.h. */
+diff -uNr linux-2.6.28.vanilla/kernel/fork.c linux-2.6.28.new/kernel/fork.c
+--- linux-2.6.28.vanilla/kernel/fork.c	2008-12-25 01:26:37.000000000 +0200
++++ linux-2.6.28.new/kernel/fork.c	2009-01-17 18:45:43.000000000 +0200
+@@ -257,7 +257,7 @@
+ #ifdef CONFIG_MMU
+ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
+ {
+-	struct vm_area_struct *mpnt, *tmp, **pprev;
++	struct vm_area_struct *mpnt, *tmp, *tmp_prev, **pprev;
+ 	struct rb_node **rb_link, *rb_parent;
+ 	int retval;
+ 	unsigned long charge;
+@@ -311,6 +311,7 @@
+ 		tmp->vm_flags &= ~VM_LOCKED;
+ 		tmp->vm_mm = mm;
+ 		tmp->vm_next = NULL;
++		tmp->vm_prev = NULL;
+ 		anon_vma_link(tmp);
+ 		file = tmp->vm_file;
+ 		if (file) {
+@@ -345,6 +346,9 @@
+ 		*pprev = tmp;
+ 		pprev = &tmp->vm_next;
 
----
-__wait_on_bit_lock() employs exclusive waiters, which means that every
-contender has to make sure to wake up the next one in the queue after
-releasing the lock.
-
-The current implementation does not do this for failed acquisitions.
-If the passed in action() returns a non-zero value, the lock is not
-taken but the next waiter is not woken up either, leading to endless
-waiting on an unlocked lock.
-
-This failure mode was observed with lock_page_killable() as a user
-which passes an action function that can fail and thereby prevent lock
-acquisition.
-
-Fix it in __wait_on_bit_lock() by waking up the next contender when
-acquisition fails, because the above layer won't do the unlock if the
-lock isn't taken successfully.
-
-Reported-by: Chris Mason <chris.mason@oracle.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- kernel/wait.c |    7 +++++++
- 1 file changed, 7 insertions(+)
-
---- a/kernel/wait.c
-+++ b/kernel/wait.c
-@@ -187,6 +187,13 @@ __wait_on_bit_lock(wait_queue_head_t *wq
- 		}
- 	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
- 	finish_wait(wq, &q->wait);
-+	/*
-+	 * Contenders are woken exclusively.  If we fail acquisition
-+	 * here, make sure the next waiter on the line is woken and
-+	 * gets to take the lock instead.
-+	 */
-+	if (ret)
-+		__wake_up_bit(wq, q->key.flags, q->key.bit_nr);
- 	return ret;
++		tmp->vm_prev = tmp_prev;
++		tmp_prev = tmp;
++
+ 		__vma_link_rb(mm, tmp, rb_link, rb_parent);
+ 		rb_link = &tmp->vm_rb.rb_right;
+ 		rb_parent = &tmp->vm_rb;
+diff -uNr linux-2.6.28.vanilla/mm/mmap.c linux-2.6.28.new/mm/mmap.c
+--- linux-2.6.28.vanilla/mm/mmap.c	2008-12-25 01:26:37.000000000 +0200
++++ linux-2.6.28.new/mm/mmap.c	2009-01-17 18:41:37.000000000 +0200
+@@ -393,14 +393,22 @@
+ {
+ 	if (prev) {
+ 		vma->vm_next = prev->vm_next;
++		vma->vm_prev = prev;
+ 		prev->vm_next = vma;
++		if (vma->vm_next)
++			vma->vm_next->vm_prev = vma;
++
+ 	} else {
+ 		mm->mmap = vma;
+-		if (rb_parent)
++		if (rb_parent) {
+ 			vma->vm_next = rb_entry(rb_parent,
+ 					struct vm_area_struct, vm_rb);
+-		else
++			vma->vm_next->vm_prev = vma;
++			vma->vm_prev = NULL;
++		} else {
+ 			vma->vm_next = NULL;
++			vma->vm_prev = NULL;
++		}
+ 	}
  }
- EXPORT_SYMBOL(__wait_on_bit_lock);
+
+@@ -491,6 +499,8 @@
+ 		struct vm_area_struct *prev)
+ {
+ 	prev->vm_next = vma->vm_next;
++	if (vma->vm_next)
++		vma->vm_next->vm_prev = prev;
+ 	rb_erase(&vma->vm_rb, &mm->mm_rb);
+ 	if (mm->mmap_cache == vma)
+ 		mm->mmap_cache = prev;
+@@ -1463,38 +1473,52 @@
+
+ EXPORT_SYMBOL(get_unmapped_area);
+
++/* Checks if this is the first VMA which satisfies addr < vm_end */
++static inline int after_addr(struct vm_area_struct *vma, unsigned long addr)
++{
++	if (!vma)
++		return 0;
++	if (vma->vm_end > addr) {
++		if (!vma->vm_prev)
++			return 1;
++		if (vma->vm_prev->vm_end <= addr)
++			return 1;
++	}
++	return 0;
++}
+ /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
+ struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
+ {
+ 	struct vm_area_struct *vma = NULL;
++	struct rb_node *rb_node;
+
+ 	if (mm) {
+ 		/* Check the cache first. */
+-		/* (Cache hit rate is typically around 35%.) */
++		/* (The cache is checked using the after_addr function) */
+ 		vma = mm->mmap_cache;
+-		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+-			struct rb_node * rb_node;
+
+-			rb_node = mm->mm_rb.rb_node;
+-			vma = NULL;
++		if (after_addr(vma, addr))
++			return vma;
+
+-			while (rb_node) {
+-				struct vm_area_struct * vma_tmp;
++		rb_node = mm->mm_rb.rb_node;
++		vma = NULL;
+
+-				vma_tmp = rb_entry(rb_node,
+-						struct vm_area_struct, vm_rb);
+-
+-				if (vma_tmp->vm_end > addr) {
+-					vma = vma_tmp;
+-					if (vma_tmp->vm_start <= addr)
+-						break;
+-					rb_node = rb_node->rb_left;
+-				} else
+-					rb_node = rb_node->rb_right;
+-			}
+-			if (vma)
+-				mm->mmap_cache = vma;
++		while (rb_node) {
++			struct vm_area_struct *vma_tmp;
++
++			vma_tmp = rb_entry(rb_node,
++					struct vm_area_struct, vm_rb);
++
++			if (vma_tmp->vm_end > addr) {
++				vma = vma_tmp;
++				if (vma_tmp->vm_start <= addr)
++					break;
++				rb_node = rb_node->rb_left;
++			} else
++				rb_node = rb_node->rb_right;
+ 		}
++		if (vma)
++			mm->mmap_cache = vma;
+ 	}
+ 	return vma;
+ }
+@@ -1806,6 +1830,7 @@
+ 		vma = vma->vm_next;
+ 	} while (vma && vma->vm_start < end);
+ 	*insertion_point = vma;
++	vma->vm_prev = prev ? prev : NULL;
+ 	tail_vma->vm_next = NULL;
+ 	if (mm->unmap_area == arch_unmap_area)
+ 		addr = prev ? prev->vm_end : mm->mmap_base;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
