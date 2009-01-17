@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7E5696B008C
-	for <linux-mm@kvack.org>; Sat, 17 Jan 2009 04:01:14 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 092316B0093
+	for <linux-mm@kvack.org>; Sat, 17 Jan 2009 07:46:31 -0500 (EST)
+Date: Sat, 17 Jan 2009 13:48:21 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] Avoid lost wakeups in lock_page_killable()
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-In-Reply-To: <1232116107.21473.14.camel@think.oraclecorp.com>
+Message-ID: <20090117124821.GA1859@cmpxchg.org>
 References: <1232116107.21473.14.camel@think.oraclecorp.com>
-Content-Type: text/plain
-Date: Sat, 17 Jan 2009 10:01:17 +0100
-Message-Id: <1232182877.7141.39.camel@twins>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1232116107.21473.14.camel@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
 To: Chris Mason <chris.mason@oracle.com>
-Cc: linux-mm@kvack.org, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
+Cc: linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, "chuck.lever" <chuck.lever@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-01-16 at 09:28 -0500, Chris Mason wrote:
+On Fri, Jan 16, 2009 at 09:28:27AM -0500, Chris Mason wrote:
+> 
 > lock_page and lock_page_killable both call __wait_on_bit_lock, and
 > both end up using prepare_to_wait_exclusive().  This means that when
 > someone does finally unlock the page, only one process is going to get
@@ -57,12 +58,7 @@ On Fri, 2009-01-16 at 09:28 -0500, Chris Mason wrote:
 > Every version of lock_page_killable() should need this.
 > 
 > Signed-off-by: Chris Mason <chris.mason@oracle.com>
-
-Right, so at worst this creates a spurious wakeup, but avoids the must
-more serious issue of a lost wakeup.
-
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
+> 
 > diff --git a/mm/filemap.c b/mm/filemap.c
 > index ceba0bd..e1184fa 100644
 > --- a/mm/filemap.c
@@ -87,10 +83,34 @@ Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > +		wake_up_page(page, PG_locked);
 > +	return ret;
 >  }
->  
->  /**
-> 
-> 
+
+Hmm, I wonder whether this is the right place to fix it up.  We
+inherit the problem from the wait layer as the exclusive waiting is
+hidden in __wait_on_bit_lock().  Would it make more sense to fix it up
+right there?
+
+	Hannes
+
+diff --git a/kernel/wait.c b/kernel/wait.c
+index cd87131..77217e9 100644
+--- a/kernel/wait.c
++++ b/kernel/wait.c
+@@ -194,10 +194,14 @@ EXPORT_SYMBOL(__wait_on_bit_lock);
+ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
+ 					int (*action)(void *), unsigned mode)
+ {
++	int ret;
+ 	wait_queue_head_t *wq = bit_waitqueue(word, bit);
+ 	DEFINE_WAIT_BIT(wait, word, bit);
+ 
+-	return __wait_on_bit_lock(wq, &wait, action, mode);
++	ret = __wait_on_bit_lock(wq, &wait, action, mode);
++	if (ret)
++		__wake_up_bit(wq, word, bit);
++	return ret;
+ }
+ EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
