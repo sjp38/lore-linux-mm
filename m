@@ -1,41 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id D50D06B00A3
-	for <linux-mm@kvack.org>; Sun, 18 Jan 2009 17:36:29 -0500 (EST)
-Received: by ewy9 with SMTP id 9so350502ewy.14
-        for <linux-mm@kvack.org>; Sun, 18 Jan 2009 14:36:27 -0800 (PST)
-Message-ID: <4973AEEC.70504@gmail.com>
-Date: Sun, 18 Jan 2009 23:36:28 +0100
-From: Roel Kluin <roel.kluin@gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 378606B00A3
+	for <linux-mm@kvack.org>; Sun, 18 Jan 2009 17:36:33 -0500 (EST)
+Date: Mon, 19 Jan 2009 07:36:23 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
+In-Reply-To: <8c5a844a0901170912l48bab3fuc306bd77622bb53f@mail.gmail.com>
+References: <8c5a844a0901170912l48bab3fuc306bd77622bb53f@mail.gmail.com>
+Message-Id: <20090120072659.B0A6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm: get_nid_for_pfn() returns int
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: garyhade@us.ibm.com, Ingo Molnar <mingo@elte.hu>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Daniel Lowengrub <lowdanie@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-get_nid_for_pfn() returns int
+Hi
 
-Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
----
-vi drivers/base/node.c +256
-static int get_nid_for_pfn(unsigned long pfn)
+> -	/* linked list of VM areas per task, sorted by address */
+> +	/* doubly linked list of VM areas per task, sorted by address */
+>  	struct vm_area_struct *vm_next;
+> +	struct vm_area_struct *vm_prev;
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 43fa90b..f8f578a 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -303,7 +303,7 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
- 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
- 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
- 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
--		unsigned int nid;
-+		int nid;
- 
- 		nid = get_nid_for_pfn(pfn);
- 		if (nid < 0)
+if you need "doublly linked list", why don't you use list.h?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
