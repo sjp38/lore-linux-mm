@@ -1,95 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C9C466B009D
-	for <linux-mm@kvack.org>; Sat, 17 Jan 2009 21:36:24 -0500 (EST)
-Date: Sun, 18 Jan 2009 03:32:11 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3] wait: prevent waiter starvation in
-	__wait_on_bit_lock
-Message-ID: <20090118023211.GA14539@redhat.com>
-References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2B3706B009F
+	for <linux-mm@kvack.org>; Sun, 18 Jan 2009 13:01:04 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id j3so1511269tid.8
+        for <linux-mm@kvack.org>; Sun, 18 Jan 2009 10:00:52 -0800 (PST)
+Date: Mon, 19 Jan 2009 02:00:38 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: [Patch] slob: clean up the code
+Message-ID: <20090118180038.GB3292@hack.private>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090118013802.GA12214@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, linux-mm@kvack.org, mpm@selenic.com, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On 01/18, Johannes Weiner wrote:
->
-> On Sat, Jan 17, 2009 at 10:51:10PM +0100, Oleg Nesterov wrote:
-> >
-> > 	if ((ret = (*action)(q->key.flags))) {
-> > 		__wake_up_bit(wq, q->key.flags, q->key.bit_nr);
-> > 		// or just __wake_up(wq, TASK_NORMAL, 1, &q->key);
-> > 		break;
-> > 	}
-> >
-> > IOW, imho __wait_on_bit_lock() is buggy, not __lock_page_killable(),
-> > no?
->
-> I agree with you, already replied with a patch to linux-mm where Chris
-> posted it originally.
->
-> Peter noted that we have a spurious wake up in the case where A holds
-> the page lock, B and C wait, B gets killed and does a wake up, then A
-> unlocks and does a wake up.  Your proposal has this problem too,
-> right?
 
-Yes sure. But I can't see how it is possible to avoid the false
-wakeup for sure, please see below.
+- Use NULL instead of plain 0;
+- Rename slob_page() to is_slob_page();
+- Define slob_page() to convert void* to struct slob_page*;
+- Rename slob_new_page() to slob_new_pages();
+- Define slob_free_pages() accordingly.
 
-> @@ -182,8 +182,20 @@ __wait_on_bit_lock(wait_queue_head_t *wq
->  	do {
->  		prepare_to_wait_exclusive(wq, &q->wait, mode);
->  		if (test_bit(q->key.bit_nr, q->key.flags)) {
-> -			if ((ret = (*action)(q->key.flags)))
-> +			ret = action(q->key.flags);
-> +			if (ret) {
-> +				/*
-> +				 * Contenders are woken exclusively.  If
-> +				 * we do not take the lock when woken up
-> +				 * from an unlock, we have to make sure to
-> +				 * wake the next waiter in line or noone
-> +				 * will and shkle will wait forever.
-> +				 */
-> +				if (!test_bit(q->key.bit_nr, q->key.flags))
-> +					__wake_up_bit(wq, q->key.flags,
+Compile tests only.
 
-Afaics, the spurious wake up is still possible if SIGKILL and
-unlock_page() happen "at the same time".
+Signed-off-by: WANG Cong <wangcong@zeuux.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Christoph Lameter <cl@linux-foundation.org>
 
-	__wait_on_bit_lock:			unlock_page:
+---
+diff --git a/mm/slob.c b/mm/slob.c
+index bf7e8fc..c9cd31d 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -126,9 +126,9 @@ static LIST_HEAD(free_slob_medium);
+ static LIST_HEAD(free_slob_large);
+ 
+ /*
+- * slob_page: True for all slob pages (false for bigblock pages)
++ * is_slob_page: True for all slob pages (false for bigblock pages)
+  */
+-static inline int slob_page(struct slob_page *sp)
++static inline int is_slob_page(struct slob_page *sp)
+ {
+ 	return PageSlobPage((struct page *)sp);
+ }
+@@ -143,6 +143,11 @@ static inline void clear_slob_page(struct slob_page *sp)
+ 	__ClearPageSlobPage((struct page *)sp);
+ }
+ 
++static inline struct slob_page *slob_page(const void *addr)
++{
++	return (struct slob_page *)virt_to_page(addr);
++}
++
+ /*
+  * slob_page_free: true for pages on free_slob_pages list.
+  */
+@@ -230,7 +235,7 @@ static int slob_last(slob_t *s)
+ 	return !((unsigned long)slob_next(s) & ~PAGE_MASK);
+ }
+ 
+-static void *slob_new_page(gfp_t gfp, int order, int node)
++static void *slob_new_pages(gfp_t gfp, int order, int node)
+ {
+ 	void *page;
+ 
+@@ -247,12 +252,17 @@ static void *slob_new_page(gfp_t gfp, int order, int node)
+ 	return page_address(page);
+ }
+ 
++static void slob_free_pages(void *b, int order)
++{
++	free_pages((unsigned long)b, order);
++}
++
+ /*
+  * Allocate a slob block within a given slob_page sp.
+  */
+ static void *slob_page_alloc(struct slob_page *sp, size_t size, int align)
+ {
+-	slob_t *prev, *cur, *aligned = 0;
++	slob_t *prev, *cur, *aligned = NULL;
+ 	int delta = 0, units = SLOB_UNITS(size);
+ 
+ 	for (prev = NULL, cur = sp->free; ; prev = cur, cur = slob_next(cur)) {
+@@ -349,10 +359,10 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 
+ 	/* Not enough space: must allocate a new page */
+ 	if (!b) {
+-		b = slob_new_page(gfp & ~__GFP_ZERO, 0, node);
++		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, node);
+ 		if (!b)
+-			return 0;
+-		sp = (struct slob_page *)virt_to_page(b);
++			return NULL;
++		sp = slob_page(b);
+ 		set_slob_page(sp);
+ 
+ 		spin_lock_irqsave(&slob_lock, flags);
+@@ -384,7 +394,7 @@ static void slob_free(void *block, int size)
+ 		return;
+ 	BUG_ON(!size);
+ 
+-	sp = (struct slob_page *)virt_to_page(block);
++	sp = slob_page(block);
+ 	units = SLOB_UNITS(size);
+ 
+ 	spin_lock_irqsave(&slob_lock, flags);
+@@ -476,7 +486,7 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 	} else {
+ 		void *ret;
+ 
+-		ret = slob_new_page(gfp | __GFP_COMP, get_order(size), node);
++		ret = slob_new_pages(gfp | __GFP_COMP, get_order(size), node);
+ 		if (ret) {
+ 			struct page *page;
+ 			page = virt_to_page(ret);
+@@ -494,8 +504,8 @@ void kfree(const void *block)
+ 	if (unlikely(ZERO_OR_NULL_PTR(block)))
+ 		return;
+ 
+-	sp = (struct slob_page *)virt_to_page(block);
+-	if (slob_page(sp)) {
++	sp = slob_page(block);
++	if (is_slob_page(sp)) {
+ 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 		unsigned int *m = (unsigned int *)(block - align);
+ 		slob_free(m, *m + align);
+@@ -513,8 +523,8 @@ size_t ksize(const void *block)
+ 	if (unlikely(block == ZERO_SIZE_PTR))
+ 		return 0;
+ 
+-	sp = (struct slob_page *)virt_to_page(block);
+-	if (slob_page(sp)) {
++	sp = slob_page(block);
++	if (is_slob_page(sp)) {
+ 		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+ 		unsigned int *m = (unsigned int *)(block - align);
+ 		return SLOB_UNITS(*m) * SLOB_UNIT;
+@@ -572,7 +582,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ 	if (c->size < PAGE_SIZE)
+ 		b = slob_alloc(c->size, flags, c->align, node);
+ 	else
+-		b = slob_new_page(flags, get_order(c->size), node);
++		b = slob_new_pages(flags, get_order(c->size), node);
+ 
+ 	if (c->ctor)
+ 		c->ctor(b);
+@@ -586,7 +596,7 @@ static void __kmem_cache_free(void *b, int size)
+ 	if (size < PAGE_SIZE)
+ 		slob_free(b, size);
+ 	else
+-		free_pages((unsigned long)b, get_order(size));
++		slob_free_pages(b, get_order(size));
+ }
+ 
+ static void kmem_rcu_free(struct rcu_head *head)
 
-						clear_bit_unlock()
-	test_bit() == T
-
-	__wake_up_bit()				wake_up_page()
-
-Note that sync_page_killable() returns with ->state == TASK_RUNNING,
-__wake_up() will "ignore" us.
-
-But, more importantly, I'm afraid we can also have the false negative,
-this "if (!test_bit())" test lacks the barriers. This can't happen with
-sync_page_killable() because it always calls schedule(). But let's
-suppose we modify it to check signal_pending() first:
-
-	static int sync_page_killable(void *word)
-	{
-		if (fatal_signal_pending(current))
-			return -EINTR;
-		return sync_page(word);
-	}
-
-It is still correct, but unless I missed something now __wait_on_bit_lock()
-has problems again.
-
-But don't get me wrong, I think you are right and it is better to minimize
-the possibility of the false wakeup.
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
