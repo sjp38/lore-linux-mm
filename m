@@ -1,64 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2266B0044
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 12:59:24 -0500 (EST)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n0JHw6J2032676
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 10:58:06 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0JHxNTl218116
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 10:59:23 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0JHxMIg007189
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 10:59:22 -0700
-Date: Mon, 19 Jan 2009 09:59:19 -0800
-From: Gary Hade <garyhade@us.ibm.com>
-Subject: Re: [PATCH] mm: get_nid_for_pfn() returns int
-Message-ID: <20090119175919.GA7476@us.ibm.com>
-References: <4973AEEC.70504@gmail.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F206B0044
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 14:29:05 -0500 (EST)
+Received: from sd0109e.au.ibm.com (d23rh905.au.ibm.com [202.81.18.225])
+	by ausmtp04.au.ibm.com (8.13.8/8.13.8) with ESMTP id n0JAIM47111406
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 21:20:02 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by sd0109e.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0J9xijp158786
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 20:59:47 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0J9xh3L007976
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 20:59:43 +1100
+Date: Mon, 19 Jan 2009 15:29:47 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [memcg BUG] NULL pointer dereference wheng rmdir
+Message-ID: <20090119095947.GH6039@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <49744499.2040101@cn.fujitsu.com> <20090119183341.9418c6de.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <4973AEEC.70504@gmail.com>
+In-Reply-To: <20090119183341.9418c6de.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Roel Kluin <roel.kluin@gmail.com>
-Cc: garyhade@us.ibm.com, Ingo Molnar <mingo@elte.hu>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 18, 2009 at 11:36:28PM +0100, Roel Kluin wrote:
-> get_nid_for_pfn() returns int
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-01-19 18:33:41]:
+
+> On Mon, 19 Jan 2009 17:15:05 +0800
+> Li Zefan <lizf@cn.fujitsu.com> wrote:
 > 
-> Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
+> > note: rmdir[11520] exited with preempt_count 1
+> > ===========================================================================
+> > 
+> > 
+> > And I've confirmed it's because (zone == NULL) in mem_cgroup_force_empty_list():
+> > 
+> > 
+> Hmm, curious.  it will be
+> 
+> ==
+> 	for_each_node_state(nid, N_POSSIBLE)
+> 		for (zid = 0; zid < MAX_NR_ZONES; zid++)
+> 			zone = &NODE_DATA(nid)->node_zones[zid];
+> 
+> ==
+> 
+> And, from this message,
+> 
+> Unable to handle kernel NULL pointer dereference (address 0000000000002680)
+> 
+> NODE_DATA(nid) seems to be NULL.
+> 
+> Hmm...could you try this ? Thank you for nice test, very helpful.
+> -Kame
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> N_POSSIBLE doesn't means there is memory...and force_empty can
+> visit invalud node which have no pgdat.
+> 
+> To visit all valid nodes, N_HIGH_MEMRY should be used.
+> 
+> Reporetd-by: Li Zefan <lizf@cn.fujitsu.com>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
 > ---
-> vi drivers/base/node.c +256
-> static int get_nid_for_pfn(unsigned long pfn)
+>  mm/memcontrol.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index 43fa90b..f8f578a 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -303,7 +303,7 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
->  	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
->  	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
->  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-> -		unsigned int nid;
-> +		int nid;
+> Index: mmotm-2.6.29-Jan16/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.29-Jan16.orig/mm/memcontrol.c
+> +++ mmotm-2.6.29-Jan16/mm/memcontrol.c
+> @@ -1724,7 +1724,7 @@ move_account:
+>  		/* This is for making all *used* pages to be on LRU. */
+>  		lru_add_drain_all();
+>  		ret = 0;
+> -		for_each_node_state(node, N_POSSIBLE) {
+> +		for_each_node_state(node, N_HIGH_MEMORY) {
+>  			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
+>  				enum lru_list l;
+>  				for_each_lru(l) {
 > 
->  		nid = get_nid_for_pfn(pfn);
->  		if (nid < 0)
+>
 
-My mistake.  Good catch.
+Looks correct to me, but I would wait for Li to test and confirm
 
-Thanks,
-Gary
+Otherwise
+
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
 
 -- 
-Gary Hade
-System x Enablement
-IBM Linux Technology Center
-503-578-4503  IBM T/L: 775-4503
-garyhade@us.ibm.com
-http://www.ibm.com/linux/ltc
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
