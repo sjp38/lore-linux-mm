@@ -1,71 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 75B1B6B0044
-	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 20:09:18 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0K19Bbo022568
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 20 Jan 2009 10:09:12 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 913A745DD7E
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 10:09:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7185045DD78
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 10:09:11 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AD911DB803C
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 10:09:11 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 17FB91DB8037
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 10:09:11 +0900 (JST)
-Date: Tue, 20 Jan 2009 10:08:06 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [BUGFIX][PATCH] memcg: NULL pointer dereference at rmdir on some
- NUMA systems v2
-Message-Id: <20090120100806.b87b6ab0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090119185514.f3681783.kamezawa.hiroyu@jp.fujitsu.com>
-References: <49744499.2040101@cn.fujitsu.com>
-	<20090119185514.f3681783.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4644A6B0044
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 20:39:48 -0500 (EST)
+Received: from wpaz13.hot.corp.google.com (wpaz13.hot.corp.google.com [172.24.198.77])
+	by smtp-out.google.com with ESMTP id n0K1dkZ0013968
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 17:39:46 -0800
+Received: from rv-out-0506.google.com (rvfb25.prod.google.com [10.140.179.25])
+	by wpaz13.hot.corp.google.com with ESMTP id n0K1deHI010195
+	for <linux-mm@kvack.org>; Mon, 19 Jan 2009 17:39:41 -0800
+Received: by rv-out-0506.google.com with SMTP id b25so3003512rvf.43
+        for <linux-mm@kvack.org>; Mon, 19 Jan 2009 17:39:40 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20090115192712.33b533c3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090115192120.9956911b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090115192712.33b533c3.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Mon, 19 Jan 2009 17:39:40 -0800
+Message-ID: <6599ad830901191739t45c793afk2ceda8fc430121ce@mail.gmail.com>
+Subject: Re: [PATCH 2/4] cgroup:add css_is_populated
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Li Zefan <lizf@cn.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-fixed typos in description.
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, Jan 15, 2009 at 2:27 AM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> cgroup creation is done in several stages.
+> After allocated and linked to cgroup's hierarchy tree, all necessary
+> control files are created.
+>
+> When using CSS_ID, scanning cgroups without cgrouo_lock(), status
+> of cgroup is important. At removal of cgroup/css, css_tryget() works fine
+> and we can write a safe code.
 
-N_POSSIBLE doesn't means there is memory...and force_empty can
-visit invalid node which have no pgdat.
+What problems are you currently running into during creation? Won't
+the fact that the css for the cgroup has been created, and its pointer
+been stored in the cgroup, be sufficient?
 
-To visit all valid nodes, N_HIGH_MEMORY should be used.
+Or is the problem that a cgroup that fails creation half-way could
+result in the memory code alreadying having taken a reference on the
+memcg, which can't then be cleanly destroyed?
 
-Changelog: v1->v2
- - fix typo in description.
+Paul
 
-Reporetd-by: Li Zefan <lizf@cn.fujitsu.com>
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
----
- mm/memcontrol.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: mmotm-2.6.29-Jan16/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.29-Jan16.orig/mm/memcontrol.c
-+++ mmotm-2.6.29-Jan16/mm/memcontrol.c
-@@ -1724,7 +1724,7 @@ move_account:
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
- 		ret = 0;
--		for_each_node_state(node, N_POSSIBLE) {
-+		for_each_node_state(node, N_HIGH_MEMORY) {
- 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
- 				enum lru_list l;
- 				for_each_lru(l) {
+> "This cgroup is not ready yet"
+>
+> This patch adds CSS_POPULATED flag.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> ---
+> Index: mmotm-2.6.29-Jan14/include/linux/cgroup.h
+> ===================================================================
+> --- mmotm-2.6.29-Jan14.orig/include/linux/cgroup.h
+> +++ mmotm-2.6.29-Jan14/include/linux/cgroup.h
+> @@ -69,6 +69,7 @@ struct cgroup_subsys_state {
+>  enum {
+>        CSS_ROOT, /* This CSS is the root of the subsystem */
+>        CSS_REMOVED, /* This CSS is dead */
+> +       CSS_POPULATED, /* This CSS finished all initialization */
+>  };
+>
+>  /*
+> @@ -90,6 +91,11 @@ static inline bool css_is_removed(struct
+>        return test_bit(CSS_REMOVED, &css->flags);
+>  }
+>
+> +static inline bool css_is_populated(struct cgroup_subsys_state *css)
+> +{
+> +       return test_bit(CSS_POPULATED, &css->flags);
+> +}
+> +
+>  /*
+>  * Call css_tryget() to take a reference on a css if your existing
+>  * (known-valid) reference isn't already ref-counted. Returns false if
+> Index: mmotm-2.6.29-Jan14/kernel/cgroup.c
+> ===================================================================
+> --- mmotm-2.6.29-Jan14.orig/kernel/cgroup.c
+> +++ mmotm-2.6.29-Jan14/kernel/cgroup.c
+> @@ -2326,8 +2326,10 @@ static int cgroup_populate_dir(struct cg
+>        }
+>
+>        for_each_subsys(cgrp->root, ss) {
+> +               struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+>                if (ss->populate && (err = ss->populate(ss, cgrp)) < 0)
+>                        return err;
+> +               set_bit(CSS_POPULATED, &css->flags);
+>        }
+>
+>        return 0;
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
