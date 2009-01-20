@@ -1,42 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 054546B0044
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 11:31:56 -0500 (EST)
-Received: by bwz12 with SMTP id 12so9527641bwz.4
-        for <linux-mm@kvack.org>; Tue, 20 Jan 2009 08:29:12 -0800 (PST)
-Message-ID: <8c5a844a0901200826n714e1891n23dd48208a6a6746@mail.gmail.com>
-Date: Tue, 20 Jan 2009 18:26:52 +0200
-From: "Daniel Lowengrub" <lowdanie@gmail.com>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-In-Reply-To: <20090120072659.B0A6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DDB6B0044
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 15:32:25 -0500 (EST)
+Date: Tue, 20 Jan 2009 21:31:31 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] wait: prevent waiter starvation in __wait_on_bit_lock
+Message-ID: <20090120203131.GA20985@cmpxchg.org>
+References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-References: <8c5a844a0901170912l48bab3fuc306bd77622bb53f@mail.gmail.com>
-	 <20090120072659.B0A6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <20090118023211.GA14539@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> Hi
->
->> -     /* linked list of VM areas per task, sorted by address */
->> +     /* doubly linked list of VM areas per task, sorted by address */
->>       struct vm_area_struct *vm_next;
->> +     struct vm_area_struct *vm_prev;
->
-> if you need "doublly linked list", why don't you use list.h?
+On Sun, Jan 18, 2009 at 03:32:11AM +0100, Oleg Nesterov wrote:
+> On 01/18, Johannes Weiner wrote:
+> >
+> > On Sat, Jan 17, 2009 at 10:51:10PM +0100, Oleg Nesterov wrote:
+> > >
+> > > 	if ((ret = (*action)(q->key.flags))) {
+> > > 		__wake_up_bit(wq, q->key.flags, q->key.bit_nr);
+> > > 		// or just __wake_up(wq, TASK_NORMAL, 1, &q->key);
+> > > 		break;
+> > > 	}
+> > >
+> > > IOW, imho __wait_on_bit_lock() is buggy, not __lock_page_killable(),
+> > > no?
+> >
+> > I agree with you, already replied with a patch to linux-mm where Chris
+> > posted it originally.
+> >
+> > Peter noted that we have a spurious wake up in the case where A holds
+> > the page lock, B and C wait, B gets killed and does a wake up, then A
+> > unlocks and does a wake up.  Your proposal has this problem too,
+> > right?
+> 
+> Yes sure. But I can't see how it is possible to avoid the false
+> wakeup for sure, please see below.
+> 
+> > @@ -182,8 +182,20 @@ __wait_on_bit_lock(wait_queue_head_t *wq
+> >  	do {
+> >  		prepare_to_wait_exclusive(wq, &q->wait, mode);
+> >  		if (test_bit(q->key.bit_nr, q->key.flags)) {
+> > -			if ((ret = (*action)(q->key.flags)))
+> > +			ret = action(q->key.flags);
+> > +			if (ret) {
+> > +				/*
+> > +				 * Contenders are woken exclusively.  If
+> > +				 * we do not take the lock when woken up
+> > +				 * from an unlock, we have to make sure to
+> > +				 * wake the next waiter in line or noone
+> > +				 * will and shkle will wait forever.
+> > +				 */
+> > +				if (!test_bit(q->key.bit_nr, q->key.flags))
+> > +					__wake_up_bit(wq, q->key.flags,
+> 
+> Afaics, the spurious wake up is still possible if SIGKILL and
+> unlock_page() happen "at the same time".
+> 
+> 	__wait_on_bit_lock:			unlock_page:
+> 
+> 						clear_bit_unlock()
+> 	test_bit() == T
+> 
+> 	__wake_up_bit()				wake_up_page()
+> 
+> Note that sync_page_killable() returns with ->state == TASK_RUNNING,
+> __wake_up() will "ignore" us.
 
-list.h implements a circular linked list which is harder to integrate
-into the existing code which in many places uses the fact that the
-last element in the list points to null. First I want to check if it's
-a good idea in general, if it is then I'll try to use the list.h
-implementation.
-Do you think that the idea is worth building on?  Is there any special
-reason that I'm not aware of that this wasn't done originally?
-Thanks
+Yeah, we are not completely out of the woods.  But it's getting
+better.  The code is still pretty clear, the major bug is fixed and we
+even managed to get the race window for false wake ups pretty small.
+Isn't that great? :)
+
+> But, more importantly, I'm afraid we can also have the false negative,
+> this "if (!test_bit())" test lacks the barriers. This can't happen with
+> sync_page_killable() because it always calls schedule(). But let's
+> suppose we modify it to check signal_pending() first:
+> 
+> 	static int sync_page_killable(void *word)
+> 	{
+> 		if (fatal_signal_pending(current))
+> 			return -EINTR;
+> 		return sync_page(word);
+> 	}
+> 
+> It is still correct, but unless I missed something now __wait_on_bit_lock()
+> has problems again.
+
+Hm, this would require the lock bit to be set without someone else
+doing the wakeup.  How could this happen?
+
+I could think of wake_up_page() happening BEFORE clear_bit_unlock()
+and we have to be on the front of the waitqueue.  Then we are already
+running, the wake up is a nop, the !test_bit() is false and noone
+wakes up the next real contender.
+
+But the wake up side uses a smp barrier after clearing the bit, so if
+the bit is not cleared we can expect a wake up, no?
+
+Or do we still need a read-side barrier before the test bit?  Damned
+coherency...
+
+> But don't get me wrong, I think you are right and it is better to minimize
+> the possibility of the false wakeup.
+> 
+> Oleg.
+
+Thanks,
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
