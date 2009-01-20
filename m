@@ -1,540 +1,305 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3E76B0044
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 05:29:21 -0500 (EST)
-Subject: Re: [patch][rfc] lockdep: annotate reclaim context (__GFP_NOFS)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090120083906.GA19505@wotan.suse.de>
-References: <20090120083906.GA19505@wotan.suse.de>
-Content-Type: text/plain
-Date: Tue, 20 Jan 2009 11:29:14 +0100
-Message-Id: <1232447354.4886.47.camel@laptop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A33326B0044
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 05:48:46 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0KAmhPm001434
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 20 Jan 2009 19:48:43 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8EFC845DE51
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 19:48:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C45445DD79
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 19:48:43 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 545011DB8038
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 19:48:43 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E7BD9E18001
+	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 19:48:39 +0900 (JST)
+Date: Tue, 20 Jan 2009 19:47:35 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 4/4] cgroup-memcg fix frequent EBUSY at rmdir v2
+Message-Id: <20090120194735.cc52c5e0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090114121205.1bb913aa.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090108182556.621e3ee6.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090108183529.b4fd99f4.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901131848gf7f6996iead1276bc50753b8@mail.gmail.com>
+	<20090114120044.2ecf13db.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901131905ie10e4bl5168ab7f337b27e1@mail.gmail.com>
+	<20090114121205.1bb913aa.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, mingo@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Menage <menage@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-01-20 at 09:39 +0100, Nick Piggin wrote:
-> Hi,
-> 
-> I took a bit of time to clean this up since I posted the RFC.
-> 
-> I don't really know the lockdep code much, so this is about as
-> far as I get without asking for review. I don't know if this is
-> considered useful, but if it is, then maybe we can merge it and
-> then fill in the bits for annotating other reclaim contexts.
-> 
-> The only problem is the lock usage character string won't scale
-> well with more lock contexts. Why not just print out the hex
-> value of the flags? Simple and easy to decode and extend.
+On Wed, 14 Jan 2009 12:12:05 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Right, except that people already have trouble reading lockdep output..
-But I see your problem, this state stuff doesn't scale too well
-currently.
-
-> ---
+> On Tue, 13 Jan 2009 19:05:35 -0800
+> Paul Menage <menage@google.com> wrote:
 > 
-> After noticing some code in mm/filemap.c accidentally perform a __GFP_FS
-> allocation when it should not have been, I thought it might be a good idea to
-> try to catch this kind of thing with lockdep.
+> > On Tue, Jan 13, 2009 at 7:00 PM, KAMEZAWA Hiroyuki
+> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > >
+> > > Hmm, add wait_queue to css and wake it up at css_put() ?
+> > >
+> > > like this ?
+> > > ==
+> > > __css_put()
+> > > {
+> > >        if (atomi_dec_return(&css->refcnt) == 1) {
+> > >                if (notify_on_release(cgrp) {
+> > >                        .....
+> > >                }
+> > >                if (someone_waiting_rmdir(css)) {
+> > >                        wake_up_him().
+> > >                }
+> > >        }
+> > > }
+> > 
+> > Yes, something like that. A system-wide wake queue is probably fine though.
+> > 
+> Ok, I'll try that.
 > 
-> I coded up a little idea that seems to work. It reuses the interrupt context
-> discovery and annotation mechanism to reclaim contexts in order to discover
-> possible deadlocks without having to actually hit them. If a lock is held
-> while performing a __GFP_FS allocation, then that lock must not be taken
-> during __GFP_FS reclaim. And vice versa.
-> 
-> Further possibilities: __GFP_IO, and __GFP_WAIT (without IO or FS). But
-> filesystems are probably the most complicated with tricky locking, so let's
-> start here first.
-> 
-> Example output:
-> =================================
-> [ INFO: inconsistent lock state ]
-> 2.6.28-rc6-00007-ged31348-dirty #26
-> ---------------------------------
-> inconsistent {in-reclaim-W} -> {ov-reclaim-W} usage.
-> modprobe/8526 [HC0[0]:SC0[0]:HE1:SE1] takes:
->  (testlock){--..}, at: [<ffffffffa0020055>] brd_init+0x55/0x216 [brd]
 
-Except that with the below patch that would have had to have had 6 usage
-chars :-)
+I'm not testing this. any concerns ?
+==
+In following situation, with memory subsystem,
 
-> Signed-off-by: Nick Piggin <npiggin@suse.de>
-> ---
->  include/linux/lockdep.h |   14 +++
->  include/linux/sched.h   |    1 
->  kernel/lockdep.c        |  186 ++++++++++++++++++++++++++++++++++++++++++++----
->  mm/page_alloc.c         |   13 +++
->  4 files changed, 201 insertions(+), 13 deletions(-)
+	/groupA use_hierarchy==1
+		/01 some tasks
+		/02 some tasks
+		/03 some tasks
+		/04 empty
 
+When tasks under 01/02/03 hit limit on /groupA, hierarchical reclaim
+routine is triggered and the kernel walks tree under groupA.
+Then, rmdir /groupA/04 fails with -EBUSY frequently because of temporal
+refcnt from internal kernel.
+
+In general. cgroup can be rmdir'd if there are no children groups and
+no tasks. Frequent fails of rmdir() is not useful to users.
+(And the reason for -EBUSY is unknown to users.....in most cases)
+
+This patch tries to modify above behavior, by
+	- retries if css_refcnt is got by someone.
+	- add "return value" to pre_destroy() and allows subsystem to
+	  say "we're really busy!"
+
+Changelog: v1 -> v2.
+	- added return value to pre_destroy().
+	- removed modification to cgroup_subsys.
+	- added signal_pending() check.
+	- added waitqueue and avoid busy spin loop.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+Index: mmotm-2.6.29-Jan16/include/linux/cgroup.h
+===================================================================
+--- mmotm-2.6.29-Jan16.orig/include/linux/cgroup.h
++++ mmotm-2.6.29-Jan16/include/linux/cgroup.h
+@@ -128,6 +128,8 @@ enum {
+ 	CGRP_RELEASABLE,
+ 	/* Control Group requires release notifications to userspace */
+ 	CGRP_NOTIFY_ON_RELEASE,
++	/* Someone calls rmdir() and is wating for this cgroup is released */
++	CGRP_WAIT_ON_RMDIR,
+ };
  
-> +#define LOCKDEP_PF_RECLAIM_FS_BIT	1	/* Process is with a GFP_FS
-> +						 * allocation context */
-> +
-
-s/with/&in/
-
-> Index: linux-2.6/kernel/lockdep.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/lockdep.c	2009-01-20 18:36:58.000000000 +1100
-> +++ linux-2.6/kernel/lockdep.c	2009-01-20 19:19:59.000000000 +1100
-
-> @@ -454,6 +456,10 @@ static const char *usage_str[] =
->  	[LOCK_USED_IN_SOFTIRQ_READ] =	"in-softirq-R",
->  	[LOCK_ENABLED_SOFTIRQS_READ] =	"softirq-on-R",
->  	[LOCK_ENABLED_HARDIRQS_READ] =	"hardirq-on-R",
-> +	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
-> +	[LOCK_USED_IN_RECLAIM_FS_READ] = "in-reclaim-R",
-> +	[LOCK_HELD_OVER_RECLAIM_FS] =	"ov-reclaim-W",
-> +	[LOCK_HELD_OVER_RECLAIM_FS_READ] = "ov-reclaim-R",
->  };
->  
->  const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
-> @@ -462,9 +468,10 @@ const char * __get_key_name(struct lockd
->  }
->  
->  void
-> -get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4)
-> +get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
-> +					char *c4, char *c5, char *c6)
->  {
-> -	*c1 = '.', *c2 = '.', *c3 = '.', *c4 = '.';
-> +	*c1 = '.', *c2 = '.', *c3 = '.', *c4 = '.', *c5 = '.', *c6 = '.';
->  
->  	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
->  		*c1 = '+';
-> @@ -493,14 +500,29 @@ get_usage_chars(struct lock_class *class
->  		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
->  			*c4 = '?';
->  	}
-> +
-> +	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS)
-> +		*c5 = '+';
-> +	else
-> +		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS)
-> +			*c5 = '-';
-> +
-> +	if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
-> +		*c6 = '-';
-> +	if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ_READ) {
-
-s/SOFTIRQ/RECLAIM_FS/
-
-> +		*c6 = '+';
-> +		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
-> +			*c6 = '?';
-> +	}
-> +
->  }
->  
->  static void print_lock_name(struct lock_class *class)
->  {
-> -	char str[KSYM_NAME_LEN], c1, c2, c3, c4;
-> +	char str[KSYM_NAME_LEN], c1, c2, c3, c4, c5, c6;
->  	const char *name;
->  
-> -	get_usage_chars(class, &c1, &c2, &c3, &c4);
-> +	get_usage_chars(class, &c1, &c2, &c3, &c4, &c5, &c6);
->  
->  	name = class->name;
->  	if (!name) {
-> @@ -513,7 +535,7 @@ static void print_lock_name(struct lock_
->  		if (class->subclass)
->  			printk("/%d", class->subclass);
->  	}
-> -	printk("){%c%c%c%c}", c1, c2, c3, c4);
-> +	printk("){%c%c%c%c%c%c}", c1, c2, c3, c4, c5, c6);
->  }
->  
->  static void print_lockdep_cache(struct lockdep_map *lock)
-
-I think you missed a change to check_prev_add_irq()
-
-> @@ -1949,6 +1971,14 @@ static int softirq_verbose(struct lock_c
->  	return 0;
->  }
->  
-> +static int reclaim_verbose(struct lock_class *class)
-> +{
-> +#if RECLAIM_VERBOSE
-> +	return class_filter(class);
-> +#endif
-> +	return 0;
-> +}
-> +
->  #define STRICT_READ_CHECKS	1
->  
->  static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
-> @@ -2007,6 +2037,31 @@ static int mark_lock_irq(struct task_str
->  		if (softirq_verbose(hlock_class(this)))
->  			ret = 2;
->  		break;
-> +	case LOCK_USED_IN_RECLAIM_FS:
-> +		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
-> +			return 0;
-> +		if (!valid_state(curr, this, new_bit,
-> +				 LOCK_HELD_OVER_RECLAIM_FS_READ))
-> +			return 0;
-> +		/*
-> +		 * just marked it reclaim-fs-safe, check that this lock
-> +		 * took no reclaim-fs-unsafe lock in the past:
-> +		 */
-> +		if (!check_usage_forwards(curr, this,
-> +					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
-> +			return 0;
-> +#if STRICT_READ_CHECKS
-> +		/*
-> +		 * just marked it reclaim-fs-safe, check that this lock
-> +		 * took no reclaim-fs-unsafe-read lock in the past:
-> +		 */
-> +		if (!check_usage_forwards(curr, this,
-> +				LOCK_HELD_OVER_RECLAIM_FS_READ, "reclaim-fs-read"))
-> +			return 0;
-> +#endif
-> +		if (reclaim_verbose(hlock_class(this)))
-> +			ret = 2;
-> +		break;
->  	case LOCK_USED_IN_HARDIRQ_READ:
->  		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQS))
->  			return 0;
-> @@ -2033,6 +2088,19 @@ static int mark_lock_irq(struct task_str
->  		if (softirq_verbose(hlock_class(this)))
->  			ret = 2;
->  		break;
-> +	case LOCK_USED_IN_RECLAIM_FS_READ:
-> +		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
-> +			return 0;
-> +		/*
-> +		 * just marked it reclaim-fs-read-safe, check that this lock
-> +		 * took no reclaim-fs-unsafe lock in the past:
-> +		 */
-> +		if (!check_usage_forwards(curr, this,
-> +					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
-> +			return 0;
-> +		if (reclaim_verbose(hlock_class(this)))
-> +			ret = 2;
-> +		break;
->  	case LOCK_ENABLED_HARDIRQS:
->  		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
->  			return 0;
-> @@ -2085,6 +2153,32 @@ static int mark_lock_irq(struct task_str
->  		if (softirq_verbose(hlock_class(this)))
->  			ret = 2;
->  		break;
-> +	case LOCK_HELD_OVER_RECLAIM_FS:
-> +		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
-> +			return 0;
-> +		if (!valid_state(curr, this, new_bit,
-> +				 LOCK_USED_IN_RECLAIM_FS_READ))
-> +			return 0;
-> +		/*
-> +		 * just marked it reclaim-fs-unsafe, check that no reclaim-fs-safe
-> +		 * lock in the system ever took it in the past:
-> +		 */
-> +		if (!check_usage_backwards(curr, this,
-> +					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
-> +			return 0;
-> +#if STRICT_READ_CHECKS
-> +		/*
-> +		 * just marked it softirq-unsafe, check that no
-> +		 * softirq-safe-read lock in the system ever took
-> +		 * it in the past:
-> +		 */
-> +		if (!check_usage_backwards(curr, this,
-> +				   LOCK_USED_IN_RECLAIM_FS_READ, "reclaim-fs-read"))
-> +			return 0;
-> +#endif
-> +		if (reclaim_verbose(hlock_class(this)))
-> +			ret = 2;
-> +		break;
->  	case LOCK_ENABLED_HARDIRQS_READ:
->  		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
->  			return 0;
-> @@ -2115,6 +2209,21 @@ static int mark_lock_irq(struct task_str
->  		if (softirq_verbose(hlock_class(this)))
->  			ret = 2;
->  		break;
-> +	case LOCK_HELD_OVER_RECLAIM_FS_READ:
-> +		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
-> +			return 0;
-> +#if STRICT_READ_CHECKS
-> +		/*
-> +		 * just marked it reclaim-fs-read-unsafe, check that no
-> +		 * reclaim-fs-safe lock in the system ever took it in the past:
-> +		 */
-> +		if (!check_usage_backwards(curr, this,
-> +					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
-> +			return 0;
-> +#endif
-> +		if (reclaim_verbose(hlock_class(this)))
-> +			ret = 2;
-> +		break;
->  	default:
->  		WARN_ON(1);
->  		break;
-
-This function (mark_lock_irq) just begs to be generated, it should
-basically read something like this:
-
-#define MARK_LOCK_CASE(__NEW, __EXCL)			\
-	case __NEW:					\
-		if (!valid_state(,,, __EXCL))		\
-			return 0;			\
-		if (!valid_state(,,, __EXCL##_READ)) 	\
-			return 0;			\
-		if (!check_usage_forwards(,, __EXCL))	\
-			return 0;			\
-		MARK_LOCK_STRICT_READ(__EXCL);		\
-		break;					\
-	case __NEW##_READ:				\
-		if (!valid_state(,,, __EXCL))		\
-			return 0;			\
-		if (!check_usage_forwards(,, __EXCL))	\
-			return 0;			\
-		break;
-
-#define MARK_LOCK_IRQ(__STATE)						\
-	MARK_LOCK_CASE(LOCK_USED_IN_##__STATE, LOCK_ENABLED_##__STATE)	\
-	MARK_LOCK_CASE(LOCK_ENABLED_##__STATE, LOCK_USED_IN_##__STATE)
-
-
-mark_lock_irq()
-{
-	switch (new_bit) {
-	MARK_LOCK_IRQ(HARDIRQ)
-	MARK_LOCK_IRQ(SOFTIRQ)
-	MARK_LOCK_IRQ(RECLAIM_FS)
-	}
-}
-
-You could go one step further and generate more by doing that I did with
-sched_features.h, that way you could generate all those flags in
-lockdep.h as well, and adding a state is just 1 line in a header.
-
-Lets call it lockdep_state.h
-
-> @@ -2123,11 +2232,17 @@ static int mark_lock_irq(struct task_str
->  	return ret;
->  }
->  
-> +enum mark_type {
-> +	HARDIRQ,
-> +	SOFTIRQ,
-> +	RECLAIM_FS,
-> +};
-> +
->  /*
->   * Mark all held locks with a usage bit:
->   */
->  static int
-> -mark_held_locks(struct task_struct *curr, int hardirq)
-> +mark_held_locks(struct task_struct *curr, enum mark_type mark)
->  {
->  	enum lock_usage_bit usage_bit;
->  	struct held_lock *hlock;
-> @@ -2136,17 +2251,32 @@ mark_held_locks(struct task_struct *curr
->  	for (i = 0; i < curr->lockdep_depth; i++) {
->  		hlock = curr->held_locks + i;
->  
-> -		if (hardirq) {
-> +		switch (mark) {
-> +		case HARDIRQ:
->  			if (hlock->read)
->  				usage_bit = LOCK_ENABLED_HARDIRQS_READ;
->  			else
->  				usage_bit = LOCK_ENABLED_HARDIRQS;
-> -		} else {
-> +			break;
-> +
-> +		case SOFTIRQ:
->  			if (hlock->read)
->  				usage_bit = LOCK_ENABLED_SOFTIRQS_READ;
->  			else
->  				usage_bit = LOCK_ENABLED_SOFTIRQS;
-> +			break;
-> +
-> +		case RECLAIM_FS:
-> +			if (hlock->read)
-> +				usage_bit = LOCK_HELD_OVER_RECLAIM_FS_READ;
-> +			else
-> +				usage_bit = LOCK_HELD_OVER_RECLAIM_FS;
-> +			break;
-
-Would then read something like:
-
-#define LOCKDEP_STATE(__STATE)					\
-case __STATE:							\
-	if (hlock->read)					\
-		usage_bit = LOCK_ENABLED_##__STATE##_READ;	\
-	else							\
-		usage_bit = LOCK_ENABLED_##__STATE;
-
-#include "lockdep_state.h"
-#undef LOCKDEP_STATE
-
-> +		default:
-> +			BUG();
->  		}
-> +
->  		if (!mark_lock(curr, hlock, usage_bit))
->  			return 0;
->  	}
-> @@ -2200,7 +2330,7 @@ void trace_hardirqs_on_caller(unsigned l
->  	 * We are going to turn hardirqs on, so set the
->  	 * usage bit for all held locks:
->  	 */
-> -	if (!mark_held_locks(curr, 1))
-> +	if (!mark_held_locks(curr, HARDIRQ))
->  		return;
->  	/*
->  	 * If we have softirqs enabled, then set the usage
-> @@ -2208,7 +2338,7 @@ void trace_hardirqs_on_caller(unsigned l
->  	 * this bit from being set before)
->  	 */
->  	if (curr->softirqs_enabled)
-> -		if (!mark_held_locks(curr, 0))
-> +		if (!mark_held_locks(curr, SOFTIRQ))
->  			return;
->  
->  	curr->hardirq_enable_ip = ip;
-> @@ -2288,7 +2418,7 @@ void trace_softirqs_on(unsigned long ip)
->  	 * enabled too:
->  	 */
->  	if (curr->hardirqs_enabled)
-> -		mark_held_locks(curr, 0);
-> +		mark_held_locks(curr, SOFTIRQ);
->  }
->  
->  /*
-> @@ -2317,6 +2447,18 @@ void trace_softirqs_off(unsigned long ip
->  		debug_atomic_inc(&redundant_softirqs_off);
->  }
->  
-> +void trace_reclaim_fs(void)
-> +{
-> +	struct task_struct *curr = current;
-> +
-> +	if (unlikely(!debug_locks))
-> +		return;
-> +	if (DEBUG_LOCKS_WARN_ON(irqs_disabled()))
-> +		return;
-> +
-> +	mark_held_locks(curr, RECLAIM_FS);
-> +}
-> +
->  static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
->  {
->  	/*
-> @@ -2362,6 +2504,22 @@ static int mark_irqflags(struct task_str
->  		}
->  	}
->  
-> +	/*
-> +	 * We reuse the irq context infrastructure more broadly as a general
-> +	 * context checking code. This tests GFP_FS recursion (a lock taken
-> +	 * during reclaim for a GFP_FS allocation is held over a GFP_FS
-> +	 * allocation).
-> +	 */
-> +	if (!hlock->trylock && test_bit(LOCKDEP_PF_RECLAIM_FS_BIT,
-> +							&curr->lockdep_flags)) {
-> +		if (hlock->read)
-> +			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS_READ))
-> +					return 0;
-> +		else
-> +			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS))
-> +					return 0;
-> +	}
-> +
->  	return 1;
->  }
->  
-> @@ -2453,6 +2611,10 @@ static int mark_lock(struct task_struct 
->  	case LOCK_ENABLED_SOFTIRQS:
->  	case LOCK_ENABLED_HARDIRQS_READ:
->  	case LOCK_ENABLED_SOFTIRQS_READ:
-> +	case LOCK_USED_IN_RECLAIM_FS:
-> +	case LOCK_USED_IN_RECLAIM_FS_READ:
-> +	case LOCK_HELD_OVER_RECLAIM_FS:
-> +	case LOCK_HELD_OVER_RECLAIM_FS_READ:
-
-#define LOCKDEP_STATE(__STATE)			\
-	case LOCK_USED_IN_##__STATE:		\
-	case LOCK_USED_IN_##__STATE##_READ:	\
-	case LOCK_ENABLED_##__STATE:		\
-	case LOCK_ENABLED_##__STATE##_READ:
-#include "lockdep_state.h"
-#undef LOCKDEP_STATE
-
->  		ret = mark_lock_irq(curr, this, new_bit);
->  		if (!ret)
->  			return 0;
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c	2009-01-20 18:36:58.000000000 +1100
-> +++ linux-2.6/mm/page_alloc.c	2009-01-20 18:37:50.000000000 +1100
-> @@ -1479,6 +1479,11 @@ __alloc_pages_internal(gfp_t gfp_mask, u
->  	unsigned long did_some_progress;
->  	unsigned long pages_reclaimed = 0;
->  
-> +#ifdef CONFIG_LOCKDEP
-> +	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS) && !(p->flags & PF_MEMALLOC))
-> +		trace_reclaim_fs();
-> +#endif
-> +
->  	might_sleep_if(wait);
->  
->  	if (should_fail_alloc_page(gfp_mask, order))
-> @@ -1578,12 +1583,20 @@ nofail_alloc:
->  	 */
->  	cpuset_update_task_memory_state();
->  	p->flags |= PF_MEMALLOC;
-> +#ifdef CONFIG_LOCKDEP
-> +	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS))
-> +		set_bit(LOCKDEP_PF_RECLAIM_FS_BIT, &p->lockdep_flags);
-> +#endif
-
-it's impossible to get here without __GFP_WAIT.
-
->  	reclaim_state.reclaimed_slab = 0;
->  	p->reclaim_state = &reclaim_state;
->  
->  	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
->  
->  	p->reclaim_state = NULL;
-> +#ifdef CONFIG_LOCKDEP
-> +	if ((gfp_mask & (__GFP_WAIT|__GFP_FS)) == (__GFP_WAIT|__GFP_FS))
-> +		clear_bit(LOCKDEP_PF_RECLAIM_FS_BIT, &p->lockdep_flags);
-> +#endif
->  	p->flags &= ~PF_MEMALLOC;
->  
->  	cond_resched();
-
-#ifdef CONFIG_PROVE_LOCKING
-static inline void lockdep_set_gfp_state(gfp_t gfp_mask)
-{
-	current->lockdep_gfp = gfp_mask;
-}
-
-static inline void lockdep_clear_gfp_state(void)
-{
-	current->lockdep_gfp = 0;
-}
-#else
-static inline void lockdep_set_gfp_state(gfp_t gfp_mask)
-{
-}
-
-static inline void lockdep_clear_gfp_state(void)
-{
-}
-#endif
-
-?
-
-Maybe also a lockdep_trace_gfp(gfp_t), hmm?
+ struct cgroup {
+@@ -350,7 +352,7 @@ int cgroup_is_descendant(const struct cg
+ struct cgroup_subsys {
+ 	struct cgroup_subsys_state *(*create)(struct cgroup_subsys *ss,
+ 						  struct cgroup *cgrp);
+-	void (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
++	int (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
+ 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
+ 	int (*can_attach)(struct cgroup_subsys *ss,
+ 			  struct cgroup *cgrp, struct task_struct *tsk);
+Index: mmotm-2.6.29-Jan16/kernel/cgroup.c
+===================================================================
+--- mmotm-2.6.29-Jan16.orig/kernel/cgroup.c
++++ mmotm-2.6.29-Jan16/kernel/cgroup.c
+@@ -141,6 +141,11 @@ static int notify_on_release(const struc
+ 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
+ }
+ 
++static int wakeup_on_rmdir(const struct cgroup *cgrp)
++{
++	return test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
++}
++
+ /*
+  * for_each_subsys() allows you to iterate on each subsystem attached to
+  * an active hierarchy
+@@ -572,6 +577,7 @@ static struct backing_dev_info cgroup_ba
+ static void populate_css_id(struct cgroup_subsys_state *id);
+ static int alloc_css_id(struct cgroup_subsys *ss,
+ 			struct cgroup *parent, struct cgroup *child);
++static void cgroup_rmdir_wakeup_waiters(void);
+ 
+ static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+ {
+@@ -591,13 +597,18 @@ static struct inode *cgroup_new_inode(mo
+  * Call subsys's pre_destroy handler.
+  * This is called before css refcnt check.
+  */
+-static void cgroup_call_pre_destroy(struct cgroup *cgrp)
++static int cgroup_call_pre_destroy(struct cgroup *cgrp)
+ {
+ 	struct cgroup_subsys *ss;
++	int ret = 0;
++
+ 	for_each_subsys(cgrp->root, ss)
+-		if (ss->pre_destroy)
+-			ss->pre_destroy(ss, cgrp);
+-	return;
++		if (ss->pre_destroy) {
++			ret = ss->pre_destroy(ss, cgrp);
++			if (ret)
++				break;
++		}
++	return ret;
+ }
+ 
+ static void free_cgroup_rcu(struct rcu_head *obj)
+@@ -1283,6 +1294,10 @@ int cgroup_attach_task(struct cgroup *cg
+ 	set_bit(CGRP_RELEASABLE, &oldcgrp->flags);
+ 	synchronize_rcu();
+ 	put_css_set(cg);
++
++	/* wake up rmdir() waiter....it should fail.*/
++	if (wakeup_on_rmdir(cgrp))
++		cgroup_rmdir_wakeup_waiters();
+ 	return 0;
+ }
+ 
+@@ -2446,6 +2461,8 @@ static long cgroup_create(struct cgroup 
+ 
+ 	mutex_unlock(&cgroup_mutex);
+ 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
++	if (wakeup_on_rmdir(parent))
++		cgroup_rmdir_wakeup_waiters();
+ 
+ 	return 0;
+ 
+@@ -2561,14 +2578,23 @@ static int cgroup_clear_css_refs(struct 
+ 	return !failed;
+ }
+ 
++DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
++
++static void cgroup_rmdir_wakeup_waiters(void)
++{
++	wake_up_all(&cgroup_rmdir_waitq);
++}
++
+ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+ {
+ 	struct cgroup *cgrp = dentry->d_fsdata;
+ 	struct dentry *d;
+ 	struct cgroup *parent;
++	DEFINE_WAIT(wait);
++	int ret;
+ 
+ 	/* the vfs holds both inode->i_mutex already */
+-
++again:
+ 	mutex_lock(&cgroup_mutex);
+ 	if (atomic_read(&cgrp->count) != 0) {
+ 		mutex_unlock(&cgroup_mutex);
+@@ -2580,21 +2606,42 @@ static int cgroup_rmdir(struct inode *un
+ 	}
+ 	mutex_unlock(&cgroup_mutex);
+ 
++	if (signal_pending(current))
++		return -EINTR;
+ 	/*
+ 	 * Call pre_destroy handlers of subsys. Notify subsystems
+ 	 * that rmdir() request comes.
+ 	 */
+-	cgroup_call_pre_destroy(cgrp);
+-
++	ret = cgroup_call_pre_destroy(cgrp);
++	if (ret == -EBUSY)
++		return -EBUSY;
+ 	mutex_lock(&cgroup_mutex);
+ 	parent = cgrp->parent;
+-
+-	if (atomic_read(&cgrp->count)
+-	    || !list_empty(&cgrp->children)
+-	    || !cgroup_clear_css_refs(cgrp)) {
++	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
+ 		mutex_unlock(&cgroup_mutex);
+ 		return -EBUSY;
+ 	}
++	/*
++	 * css_put/get is provided for subsys to grab refcnt to css. In typical
++	 * case, subsystem has no referenece after pre_destroy(). But,
++	 * considering hierarchy management, some *temporal* refcnt can be hold.
++	 * To avoid returning -EBUSY, cgroup_rmdir_waitq is used. If subsys
++	 * is really busy, it should return -EBUSY at pre_destroy(). wake_up
++	 * is called when css_put() is called and it seems ready to rmdir().
++	 */
++	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
++	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
++
++	if (!cgroup_clear_css_refs(cgrp)) {
++		mutex_unlock(&cgroup_mutex);
++		schedule();
++		finish_wait(&cgroup_rmdir_waitq, &wait);
++		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
++		goto again;
++	}
++	/* NO css_tryget() can success after here. */
++	finish_wait(&cgroup_rmdir_waitq, &wait);
++	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+ 
+ 	spin_lock(&release_list_lock);
+ 	set_bit(CGRP_REMOVED, &cgrp->flags);
+@@ -3150,10 +3197,13 @@ void __css_put(struct cgroup_subsys_stat
+ {
+ 	struct cgroup *cgrp = css->cgroup;
+ 	rcu_read_lock();
+-	if ((atomic_dec_return(&css->refcnt) == 1) &&
+-	    notify_on_release(cgrp)) {
+-		set_bit(CGRP_RELEASABLE, &cgrp->flags);
+-		check_for_release(cgrp);
++	if (atomic_dec_return(&css->refcnt) == 1) {
++		if (notify_on_release(cgrp)) {
++			set_bit(CGRP_RELEASABLE, &cgrp->flags);
++			check_for_release(cgrp);
++		}
++		if (wakeup_on_rmdir(cgrp))
++			cgroup_rmdir_wakeup_waiters();
+ 	}
+ 	rcu_read_unlock();
+ }
+Index: mmotm-2.6.29-Jan16/mm/memcontrol.c
+===================================================================
+--- mmotm-2.6.29-Jan16.orig/mm/memcontrol.c
++++ mmotm-2.6.29-Jan16/mm/memcontrol.c
+@@ -2381,11 +2381,13 @@ free_out:
+ 	return ERR_PTR(error);
+ }
+ 
+-static void mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
++static int mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
+ 					struct cgroup *cont)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
++
+ 	mem_cgroup_force_empty(mem, false);
++	return 0;
+ }
+ 
+ static void mem_cgroup_destroy(struct cgroup_subsys *ss,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
