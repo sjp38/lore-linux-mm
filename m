@@ -1,125 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id F30D06B0044
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 13:10:53 -0500 (EST)
-Date: Wed, 21 Jan 2009 18:10:12 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <20090121143008.GV24891@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
-References: <20090121143008.GV24891@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 429646B0044
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 16:39:20 -0500 (EST)
+Date: Wed, 21 Jan 2009 22:38:13 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [RFC v4] wait: prevent waiter starvation in __wait_on_bit_lock
+Message-ID: <20090121213813.GB23270@cmpxchg.org>
+References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com> <20090120203131.GA20985@cmpxchg.org> <20090121143602.GA16584@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090121143602.GA16584@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Jan 2009, Nick Piggin wrote:
+On Wed, Jan 21, 2009 at 03:36:02PM +0100, Oleg Nesterov wrote:
+> On 01/20, Johannes Weiner wrote:
+> >
+> > > But, more importantly, I'm afraid we can also have the false negative,
+> > > this "if (!test_bit())" test lacks the barriers. This can't happen with
+> > > sync_page_killable() because it always calls schedule(). But let's
+> > > suppose we modify it to check signal_pending() first:
+> > >
+> > > 	static int sync_page_killable(void *word)
+> > > 	{
+> > > 		if (fatal_signal_pending(current))
+> > > 			return -EINTR;
+> > > 		return sync_page(word);
+> > > 	}
+> > >
+> > > It is still correct, but unless I missed something now __wait_on_bit_lock()
+> > > has problems again.
+> >
+> > Hm, this would require the lock bit to be set without someone else
+> > doing the wakeup.  How could this happen?
+> >
+> > I could think of wake_up_page() happening BEFORE clear_bit_unlock()
+> > and we have to be on the front of the waitqueue.  Then we are already
+> > running, the wake up is a nop, the !test_bit() is false and noone
+> > wakes up the next real contender.
+> >
+> > But the wake up side uses a smp barrier after clearing the bit, so if
+> > the bit is not cleared we can expect a wake up, no?
 > 
-> Since last posted, I've cleaned up a few bits and pieces, (hopefully)
-> fixed a known bug where it wouldn't boot on memoryless nodes (I don't
-> have a system to test with), and improved performance and reduced
-> locking somewhat for node-specific and interleaved allocations.
+> Yes we have the barriers on the "wakeup", but this doesn't mean the
+> woken task must see the result of clear_bit() (unless it was really
+> unscheduled of course).
+> 
+> > Or do we still need a read-side barrier before the test bit?
+> 
+> Even this can't help afaics.
+> 
+> Because the the whole clear_bit + wakeup sequence can happen after
+> the "if (!test_bit()) check and before finish_wait(). Please note
+> that from the waker's pov we are sleeping in TASK_KILLABLE state,
+> it will wake up us if we are at the front of the waitqueue.
 
-I haven't reviewed your postings, but I did give the previous version
-of your patch a try on all my machines.  Some observations and one patch.
+Yes, you are right.  Thanks for the explanation!
 
-I was initially _very_ impressed by how well it did on my venerable
-tmpfs loop swapping loads, where I'd expected next to no effect; but
-that turned out to be because on three machines I'd been using SLUB,
-without remembering how default slub_max_order got raised from 1 to 3
-in 2.6.26 (hmm, and Documentation/vm/slub.txt not updated).
+I redid the patch and I *think* it is safe now and the race window for
+a false wake up is pretty small.  But we check @ret twice... Oh well.
 
-That's been making SLUB behave pretty badly (e.g. elapsed time 30%
-more than SLAB) with swapping loads on most of my machines.  Though
-oddly one seems immune, and another takes four times as long: guess
-it depends on how close to thrashing, but probably more to investigate
-there.  I think my original SLUB versus SLAB comparisons were done on
-the immune one: as I remember, SLUB and SLAB were equivalent on those
-loads when SLUB came in, but even with boot option slub_max_order=1,
-SLUB is still slower than SLAB on such tests (e.g. 2% slower).
-FWIW - swapping loads are not what anybody should tune for.
+If the wake up happens now before the test_bit(), the added reader
+barrier ensures we see the bit clear and do the wake up as needed.  If
+it happens afterwards, we are definitely off the queue (finish_wait()
+has removed us and it also comes with a barrier in form of a spin
+lock/unlock).
 
-So in fact SLQB comes in very much like SLAB, as I think you'd expect:
-slightly ahead of it on most of the machines, but probably in the noise.
-(SLOB behaves decently: not a winner, but no catastrophic behaviour.)
+And only in the second scenario there is a small chance of a bogus
+wake up, when the next contender hasn't set the bit again yet.
 
-What I love most about SLUB is the way you can reasonably build with
-CONFIG_SLUB_DEBUG=y, very little impact, then switch on the specific
-debugging you want with a boot option when you want it.  That was a
-great stride forward, which you've followed in SLQB: so I'd have to
-prefer SLQB to SLAB (on debuggability) and to SLUB (on high orders).
+Does this all make sense? :)
 
-I do hate the name SLQB.  Despite having no experience of databases,
-I find it almost impossible to type, coming out as SQLB most times.
-Wish you'd invented a plausible vowel instead of the Q; but probably
-too late for that.
+---
+__wait_on_bit_lock() employs exclusive waiters, which means that every
+contender has to make sure to wake up the next one in the queue after
+releasing the lock.
 
-init/Kconfig describes it as "Qeued allocator": should say "Queued".
+The current implementation does not do this for failed acquisitions.
+If the passed in action() returns a non-zero value, the lock is not
+taken but the next waiter is not woken up either, leading to endless
+waiting on an unlocked lock.
 
-Documentation/vm/slqbinfo.c gives several compilation warnings:
-I'd rather leave it to you to fix them, maybe the unused variables
-are about to be used, or maybe there's much worse wrong with it
-than a few compilation warnings, I didn't investigate.
+This failure mode was observed with lock_page_killable() as a user
+which passes an action function that can fail and thereby prevent lock
+acquisition.
 
-The only bug I found (but you'll probably want to change the patch
-- which I've rediffed to today's slqb.c, but not retested).
+Fix it in __wait_on_bit_lock() by passing on to the next contender
+when we were woken by an unlock but won't take the lock ourselves.
 
-On fake NUMA I hit kernel BUG at mm/slqb.c:1107!  claim_remote_free_list()
-is doing several things without remote_free.lock: that VM_BUG_ON is unsafe
-for one, and even if others are somehow safe today, it will be more robust
-to take the lock sooner.
-
-I moved the prefetchw(head) down to where we know it's going to be the head,
-and replaced the offending VM_BUG_ON by a later WARN_ON which you'd probably
-better remove altogether: once we got the lock, it's hardly interesting.
-
-Signed-off-by: Hugh Dickins <hugh@veritas.com>
+Reported-by: Chris Mason <chris.mason@oracle.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
 
- mm/slqb.c |   17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
-
---- slqb/mm/slqb.c.orig	2009-01-21 15:23:54.000000000 +0000
-+++ slqb/mm/slqb.c	2009-01-21 15:32:44.000000000 +0000
-@@ -1115,17 +1115,12 @@ static void claim_remote_free_list(struc
- 	void **head, **tail;
- 	int nr;
- 
--	VM_BUG_ON(!l->remote_free.list.head != !l->remote_free.list.tail);
--
- 	if (!l->remote_free.list.nr)
- 		return;
- 
-+	spin_lock(&l->remote_free.lock);
- 	l->remote_free_check = 0;
- 	head = l->remote_free.list.head;
--	/* Get the head hot for the likely subsequent allocation or flush */
--	prefetchw(head);
--
--	spin_lock(&l->remote_free.lock);
- 	l->remote_free.list.head = NULL;
- 	tail = l->remote_free.list.tail;
- 	l->remote_free.list.tail = NULL;
-@@ -1133,9 +1128,15 @@ static void claim_remote_free_list(struc
- 	l->remote_free.list.nr = 0;
- 	spin_unlock(&l->remote_free.lock);
- 
--	if (!l->freelist.nr)
-+	WARN_ON(!head + !tail != !nr + !nr);
-+	if (!nr)
-+		return;
-+
-+	if (!l->freelist.nr) {
-+		/* Get head hot for likely subsequent allocation or flush */
-+		prefetchw(head);
- 		l->freelist.head = head;
--	else
-+	} else
- 		set_freepointer(s, l->freelist.tail, head);
- 	l->freelist.tail = tail;
- 
+diff --git a/kernel/wait.c b/kernel/wait.c
+index cd87131..e3aaa81 100644
+--- a/kernel/wait.c
++++ b/kernel/wait.c
+@@ -187,6 +187,31 @@ __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
+ 		}
+ 	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
+ 	finish_wait(wq, &q->wait);
++	if (unlikely(ret)) {
++		/*
++		 * Contenders are woken exclusively.  If we were woken
++		 * by an unlock we have to take the lock ourselves and
++		 * wake the next contender on unlock.  But the waiting
++		 * function failed, we do not take the lock and won't
++		 * unlock in the future.  Make sure the next contender
++		 * does not wait forever on an unlocked bit.
++		 *
++		 * We can also get here without being woken through
++		 * the waitqueue, so there is a small chance of doing a
++		 * bogus wake up between an unlock clearing the bit and
++		 * the next contender being woken up and setting it again.
++		 *
++		 * It does no harm, though, the scheduler will ignore it
++		 * as the process in question is already running.
++		 *
++		 * The unlock path clears the bit and then wakes up the
++		 * next contender.  If the next contender is us, the
++		 * barrier makes sure we also see the bit cleared.
++		 */
++		smp_rmb();
++		if (!test_bit(q->key.bit_nr, q->key.flags)))
++			__wake_up_bit(wq, q->key.flags, q->key.bit_nr);
++	}
+ 	return ret;
+ }
+ EXPORT_SYMBOL(__wait_on_bit_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
