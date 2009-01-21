@@ -1,117 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DDB6B0044
-	for <linux-mm@kvack.org>; Tue, 20 Jan 2009 15:32:25 -0500 (EST)
-Date: Tue, 20 Jan 2009 21:31:31 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3] wait: prevent waiter starvation in __wait_on_bit_lock
-Message-ID: <20090120203131.GA20985@cmpxchg.org>
-References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A2FC96B0044
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 01:53:33 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0L6rUgS017237
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 21 Jan 2009 15:53:30 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 01EA845DE50
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 15:53:30 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CA83045DE4F
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 15:53:29 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 76B0F1DB8044
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 15:53:29 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 29CCF1DB803E
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 15:53:29 +0900 (JST)
+Date: Wed, 21 Jan 2009 15:52:19 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Question: Is  zone->prev_prirotiy  used ?
+Message-Id: <20090121155219.8b870167.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090118023211.GA14539@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jan 18, 2009 at 03:32:11AM +0100, Oleg Nesterov wrote:
-> On 01/18, Johannes Weiner wrote:
-> >
-> > On Sat, Jan 17, 2009 at 10:51:10PM +0100, Oleg Nesterov wrote:
-> > >
-> > > 	if ((ret = (*action)(q->key.flags))) {
-> > > 		__wake_up_bit(wq, q->key.flags, q->key.bit_nr);
-> > > 		// or just __wake_up(wq, TASK_NORMAL, 1, &q->key);
-> > > 		break;
-> > > 	}
-> > >
-> > > IOW, imho __wait_on_bit_lock() is buggy, not __lock_page_killable(),
-> > > no?
-> >
-> > I agree with you, already replied with a patch to linux-mm where Chris
-> > posted it originally.
-> >
-> > Peter noted that we have a spurious wake up in the case where A holds
-> > the page lock, B and C wait, B gets killed and does a wake up, then A
-> > unlocks and does a wake up.  Your proposal has this problem too,
-> > right?
-> 
-> Yes sure. But I can't see how it is possible to avoid the false
-> wakeup for sure, please see below.
-> 
-> > @@ -182,8 +182,20 @@ __wait_on_bit_lock(wait_queue_head_t *wq
-> >  	do {
-> >  		prepare_to_wait_exclusive(wq, &q->wait, mode);
-> >  		if (test_bit(q->key.bit_nr, q->key.flags)) {
-> > -			if ((ret = (*action)(q->key.flags)))
-> > +			ret = action(q->key.flags);
-> > +			if (ret) {
-> > +				/*
-> > +				 * Contenders are woken exclusively.  If
-> > +				 * we do not take the lock when woken up
-> > +				 * from an unlock, we have to make sure to
-> > +				 * wake the next waiter in line or noone
-> > +				 * will and shkle will wait forever.
-> > +				 */
-> > +				if (!test_bit(q->key.bit_nr, q->key.flags))
-> > +					__wake_up_bit(wq, q->key.flags,
-> 
-> Afaics, the spurious wake up is still possible if SIGKILL and
-> unlock_page() happen "at the same time".
-> 
-> 	__wait_on_bit_lock:			unlock_page:
-> 
-> 						clear_bit_unlock()
-> 	test_bit() == T
-> 
-> 	__wake_up_bit()				wake_up_page()
-> 
-> Note that sync_page_killable() returns with ->state == TASK_RUNNING,
-> __wake_up() will "ignore" us.
+Just a question.
 
-Yeah, we are not completely out of the woods.  But it's getting
-better.  The code is still pretty clear, the major bug is fixed and we
-even managed to get the race window for false wake ups pretty small.
-Isn't that great? :)
+In vmscan.c,  zone->prev_priority doesn't seem to be used.
 
-> But, more importantly, I'm afraid we can also have the false negative,
-> this "if (!test_bit())" test lacks the barriers. This can't happen with
-> sync_page_killable() because it always calls schedule(). But let's
-> suppose we modify it to check signal_pending() first:
-> 
-> 	static int sync_page_killable(void *word)
-> 	{
-> 		if (fatal_signal_pending(current))
-> 			return -EINTR;
-> 		return sync_page(word);
-> 	}
-> 
-> It is still correct, but unless I missed something now __wait_on_bit_lock()
-> has problems again.
+Is it for what, now ?
 
-Hm, this would require the lock bit to be set without someone else
-doing the wakeup.  How could this happen?
-
-I could think of wake_up_page() happening BEFORE clear_bit_unlock()
-and we have to be on the front of the waitqueue.  Then we are already
-running, the wake up is a nop, the !test_bit() is false and noone
-wakes up the next real contender.
-
-But the wake up side uses a smp barrier after clearing the bit, so if
-the bit is not cleared we can expect a wake up, no?
-
-Or do we still need a read-side barrier before the test bit?  Damned
-coherency...
-
-> But don't get me wrong, I think you are right and it is better to minimize
-> the possibility of the false wakeup.
-> 
-> Oleg.
-
-Thanks,
-	Hannes
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
