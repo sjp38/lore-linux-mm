@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A2DEA6B0044
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 03:01:24 -0500 (EST)
-Received: by ti-out-0910.google.com with SMTP id j3so2743279tid.8
-        for <linux-mm@kvack.org>; Wed, 21 Jan 2009 00:01:21 -0800 (PST)
-Date: Wed, 21 Jan 2009 17:00:39 +0900
-From: MinChan Kim <minchan.kim@gmail.com>
-Subject: Re: [patch][rfc] lockdep: annotate reclaim context (__GFP_NOFS)
-Message-ID: <20090121080039.GB17969@barrios-desktop>
-References: <20090120083906.GA19505@wotan.suse.de> <1232447354.4886.47.camel@laptop> <20090121071239.GL24891@wotan.suse.de>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D8336B0044
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 04:36:40 -0500 (EST)
+Received: from zps75.corp.google.com (zps75.corp.google.com [172.25.146.75])
+	by smtp-out.google.com with ESMTP id n0L9aarZ003760
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 09:36:37 GMT
+Received: from rv-out-0506.google.com (rvfb25.prod.google.com [10.140.179.25])
+	by zps75.corp.google.com with ESMTP id n0L9aXwx006998
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 01:36:33 -0800
+Received: by rv-out-0506.google.com with SMTP id b25so3781828rvf.41
+        for <linux-mm@kvack.org>; Wed, 21 Jan 2009 01:36:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090121071239.GL24891@wotan.suse.de>
+In-Reply-To: <20090120144337.82ed51d5.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090115192120.9956911b.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090115192712.33b533c3.kamezawa.hiroyu@jp.fujitsu.com>
+	 <6599ad830901191739t45c793afk2ceda8fc430121ce@mail.gmail.com>
+	 <20090120110221.005e116c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <6599ad830901191823q556faeeub28d02d39dda7396@mail.gmail.com>
+	 <20090120115832.0881506c.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090120144337.82ed51d5.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 21 Jan 2009 01:36:32 -0800
+Message-ID: <6599ad830901210136j9baf45ft4c86a93fec70827f@mail.gmail.com>
+Subject: Re: [PATCH 1.5/4] cgroup: delay populate css id
+From: Paul Menage <menage@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, mingo@redhat.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Nick.
+On Mon, Jan 19, 2009 at 9:43 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> +static void populate_css_id(struct cgroup_subsys_state *css)
+> +{
+> +       struct css_id *id = rcu_dereference(css->id);
+> +       if (id)
+> +               rcu_assign_pointer(id->css, css);
+> +}
 
-> Index: linux-2.6/mm/slob.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slob.c
-> +++ linux-2.6/mm/slob.c
-> @@ -464,6 +464,8 @@ void *__kmalloc_node(size_t size, gfp_t
->  	unsigned int *m;
->  	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
->  
-> +	lockdep_trace_alloc(flags);
-> +
->  	if (size < PAGE_SIZE - align) {
->  		if (!size)
->  			return ZERO_SIZE_PTR;
-> @@ -569,6 +571,8 @@ void *kmem_cache_alloc_node(struct kmem_
->  {
->  	void *b;
->  
-> +	lockdep_trace_alloc(flags);
-> +
->  	if (c->size < PAGE_SIZE)
->  		b = slob_alloc(c->size, flags, c->align, node);
->  	else
-> Index: linux-2.6/mm/slub.c
-> ===================================================================
-> --- linux-2.6.orig/mm/slub.c
-> +++ linux-2.6/mm/slub.c
-> @@ -1596,6 +1596,7 @@ static __always_inline void *slab_alloc(
->  	unsigned long flags;
->  	unsigned int objsize;
->  
-> +	lockdep_trace_alloc(flags);
+I don't think this needs to be split out into a separate function.
+Also, there's no need for an rcu_dereference(), since we're holding
+cgroup_mutex.
 
-Probably, not flags but gfpflags ?
-
-
->  	might_sleep_if(gfpflags & __GFP_WAIT);
->  
->  	if (should_failslab(s->objsize, gfpflags))
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-Kinds Regards,
-MinChan Kim
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
