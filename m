@@ -1,67 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 71F106B0044
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 09:40:52 -0500 (EST)
-Date: Wed, 21 Jan 2009 15:36:02 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3] wait: prevent waiter starvation in
-	__wait_on_bit_lock
-Message-ID: <20090121143602.GA16584@redhat.com>
-References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com> <20090120203131.GA20985@cmpxchg.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D3D286B0044
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 09:43:10 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9C0FD82C46A
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 09:44:17 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id TLU--U10GYhS for <linux-mm@kvack.org>;
+	Wed, 21 Jan 2009 09:44:17 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D262682C46C
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 09:44:16 -0500 (EST)
+Date: Wed, 21 Jan 2009 09:39:50 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: sparsemem support for mips with highmem
+In-Reply-To: <4971002D.2090907@cisco.com>
+Message-ID: <alpine.DEB.1.10.0901210938120.7424@qirst.com>
+References: <48A4AC39.7020707@sciatl.com> <1218753308.23641.56.camel@nimitz>  <48A4C542.5000308@sciatl.com> <20080815080331.GA6689@alpha.franken.de>  <1218815299.23641.80.camel@nimitz> <48A5AADE.1050808@sciatl.com>  <20080815163302.GA9846@alpha.franken.de>
+ <48A5B9F1.3080201@sciatl.com>  <1218821875.23641.103.camel@nimitz> <48A5C831.3070002@sciatl.com>  <20080818094412.09086445.rdunlap@xenotime.net>  <48A9E89C.4020408@linux-foundation.org> <1219094865.23641.118.camel@nimitz> <48A9EAA9.1080909@linux-foundation.org>
+ <4971002D.2090907@cisco.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090120203131.GA20985@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michael Sundius <msundius@cisco.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Randy Dunlap <rdunlap@xenotime.net>, "Sundius, Michael" <Michael.sundius@sciatl.com>, Thomas Bogendoerfer <tsbogend@alpha.franken.de>, linux-mm@kvack.org, linux-mips@linux-mips.org, jfraser@broadcom.com, Andy Whitcroft <apw@shadowen.org>, msundius@sundius.com
 List-ID: <linux-mm.kvack.org>
 
-On 01/20, Johannes Weiner wrote:
->
-> > But, more importantly, I'm afraid we can also have the false negative,
-> > this "if (!test_bit())" test lacks the barriers. This can't happen with
-> > sync_page_killable() because it always calls schedule(). But let's
-> > suppose we modify it to check signal_pending() first:
-> >
-> > 	static int sync_page_killable(void *word)
-> > 	{
-> > 		if (fatal_signal_pending(current))
-> > 			return -EINTR;
-> > 		return sync_page(word);
-> > 	}
-> >
-> > It is still correct, but unless I missed something now __wait_on_bit_lock()
-> > has problems again.
->
-> Hm, this would require the lock bit to be set without someone else
-> doing the wakeup.  How could this happen?
->
-> I could think of wake_up_page() happening BEFORE clear_bit_unlock()
-> and we have to be on the front of the waitqueue.  Then we are already
-> running, the wake up is a nop, the !test_bit() is false and noone
-> wakes up the next real contender.
->
-> But the wake up side uses a smp barrier after clearing the bit, so if
-> the bit is not cleared we can expect a wake up, no?
+On Fri, 16 Jan 2009, Michael Sundius wrote:
 
-Yes we have the barriers on the "wakeup", but this doesn't mean the
-woken task must see the result of clear_bit() (unless it was really
-unscheduled of course).
+> you said that the simplest configuration is to use vmalloc for the populate
+> function.
+> could you expand on that? (i didn't see that the populate function used
+> vmalloc or maybe
+> we are talking about a different populate function).
 
-> Or do we still need a read-side barrier before the test bit?
+If you place the vmemmap in the vmalloc area then its easy to reserve
+virtual space for the vmemmap. You can use the vmalloc populate functions
+to populate the vmemmap.
 
-Even this can't help afaics.
+> this work w/ mips which i understand uses only 2 levels can I just take out
+> the part of
+> the function that sets up the middle level table?
 
-Because the the whole clear_bit + wakeup sequence can happen after
-the "if (!test_bit()) check and before finish_wait(). Please note
-that from the waker's pov we are sleeping in TASK_KILLABLE state,
-it will wake up us if we are at the front of the waitqueue.
-
-(to clarify, I am talking about the imaginary sync_page_killable()
- above).
-
-Oleg.
+Sure. Hoever, the vmemmap populate stuff will do that automagically for
+you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
