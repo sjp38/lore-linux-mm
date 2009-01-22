@@ -1,70 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C42AB6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 04:33:15 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1232616638.11429.131.camel@ymzhang>
-References: <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com>
-	 <20090114150900.GC25401@wotan.suse.de>
-	 <20090114152207.GD25401@wotan.suse.de>
-	 <84144f020901140730l747b4e06j41fb8a35daeaf6c8@mail.gmail.com>
-	 <20090114155923.GC1616@wotan.suse.de>
-	 <Pine.LNX.4.64.0901141219140.26507@quilx.com>
-	 <20090115061931.GC17810@wotan.suse.de>
-	 <Pine.LNX.4.64.0901151434150.28387@quilx.com>
-	 <20090116034356.GM17810@wotan.suse.de>
-	 <Pine.LNX.4.64.0901161509160.27283@quilx.com>
-	 <20090119061856.GB22584@wotan.suse.de>
-	 <alpine.DEB.1.10.0901211903540.18367@qirst.com>
-	 <1232616430.14549.11.camel@penberg-laptop>
-	 <1232616638.11429.131.camel@ymzhang>
-Date: Thu, 22 Jan 2009 11:33:12 +0200
-Message-Id: <1232616792.14549.19.camel@penberg-laptop>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id F07DC6B0044
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 04:35:18 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0M9ZGwc032387
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 22 Jan 2009 18:35:16 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E217745DE50
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 18:35:15 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C6AE345DE4F
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 18:35:15 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AEC8AE18001
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 18:35:15 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A1C31DB803E
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 18:35:15 +0900 (JST)
+Date: Thu, 22 Jan 2009 18:34:11 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 0/7] cgroup/memcg updates 2009/01/22
+Message-Id: <20090122183411.3cabdfd2.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-01-22 at 17:30 +0800, Zhang, Yanmin wrote:
-> On Thu, 2009-01-22 at 11:27 +0200, Pekka Enberg wrote:
-> > Hi Christoph,
-> > 
-> > On Mon, 19 Jan 2009, Nick Piggin wrote:
-> > > > > > You only go to the allocator when the percpu queue goes empty though, so
-> > > > > > if memory policy changes (eg context switch or something), then subsequent
-> > > > > > allocations will be of the wrong policy.
-> > > > >
-> > > > > The per cpu queue size in SLUB is limited by the queues only containing
-> > > > > objects from the same page. If you have large queues like SLAB/SLQB(?)
-> > > > > then this could be an issue.
-> > > >
-> > > > And it could be a problem in SLUB too. Chances are that several allocations
-> > > > will be wrong after every policy switch. I could describe situations in which
-> > > > SLUB will allocate with the _wrong_ policy literally 100% of the time.
-> > 
-> > On Wed, 2009-01-21 at 19:13 -0500, Christoph Lameter wrote:
-> > > No it cannot because in SLUB objects must come from the same page.
-> > > Multiple objects in a queue will only ever require a single page and not
-> > > multiple like in SLAB.
-> > 
-> > There's one potential problem with "per-page queues", though. The bigger
-> > the object, the smaller the "queue" (i.e. less objects per page). Also,
-> > partial lists are less likely to help for big objects because they get
-> > emptied so quickly and returned to the page allocator. Perhaps we should
-> > do a small "full list" for caches with large objects?
-> That helps definitely. We could use a batch to control the list size.
 
-s/full list/empty list/g
+This is an updates from previes CSS ID patch set and some updates to memcg.
+But it seems people are enjoying LinuxConf.au, I'll keep this set on my box
+for a while ;)
 
-That is, a list of pages that could be returned to the page allocator
-but are pooled in SLUB to avoid the page allocator overhead. Note that
-this will not help allocators that trigger page allocator pass-through.
+This set contains following patches 
+==
+[1/7] add CSS ID to cgroup.
+[2/7] use CSS ID under memcg
+[3/7] show more hierarchical information via memory.stat file
+[4/7] fix "set limit" to return -EBUSY if it seems difficult to shrink usage.
+[5/7] fix OOM-Killer under memcg's hierarchy.
+[6/7] fix frequent -EBUSY at cgroup rmdir() with memory subsystem.
+[7/7] support background reclaim. (for RFC)
 
-		Pekka
+patch 4, 7 is new.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
