@@ -1,137 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 903C76B0093
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 22:00:19 -0500 (EST)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0M30Ewt026741
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 22 Jan 2009 12:00:14 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 86E4C45DE52
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 12:00:14 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C53D45DE4F
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 12:00:14 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 15194E38004
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 12:00:14 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 511E3E38008
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 12:00:13 +0900 (JST)
-Date: Thu, 22 Jan 2009 11:59:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/4] cgroup: add CSS ID
-Message-Id: <20090122115908.262f2440.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090122113729.878e96cf.nishimura@mxp.nes.nec.co.jp>
-References: <20090115192120.9956911b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090115192522.0130e550.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090122113729.878e96cf.nishimura@mxp.nes.nec.co.jp>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 14F986B0044
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 03:45:40 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <20090121143008.GV24891@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de>
+Content-Type: text/plain; charset=UTF-8
+Date: Thu, 22 Jan 2009 16:45:33 +0800
+Message-Id: <1232613933.11429.127.camel@ymzhang>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jan 2009 11:37:29 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> Hi.
+On Wed, 2009-01-21 at 15:30 +0100, Nick Piggin wrote:
+> Hi,
 > 
-> Sorry for very late reply.
-> 
-> It looks good in general.
-> Just a few comments.
-> 
-> > +/**
-> > + * css_lookup - lookup css by id
-> > + * @ss: cgroup subsys to be looked into.
-> > + * @id: the id
-> > + *
-> > + * Returns pointer to cgroup_subsys_state if there is valid one with id.
-> > + * NULL if not. Should be called under rcu_read_lock()
-> > + */
-> > +struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id)
-> > +{
-> > +	struct css_id *cssid = NULL;
-> > +
-> > +	BUG_ON(!ss->use_id);
-> > +	cssid = idr_find(&ss->idr, id);
-> > +
-> > +	if (unlikely(!cssid))
-> > +		return NULL;
-> > +
-> > +	return rcu_dereference(cssid->css);
-> > +}
-> > +
-> Just for clarification, is there any user of this function ?
-> (I agree it's natulal to define 'lookup' function, though.)
-> 
-A user in my plan is swap_cgroup.
+> Since last posted, I've cleaned up a few bits and pieces, (hopefully)
+> fixed a known bug where it wouldn't boot on memoryless nodes (I don't
+> have a system to test with), 
+Panic again on my Montvale Itanium NUMA machine if I start kernel with parameter
+mem=2G.
+
+The call chain is mnt_init => sysfs_init. i>>?kmem_cache_create fails, so later on
+when i>>?mnt_init uses kmem_cache sysfs_dir_cache, kernel panic
+at __slab_alloc => get_cpu_slab because parameter s is equal to NULL.
+
+Function __remote_slab_alloc return NULL when s->node[node]==NULL. That causes
+i>>?sysfs_init => kmem_cache_create fails.
 
 
+------------------log----------------
 
-> > +/**
-> > + * css_get_next - lookup next cgroup under specified hierarchy.
-> > + * @ss: pointer to subsystem
-> > + * @id: current position of iteration.
-> > + * @root: pointer to css. search tree under this.
-> > + * @foundid: position of found object.
-> > + *
-> > + * Search next css under the specified hierarchy of rootid. Calling under
-> > + * rcu_read_lock() is necessary. Returns NULL if it reaches the end.
-> > + */
-> > +struct cgroup_subsys_state *
-> > +css_get_next(struct cgroup_subsys *ss, int id,
-> > +	     struct cgroup_subsys_state *root, int *foundid)
-> > +{
-> > +	struct cgroup_subsys_state *ret = NULL;
-> > +	struct css_id *tmp;
-> > +	int tmpid;
-> > +	int rootid = css_id(root);
-> > +	int depth = css_depth(root);
-> > +
-> I think it's safe here, but isn't it better to call css_id/css_depth
-> under rcu_read_lock(they call rcu_dereference) ?
-> 
-As commented, this css_get_next() call should be called under rcu_read_lock().
+Dentry cache hash table entries: 262144 (order: 7, 2097152 bytes)
+Inode-cache hash table entries: 131072 (order: 6, 1048576 bytes)
+Mount-cache hash table entries: 1024
+mnt_init: sysfs_init error: -12
+Unable to handle kernel NULL pointer dereference (address 0000000000002058)
+swapper[0]: Oops 8813272891392 [1]
+Modules linked in:
 
+Pid: 0, CPU 0, comm:              swapper
+psr : 00001010084a2018 ifs : 8000000000000690 ip  : [<a000000100180350>]    Not tainted (2.6.29-rc2slqb0121)
+ip is at kmem_cache_alloc+0x150/0x4e0
+unat: 0000000000000000 pfs : 0000000000000690 rsc : 0000000000000003
+rnat: 0009804c8a70433f bsps: a000000100f484b0 pr  : 656960155aa65959
+ldrs: 0000000000000000 ccv : 000000000000001a fpsr: 0009804c8a70433f
+csd : 893fffff000f0000 ssd : 893fffff00090000
+b0  : a000000100180270 b6  : a000000100507360 b7  : a000000100507360
+f6  : 000000000000000000000 f7  : 1003e0000000000000800
+f8  : 1003e0000000000000008 f9  : 1003e0000000000000001
+f10 : 1003e0000000000000031 f11 : 1003e7d6343eb1a1f58d1
+r1  : a0000001011bc810 r2  : 0000000000000008 r3  : ffffffffffffffff
+r8  : 0000000000000000 r9  : a000000100ded800 r10 : 0000000000000000
+r11 : a000000100ded800 r12 : a000000100db3d80 r13 : a000000100dac000
+r14 : 0000000000000000 r15 : fffffffffffffffe r16 : a000000100fbcd30
+r17 : a000000100dacc44 r18 : 0000000000002058 r19 : 0000000000000000
+r20 : 0000000000000000 r21 : a000000100dacc44 r22 : 0000000000000002
+r23 : 0000000000000066 r24 : 0000000000000073 r25 : 0000000000000000
+r26 : e000000102014030 r27 : a0007fffffc9f120 r28 : 0000000000000000
+r29 : 0000000000000000 r30 : 0000000000000008 r31 : 0000000000000001
 
-> > +	if (!rootid)
-> > +		return NULL;
-> > +
-> > +	BUG_ON(!ss->use_id);
-> > +	rcu_read_lock();
-> > +	/* fill start point for scan */
-> > +	tmpid = id;
-> > +	while (1) {
-> > +		/*
-> > +		 * scan next entry from bitmap(tree), tmpid is updated after
-> > +		 * idr_get_next().
-> > +		 */
-> > +		spin_lock(&ss->id_lock);
-> > +		tmp = idr_get_next(&ss->idr, &tmpid);
-> > +		spin_unlock(&ss->id_lock);
-> > +
-> > +		if (!tmp)
-> > +			break;
-> > +		if (tmp->depth >= depth && tmp->stack[depth] == rootid) {
-> Can't be css_is_ancestor used here ?
-> I think it would be more easy to understand.
-> 
-Hmm, it requires 
+Call Trace:
+ [<a000000100016240>] show_stack+0x40/0xa0
+                                sp=a000000100db3950 bsp=a000000100dad140
+ [<a000000100016b50>] show_regs+0x850/0x8a0
+                                sp=a000000100db3b20 bsp=a000000100dad0e8
+ [<a00000010003a5f0>] die+0x230/0x360
+                                sp=a000000100db3b20 bsp=a000000100dad0a0
+ [<a00000010005e0e0>] ia64_do_page_fault+0x8e0/0xa40
+                                sp=a000000100db3b20 bsp=a000000100dad050
+ [<a00000010000c700>] ia64_native_leave_kernel+0x0/0x280
+                                sp=a000000100db3bb0 bsp=a000000100dad050
+ [<a000000100180350>] kmem_cache_alloc+0x150/0x4e0
+                                sp=a000000100db3d80 bsp=a000000100dacfc8
+ [<a000000100238610>] sysfs_new_dirent+0x90/0x240
+                                sp=a000000100db3d80 bsp=a000000100dacf80
+ [<a000000100239140>] create_dir+0x40/0x100
+                                sp=a000000100db3d90 bsp=a000000100dacf48
+ [<a0000001002392b0>] sysfs_create_dir+0xb0/0x100
+                                sp=a000000100db3db0 bsp=a000000100dacf28
+ [<a0000001004eca60>] kobject_add_internal+0x1e0/0x420
+                                sp=a000000100db3dc0 bsp=a000000100dacee8
+ [<a0000001004eceb0>] kobject_add_varg+0x90/0xc0
+                                sp=a000000100db3dc0 bsp=a000000100daceb0
+ [<a0000001004ed620>] kobject_add+0x100/0x140
+                                sp=a000000100db3dc0 bsp=a000000100dace50
+ [<a0000001004ed6b0>] kobject_create_and_add+0x50/0xc0
+                                sp=a000000100db3e00 bsp=a000000100dace20
+ [<a000000100c28ff0>] mnt_init+0x1b0/0x480
+                                sp=a000000100db3e00 bsp=a000000100dacde0
+ [<a000000100c28610>] vfs_caches_init+0x230/0x280
+                                sp=a000000100db3e20 bsp=a000000100dacdb8
+ [<a000000100c01410>] start_kernel+0x830/0x8c0
+                                sp=a000000100db3e20 bsp=a000000100dacd40
+ [<a0000001009d7b60>] __kprobes_text_end+0x760/0x780
+                                sp=a000000100db3e30 bsp=a000000100dacca0
+Kernel panic - not syncing: Attempted to kill the idle task!
 
-	css_is_ancestor(tmp->css, root);
-
-and adds memory barriers to acsess tmp->css and tmp->css->id, root->id
-(compiler will not optimize these accesses because of memory barrier.)
-
-So, I think bare code is better here.
-
-Thank you for review.
-
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
