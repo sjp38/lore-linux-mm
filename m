@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B9E1F6B0083
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 19:33:14 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E9AFD82C562
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 19:34:23 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id XaTs8agUQx2v for <linux-mm@kvack.org>;
-	Wed, 21 Jan 2009 19:34:23 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2A977304026
-	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 19:22:47 -0500 (EST)
-Date: Wed, 21 Jan 2009 19:19:08 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <20090119054730.GA22584@wotan.suse.de>
-Message-ID: <alpine.DEB.1.10.0901211914140.18367@qirst.com>
-References: <20090114114707.GA24673@wotan.suse.de> <84144f020901140544v56b856a4w80756b90f5b59f26@mail.gmail.com> <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com> <20090114150900.GC25401@wotan.suse.de>
- <Pine.LNX.4.64.0901141158090.26507@quilx.com> <20090115060330.GB17810@wotan.suse.de> <Pine.LNX.4.64.0901151320250.26467@quilx.com> <20090116031940.GL17810@wotan.suse.de> <Pine.LNX.4.64.0901161500080.27283@quilx.com> <20090119054730.GA22584@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1CD6D6B0087
+	for <linux-mm@kvack.org>; Wed, 21 Jan 2009 21:07:42 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0M27d9b017813
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 22 Jan 2009 11:07:39 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C607645DE65
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 11:07:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9574345DE51
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 11:07:38 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A6E2E38003
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 11:07:38 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BAE71DB803E
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 11:07:38 +0900 (JST)
+Date: Thu, 22 Jan 2009 11:06:32 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 1.5/4] cgroup: delay populate css id
+Message-Id: <20090122110632.e5c4216c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090121193436.c314ad7d.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090115192120.9956911b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090115192712.33b533c3.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901191739t45c793afk2ceda8fc430121ce@mail.gmail.com>
+	<20090120110221.005e116c.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901191823q556faeeub28d02d39dda7396@mail.gmail.com>
+	<20090120115832.0881506c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090120144337.82ed51d5.kamezawa.hiroyu@jp.fujitsu.com>
+	<6599ad830901210136j9baf45ft4c86a93fec70827f@mail.gmail.com>
+	<20090121193436.c314ad7d.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Paul Menage <menage@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jan 2009, Nick Piggin wrote:
+On Wed, 21 Jan 2009 19:34:36 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> The thing IMO you forget with all these doomsday scenarios about SGI's peta
-> scale systems is that no matter what you do, you can't avoid the fact that
-> computing is about locality. Even if you totally take the TLB out of the
-> equation, you still have the small detail of other caches. Code that jumps
-> all over that 1024 TB of memory with no locality is going to suck regardless
-> of what the kernel ever does, due to physical limitations of hardware.
+> On Wed, 21 Jan 2009 01:36:32 -0800
+> Paul Menage <menage@google.com> wrote:
+> 
+> > On Mon, Jan 19, 2009 at 9:43 PM, KAMEZAWA Hiroyuki
+> > <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> > > +static void populate_css_id(struct cgroup_subsys_state *css)
+> > > +{
+> > > +       struct css_id *id = rcu_dereference(css->id);
+> > > +       if (id)
+> > > +               rcu_assign_pointer(id->css, css);
+> > > +}
+> > 
+> > I don't think this needs to be split out into a separate function.
+> ok.
+> 
+> > Also, there's no need for an rcu_dereference(), since we're holding
+> > cgroup_mutex.
+> > 
+> Sure. I'll fix.
+> 
 
-Typically we traverse lists of objects that are in the same slab cache.
+BTW, isn't it better to use rcu_assign_pointer to show "this pointer will be
+dereferenced from RCU-read-side" ?
 
-> > Sorry not at all. SLAB and SLQB queue objects from different pages in the
-> > same queue.
->
-> The last sentence is what I was replying to. Ie. "simplification of
-> numa handling" does not follow from the SLUB implementation of per-page
-> freelists.
-
-If all objects are from the same page then you need not check
-the NUMA locality of any object on that queue.
-
-> > As I sad it pins a single page in the per cpu page and uses that in a way
-> > that you call a queue and I call a freelist.
->
-> And you found you have to increase the size of your pages because you
-> need bigger queues. (must we argue semantics? it is a list of free
-> objects)
-
-Right. That may be the case and its a similar tuning to what SLAB does.
-
-> > SLAB and SLUB can have large quantities of objects in their queues that
-> > each can keep a single page out of circulation if its the last
-> > object in that page. This is per queue thing and you have at least two
->
-> And if that were a problem, SLQB can easily be runtime tuned to keep no
-> objects in its object lists. But as I said, queueing is good, so why
-> would anybody want to get rid of it?
-
-Queing is sometimes good....
-
-> Again, this doesn't really go anywhere while we disagree on the
-> fundamental goodliness of queueing. This is just describing the
-> implementation.
-
-I am not sure that you understand the fine points of queuing in slub. I am
-not a fundamentalist: Queues are good if used the right way and as you say
-SLUB has "queues" designed in a particular fashion that solves issus that
-we had with SLAB queues.
-
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
