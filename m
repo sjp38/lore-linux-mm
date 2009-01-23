@@ -1,22 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 856DC6B0062
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 12:34:34 -0500 (EST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 86F916B006A
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 12:34:40 -0500 (EST)
+Date: Fri, 23 Jan 2009 18:34:21 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] x86,mm: fix pte_free()
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1232728669.4826.143.camel@laptop>
+Message-ID: <20090123173421.GA30980@elte.hu>
 References: <1232728669.4826.143.camel@laptop>
-Content-Type: text/plain
-Date: Fri, 23 Jan 2009 18:34:28 +0100
-Message-Id: <1232732068.4850.0.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1232728669.4826.143.camel@laptop>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, L-K <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, L-K <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-01-23 at 17:37 +0100, Peter Zijlstra wrote:
+
+* Peter Zijlstra <peterz@infradead.org> wrote:
+
 > On -rt we were seeing spurious bad page states like:
 > 
 > Bad page state in process 'firefox'
@@ -35,12 +37,10 @@ On Fri, 2009-01-23 at 17:37 +0100, Peter Zijlstra wrote:
 > [<c043f680>] ? rt_mutex_down_read_trylock+0x57/0x63
 > [<c0218875>] do_page_fault+0x36f/0x88a
 > 
-> This is the case where a concurrent fault already installed the PTE
-> and
+> This is the case where a concurrent fault already installed the PTE and
 > we get to free the newly allocated one.
 > 
-> This is due to pgtable_page_ctor() doing the
-> spin_lock_init(&page->ptl)
+> This is due to pgtable_page_ctor() doing the spin_lock_init(&page->ptl)
 > which is overlaid with the {private, mapping} struct.
 > 
 > union {
@@ -55,15 +55,13 @@ On Fri, 2009-01-23 at 17:37 +0100, Peter Zijlstra wrote:
 >     struct page *first_page;
 > };
 > 
-> Normally the spinlock is small enough to not stomp on page->mapping,
-> but
+> Normally the spinlock is small enough to not stomp on page->mapping, but
 > PREEMPT_RT=y has huge 'spin'locks.
 > 
 > But lockdep kernels should also be able to trigger this splat, as the
 > lock tracking code grows the spinlock to cover page->mapping.
 > 
-> The obvious fix is calling pgtable_page_dtor() like the regular pte
-> free
+> The obvious fix is calling pgtable_page_dtor() like the regular pte free
 > path __pte_free_tlb() does.
 > 
 > It seems all architectures except x86 and nm10300 already do this, and
@@ -72,26 +70,30 @@ On Fri, 2009-01-23 at 17:37 +0100, Peter Zijlstra wrote:
 > 
 > Signed-off-by: Peter Zijlstra <a.p.zijlsta@chello.nl>
 > CC: stable@kernel.org
+> ---
+>  arch/x86/include/asm/pgalloc.h |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+> index cb7c151..b99023c 100644
+> --- a/arch/x86/include/asm/pgalloc.h
+> +++ b/arch/x86/include/asm/pgalloc.h
+> @@ -42,6 +42,7 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+>  
+>  static inline void pte_free(struct mm_struct *mm, struct page *pte)
+>  {
+> +	pgtable_page_dtor();
 
-Now one that's not obviously borken,..
+i suspect on lockdep we dont see this in practice because it initializes 
+things to NULL, which hides the issue. On -rt we initialize list heads 
+there which brings up the wrong warning in the page free logic.
 
----
- arch/x86/include/asm/pgalloc.h |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+So i agree with the fix, but the patch does not look right: shouldnt that 
+be pgtable_page_dtor(pte), so that we get ->mapping cleared via 
+pte_lock_deinit()? (which i guess your intention was here - this probably 
+wont even build)
 
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index cb7c151..dd14c54 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -42,6 +42,7 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
- 
- static inline void pte_free(struct mm_struct *mm, struct page *pte)
- {
-+	pgtable_page_dtor(pte);
- 	__free_page(pte);
- }
- 
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
