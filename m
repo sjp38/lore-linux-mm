@@ -1,46 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 67C156B005C
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 12:10:42 -0500 (EST)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch] SLQB slab allocator
-Date: Sat, 24 Jan 2009 04:09:26 +1100
-References: <20090114150900.GC25401@wotan.suse.de> <alpine.DEB.1.10.0901231042380.32253@qirst.com> <20090123161017.GC14517@wotan.suse.de>
-In-Reply-To: <20090123161017.GC14517@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 856DC6B0062
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 12:34:34 -0500 (EST)
+Subject: Re: [PATCH] x86,mm: fix pte_free()
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <1232728669.4826.143.camel@laptop>
+References: <1232728669.4826.143.camel@laptop>
+Content-Type: text/plain
+Date: Fri, 23 Jan 2009 18:34:28 +0100
+Message-Id: <1232732068.4850.0.camel@laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200901240409.27449.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, L-K <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 24 January 2009 03:10:17 Nick Piggin wrote:
-> On Fri, Jan 23, 2009 at 10:52:43AM -0500, Christoph Lameter wrote:
-> > On Fri, 23 Jan 2009, Nick Piggin wrote:
-> > > > Typically we traverse lists of objects that are in the same slab
-> > > > cache.
-> > >
-> > > Very often that is not the case. And the price you pay for that is that
-> > > you have to drain and switch freelists whenever you encounter an object
-> > > that is not on the same page.
-> >
-> > SLUB can directly free an object to any slab page. "Queuing" on free via
-> > the per cpu slab is only possible if the object came from that per cpu
-> > slab. This is typically only the case for objects that were recently
-> > allocated.
->
-> Ah yes ok that's right. But then you don't get LIFO allocation
-> behaviour for those cases.
+On Fri, 2009-01-23 at 17:37 +0100, Peter Zijlstra wrote:
+> On -rt we were seeing spurious bad page states like:
+> 
+> Bad page state in process 'firefox'
+> page:c1bc2380 flags:0x40000000 mapping:c1bc2390 mapcount:0 count:0
+> Trying to fix it up, but a reboot is needed
+> Backtrace:
+> Pid: 503, comm: firefox Not tainted 2.6.26.8-rt13 #3
+> [<c043d0f3>] ? printk+0x14/0x19
+> [<c0272d4e>] bad_page+0x4e/0x79
+> [<c0273831>] free_hot_cold_page+0x5b/0x1d3
+> [<c02739f6>] free_hot_page+0xf/0x11
+> [<c0273a18>] __free_pages+0x20/0x2b
+> [<c027d170>] __pte_alloc+0x87/0x91
+> [<c027d25e>] handle_mm_fault+0xe4/0x733
+> [<c043f680>] ? rt_mutex_down_read_trylock+0x57/0x63
+> [<c043f680>] ? rt_mutex_down_read_trylock+0x57/0x63
+> [<c0218875>] do_page_fault+0x36f/0x88a
+> 
+> This is the case where a concurrent fault already installed the PTE
+> and
+> we get to free the newly allocated one.
+> 
+> This is due to pgtable_page_ctor() doing the
+> spin_lock_init(&page->ptl)
+> which is overlaid with the {private, mapping} struct.
+> 
+> union {
+>     struct {
+>         unsigned long private;
+>         struct address_space *mapping;
+>     };
+> #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+>     spinlock_t ptl;
+> #endif
+>     struct kmem_cache *slab;
+>     struct page *first_page;
+> };
+> 
+> Normally the spinlock is small enough to not stomp on page->mapping,
+> but
+> PREEMPT_RT=y has huge 'spin'locks.
+> 
+> But lockdep kernels should also be able to trigger this splat, as the
+> lock tracking code grows the spinlock to cover page->mapping.
+> 
+> The obvious fix is calling pgtable_page_dtor() like the regular pte
+> free
+> path __pte_free_tlb() does.
+> 
+> It seems all architectures except x86 and nm10300 already do this, and
+> nm10300 doesn't seem to use pgtable_page_ctor(), which suggests it
+> doesn't do SMP or simply doesnt do MMU at all or something.
+> 
+> Signed-off-by: Peter Zijlstra <a.p.zijlsta@chello.nl>
+> CC: stable@kernel.org
 
-And actually really this all just stems from conceptually in fact you
-_do_ switch to a different queue (from the one being allocated from)
-to free the object if it is on a different page. Because you have a
-set of queues (a queue per-page). So freeing to a different queue is
-where you lose LIFO property.
+Now one that's not obviously borken,..
+
+---
+ arch/x86/include/asm/pgalloc.h |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index cb7c151..dd14c54 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -42,6 +42,7 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ 
+ static inline void pte_free(struct mm_struct *mm, struct page *pte)
+ {
++	pgtable_page_dtor(pte);
+ 	__free_page(pte);
+ }
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
