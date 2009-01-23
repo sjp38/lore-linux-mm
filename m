@@ -1,163 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C2876B004F
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 06:42:13 -0500 (EST)
-Date: Fri, 23 Jan 2009 12:57:31 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090123115731.GO15750@one.firstfloor.org>
-References: <20090121143008.GV24891@wotan.suse.de> <87hc3qcpo1.fsf@basil.nowhere.org> <20090123112555.GF19986@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090123112555.GF19986@wotan.suse.de>
+	by kanga.kvack.org (Postfix) with SMTP id 48B316B0044
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 07:36:36 -0500 (EST)
+Received: by mu-out-0910.google.com with SMTP id i2so3143712mue.6
+        for <linux-mm@kvack.org>; Fri, 23 Jan 2009 04:36:34 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20090123110500.GA12684@redhat.com>
+References: <20090117215110.GA3300@redhat.com>
+	 <20090118023211.GA14539@redhat.com>
+	 <20090120203131.GA20985@cmpxchg.org>
+	 <20090121143602.GA16584@redhat.com>
+	 <20090121213813.GB23270@cmpxchg.org>
+	 <20090122202550.GA5726@redhat.com>
+	 <b647ffbd0901221626o5e654682t147625fa3e19976f@mail.gmail.com>
+	 <20090123004702.GA18362@redhat.com>
+	 <b647ffbd0901230207u642e24cdg98700aa68ed1aa33@mail.gmail.com>
+	 <20090123110500.GA12684@redhat.com>
+Date: Fri, 23 Jan 2009 13:36:33 +0100
+Message-ID: <b647ffbd0901230436x3408203bw10834d013beab16c@mail.gmail.com>
+Subject: Re: [RFC v4] wait: prevent waiter starvation in __wait_on_bit_lock
+From: Dmitry Adamushko <dmitry.adamushko@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 23, 2009 at 12:25:55PM +0100, Nick Piggin wrote:
-> > > +#ifdef CONFIG_SLQB_SYSFS
-> > > +	struct kobject kobj;	/* For sysfs */
-> > > +#endif
-> > > +#ifdef CONFIG_NUMA
-> > > +	struct kmem_cache_node *node[MAX_NUMNODES];
-> > > +#endif
-> > > +#ifdef CONFIG_SMP
-> > > +	struct kmem_cache_cpu *cpu_slab[NR_CPUS];
-> > 
-> > Those both really need to be dynamically allocated, otherwise
-> > it wastes a lot of memory in the common case
-> > (e.g. NR_CPUS==128 kernel on dual core system). And of course
-> > on the proposed NR_CPUS==4096 kernels it becomes prohibitive.
-> > 
-> > You could use alloc_percpu? There's no alloc_pernode 
-> > unfortunately, perhaps there should be one. 
-> 
-> cpu_slab is dynamically allocated, by just changing the size of
-> the kmem_cache cache at boot time. 
+2009/1/23 Oleg Nesterov <oleg@redhat.com>:
+> On 01/23, Dmitry Adamushko wrote:
+>>
+>> 2009/1/23 Oleg Nesterov <oleg@redhat.com>:
+>> > On 01/23, Dmitry Adamushko wrote:
+>> >>
+>> >> In short, wq->lock is a sync. mechanism in this case. The scheme is as follows:
+>> >>
+>> >> our side:
+>> >>
+>> >> [ finish_wait() ]
+>> >>
+>> >> lock(wq->lock);
+>> >
+>> > But we can skip lock(wq->lock), afaics.
+>> >
+>> > Without rmb(), test_bit() can be re-ordered with list_empty_careful()
+>> > in finish_wait() and even with __set_task_state(TASK_RUNNING).
+>>
+>> But taking into account the constraints of this special case, namely
+>> (1), we can't skip lock(wq->lock).
+>>
+>> (1) "the next contender is us"
+>>
+>> In this particular situation, we are only interested in the case when
+>> we were woken up by __wake_up_bit().
+>
+> Yes,
+>
+>> that means we are _on_ the 'wq' list when we do finish_wait() -> we do
+>> take the 'wq->lock'.
+>
+> Hmm. No?
+>
+> We are doing exclusive wait, and we use autoremove_wake_function().
+> If we were woken, we are removed from ->task_list.
 
-You'll always have at least the MAX_NUMNODES waste because
-you cannot tell the compiler that the cpu_slab field has 
-moved.
-
-> Probably the best way would
-> be to have dynamic cpu and node allocs for them, I agree.
-
-It's really needed.
-
-> Any plans for an alloc_pernode?
-
-It shouldn't be very hard to implement. Or do you ask if I'm volunteering? @)
-
-> > > + * - investiage performance with memoryless nodes. Perhaps CPUs can be given
-> > > + *   a default closest home node via which it can use fastpath functions.
-> > 
-> > FWIW that is what x86-64 always did. Perhaps you can just fix ia64 to do 
-> > that too and be happy.
-> 
-> What if the node is possible but not currently online?
-
-Nobody should allocate on it then.
-
-> > > +/* Not all arches define cache_line_size */
-> > > +#ifndef cache_line_size
-> > > +#define cache_line_size()	L1_CACHE_BYTES
-> > > +#endif
-> > > +
-> > 
-> > They should. better fix them?
-> 
-> git grep -l -e cache_line_size arch/ | egrep '\.h$'
-> 
-> Only ia64, mips, powerpc, sparc, x86...
-
-It's straight forward to that define everywhere.
-
-> 
-> > > +	if (unlikely(slab_poison(s)))
-> > > +		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
-> > > +
-> > > +	start += colour;
-> > 
-> > One thing i was wondering. Did you try to disable the colouring and see
-> > if it makes much difference on modern systems? They tend to have either
-> > larger caches or higher associativity caches.
-> 
-> I have tried, but I don't think I found a test where it made a
-> statistically significant difference. It is not very costly to
-> implement, though.
-
-how about the memory usage?
-
-also this is all so complicated already that every simplification helps.
-
-> > > +#endif
-> > > +
-> > > +#ifdef CONFIG_NUMA
-> > > +static struct kmem_cache kmem_node_cache;
-> > > +static struct kmem_cache_cpu kmem_node_cpus[NR_CPUS];
-> > > +static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES];
-> > > +#endif
-> > 
-> > That all needs fixing too of course.
-> 
-> Hmm. I was hoping it could stay simple as it is just a static constant
-> (for a given NR_CPUS) overhead. 
-
-The issue is that distro kernels typically run with NR_CPUS >>> num_possible_cpus()
-And we'll see likely higher NR_CPUS (and MAX_NUMNODES) in the future,
-but also still want to run the same kernels on really small systems (e.g.
-Atom based) without wasting their memory.  
-
-So for anything NR_CPUS you should use per_cpu data -- that is correctly
-sized automatically.
-
-For MAX_NUMNODES we don't have anything equivalent currently, so 
-you would also need alloc_pernode() I guess.
-
-Ok you can just use per cpu for them too and only use the first
-entry in each node. That's cheating, but not too bad.
+Argh, right, somehow I've made wrong assumptions on the wake-up part :-/
 
 
-> I wonder if bootmem is still up here?
-
-bootmem is finished when slab comes up.
-> 
-> Could bite the bullet and do a multi-stage bootstap like SLUB, but I
-> want to try avoiding that (but init code is also of course much less
-> important than core code and total overheads). 
-
-For DEFINE_PER_CPU you don't need special allocation.
-
-Probably want a DEFINE_PER_NODE() for this or see above.
-
-> 
-> > > +static ssize_t align_show(struct kmem_cache *s, char *buf)
-> > > +{
-> > > +	return sprintf(buf, "%d\n", s->align);
-> > > +}
-> > > +SLAB_ATTR_RO(align);
-> > > +
-> > 
-> > When you map back to the attribute you can use a index into a table
-> > for the field, saving that many functions?
-> > 
-> > > +STAT_ATTR(CLAIM_REMOTE_LIST, claim_remote_list);
-> > > +STAT_ATTR(CLAIM_REMOTE_LIST_OBJECTS, claim_remote_list_objects);
-> > 
-> > This really should be table driven, shouldn't it? That would give much
-> > smaller code.
-> 
-> Tables probably would help. I will keep it close to SLUB for now,
-> though.
-
-Hmm, then fix slub? 
-
--Andi
+>
+> Oleg.
+>
 
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Best regards,
+Dmitry Adamushko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
