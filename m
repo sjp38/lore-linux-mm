@@ -1,79 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 48B316B0044
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 07:36:36 -0500 (EST)
-Received: by mu-out-0910.google.com with SMTP id i2so3143712mue.6
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2009 04:36:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090123110500.GA12684@redhat.com>
-References: <20090117215110.GA3300@redhat.com>
-	 <20090118023211.GA14539@redhat.com>
-	 <20090120203131.GA20985@cmpxchg.org>
-	 <20090121143602.GA16584@redhat.com>
-	 <20090121213813.GB23270@cmpxchg.org>
-	 <20090122202550.GA5726@redhat.com>
-	 <b647ffbd0901221626o5e654682t147625fa3e19976f@mail.gmail.com>
-	 <20090123004702.GA18362@redhat.com>
-	 <b647ffbd0901230207u642e24cdg98700aa68ed1aa33@mail.gmail.com>
-	 <20090123110500.GA12684@redhat.com>
-Date: Fri, 23 Jan 2009 13:36:33 +0100
-Message-ID: <b647ffbd0901230436x3408203bw10834d013beab16c@mail.gmail.com>
-Subject: Re: [RFC v4] wait: prevent waiter starvation in __wait_on_bit_lock
-From: Dmitry Adamushko <dmitry.adamushko@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EA3E76B0044
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 07:55:17 -0500 (EST)
+Date: Fri, 23 Jan 2009 13:55:08 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] SLQB slab allocator
+Message-ID: <20090123125508.GG19986@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de> <87hc3qcpo1.fsf@basil.nowhere.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87hc3qcpo1.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-2009/1/23 Oleg Nesterov <oleg@redhat.com>:
-> On 01/23, Dmitry Adamushko wrote:
->>
->> 2009/1/23 Oleg Nesterov <oleg@redhat.com>:
->> > On 01/23, Dmitry Adamushko wrote:
->> >>
->> >> In short, wq->lock is a sync. mechanism in this case. The scheme is as follows:
->> >>
->> >> our side:
->> >>
->> >> [ finish_wait() ]
->> >>
->> >> lock(wq->lock);
->> >
->> > But we can skip lock(wq->lock), afaics.
->> >
->> > Without rmb(), test_bit() can be re-ordered with list_empty_careful()
->> > in finish_wait() and even with __set_task_state(TASK_RUNNING).
->>
->> But taking into account the constraints of this special case, namely
->> (1), we can't skip lock(wq->lock).
->>
->> (1) "the next contender is us"
->>
->> In this particular situation, we are only interested in the case when
->> we were woken up by __wake_up_bit().
->
-> Yes,
->
->> that means we are _on_ the 'wq' list when we do finish_wait() -> we do
->> take the 'wq->lock'.
->
-> Hmm. No?
->
-> We are doing exclusive wait, and we use autoremove_wake_function().
-> If we were woken, we are removed from ->task_list.
+On Fri, Jan 23, 2009 at 10:55:26AM +0100, Andi Kleen wrote:
+> Nick Piggin <npiggin@suse.de> writes:
+> > +#ifdef CONFIG_NUMA
+> > +void *__kmalloc_node(size_t size, gfp_t flags, int node);
+> > +void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+> > +
+> > +static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+> 
+> kmalloc_node should be infrequent, i suspect it can be safely out of lined.
 
-Argh, right, somehow I've made wrong assumptions on the wake-up part :-/
-
-
->
-> Oleg.
->
-
--- 
-Best regards,
-Dmitry Adamushko
+Hmm, it only takes up another couple of hundred bytes for a full
+numa kernel. Completely out of lining it can take a slightly slower
+path and makes the code slightly different from the kmalloc case.
+So I'll leave this change for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
