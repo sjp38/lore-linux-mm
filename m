@@ -1,156 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C87E16B0044
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 22:55:07 -0500 (EST)
-Date: Fri, 23 Jan 2009 04:55:03 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 945B36B0044
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 22:57:07 -0500 (EST)
+Date: Fri, 23 Jan 2009 04:57:03 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090123035503.GD20098@wotan.suse.de>
-References: <20090121143008.GV24891@wotan.suse.de> <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
+Message-ID: <20090123035703.GE20098@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de> <1232613933.11429.127.camel@ymzhang>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
+In-Reply-To: <1232613933.11429.127.camel@ymzhang>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 21, 2009 at 06:10:12PM +0000, Hugh Dickins wrote:
-> On Wed, 21 Jan 2009, Nick Piggin wrote:
+On Thu, Jan 22, 2009 at 04:45:33PM +0800, Zhang, Yanmin wrote:
+> On Wed, 2009-01-21 at 15:30 +0100, Nick Piggin wrote:
+> > Hi,
 > > 
 > > Since last posted, I've cleaned up a few bits and pieces, (hopefully)
 > > fixed a known bug where it wouldn't boot on memoryless nodes (I don't
-> > have a system to test with), and improved performance and reduced
-> > locking somewhat for node-specific and interleaved allocations.
+> > have a system to test with), 
+> Panic again on my Montvale Itanium NUMA machine if I start kernel with parameter
+> mem=2G.
 > 
-> I haven't reviewed your postings, but I did give the previous version
-> of your patch a try on all my machines.  Some observations and one patch.
-
-Great, thanks!
-
- 
-> I was initially _very_ impressed by how well it did on my venerable
-> tmpfs loop swapping loads, where I'd expected next to no effect; but
-> that turned out to be because on three machines I'd been using SLUB,
-> without remembering how default slub_max_order got raised from 1 to 3
-> in 2.6.26 (hmm, and Documentation/vm/slub.txt not updated).
+> The call chain is mnt_init => sysfs_init. ???kmem_cache_create fails, so later on
+> when ???mnt_init uses kmem_cache sysfs_dir_cache, kernel panic
+> at __slab_alloc => get_cpu_slab because parameter s is equal to NULL.
 > 
-> That's been making SLUB behave pretty badly (e.g. elapsed time 30%
-> more than SLAB) with swapping loads on most of my machines.  Though
-> oddly one seems immune, and another takes four times as long: guess
-> it depends on how close to thrashing, but probably more to investigate
-> there.  I think my original SLUB versus SLAB comparisons were done on
-> the immune one: as I remember, SLUB and SLAB were equivalent on those
-> loads when SLUB came in, but even with boot option slub_max_order=1,
-> SLUB is still slower than SLAB on such tests (e.g. 2% slower).
-> FWIW - swapping loads are not what anybody should tune for.
+> Function __remote_slab_alloc return NULL when s->node[node]==NULL. That causes
+> ???sysfs_init => kmem_cache_create fails.
 
-Yeah, that's to be expected with higher order allocations I think. Does
-your immune machine simply have fewer CPUs and thus doesn't use such
-high order allocations?
+Hmm, I'll probably have to add a bit more fallback logic. I'll have to
+work out what semantics the callers require here. Thanks for the report.
 
- 
-> So in fact SLQB comes in very much like SLAB, as I think you'd expect:
-> slightly ahead of it on most of the machines, but probably in the noise.
-> (SLOB behaves decently: not a winner, but no catastrophic behaviour.)
 > 
-> What I love most about SLUB is the way you can reasonably build with
-> CONFIG_SLUB_DEBUG=y, very little impact, then switch on the specific
-> debugging you want with a boot option when you want it.  That was a
-> great stride forward, which you've followed in SLQB: so I'd have to
-> prefer SLQB to SLAB (on debuggability) and to SLUB (on high orders).
-
-It is nice. All credit to Christoph for that (and the fine grained
-sysfs code). 
-
- 
-> I do hate the name SLQB.  Despite having no experience of databases,
-> I find it almost impossible to type, coming out as SQLB most times.
-> Wish you'd invented a plausible vowel instead of the Q; but probably
-> too late for that.
-
-Yeah, apologies for the name :P
-
- 
-> init/Kconfig describes it as "Qeued allocator": should say "Queued".
-
-Thanks.
-
-
-> Documentation/vm/slqbinfo.c gives several compilation warnings:
-> I'd rather leave it to you to fix them, maybe the unused variables
-> are about to be used, or maybe there's much worse wrong with it
-> than a few compilation warnings, I didn't investigate.
-
-OK.
- 
-
-> The only bug I found (but you'll probably want to change the patch
-> - which I've rediffed to today's slqb.c, but not retested).
 > 
-> On fake NUMA I hit kernel BUG at mm/slqb.c:1107!  claim_remote_free_list()
-> is doing several things without remote_free.lock: that VM_BUG_ON is unsafe
-> for one, and even if others are somehow safe today, it will be more robust
-> to take the lock sooner.
- 
-Good catch, thanks. The BUG should be OK where it is if we only
-claim the remote free list when remote_free_check is is set, but
-some of the periodic reaping and teardown code calls it unconditionally.
-But it's not critical so it should definitely go inside the lock.
-
-
-> I moved the prefetchw(head) down to where we know it's going to be the head,
-> and replaced the offending VM_BUG_ON by a later WARN_ON which you'd probably
-> better remove altogether: once we got the lock, it's hardly interesting.
-
-Right, I'll probably do that. Thanks!
-
-> Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> ---
+> ------------------log----------------
 > 
->  mm/slqb.c |   17 +++++++++--------
->  1 file changed, 9 insertions(+), 8 deletions(-)
+> Dentry cache hash table entries: 262144 (order: 7, 2097152 bytes)
+> Inode-cache hash table entries: 131072 (order: 6, 1048576 bytes)
+> Mount-cache hash table entries: 1024
+> mnt_init: sysfs_init error: -12
+> Unable to handle kernel NULL pointer dereference (address 0000000000002058)
+> swapper[0]: Oops 8813272891392 [1]
+> Modules linked in:
 > 
-> --- slqb/mm/slqb.c.orig	2009-01-21 15:23:54.000000000 +0000
-> +++ slqb/mm/slqb.c	2009-01-21 15:32:44.000000000 +0000
-> @@ -1115,17 +1115,12 @@ static void claim_remote_free_list(struc
->  	void **head, **tail;
->  	int nr;
->  
-> -	VM_BUG_ON(!l->remote_free.list.head != !l->remote_free.list.tail);
-> -
->  	if (!l->remote_free.list.nr)
->  		return;
->  
-> +	spin_lock(&l->remote_free.lock);
->  	l->remote_free_check = 0;
->  	head = l->remote_free.list.head;
-> -	/* Get the head hot for the likely subsequent allocation or flush */
-> -	prefetchw(head);
-> -
-> -	spin_lock(&l->remote_free.lock);
->  	l->remote_free.list.head = NULL;
->  	tail = l->remote_free.list.tail;
->  	l->remote_free.list.tail = NULL;
-> @@ -1133,9 +1128,15 @@ static void claim_remote_free_list(struc
->  	l->remote_free.list.nr = 0;
->  	spin_unlock(&l->remote_free.lock);
->  
-> -	if (!l->freelist.nr)
-> +	WARN_ON(!head + !tail != !nr + !nr);
-> +	if (!nr)
-> +		return;
-> +
-> +	if (!l->freelist.nr) {
-> +		/* Get head hot for likely subsequent allocation or flush */
-> +		prefetchw(head);
->  		l->freelist.head = head;
-> -	else
-> +	} else
->  		set_freepointer(s, l->freelist.tail, head);
->  	l->freelist.tail = tail;
->  
+> Pid: 0, CPU 0, comm:              swapper
+> psr : 00001010084a2018 ifs : 8000000000000690 ip  : [<a000000100180350>]    Not tainted (2.6.29-rc2slqb0121)
+> ip is at kmem_cache_alloc+0x150/0x4e0
+> unat: 0000000000000000 pfs : 0000000000000690 rsc : 0000000000000003
+> rnat: 0009804c8a70433f bsps: a000000100f484b0 pr  : 656960155aa65959
+> ldrs: 0000000000000000 ccv : 000000000000001a fpsr: 0009804c8a70433f
+> csd : 893fffff000f0000 ssd : 893fffff00090000
+> b0  : a000000100180270 b6  : a000000100507360 b7  : a000000100507360
+> f6  : 000000000000000000000 f7  : 1003e0000000000000800
+> f8  : 1003e0000000000000008 f9  : 1003e0000000000000001
+> f10 : 1003e0000000000000031 f11 : 1003e7d6343eb1a1f58d1
+> r1  : a0000001011bc810 r2  : 0000000000000008 r3  : ffffffffffffffff
+> r8  : 0000000000000000 r9  : a000000100ded800 r10 : 0000000000000000
+> r11 : a000000100ded800 r12 : a000000100db3d80 r13 : a000000100dac000
+> r14 : 0000000000000000 r15 : fffffffffffffffe r16 : a000000100fbcd30
+> r17 : a000000100dacc44 r18 : 0000000000002058 r19 : 0000000000000000
+> r20 : 0000000000000000 r21 : a000000100dacc44 r22 : 0000000000000002
+> r23 : 0000000000000066 r24 : 0000000000000073 r25 : 0000000000000000
+> r26 : e000000102014030 r27 : a0007fffffc9f120 r28 : 0000000000000000
+> r29 : 0000000000000000 r30 : 0000000000000008 r31 : 0000000000000001
+> 
+> Call Trace:
+>  [<a000000100016240>] show_stack+0x40/0xa0
+>                                 sp=a000000100db3950 bsp=a000000100dad140
+>  [<a000000100016b50>] show_regs+0x850/0x8a0
+>                                 sp=a000000100db3b20 bsp=a000000100dad0e8
+>  [<a00000010003a5f0>] die+0x230/0x360
+>                                 sp=a000000100db3b20 bsp=a000000100dad0a0
+>  [<a00000010005e0e0>] ia64_do_page_fault+0x8e0/0xa40
+>                                 sp=a000000100db3b20 bsp=a000000100dad050
+>  [<a00000010000c700>] ia64_native_leave_kernel+0x0/0x280
+>                                 sp=a000000100db3bb0 bsp=a000000100dad050
+>  [<a000000100180350>] kmem_cache_alloc+0x150/0x4e0
+>                                 sp=a000000100db3d80 bsp=a000000100dacfc8
+>  [<a000000100238610>] sysfs_new_dirent+0x90/0x240
+>                                 sp=a000000100db3d80 bsp=a000000100dacf80
+>  [<a000000100239140>] create_dir+0x40/0x100
+>                                 sp=a000000100db3d90 bsp=a000000100dacf48
+>  [<a0000001002392b0>] sysfs_create_dir+0xb0/0x100
+>                                 sp=a000000100db3db0 bsp=a000000100dacf28
+>  [<a0000001004eca60>] kobject_add_internal+0x1e0/0x420
+>                                 sp=a000000100db3dc0 bsp=a000000100dacee8
+>  [<a0000001004eceb0>] kobject_add_varg+0x90/0xc0
+>                                 sp=a000000100db3dc0 bsp=a000000100daceb0
+>  [<a0000001004ed620>] kobject_add+0x100/0x140
+>                                 sp=a000000100db3dc0 bsp=a000000100dace50
+>  [<a0000001004ed6b0>] kobject_create_and_add+0x50/0xc0
+>                                 sp=a000000100db3e00 bsp=a000000100dace20
+>  [<a000000100c28ff0>] mnt_init+0x1b0/0x480
+>                                 sp=a000000100db3e00 bsp=a000000100dacde0
+>  [<a000000100c28610>] vfs_caches_init+0x230/0x280
+>                                 sp=a000000100db3e20 bsp=a000000100dacdb8
+>  [<a000000100c01410>] start_kernel+0x830/0x8c0
+>                                 sp=a000000100db3e20 bsp=a000000100dacd40
+>  [<a0000001009d7b60>] __kprobes_text_end+0x760/0x780
+>                                 sp=a000000100db3e30 bsp=a000000100dacca0
+> Kernel panic - not syncing: Attempted to kill the idle task!
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
