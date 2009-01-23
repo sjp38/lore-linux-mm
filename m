@@ -1,63 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E81D26B0083
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 05:13:36 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <87hc3qcpo1.fsf@basil.nowhere.org>
-References: <20090121143008.GV24891@wotan.suse.de>
-	 <87hc3qcpo1.fsf@basil.nowhere.org>
-Date: Fri, 23 Jan 2009 12:13:32 +0200
-Message-Id: <1232705612.6094.38.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 7D6066B0044
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 06:07:32 -0500 (EST)
+Date: Fri, 23 Jan 2009 12:05:00 +0100
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC v4] wait: prevent waiter starvation in __wait_on_bit_lock
+Message-ID: <20090123110500.GA12684@redhat.com>
+References: <20090117215110.GA3300@redhat.com> <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com> <20090120203131.GA20985@cmpxchg.org> <20090121143602.GA16584@redhat.com> <20090121213813.GB23270@cmpxchg.org> <20090122202550.GA5726@redhat.com> <b647ffbd0901221626o5e654682t147625fa3e19976f@mail.gmail.com> <20090123004702.GA18362@redhat.com> <b647ffbd0901230207u642e24cdg98700aa68ed1aa33@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b647ffbd0901230207u642e24cdg98700aa68ed1aa33@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
+To: Dmitry Adamushko <dmitry.adamushko@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andi,
+On 01/23, Dmitry Adamushko wrote:
+>
+> 2009/1/23 Oleg Nesterov <oleg@redhat.com>:
+> > On 01/23, Dmitry Adamushko wrote:
+> >>
+> >> In short, wq->lock is a sync. mechanism in this case. The scheme is as follows:
+> >>
+> >> our side:
+> >>
+> >> [ finish_wait() ]
+> >>
+> >> lock(wq->lock);
+> >
+> > But we can skip lock(wq->lock), afaics.
+> >
+> > Without rmb(), test_bit() can be re-ordered with list_empty_careful()
+> > in finish_wait() and even with __set_task_state(TASK_RUNNING).
+>
+> But taking into account the constraints of this special case, namely
+> (1), we can't skip lock(wq->lock).
+>
+> (1) "the next contender is us"
+>
+> In this particular situation, we are only interested in the case when
+> we were woken up by __wake_up_bit().
 
-On Fri, 2009-01-23 at 10:55 +0100, Andi Kleen wrote:
-> > +#if L1_CACHE_BYTES < 64
-> > +	if (size > 64 && size <= 96)
-> > +		return 1;
-> > +#endif
-> > +#if L1_CACHE_BYTES < 128
-> > +	if (size > 128 && size <= 192)
-> > +		return 2;
-> > +#endif
-> > +	if (size <=	  8) return 3;
-> > +	if (size <=	 16) return 4;
-> > +	if (size <=	 32) return 5;
-> > +	if (size <=	 64) return 6;
-> > +	if (size <=	128) return 7;
-> > +	if (size <=	256) return 8;
-> > +	if (size <=	512) return 9;
-> > +	if (size <=       1024) return 10;
-> > +	if (size <=   2 * 1024) return 11;
-> > +	if (size <=   4 * 1024) return 12;
-> > +	if (size <=   8 * 1024) return 13;
-> > +	if (size <=  16 * 1024) return 14;
-> > +	if (size <=  32 * 1024) return 15;
-> > +	if (size <=  64 * 1024) return 16;
-> > +	if (size <= 128 * 1024) return 17;
-> > +	if (size <= 256 * 1024) return 18;
-> > +	if (size <= 512 * 1024) return 19;
-> > +	if (size <= 1024 * 1024) return 20;
-> > +	if (size <=  2 * 1024 * 1024) return 21;
-> 
-> Have you looked into other binsizes?  iirc the original slab paper
-> mentioned that power of two is usually not the best.
+Yes,
 
-Judging by the limited boot-time testing I've done with kmemtrace, the
-bulk of kmalloc() allocations are under 64 bytes or so and actually a
-pretty ok fit with the current sizes. The badly fitting objects are
-usually very big and of different sizes (so they won't share a cache
-easily) so I'm not expecting big gains from non-power of two sizes.
+> that means we are _on_ the 'wq' list when we do finish_wait() -> we do
+> take the 'wq->lock'.
 
-			Pekka
+Hmm. No?
+
+We are doing exclusive wait, and we use autoremove_wake_function().
+If we were woken, we are removed from ->task_list.
+
+> Moreover, imagine the following case (roughly similar to finish_wait()):
+>
+> if (LOAD(a) == 1) {
+>     // do something here
+>     mb();
+> }
+>
+> LOAD(b);
+>
+> Can LOAD(b) be reordered with LOAD(a)?
+
+Well, I think yes it can. But I'd suggest you to ask somebody else ;)
+
+So, without rmb() I think it is theoretically possible that we read
+test_bit() before we get list_empty_careful() == T.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
