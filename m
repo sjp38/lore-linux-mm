@@ -1,100 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A3CFE6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 23:18:00 -0500 (EST)
-Date: Fri, 23 Jan 2009 05:17:56 +0100
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 789266B0044
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 01:14:13 -0500 (EST)
+Date: Fri, 23 Jan 2009 07:14:06 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090123041756.GH20098@wotan.suse.de>
-References: <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com> <20090114150900.GC25401@wotan.suse.de> <Pine.LNX.4.64.0901141158090.26507@quilx.com> <20090115060330.GB17810@wotan.suse.de> <Pine.LNX.4.64.0901151320250.26467@quilx.com> <20090116031940.GL17810@wotan.suse.de> <Pine.LNX.4.64.0901161500080.27283@quilx.com> <20090119054730.GA22584@wotan.suse.de> <alpine.DEB.1.10.0901211914140.18367@qirst.com>
+Message-ID: <20090123061405.GK20098@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de> <20090121145918.GA11311@elte.hu> <20090121165600.GA16695@wotan.suse.de> <20090121174010.GA2998@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0901211914140.18367@qirst.com>
+In-Reply-To: <20090121174010.GA2998@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 21, 2009 at 07:19:08PM -0500, Christoph Lameter wrote:
-> On Mon, 19 Jan 2009, Nick Piggin wrote:
-> 
-> > The thing IMO you forget with all these doomsday scenarios about SGI's peta
-> > scale systems is that no matter what you do, you can't avoid the fact that
-> > computing is about locality. Even if you totally take the TLB out of the
-> > equation, you still have the small detail of other caches. Code that jumps
-> > all over that 1024 TB of memory with no locality is going to suck regardless
-> > of what the kernel ever does, due to physical limitations of hardware.
-> 
-> Typically we traverse lists of objects that are in the same slab cache.
+On Wed, Jan 21, 2009 at 06:40:10PM +0100, Ingo Molnar wrote:
+> -static inline void slqb_stat_inc(struct kmem_cache_list *list,
+> -				enum stat_item si)
+> +static inline void
+> +slqb_stat_inc(struct kmem_cache_list *list, enum stat_item si)
+>  {
 
-Very often that is not the case. And the price you pay for that is that
-you have to drain and switch freelists whenever you encounter an object
-that is not on the same page.
+Hmm, I'm not entirely fond of this style. The former scales to longer lines
+with just a single style change (putting args into new lines), wheras the
+latter first moves its prefixes to a newline, then moves args as the
+line grows even longer.
 
-This gives your freelists a chaotic and unpredictable behaviour IMO in
-a running system where pages succumb to fragmentation so your freelist
-maximum sizes are limited. It also means you can lose track of cache
-hot objects when you switch to different "fast" pages. I don't consider
-this to be "queueing done right".
+I guess it is a matter of taste, not wrong either way... but I think most
+of the mm code I'm used to looking at uses the former. Do you feel strongly?
 
- 
-> > > Sorry not at all. SLAB and SLQB queue objects from different pages in the
-> > > same queue.
-> >
-> > The last sentence is what I was replying to. Ie. "simplification of
-> > numa handling" does not follow from the SLUB implementation of per-page
-> > freelists.
-> 
-> If all objects are from the same page then you need not check
-> the NUMA locality of any object on that queue.
 
-In SLAB and SLQB, all objects on the freelist are on the same node. So
-tell me how does same-page objects simplify numa  handling?
+> +static void
+> +trace(struct kmem_cache *s, struct slqb_page *page, void *object, int alloc)
+>  {
+> -	if (s->flags & SLAB_TRACE) {
+> -		printk(KERN_INFO "TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
+> -			s->name,
+> -			alloc ? "alloc" : "free",
+> -			object, page->inuse,
+> -			page->freelist);
+> +	if (likely(!(s->flags & SLAB_TRACE)))
+> +		return;
 
- 
-> > > As I sad it pins a single page in the per cpu page and uses that in a way
-> > > that you call a queue and I call a freelist.
-> >
-> > And you found you have to increase the size of your pages because you
-> > need bigger queues. (must we argue semantics? it is a list of free
-> > objects)
-> 
-> Right. That may be the case and its a similar tuning to what SLAB does.
+I think most of your flow control changes are improvements (others even
+more than this, but this is the first one so I comment here). Thanks.
 
-SLAB and SLQB doesn't need bigger pages to do that.
 
- 
-> > > SLAB and SLUB can have large quantities of objects in their queues that
-> > > each can keep a single page out of circulation if its the last
-> > > object in that page. This is per queue thing and you have at least two
-> >
-> > And if that were a problem, SLQB can easily be runtime tuned to keep no
-> > objects in its object lists. But as I said, queueing is good, so why
-> > would anybody want to get rid of it?
-> 
-> Queing is sometimes good....
-> 
-> > Again, this doesn't really go anywhere while we disagree on the
-> > fundamental goodliness of queueing. This is just describing the
-> > implementation.
-> 
-> I am not sure that you understand the fine points of queuing in slub. I am
-> not a fundamentalist: Queues are good if used the right way and as you say
-> SLUB has "queues" designed in a particular fashion that solves issus that
-> we had with SLAB queues.
- 
-OK, and I juts don't think they solved all the problems and they added
-other worse ones. And if you would tell me what the problems are and
-how to reproduce them (or point to someone who might be able to help
-with reproducing them), then I'm confident that I can solve those problems
-in SLQB, which has fewer downsides than SLUB. At least I will try my best.
+> @@ -1389,7 +1402,9 @@ static noinline void *__remote_slab_allo
+>  	}
+>  	if (likely(object))
+>  		slqb_stat_inc(l, ALLOC);
+> +
+>  	spin_unlock(&n->list_lock);
+> +
+>  	return object;
+>  }
+>  #endif
 
-So can you please give a better idea of the problems? "latency sensitive
-HPC applications" is about as much help to me solving that as telling
-you that "OLTP applications slow down" helps solve one of the problems in
-SLUB. 
+Whitespace, I never really know if I'm "doing it right" or not :) And
+often it is easy to tell a badly wrong one, but harder to tell what is
+better between two reasonable ones. But I guess I'm the same way with
+paragraphs in my writing...
 
+
+> @@ -1399,12 +1414,12 @@ static noinline void *__remote_slab_allo
+>   *
+>   * Must be called with interrupts disabled.
+>   */
+> -static __always_inline void *__slab_alloc(struct kmem_cache *s,
+> -				gfp_t gfpflags, int node)
+> +static __always_inline void *
+> +__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node)
+>  {
+> -	void *object;
+> -	struct kmem_cache_cpu *c;
+>  	struct kmem_cache_list *l;
+> +	struct kmem_cache_cpu *c;
+> +	void *object;
+
+Same with order of local variables. You like longest lines to
+shortest I know. I think I vaguely try to arrange them from the
+most important or high level "actor" to the least, and then in
+order of when they get discovered/used.
+
+For example, in the above function, "object" is the raison d'etre.
+kmem_cache_cpu is found first, and from that, kmem_cache_list is
+found. Which slightly explains the order.
+
+
+> +static __always_inline void *
+> +slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node, void *addr)
+>  {
+> -	void *object;
+>  	unsigned long flags;
+> +	void *object;
+
+And here, eg. flags comes last because mostly inconsequential to
+the bigger picture.
+
+Your method is easier though, I'll grant you that :)
+
+
+>  static void init_kmem_cache_list(struct kmem_cache *s,
+>  				struct kmem_cache_list *l)
+>  {
+> -	l->cache		= s;
+> -	l->freelist.nr		= 0;
+> -	l->freelist.head	= NULL;
+> -	l->freelist.tail	= NULL;
+> -	l->nr_partial		= 0;
+> -	l->nr_slabs		= 0;
+> +	l->cache		 = s;
+> +	l->freelist.nr		 = 0;
+> +	l->freelist.head	 = NULL;
+> +	l->freelist.tail	 = NULL;
+> +	l->nr_partial		 = 0;
+> +	l->nr_slabs		 = 0;
+>  	INIT_LIST_HEAD(&l->partial);
+
+Hmm, we seem to have gathered an extra space...
+
+>  
+>  #ifdef CONFIG_SMP
+> -	l->remote_free_check	= 0;
+> +	l->remote_free_check	 = 0;
+>  	spin_lock_init(&l->remote_free.lock);
+> -	l->remote_free.list.nr	= 0;
+> +	l->remote_free.list.nr	 = 0;
+>  	l->remote_free.list.head = NULL;
+>  	l->remote_free.list.tail = NULL;
+>  #endif
+
+... ah, to line up with this guy. TBH, I prefer not to religiously
+line things up like this. If there is the odd long-line, just give
+it the normal single space. I find it just keeps it easier to
+maintain. Although you might counter that of course it is easier to
+keep something clean if one relaxes their definition of "clean".
+
+
+>  static s8 size_index[24] __cacheline_aligned = {
+> -	3,	/* 8 */
+> -	4,	/* 16 */
+> -	5,	/* 24 */
+> -	5,	/* 32 */
+> -	6,	/* 40 */
+> -	6,	/* 48 */
+> -	6,	/* 56 */
+> -	6,	/* 64 */
+> +	 3,	/* 8 */
+> +	 4,	/* 16 */
+> +	 5,	/* 24 */
+> +	 5,	/* 32 */
+> +	 6,	/* 40 */
+> +	 6,	/* 48 */
+> +	 6,	/* 56 */
+> +	 6,	/* 64 */
+
+However justifying numbers, like this, I'm happy to do (may as well
+align the numbers in the comments too while we're here).
+
+
+> @@ -2278,9 +2294,8 @@ static struct kmem_cache *get_slab(size_
+>  
+>  void *__kmalloc(size_t size, gfp_t flags)
+>  {
+> -	struct kmem_cache *s;
+> +	struct kmem_cache *s = get_slab(size, flags);
+>  
+> -	s = get_slab(size, flags);
+>  	if (unlikely(ZERO_OR_NULL_PTR(s)))
+>  		return s;
+
+I've got yet the same problem with these... I mostly try to avoid
+doing this, although there are some cases where it works well
+(eg. constants, or a simple assignment of an argument to a local).
+
+At some point, you start putting real code in there, at which point
+the space after the local vars doesn't seem to serve much purpose.
+get_slab I feel logically belongs close to the subsequent check,
+because that's basically sanitizing its return value / extracting
+the error case from it and leaving the rest of the function to work
+on the common case.
+
+
+> -static int sysfs_available __read_mostly = 0;
+> +static int sysfs_available __read_mostly;
+
+These, I actually like initializing to zero explicitly. I'm pretty
+sure gcc no longer makes it any more expensive than leaving out.
+Yes of course everybody who knows C has to know this, but.... I
+just don't feel much harm in leaving it.
+
+Lots of good stuff, lots I'm on the fence with, some I dislike ;)
+I'll concentrate on picking up the obvious ones, and get the bugs
+fixed. Will see where the discussion goes with the rest.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
