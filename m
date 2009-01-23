@@ -1,42 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AA26A6B0044
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 22:22:50 -0500 (EST)
-Date: Fri, 23 Jan 2009 12:22:39 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Question: Is  zone->prev_prirotiy  used ?
-In-Reply-To: <20090122090657.7c1d7b56.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090123084500.421C.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090122090657.7c1d7b56.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20090124122053.34E5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8916B0044
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 22:31:42 -0500 (EST)
+Date: Fri, 23 Jan 2009 04:31:33 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] SLQB slab allocator
+Message-ID: <20090123033133.GB20098@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de> <20090121145918.GA11311@elte.hu> <20090121165600.GA16695@wotan.suse.de> <20090121174010.GA2998@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090121174010.GA2998@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, MinChan Kim <minchan.kim@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, riel@redhat.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Kamezawa-san, does its variable prevent your development?
-> > if so, I don't oppose removing.
+On Wed, Jan 21, 2009 at 06:40:10PM +0100, Ingo Molnar wrote:
 > 
-> Hmm, I tried to fix/clean up hierarchical-memory-reclaim + split-LRU and
-> wondered where prev_priority should be recorded (hierarchy root or local or..)
-> and found prev_priority is not used.
+> * Nick Piggin <npiggin@suse.de> wrote:
 > 
-> IMHO, LRU management is too complex to keep unnecessary code maintained just
-> because it may be used in future. I personally like to rewrite better new code
-> rather than reuse old ruins.
-
-I can't oppose maintenar's opinion ;)
-ok, I'll make the patch next week.
-
-
+> > On Wed, Jan 21, 2009 at 03:59:18PM +0100, Ingo Molnar wrote:
+> > > 
+> > > Mind if i nitpick a bit about minor style issues? Since this is going to 
+> > > be the next Linux SLAB allocator we might as well do it perfectly :-)
+> > 
+> > Well here is an incremental patch which should get most of the issues 
+> > you pointed out, most of the sane ones that checkpatch pointed out, and 
+> > a few of my own ;)
 > 
-> But I'm not in hurry. I just wanted to confirm.
-> 
-> BTW, I noticed mem_cgroup_calc_mapped_ratio() is not used, either ;)
+> here's an incremental one ontop of your incremental patch, enhancing some 
+> more issues. I now find the code very readable! :-)
 
+Thanks! I'll go through it and apply it. I'll raise any issues if I
+am particularly against them ;)
 
+> ( in case you are wondering about the placement of bit_spinlock.h - that 
+>   file needs fixing, just move it to the top of the file and see the build 
+>   break. But that's a separate patch.)
+
+Ah, SLQB doesn't use bit spinlocks anyway, so I'll just get rid of that.
+I'll see if there are any other obviously unneeded headers too.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
