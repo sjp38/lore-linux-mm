@@ -1,95 +1,372 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 58F316B004F
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 06:10:26 -0500 (EST)
-Received: by mu-out-0910.google.com with SMTP id i2so3111848mue.6
-        for <linux-mm@kvack.org>; Fri, 23 Jan 2009 03:10:24 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090122231358.GA27033@elte.hu>
-References: <8c5a844a0901220851g1c21169al4452825564487b9a@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221658550.14302@blonde.anvils>
-	 <8c5a844a0901221500m7af8ff45v169b6523ad9d7ad3@mail.gmail.com>
-	 <20090122231358.GA27033@elte.hu>
-Date: Fri, 23 Jan 2009 13:10:23 +0200
-Message-ID: <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-From: Daniel Lowengrub <lowdanie@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD696B0055
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 06:26:06 -0500 (EST)
+Date: Fri, 23 Jan 2009 12:25:55 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch] SLQB slab allocator
+Message-ID: <20090123112555.GF19986@wotan.suse.de>
+References: <20090121143008.GV24891@wotan.suse.de> <87hc3qcpo1.fsf@basil.nowhere.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87hc3qcpo1.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <clameter@engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 23, 2009 at 1:13 AM, Ingo Molnar <mingo@elte.hu> wrote:
->
-> * Daniel Lowengrub <lowdanie@gmail.com> wrote:
->
->> Simple syscall: 0.7419 / 0.4244 microseconds
->> Simple read: 1.2071 / 0.7270 microseconds
->
->there must be a significant measurement mistake here: none of your patches
->affect the 'simple syscall' path, nor the sys_read() path.
->
->        Ingo
-I ran the tests again, this time I ran them twice on each system and
-calculated the average, the differences between results on the same os
-were very small - I guess this means that the results were accurate.
-I also made sure that no other programs were running during the tests.
- Here're the new results using the same format of
-test : standard kernel / kernel after patch
+On Fri, Jan 23, 2009 at 10:55:26AM +0100, Andi Kleen wrote:
+> Nick Piggin <npiggin@suse.de> writes:
+> 
+> Not a full review, just some things i noticed.
+> 
+> The code is very readable thanks (that's imho the main reason slab.c
+> should go btw, it's really messy and hard to get through)
 
-Simple syscall: 0.26080 / 0.24935 microseconds
-Simple read: 0.42580 / 0.43080 microseconds
-Simple write: 0.36695 / 0.34565 microseconds
-Simple stat: 2.71205 / 2.37415 microseconds
-Simple fstat: 0.74955 / 0.66450 microseconds
-Simple open/close: 3.95465 / 3.35740 microseconds
-Select on 10 fd's: 0.74590 / 0.79510 microseconds
-Select on 100 fd's: 2.97720 / 3.03445 microseconds
-Select on 250 fd's: 6.51940 / 6.58265 microseconds
-Select on 500 fd's: 12.56530 / 12.63580 microseconds
-Signal handler installation: 0.63005 / 0.65285 microseconds
-Signal handler overhead: 2.30350 / 2.24475 microseconds
-Protection fault: 0.41750 / 0.42705 microseconds
-Pipe latency: 6.04580 / 5.61270 microseconds
-AF_UNIX sock stream latency: 9.00595 / 8.65615 microseconds
-Process fork+exit: 130.57580 / 122.26665 microseconds
-Process fork+execve: 491.81820 / 460.79490 microseconds
-Process fork+/bin/sh -c: 2173.16665 / 2088.50000 microseconds
-File /home/daniel/tmp/XXX write bandwidth: 23814.50000 / 23298.50000 KB/sec
-Pagefaults on /home/daniel/tmp/XXX: 1.22625 / 1.17470 microseconds
+Thanks, appreciated. It is very helpful.
 
-"mappings
-0.5242880 6.91 / 7.11
-1.0485760 12.00 / 10.42
-2.0971520 20.00 / 17.50
-4.1943040 36.00 / 33.00
-8.3886080 70.50 / 61.00
-16.7772160 121.00 / 114.50
-33.5544320 237.50 / 217.50
-67.1088640 472.50 / 427.50
-134.2177280 947.00 / 846.00
-268.4354560 1891.00 / 1694.00
-536.8709120 3786.00 / 3362.00
-1073.7418240 8252.00 / 7357.00
+ 
+> > Using lists rather than arrays can reduce the cacheline footprint. When moving
+> > objects around, SLQB can move a list of objects from one CPU to another by
+> > simply manipulating a head pointer, wheras SLAB needs to memcpy arrays. Some
+> > SLAB per-CPU arrays can be up to 1K in size, which is a lot of cachelines that
+> > can be touched during alloc/free. Newly freed objects tend to be cache hot,
+> > and newly allocated ones tend to soon be touched anyway, so often there is
+> > little cost to using metadata in the objects.
+> 
+> You're probably aware of that, but the obvious counter argument
+> is that for manipulating a single object a double linked
+> list will always require touching three cache lines
+> (prev, current, next), while an array access only a single one.
+> A possible alternative would be a list of shorter arrays.
 
-As you expected, now there isn't a significant difference in the syscalls.
-The summery of the tests where 2.6.28D.1 is the kernel after the patch
-and 2.6.28D is the standard kernel is:
+That's true, but SLQB doesn't use double linked lists, but single.
+An allocation needs to load a "head" pointer to the first object, then
+load a "next" pointer from that object and assign it to "head". The
+2nd load touches memory which should be subsequently touched bythe
+caller anyway. A free just has to assign a pointer in the to-be-freed
+object to point to the old head, and then update the head to the new
+object. So this 1st touch should usually be cache hot memory.
 
-Processor, Processes - times in microseconds - smaller is better
-------------------------------------------------------------------------------
-Host                 OS    Mhz null null      open slct sig  sig  fork exec sh
-                               call  I/O stat clos TCP  inst hndl proc proc proc
---------- --------------- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-localhost Linux 2.6.28D   1678 0.26 0.40 2.71 4.02 5.61 0.63 2.30 129. 494. 2172
-localhost Linux 2.6.28D   1678 0.26 0.40 2.71 3.89 5.61 0.63 2.31 131. 489. 2174
-localhost Linux 2.6.28D.1 1678 0.25 0.39 2.38 3.34 5.70 0.65 2.24 122. 457. 2083
-localhost Linux 2.6.28D.1 1678 0.25 0.39 2.37 3.37 5.68 0.65 2.25 122. 463. 2094
+But yes there are situations where SLAB scheme could result in
+fewer cache misses. I haven't yet noticed it is a problem.
 
-What do you think?  Are there other tests you'd like me to run?
-Daniel
+
+> > +	const char *name;	/* Name (only for display!) */
+> > +	struct list_head list;	/* List of slab caches */
+> > +
+> > +	int align;		/* Alignment */
+> > +	int inuse;		/* Offset to metadata */
+> 
+> I suspect some of these fields could be short or char (E.g. alignment),
+> possibly lowering cache line impact.
+
+Good point. I'll have to do a pass through all structures and
+make sure sizes and alignments etc are optimal. I have somewhat
+ordered it eg. so that LIFO freelist allocations only have to
+touch the first few fields in structures, then partial page
+list allocations touch the next few, then page allocator etc.
+
+But that might have gone out of date a little bit.
+
+
+> > +#ifdef CONFIG_SLQB_SYSFS
+> > +	struct kobject kobj;	/* For sysfs */
+> > +#endif
+> > +#ifdef CONFIG_NUMA
+> > +	struct kmem_cache_node *node[MAX_NUMNODES];
+> > +#endif
+> > +#ifdef CONFIG_SMP
+> > +	struct kmem_cache_cpu *cpu_slab[NR_CPUS];
+> 
+> Those both really need to be dynamically allocated, otherwise
+> it wastes a lot of memory in the common case
+> (e.g. NR_CPUS==128 kernel on dual core system). And of course
+> on the proposed NR_CPUS==4096 kernels it becomes prohibitive.
+> 
+> You could use alloc_percpu? There's no alloc_pernode 
+> unfortunately, perhaps there should be one. 
+
+cpu_slab is dynamically allocated, by just changing the size of
+the kmem_cache cache at boot time. Probably the best way would
+be to have dynamic cpu and node allocs for them, I agree.
+
+Any plans for an alloc_pernode?
+
+
+> > +	if (size <=  2 * 1024 * 1024) return 21;
+> 
+> Have you looked into other binsizes?  iirc the original slab paper
+> mentioned that power of two is usually not the best.
+
+No I haven't. Although I have been spending most effort at this
+point just to improve SLQB versus the other allocators without
+changing things like this. But it would be fine to investigate
+when SLQB is more mature or for somebody else to look at it.
+
+> > +/*
+> > + * Find the kmalloc slab cache for a given combination of allocation flags and
+> > + * size.
+> 
+> You should mention that this would be a very bad idea to call for !__builtin_constant_p(size)
+
+OK. It's not meant to be used outside slqb_def.h, however.
+
+
+> > +static __always_inline struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
+> > +{
+> > +	int index = kmalloc_index(size);
+> > +
+> > +	if (unlikely(index == 0))
+> > +		return NULL;
+> > +
+> > +	if (likely(!(flags & SLQB_DMA)))
+> > +		return &kmalloc_caches[index];
+> > +	else
+> > +		return &kmalloc_caches_dma[index];
+> 
+> BTW i had an old patchkit to kill all GFP_DMA slab users. Perhaps should
+> warm that up again. That would lower the inline footprint.
+
+That would be excellent. It would also reduce constant data overheads
+for SLAB and SLQB, and some nasty code from SLUB.
+
+
+> > +#ifdef CONFIG_NUMA
+> > +void *__kmalloc_node(size_t size, gfp_t flags, int node);
+> > +void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node);
+> > +
+> > +static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+> 
+> kmalloc_node should be infrequent, i suspect it can be safely out of lined.
+
+Hmm... I wonder how much it increases code size...
+
+
+> > + * - investiage performance with memoryless nodes. Perhaps CPUs can be given
+> > + *   a default closest home node via which it can use fastpath functions.
+> 
+> FWIW that is what x86-64 always did. Perhaps you can just fix ia64 to do 
+> that too and be happy.
+
+What if the node is possible but not currently online?
+
+ 
+> > + * aspects, however to avoid the horrible mess in include/linux/mm_types.h,
+> > + * we'll just define our own struct slqb_page type variant here.
+> 
+> Hopefully this works for the crash dumpers. Do they have a way to distingush
+> slub/slqb/slab kernels with different struct page usage?
+
+Beyond looking at configs or hacks like looking at symbols, I don't
+think so... It probably should go into vermagic I guess.
+
+
+> > +#define PG_SLQB_BIT (1 << PG_slab)
+> > +
+> > +static int kmem_size __read_mostly;
+> > +#ifdef CONFIG_NUMA
+> > +static int numa_platform __read_mostly;
+> > +#else
+> > +#define numa_platform 0
+> > +#endif
+> 
+> It would be cheaper if you put that as a flag into the kmem_caches flags, this
+> way you avoid an additional cache line touched.
+
+Ok, that works.
+
+ 
+> > +static inline int slqb_page_to_nid(struct slqb_page *page)
+> > +{
+> > +	return page_to_nid(&page->page);
+> > +}
+> 
+> etc. you got a lot of wrappers...
+
+I think they're not too bad though.
+
+ 
+> > +static inline struct slqb_page *alloc_slqb_pages_node(int nid, gfp_t flags,
+> > +						unsigned int order)
+> > +{
+> > +	struct page *p;
+> > +
+> > +	if (nid == -1)
+> > +		p = alloc_pages(flags, order);
+> > +	else
+> > +		p = alloc_pages_node(nid, flags, order);
+> 
+> alloc_pages_nodes does that check anyways.
+
+OK, I rip out that wrapper completely.
+
+
+> > +/* Not all arches define cache_line_size */
+> > +#ifndef cache_line_size
+> > +#define cache_line_size()	L1_CACHE_BYTES
+> > +#endif
+> > +
+> 
+> They should. better fix them?
+
+git grep -l -e cache_line_size arch/ | egrep '\.h$'
+
+Only ia64, mips, powerpc, sparc, x86...
+
+> > +	/*
+> > +	 * Determine which debug features should be switched on
+> > +	 */
+> 
+> It would be nicer if you could use long options. At least for me
+> that would increase the probability that I could remember them
+> without having to look them up.
+
+I haven't looked closely at the debug code which is mostly straight
+out of SLUB and minimal changes to get it working. Of course it is
+very important, but useless if the core allocator isn't good. I
+also don't want to diverge from SLUB in these areas if possible until
+we reduce the number of allocators in the tree...
+
+Long options is probably not a bad idea, though.
+
+
+> > +	if (unlikely(slab_poison(s)))
+> > +		memset(start, POISON_INUSE, PAGE_SIZE << s->order);
+> > +
+> > +	start += colour;
+> 
+> One thing i was wondering. Did you try to disable the colouring and see
+> if it makes much difference on modern systems? They tend to have either
+> larger caches or higher associativity caches.
+
+I have tried, but I don't think I found a test where it made a
+statistically significant difference. It is not very costly to
+implement, though.
+
+ 
+> Or perhaps it could be made optional based on CPU type?
+
+It could easily be changed, yes.
+
+
+ 
+> > +
+> > +again:
+> > +	local_irq_save(flags);
+> > +	object = __slab_alloc(s, gfpflags, node);
+> > +	local_irq_restore(flags);
+> 
+> At least on P4 you could get some win by avoiding the local_irq_save() up in the fast
+> path when __GFP_WAIT is set (because storing the eflags is very expensive there)
+
+That's a good point, although also something trivially applicable to
+all allocators and as such I prefer not to add such differences to
+the SLQB patch if we are going into an evaluation phase.
+
+
+> > +/* Initial slabs */
+> > +#ifdef CONFIG_SMP
+> > +static struct kmem_cache_cpu kmem_cache_cpus[NR_CPUS];
+> > +#endif
+> > +#ifdef CONFIG_NUMA
+> > +static struct kmem_cache_node kmem_cache_nodes[MAX_NUMNODES];
+> > +#endif
+> > +
+> > +#ifdef CONFIG_SMP
+> > +static struct kmem_cache kmem_cpu_cache;
+> > +static struct kmem_cache_cpu kmem_cpu_cpus[NR_CPUS];
+> > +#ifdef CONFIG_NUMA
+> > +static struct kmem_cache_node kmem_cpu_nodes[MAX_NUMNODES];
+> > +#endif
+> > +#endif
+> > +
+> > +#ifdef CONFIG_NUMA
+> > +static struct kmem_cache kmem_node_cache;
+> > +static struct kmem_cache_cpu kmem_node_cpus[NR_CPUS];
+> > +static struct kmem_cache_node kmem_node_nodes[MAX_NUMNODES];
+> > +#endif
+> 
+> That all needs fixing too of course.
+
+Hmm. I was hoping it could stay simple as it is just a static constant
+(for a given NR_CPUS) overhead. I wonder if bootmem is still up here?
+How fine grained is it these days? 
+
+Could bite the bullet and do a multi-stage bootstap like SLUB, but I
+want to try avoiding that (but init code is also of course much less
+important than core code and total overheads). 
+
+
+> > +static void free_kmem_cache_cpus(struct kmem_cache *s)
+> > +{
+> > +	int cpu;
+> > +
+> > +	for_each_online_cpu(cpu) {
+> 
+> Is this protected against racing cpu hotplugs? Doesn't look like it. Multiple occurrences.
+
+I think you're right.
+
+ 
+> > +static void cache_trim_worker(struct work_struct *w)
+> > +{
+> > +	struct delayed_work *work =
+> > +		container_of(w, struct delayed_work, work);
+> > +	struct kmem_cache *s;
+> > +	int node;
+> > +
+> > +	if (!down_read_trylock(&slqb_lock))
+> > +		goto out;
+> 
+> No counter for this?
+
+It's quite unimportant. It will only race with creating or destroying
+actual kmem caches, and cache trimming is infrequent too.
+
+
+> > +	down_read(&slqb_lock);
+> > +	list_for_each_entry(s, &slab_caches, list) {
+> > +		/*
+> > +		 * XXX: kmem_cache_alloc_node will fallback to other nodes
+> > +		 *      since memory is not yet available from the node that
+> > +		 *      is brought up.
+> > +		 */
+> > +		if (s->node[nid]) /* could be lefover from last online */
+> > +			continue;
+> > +		n = kmem_cache_alloc(&kmem_node_cache, GFP_KERNEL);
+> > +		if (!n) {
+> > +			ret = -ENOMEM;
+> 
+> Surely that should panic? I don't think a slab less node will
+> be very useful later.
+
+Returning error here I think will just fail the online operation?
+Better than a panic :)
+
+
+> > +static ssize_t align_show(struct kmem_cache *s, char *buf)
+> > +{
+> > +	return sprintf(buf, "%d\n", s->align);
+> > +}
+> > +SLAB_ATTR_RO(align);
+> > +
+> 
+> When you map back to the attribute you can use a index into a table
+> for the field, saving that many functions?
+> 
+> > +STAT_ATTR(CLAIM_REMOTE_LIST, claim_remote_list);
+> > +STAT_ATTR(CLAIM_REMOTE_LIST_OBJECTS, claim_remote_list_objects);
+> 
+> This really should be table driven, shouldn't it? That would give much
+> smaller code.
+
+Tables probably would help. I will keep it close to SLUB for now,
+though.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
