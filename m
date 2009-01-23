@@ -1,105 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 763C56B0044
-	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 23:09:17 -0500 (EST)
-Date: Fri, 23 Jan 2009 05:09:13 +0100
+	by kanga.kvack.org (Postfix) with ESMTP id A3CFE6B0044
+	for <linux-mm@kvack.org>; Thu, 22 Jan 2009 23:18:00 -0500 (EST)
+Date: Fri, 23 Jan 2009 05:17:56 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [patch] SLQB slab allocator
-Message-ID: <20090123040913.GG20098@wotan.suse.de>
-References: <20090114152207.GD25401@wotan.suse.de> <84144f020901140730l747b4e06j41fb8a35daeaf6c8@mail.gmail.com> <20090114155923.GC1616@wotan.suse.de> <Pine.LNX.4.64.0901141219140.26507@quilx.com> <20090115061931.GC17810@wotan.suse.de> <Pine.LNX.4.64.0901151434150.28387@quilx.com> <20090116034356.GM17810@wotan.suse.de> <Pine.LNX.4.64.0901161509160.27283@quilx.com> <20090119061856.GB22584@wotan.suse.de> <alpine.DEB.1.10.0901211903540.18367@qirst.com>
+Message-ID: <20090123041756.GH20098@wotan.suse.de>
+References: <20090114142200.GB25401@wotan.suse.de> <84144f020901140645o68328e01ne0e10ace47555e19@mail.gmail.com> <20090114150900.GC25401@wotan.suse.de> <Pine.LNX.4.64.0901141158090.26507@quilx.com> <20090115060330.GB17810@wotan.suse.de> <Pine.LNX.4.64.0901151320250.26467@quilx.com> <20090116031940.GL17810@wotan.suse.de> <Pine.LNX.4.64.0901161500080.27283@quilx.com> <20090119054730.GA22584@wotan.suse.de> <alpine.DEB.1.10.0901211914140.18367@qirst.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0901211903540.18367@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0901211914140.18367@qirst.com>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 21, 2009 at 07:13:44PM -0500, Christoph Lameter wrote:
+On Wed, Jan 21, 2009 at 07:19:08PM -0500, Christoph Lameter wrote:
 > On Mon, 19 Jan 2009, Nick Piggin wrote:
 > 
-> > > The per cpu queue size in SLUB is limited by the queues only containing
-> > > objects from the same page. If you have large queues like SLAB/SLQB(?)
-> > > then this could be an issue.
-> >
-> > And it could be a problem in SLUB too. Chances are that several allocations
-> > will be wrong after every policy switch. I could describe situations in which
-> > SLUB will allocate with the _wrong_ policy literally 100% of the time.
+> > The thing IMO you forget with all these doomsday scenarios about SGI's peta
+> > scale systems is that no matter what you do, you can't avoid the fact that
+> > computing is about locality. Even if you totally take the TLB out of the
+> > equation, you still have the small detail of other caches. Code that jumps
+> > all over that 1024 TB of memory with no locality is going to suck regardless
+> > of what the kernel ever does, due to physical limitations of hardware.
 > 
-> No it cannot because in SLUB objects must come from the same page.
-> Multiple objects in a queue will only ever require a single page and not
-> multiple like in SLAB.
+> Typically we traverse lists of objects that are in the same slab cache.
 
-I don't know how that solves the problem. Task with memory policy A
-allocates an object, which allocates the "fast" page with policy A
-and allocates an object. Then context switch to task with memory
-policy B which allocates another object, which is taken from the page
-allocated with policy A. Right?
+Very often that is not the case. And the price you pay for that is that
+you have to drain and switch freelists whenever you encounter an object
+that is not on the same page.
 
-(OK this doesn't give the wrong policy 100% of the time; I thought
-there could have been a context switch race during page allocation
-that would result in 100% incorrect, but anyway it could still be
-significantly incorrect couldn't it?)
+This gives your freelists a chaotic and unpredictable behaviour IMO in
+a running system where pages succumb to fragmentation so your freelist
+maximum sizes are limited. It also means you can lose track of cache
+hot objects when you switch to different "fast" pages. I don't consider
+this to be "queueing done right".
 
  
-> > > That means large amounts of memory are going to be caught in these queues.
-> > > If its per cpu and one cpu does allocation and the other frees then the
-> > > first cpu will consume more and more memory from the page allocator
-> > > whereas the second will build up huge per cpu lists.
+> > > Sorry not at all. SLAB and SLQB queue objects from different pages in the
+> > > same queue.
 > >
-> > Wrong. I said I would allow an option to turn off *periodic trimming*.
-> > Or just modify the existing tunables or look at making the trimming
-> > more fine grained etc etc. I won't know until I see a workload where it
-> > hurts, and I will try to solve it then.
+> > The last sentence is what I was replying to. Ie. "simplification of
+> > numa handling" does not follow from the SLUB implementation of per-page
+> > freelists.
 > 
-> You are not responding to the issue. If you have queues that contain
-> objects from multiple pages then every object pointer in these queues can
-> pin a page although this actually is a free object.
+> If all objects are from the same page then you need not check
+> the NUMA locality of any object on that queue.
 
-I am trying to respond to what you raise. "The" issue I thought you
-raised above was that SLQB would grow freelists unbounded
-
- "the first cpu will consume more and more memory from the page allocator
-  whereas the second will build up huge per cpu lists"
-
-And this is wrong. There is another possible issue where every single
-object on the freelist might come from a different (and otherwise free)
-page, and thus eg 100 8 byte objects might consume 400K.
-
-That's not an invalid concern, but I think it will be quite rare, and
-the periodic queue trimming should naturally help this because it will
-cycle out those objects and if new allocations are needed, they will
-come from new pages which can be packed more densely.
+In SLAB and SLQB, all objects on the freelist are on the same node. So
+tell me how does same-page objects simplify numa  handling?
 
  
-> > > It seems that on SMP systems SLQB will actually increase the number of
-> > > queues since it needs 2 queues per cpu instead of the 1 of SLAB.
+> > > As I sad it pins a single page in the per cpu page and uses that in a way
+> > > that you call a queue and I call a freelist.
 > >
-> > I don't know what you mean when you say queues, but SLQB has more
-> > than 2 queues per CPU. Great. I like them ;)
+> > And you found you have to increase the size of your pages because you
+> > need bigger queues. (must we argue semantics? it is a list of free
+> > objects)
 > 
-> This gets better and better.
+> Right. That may be the case and its a similar tuning to what SLAB does.
 
-So no response to my asking where the TLB improvement in SLUB helps,
-or where queueing hurts? You complain about not being able to reproduce
-Intel's OLTP problem, and yet you won't even _say_ what the problems
-are for SLQB. Wheras Intel at least puts a lot of effort into running
-tests and helping to analyse things.
+SLAB and SLQB doesn't need bigger pages to do that.
 
-
-> > > SLAB also
-> > > has resizable queues.
-> >
-> > Not significantly because that would require large memory allocations for
-> > large queues. And there is no code there to do runtime resizing.
-> 
-> Groan. Please have a look at do_tune_cpucache() in slab.c
-
-Cool, I didn't realise it had hooks to do runtime resizing. The more
-important issue of course is the one of extra cache footprint and
-metadata in SLAB's scheme.
  
+> > > SLAB and SLUB can have large quantities of objects in their queues that
+> > > each can keep a single page out of circulation if its the last
+> > > object in that page. This is per queue thing and you have at least two
+> >
+> > And if that were a problem, SLQB can easily be runtime tuned to keep no
+> > objects in its object lists. But as I said, queueing is good, so why
+> > would anybody want to get rid of it?
+> 
+> Queing is sometimes good....
+> 
+> > Again, this doesn't really go anywhere while we disagree on the
+> > fundamental goodliness of queueing. This is just describing the
+> > implementation.
+> 
+> I am not sure that you understand the fine points of queuing in slub. I am
+> not a fundamentalist: Queues are good if used the right way and as you say
+> SLUB has "queues" designed in a particular fashion that solves issus that
+> we had with SLAB queues.
+ 
+OK, and I juts don't think they solved all the problems and they added
+other worse ones. And if you would tell me what the problems are and
+how to reproduce them (or point to someone who might be able to help
+with reproducing them), then I'm confident that I can solve those problems
+in SLQB, which has fewer downsides than SLUB. At least I will try my best.
+
+So can you please give a better idea of the problems? "latency sensitive
+HPC applications" is about as much help to me solving that as telling
+you that "OLTP applications slow down" helps solve one of the problems in
+SLUB. 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
