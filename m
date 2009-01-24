@@ -1,27 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A8D166B0044
-	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 15:15:55 -0500 (EST)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <1232728669.4826.143.camel@laptop>
-References: <1232728669.4826.143.camel@laptop>
-Subject: Re: [PATCH] x86,mm: fix pte_free()
-Date: Fri, 23 Jan 2009 20:15:04 +0000
-Message-ID: <29744.1232741704@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E19406B0044
+	for <linux-mm@kvack.org>; Fri, 23 Jan 2009 21:38:56 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator (try 2)
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <20090123154653.GA14517@wotan.suse.de>
+References: <20090123154653.GA14517@wotan.suse.de>
+Content-Type: text/plain
+Date: Sat, 24 Jan 2009 10:38:46 +0800
+Message-Id: <1232764726.11429.185.camel@ymzhang>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: dhowells@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, L-K <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra <peterz@infradead.org> wrote:
+On Fri, 2009-01-23 at 16:46 +0100, Nick Piggin wrote:
+> Hi,
+> 
+> Since last time, fixed bugs pointed out by Hugh and Andi, cleaned up the
+> code suggested by Ingo (haven't yet incorporated Ingo's last patch).
+> 
+> Should have fixed the crash reported by Yanmin (I was able to reproduce it
+> on an ia64 system and fix it).
+> 
+> Significantly reduced static footprint of init arrays, thanks to Andi's
+> suggestion.
+> 
+> Please consider for trial merge for linux-next.
+When applying the patch to 2.6.29-rc2, I got:
+[ymzhang@lkp-h01 linux-2.6.29-rc2_slqb0123]$ patch -p1<../patch-slqb0123
+patching file include/linux/rcupdate.h
+patching file include/linux/slqb_def.h
+patching file init/Kconfig
+patching file lib/Kconfig.debug
+patching file mm/slqb.c
+patch: **** malformed patch at line 4042: Index: linux-2.6/include/linux/slab.h
 
-> It seems all architectures except x86 and nm10300 already do this, and
-> nm10300 doesn't seem to use pgtable_page_ctor(), which suggests it
-> doesn't do SMP or simply doesnt do MMU at all or something.
-
-MN10300 does not, as yet, do SMP.
-
-David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
