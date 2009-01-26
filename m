@@ -1,56 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 571D86B0044
-	for <linux-mm@kvack.org>; Sun, 25 Jan 2009 22:09:18 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0Q39F28021608
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 26 Jan 2009 12:09:15 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BDBF45DD7D
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:09:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0F7B545DD78
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:09:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E3E921DB803B
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:09:14 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A0F2F1DB803E
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:09:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] x86,mm: fix pte_free()
-In-Reply-To: <20090123174543.GA16348@elte.hu>
-References: <1232732387.4850.1.camel@laptop> <20090123174543.GA16348@elte.hu>
-Message-Id: <20090127120636.1BDF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id C67F36B0044
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 03:48:30 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator (try 2)
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <20090123154653.GA14517@wotan.suse.de>
+References: <20090123154653.GA14517@wotan.suse.de>
+Date: Mon, 26 Jan 2009 10:48:26 +0200
+Message-Id: <1232959706.21504.7.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Mon, 26 Jan 2009 12:09:13 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: kosaki.motohiro@jp.fujitsu.com, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Hugh Dickins <hugh@veritas.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, L-K <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Howells <dhowells@redhat.com>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> * Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > On Fri, 2009-01-23 at 18:34 +0100, Ingo Molnar wrote:
-> > 
-> > > So i agree with the fix, but the patch does not look right: shouldnt that 
-> > > be pgtable_page_dtor(pte), so that we get ->mapping cleared via 
-> > > pte_lock_deinit()? (which i guess your intention was here - this probably 
-> > > wont even build)
-> > 
-> > Yeah, I somehow fudged it, already send out a better one. -- One of them
-> > days I guess :-(
-> 
-> no problem - applied to tip/x86/urgent, thanks Peter!
+Hi Nick,
 
-please fix typo. s/nm10300/MN10300/ :)
-at first look, I don't understand his intention.
+On Fri, 2009-01-23 at 16:46 +0100, Nick Piggin wrote:
+> Since last time, fixed bugs pointed out by Hugh and Andi, cleaned up the
+> code suggested by Ingo (haven't yet incorporated Ingo's last patch).
+> 
+> Should have fixed the crash reported by Yanmin (I was able to reproduce it
+> on an ia64 system and fix it).
+> 
+> Significantly reduced static footprint of init arrays, thanks to Andi's
+> suggestion.
+> 
+> Please consider for trial merge for linux-next.
 
+I merged a the one you resent privately as this one didn't apply at all.
+The code is in topic/slqb/core branch of slab.git and should appear in
+linux-next tomorrow.
 
+Testing and especially performance testing is welcome. If any of the HPC
+people are reading this, please do give SLQB a good beating as Nick's
+plan is to replace both, SLAB and SLUB, with it in the long run. As
+Christoph has expressed concerns over latency issues of SLQB, I suppose
+it would be interesting to hear if it makes any difference to the
+real-time folks.
+
+		Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
