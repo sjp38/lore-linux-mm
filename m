@@ -1,60 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 38C806B0044
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:50:14 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id AC23C82C25F
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:51:52 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id u2qNvPDfq+Rg for <linux-mm@kvack.org>;
-	Mon, 26 Jan 2009 12:51:52 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C119B82C260
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 12:51:47 -0500 (EST)
-Date: Mon, 26 Jan 2009 12:46:49 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <200901240409.27449.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.DEB.1.10.0901261241070.22291@qirst.com>
-References: <20090114150900.GC25401@wotan.suse.de> <alpine.DEB.1.10.0901231042380.32253@qirst.com> <20090123161017.GC14517@wotan.suse.de> <200901240409.27449.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 95B4F6B0044
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 14:38:15 -0500 (EST)
+Date: Mon, 26 Jan 2009 11:37:28 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v2][PATCH]page_fault retry with NOPAGE_RETRY
+Message-Id: <20090126113728.58212a30.akpm@linux-foundation.org>
+In-Reply-To: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com>
+References: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, mikew@google.com, rientjes@google.com, rohitseth@google.com, hugh@veritas.com, a.p.zijlstra@chello.nl, hpa@zytor.com, edwintorok@gmail.com, lee.schermerhorn@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Jan 2009, Nick Piggin wrote:
+On Fri, 5 Dec 2008 11:40:19 -0800
+Ying Han <yinghan@google.com> wrote:
 
-> > > SLUB can directly free an object to any slab page. "Queuing" on free via
-> > > the per cpu slab is only possible if the object came from that per cpu
-> > > slab. This is typically only the case for objects that were recently
-> > > allocated.
-> >
-> > Ah yes ok that's right. But then you don't get LIFO allocation
-> > behaviour for those cases.
->
-> And actually really this all just stems from conceptually in fact you
-> _do_ switch to a different queue (from the one being allocated from)
-> to free the object if it is on a different page. Because you have a
-> set of queues (a queue per-page). So freeing to a different queue is
-> where you lose LIFO property.
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -591,6 +591,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigne
+>  #ifdef CONFIG_X86_64
+>  	unsigned long flags;
+>  #endif
+> +	unsigned int retry_flag = FAULT_FLAG_RETRY;
+> 
+>  	tsk = current;
+>  	mm = tsk->mm;
+> @@ -689,6 +690,7 @@ again:
+>  		down_read(&mm->mmap_sem);
+>  	}
+> 
+> +retry:
+>  	vma = find_vma(mm, address);
+>  	if (!vma)
+>  		goto bad_area;
+> @@ -715,6 +717,7 @@ again:
+>  good_area:
+>  	si_code = SEGV_ACCERR;
+>  	write = 0;
+> +	write |= retry_flag;
+>  	switch (error_code & (PF_PROT|PF_WRITE)) {
+>  	default:	/* 3: write, present */
+>  		/* fall through */
+> @@ -743,6 +746,15 @@ good_area:
+>  			goto do_sigbus;
+>  		BUG();
+>  	}
+> +
+> +	if (fault & VM_FAULT_RETRY) {
+> +		if (write & FAULT_FLAG_RETRY) {
+> +			retry_flag &= ~FAULT_FLAG_RETRY;
+> +			goto retry;
+> +		}
+> +		BUG();
+> +	}
+> +
+>  	if (fault & VM_FAULT_MAJOR)
+>  		tsk->maj_flt++;
+>  	else
 
-Yes you basically go for locality instead of LIFO if the free does not hit
-the per cpu slab. If the object is not in the per cpu slab then it is
-likely that it had a long lifetime and thus LIFOness does not matter
-too much. It is likely that many objects from that slab are going to be
-freed at the same time. So the first free warms up the "queue" of the page
-you are freeing to.
+This code is mixing flags from the FAULT_FLAG_foor domain into local
+variable `write'.  But that's inappropriate because `write' is a
+boolean, and in one of Ingo's trees, `write' gets bits other than bit 0
+set, and it all generally ends up a mess.
 
-This is an increasingly important feature since memory chips prefer
-allocations next to each other. Same page accesses are faster
-in recent memory subsystems than random accesses across memory. LIFO used
-to be better but we are increasingly getting into locality of access being
-very important for access. Especially with the NUMA characteristics of the
-existing AMD and upcoming Nehalem processors this will become much more
-important.
+Can we not do that?  I assume that a previous version of this patch
+kept those things separated?
+
+Something like this, I think?
+
+diff -puN arch/x86/mm/fault.c~page_fault-retry-with-nopage_retry-fix arch/x86/mm/fault.c
+--- a/arch/x86/mm/fault.c~page_fault-retry-with-nopage_retry-fix
++++ a/arch/x86/mm/fault.c
+@@ -799,7 +799,7 @@ void __kprobes do_page_fault(struct pt_r
+ 	struct vm_area_struct *vma;
+ 	int write;
+ 	int fault;
+-	unsigned int retry_flag = FAULT_FLAG_RETRY;
++	int retry_flag = 1;
+ 
+ 	tsk = current;
+ 	mm = tsk->mm;
+@@ -951,6 +951,7 @@ good_area:
+ 	}
+ 
+ 	write |= retry_flag;
++
+ 	/*
+ 	 * If for any reason at all we couldn't handle the fault,
+ 	 * make sure we exit gracefully rather than endlessly redo
+@@ -969,8 +970,8 @@ good_area:
+ 	 * be removed or changed after the retry.
+ 	 */
+ 	if (fault & VM_FAULT_RETRY) {
+-		if (write & FAULT_FLAG_RETRY) {
+-			retry_flag &= ~FAULT_FLAG_RETRY;
++		if (retry_flag) {
++			retry_flag = 0;
+ 			goto retry;
+ 		}
+ 		BUG();
+
+
+Question: why is this code passing `write==true' into handle_mm_fault()
+in the retry case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
