@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4ECE56B0044
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 22:29:57 -0500 (EST)
-Date: Tue, 27 Jan 2009 04:23:59 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC v5] wait: prevent exclusive waiter starvation
-Message-ID: <20090127032359.GA17359@redhat.com>
-References: <20090118013802.GA12214@cmpxchg.org> <20090118023211.GA14539@redhat.com> <20090120203131.GA20985@cmpxchg.org> <20090121143602.GA16584@redhat.com> <20090121213813.GB23270@cmpxchg.org> <20090122202550.GA5726@redhat.com> <20090123095904.GA22890@cmpxchg.org> <20090123113541.GB12684@redhat.com> <20090123133050.GA19226@redhat.com> <20090126215957.GA3889@cmpxchg.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 898636B0044
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 23:34:25 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n0R4YMUx016217
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 27 Jan 2009 13:34:23 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BE8FE45DE57
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 13:34:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C1D145DE51
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 13:34:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 83898E38002
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 13:34:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3736EE18007
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 13:34:22 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC v2][PATCH]page_fault retry with NOPAGE_RETRY
+In-Reply-To: <20090126235715.GB8726@elte.hu>
+References: <20090126155246.2d7df309.akpm@linux-foundation.org> <20090126235715.GB8726@elte.hu>
+Message-Id: <20090128131715.D45E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090126215957.GA3889@cmpxchg.org>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 27 Jan 2009 13:34:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mikew@google.com, rientjes@google.com, rohitseth@google.com, hugh@veritas.com, a.p.zijlstra@chello.nl, hpa@zytor.com, edwintorok@gmail.com, lee.schermerhorn@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On 01/26, Johannes Weiner wrote:
->
-> Another iteration.  I didn't use a general finish_wait_exclusive() but
-> a version of this function that just returns whether we were woken
-> through the queue or not.
+> 
+> * Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > I think that a good way to present this is as a preparatory patch: 
+> > "convert the fourth argument to handle_mm_fault() from a boolean to a 
+> > flags word".  That would be a simple do-nothing patch which affects all 
+> > architectures and which ideally would break the build at any unconverted 
+> > code sites.  (Change the argument order?)
+> 
+> why not do what i suggested: refactor do_page_fault() into a platform 
+> specific / kernel-internal faults and into a generic-user-pte function. 
+> That alone would increase readability i suspect.
+> 
+> Then the 'retry' is multiple calls from handle_pte_fault().
+> 
+> Or something like that.
+> 
+> It looks wrong to me to pass another flag through this hot codepath, just 
+> to express a property that the _highlevel_ code is interested in.
 
-But if your helper (finish_wait_woken) returns true, we always need
-to wakeup the next waiter, or we don't need to use it. So why not
-place the wakeup in the helper itself?
+I like this idea :)
 
-> --- a/include/linux/wait.h
-> +++ b/include/linux/wait.h
-> @@ -333,16 +333,20 @@ do {									\
->  	for (;;) {							\
->  		prepare_to_wait_exclusive(&wq, &__wait,			\
->  					TASK_INTERRUPTIBLE);		\
-> -		if (condition)						\
-> +		if (condition) {					\
-> +			finish_wait(&wq, &__wait);			\
->  			break;						\
-> +		}							\
->  		if (!signal_pending(current)) {				\
->  			schedule();					\
->  			continue;					\
->  		}							\
->  		ret = -ERESTARTSYS;					\
-> +		if (finish_wait_woken(&wq, &__wait))			\
-> +			__wake_up_common(&wq, TASK_INTERRUPTIBLE,	\
 
-No, we can't use __wake_up_common() without wq->lock.
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
