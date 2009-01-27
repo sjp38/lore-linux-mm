@@ -1,78 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2AB8D6B0047
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 15:10:53 -0500 (EST)
-Date: Tue, 27 Jan 2009 21:05:44 +0100
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC v6] wait: prevent exclusive waiter starvation
-Message-ID: <20090127200544.GA28843@redhat.com>
-References: <20090120203131.GA20985@cmpxchg.org> <20090121143602.GA16584@redhat.com> <20090121213813.GB23270@cmpxchg.org> <20090122202550.GA5726@redhat.com> <20090123095904.GA22890@cmpxchg.org> <20090123113541.GB12684@redhat.com> <20090123133050.GA19226@redhat.com> <20090126215957.GA3889@cmpxchg.org> <20090127032359.GA17359@redhat.com> <20090127193434.GA19673@cmpxchg.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id F09EB6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 15:16:48 -0500 (EST)
+Subject: Re: marching through all physical memory in software
+References: <497DD8E5.1040305@nortel.com>
+	<20090126075957.69b64a2e@infradead.org> <497F5289.404@nortel.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 27 Jan 2009 12:16:52 -0800
+In-Reply-To: <497F5289.404@nortel.com> (Chris Friesen's message of "Tue\, 27 Jan 2009 12\:29\:29 -0600")
+Message-ID: <m1vds0bj2j.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090127193434.GA19673@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Chris Mason <chris.mason@oracle.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, Doug Thompson <norsk5@yahoo.com>, linux-mm@kvack.org, bluesmoke-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On 01/27, Johannes Weiner wrote:
->
-> +void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait)
-> +{
-> +	unsigned long flags;
-> +
-> +	__set_current_state(TASK_RUNNING);
-> +	spin_lock_irqsave(&q->lock, flags);
-> +	if (list_empty(&wait->task_list))
+"Chris Friesen" <cfriesen@nortel.com> writes:
 
-Hmm... it should be !list_empty() ?
+> Arjan van de Ven wrote:
+>> On Mon, 26 Jan 2009 09:38:13 -0600
+>> "Chris Friesen" <cfriesen@nortel.com> wrote:
+>>
+>>> Someone is asking me about the feasability of "scrubbing" system
+>>> memory by accessing each page and handling the ECC faults.
+>>>
+>>
+>> Hi,
+>>
+>> I would suggest that you look at the "edac" subsystem, which tries to
+>> do exactly this....
 
-> +		list_del_init(&wait->task_list);
-> +	/*
-> +	 * If we were woken through the waitqueue (waker removed
-> +	 * us from the list) we must ensure the next waiter down
-> +	 * the line is woken up.  The callsite will not do it as
-> +	 * it didn't finish waiting successfully.
-> +	 */
-> +	else if (waitqueue_active(q))
-> +		__wake_up_locked(q, TASK_INTERRUPTIBLE);
-> +	spin_unlock_irqrestore(&q->lock, flags);
-> +}
 
-Well, personally I don't care, but this is against CodingStyle rules ;)
+> edac appears to currently be able to scrub the specific page where the fault
+> occurred.  This is a useful building block, but doesn't provide the ability to
+> march through all of physical memory.
 
->  int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
->  {
->  	int ret = default_wake_function(wait, mode, sync, key);
-> @@ -177,17 +218,19 @@ int __sched
->  __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
->  			int (*action)(void *), unsigned mode)
->  {
-> -	int ret = 0;
-> -
->  	do {
-> +		int ret;
-> +
->  		prepare_to_wait_exclusive(wq, &q->wait, mode);
-> -		if (test_bit(q->key.bit_nr, q->key.flags)) {
-> -			if ((ret = (*action)(q->key.flags)))
-> -				break;
-> -		}
-> +		if (!test_bit(q->key.bit_nr, q->key.flags))
-> +			continue;
-> +		if (!(ret = action(q->key.flags)))
-> +			continue;
-> +		abort_exclusive_wait(wq, &q->wait);
+Well that is the tricky part.  The rest is simply finding which physical
+addresses are valid.  Either by querying the memory controller or looking
+at the range the BIOS gave us.
 
-No, no. We should use the same key in abort_exclusive_wait().
-Otherwise, how can we wakeup the next waiter which needs this
-bit in the same page->flags?
+That part should not be too hard.  I think it simply has not been implemented
+yet as most ECC chipsets implement this in hardware today.
 
-That is why I suggested finish_wait_exclusive(..., void *key)
-which should we passed to __wake_up_common().
-
-Oleg.
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
