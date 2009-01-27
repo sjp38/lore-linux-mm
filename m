@@ -1,42 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 59ABA6B0044
-	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 18:57:30 -0500 (EST)
-Date: Tue, 27 Jan 2009 00:57:15 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC v2][PATCH]page_fault retry with NOPAGE_RETRY
-Message-ID: <20090126235715.GB8726@elte.hu>
-References: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com> <20090126113728.58212a30.akpm@linux-foundation.org> <604427e00901261508n7967ea74m3deacd3213c86065@mail.gmail.com> <20090126155246.2d7df309.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090126155246.2d7df309.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D81F76B0044
+	for <linux-mm@kvack.org>; Mon, 26 Jan 2009 19:58:42 -0500 (EST)
+Date: Mon, 26 Jan 2009 16:58:23 -0800
+From: Randy Dunlap <randy.dunlap@oracle.com>
+Subject: Re: [FIX][PATCH 6/7] cgroup/memcg: fix frequent -EBUSY at rmdir
+Message-Id: <20090126165823.dcf9cf78.randy.dunlap@oracle.com>
+In-Reply-To: <20090122184018.5cd3c3b9.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090122183411.3cabdfd2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090122184018.5cd3c3b9.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mikew@google.com, rientjes@google.com, rohitseth@google.com, hugh@veritas.com, a.p.zijlstra@chello.nl, hpa@zytor.com, edwintorok@gmail.com, lee.schermerhorn@hp.com, npiggin@suse.de
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 22 Jan 2009 18:40:18 +0900 KAMEZAWA Hiroyuki wrote:
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
+>  Documentation/cgroups/cgroups.txt |    6 +-
+>  include/linux/cgroup.h            |   16 +-----
+>  kernel/cgroup.c                   |   97 ++++++++++++++++++++++++++++++++------
+>  mm/memcontrol.c                   |    5 +
+>  4 files changed, 93 insertions(+), 31 deletions(-)
+> 
+> Index: mmotm-2.6.29-Jan16/Documentation/cgroups/cgroups.txt
+> ===================================================================
+> --- mmotm-2.6.29-Jan16.orig/Documentation/cgroups/cgroups.txt
+> +++ mmotm-2.6.29-Jan16/Documentation/cgroups/cgroups.txt
+> @@ -478,11 +478,13 @@ cgroup->parent is still valid. (Note - c
+>  newly-created cgroup if an error occurs after this subsystem's
+>  create() method has been called for the new cgroup).
+>  
+> -void pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+> +int pre_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+>  
+>  Called before checking the reference count on each subsystem. This may
+>  be useful for subsystems which have some extra references even if
+> -there are not tasks in the cgroup.
+> +there are not tasks in the cgroup. If pre_destroy() returns error code,
+> +rmdir() will fail with it. From this behavior, pre_destroy() can be
+> +called plural times against a cgroup.
 
-> I think that a good way to present this is as a preparatory patch: 
-> "convert the fourth argument to handle_mm_fault() from a boolean to a 
-> flags word".  That would be a simple do-nothing patch which affects all 
-> architectures and which ideally would break the build at any unconverted 
-> code sites.  (Change the argument order?)
+s/plural/multiple/ please.
 
-why not do what i suggested: refactor do_page_fault() into a platform 
-specific / kernel-internal faults and into a generic-user-pte function. 
-That alone would increase readability i suspect.
+>  
+>  int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+>  	       struct task_struct *task)
 
-Then the 'retry' is multiple calls from handle_pte_fault().
 
-Or something like that.
-
-It looks wrong to me to pass another flag through this hot codepath, just 
-to express a property that the _highlevel_ code is interested in.
-
-	Ingo
+---
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
