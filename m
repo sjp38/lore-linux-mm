@@ -1,58 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CC3B6B0044
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 04:07:57 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator (try 2)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <alpine.DEB.1.10.0901261219350.32192@qirst.com>
-References: <20090123154653.GA14517@wotan.suse.de>
-	 <1232959706.21504.7.camel@penberg-laptop> <1232960840.4863.7.camel@laptop>
-	 <alpine.DEB.1.10.0901261219350.32192@qirst.com>
-Content-Type: text/plain
-Date: Tue, 27 Jan 2009 10:07:52 +0100
-Message-Id: <1233047272.4984.12.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4149B6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 12:08:35 -0500 (EST)
+From: Oren Laadan <orenl@cs.columbia.edu>
+Subject: [RFC v13][PATCH 11/14] External checkpoint of a task other than ourself
+Date: Tue, 27 Jan 2009 12:08:09 -0500
+Message-Id: <1233076092-8660-12-git-send-email-orenl@cs.columbia.edu>
+In-Reply-To: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@osdl.org>, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Serge Hallyn <serue@us.ibm.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Oren Laadan <orenl@cs.columbia.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-01-26 at 12:22 -0500, Christoph Lameter wrote:
-> On Mon, 26 Jan 2009, Peter Zijlstra wrote:
-> 
-> > Then again, anything that does allocation is per definition not bounded
-> > and not something we can have on latency critical paths -- so on that
-> > respect its not interesting.
-> 
-> Well there is the problem in SLAB and SLQB that they *continue* to do
-> processing after an allocation. They defer queue cleaning. So your latency
-> critical paths are interrupted by the deferred queue processing.
+Now we can do "external" checkpoint, i.e. act on another task.
 
-No they're not -- well, only if you let them that is, and then its your
-own fault.
+sys_checkpoint() now looks up the target pid (in our namespace) and
+checkpoints that corresponding task. That task should be the root of
+a container.
 
-Remember, -rt is about being able to preempt pretty much everything. If
-the userspace task has a higher priority than the timer interrupt, the
-timer interrupt just gets to wait.
+sys_restart() remains the same, as the restart is always done in the
+context of the restarting task.
 
-Yes there is a very small hardirq window where the actual interrupt
-triggers, but all that that does is a wakeup and then its gone again.
+Changelog[v12]:
+  - Replace obsolete cr_debug() with pr_debug()
 
->  SLAB has
-> the awful habit of gradually pushing objects out of its queued (tried to
-> approximate the loss of cpu cache hotness over time). So for awhile you
-> get hit every 2 seconds with some free operations to the page allocator on
-> each cpu. If you have a lot of cpus then this may become an ongoing
-> operation. The slab pages end up in the page allocator queues which is
-> then occasionally pushed back to the buddy lists. Another relatively high
-> spike there.
+Changelog[v11]:
+  - Copy contents of 'init->fs->root' instead of pointing to them
 
-Like Nick has been asking, can you give a solid test case that
-demonstrates this issue?
+Changelog[v10]:
+  - Grab vfs root of container init, rather than current process
 
-I'm thinking getting git of those cross-bar queues hugely reduces that
-problem.
+Signed-off-by: Oren Laadan <orenl@cs.columbia.edu>
+Acked-by: Serge Hallyn <serue@us.ibm.com>
+---
+ checkpoint/checkpoint.c    |   72 ++++++++++++++++++++++++++++++++++++++++++-
+ checkpoint/restart.c       |    4 +-
+ checkpoint/sys.c           |    6 ++++
+ include/linux/checkpoint.h |    2 +
+ 4 files changed, 80 insertions(+), 4 deletions(-)
+
+diff --git a/checkpoint/checkpoint.c b/checkpoint/checkpoint.c
+index dd0f527..e0af8a2 100644
+--- a/checkpoint/checkpoint.c
++++ b/checkpoint/checkpoint.c
+@@ -10,6 +10,7 @@
+ 
+ #include <linux/version.h>
+ #include <linux/sched.h>
++#include <linux/ptrace.h>
+ #include <linux/time.h>
+ #include <linux/fs.h>
+ #include <linux/file.h>
+@@ -225,6 +226,13 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
+ {
+ 	int ret;
+ 
++	/* TODO: verity that the task is frozen (unless self) */
++
++	if (t->state == TASK_DEAD) {
++		pr_warning("c/r: task may not be in state TASK_DEAD\n");
++		return -EAGAIN;
++	}
++
+ 	ret = cr_write_task_struct(ctx, t);
+ 	pr_debug("task_struct: ret %d\n", ret);
+ 	if (ret < 0)
+@@ -247,22 +255,82 @@ static int cr_write_task(struct cr_ctx *ctx, struct task_struct *t)
+ 	return ret;
+ }
+ 
++static int cr_get_container(struct cr_ctx *ctx, pid_t pid)
++{
++	struct task_struct *task = NULL;
++	struct nsproxy *nsproxy = NULL;
++	int err = -ESRCH;
++
++	ctx->root_pid = pid;
++
++	read_lock(&tasklist_lock);
++	task = find_task_by_vpid(pid);
++	if (task)
++		get_task_struct(task);
++	read_unlock(&tasklist_lock);
++
++	if (!task)
++		goto out;
++
++#if 0	/* enable to use containers */
++	if (!is_container_init(task)) {
++		err = -EINVAL;
++		goto out;
++	}
++#endif
++
++	if (!ptrace_may_access(task, PTRACE_MODE_READ)) {
++		err = -EPERM;
++		goto out;
++	}
++
++	rcu_read_lock();
++	if (task_nsproxy(task)) {
++		nsproxy = task_nsproxy(task);
++		get_nsproxy(nsproxy);
++	}
++	rcu_read_unlock();
++
++	if (!nsproxy)
++		goto out;
++
++	/* TODO: verify that the container is frozen */
++
++	ctx->root_task = task;
++	ctx->root_nsproxy = nsproxy;
++
++	return 0;
++
++ out:
++	if (task)
++		put_task_struct(task);
++	return err;
++}
++
++/* setup checkpoint-specific parts of ctx */
+ static int cr_ctx_checkpoint(struct cr_ctx *ctx, pid_t pid)
+ {
+ 	struct fs_struct *fs;
++	int ret;
+ 
+ 	ctx->root_pid = pid;
+ 
++	ret = cr_get_container(ctx, pid);
++	if (ret < 0)
++		return ret;
++
+ 	/*
+ 	 * assume checkpointer is in container's root vfs
+ 	 * FIXME: this works for now, but will change with real containers
+ 	 */
+ 
+-	fs = current->fs;
++	task_lock(ctx->root_task);
++	fs = ctx->root_task->fs;
+ 	read_lock(&fs->lock);
+ 	ctx->fs_mnt = fs->root;
+ 	path_get(&ctx->fs_mnt);
+ 	read_unlock(&fs->lock);
++	task_unlock(ctx->root_task);
+ 
+ 	return 0;
+ }
+@@ -277,7 +345,7 @@ int do_checkpoint(struct cr_ctx *ctx, pid_t pid)
+ 	ret = cr_write_head(ctx);
+ 	if (ret < 0)
+ 		goto out;
+-	ret = cr_write_task(ctx, current);
++	ret = cr_write_task(ctx, ctx->root_task);
+ 	if (ret < 0)
+ 		goto out;
+ 	ret = cr_write_tail(ctx);
+diff --git a/checkpoint/restart.c b/checkpoint/restart.c
+index ece05b7..0c46abf 100644
+--- a/checkpoint/restart.c
++++ b/checkpoint/restart.c
+@@ -277,7 +277,7 @@ static int cr_read_task(struct cr_ctx *ctx)
+ }
+ 
+ /* setup restart-specific parts of ctx */
+-static int cr_ctx_restart(struct cr_ctx *ctx)
++static int cr_ctx_restart(struct cr_ctx *ctx, pid_t pid)
+ {
+ 	return 0;
+ }
+@@ -286,7 +286,7 @@ int do_restart(struct cr_ctx *ctx, pid_t pid)
+ {
+ 	int ret;
+ 
+-	ret = cr_ctx_restart(ctx);
++	ret = cr_ctx_restart(ctx, pid);
+ 	if (ret < 0)
+ 		goto out;
+ 	ret = cr_read_head(ctx);
+diff --git a/checkpoint/sys.c b/checkpoint/sys.c
+index a506b3a..4a51ed3 100644
+--- a/checkpoint/sys.c
++++ b/checkpoint/sys.c
+@@ -9,6 +9,7 @@
+  */
+ 
+ #include <linux/sched.h>
++#include <linux/nsproxy.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
+ #include <linux/file.h>
+@@ -163,6 +164,11 @@ static void cr_ctx_free(struct cr_ctx *ctx)
+ 	cr_pgarr_free(ctx);
+ 	cr_objhash_free(ctx);
+ 
++	if (ctx->root_nsproxy)
++		put_nsproxy(ctx->root_nsproxy);
++	if (ctx->root_task)
++		put_task_struct(ctx->root_task);
++
+ 	kfree(ctx);
+ }
+ 
+diff --git a/include/linux/checkpoint.h b/include/linux/checkpoint.h
+index ea9ab4c..cf54f47 100644
+--- a/include/linux/checkpoint.h
++++ b/include/linux/checkpoint.h
+@@ -19,6 +19,8 @@ struct cr_ctx {
+ 	int crid;		/* unique checkpoint id */
+ 
+ 	pid_t root_pid;		/* container identifier */
++	struct task_struct *root_task;	/* container root task */
++	struct nsproxy *root_nsproxy;	/* container root nsproxy */
+ 
+ 	unsigned long flags;
+ 	unsigned long oflags;	/* restart: old flags */
+-- 
+1.5.4.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
