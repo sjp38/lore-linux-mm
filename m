@@ -1,54 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 184F96B0044
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 01:35:03 -0500 (EST)
-Date: Mon, 26 Jan 2009 22:33:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: get_nid_for_pfn() returns int
-Message-Id: <20090126223350.610b0283.akpm@linux-foundation.org>
-In-Reply-To: <20090119175919.GA7476@us.ibm.com>
-References: <4973AEEC.70504@gmail.com>
-	<20090119175919.GA7476@us.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CC3B6B0044
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 04:07:57 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator (try 2)
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <alpine.DEB.1.10.0901261219350.32192@qirst.com>
+References: <20090123154653.GA14517@wotan.suse.de>
+	 <1232959706.21504.7.camel@penberg-laptop> <1232960840.4863.7.camel@laptop>
+	 <alpine.DEB.1.10.0901261219350.32192@qirst.com>
+Content-Type: text/plain
+Date: Tue, 27 Jan 2009 10:07:52 +0100
+Message-Id: <1233047272.4984.12.camel@laptop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: Roel Kluin <roel.kluin@gmail.com>, Ingo Molnar <mingo@elte.hu>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Jan 2009 09:59:19 -0800 Gary Hade <garyhade@us.ibm.com> wrote:
-
-> On Sun, Jan 18, 2009 at 11:36:28PM +0100, Roel Kluin wrote:
-> > get_nid_for_pfn() returns int
-> > 
-> > Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
-> > ---
-> > vi drivers/base/node.c +256
-> > static int get_nid_for_pfn(unsigned long pfn)
-> > 
-> > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > index 43fa90b..f8f578a 100644
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -303,7 +303,7 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
-> >  	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
-> >  	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
-> >  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-> > -		unsigned int nid;
-> > +		int nid;
-> > 
-> >  		nid = get_nid_for_pfn(pfn);
-> >  		if (nid < 0)
+On Mon, 2009-01-26 at 12:22 -0500, Christoph Lameter wrote:
+> On Mon, 26 Jan 2009, Peter Zijlstra wrote:
 > 
-> My mistake.  Good catch.
+> > Then again, anything that does allocation is per definition not bounded
+> > and not something we can have on latency critical paths -- so on that
+> > respect its not interesting.
 > 
+> Well there is the problem in SLAB and SLQB that they *continue* to do
+> processing after an allocation. They defer queue cleaning. So your latency
+> critical paths are interrupted by the deferred queue processing.
 
-Presumably the (nid < 0) case has never happened.
+No they're not -- well, only if you let them that is, and then its your
+own fault.
 
-Should we retain the test?
+Remember, -rt is about being able to preempt pretty much everything. If
+the userspace task has a higher priority than the timer interrupt, the
+timer interrupt just gets to wait.
 
-Is silently skipping the node in that case desirable behaviour?
+Yes there is a very small hardirq window where the actual interrupt
+triggers, but all that that does is a wakeup and then its gone again.
+
+>  SLAB has
+> the awful habit of gradually pushing objects out of its queued (tried to
+> approximate the loss of cpu cache hotness over time). So for awhile you
+> get hit every 2 seconds with some free operations to the page allocator on
+> each cpu. If you have a lot of cpus then this may become an ongoing
+> operation. The slab pages end up in the page allocator queues which is
+> then occasionally pushed back to the buddy lists. Another relatively high
+> spike there.
+
+Like Nick has been asking, can you give a solid test case that
+demonstrates this issue?
+
+I'm thinking getting git of those cross-bar queues hugely reduces that
+problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
