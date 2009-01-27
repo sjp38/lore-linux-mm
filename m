@@ -1,84 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4C6E36B0044
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 15:25:51 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 95CAB82C103
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 15:27:36 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id qm-ErL3TMMQn for <linux-mm@kvack.org>;
-	Tue, 27 Jan 2009 15:27:36 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6CD7082C2D6
-	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 15:27:32 -0500 (EST)
-Date: Tue, 27 Jan 2009 15:21:58 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-In-Reply-To: <1233047272.4984.12.camel@laptop>
-Message-ID: <alpine.DEB.1.10.0901271509170.3114@qirst.com>
-References: <20090123154653.GA14517@wotan.suse.de>  <1232959706.21504.7.camel@penberg-laptop> <1232960840.4863.7.camel@laptop>  <alpine.DEB.1.10.0901261219350.32192@qirst.com> <1233047272.4984.12.camel@laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B52A36B0044
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 16:07:37 -0500 (EST)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n0RL5w8Y003756
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 14:05:58 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0RL7W3g029034
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 14:07:33 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0RL7UcD021534
+	for <linux-mm@kvack.org>; Tue, 27 Jan 2009 14:07:31 -0700
+Date: Tue, 27 Jan 2009 13:07:27 -0800
+From: Gary Hade <garyhade@us.ibm.com>
+Subject: Re: [PATCH] mm: get_nid_for_pfn() returns int
+Message-ID: <20090127210727.GA9592@us.ibm.com>
+References: <4973AEEC.70504@gmail.com> <20090119175919.GA7476@us.ibm.com> <20090126223350.610b0283.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090126223350.610b0283.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gary Hade <garyhade@us.ibm.com>, Roel Kluin <roel.kluin@gmail.com>, Ingo Molnar <mingo@elte.hu>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, y-goto@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Jan 2009, Peter Zijlstra wrote:
+On Mon, Jan 26, 2009 at 10:33:50PM -0800, Andrew Morton wrote:
+> On Mon, 19 Jan 2009 09:59:19 -0800 Gary Hade <garyhade@us.ibm.com> wrote:
+> 
+> > On Sun, Jan 18, 2009 at 11:36:28PM +0100, Roel Kluin wrote:
+> > > get_nid_for_pfn() returns int
+> > > 
+> > > Signed-off-by: Roel Kluin <roel.kluin@gmail.com>
+> > > ---
+> > > vi drivers/base/node.c +256
+> > > static int get_nid_for_pfn(unsigned long pfn)
+> > > 
+> > > diff --git a/drivers/base/node.c b/drivers/base/node.c
+> > > index 43fa90b..f8f578a 100644
+> > > --- a/drivers/base/node.c
+> > > +++ b/drivers/base/node.c
+> > > @@ -303,7 +303,7 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+> > >  	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+> > >  	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+> > >  	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+> > > -		unsigned int nid;
+> > > +		int nid;
+> > > 
+> > >  		nid = get_nid_for_pfn(pfn);
+> > >  		if (nid < 0)
+> > 
+> > My mistake.  Good catch.
+> > 
+> 
+> Presumably the (nid < 0) case has never happened.
 
-> > Well there is the problem in SLAB and SLQB that they *continue* to do
-> > processing after an allocation. They defer queue cleaning. So your latency
-> > critical paths are interrupted by the deferred queue processing.
->
-> No they're not -- well, only if you let them that is, and then its your
-> own fault.
+We do know that it is happening on one system while creating
+a symlink for a memory section so it should also happen on
+the same system if unregister_mem_sect_under_nodes() were
+called to remove the same symlink.
 
-So you can have priority over kernel threads.... Sounds very dangerous.
+The test was actually added in response to a problem with an
+earlier version reported by Yasunori Goto where one or more
+of the leading pages of a memory section on the 2nd node of
+one of his systems was uninitialized because I believe they
+coincided with a memory hole.  The earlier version did not
+ignore uninitialized pages and determined the nid by considering
+only the 1st page of each memory section.  This caused the
+symlink to the 1st memory section on the 2nd node to be 
+incorrectly created in /sys/devices/system/node/node0 instead
+of /sys/devices/system/node/node1.  The problem was fixed by
+adding the test to skip over uninitialized pages.
 
-> Remember, -rt is about being able to preempt pretty much everything. If
-> the userspace task has a higher priority than the timer interrupt, the
-> timer interrupt just gets to wait.
->
-> Yes there is a very small hardirq window where the actual interrupt
-> triggers, but all that that does is a wakeup and then its gone again.
+I suspect we have not seen any reports of the non-removal
+of a symlink due to the incorrect declaration of the nid
+variable in unregister_mem_sect_under_nodes() because
+  - systems where a memory section could have an uninitialized
+    range of leading pages are probably rare.
+  - memory remove is probably not done very frequently on the
+    systems that are capable of demonstrating the problem.
+  - lingering symlink(s) that should have been removed may
+    have simply gone unnoticed.
+> 
+> Should we retain the test?
 
-Never used -rt. This is an issue seen in regular kernels.
+Yes.
 
-> >  SLAB has
-> > the awful habit of gradually pushing objects out of its queued (tried to
-> > approximate the loss of cpu cache hotness over time). So for awhile you
-> > get hit every 2 seconds with some free operations to the page allocator on
-> > each cpu. If you have a lot of cpus then this may become an ongoing
-> > operation. The slab pages end up in the page allocator queues which is
-> > then occasionally pushed back to the buddy lists. Another relatively high
-> > spike there.
->
-> Like Nick has been asking, can you give a solid test case that
-> demonstrates this issue?
+> 
+> Is silently skipping the node in that case desirable behaviour?
 
-Run a loop reading tsc and see the variances?
+It actually silently skips pages (not nodes) in it's quest
+for valid nids for all the nodes that the memory section scans.
+This is definitely desirable.
 
-In HPC apps a series of processors have to sync repeatedly in order to
-complete operations. An event like cache cleaning can cause a disturbance
-in one processor that delays this sync in the system as a whole. And
-having it run at offsets separately on all processor causes the
-disturbance to happen on one processor after another. In extreme cases all
-syncs are delayed. We have seen this effect have a major delay on HPC app
-performance.
+I hope this answers your questions.
 
-Note that SLAB scans through all slab caches in the system and expires
-queues that are active. The more slab caches there are and the more data
-is in queues the longer the process takes.
+Thanks,
+Gary
 
-> I'm thinking getting git of those cross-bar queues hugely reduces that
-> problem.
-
-The cross-bar queues are a significant problem because they mean operation
-on objects that are relatively far away. So the time spend in cache
-cleaning increases significantly. But as far as I can see SLQB also has
-cross-bar queues like SLAB. SLUB does all necessary actions during the
-actual allocation or free so there is no need to run cache cleaning.
+-- 
+Gary Hade
+System x Enablement
+IBM Linux Technology Center
+503-578-4503  IBM T/L: 775-4503
+garyhade@us.ibm.com
+http://www.ibm.com/linux/ltc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
