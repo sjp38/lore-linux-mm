@@ -1,100 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E430E6B0044
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 16:31:45 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 13so708290fge.4
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2009 13:31:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com>
-References: <8c5a844a0901220851g1c21169al4452825564487b9a@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221658550.14302@blonde.anvils>
-	 <8c5a844a0901221500m7af8ff45v169b6523ad9d7ad3@mail.gmail.com>
-	 <20090122231358.GA27033@elte.hu>
-	 <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com>
-Date: Wed, 28 Jan 2009 23:31:43 +0200
-Message-ID: <8c5a844a0901281331w4cea7ab2y305d5a1af96e313e@mail.gmail.com>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-From: Daniel Lowengrub <lowdanie@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B82656B0044
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 18:04:39 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 13so734545fge.4
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2009 15:04:37 -0800 (PST)
+From: Andrea Righi <righi.andrea@gmail.com>
+Subject: [PATCH -mmotm] mm: unify some pmd_*() functions fix
+Date: Thu, 29 Jan 2009 00:04:34 +0100
+Message-Id: <1233183874-26066-1-git-send-email-righi.andrea@gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Roman Zippel <zippel@linux-m68k.org>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Andrea Righi <righi.andrea@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 23, 2009 at 1:10 PM, Daniel Lowengrub <lowdanie@gmail.com> wrote:
-> On Fri, Jan 23, 2009 at 1:13 AM, Ingo Molnar <mingo@elte.hu> wrote:
->>
->> * Daniel Lowengrub <lowdanie@gmail.com> wrote:
->>
->>> Simple syscall: 0.7419 / 0.4244 microseconds
->>> Simple read: 1.2071 / 0.7270 microseconds
->>
->>there must be a significant measurement mistake here: none of your patches
->>affect the 'simple syscall' path, nor the sys_read() path.
->>
->>        Ingo
-> I ran the tests again, this time I ran them twice on each system and
-> calculated the average, the differences between results on the same os
-> were very small - I guess this means that the results were accurate.
-> I also made sure that no other programs were running during the tests.
->  Here're the new results using the same format of
-> test : standard kernel / kernel after patch
->
-> Simple syscall: 0.26080 / 0.24935 microseconds
-> Simple read: 0.42580 / 0.43080 microseconds
-> Simple write: 0.36695 / 0.34565 microseconds
-> Simple stat: 2.71205 / 2.37415 microseconds
-> Simple fstat: 0.74955 / 0.66450 microseconds
-> Simple open/close: 3.95465 / 3.35740 microseconds
-> Select on 10 fd's: 0.74590 / 0.79510 microseconds
-> Select on 100 fd's: 2.97720 / 3.03445 microseconds
-> Select on 250 fd's: 6.51940 / 6.58265 microseconds
-> Select on 500 fd's: 12.56530 / 12.63580 microseconds
-> Signal handler installation: 0.63005 / 0.65285 microseconds
-> Signal handler overhead: 2.30350 / 2.24475 microseconds
-> Protection fault: 0.41750 / 0.42705 microseconds
-> Pipe latency: 6.04580 / 5.61270 microseconds
-> AF_UNIX sock stream latency: 9.00595 / 8.65615 microseconds
-> Process fork+exit: 130.57580 / 122.26665 microseconds
-> Process fork+execve: 491.81820 / 460.79490 microseconds
-> Process fork+/bin/sh -c: 2173.16665 / 2088.50000 microseconds
-> File /home/daniel/tmp/XXX write bandwidth: 23814.50000 / 23298.50000 KB/sec
-> Pagefaults on /home/daniel/tmp/XXX: 1.22625 / 1.17470 microseconds
->
-> "mappings
-> 0.5242880 6.91 / 7.11
-> 1.0485760 12.00 / 10.42
-> 2.0971520 20.00 / 17.50
-> 4.1943040 36.00 / 33.00
-> 8.3886080 70.50 / 61.00
-> 16.7772160 121.00 / 114.50
-> 33.5544320 237.50 / 217.50
-> 67.1088640 472.50 / 427.50
-> 134.2177280 947.00 / 846.00
-> 268.4354560 1891.00 / 1694.00
-> 536.8709120 3786.00 / 3362.00
-> 1073.7418240 8252.00 / 7357.00
->
-> As you expected, now there isn't a significant difference in the syscalls.
-> The summery of the tests where 2.6.28D.1 is the kernel after the patch
-> and 2.6.28D is the standard kernel is:
->
-> Processor, Processes - times in microseconds - smaller is better
-> ------------------------------------------------------------------------------
-> Host                 OS    Mhz null null      open slct sig  sig  fork exec sh
->                               call  I/O stat clos TCP  inst hndl proc proc proc
-> --------- --------------- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-> localhost Linux 2.6.28D   1678 0.26 0.40 2.71 4.02 5.61 0.63 2.30 129. 494. 2172
-> localhost Linux 2.6.28D   1678 0.26 0.40 2.71 3.89 5.61 0.63 2.31 131. 489. 2174
-> localhost Linux 2.6.28D.1 1678 0.25 0.39 2.38 3.34 5.70 0.65 2.24 122. 457. 2083
-> localhost Linux 2.6.28D.1 1678 0.25 0.39 2.37 3.37 5.68 0.65 2.25 122. 463. 2094
->
-> What do you think?  Are there other tests you'd like me to run?
-> Daniel
->
-Do you think that this patch is useful?  Should I keep working on the idea?
-Thanks
+Also unify implementations of pmd_*() functions in arch/*.
+
+This patch must be applied on top of mm-unify-some-pmd_-functions.patch.
+
+Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
+---
+ arch/alpha/include/asm/pgalloc.h      |    2 ++
+ arch/arm/include/asm/pgalloc.h        |    3 +--
+ arch/ia64/include/asm/pgalloc.h       |    2 ++
+ arch/mips/include/asm/pgalloc.h       |   13 ++-----------
+ arch/parisc/include/asm/pgalloc.h     |    5 +++--
+ arch/powerpc/include/asm/pgalloc-32.h |    9 ---------
+ arch/powerpc/include/asm/pgalloc-64.h |    2 ++
+ arch/s390/include/asm/pgalloc.h       |    3 +--
+ arch/sh/include/asm/pgalloc.h         |    8 --------
+ arch/sparc/include/asm/pgalloc_64.h   |    2 ++
+ arch/um/include/asm/pgalloc.h         |    1 +
+ arch/um/include/asm/pgtable-3level.h  |    1 +
+ arch/x86/include/asm/pgalloc.h        |    3 +++
+ 13 files changed, 20 insertions(+), 34 deletions(-)
+
+diff --git a/arch/alpha/include/asm/pgalloc.h b/arch/alpha/include/asm/pgalloc.h
+index fd09015..b372295 100644
+--- a/arch/alpha/include/asm/pgalloc.h
++++ b/arch/alpha/include/asm/pgalloc.h
+@@ -43,12 +43,14 @@ pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ 	pmd_t *ret = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+ 	return ret;
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void
+ pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	free_page((unsigned long)pmd);
+ }
++#define pmd_free pmd_free
+ 
+ extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
+ 
+diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
+index 3dcd64b..2f241c8 100644
+--- a/arch/arm/include/asm/pgalloc.h
++++ b/arch/arm/include/asm/pgalloc.h
+@@ -26,8 +26,7 @@
+ /*
+  * Since we have only two-level page tables, these are trivial
+  */
+-#define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
+-#define pmd_free(mm, pmd)		do { } while (0)
++#define pmd_alloc_one	pmd_alloc_one_bug
+ #define pgd_populate(mm,pmd,pte)	BUG()
+ 
+ extern pgd_t *get_pgd_slow(struct mm_struct *mm);
+diff --git a/arch/ia64/include/asm/pgalloc.h b/arch/ia64/include/asm/pgalloc.h
+index b9ac1a6..660b128 100644
+--- a/arch/ia64/include/asm/pgalloc.h
++++ b/arch/ia64/include/asm/pgalloc.h
+@@ -61,11 +61,13 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+ 	return quicklist_alloc(0, GFP_KERNEL, NULL);
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	quicklist_free(0, NULL, pmd);
+ }
++#define pmd_free pmd_free
+ 
+ #define __pmd_free_tlb(tlb, pmd)	pmd_free((tlb)->mm, pmd)
+ 
+diff --git a/arch/mips/include/asm/pgalloc.h b/arch/mips/include/asm/pgalloc.h
+index 1275831..139b127 100644
+--- a/arch/mips/include/asm/pgalloc.h
++++ b/arch/mips/include/asm/pgalloc.h
+@@ -104,17 +104,6 @@ do {							\
+ 	tlb_remove_page((tlb), pte);			\
+ } while (0)
+ 
+-#ifdef CONFIG_32BIT
+-
+-/*
+- * allocating and freeing a pmd is trivial: the 1-entry pmd is
+- * inside the pgd, so has no extra memory associated with it.
+- */
+-#define pmd_free(mm, x)			do { } while (0)
+-#define __pmd_free_tlb(tlb, x)		do { } while (0)
+-
+-#endif
+-
+ #ifdef CONFIG_64BIT
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+@@ -126,11 +115,13 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ 		pmd_init((unsigned long)pmd, (unsigned long)invalid_pte_table);
+ 	return pmd;
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	free_pages((unsigned long)pmd, PMD_ORDER);
+ }
++#define pmd_free pmd_free
+ 
+ #define __pmd_free_tlb(tlb, x)	pmd_free((tlb)->mm, x)
+ 
+diff --git a/arch/parisc/include/asm/pgalloc.h b/arch/parisc/include/asm/pgalloc.h
+index fc987a1..dbb8bc2 100644
+--- a/arch/parisc/include/asm/pgalloc.h
++++ b/arch/parisc/include/asm/pgalloc.h
+@@ -69,6 +69,7 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
+ 		memset(pmd, 0, PAGE_SIZE<<PMD_ORDER);
+ 	return pmd;
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+@@ -80,6 +81,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ #endif
+ 	free_pages((unsigned long)pmd, PMD_ORDER);
+ }
++#define pmd_free pmd_free
+ 
+ #else
+ 
+@@ -90,8 +92,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+  * inside the pgd, so has no extra memory associated with it.
+  */
+ 
+-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
+-#define pmd_free(mm, x)			do { } while (0)
++#define pmd_alloc_one	pmd_alloc_one_bug
+ #define pgd_populate(mm, pmd, pte)	BUG()
+ 
+ #endif
+diff --git a/arch/powerpc/include/asm/pgalloc-32.h b/arch/powerpc/include/asm/pgalloc-32.h
+index 0815eb4..cbf20f0 100644
+--- a/arch/powerpc/include/asm/pgalloc-32.h
++++ b/arch/powerpc/include/asm/pgalloc-32.h
+@@ -10,15 +10,6 @@ extern void __bad_pte(pmd_t *pmd);
+ extern pgd_t *pgd_alloc(struct mm_struct *mm);
+ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
+ 
+-/*
+- * We don't have any real pmd's, and this code never triggers because
+- * the pgd will always be present..
+- */
+-/* #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); }) */
+-#define pmd_free(mm, x) 		do { } while (0)
+-#define __pmd_free_tlb(tlb,x)		do { } while (0)
+-/* #define pgd_populate(mm, pmd, pte)      BUG() */
+-
+ #ifndef CONFIG_BOOKE
+ #define pmd_populate_kernel(mm, pmd, pte)	\
+ 		(pmd_val(*(pmd)) = __pa(pte) | _PMD_PRESENT)
+diff --git a/arch/powerpc/include/asm/pgalloc-64.h b/arch/powerpc/include/asm/pgalloc-64.h
+index afda2bd..db765fd 100644
+--- a/arch/powerpc/include/asm/pgalloc-64.h
++++ b/arch/powerpc/include/asm/pgalloc-64.h
+@@ -81,11 +81,13 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ 	return kmem_cache_alloc(pgtable_cache[PMD_CACHE_NUM],
+ 				GFP_KERNEL|__GFP_REPEAT);
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	kmem_cache_free(pgtable_cache[PMD_CACHE_NUM], pmd);
+ }
++#define pmd_free pmd_free
+ 
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
+index b2658b9..6a85281 100644
+--- a/arch/s390/include/asm/pgalloc.h
++++ b/arch/s390/include/asm/pgalloc.h
+@@ -63,8 +63,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
+ #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
+ #define pud_free(mm, x)				do { } while (0)
+ 
+-#define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
+-#define pmd_free(mm, x)				do { } while (0)
++#define pmd_alloc_one	pmd_alloc_one_bug
+ 
+ #define pgd_populate(mm, pgd, pud)		BUG()
+ #define pgd_populate_kernel(mm, pgd, pud)	BUG()
+diff --git a/arch/sh/include/asm/pgalloc.h b/arch/sh/include/asm/pgalloc.h
+index 84dd2db..f9d9ccb 100644
+--- a/arch/sh/include/asm/pgalloc.h
++++ b/arch/sh/include/asm/pgalloc.h
+@@ -79,14 +79,6 @@ do {							\
+ 	tlb_remove_page((tlb), (pte));			\
+ } while (0)
+ 
+-/*
+- * allocating and freeing a pmd is trivial: the 1-entry pmd is
+- * inside the pgd, so has no extra memory associated with it.
+- */
+-
+-#define pmd_free(mm, x)			do { } while (0)
+-#define __pmd_free_tlb(tlb,x)		do { } while (0)
+-
+ static inline void check_pgt_cache(void)
+ {
+ 	quicklist_trim(QUICK_PGD, NULL, 25, 16);
+diff --git a/arch/sparc/include/asm/pgalloc_64.h b/arch/sparc/include/asm/pgalloc_64.h
+index 5bdfa2c..fa34726 100644
+--- a/arch/sparc/include/asm/pgalloc_64.h
++++ b/arch/sparc/include/asm/pgalloc_64.h
+@@ -30,11 +30,13 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+ 	return quicklist_alloc(0, GFP_KERNEL, NULL);
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	quicklist_free(0, NULL, pmd);
+ }
++#define pmd_free pmd_free
+ 
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+diff --git a/arch/um/include/asm/pgalloc.h b/arch/um/include/asm/pgalloc.h
+index 9062a6e..264120b 100644
+--- a/arch/um/include/asm/pgalloc.h
++++ b/arch/um/include/asm/pgalloc.h
+@@ -52,6 +52,7 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	free_page((unsigned long)pmd);
+ }
++#define pmd_free pmd_free
+ 
+ #define __pmd_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
+ #endif
+diff --git a/arch/um/include/asm/pgtable-3level.h b/arch/um/include/asm/pgtable-3level.h
+index 0446f45..d3f320b 100644
+--- a/arch/um/include/asm/pgtable-3level.h
++++ b/arch/um/include/asm/pgtable-3level.h
+@@ -80,6 +80,7 @@ static inline void pgd_mkuptodate(pgd_t pgd) { pgd_val(pgd) &= ~_PAGE_NEWPAGE; }
+ 
+ struct mm_struct;
+ extern pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address);
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pud_clear (pud_t *pud)
+ {
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index cb7c151..1927b2b 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -70,14 +70,17 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+ {
+ 	return (pmd_t *)get_zeroed_page(GFP_KERNEL|__GFP_REPEAT);
+ }
++#define pmd_alloc_one pmd_alloc_one
+ 
+ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ {
+ 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
+ 	free_page((unsigned long)pmd);
+ }
++#define pmd_free pmd_free
+ 
+ extern void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd);
++#define __pmd_free_tlb __pmd_free_tlb
+ 
+ #ifdef CONFIG_X86_PAE
+ extern void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd);
+-- 
+1.5.6.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
