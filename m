@@ -1,53 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C9E46B0044
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 04:20:12 -0500 (EST)
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate3.uk.ibm.com (8.13.8/8.13.8) with ESMTP id n0S9K8Qk127064
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 09:20:08 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n0S9K8Le2777284
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 09:20:08 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n0S9K7s6012296
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 09:20:08 GMT
-Date: Wed, 28 Jan 2009 10:20:04 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Subject: PATCH do_wp_page: fix regression with execute in place
-Message-ID: <20090128102004.5cd8eb9a@cotte.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8A8096B0044
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 05:28:56 -0500 (EST)
+Received: by rv-out-0708.google.com with SMTP id f25so6509874rvb.26
+        for <linux-mm@kvack.org>; Wed, 28 Jan 2009 02:28:55 -0800 (PST)
+Date: Wed, 28 Jan 2009 19:28:41 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [BUG] mlocked page counter mismatch
+Message-ID: <20090128102841.GA24924@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: linux mm <linux-mm@kvack.org>
+Cc: linux kernel <linux-kernel@vger.kernel.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-This patch fixes do_wp_page for VM_MIXEDMAP mappings. In case
-pfn_valid returns 0 for a pfn at the beginning of do_wp_page,
-and the mapping is not shared writable, the code branches to
-label gotten with old_page == NULL. In case the vma is locked
-(vma->vm_flags & VM_LOCKED), lock_page, clear_page_mlock, and
-unlock_page try to access old_page.
-This patch checks, whether old_page is valid before it is
-dereferenced.
-The regression was introduced with git commit b291f000
 
-Signed-off-by: Carsten Otte <cotte@de.ibm.com>
----
-diff --git a/mm/memory.c b/mm/memory.c
-index 22bfa7a..baa999e 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1999,7 +1999,7 @@ gotten:
-         * Don't let another task, with possibly unlocked vma,
-         * keep the mlocked page.
-         */
--       if (vma->vm_flags & VM_LOCKED) {
-+       if ((vma->vm_flags & VM_LOCKED) && old_page) {
-                lock_page(old_page);    /* for LRU manipulation */
-                clear_page_mlock(old_page);
-                unlock_page(old_page);
+After executing following program, 'cat /proc/meminfo' shows
+following result. 
+
+--
+# cat /proc/meminfo 
+..
+Unevictable:           8 kB
+Mlocked:               8 kB
+..
+
+-- test program --
+
+#include <stdio.h>
+#include <sys/mman.h>
+int main()
+{
+        char buf[64] = {0,};
+        char *ptr;
+        int k;
+        int i,j;
+        int x,y;
+        mlockall(MCL_CURRENT);
+        sprintf(buf, "cat /proc/%d/maps", getpid());
+        system(buf);
+        return 0;
+}
+
+--
+
+It seems mlocked page counter have a problem.
+After I diged in source, I found that try_to_unmap_file called 
+try_to_mlock_page about shared mapping pages 
+since other vma had VM_LOCKED flag.
+After all, try_to_mlock_page called mlock_vma_page. 
+so, mlocked counter increased
+
+But, After I called munlockall intentionally, the counter work well. 
+In case of munlockall, we already had a mmap_sem about write. 
+Such a case, try_to_mlock_page can't call mlock_vma_page.
+so, mlocked counter didn't increased. 
+As a result, the counter seems to be work well but I think 
+it also have a problem.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
