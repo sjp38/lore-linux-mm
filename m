@@ -1,119 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 440C86B0044
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 09:44:39 -0500 (EST)
-Subject: Re: [BUG] mlocked page counter mismatch
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <2f11576a0901290435p1bdb41b3o7171384250b93c08@mail.gmail.com>
-References: <20090128102841.GA24924@barrios-desktop>
-	 <1233156832.8760.85.camel@lts-notebook>
-	 <20090128235514.GB24924@barrios-desktop>
-	 <1233193736.8760.199.camel@lts-notebook>
-	 <2f11576a0901290435p1bdb41b3o7171384250b93c08@mail.gmail.com>
-Content-Type: text/plain
-Date: Thu, 29 Jan 2009 09:44:36 -0500
-Message-Id: <1233240276.2315.41.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2C59B6B005C
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 15:02:40 -0500 (EST)
+Date: Thu, 29 Jan 2009 21:02:29 +0100 (CET)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: Re: [PATCH -mmotm] mm: unify some pmd_*() functions
+In-Reply-To: <20090127174158.519e5abd.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0901292101430.17617@anakin>
+References: <1232919337-21434-1-git-send-email-righi.andrea@gmail.com>
+ <20090127174158.519e5abd.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: MinChan Kim <minchan.kim@gmail.com>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Righi <righi.andrea@gmail.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Zippel <zippel@linux-m68k.org>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-01-29 at 21:35 +0900, KOSAKI Motohiro wrote:
-> Hi
+On Tue, 27 Jan 2009, Andrew Morton wrote:
+> On Sun, 25 Jan 2009 22:35:37 +0100
+> Andrea Righi <righi.andrea@gmail.com> wrote:
 > 
-> > I think I see it.  In try_to_unmap_anon(), called from try_to_munlock(),
-> > we have:
-> >
-> >         list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-> >                if (MLOCK_PAGES && unlikely(unlock)) {
-> >                        if (!((vma->vm_flags & VM_LOCKED) &&
-> > !!! should be '||' ?                                      ^^
-> >                              page_mapped_in_vma(page, vma)))
-> >                                continue;  /* must visit all unlocked vmas */
-> >                        ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
-> >                } else {
-> >                        ret = try_to_unmap_one(page, vma, migration);
-> >                        if (ret == SWAP_FAIL || !page_mapped(page))
-> >                                break;
-> >                }
-> >                if (ret == SWAP_MLOCK) {
-> >                        mlocked = try_to_mlock_page(page, vma);
-> >                        if (mlocked)
-> >                                break;  /* stop if actually mlocked page */
-> >                }
-> >        }
-> >
-> > or that clause [under if (MLOCK_PAGES && unlikely(unlock))]
-> > might be clearer as:
-> >
-> >               if ((vma->vm_flags & VM_LOCKED) && page_mapped_in_vma(page, vma))
-> >                      ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
-> >               else
-> >                      continue;  /* must visit all unlocked vmas */
-> >
-> > Do you agree?
+> > diff --git a/include/asm-generic/pgtable-nopmd.h b/include/asm-generic/pgtable-nopmd.h
+> > index a7cdc48..b132d69 100644
+> > --- a/include/asm-generic/pgtable-nopmd.h
+> > +++ b/include/asm-generic/pgtable-nopmd.h
+> > @@ -4,6 +4,7 @@
+> >  #ifndef __ASSEMBLY__
+> >  
+> >  #include <asm-generic/pgtable-nopud.h>
+> > +#include <asm/bug.h>
+> >  
+> >  struct mm_struct;
+> >  
 > 
-> Hmmm.
-> I don't think so.
+> Why not include the preferred <linux/bug.h>?
 > 
-> >                        if (!((vma->vm_flags & VM_LOCKED) &&
-> >                              page_mapped_in_vma(page, vma)))
-> >                                continue;  /* must visit all unlocked vmas */
+> > BTW, I only tested this on x86 and x86_64. This needs more testing because it
+> > touches also a lot of other architectures.
 > 
-> is already equivalent to
-> 
-> >               if ((vma->vm_flags & VM_LOCKED) && page_mapped_in_vma(page, vma))
-> >                      ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
-> >               else
-> >   
->                    continue;  /* must visit all unlocked vmas */
+> Hopefully Geert, Roman, David and Hirokazu Takata will have time to
+> help out here.
 
-Hmmm, I should know not to try to read code when I'm that sleepy.  Had
-myself convinced that the condition was wrong...
+atari_defconfig builds fine and boots on ARAnyM.
 
-> 
-> 
-> > And, I wonder if we need a similar check for
-> > page_mapped_in_vma(page, vma) up in try_to_unmap_one()?
-> 
-> because page_mapped_in_vma() can return 0 if vma is anon vma only.
+sun3_defconfig fails with:
 
-by "vma is anon vma only", do you mean that the vma being tested--e.g.,
-that we found to be VM_LOCKED--no longer has the page mapped in it's
-page tables?  That is it's purpose--to detect this condition.  IIRC, Rik
-added it during testing of the mlock patches when we discovered we were
-mlocking pages because 
+|   CC      mm/memory.o
+| mm/memory.c: In function 'free_pmd_range':
+| mm/memory.c:176: error: implicit declaration of function '__pmd_free_tlb'
+| mm/memory.c: In function '__pmd_alloc':
+| mm/memory.c:2903: error: implicit declaration of function 'pmd_alloc_one_bug'
+| mm/memory.c:2903: warning: initialization makes pointer from integer without a cast
+| mm/memory.c:2917: error: implicit declaration of function 'pmd_free'
+| make[3]: *** [mm/memory.o] Error 1
 
-> 
-> In the other word,
-> struct adress_space (for file) gurantee that unrelated vma doesn't chained.
+Gr{oetje,eeting}s,
 
-right.  that's why we don't have the page_mapped_in_vma() check in
-try_to_unmap_file().
+						Geert
 
-> but struct anon_vma (for anon) doesn't gurantee that unrelated vma
-> doesn't chained.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-Well, they're not exactly "unrelated"--vmas attached to an anon_vma are
-from the same "family".  Any pages that haven't been COWed will still be
-mapped into multiple mm's.
-
-My question last night about try_to_unmap_one() wasn't really related to
-the mlock statistics glitch.  Sorry I wasn't more clear about this.  I
-was wondering about the case where shrink_page_list was trying to unmap
-a page whose vma was on an anon_vma list with other VM_LOCKED vmas that
-didn't actually map the page.  However, in the early morning light, I
-see that the call to page_check_address() handles this.
-
-----------
-Anyway, our original responses to this report crossed in the mail.  You
-said you'd handle it.  So, in the meantime, I'm looking at the
-mmap()/vm_merge()/mlock_vma_pages_range() issue reported yesterday.
-
-Regards,
-Lee
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+							    -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
