@@ -1,111 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id F07976B0044
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 09:19:37 -0500 (EST)
-Date: Thu, 29 Jan 2009 15:19:29 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-Message-ID: <20090129141929.GP24391@elte.hu>
-References: <8c5a844a0901220851g1c21169al4452825564487b9a@mail.gmail.com> <Pine.LNX.4.64.0901221658550.14302@blonde.anvils> <8c5a844a0901221500m7af8ff45v169b6523ad9d7ad3@mail.gmail.com> <20090122231358.GA27033@elte.hu> <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com> <8c5a844a0901281331w4cea7ab2y305d5a1af96e313e@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8c5a844a0901281331w4cea7ab2y305d5a1af96e313e@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A54F6B0044
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 09:35:41 -0500 (EST)
+Subject: Re: [RFC v7] wait: prevent exclusive waiter starvation
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <20090129011143.884e5573.akpm@linux-foundation.org>
+References: <20090123095904.GA22890@cmpxchg.org>
+	 <20090123113541.GB12684@redhat.com> <20090123133050.GA19226@redhat.com>
+	 <20090126215957.GA3889@cmpxchg.org> <20090127032359.GA17359@redhat.com>
+	 <20090127193434.GA19673@cmpxchg.org> <20090127200544.GA28843@redhat.com>
+	 <20090128091453.GA22036@cmpxchg.org> <20090129044227.GA5231@redhat.com>
+	 <20090128233734.81d8004a.akpm@linux-foundation.org>
+	 <20090129083108.GA27495@redhat.com>
+	 <20090129011143.884e5573.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Thu, 29 Jan 2009 09:34:35 -0500
+Message-Id: <1233239675.10354.18.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daniel Lowengrub <lowdanie@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2009-01-29 at 01:11 -0800, Andrew Morton wrote:
+> On Thu, 29 Jan 2009 09:31:08 +0100 Oleg Nesterov <oleg@redhat.com> wrote:
+> 
+> > On 01/28, Andrew Morton wrote:
+> > >
+> > > On Thu, 29 Jan 2009 05:42:27 +0100 Oleg Nesterov <oleg@redhat.com> wrote:
+> > >
+> > > > On 01/28, Johannes Weiner wrote:
+> > > > >
+> > > > > Add abort_exclusive_wait() which removes the process' wait descriptor
+> > > > > from the waitqueue, iff still queued, or wakes up the next waiter
+> > > > > otherwise.  It does so under the waitqueue lock.  Racing with a wake
+> > > > > up means the aborting process is either already woken (removed from
+> > > > > the queue) and will wake up the next waiter, or it will remove itself
+> > > > > from the queue and the concurrent wake up will apply to the next
+> > > > > waiter after it.
+> > > > >
+> > > > > Use abort_exclusive_wait() in __wait_event_interruptible_exclusive()
+> > > > > and __wait_on_bit_lock() when they were interrupted by other means
+> > > > > than a wake up through the queue.
+> > > >
+> > > > Imho, this all is right, and this patch should replace
+> > > > lock_page_killable-avoid-lost-wakeups.patch (except for stable tree).
+> > >
+> > > I dropped lock_page_killable-avoid-lost-wakeups.patch a while ago.
+> > >
+> > > So I think we're saying that
+> > > lock_page_killable-avoid-lost-wakeups.patch actually did fix the bug?
+> > 
+> > I think yes,
+> > 
 
-* Daniel Lowengrub <lowdanie@gmail.com> wrote:
+Our test case that was able to reliably trigger the bug was fixed by
+lock_page_killable-avoid-lost-wakeups.patch.
 
-> On Fri, Jan 23, 2009 at 1:10 PM, Daniel Lowengrub <lowdanie@gmail.com> wrote:
-> > On Fri, Jan 23, 2009 at 1:13 AM, Ingo Molnar <mingo@elte.hu> wrote:
-> >>
-> >> * Daniel Lowengrub <lowdanie@gmail.com> wrote:
-> >>
-> >>> Simple syscall: 0.7419 / 0.4244 microseconds
-> >>> Simple read: 1.2071 / 0.7270 microseconds
-> >>
-> >>there must be a significant measurement mistake here: none of your patches
-> >>affect the 'simple syscall' path, nor the sys_read() path.
-> >>
-> >>        Ingo
-> > I ran the tests again, this time I ran them twice on each system and
-> > calculated the average, the differences between results on the same os
-> > were very small - I guess this means that the results were accurate.
-> > I also made sure that no other programs were running during the tests.
-> >  Here're the new results using the same format of
-> > test : standard kernel / kernel after patch
-> >
-> > Simple syscall: 0.26080 / 0.24935 microseconds
-> > Simple read: 0.42580 / 0.43080 microseconds
-> > Simple write: 0.36695 / 0.34565 microseconds
-> > Simple stat: 2.71205 / 2.37415 microseconds
-> > Simple fstat: 0.74955 / 0.66450 microseconds
-> > Simple open/close: 3.95465 / 3.35740 microseconds
-> > Select on 10 fd's: 0.74590 / 0.79510 microseconds
-> > Select on 100 fd's: 2.97720 / 3.03445 microseconds
-> > Select on 250 fd's: 6.51940 / 6.58265 microseconds
-> > Select on 500 fd's: 12.56530 / 12.63580 microseconds
-> > Signal handler installation: 0.63005 / 0.65285 microseconds
-> > Signal handler overhead: 2.30350 / 2.24475 microseconds
-> > Protection fault: 0.41750 / 0.42705 microseconds
-> > Pipe latency: 6.04580 / 5.61270 microseconds
-> > AF_UNIX sock stream latency: 9.00595 / 8.65615 microseconds
-> > Process fork+exit: 130.57580 / 122.26665 microseconds
-> > Process fork+execve: 491.81820 / 460.79490 microseconds
-> > Process fork+/bin/sh -c: 2173.16665 / 2088.50000 microseconds
-> > File /home/daniel/tmp/XXX write bandwidth: 23814.50000 / 23298.50000 KB/sec
-> > Pagefaults on /home/daniel/tmp/XXX: 1.22625 / 1.17470 microseconds
-> >
-> > "mappings
-> > 0.5242880 6.91 / 7.11
-> > 1.0485760 12.00 / 10.42
-> > 2.0971520 20.00 / 17.50
-> > 4.1943040 36.00 / 33.00
-> > 8.3886080 70.50 / 61.00
-> > 16.7772160 121.00 / 114.50
-> > 33.5544320 237.50 / 217.50
-> > 67.1088640 472.50 / 427.50
-> > 134.2177280 947.00 / 846.00
-> > 268.4354560 1891.00 / 1694.00
-> > 536.8709120 3786.00 / 3362.00
-> > 1073.7418240 8252.00 / 7357.00
-> >
-> > As you expected, now there isn't a significant difference in the syscalls.
-> > The summery of the tests where 2.6.28D.1 is the kernel after the patch
-> > and 2.6.28D is the standard kernel is:
-> >
-> > Processor, Processes - times in microseconds - smaller is better
-> > ------------------------------------------------------------------------------
-> > Host                 OS    Mhz null null      open slct sig  sig  fork exec sh
-> >                               call  I/O stat clos TCP  inst hndl proc proc proc
-> > --------- --------------- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
-> > localhost Linux 2.6.28D   1678 0.26 0.40 2.71 4.02 5.61 0.63 2.30 129. 494. 2172
-> > localhost Linux 2.6.28D   1678 0.26 0.40 2.71 3.89 5.61 0.63 2.31 131. 489. 2174
-> > localhost Linux 2.6.28D.1 1678 0.25 0.39 2.38 3.34 5.70 0.65 2.24 122. 457. 2083
-> > localhost Linux 2.6.28D.1 1678 0.25 0.39 2.37 3.37 5.68 0.65 2.25 122. 463. 2094
-> >
-> > What do you think?  Are there other tests you'd like me to run?
-> > Daniel
-> >
-> Do you think that this patch is useful?  Should I keep working on the idea?
-> Thanks
+I'll ask them to test v7 as well.  The run takes about a day, so
+confirmation will take a bit.
 
-The numbers still look suspect: why did fstat get so much cheaper? There's 
-no find_vma() in that workload?
+-chris
 
-Here's an mmap performance tester:
-
-    http://redhat.com/~mingo/misc/mmap-perf.c
-
-maybe that shows a systematic effect. If you've got a Core2 based 
-test-system then you could try perfstat as well, for much more precise 
-instruction counts. (can give you more info about how to do that if you 
-have such a test-system.)
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
