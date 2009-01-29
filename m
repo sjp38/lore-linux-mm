@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B642E6B0044
-	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 18:57:16 -0500 (EST)
-Received: by rn-out-0910.google.com with SMTP id 56so2870832rnw.4
-        for <linux-mm@kvack.org>; Wed, 28 Jan 2009 15:57:15 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090128235514.GB24924@barrios-desktop>
-References: <20090128102841.GA24924@barrios-desktop>
-	 <1233156832.8760.85.camel@lts-notebook>
-	 <20090128235514.GB24924@barrios-desktop>
-Date: Thu, 29 Jan 2009 08:57:15 +0900
-Message-ID: <28c262360901281557r295f65e0i2aed4d4d14fdbf52@mail.gmail.com>
-Subject: Re: [BUG] mlocked page counter mismatch
-From: MinChan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	by kanga.kvack.org (Postfix) with ESMTP id CB54B6B0044
+	for <linux-mm@kvack.org>; Wed, 28 Jan 2009 20:22:01 -0500 (EST)
+Date: Thu, 29 Jan 2009 10:16:23 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] migration: migrate_vmas should check "vma"
+Message-Id: <20090129101623.0d64d81b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090128165512.GA22588@cmpxchg.org>
+References: <20090128162619.2205befd.nishimura@mxp.nes.nec.co.jp>
+	<alpine.DEB.1.10.0901281140540.7765@qirst.com>
+	<20090128165512.GA22588@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-I missed my test program.
+On Wed, 28 Jan 2009 17:55:12 +0100, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Wed, Jan 28, 2009 at 11:42:36AM -0500, Christoph Lameter wrote:
+> > On Wed, 28 Jan 2009, Daisuke Nishimura wrote:
+> > 
+> > > migrate_vmas() should check "vma" not "vma->vm_next" for for-loop condition.
+> > 
+> > The loop condition is checked before vma = vma->vm_next. So the last
+> > iteration of the loop will now be run with vma = NULL?
+> 
+> No, the condition is always checked before the body is executed.  The
+> assignment to vma->vm_next happens at the end of every body.
+> 
+So, I think in current code the loop body is not executed
+about the last vma in the list.
 
-#include <stdio.h>
-#include <sys/mman.h>
-int main()
-{
-        mlockall(MCL_CURRENT);
-        // munlockall();
-        return 0;
-}
 
+Thanks,
+Daisuke Nishimura.
 
--- 
-Kinds regards,
-MinChan Kim
+> Try this:
+> 
+> 		int a = 2;
+> 
+> 		for (puts("init"); puts("cond"), a; puts("next"))
+> 			a--;
+> 
+> 	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
