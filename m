@@ -1,68 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A54F6B0044
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 09:35:41 -0500 (EST)
-Subject: Re: [RFC v7] wait: prevent exclusive waiter starvation
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <20090129011143.884e5573.akpm@linux-foundation.org>
-References: <20090123095904.GA22890@cmpxchg.org>
-	 <20090123113541.GB12684@redhat.com> <20090123133050.GA19226@redhat.com>
-	 <20090126215957.GA3889@cmpxchg.org> <20090127032359.GA17359@redhat.com>
-	 <20090127193434.GA19673@cmpxchg.org> <20090127200544.GA28843@redhat.com>
-	 <20090128091453.GA22036@cmpxchg.org> <20090129044227.GA5231@redhat.com>
-	 <20090128233734.81d8004a.akpm@linux-foundation.org>
-	 <20090129083108.GA27495@redhat.com>
-	 <20090129011143.884e5573.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 440C86B0044
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 09:44:39 -0500 (EST)
+Subject: Re: [BUG] mlocked page counter mismatch
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <2f11576a0901290435p1bdb41b3o7171384250b93c08@mail.gmail.com>
+References: <20090128102841.GA24924@barrios-desktop>
+	 <1233156832.8760.85.camel@lts-notebook>
+	 <20090128235514.GB24924@barrios-desktop>
+	 <1233193736.8760.199.camel@lts-notebook>
+	 <2f11576a0901290435p1bdb41b3o7171384250b93c08@mail.gmail.com>
 Content-Type: text/plain
-Date: Thu, 29 Jan 2009 09:34:35 -0500
-Message-Id: <1233239675.10354.18.camel@think.oraclecorp.com>
+Date: Thu, 29 Jan 2009 09:44:36 -0500
+Message-Id: <1233240276.2315.41.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, stable@kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: MinChan Kim <minchan.kim@gmail.com>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-01-29 at 01:11 -0800, Andrew Morton wrote:
-> On Thu, 29 Jan 2009 09:31:08 +0100 Oleg Nesterov <oleg@redhat.com> wrote:
+On Thu, 2009-01-29 at 21:35 +0900, KOSAKI Motohiro wrote:
+> Hi
 > 
-> > On 01/28, Andrew Morton wrote:
-> > >
-> > > On Thu, 29 Jan 2009 05:42:27 +0100 Oleg Nesterov <oleg@redhat.com> wrote:
-> > >
-> > > > On 01/28, Johannes Weiner wrote:
-> > > > >
-> > > > > Add abort_exclusive_wait() which removes the process' wait descriptor
-> > > > > from the waitqueue, iff still queued, or wakes up the next waiter
-> > > > > otherwise.  It does so under the waitqueue lock.  Racing with a wake
-> > > > > up means the aborting process is either already woken (removed from
-> > > > > the queue) and will wake up the next waiter, or it will remove itself
-> > > > > from the queue and the concurrent wake up will apply to the next
-> > > > > waiter after it.
-> > > > >
-> > > > > Use abort_exclusive_wait() in __wait_event_interruptible_exclusive()
-> > > > > and __wait_on_bit_lock() when they were interrupted by other means
-> > > > > than a wake up through the queue.
-> > > >
-> > > > Imho, this all is right, and this patch should replace
-> > > > lock_page_killable-avoid-lost-wakeups.patch (except for stable tree).
-> > >
-> > > I dropped lock_page_killable-avoid-lost-wakeups.patch a while ago.
-> > >
-> > > So I think we're saying that
-> > > lock_page_killable-avoid-lost-wakeups.patch actually did fix the bug?
-> > 
-> > I think yes,
-> > 
+> > I think I see it.  In try_to_unmap_anon(), called from try_to_munlock(),
+> > we have:
+> >
+> >         list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+> >                if (MLOCK_PAGES && unlikely(unlock)) {
+> >                        if (!((vma->vm_flags & VM_LOCKED) &&
+> > !!! should be '||' ?                                      ^^
+> >                              page_mapped_in_vma(page, vma)))
+> >                                continue;  /* must visit all unlocked vmas */
+> >                        ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
+> >                } else {
+> >                        ret = try_to_unmap_one(page, vma, migration);
+> >                        if (ret == SWAP_FAIL || !page_mapped(page))
+> >                                break;
+> >                }
+> >                if (ret == SWAP_MLOCK) {
+> >                        mlocked = try_to_mlock_page(page, vma);
+> >                        if (mlocked)
+> >                                break;  /* stop if actually mlocked page */
+> >                }
+> >        }
+> >
+> > or that clause [under if (MLOCK_PAGES && unlikely(unlock))]
+> > might be clearer as:
+> >
+> >               if ((vma->vm_flags & VM_LOCKED) && page_mapped_in_vma(page, vma))
+> >                      ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
+> >               else
+> >                      continue;  /* must visit all unlocked vmas */
+> >
+> > Do you agree?
+> 
+> Hmmm.
+> I don't think so.
+> 
+> >                        if (!((vma->vm_flags & VM_LOCKED) &&
+> >                              page_mapped_in_vma(page, vma)))
+> >                                continue;  /* must visit all unlocked vmas */
+> 
+> is already equivalent to
+> 
+> >               if ((vma->vm_flags & VM_LOCKED) && page_mapped_in_vma(page, vma))
+> >                      ret = SWAP_MLOCK;  /* saw at least one mlocked vma */
+> >               else
+> >   
+>                    continue;  /* must visit all unlocked vmas */
 
-Our test case that was able to reliably trigger the bug was fixed by
-lock_page_killable-avoid-lost-wakeups.patch.
+Hmmm, I should know not to try to read code when I'm that sleepy.  Had
+myself convinced that the condition was wrong...
 
-I'll ask them to test v7 as well.  The run takes about a day, so
-confirmation will take a bit.
+> 
+> 
+> > And, I wonder if we need a similar check for
+> > page_mapped_in_vma(page, vma) up in try_to_unmap_one()?
+> 
+> because page_mapped_in_vma() can return 0 if vma is anon vma only.
 
--chris
+by "vma is anon vma only", do you mean that the vma being tested--e.g.,
+that we found to be VM_LOCKED--no longer has the page mapped in it's
+page tables?  That is it's purpose--to detect this condition.  IIRC, Rik
+added it during testing of the mlock patches when we discovered we were
+mlocking pages because 
 
+> 
+> In the other word,
+> struct adress_space (for file) gurantee that unrelated vma doesn't chained.
+
+right.  that's why we don't have the page_mapped_in_vma() check in
+try_to_unmap_file().
+
+> but struct anon_vma (for anon) doesn't gurantee that unrelated vma
+> doesn't chained.
+
+Well, they're not exactly "unrelated"--vmas attached to an anon_vma are
+from the same "family".  Any pages that haven't been COWed will still be
+mapped into multiple mm's.
+
+My question last night about try_to_unmap_one() wasn't really related to
+the mlock statistics glitch.  Sorry I wasn't more clear about this.  I
+was wondering about the case where shrink_page_list was trying to unmap
+a page whose vma was on an anon_vma list with other VM_LOCKED vmas that
+didn't actually map the page.  However, in the early morning light, I
+see that the call to page_check_address() handles this.
+
+----------
+Anyway, our original responses to this report crossed in the mail.  You
+said you'd handle it.  So, in the meantime, I'm looking at the
+mmap()/vm_merge()/mlock_vma_pages_range() issue reported yesterday.
+
+Regards,
+Lee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
