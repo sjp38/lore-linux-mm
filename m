@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id D7B466B005C
-	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 16:59:10 -0500 (EST)
-Received: by ewy6 with SMTP id 6so35614ewy.14
-        for <linux-mm@kvack.org>; Thu, 29 Jan 2009 13:59:08 -0800 (PST)
-From: Andrea Righi <righi.andrea@gmail.com>
-Subject: [PATCH -mmotm] mm: unify some pmd_*() functions fix for m68k sun3
-Date: Thu, 29 Jan 2009 22:58:17 +0100
-Message-Id: <1233266297-12995-1-git-send-email-righi.andrea@gmail.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6304C6B005C
+	for <linux-mm@kvack.org>; Thu, 29 Jan 2009 19:43:59 -0500 (EST)
+Date: Fri, 30 Jan 2009 09:30:18 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] migration: migrate_vmas should check "vma"
+Message-Id: <20090130093018.c209d70d.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090129001849.9f8fdcb3.akpm@linux-foundation.org>
+References: <20090128162619.2205befd.nishimura@mxp.nes.nec.co.jp>
+	<alpine.DEB.1.10.0901281140540.7765@qirst.com>
+	<20090128165512.GA22588@cmpxchg.org>
+	<20090129101623.0d64d81b.nishimura@mxp.nes.nec.co.jp>
+	<20090129001849.9f8fdcb3.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Geert Uytterhoeven <geert@linux-m68k.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Zippel <zippel@linux-m68k.org>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>, Andrea Righi <righi.andrea@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-sun3_defconfig fails with:
+On Thu, 29 Jan 2009 00:18:49 -0800, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Thu, 29 Jan 2009 10:16:23 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > On Wed, 28 Jan 2009 17:55:12 +0100, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > On Wed, Jan 28, 2009 at 11:42:36AM -0500, Christoph Lameter wrote:
+> > > > On Wed, 28 Jan 2009, Daisuke Nishimura wrote:
+> > > > 
+> > > > > migrate_vmas() should check "vma" not "vma->vm_next" for for-loop condition.
+> > > > 
+> > > > The loop condition is checked before vma = vma->vm_next. So the last
+> > > > iteration of the loop will now be run with vma = NULL?
+> > > 
+> > > No, the condition is always checked before the body is executed.  The
+> > > assignment to vma->vm_next happens at the end of every body.
+> > > 
+> > So, I think in current code the loop body is not executed
+> > about the last vma in the list.
+> > 
+> 
+> Yep.
+> 
+> Is this serious enough to bother fixing in 2.6.29?
+IIUC, there is no user of vm_ops->migrate() now, so this bug causes
+no practical problems.
 
-    CC      mm/memory.o
-  mm/memory.c: In function 'free_pmd_range':
-  mm/memory.c:176: error: implicit declaration of function '__pmd_free_tlb'
-  mm/memory.c: In function '__pmd_alloc':
-  mm/memory.c:2903: error: implicit declaration of function 'pmd_alloc_one_bug'
-  mm/memory.c:2903: warning: initialization makes pointer from integer without a cast
-  mm/memory.c:2917: error: implicit declaration of function 'pmd_free'
-  make[3]: *** [mm/memory.o] Error 1
+I think it's trival and simple enough to go in .29, but I don't have
+any objection if you postpone this patch.
 
-Add the missing include.
 
-Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
----
- include/asm-m68k/sun3_pgalloc.h |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
-
-diff --git a/include/asm-m68k/sun3_pgalloc.h b/include/asm-m68k/sun3_pgalloc.h
-index 0fe28fc..399d280 100644
---- a/include/asm-m68k/sun3_pgalloc.h
-+++ b/include/asm-m68k/sun3_pgalloc.h
-@@ -11,6 +11,7 @@
- #define _SUN3_PGALLOC_H
- 
- #include <asm/tlb.h>
-+#include <asm-generic/pgtable-nopmd.h>
- 
- /* FIXME - when we get this compiling */
- /* erm, now that it's compiling, what do we do with it? */
--- 
-1.5.6.3
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
