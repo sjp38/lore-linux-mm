@@ -1,241 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 86FDD6B005C
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2009 13:03:00 -0500 (EST)
-Date: Fri, 30 Jan 2009 19:02:48 +0100 (CET)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [PATCH -mmotm] mm: unify some pmd_*() functions fix for m68k
- sun3
-In-Reply-To: <1233266297-12995-1-git-send-email-righi.andrea@gmail.com>
-Message-ID: <Pine.LNX.4.64.0901301902140.23582@anakin>
-References: <1233266297-12995-1-git-send-email-righi.andrea@gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 5B28F6B0083
+	for <linux-mm@kvack.org>; Fri, 30 Jan 2009 14:32:32 -0500 (EST)
+References: <715599.77204.qm@web50111.mail.re2.yahoo.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Fri, 30 Jan 2009 11:32:38 -0800
+In-Reply-To: <715599.77204.qm@web50111.mail.re2.yahoo.com> (Doug Thompson's message of "Fri\, 30 Jan 2009 08\:50\:51 -0800 \(PST\)")
+Message-ID: <m1wscc7fop.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: marching through all physical memory in software
 Sender: owner-linux-mm@kvack.org
-To: Andrea Righi <righi.andrea@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Zippel <zippel@linux-m68k.org>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>
+To: Doug Thompson <norsk5@yahoo.com>
+Cc: ncunningham-lkml@crca.org.au, Pavel Machek <pavel@suse.cz>, Chris Friesen <cfriesen@nortel.com>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bluesmoke-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jan 2009, Andrea Righi wrote:
-> sun3_defconfig fails with:
-> 
->     CC      mm/memory.o
->   mm/memory.c: In function 'free_pmd_range':
->   mm/memory.c:176: error: implicit declaration of function '__pmd_free_tlb'
->   mm/memory.c: In function '__pmd_alloc':
->   mm/memory.c:2903: error: implicit declaration of function 'pmd_alloc_one_bug'
->   mm/memory.c:2903: warning: initialization makes pointer from integer without a cast
->   mm/memory.c:2917: error: implicit declaration of function 'pmd_free'
->   make[3]: *** [mm/memory.o] Error 1
-> 
-> Add the missing include.
-> 
-> Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
-> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
-> ---
->  include/asm-m68k/sun3_pgalloc.h |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/asm-m68k/sun3_pgalloc.h b/include/asm-m68k/sun3_pgalloc.h
-> index 0fe28fc..399d280 100644
-> --- a/include/asm-m68k/sun3_pgalloc.h
-> +++ b/include/asm-m68k/sun3_pgalloc.h
-> @@ -11,6 +11,7 @@
->  #define _SUN3_PGALLOC_H
->  
->  #include <asm/tlb.h>
-> +#include <asm-generic/pgtable-nopmd.h>
+Doug Thompson <norsk5@yahoo.com> writes:
 
-Which makes it worse:
+> Nigel Cunningham <ncunningham-lkml@crca.org.au> wrote:
+>
+>     Hi again.
+>
+>     On Fri, 2009-01-30 at 10:13 +0100, Pavel Machek wrote:
+>     > > Hi.
+>     > >
+>     > > On Wed, 2009-01-28 at 20:38 +0100, Pavel Machek wrote:
+>     > > > You can do the scrubbing today by echo reboot > /sys/power/disk; echo
+>     > > > disk > /sys/power/state :-)... or using uswsusp APIs.
+>     > >
+>     > > That won't work. The RAM retains its contents across a reboot, and even
+>     > > for a little while after powering off.
+>     >
+>     > Yes, and the original goal was to rewrite all the memory with same
+>     > contents so that parity errors don't accumulate. SO scrubbing here !=
+>     > trying to clear it.
+>
+>     Sorry - I think I missed something.
+>
+>     AFAICS, hibernating is going to be a noop as far as doing anything to
+>     memory that's not touched by the process of hibernating goes. It won't
+>     clear it or scrub it or anything else.
 
-  CC      arch/m68k/kernel/traps.o
-In file included from include/asm-generic/pgtable-nopmd.h:6,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopud.h:17:1: warning: "PUD_SIZE" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:7:1: warning: this is the location of the previous definition
-In file included from include/asm-generic/pgtable-nopmd.h:6,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopud.h:18:1: warning: "PUD_MASK" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:8:1: warning: this is the location of the previous definition
-In file included from include/asm-generic/pgtable-nopmd.h:6,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopud.h:29:1: warning: "pud_ERROR" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:22:1: warning: this is the location of the previous definition
-In file included from include/asm-generic/pgtable-nopmd.h:6,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopud.h:43:1: warning: "pud_val" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:24:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:20:1: warning: "PMD_SHIFT" redefined
-In file included from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-arch/m68k/include/asm/pgtable_mm.h:33:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:34:1: warning: "pmd_ERROR" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:132,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-arch/m68k/include/asm/sun3_pgtable.h:157:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:36:1: warning: "pud_populate" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:25:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:49:1: warning: "pmd_val" redefined
-In file included from arch/m68k/include/asm/page.h:4,
-                 from arch/m68k/include/asm/thread_info_mm.h:5,
-                 from arch/m68k/include/asm/thread_info.h:4,
-                 from include/linux/thread_info.h:55,
-                 from include/linux/preempt.h:9,
-                 from include/linux/spinlock.h:50,
-                 from include/linux/seqlock.h:29,
-                 from include/linux/time.h:8,
-                 from include/linux/timex.h:56,
-                 from include/linux/sched.h:54,
-                 from arch/m68k/kernel/traps.c:21:
-arch/m68k/include/asm/page_mm.h:97:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:50:1: warning: "__pmd" redefined
-In file included from arch/m68k/include/asm/page.h:4,
-                 from arch/m68k/include/asm/thread_info_mm.h:5,
-                 from arch/m68k/include/asm/thread_info.h:4,
-                 from include/linux/thread_info.h:55,
-                 from include/linux/preempt.h:9,
-                 from include/linux/spinlock.h:50,
-                 from include/linux/seqlock.h:29,
-                 from include/linux/time.h:8,
-                 from include/linux/timex.h:56,
-                 from include/linux/sched.h:54,
-                 from arch/m68k/kernel/traps.c:21:
-arch/m68k/include/asm/page_mm.h:102:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:52:1: warning: "pud_page" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:26:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:53:1: warning: "pud_page_vaddr" redefined
-In file included from arch/m68k/include/asm/pgtable_mm.h:4,
-                 from arch/m68k/include/asm/pgtable.h:4,
-                 from include/linux/mm.h:40,
-                 from arch/m68k/kernel/traps.c:24:
-include/asm-generic/4level-fixup.h:27:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-arch/m68k/include/asm/sun3_pgalloc.h:22:1: warning: "pmd_alloc_one" redefined
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopmd.h:65:1: warning: this is the location of the previous definition
-In file included from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-arch/m68k/include/asm/sun3_pgalloc.h:93:1: warning: "pgd_populate" redefined
-In file included from include/asm-generic/pgtable-nopmd.h:6,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:14,
-                 from arch/m68k/include/asm/pgalloc_mm.h:12,
-                 from arch/m68k/include/asm/pgalloc.h:4,
-                 from arch/m68k/kernel/traps.c:38:
-include/asm-generic/pgtable-nopud.h:31:1: warning: this is the location of the previous definition
-In file included from include/asm-generic/pgtable-nopmd.h:7,
-                 from arch/m68k/include/asm/sun3_pgalloc.h:15,
-                 from arch/m68k/include/asm/pgalloc_mm.h:13,
-                 from arch/m68k/include/asm/pgalloc.h:5,
-                 from arch/m68k/kernel/traps.c:39:
-include/asm-generic/pgtable-nopud.h:13: error: conflicting types for 'pgd_t'
-arch/m68k/include/asm/page_mm.h:92: error: previous declaration of 'pgd_t' was here
-include/asm-generic/pgtable-nopud.h:25: error: conflicting types for 'pgd_none'
-arch/m68k/include/asm/sun3_pgtable.h:149: error: previous definition of 'pgd_none' was here
-include/asm-generic/pgtable-nopud.h:26: error: conflicting types for 'pgd_bad'
-arch/m68k/include/asm/sun3_pgtable.h:150: error: previous definition of 'pgd_bad' was here
-include/asm-generic/pgtable-nopud.h:27: error: conflicting types for 'pgd_present'
-arch/m68k/include/asm/sun3_pgtable.h:151: error: previous definition of 'pgd_present' was here
-include/asm-generic/pgtable-nopud.h:28: error: conflicting types for 'pgd_clear'
-arch/m68k/include/asm/sun3_pgtable.h:152: error: previous definition of 'pgd_clear' was here
-include/asm-generic/pgtable-nopud.h:38: error: expected ')' before '*' token
-In file included from arch/m68k/include/asm/sun3_pgalloc.h:15,
-                 from arch/m68k/include/asm/pgalloc_mm.h:13,
-                 from arch/m68k/include/asm/pgalloc.h:5,
-                 from arch/m68k/kernel/traps.c:39:
-include/asm-generic/pgtable-nopmd.h:18: error: conflicting types for 'pmd_t'
-arch/m68k/include/asm/page_mm.h:91: error: previous declaration of 'pmd_t' was here
-include/asm-generic/pgtable-nopmd.h:30: error: expected identifier or '(' before numeric constant
-include/asm-generic/pgtable-nopmd.h:31: error: expected identifier or '(' before numeric constant
-include/asm-generic/pgtable-nopmd.h:32: error: expected identifier or '(' before numeric constant
-include/asm-generic/pgtable-nopmd.h:33: error: redefinition of 'pgd_clear'
-include/asm-generic/pgtable-nopud.h:28: error: previous definition of 'pgd_clear' was here
-include/asm-generic/pgtable-nopmd.h:45: error: conflicting types for 'pmd_offset'
-arch/m68k/include/asm/sun3_pgtable.h:201: error: previous definition of 'pmd_offset' was here
-make[3]: *** [arch/m68k/kernel/traps.o] Error 1
+A background software scrubber simply has the job of rewritting memory
+to it's current content so that the data and the ecc check bits are
+guaranteed to be in sync keeping correctable ecc errors caused by
+environmental factors from accumulating.
 
-Gr{oetje,eeting}s,
+Pavel's original comment was that the hibernation code has to walk all
+of memory to save it to disk so it would be a good place to look to
+figure out how to walk all of memory.  And incidentally hibernation
+would serve as a crud way of rewritting all of memory.
 
-						Geert
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+> Even if hibernating worked, it does not touch the issue of scrubbing memory
+> that doesn't have hardware support AND the requirement of thousands of nodes in
+> cluster who MUST remain operational for days on end.
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+But it may still serve as an example of how to walk through all of memory.
+
+> Sicortex's MIPS based system fits that exactly.  When I did their EDAC driver
+> they wanted to have a software scrubber at a NICE run level to scan memory and
+> do this operation without shutting down the system.
+>
+> We never got to it, but it would be a nice for some to have a background
+> software scrubber.  But I would need help from the memory guys on a proper
+> interface.
+>
+> The goal would be have a "loose" target of attempting to all most memory if not
+> all.  Sometime of iteration over the memory set.
+
+Thinking about it.  We only care about memory the kernel is using so the memory
+maps the BIOS supplies the kernel should be sufficient.  We have weird corner
+cases like ACPI but not handling those in the first pass and getting
+something working should be fine.
+
+There are other silly things such as wanting to only scrub memory on it's native
+NUMA node (if possible) for both performance and scalability.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
