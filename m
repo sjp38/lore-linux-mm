@@ -1,47 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E31D46B0083
-	for <linux-mm@kvack.org>; Fri, 30 Jan 2009 22:54:00 -0500 (EST)
-References: <715599.77204.qm@web50111.mail.re2.yahoo.com>
-	<m1wscc7fop.fsf@fess.ebiederm.org> <49836114.1090209@buttersideup.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Fri, 30 Jan 2009 19:54:05 -0800
-In-Reply-To: <49836114.1090209@buttersideup.com> (Tim Small's message of "Fri\, 30 Jan 2009 20\:20\:36 +0000")
-Message-ID: <m1iqnw1676.fsf@fess.ebiederm.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0361D6B0083
+	for <linux-mm@kvack.org>; Sat, 31 Jan 2009 07:48:38 -0500 (EST)
+Message-ID: <4984489C.8020309@buttersideup.com>
+Date: Sat, 31 Jan 2009 12:48:28 +0000
+From: Tim Small <tim@buttersideup.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
 Subject: Re: marching through all physical memory in software
+References: <715599.77204.qm@web50111.mail.re2.yahoo.com>	<m1wscc7fop.fsf@fess.ebiederm.org> <49836114.1090209@buttersideup.com> <m1iqnw1676.fsf@fess.ebiederm.org>
+In-Reply-To: <m1iqnw1676.fsf@fess.ebiederm.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Tim Small <tim@buttersideup.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
 Cc: Doug Thompson <norsk5@yahoo.com>, ncunningham-lkml@crca.org.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chris Friesen <cfriesen@nortel.com>, Pavel Machek <pavel@suse.cz>, bluesmoke-devel@lists.sourceforge.net, Arjan van de Ven <arjan@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Tim Small <tim@buttersideup.com> writes:
+Eric W. Biederman wrote:
+> At the point we are talking about software scrubbing it makes sense to assume
+> a least common denominator memory controller, one that does not do automatic
+> write-back of the corrected value, as all of the recent memory controllers
+> do scrubbing in hardware.
+>   
 
-> Eric W. Biederman wrote:
->> A background software scrubber simply has the job of rewritting memory
->> to it's current content so that the data and the ecc check bits are
->> guaranteed to be in sync
->
-> Don't you just need to READ memory?  The memory controller hardware takes care
-> of the rest in the vast majority of cases.
->
-> You only need to rewrite RAM if a correctable error occurs, and the chipset
-> doesn't support automatic write-back of the corrected value (a different problem
-> altogether...).  The actual memory bits themselves are refreshed by the hardware
-> quite frequently (max of every 64ms for DDR2, I believe)...
+I was just trying to clarify the distinction between the two processes 
+which have similar names, but aren't (IMO) actually that similar:
 
-At the point we are talking about software scrubbing it makes sense to assume
-a least common denominator memory controller, one that does not do automatic
-write-back of the corrected value, as all of the recent memory controllers
-do scrubbing in hardware.
+"Software Scrubbing"
 
-Once you handle the stupidest hardware all other cases are just software optimizations
-on that, and we already have the tricky code that does a read-modify-write without
-changing the contents of memory, so guarantees everything it touches will be written
-back.
+Triggering a read, and subsequent rewrite of a particular RAM location 
+which has suffered a correctable ECC error(s) i.e. hardware detects an 
+error, then the OS takes care of the rewrite to "scrub" the error in the 
+case that the hardware doesn't handle this automatically.
 
-Eric
+This should be a very-occasional error-path process, and performance is 
+probably not critical..
+
+
+"Background Scrubbing"
+
+. This is a poor name, IMO (scrub infers some kind of write to me), 
+which applies to a process whereby you ensure that the ECC check-bits 
+are verified periodically for the whole of physical RAM, so that single 
+bit errors in a given ECC block don't accumulate and turn into 
+uncorrectable errors.  It may also lead to improved data collection for 
+some failure modes.  Again, many memory controllers implement this 
+feature in hardware, so we shouldn't do it twice where this is supported.
+
+There is (AFAIK) no need to do any writes here, and in fact doing so is 
+only likely to hurt performance, I think....  The design which springs 
+to mind is of a background thread which (possibly at idle priority) 
+reads RAM at a user-configurable rate (e.g. consume a max of n% of 
+memory bandwidth, or read  all of RAM at least once every x minutes).  
+Possible design issues:
+
+. There will be some trade off between reducing impact on the system as 
+a whole, and making firm guarantees about how often memory is checked.  
+Difficult to know what the default would be, but probably 
+no-firm-guarantee of minimum time (idle processing only) is likely to 
+cause least problems for most users.
+. An eye will need to be kept on the impact that this reading has on the 
+performance of the rest of the system (e.g. cache pollution, and NUMA, 
+as you previously mentioned), but my gut feeling is that for the 
+majority of systems it shouldn't be significant.  If practical 
+mechanisms are available on some CPUs to read RAM without populating the 
+CPU cache, we should use those (but I've no idea if they exist or not).
+
+Perhaps a good default would be to benchmark memory read bandwidth when 
+the feature is turned on, and then operate at (e.g.) 0.5% of that bandwidth.
+
+
+Cheers,
+
+Tim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
