@@ -1,36 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3475F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 13:30:14 -0500 (EST)
-Message-ID: <49873B99.3070405@nortel.com>
-Date: Mon, 02 Feb 2009 12:29:45 -0600
-From: "Chris Friesen" <cfriesen@nortel.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 587955F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 15:38:13 -0500 (EST)
+Date: Mon, 2 Feb 2009 12:37:54 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [-mm patch] Show memcg information during OOM
+In-Reply-To: <20090202141705.GE918@balbir.in.ibm.com>
+Message-ID: <alpine.DEB.2.00.0902021235500.26971@chino.kir.corp.google.com>
+References: <20090202125240.GA918@balbir.in.ibm.com> <20090202215527.EC92.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090202141705.GE918@balbir.in.ibm.com>
 MIME-Version: 1.0
-Subject: Re: marching through all physical memory in software
-References: <715599.77204.qm@web50111.mail.re2.yahoo.com> <m1wscc7fop.fsf@fess.ebiederm.org>
-In-Reply-To: <m1wscc7fop.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Doug Thompson <norsk5@yahoo.com>, ncunningham-lkml@crca.org.au, Pavel Machek <pavel@suse.cz>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bluesmoke-devel@lists.sourceforge.net
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman wrote:
+On Mon, 2 Feb 2009, Balbir Singh wrote:
 
-> Thinking about it.  We only care about memory the kernel is using so the memory
-> maps the BIOS supplies the kernel should be sufficient.  We have weird corner
-> cases like ACPI but not handling those in the first pass and getting
-> something working should be fine.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8e4be9c..954b0d5 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -813,6 +813,25 @@ bool mem_cgroup_oom_called(struct task_struct *task)
+>  	rcu_read_unlock();
+>  	return ret;
+>  }
+> +
+> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
+> +{
+> +	if (!memcg)
+> +		return;
+> +
+> +	printk(KERN_WARNING "Memory cgroups's name %s\n",
+> +		memcg->css.cgroup->dentry->d_name.name);
+> +	printk(KERN_WARNING "Cgroup memory: usage %llu, limit %llu"
+> +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
+> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
+> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> +	printk(KERN_WARNING "Cgroup memory+swap: usage %llu, limit %llu "
+> +		"failcnt %llu\n",
+> +		res_counter_read_u64(&memcg->memsw, RES_USAGE),
+> +		res_counter_read_u64(&memcg->memsw, RES_LIMIT),
+> +		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+> +}
+> +
+>  /*
+>   * Unlike exported interface, "oom" parameter is added. if oom==true,
+>   * oom-killer can be invoked.
 
-Agreed.
-
-The next question is who handles the conversion of the various different 
-arch-specific BIOS mappings to a standard format that we can feed to the 
-background "scrub" code.  Is this something that belongs in the edac 
-memory controller code, or would it live in /arch/foo somewhere?
-
-Chris
+I think you'd want a less critical log level for these messages such as 
+KERN_INFO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
