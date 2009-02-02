@@ -1,54 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E12925F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 17:46:01 -0500 (EST)
-Subject: Re: marching through all physical memory in software
-In-Reply-To: Your message of "Mon, 02 Feb 2009 12:29:45 CST."
-             <49873B99.3070405@nortel.com>
-From: Valdis.Kletnieks@vt.edu
-References: <715599.77204.qm@web50111.mail.re2.yahoo.com> <m1wscc7fop.fsf@fess.ebiederm.org>
-            <49873B99.3070405@nortel.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1233614746_15229P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 02 Feb 2009 17:45:46 -0500
-Message-ID: <37985.1233614746@turing-police.cc.vt.edu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 07B8C5F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 18:27:37 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id j3so879715tid.8
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2009 15:27:35 -0800 (PST)
+Date: Tue, 3 Feb 2009 08:27:19 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH] fix mlocked page counter mismatch
+Message-ID: <20090202232719.GC13532@barrios-desktop>
+References: <20090202061622.GA13286@barrios-desktop> <1233594995.17895.144.camel@lts-notebook>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1233594995.17895.144.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
-To: Chris Friesen <cfriesen@nortel.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Doug Thompson <norsk5@yahoo.com>, ncunningham-lkml@crca.org.au, Pavel Machek <pavel@suse.cz>, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bluesmoke-devel@lists.sourceforge.net
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: linux mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1233614746_15229P
-Content-Type: text/plain; charset=us-ascii
+On Mon, Feb 02, 2009 at 12:16:35PM -0500, Lee Schermerhorn wrote:
+> On Mon, 2009-02-02 at 15:16 +0900, MinChan Kim wrote:
+> > When I tested following program, I found that mlocked counter 
+> > is strange. 
+> > It couldn't free some mlocked pages of test program.
+> > 
+> > It is caused that try_to_unmap_file don't check real 
+> > page mapping in vmas. 
+> > That's because goal of address_space for file is to find all processes 
+> > into which the file's specific interval is mapped. 
+> > What I mean is that it's not related page but file's interval.
+> > 
+> > Even if the page isn't really mapping at the vma, it returns 
+> > SWAP_MLOCK since the vma have VM_LOCKED, then calls 
+> > try_to_mlock_page. After all, mlocked counter is increased again. 
+> > 
+> > This patch is based on 2.6.28-rc2-mm1.
+> > 
+> > -- my test program --
+> > 
+> > #include <stdio.h>
+> > #include <sys/mman.h>
+> > int main()
+> > {
+> >         mlockall(MCL_CURRENT);
+> >         return 0;
+> > }
+> > 
+> > -- before --
+> > 
+> > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+> > Unevictable:           0 kB
+> > Mlocked:               0 kB
+> > 
+> > -- after --
+> > 
+> > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+> > Unevictable:           8 kB
+> > Mlocked:               8 kB
+> > 
+> > 
+> > --
+> > 
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index 1099394..9ba1fdf 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -1073,6 +1073,9 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
+> >  	unsigned long max_nl_size = 0;
+> >  	unsigned int mapcount;
+> >  	unsigned int mlocked = 0;
+> > +	unsigned long address;
+> > +	pte_t *pte;
+> > +	spinlock_t *ptl;
+> >  
+> >  	if (MLOCK_PAGES && unlikely(unlock))
+> >  		ret = SWAP_SUCCESS;	/* default for try_to_munlock() */
+> > @@ -1089,6 +1092,13 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
+> >  				goto out;
+> >  		}
+> >  		if (ret == SWAP_MLOCK) {
+> > +     address = vma_address(page, vma);
+> > +     if (address != -EFAULT) {
+> > +       pte = page_check_address(page, vma->vm_mm, address, &ptl, 0);
+> > +       if (!pte)
+> > +            continue; 
+> > +       pte_unmap_unlock(pte, ptl);
+> > +     } 
+> >  			mlocked = try_to_mlock_page(page, vma);
+> >  			if (mlocked)
+> >  				break;  /* stop if actually mlocked page */
+> 
+> Hi, MinChan:
+> 
+>    Interestingly, Rik had addressed this [simpler patch below] way back
+> when he added the page_mapped_in_vma() function.  I asked him whether
 
-On Mon, 02 Feb 2009 12:29:45 CST, Chris Friesen said:
-> The next question is who handles the conversion of the various different 
-> arch-specific BIOS mappings to a standard format that we can feed to the 
-> background "scrub" code.  Is this something that belongs in the edac 
-> memory controller code, or would it live in /arch/foo somewhere?
 
-If it's intended to be something basically stand-alone that doesn't require
-an actual EDAC chipset, it should probably live elsewhere.  Otherwise, you get
-into the case of people who don't enable it because they "know" their hardware
-doesn't have an EDAC ability, even if they *could* benefit from the function.
+> the rb tree shouldn't have filtered any vmas that didn't have the page
+> mapped.  He agreed and removed the check from try_to_unmap_file().
+> Guess I can be very convincing, even when I'm wrong [happening a lot
+> lately].  Of course, in this instance, the rb-tree filtering only works
+> for shared, page-cache pages.  The problem uncovered by your test case
 
-On the other hand, if it's an EDAC-only thing, maybe under drivers/edac/$ARCH?
+It's not rb-tree but priority tree. ;-)
 
+> is with a COWed anon page in a file-backed vma.  Yes, the vma 'maps' the
+> virtual address range containing the page in question, but since it's a
+> private COWed anon page, it isn't necessarily "mapped" in the VM_LOCKED
+> vma's mm's page table.  We need the check...
 
---==_Exmh_1233614746_15229P
-Content-Type: application/pgp-signature
+Indeed!
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+> 
+> I've added the variant below [CURRENTLY UNTESTED] to my test tree.
+> 
+> Lee
+> 
+> [intentionally omitted sign off, until tested.]
 
-iD8DBQFJh3eacC3lWbTT17ARAsqrAKDNNbwYhjwFzQ3MXRkOi9qqTIOMXgCfZfBp
-TObEc4Qd+Ohdh/Zr/FmDlec=
-=j6YP
------END PGP SIGNATURE-----
+I shouldn't forgot page_mapped_in_vma.
+However, It looks good to me. 
+Thank you for testing. 
 
---==_Exmh_1233614746_15229P--
+> 
+> 
+> Index: linux-2.6.29-rc3/mm/rmap.c
+> ===================================================================
+> --- linux-2.6.29-rc3.orig/mm/rmap.c	2009-01-30 14:13:56.000000000 -0500
+> +++ linux-2.6.29-rc3/mm/rmap.c	2009-02-02 11:27:11.000000000 -0500
+> @@ -1072,7 +1072,8 @@ static int try_to_unmap_file(struct page
+>  	spin_lock(&mapping->i_mmap_lock);
+>  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+>  		if (MLOCK_PAGES && unlikely(unlock)) {
+> -			if (!(vma->vm_flags & VM_LOCKED))
+> +			if (!((vma->vm_flags & VM_LOCKED) &&
+> +			      page_mapped_in_vma(page, vma)))
+>  				continue;	/* must visit all vmas */
+>  			ret = SWAP_MLOCK;
+>  		} else {
+> 
+
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
