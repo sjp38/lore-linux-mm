@@ -1,138 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 489015F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 09:17:44 -0500 (EST)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n12EH8W1032656
-	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 19:47:08 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n12EHDGG4124922
-	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 19:47:13 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n12EH75t029136
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 01:17:08 +1100
-Date: Mon, 2 Feb 2009 19:47:05 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [-mm patch] Show memcg information during OOM
-Message-ID: <20090202141705.GE918@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090202125240.GA918@balbir.in.ibm.com> <20090202215527.EC92.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2071B5F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 10:04:59 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 5EA4082C31C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 10:07:20 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id OH0dVd4ycX6R for <linux-mm@kvack.org>;
+	Mon,  2 Feb 2009 10:07:20 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 72A5B82C368
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 10:07:15 -0500 (EST)
+Date: Mon, 2 Feb 2009 10:00:04 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [patch] SLQB slab allocator
+In-Reply-To: <1233565214.17835.13.camel@penberg-laptop>
+Message-ID: <alpine.DEB.1.10.0902020955490.1549@qirst.com>
+References: <20090121143008.GV24891@wotan.suse.de>  <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>  <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>  <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>  <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
+  <1233545923.2604.60.camel@ymzhang> <1233565214.17835.13.camel@penberg-laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090202215527.EC92.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-02-02 21:59:34]:
+On Mon, 2 Feb 2009, Pekka Enberg wrote:
 
-> Hi
-> 
-> > +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> > +{
-> > +	printk(KERN_WARNING "Memory cgroups's name %s\n",
-> > +		memcg->css.cgroup->dentry->d_name.name);
-> > +	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
-> > +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> > +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> > +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> > +	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
-> > +		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> > +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> > +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> Hi Yanmin,
 >
+> On Mon, 2009-02-02 at 11:38 +0800, Zhang, Yanmin wrote:
+> > Can we add a checking about free memory page number/percentage in function
+> > allocate_slab that we can bypass the first try of alloc_pages when memory
+> > is hungry?
+>
+> If the check isn't too expensive, I don't any reason not to. How would
+> you go about checking how much free pages there are, though? Is there
+> something in the page allocator that we can use for this?
 
-Thanks! How does this look
-
-Description: Add RSS and swap to OOM output from memcg
-
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-
-This patch displays memcg values like failcnt, usage and limit
-when an OOM occurs due to memcg.
-
-Thanks go out to Johannes Weiner <hannes@cmpxchg.org> and
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> for review.
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
-
- include/linux/memcontrol.h |    5 +++++
- mm/memcontrol.c            |   19 +++++++++++++++++++
- mm/oom_kill.c              |    1 +
- 3 files changed, 25 insertions(+), 0 deletions(-)
-
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 326f45c..2ce1737 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -104,6 +104,7 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone);
- struct zone_reclaim_stat*
- mem_cgroup_get_reclaim_stat_from_page(struct page *page);
-+extern void mem_cgroup_print_mem_info(struct mem_cgroup *memcg);
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- extern int do_swap_account;
-@@ -270,6 +271,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
- 	return NULL;
- }
- 
-+void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-+{
-+}
-+
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8e4be9c..954b0d5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -813,6 +813,25 @@ bool mem_cgroup_oom_called(struct task_struct *task)
- 	rcu_read_unlock();
- 	return ret;
- }
-+
-+void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-+{
-+	if (!memcg)
-+		return;
-+
-+	printk(KERN_WARNING "Memory cgroups's name %s\n",
-+		memcg->css.cgroup->dentry->d_name.name);
-+	printk(KERN_WARNING "Cgroup memory: usage %llu, limit %llu"
-+		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-+		res_counter_read_u64(&memcg->res, RES_LIMIT),
-+		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-+	printk(KERN_WARNING "Cgroup memory+swap: usage %llu, limit %llu "
-+		"failcnt %llu\n",
-+		res_counter_read_u64(&memcg->memsw, RES_USAGE),
-+		res_counter_read_u64(&memcg->memsw, RES_LIMIT),
-+		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
-+}
-+
- /*
-  * Unlike exported interface, "oom" parameter is added. if oom==true,
-  * oom-killer can be invoked.
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d3b9bac..b8e53ae 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			current->comm, gfp_mask, order, current->oomkilladj);
- 		task_lock(current);
- 		cpuset_print_task_mems_allowed(current);
-+		mem_cgroup_print_mem_info(mem);
- 		task_unlock(current);
- 		dump_stack();
- 		show_mem();
-
--- 
-	Balbir
+If the free memory is low then reclaim needs to be run to increase the
+free memory. Falling back immediately incurs the overhead of going through
+the order 0 queues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
