@@ -1,87 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3507A5F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 07:59:38 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n12CxZ8X023954
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 2 Feb 2009 21:59:35 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 666CD45DE55
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FA7045DE51
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 287661DB803F
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D5DA91DB803C
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:34 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [-mm patch] Show memcg information during OOM
-In-Reply-To: <20090202125240.GA918@balbir.in.ibm.com>
-References: <20090202125240.GA918@balbir.in.ibm.com>
-Message-Id: <20090202215527.EC92.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 569225F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 08:09:13 -0500 (EST)
+Subject: Re: [BUG??] Deadlock between kswapd and
+ sys_inotify_add_watch(lockdep  report)
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <20090202115627.GB13532@barrios-desktop>
+References: <20090202101735.GA12757@barrios-desktop>
+	 <28c262360902020225w6419089ft2dda30da9dfb32a9@mail.gmail.com>
+	 <1233571202.4787.124.camel@laptop> <20090202112721.GA13532@barrios-desktop>
+	 <1233575085.4787.140.camel@laptop> <20090202115627.GB13532@barrios-desktop>
+Content-Type: text/plain
+Date: Mon, 02 Feb 2009 14:09:07 +0100
+Message-Id: <1233580147.4787.207.camel@laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Mon,  2 Feb 2009 21:59:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: Nick Piggin <npiggin@suse.de>, linux kernel <linux-kernel@vger.kernel.org>, linux mm <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Mon, 2009-02-02 at 20:56 +0900, MinChan Kim wrote:
+> Thanks for kind explanation. :)
+> Unfortunately, I still have a question. :(
 
-> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> +{
-> +	printk(KERN_WARNING "Memory cgroups's name %s\n",
-> +		memcg->css.cgroup->dentry->d_name.name);
-> +	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
-> +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> +	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
-> +		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+No problem :-)
 
-s/res/memsw/ ?
-
-and, I don't like the name of "Memory cgroup RSS" and "Memory cgroup swap".
-it seems misleading. memcg->res doesn't only count count rss, but also cache.
-memcg->memsw doesn't only count swap, but also memory.
-
-otherthing, I think it is good patch for me :)
-
-
-> +}
-> +
->  /*
->   * Unlike exported interface, "oom" parameter is added. if oom==true,
->   * oom-killer can be invoked.
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index d3b9bac..b8e53ae 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  			current->comm, gfp_mask, order, current->oomkilladj);
->  		task_lock(current);
->  		cpuset_print_task_mems_allowed(current);
-> +		mem_cgroup_print_mem_info(mem);
->  		task_unlock(current);
->  		dump_stack();
->  		show_mem();
+> > > I think if reclaim context which have GFP_FS already have lock A and then 
+> > > do pageout, if writepage need the lock A, we have to catch such a case. 
+> > > I thought Nick's patch's goal catchs such a case. 
+> > 
+> > Correct, it exactly does that.
 > 
-> -- 
-> 	Balbir
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> But, I think such a case can be caught by lockdep of recursive detection 
+> which is existed long time ago by making you.
+
+(Ingo wrote that code)
+
+> what's difference Nick's patch and recursive lockdep ?
+
+Very good question indeed. Every time I started to write an answer I
+realize its wrong.
+
+The below is half the answer:
+
+/*
+ * Check whether we are holding such a class already.
+ *
+ * (Note that this has to be done separately, because the graph cannot
+ * detect such classes of deadlocks.)
+ *
+ * Returns: 0 on deadlock detected, 1 on OK, 2 on recursive read
+ */
+static int
+check_deadlock(struct task_struct *curr, struct held_lock *next,
+               struct lockdep_map *next_instance, int read)
+
+So in order for the reclaim report to trigger we have to actually hit
+that code path that has the recursion in it. The reclaim context
+annotation by Nick ensures we detect such cases without having to do
+that.
+
+The second half, to which I cannot seem to get a decent answer to atm,
+is why the recursion case isn't detected by the graph.
 
 
 
