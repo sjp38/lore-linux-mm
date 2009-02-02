@@ -1,116 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 39D685F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 07:52:55 -0500 (EST)
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id n12Cqnb3012188
-	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 18:22:49 +0530
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n12CoVcf4301022
-	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 18:20:32 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n12CqmJA013725
-	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 23:52:48 +1100
-Date: Mon, 2 Feb 2009 18:22:40 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: [-mm patch] Show memcg information during OOM
-Message-ID: <20090202125240.GA918@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 3507A5F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 07:59:38 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n12CxZ8X023954
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 2 Feb 2009 21:59:35 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 666CD45DE55
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FA7045DE51
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 287661DB803F
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:35 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D5DA91DB803C
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 21:59:34 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [-mm patch] Show memcg information during OOM
+In-Reply-To: <20090202125240.GA918@balbir.in.ibm.com>
+References: <20090202125240.GA918@balbir.in.ibm.com>
+Message-Id: <20090202215527.EC92.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Mon,  2 Feb 2009 21:59:34 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi, All,
+Hi
 
-I found the following patch useful while debugging the memory
-controller. It adds additional information if memcg invoked the OOM.
+> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
+> +{
+> +	printk(KERN_WARNING "Memory cgroups's name %s\n",
+> +		memcg->css.cgroup->dentry->d_name.name);
+> +	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
+> +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
+> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
+> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> +	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
+> +		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
+> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
+> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
 
-Comments, Suggestions?
+s/res/memsw/ ?
 
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+and, I don't like the name of "Memory cgroup RSS" and "Memory cgroup swap".
+it seems misleading. memcg->res doesn't only count count rss, but also cache.
+memcg->memsw doesn't only count swap, but also memory.
 
-Description: Add RSS and swap to OOM output from memcg
-
-This patch displays memcg values like failcnt, usage and limit
-when an OOM occurs due to memcg.
-
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
----
-
- include/linux/memcontrol.h |    5 +++++
- mm/memcontrol.c            |   15 +++++++++++++++
- mm/oom_kill.c              |    1 +
- 3 files changed, 21 insertions(+), 0 deletions(-)
+otherthing, I think it is good patch for me :)
 
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 326f45c..2ce1737 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -104,6 +104,7 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
- 						      struct zone *zone);
- struct zone_reclaim_stat*
- mem_cgroup_get_reclaim_stat_from_page(struct page *page);
-+extern void mem_cgroup_print_mem_info(struct mem_cgroup *memcg);
- 
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- extern int do_swap_account;
-@@ -270,6 +271,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
- 	return NULL;
- }
- 
-+void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-+{
-+}
-+
- #endif /* CONFIG_CGROUP_MEM_CONT */
- 
- #endif /* _LINUX_MEMCONTROL_H */
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8e4be9c..75eae85 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -813,6 +813,21 @@ bool mem_cgroup_oom_called(struct task_struct *task)
- 	rcu_read_unlock();
- 	return ret;
- }
-+
-+void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-+{
-+	printk(KERN_WARNING "Memory cgroups's name %s\n",
-+		memcg->css.cgroup->dentry->d_name.name);
-+	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
-+		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-+		res_counter_read_u64(&memcg->res, RES_LIMIT),
-+		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-+	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
-+		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-+		res_counter_read_u64(&memcg->res, RES_LIMIT),
-+		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-+}
-+
- /*
-  * Unlike exported interface, "oom" parameter is added. if oom==true,
-  * oom-killer can be invoked.
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index d3b9bac..b8e53ae 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
- 			current->comm, gfp_mask, order, current->oomkilladj);
- 		task_lock(current);
- 		cpuset_print_task_mems_allowed(current);
-+		mem_cgroup_print_mem_info(mem);
- 		task_unlock(current);
- 		dump_stack();
- 		show_mem();
+> +}
+> +
+>  /*
+>   * Unlike exported interface, "oom" parameter is added. if oom==true,
+>   * oom-killer can be invoked.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index d3b9bac..b8e53ae 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  			current->comm, gfp_mask, order, current->oomkilladj);
+>  		task_lock(current);
+>  		cpuset_print_task_mems_allowed(current);
+> +		mem_cgroup_print_mem_info(mem);
+>  		task_unlock(current);
+>  		dump_stack();
+>  		show_mem();
+> 
+> -- 
+> 	Balbir
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-	Balbir
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
