@@ -1,73 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 59B345F0001
-	for <linux-mm@kvack.org>; Sun,  1 Feb 2009 08:01:05 -0500 (EST)
-Date: Sun, 1 Feb 2009 14:00:58 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-Message-ID: <20090201130058.GA486@elte.hu>
-References: <8c5a844a0901220851g1c21169al4452825564487b9a@mail.gmail.com> <Pine.LNX.4.64.0901221658550.14302@blonde.anvils> <8c5a844a0901221500m7af8ff45v169b6523ad9d7ad3@mail.gmail.com> <20090122231358.GA27033@elte.hu> <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com> <8c5a844a0901281331w4cea7ab2y305d5a1af96e313e@mail.gmail.com> <20090129141929.GP24391@elte.hu> <8c5a844a0902010319t20b853d0t6c156ecc84543f30@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8c5a844a0902010319t20b853d0t6c156ecc84543f30@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 4871D5F0001
+	for <linux-mm@kvack.org>; Sun,  1 Feb 2009 22:38:55 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
+References: <20090121143008.GV24891@wotan.suse.de>
+	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
+	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
+	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
+	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
+Content-Type: text/plain; charset=UTF-8
+Date: Mon, 02 Feb 2009 11:38:43 +0800
+Message-Id: <1233545923.2604.60.camel@ymzhang>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Daniel Lowengrub <lowdanie@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi, Hugh,
 
-* Daniel Lowengrub <lowdanie@gmail.com> wrote:
+On Fri, 2009-01-23 at 14:23 +0000, Hugh Dickins wrote:
+> On Thu, 22 Jan 2009, Hugh Dickins wrote:
+> > On Thu, 22 Jan 2009, Pekka Enberg wrote:
+> > > On Wed, Jan 21, 2009 at 8:10 PM, Hugh Dickins <hugh@veritas.com> wrote:
+> > > >
+> > > > That's been making SLUB behave pretty badly (e.g. elapsed time 30%
+> > > > more than SLAB) with swapping loads on most of my machines.  Though
+Would you like to share your tmpfs loop swap load with me, so I could reproduce
+it on my machines? Do your machines run at i386 mode or x86-64 mode? How much
+memory do your machines have?
 
-> On 1/29/09, Ingo Molnar <mingo@elte.hu> wrote:
-> > Here's an mmap performance tester:
-> >
-> >    http://redhat.com/~mingo/misc/mmap-perf.c
-> >
-> > maybe that shows a systematic effect. If you've got a Core2 based
-> > test-system then you could try perfstat as well, for much more precise
-> > instruction counts. (can give you more info about how to do that if you
-> > have such a test-system.)
-> >
-> >        Ingo
-> >
-> I compiled mmap-perf.c an ran it with ./mmap-perf 1 (not as root, does
-> that matter?).  As obvious from the code, the output that I got was
-> the final state of the /proc/[self]/maps file.  How does this
-> information tell me about performance?  Anyhow, here're the first 10
-> lines of the [heap] part of the output using the standard kernel:
-> 0965b000-0967c000 rw-p 0965b000 00:00 0          [heap]
-> 86007000-86009000 rw-p 86007000 00:00 0
-> 86009000-8600a000 ---p 86009000 00:00 0
-> 86018000-8601b000 rw-p 86018000 00:00 0
-> 8601c000-86023000 -w-p 8601c000 00:00 0
-> 86023000-86026000 rw-p 86023000 00:00 0
-> 86026000-86029000 r--p 86026000 00:00 0
-> 8603e000-86040000 rw-p 8603e000 00:00 0
-> 86048000-8604c000 r--p 86048000 00:00 0
-> 8604f000-86054000 ---p 8604f000 00:00 0
-> and here're the first 10 lines of the output with the patch applied:
-> 09596000-095b7000 rw-p 09596000 00:00 0          [heap]
-> 860ab000-860ad000 rw-p 860ab000 00:00 0
-> 860ad000-860ae000 ---p 860ad000 00:00 0
-> 860bc000-860bf000 rw-p 860bc000 00:00 0
-> 860c0000-860c7000 -w-p 860c0000 00:00 0
-> 860c7000-860ca000 rw-p 860c7000 00:00 0
-> 860ca000-860cd000 r--p 860ca000 00:00 0
-> 860e2000-860e4000 rw-p 860e2000 00:00 0
-> 860ec000-860f0000 r--p 860ec000 00:00 0
-> 860f3000-860f8000 ---p 860f3000 00:00 0
-> I can't see how this can show performance differences but I'm not sure
-> what other
-> part of the output is relevant.  Should I run it with some other options?
+> > > > oddly one seems immune, and another takes four times as long: guess
+> > > > it depends on how close to thrashing, but probably more to investigate
+> > > > there.  I think my original SLUB versus SLAB comparisons were done on
+> > > > the immune one: as I remember, SLUB and SLAB were equivalent on those
+> > > > loads when SLUB came in, but even with boot option slub_max_order=1,
+> > > > SLUB is still slower than SLAB on such tests (e.g. 2% slower).
+> > > > FWIW - swapping loads are not what anybody should tune for.
+> > > 
+> > > What kind of machine are you seeing this on? It sounds like it could
+> > > be a side-effect from commit 9b2cd506e5f2117f94c28a0040bf5da058105316
+> > > ("slub: Calculate min_objects based on number of processors").
+i>>?As I know little about your workload, I just guess from 'loop swap load' that
+your load eats memory quickly and kernel/swap is started to keep a low free
+memory.
 
-you should time it:
+Commit i>>?9b2cd506e5f2117f94c28a0040bf5da058105316 is just a method to increase
+the page order for slub so there more free objects available in a slab. That
+promotes performance for many benchmarks if there are enough __free__ pages.
+Because memory is cheaper and comparing with cpu number increasing, memory
+is increased more rapidly. So we create commit
+9b2cd506e5f2117f94c28a0040bf5da058105316. In addition, if we have no this
+commit, we will have another similiar commit to just increase slub_min_objects
+and slub_max_order.
 
- time ./mmap-perf
+However, our assumption about free memory seems inappropriate when memory is
+hungry just like your case. Function allocate_slab always tries the higher
+order firstly. If it fails to get a new slab, it will tries the minimum order.
+As for your case, I think the first try always fails, and it takes too much
+time. Perhaps alloc_pages does far away from a checking even with flag
+__GFP_NORETRY to consume extra time?
 
-and compare the before/after results.
 
-	Ingo
+Christoph and Pekka,
+
+Can we add a checking about free memory page number/percentage in function
+allocate_slab that we can bypass the first try of alloc_pages when memory
+is hungry?
+
+
+> > 
+> > Thanks, yes, that could well account for the residual difference: the
+> > machines in question have 2 or 4 cpus, so the old slub_min_objects=4
+> > has effectively become slub_min_objects=12 or slub_min_objects=16.
+> > 
+> > I'm now trying with slub_max_order=1 slub_min_objects=4 on the boot
+> > lines (though I'll need to curtail tests on a couple of machines),
+> > and will report back later.
+> 
+> Yes, slub_max_order=1 with slub_min_objects=4 certainly helps this
+> swapping load.  I've not tried slub_max_order=0, but I'm running
+> with 8kB stacks, so order 1 seems a reasonable choice.
+> 
+> I can't say where I pulled that "e.g. 2% slower" from: on different
+> machines slub was 5% or 10% or 20% slower than slab and slqb even with
+> slub_max_order=1 (but not significantly slower on the "immune" machine).
+> How much slub_min_objects=4 helps again varies widely, between halving
+> or eliminating the difference.
+I guess your machines have different memory quantity, but your workload
+mostly consumes specified number of pages, so the result percent is
+different.
+
+> 
+> But I think it's more important that I focus on the worst case machine,
+> try to understand what's going on there.
+oprofile data and 'slabinfo -AD' output might help.
+
+yanmin
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
