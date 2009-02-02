@@ -1,108 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5449D5F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 08:45:35 -0500 (EST)
-Date: Mon, 2 Feb 2009 14:45:06 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [-mm patch] Show memcg information during OOM
-Message-ID: <20090202134505.GA4848@cmpxchg.org>
-References: <20090202125240.GA918@balbir.in.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id AF77B5F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 08:50:52 -0500 (EST)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate6.de.ibm.com (8.13.8/8.13.8) with ESMTP id n12Dmlfp323700
+	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 13:48:47 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n12DmlpQ3444766
+	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 14:48:47 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n12DmlJD022528
+	for <linux-mm@kvack.org>; Mon, 2 Feb 2009 14:48:47 +0100
+Subject: Re: [PATCH -mmotm] mm: unify some pmd_*() functions fix
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Reply-To: schwidefsky@de.ibm.com
+In-Reply-To: <1233183874-26066-1-git-send-email-righi.andrea@gmail.com>
+References: <1233183874-26066-1-git-send-email-righi.andrea@gmail.com>
+Content-Type: text/plain
+Date: Mon, 02 Feb 2009 14:48:46 +0100
+Message-Id: <1233582526.18006.31.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090202125240.GA918@balbir.in.ibm.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Righi <righi.andrea@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Roman Zippel <zippel@linux-m68k.org>, David Howells <dhowells@redhat.com>, Hirokazu Takata <takata@linux-m32r.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 02, 2009 at 06:22:40PM +0530, Balbir Singh wrote:
-> Hi, All,
+On Thu, 2009-01-29 at 00:04 +0100, Andrea Righi wrote:
+> Also unify implementations of pmd_*() functions in arch/*.
 > 
-> I found the following patch useful while debugging the memory
-> controller. It adds additional information if memcg invoked the OOM.
+> This patch must be applied on top of mm-unify-some-pmd_-functions.patch.
 > 
-> Comments, Suggestions?
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Description: Add RSS and swap to OOM output from memcg
-> 
-> This patch displays memcg values like failcnt, usage and limit
-> when an OOM occurs due to memcg.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  include/linux/memcontrol.h |    5 +++++
->  mm/memcontrol.c            |   15 +++++++++++++++
->  mm/oom_kill.c              |    1 +
->  3 files changed, 21 insertions(+), 0 deletions(-)
-> 
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 326f45c..2ce1737 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -104,6 +104,7 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
->  						      struct zone *zone);
->  struct zone_reclaim_stat*
->  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
-> +extern void mem_cgroup_print_mem_info(struct mem_cgroup *memcg);
->  
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  extern int do_swap_account;
-> @@ -270,6 +271,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
->  	return NULL;
->  }
->  
-> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> +{
-> +}
-> +
->  #endif /* CONFIG_CGROUP_MEM_CONT */
->  
->  #endif /* _LINUX_MEMCONTROL_H */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8e4be9c..75eae85 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -813,6 +813,21 @@ bool mem_cgroup_oom_called(struct task_struct *task)
->  	rcu_read_unlock();
->  	return ret;
->  }
-> +
-> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> +{
-> +	printk(KERN_WARNING "Memory cgroups's name %s\n",
-> +		memcg->css.cgroup->dentry->d_name.name);
-> +	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
-> +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> +	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
-> +		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> +}
-> +
->  /*
->   * Unlike exported interface, "oom" parameter is added. if oom==true,
->   * oom-killer can be invoked.
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index d3b9bac..b8e53ae 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
->  			current->comm, gfp_mask, order, current->oomkilladj);
->  		task_lock(current);
->  		cpuset_print_task_mems_allowed(current);
-> +		mem_cgroup_print_mem_info(mem);
+> Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
 
-mem is only !NULL when we come from mem_cgroup_out_of_memory().  This
-crashes otherwise in mem_cgroup_print_mem_info(), no?
+> diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
+> index b2658b9..6a85281 100644
+> --- a/arch/s390/include/asm/pgalloc.h
+> +++ b/arch/s390/include/asm/pgalloc.h
+> @@ -63,8 +63,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
+>  #define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
+>  #define pud_free(mm, x)				do { } while (0)
+> 
+> -#define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
+> -#define pmd_free(mm, x)				do { } while (0)
+> +#define pmd_alloc_one	pmd_alloc_one_bug
+> 
+>  #define pgd_populate(mm, pgd, pud)		BUG()
+>  #define pgd_populate_kernel(mm, pgd, pud)	BUG()
 
-	Hannes
+This does not compile for 32 bit s390. With the patches for 'dynamic
+page tables' and '1K/2k page tables' I decided to get completely
+independent from the nopmd/nopud #ifdef hell. The include files from
+asm-generic are simply not used for s390. Please drop the above hunk
+from your patch and leave s390 as it is.
+
+-- 
+blue skies,
+  Martin.
+
+"Reality continues to ruin my life." - Calvin.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
