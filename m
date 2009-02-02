@@ -1,49 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B789B5F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 10:48:24 -0500 (EST)
-Subject: Re: [RFC v7] wait: prevent exclusive waiter starvation
-From: Chris Mason <chris.mason@oracle.com>
-In-Reply-To: <1233239675.10354.18.camel@think.oraclecorp.com>
-References: <20090123095904.GA22890@cmpxchg.org>
-	 <20090123113541.GB12684@redhat.com> <20090123133050.GA19226@redhat.com>
-	 <20090126215957.GA3889@cmpxchg.org> <20090127032359.GA17359@redhat.com>
-	 <20090127193434.GA19673@cmpxchg.org> <20090127200544.GA28843@redhat.com>
-	 <20090128091453.GA22036@cmpxchg.org> <20090129044227.GA5231@redhat.com>
-	 <20090128233734.81d8004a.akpm@linux-foundation.org>
-	 <20090129083108.GA27495@redhat.com>
-	 <20090129011143.884e5573.akpm@linux-foundation.org>
-	 <1233239675.10354.18.camel@think.oraclecorp.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B8B945F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 12:16:24 -0500 (EST)
+Subject: Re: [PATCH] fix mlocked page counter mismatch
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090202061622.GA13286@barrios-desktop>
+References: <20090202061622.GA13286@barrios-desktop>
 Content-Type: text/plain
-Date: Mon, 02 Feb 2009 10:47:47 -0500
-Message-Id: <1233589667.18113.24.camel@think.oraclecorp.com>
+Date: Mon, 02 Feb 2009 12:16:35 -0500
+Message-Id: <1233594995.17895.144.camel@lts-notebook>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Matthew Wilcox <matthew@wil.cx>, Chuck Lever <cel@citi.umich.edu>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>, stable@kernel.org
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: linux mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-01-29 at 09:34 -0500, Chris Mason wrote:
-
-> > > > So I think we're saying that
-> > > > lock_page_killable-avoid-lost-wakeups.patch actually did fix the bug?
-> > > 
-> > > I think yes,
-> > > 
+On Mon, 2009-02-02 at 15:16 +0900, MinChan Kim wrote:
+> When I tested following program, I found that mlocked counter 
+> is strange. 
+> It couldn't free some mlocked pages of test program.
 > 
-> Our test case that was able to reliably trigger the bug was fixed by
-> lock_page_killable-avoid-lost-wakeups.patch.
+> It is caused that try_to_unmap_file don't check real 
+> page mapping in vmas. 
+> That's because goal of address_space for file is to find all processes 
+> into which the file's specific interval is mapped. 
+> What I mean is that it's not related page but file's interval.
 > 
-> I'll ask them to test v7 as well.  The run takes about a day, so
-> confirmation will take a bit.
+> Even if the page isn't really mapping at the vma, it returns 
+> SWAP_MLOCK since the vma have VM_LOCKED, then calls 
+> try_to_mlock_page. After all, mlocked counter is increased again. 
+> 
+> This patch is based on 2.6.28-rc2-mm1.
+> 
+> -- my test program --
+> 
+> #include <stdio.h>
+> #include <sys/mman.h>
+> int main()
+> {
+>         mlockall(MCL_CURRENT);
+>         return 0;
+> }
+> 
+> -- before --
+> 
+> root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+> Unevictable:           0 kB
+> Mlocked:               0 kB
+> 
+> -- after --
+> 
+> root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+> Unevictable:           8 kB
+> Mlocked:               8 kB
+> 
+> 
+> --
+> 
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 1099394..9ba1fdf 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1073,6 +1073,9 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
+>  	unsigned long max_nl_size = 0;
+>  	unsigned int mapcount;
+>  	unsigned int mlocked = 0;
+> +	unsigned long address;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+>  
+>  	if (MLOCK_PAGES && unlikely(unlock))
+>  		ret = SWAP_SUCCESS;	/* default for try_to_munlock() */
+> @@ -1089,6 +1092,13 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
+>  				goto out;
+>  		}
+>  		if (ret == SWAP_MLOCK) {
+> +     address = vma_address(page, vma);
+> +     if (address != -EFAULT) {
+> +       pte = page_check_address(page, vma->vm_mm, address, &ptl, 0);
+> +       if (!pte)
+> +            continue; 
+> +       pte_unmap_unlock(pte, ptl);
+> +     } 
+>  			mlocked = try_to_mlock_page(page, vma);
+>  			if (mlocked)
+>  				break;  /* stop if actually mlocked page */
 
-v7 went through a total of 5 runs and passed all of them.  Unpatched we
-would fail after one run, so I think this does fix it.
+Hi, MinChan:
 
--chris
+   Interestingly, Rik had addressed this [simpler patch below] way back
+when he added the page_mapped_in_vma() function.  I asked him whether
+the rb tree shouldn't have filtered any vmas that didn't have the page
+mapped.  He agreed and removed the check from try_to_unmap_file().
+Guess I can be very convincing, even when I'm wrong [happening a lot
+lately].  Of course, in this instance, the rb-tree filtering only works
+for shared, page-cache pages.  The problem uncovered by your test case
+is with a COWed anon page in a file-backed vma.  Yes, the vma 'maps' the
+virtual address range containing the page in question, but since it's a
+private COWed anon page, it isn't necessarily "mapped" in the VM_LOCKED
+vma's mm's page table.  We need the check...
+
+I've added the variant below [CURRENTLY UNTESTED] to my test tree.
+
+Lee
+
+[intentionally omitted sign off, until tested.]
 
 
+Index: linux-2.6.29-rc3/mm/rmap.c
+===================================================================
+--- linux-2.6.29-rc3.orig/mm/rmap.c	2009-01-30 14:13:56.000000000 -0500
++++ linux-2.6.29-rc3/mm/rmap.c	2009-02-02 11:27:11.000000000 -0500
+@@ -1072,7 +1072,8 @@ static int try_to_unmap_file(struct page
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		if (MLOCK_PAGES && unlikely(unlock)) {
+-			if (!(vma->vm_flags & VM_LOCKED))
++			if (!((vma->vm_flags & VM_LOCKED) &&
++			      page_mapped_in_vma(page, vma)))
+ 				continue;	/* must visit all vmas */
+ 			ret = SWAP_MLOCK;
+ 		} else {
 
 
 --
