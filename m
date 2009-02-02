@@ -1,153 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 399975F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 06:44:52 -0500 (EST)
-Subject: Re: [BUG??] Deadlock between kswapd and
- sys_inotify_add_watch(lockdep  report)
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090202112721.GA13532@barrios-desktop>
-References: <20090202101735.GA12757@barrios-desktop>
-	 <28c262360902020225w6419089ft2dda30da9dfb32a9@mail.gmail.com>
-	 <1233571202.4787.124.camel@laptop> <20090202112721.GA13532@barrios-desktop>
-Content-Type: text/plain
-Date: Mon, 02 Feb 2009 12:44:45 +0100
-Message-Id: <1233575085.4787.140.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 714E05F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 06:50:50 -0500 (EST)
+Date: Mon, 2 Feb 2009 11:50:20 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch] SLQB slab allocator
+In-Reply-To: <1233545923.2604.60.camel@ymzhang>
+Message-ID: <Pine.LNX.4.64.0902021013270.7621@blonde.anvils>
+References: <20090121143008.GV24891@wotan.suse.de>
+ <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
+ <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
+ <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
+ <Pine.LNX.4.64.0901231357250.9011@blonde.anvils> <1233545923.2604.60.camel@ymzhang>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-758163607-1233575420=:7621"
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: Nick Piggin <npiggin@suse.de>, linux kernel <linux-kernel@vger.kernel.org>, linux mm <linux-mm@kvack.org>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-02-02 at 20:27 +0900, MinChan Kim wrote:
-> On Mon, Feb 02, 2009 at 11:40:02AM +0100, Peter Zijlstra wrote:
-> > On Mon, 2009-02-02 at 19:25 +0900, MinChan Kim wrote:
-> > > But, I am not sure whether it's real bug or not.
-> > 
-> > Me neither, inode life-times are tricky, but on first sight it looks
-> > real enough.
-> > 
-> > > I always suffer from reading lockdep report's result. :(
-> > > It would be better to have a document about lockdep report analysis.
-> > 
-> > I've never found them hard to read, so I'm afraid you'll have to be more
-> > explicit about what is unclear to you.
-> 
-> It's becuase not lockdep humble report but my poor knowledge. :(
-> Could you elaborate please ?
-> 
-> >[  331.718120] [ INFO: inconsistent lock state ]
-> >[  331.718124] 2.6.28-rc2-mm1-lockdep #6
-> >[  331.718126] ---------------------------------
-> >[  331.718129] inconsistent {ov-reclaim-W} -> {in-reclaim-W} usage.
->                                          ^                 ^ 
->                                         write ?           write ?
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Correct, we track states for read and write, for single state locks we
-map everything on the exclusive state (write).
+--8323584-758163607-1233575420=:7621
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
 
-> >
-> >[  331.718133] kswapd0/218 [HC0[0]:SC0[0]:HE0:SE1] takes:
->                             ^^^^^^^^^^^^^^^^^^^^^^
->                             what means ? HC,SC,HE,SE
+On Mon, 2 Feb 2009, Zhang, Yanmin wrote:
+> On Fri, 2009-01-23 at 14:23 +0000, Hugh Dickins wrote:
+> > On Thu, 22 Jan 2009, Hugh Dickins wrote:
+> > > On Thu, 22 Jan 2009, Pekka Enberg wrote:
+> > > > On Wed, Jan 21, 2009 at 8:10 PM, Hugh Dickins <hugh@veritas.com> wr=
+ote:
+> > > > >
+> > > > > That's been making SLUB behave pretty badly (e.g. elapsed time 30=
+%
+> > > > > more than SLAB) with swapping loads on most of my machines.  Thou=
+gh
+> Would you like to share your tmpfs loop swap load with me, so I could rep=
+roduce
+> it on my machines?
 
-Ah, yes, that's a bit obscure, but usually not needed.
+A very reasonable request that I feared someone would make!
+I'm sure we all have test scripts that we can run happily ourselves,
+but as soon as someone else asks, we want to make this and that and
+the other adjustment, if only to reduce the amount of setup description
+required - this is one such.  I guess I can restrain myself a little if
+I'm just sending it to you, separately.
 
-Hardirq Context -- irq state tracking [preempt_count tracking]
-Softirq Context -- idem
+> Do your machines run at i386 mode or x86-64 mode?
 
-Hardirq Enabled
-Softirq Enabled
+Both: one is a ppc64 (G5 Quad), one is i386 only (Atom SSD netbook),
+three I can run either way (though my common habit is to run two as
+i386 with 32bit userspace and one as x86_64 with 64bit userspace).
 
-It allows you to see if the irq state tracking matches up, and what the
-call context is.
+> How much memory do your machines have?
 
-> >
-> >[  331.718136]  (&inode->inotify_mutex){--..+.}, at: [<c01dba70>] inotify_inode_is_dead+0x20/0x90
-> >             
-> 
-> Is it related to recursive lock of inotify_mutex ?
+I use mem=3D700M when running such tests on all of them (but leave
+the netbook with its 1GB mem): otherwise I'd have to ramp up the
+test in different ways to get them all swapping enough - it is
+tmpfs and swapping that I'm personally most concerned to test.
 
-Yes.
+> > > > > oddly one seems immune, and another takes four times as long: gue=
+ss
+> > > > > it depends on how close to thrashing, but probably more to invest=
+igate
+> > > > > there.  I think my original SLUB versus SLAB comparisons were don=
+e on
+> > > > > the immune one: as I remember, SLUB and SLAB were equivalent on t=
+hose
+> > > > > loads when SLUB came in, but even with boot option slub_max_order=
+=3D1,
+> > > > > SLUB is still slower than SLAB on such tests (e.g. 2% slower).
+> > > > > FWIW - swapping loads are not what anybody should tune for.
+> > > >=20
+> > > > What kind of machine are you seeing this on? It sounds like it coul=
+d
+> > > > be a side-effect from commit 9b2cd506e5f2117f94c28a0040bf5da0581053=
+16
+> > > > ("slub: Calculate min_objects based on number of processors").
+> =EF=BB=BFAs I know little about your workload, I just guess from 'loop sw=
+ap load' that
+> your load eats memory quickly and kernel/swap is started to keep a low fr=
+ee
+> memory.
+>=20
+> Commit =EF=BB=BF9b2cd506e5f2117f94c28a0040bf5da058105316 is just a method=
+ to increase
+> the page order for slub so there more free objects available in a slab. T=
+hat
+> promotes performance for many benchmarks if there are enough __free__ pag=
+es.
+> Because memory is cheaper and comparing with cpu number increasing, memor=
+y
+> is increased more rapidly. So we create commit
+> 9b2cd506e5f2117f94c28a0040bf5da058105316. In addition, if we have no this
+> commit, we will have another similiar commit to just increase slub_min_ob=
+jects
+> and slub_max_order.
+>=20
+> However, our assumption about free memory seems inappropriate when memory=
+ is
+> hungry just like your case. Function allocate_slab always tries the highe=
+r
+> order firstly. If it fails to get a new slab, it will tries the minimum o=
+rder.
+> As for your case, I think the first try always fails, and it takes too mu=
+ch
+> time. Perhaps alloc_pages does far away from a checking even with flag
+> __GFP_NORETRY to consume extra time?
 
-> but, Subject means 'inconsistent {ov-reclaim-W} -> {in-reclaim-W}', 
-> IOW, it's related to reclaim of GFP_FS. 
-> What's relation inotify_mutex and reclaim of GFP_FS?
+I believe you're thinking there of how much system time is used.
+I haven't been paying much attention to that, and don't have any
+complaints about slub from that angle (what's most noticeable there
+is that, as expected, slob uses more system time than slab or slqb
+or slub).  Although I do record the system time reported for the
+test, I very rarely think to add in kswapd0's and loop0's times,
+which would be very significant missed contributions.
 
-The lockdep report states the following:
+What I've been worried by is the total elapsed times, that's where
+slub shows up badly.  That means, I think, that bad decisions are
+being made about what to swap out when, so that altogether there's
+too much swapping: which is understandable when slub is aiming for
+higher order allocations.  One page of the high order is selected
+according to vmscan's usual criteria, but the remaining pages will
+be chosen according to their adjacence rather than their age (to
+some extent: there is code in there to resist bad decisions too).
+If we imagine that vmscan's usual criteria are perfect (ha ha),
+then it's unsurprising that going for higher order allocations
+leads it to make inferior decisions and swap out too much.
 
-While holding inotify_mutex, we do a __GFP_FS allocation.
-But __GFP_FS allocations can end up locking inotify_mutex.
+>=20
+> Christoph and Pekka,
+>=20
+> Can we add a checking about free memory page number/percentage in functio=
+n
+> allocate_slab that we can bypass the first try of alloc_pages when memory
+> is hungry?
 
-> I think if reclaim context which have GFP_FS already have lock A and then 
-> do pageout, if writepage need the lock A, we have to catch such a case. 
-> I thought Nick's patch's goal catchs such a case. 
+Having lots of free memory is a temporary accident following process
+exit (when lots of anonymous memory has suddenly been freed), before
+it has been put to use for page cache.  The kernel tries to run with
+a certain amount of free memory in reserve, and the rest of memory
+put to (potentially) good use.  I don't think we have the number
+you're looking for there, though perhaps some approximation could
+be devised (or I'm looking at the problem the wrong way round).
 
-Correct, it exactly does that.
+Perhaps feedback from vmscan.c, on how much it's having to write back,
+would provide a good clue.  There's plenty of stats maintained there.
 
-> One more question is that what's difference between lock inversion and
-> circular locking dependency ?
+> > >=20
+> > > Thanks, yes, that could well account for the residual difference: the
+> > > machines in question have 2 or 4 cpus, so the old slub_min_objects=3D=
+4
+> > > has effectively become slub_min_objects=3D12 or slub_min_objects=3D16=
+=2E
+> > >=20
+> > > I'm now trying with slub_max_order=3D1 slub_min_objects=3D4 on the bo=
+ot
+> > > lines (though I'll need to curtail tests on a couple of machines),
+> > > and will report back later.
+> >=20
+> > Yes, slub_max_order=3D1 with slub_min_objects=3D4 certainly helps this
+> > swapping load.  I've not tried slub_max_order=3D0, but I'm running
+> > with 8kB stacks, so order 1 seems a reasonable choice.
+> >=20
+> > I can't say where I pulled that "e.g. 2% slower" from: on different
+> > machines slub was 5% or 10% or 20% slower than slab and slqb even with
+> > slub_max_order=3D1 (but not significantly slower on the "immune" machin=
+e).
+> > How much slub_min_objects=3D4 helps again varies widely, between halvin=
+g
+> > or eliminating the difference.
+> I guess your machines have different memory quantity, but your workload
+> mostly consumes specified number of pages, so the result percent is
+> different.
 
-I'm not sure if there's a difference. I suspect they are two ways of
-saying the same.
+No, mem=3D700M in each case but the netbook.
 
-> >[  331.718148] {ov-reclaim-W} state was registered at:
-> >[  331.718150]   [<c01532ee>] mark_held_locks+0x3e/0x90
-> >[  331.718157]   [<c015338e>] lockdep_trace_alloc+0x4e/0x80
-> >[  331.718162]   [<c01acee6>] kmem_cache_alloc+0x26/0xf0
-> >[  331.718166]   [<c0243fa0>] idr_pre_get+0x50/0x70
-> >[  331.718172]   [<c01db761>] inotify_handle_get_wd+0x21/0x60
-> >[  331.718176]   [<c01dc012>] inotify_add_watch+0x52/0xe0
-> >[  331.718181]   [<c01dcca8>] sys_inotify_add_watch+0x148/0x170
-> >[  331.718185]   [<c0104032>] syscall_call+0x7/0xb
-> >[  331.718190]   [<ffffffff>] 0xffffffff
+> >=20
+> > But I think it's more important that I focus on the worst case machine,
+> > try to understand what's going on there.
+> oprofile data and 'slabinfo -AD' output might help.
 
-This bit states, we saw inotify_mutex being held over a __GFP_FS
-reclaim.
+oprofile I doubt here, since it's the total elapsed time that worries
+me.  I had to look up 'slabinfo -AD', yes, thanks for that pointer, it
+may help when I get around to investigating my totally unsubstantiated
+suspicion ...
 
-> >[  331.718205] irq event stamp: 1288446
-> >[  331.718207] hardirqs last  enabled at (1288445): [<c0179695>] call_rcu+0x75/0x90
-> >[  331.718213] hardirqs last disabled at (1288446): [<c0370103>] mutex_lock_nested+0x53/0x2f0
-> >[  331.718221] softirqs last  enabled at (1284622): [<c0132fa2>] __do_softirq+0x132/0x180
-> >[  331.718226] softirqs last disabled at (1284617): [<c0133079>] do_softirq+0x89/0x90
-> >[  331.718231]
-> >[  331.718232] other info that might help us debug this:
-> >[  331.718236] 2 locks held by kswapd0/218:
-> >[  331.718238]  #0:  (shrinker_rwsem){----..}, at: [<c0192d65>] shrink_slab+0x25/0x1a0
-> >[  331.718248]  #1:  (&type->s_umount_key#4){-----.}, at: [<c01c21fb>] shrink_dcache_memory+0xfb/0x1a0
-> >[  331.718259]
-> >[  331.718260] stack backtrace:
-> >[  331.718263] Pid: 218, comm: kswapd0 Not tainted 2.6.28-rc2-mm1-lockdep #6
+=2E.. on the laptop which suffers worst from slub, I am using an SD
+card accessed as USB storage for swap (but no USB storage on the
+others).  I'm suspecting there's something down that stack which
+is slow to recover from allocation failures: when I tried a much
+simplified test using just two "cp -a"s, they can hang on that box.
+So my current guess is that slub makes something significantly worse
+(some debug options make it significantly worse too), but the actual
+bug is elsewhere.
 
-> >[  331.718266] Call Trace:
-> >[  331.718272]  [<c0151726>] print_usage_bug+0x176/0x1c0
-> >[  331.718276]  [<c0152d05>] mark_lock+0xb05/0x10b0
-> >[  331.718282]  [<c018c0e9>] ? __free_pages_ok+0x349/0x450
-> >[  331.718287]  [<c0155362>] __lock_acquire+0x602/0xa80
-> >[  331.718291]  [<c01540ff>] ? validate_chain+0x3ef/0x1050
-> >[  331.718296]  [<c0155851>] lock_acquire+0x71/0xa0
-> >[  331.718300]  [<c01dba70>] ? inotify_inode_is_dead+0x20/0x90
-> >[  331.718305]  [<c037014d>] mutex_lock_nested+0x9d/0x2f0
-> >[  331.718310]  [<c01dba70>] ? inotify_inode_is_dead+0x20/0x90
-> >[  331.718314]  [<c01dba70>] ? inotify_inode_is_dead+0x20/0x90
-> >[  331.718318]  [<c01dba70>] inotify_inode_is_dead+0x20/0x90
-> >[  331.718323]  [<c024e2d6>] ? _raw_spin_unlock+0x46/0x80
-> >[  331.718328]  [<c01c1d14>] dentry_iput+0xa4/0xc0
-> >[  331.718333]  [<c01c1dfb>] d_kill+0x3b/0x60
-> >[  331.718337]  [<c01c1fe6>] __shrink_dcache_sb+0x1c6/0x2c0
-> >[  331.718342]  [<c01c228d>] shrink_dcache_memory+0x18d/0x1a0
-> >[  331.718347]  [<c0192e6b>] shrink_slab+0x12b/0x1a0
-> >[  331.718351]  [<c01939ff>] kswapd+0x3af/0x5c0
-> >[  331.718356]  [<c01910a0>] ? isolate_pages_global+0x0/0x220
-> >[  331.718362]  [<c0142800>] ? autoremove_wake_function+0x0/0x40
-> >[  331.718366]  [<c0193650>] ? kswapd+0x0/0x5c0
-> >[  331.718371]  [<c01424f7>] kthread+0x47/0x80
-> >[  331.718375]  [<c01424b0>] ? kthread+0x0/0x80
-> >[  331.718380]  [<c01054f7>] kernel_thread_helper+0x7/0x10
-
-This trace gives us the current situation, that is reported to violate
-the previous state. IOW here we use inotify_mutex during a __GFP_FS
-reclaim.
+Hugh
+--8323584-758163607-1233575420=:7621--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
