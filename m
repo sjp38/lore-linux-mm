@@ -1,28 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B60255F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 04:08:21 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 174BE5F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 04:09:04 -0500 (EST)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1398Inv021669
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n13991gE021724
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Feb 2009 18:08:18 +0900
+	Tue, 3 Feb 2009 18:09:01 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0954945DE5C
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:18 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 34D7945DE50
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:09:01 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CFA1645DE51
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 135E145DE4F
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:09:01 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A523E1DB8037
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 474611DB8044
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
-Date: Tue, 3 Feb 2009 18:07:07 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0850EE18001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:09:01 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B13511DB8037
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:09:00 +0900 (JST)
+Date: Tue, 3 Feb 2009 18:07:51 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 4/6] memcg: fix shrinking memory to return -EBUSY by fixing
- retry algorithm
-Message-Id: <20090203180707.dbf23908.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 5/6] memcg: fix OOM killer under memcg
+Message-Id: <20090203180751.fd63b7ae.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090203180320.9f29aa76.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090203180320.9f29aa76.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -35,183 +34,151 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-As pointed out, shrinking memcg's limit should return -EBUSY
-after reasonable retries. This patch tries to fix the current behavior
-of shrink_usage.
+This patch tries to fix OOM Killer problems caused by hierarchy.
+Now, memcg itself has OOM KILL function (in oom_kill.c) and tries to
+kill a task in memcg.
 
-Before looking into "shrink should return -EBUSY" problem, we should fix
-hierarchical reclaim code. It compares current usage and current limit,
-but it only makes sense when the kernel reclaims memory because hit limits.
-This is also a problem.
+But, when hierarchy is used, it's broken and correct task cannot
+be killed. For example, in following cgroup
 
-What this patch does are.
+	/groupA/	hierarchy=1, limit=1G,
+		01	nolimit
+		02	nolimit
+All tasks' memory usage under /groupA, /groupA/01, groupA/02 is limited to
+groupA's 1Gbytes but OOM Killer just kills tasks in groupA.
 
-  1. add new argument "shrink" to hierarchical reclaim. If "shrink==true",
-     hierarchical reclaim returns immediately and the caller checks the kernel
-     should shrink more or not.
-     (At shrinking memory, usage is always smaller than limit. So check for
-      usage < limit is useless.)
+This patch provides makes the bad process be selected from all tasks
+under hierarchy. BTW, currently, oom_jiffies is updated against groupA
+in above case. oom_jiffies of tree should be updated.
 
-  2. For adjusting to above change, 2 changes in "shrink"'s retry path.
-     2-a. retry_count depends on # of children because the kernel visits
-	  the children under hierarchy one by one.
-     2-b. rather than checking return value of hierarchical_reclaim's progress,
-	  compares usage-before-shrink and usage-after-shrink.
-	  If usage-before-shrink <= usage-after-shrink, retry_count is
-	  decremented.
+To see how oom_jiffies is used, please check mem_cgroup_oom_called()
+callers.
 
-Reported-by: Li Zefan <lizf@cn.fujitsu.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
 Index: mmotm-2.6.29-Feb02/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.29-Feb02.orig/mm/memcontrol.c
 +++ mmotm-2.6.29-Feb02/mm/memcontrol.c
-@@ -702,6 +702,23 @@ static unsigned int get_swappiness(struc
- 	return swappiness;
+@@ -295,6 +295,9 @@ struct mem_cgroup *mem_cgroup_from_task(
+ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+ {
+ 	struct mem_cgroup *mem = NULL;
++
++	if (!mm)
++		return;
+ 	/*
+ 	 * Because we have no locks, mm->owner's may be being moved to other
+ 	 * cgroup. We use css_tryget() here even if this looks
+@@ -483,13 +486,23 @@ void mem_cgroup_move_lists(struct page *
+ 	mem_cgroup_add_lru_list(page, to);
  }
  
-+static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
+-int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
++int task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *mem)
+ {
+ 	int ret;
++	struct mem_cgroup *curr = NULL;
+ 
+ 	task_lock(task);
+-	ret = task->mm && mm_match_cgroup(task->mm, mem);
++	rcu_read_lock();
++	curr = try_get_mem_cgroup_from_mm(task->mm);
++	rcu_read_unlock();
+ 	task_unlock(task);
++	if (!curr)
++		return 0;
++	if (curr->use_hierarchy)
++		ret = css_is_ancestor(&curr->css, &mem->css);
++	else
++		ret = (curr == mem);
++	css_put(&curr->css);
+ 	return ret;
+ }
+ 
+@@ -820,6 +833,19 @@ bool mem_cgroup_oom_called(struct task_s
+ 	rcu_read_unlock();
+ 	return ret;
+ }
++
++static int record_last_oom_cb(struct mem_cgroup *mem, void *data)
 +{
-+	int *val = data;
-+	(*val)++;
++	mem->last_oom_jiffies = jiffies;
 +	return 0;
 +}
-+/*
-+ * This function returns the number of memcg under hierarchy tree. Returns
-+ * 1(self count) if no children.
-+ */
-+static int mem_cgroup_count_children(struct mem_cgroup *mem)
++
++static void record_last_oom(struct mem_cgroup *mem)
 +{
-+	int num = 0;
-+ 	mem_cgroup_walk_tree(mem, &num, mem_cgroup_count_children_cb);
-+	return num;
++	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
 +}
 +
++
  /*
-  * Visit the first child (need not be the first child as per the ordering
-  * of the cgroup list, since we track last_scanned_child) of @mem and use
-@@ -750,9 +767,11 @@ mem_cgroup_select_victim(struct mem_cgro
-  *
-  * We give up and return to the caller when we visit root_mem twice.
-  * (other groups can be removed while we're walking....)
-+ *
-+ * If shrink==true, for avoiding to free too much, this returns immedieately.
-  */
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
--						gfp_t gfp_mask, bool noswap)
-+				   gfp_t gfp_mask, bool noswap, bool shrink)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
-@@ -771,6 +790,13 @@ static int mem_cgroup_hierarchical_recla
- 		ret = try_to_free_mem_cgroup_pages(victim, gfp_mask, noswap,
- 						   get_swappiness(victim));
- 		css_put(&victim->css);
-+		/*
-+		 * At shrinking usage, we can't check we should stop here or
-+		 * reclaim more. It's depends on callers. last_scanned_child
-+		 * will work enough for keeping fairness under tree.
-+		 */
-+		if (shrink)
-+			return ret;
- 		total += ret;
- 		if (mem_cgroup_check_under_limit(root_mem))
- 			return 1 + total;
-@@ -856,7 +882,7 @@ static int __mem_cgroup_try_charge(struc
+  * Unlike exported interface, "oom" parameter is added. if oom==true,
+  * oom-killer can be invoked.
+@@ -902,7 +928,7 @@ static int __mem_cgroup_try_charge(struc
+ 				mutex_lock(&memcg_tasklist);
+ 				mem_cgroup_out_of_memory(mem_over_limit, gfp_mask);
+ 				mutex_unlock(&memcg_tasklist);
+-				mem_over_limit->last_oom_jiffies = jiffies;
++				record_last_oom(mem_over_limit);
+ 			}
  			goto nomem;
+ 		}
+Index: mmotm-2.6.29-Feb02/Documentation/cgroups/memcg_test.txt
+===================================================================
+--- mmotm-2.6.29-Feb02.orig/Documentation/cgroups/memcg_test.txt
++++ mmotm-2.6.29-Feb02/Documentation/cgroups/memcg_test.txt
+@@ -1,5 +1,5 @@
+ Memory Resource Controller(Memcg)  Implementation Memo.
+-Last Updated: 2009/1/19
++Last Updated: 2009/1/20
+ Base Kernel Version: based on 2.6.29-rc2.
  
- 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
--							noswap);
-+							noswap, false);
- 		if (ret)
- 			continue;
+ Because VM is getting complex (one of reasons is memcg...), memcg's behavior
+@@ -360,3 +360,21 @@ Under below explanation, we assume CONFI
+ 	# kill malloc task.
  
-@@ -1489,7 +1515,8 @@ int mem_cgroup_shrink_usage(struct page 
- 		return 0;
- 
- 	do {
--		progress = mem_cgroup_hierarchical_reclaim(mem, gfp_mask, true);
-+		progress = mem_cgroup_hierarchical_reclaim(mem,
-+					gfp_mask, true, false);
- 		progress += mem_cgroup_check_under_limit(mem);
- 	} while (!progress && --retry);
- 
-@@ -1504,11 +1531,21 @@ static DEFINE_MUTEX(set_limit_mutex);
- static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 				unsigned long long val)
- {
--
--	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
-+	int retry_count;
- 	int progress;
- 	u64 memswlimit;
- 	int ret = 0;
-+	int children = mem_cgroup_count_children(memcg);
-+	u64 curusage, oldusage;
+ 	Of course, tmpfs v.s. swapoff test should be tested, too.
 +
-+	/*
-+	 * For keeping hierarchical_reclaim simple, how long we should retry
-+	 * is depends on callers. We set our retry-count to be function
-+	 * of # of children which we should visit in this loop.
-+	 */
-+	retry_count = MEM_CGROUP_RECLAIM_RETRIES * children;
++ 9.8 OOM-Killer
++	Out-of-memory caused by memcg's limit will kill tasks under
++	the memcg. When hierarchy is used, a task under hierarchy
++	will be killed by the kernel.
++	In this case, panic_on_oom shouldn't be invoked and tasks
++	in other groups shouldn't be killed.
 +
-+	oldusage = res_counter_read_u64(&memcg->res, RES_USAGE);
++	It's not difficult to cause OOM under memcg as following.
++	Case A) when you can swapoff
++	#swapoff -a
++	#echo 50M > /memory.limit_in_bytes
++	run 51M of malloc
++
++	Case B) when you use mem+swap limitation.
++	#echo 50M > memory.limit_in_bytes
++	#echo 50M > memory.memsw.limit_in_bytes
++	run 51M of malloc
+Index: mmotm-2.6.29-Feb02/include/linux/memcontrol.h
+===================================================================
+--- mmotm-2.6.29-Feb02.orig/include/linux/memcontrol.h
++++ mmotm-2.6.29-Feb02/include/linux/memcontrol.h
+@@ -66,7 +66,7 @@ extern unsigned long mem_cgroup_isolate_
+ 					struct mem_cgroup *mem_cont,
+ 					int active, int file);
+ extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
+-int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
++int task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *mem);
  
- 	while (retry_count) {
- 		if (signal_pending(current)) {
-@@ -1534,8 +1571,13 @@ static int mem_cgroup_resize_limit(struc
- 			break;
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
  
- 		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
--							   false);
--  		if (!progress)			retry_count--;
-+						   false, true);
-+		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
-+		/* Usage is reduced ? */
-+  		if (curusage >= oldusage)
-+			retry_count--;
-+		else
-+			oldusage = curusage;
- 	}
+@@ -192,7 +192,7 @@ static inline int mm_match_cgroup(struct
+ }
  
- 	return ret;
-@@ -1544,13 +1586,16 @@ static int mem_cgroup_resize_limit(struc
- int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 				unsigned long long val)
+ static inline int task_in_mem_cgroup(struct task_struct *task,
+-				     const struct mem_cgroup *mem)
++				     struct mem_cgroup *mem)
  {
--	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
-+	int retry_count;
- 	u64 memlimit, oldusage, curusage;
--	int ret;
-+	int children = mem_cgroup_count_children(memcg);
-+	int ret = -EBUSY;
- 
- 	if (!do_swap_account)
- 		return -EINVAL;
--
-+	/* see mem_cgroup_resize_res_limit */
-+ 	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
-+	oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 	while (retry_count) {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
-@@ -1574,11 +1619,13 @@ int mem_cgroup_resize_memsw_limit(struct
- 		if (!ret)
- 			break;
- 
--		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
--		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true);
-+		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
-+		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
- 			retry_count--;
-+		else
-+			oldusage = curusage;
- 	}
- 	return ret;
+ 	return 1;
  }
 
 --
