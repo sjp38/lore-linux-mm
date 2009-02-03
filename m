@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 71C005F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 23:24:26 -0500 (EST)
-Received: by wf-out-1314.google.com with SMTP id 28so1889204wfc.11
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2009 20:24:24 -0800 (PST)
-Date: Tue, 3 Feb 2009 13:24:05 +0900
-From: MinChan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2] fix mlocked page counter mistmatch
-Message-ID: <20090203042405.GB16179@barrios-desktop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 781625F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 23:34:14 -0500 (EST)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n134WNFx031498
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 15:32:23 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n134YPJw217494
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 15:34:25 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n134Y6HP006855
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 15:34:07 +1100
+Date: Tue, 3 Feb 2009 10:04:04 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm patch] Show memcg information during OOM
+Message-ID: <20090203043404.GK918@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090202125240.GA918@balbir.in.ibm.com> <20090202140849.GB918@balbir.in.ibm.com> <20090203102157.9f643965.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <20090203102157.9f643965.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-03 10:21:57]:
 
-When I tested following program, I found that mlocked counter
-is strange.
-It couldn't free some mlocked pages of test program.
-It is caused that try_to_unmap_file don't check real
-page mapping in vmas. 
+> On Mon, 2 Feb 2009 19:38:49 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-02-02 18:22:40]:
+> > 
+> > > Hi, All,
+> > > 
+> > > I found the following patch useful while debugging the memory
+> > > controller. It adds additional information if memcg invoked the OOM.
+> > > 
+> > > Comments, Suggestions?
+> > >
+> > 
+> > 
+> > Description: Add RSS and swap to OOM output from memcg
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> 
+> > This patch displays memcg values like failcnt, usage and limit
+> > when an OOM occurs due to memcg.
+> > 
+> 
+> please use "KB" not bytes in OOM killer information.
+> 
+> And the most important information is dropped..
+> Even if you show information, the most important information that
+> "where I am and where we hit limit ?" is not coverred.
+> Could you consider some way to show full-path ?
+> 
+>   OOM-Killer:
+>   Task in /memory/xxx/yyy/zzz is killed by
+>   Limit of /memory/xxxx
+>   RSS Limit :     Usage:     Failcnt....
+>   RSS+SWAP Limit: ....
+>
 
-That's because goal of address_space for file is to find all processes
-into which the file's specific interval is mapped.
-What I mean is that it's not related page but file's interval.
-
-Even if the page isn't really mapping at the vma, it returns
-SWAP_MLOCK since the vma have VM_LOCKED, then calls
-try_to_mlock_page. After all, mlocked counter is increased again.
-
-COWed anon page in a file-backed vma could be a such case.
-This patch resolves it. 
-
-This patch is based on 2.6.28-rc2-mm1.
-
--- my test program --
-
-int main()
-{
-       mlockall(MCL_CURRENT);
-       return 0;
-}
-
--- before --
-
-root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-Unevictable:           0 kB
-Mlocked:               0 kB
-
--- after --
-
-root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-Unevictable:           8 kB
-Mlocked:               8 kB
-
-Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
-Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Tested-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-
----
- mm/rmap.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 1099394..bd24b55 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1080,7 +1080,8 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
- 		if (MLOCK_PAGES && unlikely(unlock)) {
--			if (!(vma->vm_flags & VM_LOCKED))
-+			if (!((vma->vm_flags & VM_LOCKED) &&
-+						page_mapped_in_vma(page, vma)))
- 				continue;	/* must visit all vmas */
- 			ret = SWAP_MLOCK;
- 		} else {
--- 
-1.5.4.3
+Sounds good to me, let me add this information. 
 
 -- 
-Kinds Regards
-MinChan Kim
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
