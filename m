@@ -1,89 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 433015F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 07:19:02 -0500 (EST)
-Date: Tue, 3 Feb 2009 12:18:28 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <1233646145.2604.137.camel@ymzhang>
-Message-ID: <Pine.LNX.4.64.0902031150110.5290@blonde.anvils>
-References: <20090121143008.GV24891@wotan.suse.de>
- <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
- <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
- <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
- <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>  <1233545923.2604.60.camel@ymzhang>
-  <1233565214.17835.13.camel@penberg-laptop> <1233646145.2604.137.camel@ymzhang>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DB4B5F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 07:26:47 -0500 (EST)
+Date: Tue, 3 Feb 2009 12:26:44 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+Message-ID: <20090203122644.GN9840@csn.ul.ie>
+References: <20090123154653.GA14517@wotan.suse.de> <200902032250.55968.nickpiggin@yahoo.com.au> <20090203120139.GM9840@csn.ul.ie> <200902032307.09025.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <200902032307.09025.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Feb 2009, Zhang, Yanmin wrote:
-> On Mon, 2009-02-02 at 11:00 +0200, Pekka Enberg wrote:
-> > On Mon, 2009-02-02 at 11:38 +0800, Zhang, Yanmin wrote:
-> > > Can we add a checking about free memory page number/percentage in function
-> > > allocate_slab that we can bypass the first try of alloc_pages when memory
-> > > is hungry?
-> > 
-> > If the check isn't too expensive, I don't any reason not to. How would
-> > you go about checking how much free pages there are, though? Is there
-> > something in the page allocator that we can use for this?
+On Tue, Feb 03, 2009 at 11:07:07PM +1100, Nick Piggin wrote:
+> On Tuesday 03 February 2009 23:01:39 Mel Gorman wrote:
+> > On Tue, Feb 03, 2009 at 10:50:54PM +1100, Nick Piggin wrote:
+> > > On Tuesday 03 February 2009 22:28:52 Mel Gorman wrote:
+> > > > On Tue, Feb 03, 2009 at 09:36:24PM +1100, Nick Piggin wrote:
+> > > > > I'd be interested to see how slub performs if booted with
+> > > > > slub_min_objects=1 (which should give similar order pages to SLAB and
+> > > > > SLQB).
+> > > >
+> > > > Just to clarify on this last point, do you mean slub_max_order=0 to
+> > > > force order-0 allocations in SLUB?
+> > >
+> > > Hmm... I think slub_min_objects=1 should also do basically the same.
+> > > Actually slub_min_object=1 and slub_max_order=1 should get closest I
+> > > think.
+> >
+> > I'm going with slub_min_objects=1 and slub_max_order=0. A quick glance
+> > of the source shows the calculation as
+> >
+> >         for (order = max(min_order,
+> >                                 fls(min_objects * size - 1) - PAGE_SHIFT);
+> >                         order <= max_order; order++) {
+> >
+> > so the max_order is inclusive not exclusive. This will force the order-0
+> > allocations I think you are looking for.
 > 
-> We can use nr_free_pages(), totalram_pages and hugetlb_total_pages(). Below
-> patch is a try. I tested it with hackbench and tbench on my stoakley
-> (2 qual-core processors) and tigerton (4 qual-core processors).
-> There is almost no regression.
-
-May I repeat what I said yesterday?  Certainly I'm oversimplifying,
-but if I'm plain wrong, please correct me.
-
-Having lots of free memory is a temporary accident following process
-exit (when lots of anonymous memory has suddenly been freed), before
-it has been put to use for page cache.  The kernel tries to run with
-a certain amount of free memory in reserve, and the rest of memory
-put to (potentially) good use.  I don't think we have the number
-you're looking for there, though perhaps some approximation could
-be devised (or I'm looking at the problem the wrong way round).
-
-Perhaps feedback from vmscan.c, on how much it's having to write back,
-would provide a good clue.  There's plenty of stats maintained there.
-
+> Well, but in the case of really bad internal fragmentation in the page,
+> SLAB will do order-1 allocations even if it doesn't strictly need to.
+> Probably this isn't a huge deal, but I think if we do slub_min_objects=1,
+> then SLUB won't care about number of objects per page, and slub_max_order=1
+> will mean it stops caring about fragmentation after order-1. I think. Which
+> would be pretty close to SLAB (depending on exactly how much fragmentation
+> it cares about).
 > 
-> Besides this patch, I have another patch to try to reduce the calculation
-> of "totalram_pages - hugetlb_total_pages()", but it touches many files.
-> So just post the first simple patch here for review.
-> 
-> 
-> Hugh,
-> 
-> Would you like to test it on your machines?
 
-Indeed I shall, starting in a few hours when I've finished with trying
-the script I promised yesterday to send you.  And I won't be at all
-surprised if your patch eliminates my worst cases, because I don't
-expect to have any significant amount of free memory during my testing,
-and my swap testing suffers from slub's thirst for higher orders.
+Ok, very good point and I agree with your assessment. Tests are restarted with
+slub_min_objects=1 slab_max_order=1. The dmesg line related to SLUB looks like
 
-But I don't believe the kind of check you're making is appropriate,
-and I do believe that when you try more extensive testing, you'll find
-regressions in other tests which were relying on the higher orders.
-If all of your testing happens to have lots of free memory around,
-I'm surprised; but perhaps I'm naive about how things actually work,
-especially on the larger machines.
+SLUB: Genslabs=13, HWalign=64, Order=0-1, MinObjects=1, CPUs=4, Nodes=1
 
-Or maybe your tests are relying crucially on the slabs allocated at
-system startup, when of course there should be plenty of free memory
-around.
-
-By the way, when I went to remind myself of what nr_free_pages()
-actually does, my grep immediately hit this remark in mm/mmap.c:
-		 * nr_free_pages() is very expensive on large systems,
-I hope that's just a stale comment from before it was converted
-to global_page_state(NR_FREE_PAGES)!
-
-Hugh
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
