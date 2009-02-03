@@ -1,148 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 07B8C5F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 18:27:37 -0500 (EST)
-Received: by ti-out-0910.google.com with SMTP id j3so879715tid.8
-        for <linux-mm@kvack.org>; Mon, 02 Feb 2009 15:27:35 -0800 (PST)
-Date: Tue, 3 Feb 2009 08:27:19 +0900
-From: MinChan Kim <minchan.kim@gmail.com>
-Subject: Re: [PATCH] fix mlocked page counter mismatch
-Message-ID: <20090202232719.GC13532@barrios-desktop>
-References: <20090202061622.GA13286@barrios-desktop> <1233594995.17895.144.camel@lts-notebook>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1233594995.17895.144.camel@lts-notebook>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 72F545F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 20:23:11 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n131N8b0030544
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 3 Feb 2009 10:23:08 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F1845DD72
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 10:23:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A7AB45DD78
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 10:23:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 245C91DB8043
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 10:23:08 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C5231DB8040
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 10:23:07 +0900 (JST)
+Date: Tue, 3 Feb 2009 10:21:57 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [-mm patch] Show memcg information during OOM
+Message-Id: <20090203102157.9f643965.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090202140849.GB918@balbir.in.ibm.com>
+References: <20090202125240.GA918@balbir.in.ibm.com>
+	<20090202140849.GB918@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: linux mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 02, 2009 at 12:16:35PM -0500, Lee Schermerhorn wrote:
-> On Mon, 2009-02-02 at 15:16 +0900, MinChan Kim wrote:
-> > When I tested following program, I found that mlocked counter 
-> > is strange. 
-> > It couldn't free some mlocked pages of test program.
-> > 
-> > It is caused that try_to_unmap_file don't check real 
-> > page mapping in vmas. 
-> > That's because goal of address_space for file is to find all processes 
-> > into which the file's specific interval is mapped. 
-> > What I mean is that it's not related page but file's interval.
-> > 
-> > Even if the page isn't really mapping at the vma, it returns 
-> > SWAP_MLOCK since the vma have VM_LOCKED, then calls 
-> > try_to_mlock_page. After all, mlocked counter is increased again. 
-> > 
-> > This patch is based on 2.6.28-rc2-mm1.
-> > 
-> > -- my test program --
-> > 
-> > #include <stdio.h>
-> > #include <sys/mman.h>
-> > int main()
-> > {
-> >         mlockall(MCL_CURRENT);
-> >         return 0;
-> > }
-> > 
-> > -- before --
-> > 
-> > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-> > Unevictable:           0 kB
-> > Mlocked:               0 kB
-> > 
-> > -- after --
-> > 
-> > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-> > Unevictable:           8 kB
-> > Mlocked:               8 kB
-> > 
-> > 
-> > --
-> > 
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 1099394..9ba1fdf 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -1073,6 +1073,9 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
-> >  	unsigned long max_nl_size = 0;
-> >  	unsigned int mapcount;
-> >  	unsigned int mlocked = 0;
-> > +	unsigned long address;
-> > +	pte_t *pte;
-> > +	spinlock_t *ptl;
-> >  
-> >  	if (MLOCK_PAGES && unlikely(unlock))
-> >  		ret = SWAP_SUCCESS;	/* default for try_to_munlock() */
-> > @@ -1089,6 +1092,13 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
-> >  				goto out;
-> >  		}
-> >  		if (ret == SWAP_MLOCK) {
-> > +     address = vma_address(page, vma);
-> > +     if (address != -EFAULT) {
-> > +       pte = page_check_address(page, vma->vm_mm, address, &ptl, 0);
-> > +       if (!pte)
-> > +            continue; 
-> > +       pte_unmap_unlock(pte, ptl);
-> > +     } 
-> >  			mlocked = try_to_mlock_page(page, vma);
-> >  			if (mlocked)
-> >  				break;  /* stop if actually mlocked page */
+On Mon, 2 Feb 2009 19:38:49 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> * Balbir Singh <balbir@linux.vnet.ibm.com> [2009-02-02 18:22:40]:
 > 
-> Hi, MinChan:
-> 
->    Interestingly, Rik had addressed this [simpler patch below] way back
-> when he added the page_mapped_in_vma() function.  I asked him whether
-
-
-> the rb tree shouldn't have filtered any vmas that didn't have the page
-> mapped.  He agreed and removed the check from try_to_unmap_file().
-> Guess I can be very convincing, even when I'm wrong [happening a lot
-> lately].  Of course, in this instance, the rb-tree filtering only works
-> for shared, page-cache pages.  The problem uncovered by your test case
-
-It's not rb-tree but priority tree. ;-)
-
-> is with a COWed anon page in a file-backed vma.  Yes, the vma 'maps' the
-> virtual address range containing the page in question, but since it's a
-> private COWed anon page, it isn't necessarily "mapped" in the VM_LOCKED
-> vma's mm's page table.  We need the check...
-
-Indeed!
-
-> 
-> I've added the variant below [CURRENTLY UNTESTED] to my test tree.
-> 
-> Lee
-> 
-> [intentionally omitted sign off, until tested.]
-
-I shouldn't forgot page_mapped_in_vma.
-However, It looks good to me. 
-Thank you for testing. 
-
+> > Hi, All,
+> > 
+> > I found the following patch useful while debugging the memory
+> > controller. It adds additional information if memcg invoked the OOM.
+> > 
+> > Comments, Suggestions?
+> >
 > 
 > 
-> Index: linux-2.6.29-rc3/mm/rmap.c
-> ===================================================================
-> --- linux-2.6.29-rc3.orig/mm/rmap.c	2009-01-30 14:13:56.000000000 -0500
-> +++ linux-2.6.29-rc3/mm/rmap.c	2009-02-02 11:27:11.000000000 -0500
-> @@ -1072,7 +1072,8 @@ static int try_to_unmap_file(struct page
->  	spin_lock(&mapping->i_mmap_lock);
->  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
->  		if (MLOCK_PAGES && unlikely(unlock)) {
-> -			if (!(vma->vm_flags & VM_LOCKED))
-> +			if (!((vma->vm_flags & VM_LOCKED) &&
-> +			      page_mapped_in_vma(page, vma)))
->  				continue;	/* must visit all vmas */
->  			ret = SWAP_MLOCK;
->  		} else {
+> Description: Add RSS and swap to OOM output from memcg
+> 
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
 
--- 
-Kinds Regards
-MinChan Kim
+> This patch displays memcg values like failcnt, usage and limit
+> when an OOM occurs due to memcg.
+> 
+
+please use "KB" not bytes in OOM killer information.
+
+And the most important information is dropped..
+Even if you show information, the most important information that
+"where I am and where we hit limit ?" is not coverred.
+Could you consider some way to show full-path ?
+
+  OOM-Killer:
+  Task in /memory/xxx/yyy/zzz is killed by
+  Limit of /memory/xxxx
+  RSS Limit :     Usage:     Failcnt....
+  RSS+SWAP Limit: ....
+
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
