@@ -1,94 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id A16D65F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 02:29:17 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <1233565214.17835.13.camel@penberg-laptop>
-References: <20090121143008.GV24891@wotan.suse.de>
-	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
-	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
-	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
-	 <1233545923.2604.60.camel@ymzhang>
-	 <1233565214.17835.13.camel@penberg-laptop>
-Content-Type: text/plain; charset=UTF-8
-Date: Tue, 03 Feb 2009 15:29:05 +0800
-Message-Id: <1233646145.2604.137.camel@ymzhang>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 478FF5F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 03:05:40 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1385bpo003472
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 3 Feb 2009 17:05:37 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B8BC45DE51
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 17:05:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 60BFE45DE4E
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 17:05:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 461D01DB8037
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 17:05:37 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA1A1DB803F
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 17:05:36 +0900 (JST)
+Date: Tue, 3 Feb 2009 17:04:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v2)
+Message-Id: <20090203170427.c6070cda.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090203072701.GV918@balbir.in.ibm.com>
+References: <20090203072013.GU918@balbir.in.ibm.com>
+	<20090203072701.GV918@balbir.in.ibm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-02-02 at 11:00 +0200, Pekka Enberg wrote:
-> Hi Yanmin,
+On Tue, 3 Feb 2009 12:57:01 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> Checkpatch caught an additional space, so here is the patch again
 > 
-> On Mon, 2009-02-02 at 11:38 +0800, Zhang, Yanmin wrote:
-> > Can we add a checking about free memory page number/percentage in function
-> > allocate_slab that we can bypass the first try of alloc_pages when memory
-> > is hungry?
 > 
-> If the check isn't too expensive, I don't any reason not to. How would
-> you go about checking how much free pages there are, though? Is there
-> something in the page allocator that we can use for this?
+> Description: Add RSS and swap to OOM output from memcg
+> 
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Changelog v2..v1:
+> 
+> 1. Add more information about task's memcg and the memcg
+>    over it's limit
+> 2. Print data in KB
+> 3. Move the print routine outside task_lock()
+> 4. Use rcu_read_lock() around cgroup_path, strictly speaking it
+>    is not required, but relying on the current memcg implementation
+>    is not a good idea.
+> 
+> 
+> This patch displays memcg values like failcnt, usage and limit
+> when an OOM occurs due to memcg.
+> 
+> Thanks go out to Johannes Weiner, Li Zefan, David Rientjes,
+> Kamezawa Hiroyuki, Daisuke Nishimura and KOSAKI Motohiro for
+> review.
+> 
 
-i>>?We can use nr_free_pages(), totalram_pages and hugetlb_total_pages(). Below
-patch is a try. I tested it with hackbench and tbench on my stoakley
-(2 qual-core processors) and tigerton (4 qual-core processors). There is almost no
-regression.
-
-Besides this patch, I have another patch to try to reduce the calculation
-of "i>>?totalram_pages - hugetlb_total_pages()", but it touches many files. So just
-post the first simple patch here for review.
+IIUC, this oom_kill is serialized by memcg_tasklist mutex.
+Then, you don't have to allocate buffer on stack.
 
 
-Hugh,
+> +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg, struct task_struct *p)
+> +{
+> +	struct cgroup *task_cgrp;
+> +	struct cgroup *mem_cgrp;
+> +	/*
+> +	 * Need a buffer on stack, can't rely on allocations.
+> +	 */
+> +	char task_memcg_name[MEM_CGROUP_OOM_BUF_SIZE];
+> +	char memcg_name[MEM_CGROUP_OOM_BUF_SIZE];
+> +	int ret;
+> +
 
-Would you like to test it on your machines?
+making this as
+
+static char task_memcg_name[PATH_MAX];
+static char memcg_name[PATH_MAX];
+
+is ok, I think. and the patch will be more simple.
 
 Thanks,
-Yanmin
+-kame
 
 
----
-
---- linux-2.6.29-rc2/mm/slub.c	2009-01-20 14:20:45.000000000 +0800
-+++ linux-2.6.29-rc2_slubfreecheck/mm/slub.c	2009-02-03 14:40:52.000000000 +0800
-@@ -23,6 +23,8 @@
- #include <linux/debugobjects.h>
- #include <linux/kallsyms.h>
- #include <linux/memory.h>
-+#include <linux/swap.h>
-+#include <linux/hugetlb.h>
- #include <linux/math64.h>
- #include <linux/fault-inject.h>
- 
-@@ -1076,14 +1078,18 @@ static inline struct page *alloc_slab_pa
- 
- static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 	struct kmem_cache_order_objects oo = s->oo;
-+	unsigned long free_pages = nr_free_pages();
-+	unsigned long total_pages = totalram_pages - hugetlb_total_pages();
- 
- 	flags |= s->allocflags;
- 
--	page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY, node,
--									oo);
--	if (unlikely(!page)) {
-+	if (free_pages > total_pages >> 3) {
-+		page = alloc_slab_page(flags | __GFP_NOWARN | __GFP_NORETRY,
-+				node, oo);
-+	}
-+	if (!page) {
- 		oo = s->min;
- 		/*
- 		 * Allocation may have failed due to fragmentation.
-
+> +	if (!memcg)
+> +		return;
+> +
+> +	mem_cgrp = memcg->css.cgroup;
+> +	task_cgrp = mem_cgroup_from_task(p)->css.cgroup;
+> +
+> +	rcu_read_lock();
+> +	ret = cgroup_path(task_cgrp, task_memcg_name, MEM_CGROUP_OOM_BUF_SIZE);
+> +	if (ret < 0) {
+> +		/*
+> +		 * Unfortunately, we are unable to convert to a useful name
+> +		 * But we'll still print out the usage information
+> +		 */
+> +		rcu_read_unlock();
+> +		goto done;
+> +	}
+> +	ret = cgroup_path(mem_cgrp, memcg_name, MEM_CGROUP_OOM_BUF_SIZE);
+> +	 if (ret < 0) {
+> +		rcu_read_unlock();
+> +		goto done;
+> +	}
+> +
+> +	rcu_read_unlock();
+> +
+> +	printk(KERN_INFO "Task in %s killed as a result of limit of %s\n",
+> +			task_memcg_name, memcg_name);
+> +done:
+> +
+> +	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+> +		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
+> +		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
+> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> +	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
+> +		"failcnt %llu\n",
+> +		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
+> +		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
+> +		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+> +}
+> +
+>  /*
+>   * Unlike exported interface, "oom" parameter is added. if oom==true,
+>   * oom-killer can be invoked.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index d3b9bac..951356f 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -394,6 +394,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  		cpuset_print_task_mems_allowed(current);
+>  		task_unlock(current);
+>  		dump_stack();
+> +		mem_cgroup_print_mem_info(mem, current);
+>  		show_mem();
+>  		if (sysctl_oom_dump_tasks)
+>  			dump_tasks(mem);
+> 
+> -- 
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
