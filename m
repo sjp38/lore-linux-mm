@@ -1,80 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 25E585F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 06:48:01 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n13Blwet001614
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 3 Feb 2009 20:47:58 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28FF745DE55
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:58 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E530E45DE51
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CEF2AE18006
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A814E38002
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: /proc/sys/vm/drop_caches: add error handling
-In-Reply-To: <20090203113319.GA2022@elf.ucw.cz>
-References: <20090203113319.GA2022@elf.ucw.cz>
-Message-Id: <20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D5EF25F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 06:58:03 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+Date: Tue, 3 Feb 2009 22:50:54 +1100
+References: <20090123154653.GA14517@wotan.suse.de> <200902032136.26022.nickpiggin@yahoo.com.au> <20090203112852.GJ9840@csn.ul.ie>
+In-Reply-To: <20090203112852.GJ9840@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
-Date: Tue,  3 Feb 2009 20:47:56 +0900 (JST)
+Content-Disposition: inline
+Message-Id: <200902032250.55968.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Pavel Machek <pavel@suse.cz>
-Cc: kosaki.motohiro@jp.fujitsu.com, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Document that drop_caches is unsafe, and add error checking so that it
-> bails out on invalid inputs. [Note that this was triggered by Android
-> trying to use it in production, and incidentally writing invalid
-> value...]
+On Tuesday 03 February 2009 22:28:52 Mel Gorman wrote:
+> On Tue, Feb 03, 2009 at 09:36:24PM +1100, Nick Piggin wrote:
 
-Yup. good patch.
+> > I'd be interested to see how slub performs if booted with
+> > slub_min_objects=1 (which should give similar order pages to SLAB and
+> > SLQB).
+>
+> Just to clarify on this last point, do you mean slub_max_order=0 to
+> force order-0 allocations in SLUB?
 
-> -	return 0;
-> +	int res;
-> +	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
-> +	if (res)
-> +		return res;
-> +	if (!write)
-> +		return res;
-> +	if (sysctl_drop_caches & ~3)
-> +		return -EINVAL;
-> +	if (sysctl_drop_caches & 1)
-> +		drop_pagecache();
-> +	if (sysctl_drop_caches & 2)
-> +		drop_slab();
-> +	return res;
->  }
-
-I think following is clarify more.
-
-	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
-	if (res)
-		return res;
-	if (!write)
-		return 0;
-	if (sysctl_drop_caches & ~3)
-		return -EINVAL;
-	if (sysctl_drop_caches & 1)
-		drop_pagecache();
-	if (sysctl_drop_caches & 2)
-		drop_slab();
-	return 0;
-
-
-otherthings, _very_ looks good to me. :)
-
-
+Hmm... I think slub_min_objects=1 should also do basically the same.
+Actually slub_min_object=1 and slub_max_order=1 should get closest I
+think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
