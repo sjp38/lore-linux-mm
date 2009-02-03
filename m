@@ -1,27 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3C4CB5F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 04:07:14 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1397BOB000638
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B60255F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 04:08:21 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1398Inv021669
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Feb 2009 18:07:11 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AE73545DE51
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:07:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 82A9A45DE56
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:07:10 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 267351DB803C
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:07:10 +0900 (JST)
+	Tue, 3 Feb 2009 18:08:18 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0954945DE5C
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:18 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CFA1645DE51
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A523E1DB8037
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
 Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id B1B231DB8046
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:07:09 +0900 (JST)
-Date: Tue, 3 Feb 2009 18:05:59 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 474611DB8044
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 18:08:17 +0900 (JST)
+Date: Tue, 3 Feb 2009 18:07:07 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 3/6] memcg: hierarchical stat
-Message-Id: <20090203180559.cd159cfa.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH 4/6] memcg: fix shrinking memory to return -EBUSY by fixing
+ retry algorithm
+Message-Id: <20090203180707.dbf23908.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090203180320.9f29aa76.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090203180320.9f29aa76.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,255 +33,186 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "menage@google.com" <menage@google.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamzawa.hiroyu@jp.fujitsu.com>
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Clean up memory.stat file routine and show "total" hierarchical stat.
+As pointed out, shrinking memcg's limit should return -EBUSY
+after reasonable retries. This patch tries to fix the current behavior
+of shrink_usage.
 
-This patch does
-  - renamed get_all_zonestat to be get_local_zonestat.
-  - remove old mem_cgroup_stat_desc, which is only for per-cpu stat.
-  - add mcs_stat to cover both of per-cpu/per-lru stat.
-  - add "total" stat of hierarchy (*)
-  - add a callback system to scan all memcg under a root.
-== "total" is added.
-[kamezawa@localhost ~]$ cat /opt/cgroup/xxx/memory.stat 
-cache 0
-rss 0
-pgpgin 0
-pgpgout 0
-inactive_anon 0
-active_anon 0
-inactive_file 0
-active_file 0
-unevictable 0
-hierarchical_memory_limit 50331648
-hierarchical_memsw_limit 9223372036854775807
-total_cache 65536
-total_rss 192512
-total_pgpgin 218
-total_pgpgout 155
-total_inactive_anon 0
-total_active_anon 135168
-total_inactive_file 61440
-total_active_file 4096
-total_unevictable 0
-==
-(*) maybe the user can do calc hierarchical stat by his own program
-   in userland but if it can be written in clean way, it's worth to be
-   shown, I think.
+Before looking into "shrink should return -EBUSY" problem, we should fix
+hierarchical reclaim code. It compares current usage and current limit,
+but it only makes sense when the kernel reclaims memory because hit limits.
+This is also a problem.
 
+What this patch does are.
+
+  1. add new argument "shrink" to hierarchical reclaim. If "shrink==true",
+     hierarchical reclaim returns immediately and the caller checks the kernel
+     should shrink more or not.
+     (At shrinking memory, usage is always smaller than limit. So check for
+      usage < limit is useless.)
+
+  2. For adjusting to above change, 2 changes in "shrink"'s retry path.
+     2-a. retry_count depends on # of children because the kernel visits
+	  the children under hierarchy one by one.
+     2-b. rather than checking return value of hierarchical_reclaim's progress,
+	  compares usage-before-shrink and usage-after-shrink.
+	  If usage-before-shrink <= usage-after-shrink, retry_count is
+	  decremented.
+
+Reported-by: Li Zefan <lizf@cn.fujitsu.com>
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
 ---
-Index: mmotm-2.6.29-Jan16/mm/memcontrol.c
+Index: mmotm-2.6.29-Feb02/mm/memcontrol.c
 ===================================================================
---- mmotm-2.6.29-Jan16.orig/mm/memcontrol.c
-+++ mmotm-2.6.29-Jan16/mm/memcontrol.c
-@@ -256,7 +256,7 @@ page_cgroup_zoneinfo(struct page_cgroup 
- 	return mem_cgroup_zoneinfo(mem, nid, zid);
+--- mmotm-2.6.29-Feb02.orig/mm/memcontrol.c
++++ mmotm-2.6.29-Feb02/mm/memcontrol.c
+@@ -702,6 +702,23 @@ static unsigned int get_swappiness(struc
+ 	return swappiness;
  }
  
--static unsigned long mem_cgroup_get_all_zonestat(struct mem_cgroup *mem,
-+static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
- 					enum lru_list idx)
- {
- 	int nid, zid;
-@@ -317,6 +317,42 @@ static bool mem_cgroup_is_obsolete(struc
- 	return css_is_removed(&mem->css);
- }
- 
-+
-+/*
-+ * Call callback function against all cgroup under hierarchy tree.
-+ */
-+static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
-+			  int (*func)(struct mem_cgroup *, void *))
++static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
 +{
-+	int found, ret, nextid;
-+	struct cgroup_subsys_state *css;
-+	struct mem_cgroup *mem;
-+
-+	if (!root->use_hierarchy)
-+		return (*func)(root, data);
-+
-+	nextid = 1;
-+	do {
-+		ret = 0;
-+		mem = NULL;
-+
-+		rcu_read_lock();
-+		css = css_get_next(&mem_cgroup_subsys, nextid, &root->css,
-+				   &found);
-+		if (css && css_tryget(css))
-+			mem = container_of(css, struct mem_cgroup, css);
-+		rcu_read_unlock();
-+
-+		if (mem) {
-+			ret = (*func)(mem, data);
-+			css_put(&mem->css);
-+		}
-+		nextid = found + 1;
-+	} while (!ret && css);
-+
-+	return ret;
++	int *val = data;
++	(*val)++;
++	return 0;
++}
++/*
++ * This function returns the number of memcg under hierarchy tree. Returns
++ * 1(self count) if no children.
++ */
++static int mem_cgroup_count_children(struct mem_cgroup *mem)
++{
++	int num = 0;
++ 	mem_cgroup_walk_tree(mem, &num, mem_cgroup_count_children_cb);
++	return num;
 +}
 +
  /*
-  * Following LRU functions are allowed to be used without PCG_LOCK.
-  * Operations are called by routine of global LRU independently from memcg.
-@@ -510,8 +546,8 @@ static int calc_inactive_ratio(struct me
- 	unsigned long gb;
- 	unsigned long inactive_ratio;
- 
--	inactive = mem_cgroup_get_all_zonestat(memcg, LRU_INACTIVE_ANON);
--	active = mem_cgroup_get_all_zonestat(memcg, LRU_ACTIVE_ANON);
-+	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_ANON);
-+	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
- 
- 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
- 	if (gb)
-@@ -1838,54 +1874,90 @@ static int mem_cgroup_reset(struct cgrou
- 	return 0;
- }
- 
--static const struct mem_cgroup_stat_desc {
--	const char *msg;
--	u64 unit;
--} mem_cgroup_stat_desc[] = {
--	[MEM_CGROUP_STAT_CACHE] = { "cache", PAGE_SIZE, },
--	[MEM_CGROUP_STAT_RSS] = { "rss", PAGE_SIZE, },
--	[MEM_CGROUP_STAT_PGPGIN_COUNT] = {"pgpgin", 1, },
--	[MEM_CGROUP_STAT_PGPGOUT_COUNT] = {"pgpgout", 1, },
-+
-+/* For read statistics */
-+enum {
-+	MCS_CACHE,
-+	MCS_RSS,
-+	MCS_PGPGIN,
-+	MCS_PGPGOUT,
-+	MCS_INACTIVE_ANON,
-+	MCS_ACTIVE_ANON,
-+	MCS_INACTIVE_FILE,
-+	MCS_ACTIVE_FILE,
-+	MCS_UNEVICTABLE,
-+	NR_MCS_STAT,
-+};
-+
-+struct mcs_total_stat {
-+	s64 stat[NR_MCS_STAT];
-+};
-+
-+struct {
-+	char *local_name;
-+	char *total_name;
-+} memcg_stat_strings[NR_MCS_STAT] = {
-+	{"cache", "total_cache"},
-+	{"rss", "total_rss"},
-+	{"pgpgin", "total_pgpgin"},
-+	{"pgpgout", "total_pgpgout"},
-+	{"inactive_anon", "total_inactive_anon"},
-+	{"active_anon", "total_active_anon"},
-+	{"inactive_file", "total_inactive_file"},
-+	{"active_file", "total_active_file"},
-+	{"unevictable", "total_unevictable"}
- };
- 
-+
-+static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
-+{
-+	struct mcs_total_stat *s = data;
-+	s64 val;
-+
-+	/* per cpu stat */
-+	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_CACHE);
-+	s->stat[MCS_CACHE] += val * PAGE_SIZE;
-+	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_RSS);
-+	s->stat[MCS_RSS] += val * PAGE_SIZE;
-+	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_PGPGIN_COUNT);
-+	s->stat[MCS_PGPGIN] += val;
-+	val = mem_cgroup_read_stat(&mem->stat, MEM_CGROUP_STAT_PGPGOUT_COUNT);
-+	s->stat[MCS_PGPGOUT] += val;
-+
-+	/* per zone stat */
-+	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_ANON);
-+	s->stat[MCS_INACTIVE_ANON] += val * PAGE_SIZE;
-+	val = mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_ANON);
-+	s->stat[MCS_ACTIVE_ANON] += val * PAGE_SIZE;
-+	val = mem_cgroup_get_local_zonestat(mem, LRU_INACTIVE_FILE);
-+	s->stat[MCS_INACTIVE_FILE] += val * PAGE_SIZE;
-+	val = mem_cgroup_get_local_zonestat(mem, LRU_ACTIVE_FILE);
-+	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
-+	val = mem_cgroup_get_local_zonestat(mem, LRU_UNEVICTABLE);
-+	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
-+	return 0;
-+}
-+
-+static void
-+mem_cgroup_get_total_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
-+{
-+	mem_cgroup_walk_tree(mem, s, mem_cgroup_get_local_stat);
-+}
-+
- static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
- 				 struct cgroup_map_cb *cb)
+  * Visit the first child (need not be the first child as per the ordering
+  * of the cgroup list, since we track last_scanned_child) of @mem and use
+@@ -750,9 +767,11 @@ mem_cgroup_select_victim(struct mem_cgro
+  *
+  * We give up and return to the caller when we visit root_mem twice.
+  * (other groups can be removed while we're walking....)
++ *
++ * If shrink==true, for avoiding to free too much, this returns immedieately.
+  */
+ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+-						gfp_t gfp_mask, bool noswap)
++				   gfp_t gfp_mask, bool noswap, bool shrink)
  {
- 	struct mem_cgroup *mem_cont = mem_cgroup_from_cont(cont);
--	struct mem_cgroup_stat *stat = &mem_cont->stat;
-+	struct mcs_total_stat mystat;
- 	int i;
+ 	struct mem_cgroup *victim;
+ 	int ret, total = 0;
+@@ -771,6 +790,13 @@ static int mem_cgroup_hierarchical_recla
+ 		ret = try_to_free_mem_cgroup_pages(victim, gfp_mask, noswap,
+ 						   get_swappiness(victim));
+ 		css_put(&victim->css);
++		/*
++		 * At shrinking usage, we can't check we should stop here or
++		 * reclaim more. It's depends on callers. last_scanned_child
++		 * will work enough for keeping fairness under tree.
++		 */
++		if (shrink)
++			return ret;
+ 		total += ret;
+ 		if (mem_cgroup_check_under_limit(root_mem))
+ 			return 1 + total;
+@@ -856,7 +882,7 @@ static int __mem_cgroup_try_charge(struc
+ 			goto nomem;
  
--	for (i = 0; i < ARRAY_SIZE(stat->cpustat[0].count); i++) {
--		s64 val;
-+	memset(&mystat, 0, sizeof(mystat));
-+	mem_cgroup_get_local_stat(mem_cont, &mystat);
+ 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
+-							noswap);
++							noswap, false);
+ 		if (ret)
+ 			continue;
  
--		val = mem_cgroup_read_stat(stat, i);
--		val *= mem_cgroup_stat_desc[i].unit;
--		cb->fill(cb, mem_cgroup_stat_desc[i].msg, val);
--	}
--	/* showing # of active pages */
--	{
--		unsigned long active_anon, inactive_anon;
--		unsigned long active_file, inactive_file;
--		unsigned long unevictable;
+@@ -1489,7 +1515,8 @@ int mem_cgroup_shrink_usage(struct page 
+ 		return 0;
+ 
+ 	do {
+-		progress = mem_cgroup_hierarchical_reclaim(mem, gfp_mask, true);
++		progress = mem_cgroup_hierarchical_reclaim(mem,
++					gfp_mask, true, false);
+ 		progress += mem_cgroup_check_under_limit(mem);
+ 	} while (!progress && --retry);
+ 
+@@ -1504,11 +1531,21 @@ static DEFINE_MUTEX(set_limit_mutex);
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
 -
--		inactive_anon = mem_cgroup_get_all_zonestat(mem_cont,
--						LRU_INACTIVE_ANON);
--		active_anon = mem_cgroup_get_all_zonestat(mem_cont,
--						LRU_ACTIVE_ANON);
--		inactive_file = mem_cgroup_get_all_zonestat(mem_cont,
--						LRU_INACTIVE_FILE);
--		active_file = mem_cgroup_get_all_zonestat(mem_cont,
--						LRU_ACTIVE_FILE);
--		unevictable = mem_cgroup_get_all_zonestat(mem_cont,
--							LRU_UNEVICTABLE);
--
--		cb->fill(cb, "active_anon", (active_anon) * PAGE_SIZE);
--		cb->fill(cb, "inactive_anon", (inactive_anon) * PAGE_SIZE);
--		cb->fill(cb, "active_file", (active_file) * PAGE_SIZE);
--		cb->fill(cb, "inactive_file", (inactive_file) * PAGE_SIZE);
--		cb->fill(cb, "unevictable", unevictable * PAGE_SIZE);
-+	for (i = 0; i < NR_MCS_STAT; i++)
-+		cb->fill(cb, memcg_stat_strings[i].local_name, mystat.stat[i]);
+-	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
++	int retry_count;
+ 	int progress;
+ 	u64 memswlimit;
+ 	int ret = 0;
++	int children = mem_cgroup_count_children(memcg);
++	u64 curusage, oldusage;
++
++	/*
++	 * For keeping hierarchical_reclaim simple, how long we should retry
++	 * is depends on callers. We set our retry-count to be function
++	 * of # of children which we should visit in this loop.
++	 */
++	retry_count = MEM_CGROUP_RECLAIM_RETRIES * children;
++
++	oldusage = res_counter_read_u64(&memcg->res, RES_USAGE);
  
--	}
-+	/* Hierarchical information */
- 	{
- 		unsigned long long limit, memsw_limit;
- 		memcg_get_hierarchical_limit(mem_cont, &limit, &memsw_limit);
-@@ -1894,6 +1966,12 @@ static int mem_control_stat_show(struct 
- 			cb->fill(cb, "hierarchical_memsw_limit", memsw_limit);
+ 	while (retry_count) {
+ 		if (signal_pending(current)) {
+@@ -1534,8 +1571,13 @@ static int mem_cgroup_resize_limit(struc
+ 			break;
+ 
+ 		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
+-							   false);
+-  		if (!progress)			retry_count--;
++						   false, true);
++		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
++		/* Usage is reduced ? */
++  		if (curusage >= oldusage)
++			retry_count--;
++		else
++			oldusage = curusage;
  	}
  
-+	memset(&mystat, 0, sizeof(mystat));
-+	mem_cgroup_get_total_stat(mem_cont, &mystat);
-+	for (i = 0; i < NR_MCS_STAT; i++)
-+		cb->fill(cb, memcg_stat_strings[i].total_name, mystat.stat[i]);
-+
-+
- #ifdef CONFIG_DEBUG_VM
- 	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
+ 	return ret;
+@@ -1544,13 +1586,16 @@ static int mem_cgroup_resize_limit(struc
+ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+-	int retry_count = MEM_CGROUP_RECLAIM_RETRIES;
++	int retry_count;
+ 	u64 memlimit, oldusage, curusage;
+-	int ret;
++	int children = mem_cgroup_count_children(memcg);
++	int ret = -EBUSY;
  
+ 	if (!do_swap_account)
+ 		return -EINVAL;
+-
++	/* see mem_cgroup_resize_res_limit */
++ 	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
++	oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+ 	while (retry_count) {
+ 		if (signal_pending(current)) {
+ 			ret = -EINTR;
+@@ -1574,11 +1619,13 @@ int mem_cgroup_resize_memsw_limit(struct
+ 		if (!ret)
+ 			break;
+ 
+-		oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+-		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true);
++		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true);
+ 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
++		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+ 			retry_count--;
++		else
++			oldusage = curusage;
+ 	}
+ 	return ret;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
