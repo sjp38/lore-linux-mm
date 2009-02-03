@@ -1,64 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 659C76B0062
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 11:46:16 -0500 (EST)
-Received: by wa-out-1112.google.com with SMTP id k22so1151969waf.22
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 08:44:52 -0800 (PST)
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 246266B0062
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 12:21:47 -0500 (EST)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp07.au.ibm.com (8.13.1/8.13.1) with ESMTP id n13HLdKa016527
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 04:21:39 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n13HLvRw119050
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 04:21:57 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n13HLd8A010419
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 04:21:39 +1100
+Date: Tue, 3 Feb 2009 22:51:35 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v3)
+Message-ID: <20090203172135.GF918@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
 MIME-Version: 1.0
-In-Reply-To: <20090203042405.GB16179@barrios-desktop>
-References: <20090203042405.GB16179@barrios-desktop>
-Date: Wed, 4 Feb 2009 01:44:52 +0900
-Message-ID: <2f11576a0902030844l64c25496sa5f2892bbb04e47c@mail.gmail.com>
-Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi MinChan,
 
-I'm confusing now.
-Can you teach me?
+Description: Add RSS and swap to OOM output from memcg
 
-> When I tested following program, I found that mlocked counter
-> is strange.
-> It couldn't free some mlocked pages of test program.
-> It is caused that try_to_unmap_file don't check real
-> page mapping in vmas.
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-What meanining is "real" page mapping?
+Changelog v3..v2
+1. Use static char arrays of size PATH_MAX in order to make
+   the OOM message more reliable.
 
+Changelog v2..v1:
 
-> That's because goal of address_space for file is to find all processes
-> into which the file's specific interval is mapped.
-> What I mean is that it's not related page but file's interval.
-
-hmmm. No.
-I ran your reproduce program.
-
-two vma pointing the same page cause this leaking.
-
-iow, any library have .text and .data segment. then the tail of .text
-and the head of .data vma point the same page.
-its page was leaked.
+1. Add more information about task's memcg and the memcg
+   over it's limit
+2. Print data in KB
+3. Move the print routine outside task_lock()
+4. Use rcu_read_lock() around cgroup_path, strictly speaking it
+   is not required, but relying on the current memcg implementation
+   is not a good idea.
 
 
-> Even if the page isn't really mapping at the vma, it returns
-> SWAP_MLOCK since the vma have VM_LOCKED, then calls
-> try_to_mlock_page. After all, mlocked counter is increased again.
->
-> COWed anon page in a file-backed vma could be a such case.
-> This patch resolves it.
+This patch displays memcg values like failcnt, usage and limit
+when an OOM occurs due to memcg.
 
-What meaning is "anon page in a file-backed"?
-As far as I know, if cow happend on private mapping page, new page is
-treated truth anon.
+Thanks go out to Johannes Weiner, Li Zefan, David Rientjes,
+Kamezawa Hiroyuki, Daisuke Nishimura and KOSAKI Motohiro for
+review.
+
+Sample output
+-------------
+
+Task in /a/x killed as a result of limit of /a
+memory: usage 1048576kB, limit 1048576kB, failcnt 4183
+memory+swap: usage 1400964kB, limit 9007199254740991kB, failcnt 0
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ include/linux/memcontrol.h |    6 ++++
+ mm/memcontrol.c            |   63 ++++++++++++++++++++++++++++++++++++++++++++
+ mm/oom_kill.c              |    1 +
+ 3 files changed, 70 insertions(+), 0 deletions(-)
 
 
-So, I don't reach to your conclusion yet. please teach me.
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 326f45c..f9a6e78 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -104,6 +104,8 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone);
+ struct zone_reclaim_stat*
+ mem_cgroup_get_reclaim_stat_from_page(struct page *page);
++extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
++					struct task_struct *p);
+ 
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ extern int do_swap_account;
+@@ -270,6 +272,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+ 	return NULL;
+ }
+ 
++void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++{
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 8e4be9c..44e053b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -27,6 +27,7 @@
+ #include <linux/backing-dev.h>
+ #include <linux/bit_spinlock.h>
+ #include <linux/rcupdate.h>
++#include <linux/limits.h>
+ #include <linux/mutex.h>
+ #include <linux/slab.h>
+ #include <linux/swap.h>
+@@ -813,6 +814,68 @@ bool mem_cgroup_oom_called(struct task_struct *task)
+ 	rcu_read_unlock();
+ 	return ret;
+ }
++
++/**
++ * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in
++ * read mode.
++ * @memcg: The memory cgroup that went over limit
++ * @p: Task that is going to be killed
++ *
++ * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
++ * enabled
++ */
++void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
++{
++	struct cgroup *task_cgrp;
++	struct cgroup *mem_cgrp;
++	/*
++	 * Need a buffer on stack, can't rely on allocations. The code relies
++	 * on the assumption that OOM is serialized for memory controller.
++	 * If this assumption is broken, revisit this code.
++	 */
++	static char task_memcg_name[PATH_MAX];
++	static char memcg_name[PATH_MAX];
++	int ret;
++
++	if (!memcg)
++		return;
++
++	mem_cgrp = memcg->css.cgroup;
++	task_cgrp = mem_cgroup_from_task(p)->css.cgroup;
++
++	rcu_read_lock();
++	ret = cgroup_path(task_cgrp, task_memcg_name, PATH_MAX);
++	if (ret < 0) {
++		/*
++		 * Unfortunately, we are unable to convert to a useful name
++		 * But we'll still print out the usage information
++		 */
++		rcu_read_unlock();
++		goto done;
++	}
++	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
++	 if (ret < 0) {
++		rcu_read_unlock();
++		goto done;
++	}
++
++	rcu_read_unlock();
++
++	printk(KERN_INFO "Task in %s killed as a result of limit of %s\n",
++			task_memcg_name, memcg_name);
++done:
++
++	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
++		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
++		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
++		res_counter_read_u64(&memcg->res, RES_FAILCNT));
++	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
++		"failcnt %llu\n",
++		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
++		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
++		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
++}
++
+ /*
+  * Unlike exported interface, "oom" parameter is added. if oom==true,
+  * oom-killer can be invoked.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index d3b9bac..2f3166e 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -394,6 +394,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 		cpuset_print_task_mems_allowed(current);
+ 		task_unlock(current);
+ 		dump_stack();
++		mem_cgroup_print_oom_info(mem, current);
+ 		show_mem();
+ 		if (sysctl_oom_dump_tasks)
+ 			dump_tasks(mem);
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
