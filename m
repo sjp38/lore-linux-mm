@@ -1,28 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD0E5F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 02:20:59 -0500 (EST)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp07.au.ibm.com (8.13.1/8.13.1) with ESMTP id n137KKI9014067
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 18:20:20 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n137KZMl1097870
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 18:20:37 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n137KGvB017608
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 18:20:17 +1100
-Date: Tue, 3 Feb 2009 12:50:13 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A56115F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 02:27:12 -0500 (EST)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp02.in.ibm.com (8.13.1/8.13.1) with ESMTP id n137R4s0012700
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 12:57:04 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n137R9ua4018240
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 12:57:09 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id n137R39i025698
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 18:27:04 +1100
+Date: Tue, 3 Feb 2009 12:57:01 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: [-mm patch] Show memcg information during OOM (v2)
-Message-ID: <20090203072013.GU918@balbir.in.ibm.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v2)
+Message-ID: <20090203072701.GV918@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
+References: <20090203072013.GU918@balbir.in.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <20090203072013.GU918@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
+
+Checkpatch caught an additional space, so here is the patch again
 
 
 Description: Add RSS and swap to OOM output from memcg
@@ -39,15 +43,9 @@ Changelog v2..v1:
    is not required, but relying on the current memcg implementation
    is not a good idea.
 
+
 This patch displays memcg values like failcnt, usage and limit
 when an OOM occurs due to memcg.
-
-NOTE: In case the path exceeds 128 bytes, we omit printing the
-name of the cgroups. It is possible to circumvent this problem
-by using static arrays of PAGE_SIZE and we know that OOM is
-serialized when invoked from the memory controller. This did
-not seem like a good idea, but can be implemented if 128 bytes
-seems like a severe limitation.
 
 Thanks go out to Johannes Weiner, Li Zefan, David Rientjes,
 Kamezawa Hiroyuki, Daisuke Nishimura and KOSAKI Motohiro for
@@ -94,7 +92,7 @@ index 326f45c..56f1af2 100644
  
  #endif /* _LINUX_MEMCONTROL_H */
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8e4be9c..e7f82b6 100644
+index 8e4be9c..ee3bae4 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
 @@ -42,6 +42,7 @@
@@ -163,7 +161,7 @@ index 8e4be9c..e7f82b6 100644
 +		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
 +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
 +	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
-+		"failcnt %llu\n", 
++		"failcnt %llu\n",
 +		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
 +		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
 +		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
