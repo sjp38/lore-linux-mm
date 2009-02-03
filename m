@@ -1,52 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id D7F425F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 20:34:15 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id BE5E95F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 20:43:24 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 Subject: Re: [patch] SLQB slab allocator
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <alpine.DEB.1.10.0902020955490.1549@qirst.com>
-References: <20090121143008.GV24891@wotan.suse.de>
-	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
-	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
-	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
-	 <1233545923.2604.60.camel@ymzhang>
-	 <1233565214.17835.13.camel@penberg-laptop>
-	 <alpine.DEB.1.10.0902020955490.1549@qirst.com>
-Content-Type: text/plain
-Date: Tue, 03 Feb 2009 09:34:04 +0800
-Message-Id: <1233624844.2604.106.camel@ymzhang>
-Mime-Version: 1.0
+Date: Tue, 3 Feb 2009 12:42:54 +1100
+References: <20090114150900.GC25401@wotan.suse.de> <200901240409.27449.nickpiggin@yahoo.com.au> <alpine.DEB.1.10.0901261241070.22291@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0901261241070.22291@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200902031242.56206.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-02-02 at 10:00 -0500, Christoph Lameter wrote:
-> On Mon, 2 Feb 2009, Pekka Enberg wrote:
-> 
-> > Hi Yanmin,
+On Tuesday 27 January 2009 04:46:49 Christoph Lameter wrote:
+> On Sat, 24 Jan 2009, Nick Piggin wrote:
+> > > > SLUB can directly free an object to any slab page. "Queuing" on free
+> > > > via the per cpu slab is only possible if the object came from that
+> > > > per cpu slab. This is typically only the case for objects that were
+> > > > recently allocated.
+> > >
+> > > Ah yes ok that's right. But then you don't get LIFO allocation
+> > > behaviour for those cases.
 > >
-> > On Mon, 2009-02-02 at 11:38 +0800, Zhang, Yanmin wrote:
-> > > Can we add a checking about free memory page number/percentage in function
-> > > allocate_slab that we can bypass the first try of alloc_pages when memory
-> > > is hungry?
-> >
-> > If the check isn't too expensive, I don't any reason not to. How would
-> > you go about checking how much free pages there are, though? Is there
-> > something in the page allocator that we can use for this?
-> 
-> If the free memory is low then reclaim needs to be run to increase the
-> free memory.
-I think reclaim did start often with Hugh's case. There would be no swap if not.
+> > And actually really this all just stems from conceptually in fact you
+> > _do_ switch to a different queue (from the one being allocated from)
+> > to free the object if it is on a different page. Because you have a
+> > set of queues (a queue per-page). So freeing to a different queue is
+> > where you lose LIFO property.
+>
+> Yes you basically go for locality instead of LIFO if the free does not hit
+> the per cpu slab. If the object is not in the per cpu slab then it is
+> likely that it had a long lifetime and thus LIFOness does not matter
+> too much. It is likely that many objects from that slab are going to be
+> freed at the same time. So the first free warms up the "queue" of the page
+> you are freeing to.
 
->  Falling back immediately incurs the overhead of going through
-> the order 0 queues.
-The falling back is temporal. Later on when there is enough free pages available,
-new slab allocations go back to higher order automatically. This is to save the first
-high-order allocation try because it often fails if memory is hungry.
+I don't really understand this. It is easy to lose cache hotness information.
+Free two objects from different pages. The first one to be freed is likely
+to be cache hot, but it will not be allocated again (any time soon).
 
+
+> This is an increasingly important feature since memory chips prefer
+> allocations next to each other. Same page accesses are faster
+> in recent memory subsystems than random accesses across memory.
+
+DRAM chips? How about avoiding the problem and keeping the objects in cache
+so you don't have to go to RAM.
+
+
+> LIFO used
+> to be better but we are increasingly getting into locality of access being
+> very important for access.
+
+Locality of access includes temporal locality. Which is very important. Which
+SLUB doesn't do as well at.
+
+
+> Especially with the NUMA characteristics of the
+> existing AMD and upcoming Nehalem processors this will become much more
+> important.
+
+Can you demonstrate that LIFO used to be better but no longer is? What
+NUMA characteristics are you talking about?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
