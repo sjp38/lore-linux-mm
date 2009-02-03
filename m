@@ -1,49 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D2BFA6B0062
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 14:03:11 -0500 (EST)
-Message-ID: <498893EE.9060107@cs.helsinki.fi>
-Date: Tue, 03 Feb 2009 20:58:54 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-MIME-Version: 1.0
-Subject: Re: [patch] SLQB slab allocator (try 2)
-References: <20090123154653.GA14517@wotan.suse.de> <1232959706.21504.7.camel@penberg-laptop> <20090203101205.GF9840@csn.ul.ie>
-In-Reply-To: <20090203101205.GF9840@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BCA6B004F
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 14:14:55 -0500 (EST)
+Date: Tue, 3 Feb 2009 11:14:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: /proc/sys/vm/drop_caches: add error handling
+Message-Id: <20090203111447.41e2022c.akpm@linux-foundation.org>
+In-Reply-To: <20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20090203113319.GA2022@elf.ucw.cz>
+	<20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: pavel@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
+On Tue,  3 Feb 2009 20:47:56 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
-Mel Gorman wrote:
-> The OLTP workload results could indicate a downside with using sysbench
-> although it could also be hardware. The reports from the Intel guys have been
-> pretty clear-cut that SLUB is a loser but sysbench-postgres on these test
-> machines at least do not agree. Of course their results are perfectly valid
-> but the discrepency needs to be explained or there will be a disconnect
-> between developers and the performance people.  Something important is
-> missing that means sysbench-postgres *may* not be a reliable indicator of
-> TPC-C performance.  It could easily be down to the hardware as their tests
-> are on a mega-large machine with oodles of disks and probably NUMA where
-> the test machine used for this is a lot less respectable.
+> > 
+> > Document that drop_caches is unsafe, and add error checking so that it
+> > bails out on invalid inputs. [Note that this was triggered by Android
+> > trying to use it in production, and incidentally writing invalid
+> > value...]
+> 
+> Yup. good patch.
+> 
+> > -	return 0;
+> > +	int res;
+> > +	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+> > +	if (res)
+> > +		return res;
+> > +	if (!write)
+> > +		return res;
+> > +	if (sysctl_drop_caches & ~3)
+> > +		return -EINVAL;
+> > +	if (sysctl_drop_caches & 1)
+> > +		drop_pagecache();
+> > +	if (sysctl_drop_caches & 2)
+> > +		drop_slab();
+> > +	return res;
+> >  }
+> 
+> I think following is clarify more.
+> 
+> 	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+> 	if (res)
+> 		return res;
+> 	if (!write)
+> 		return 0;
+> 	if (sysctl_drop_caches & ~3)
+> 		return -EINVAL;
+> 	if (sysctl_drop_caches & 1)
+> 		drop_pagecache();
+> 	if (sysctl_drop_caches & 2)
+> 		drop_slab();
+> 	return 0;
+> 
+> 
+> otherthings, _very_ looks good to me. :)
+> 
 
-Yup. That's more or less what I've been saying for a long time now. The 
-OLTP regression is not all obvious and while there has been plenty of 
-talk about it (cache line ping-pong due to lack of queues, high order 
-pages), I've yet to see a detailed analysis on it.
+For better or for worse, my intent here was to be
+future-back-compatible.  So if we later add new flags, and people write
+code which uses those new flags, that code won't break on old kernels.
 
-It would be interesting to know what drivers the Intel setup uses. One 
-thing I speculated with Christoph at OLS is that the regression could be 
-due to bad interaction with the SCSI subsystem, for example. That would 
-explain why the regression doesn't show up in typical setups which have ATA.
-
-Anyway, even if we did end up going forward with SLQB, it would sure as 
-hell be less painful if we understood the reasons behind it.
-
-			Pekka
+Probably that wasn't a very good idea, and such userspace code isn't
+very good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
