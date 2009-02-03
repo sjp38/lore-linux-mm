@@ -1,117 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 02BD05F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 22:49:26 -0500 (EST)
-Date: Tue, 3 Feb 2009 12:44:36 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [-mm patch] Show memcg information during OOM
-Message-Id: <20090203124436.bc0120ca.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090202134505.GA4848@cmpxchg.org>
-References: <20090202125240.GA918@balbir.in.ibm.com>
-	<20090202134505.GA4848@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 71C005F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 23:24:26 -0500 (EST)
+Received: by wf-out-1314.google.com with SMTP id 28so1889204wfc.11
+        for <linux-mm@kvack.org>; Mon, 02 Feb 2009 20:24:24 -0800 (PST)
+Date: Tue, 3 Feb 2009 13:24:05 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2] fix mlocked page counter mistmatch
+Message-ID: <20090203042405.GB16179@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: nishimura@mxp.nes.nec.co.jp, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Feb 2009 14:45:06 +0100, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Mon, Feb 02, 2009 at 06:22:40PM +0530, Balbir Singh wrote:
-> > Hi, All,
-> > 
-> > I found the following patch useful while debugging the memory
-> > controller. It adds additional information if memcg invoked the OOM.
-> > 
-> > Comments, Suggestions?
-> > 
-> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > Description: Add RSS and swap to OOM output from memcg
-> > 
-> > This patch displays memcg values like failcnt, usage and limit
-> > when an OOM occurs due to memcg.
-> > 
-> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > ---
-> > 
-> >  include/linux/memcontrol.h |    5 +++++
-> >  mm/memcontrol.c            |   15 +++++++++++++++
-> >  mm/oom_kill.c              |    1 +
-> >  3 files changed, 21 insertions(+), 0 deletions(-)
-> > 
-> > 
-> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > index 326f45c..2ce1737 100644
-> > --- a/include/linux/memcontrol.h
-> > +++ b/include/linux/memcontrol.h
-> > @@ -104,6 +104,7 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
-> >  						      struct zone *zone);
-> >  struct zone_reclaim_stat*
-> >  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
-> > +extern void mem_cgroup_print_mem_info(struct mem_cgroup *memcg);
-> >  
-> >  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
-> >  extern int do_swap_account;
-> > @@ -270,6 +271,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
-> >  	return NULL;
-> >  }
-> >  
-> > +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> > +{
-> > +}
-> > +
-> >  #endif /* CONFIG_CGROUP_MEM_CONT */
-> >  
-> >  #endif /* _LINUX_MEMCONTROL_H */
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 8e4be9c..75eae85 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -813,6 +813,21 @@ bool mem_cgroup_oom_called(struct task_struct *task)
-> >  	rcu_read_unlock();
-> >  	return ret;
-> >  }
-> > +
-> > +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg)
-> > +{
-> > +	printk(KERN_WARNING "Memory cgroups's name %s\n",
-> > +		memcg->css.cgroup->dentry->d_name.name);
-> > +	printk(KERN_WARNING "Memory cgroup RSS : usage %llu, limit %llu"
-> > +		" failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> > +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> > +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> > +	printk(KERN_WARNING "Memory cgroup swap: usage %llu, limit %llu "
-> > +		"failcnt %llu\n", res_counter_read_u64(&memcg->res, RES_USAGE),
-> > +		res_counter_read_u64(&memcg->res, RES_LIMIT),
-> > +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
-> > +}
-> > +
-> >  /*
-> >   * Unlike exported interface, "oom" parameter is added. if oom==true,
-> >   * oom-killer can be invoked.
-> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > index d3b9bac..b8e53ae 100644
-> > --- a/mm/oom_kill.c
-> > +++ b/mm/oom_kill.c
-> > @@ -392,6 +392,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
-> >  			current->comm, gfp_mask, order, current->oomkilladj);
-> >  		task_lock(current);
-> >  		cpuset_print_task_mems_allowed(current);
-> > +		mem_cgroup_print_mem_info(mem);
-> 
-> mem is only !NULL when we come from mem_cgroup_out_of_memory().  This
-> crashes otherwise in mem_cgroup_print_mem_info(), no?
-> 
-I think you're right.
 
-IMHO, "mem_cgroup_print_mem_info(current)" would be better here,
-and call mem_cgroup_from_task at mem_cgroup_print_mem_info.
+When I tested following program, I found that mlocked counter
+is strange.
+It couldn't free some mlocked pages of test program.
+It is caused that try_to_unmap_file don't check real
+page mapping in vmas. 
 
+That's because goal of address_space for file is to find all processes
+into which the file's specific interval is mapped.
+What I mean is that it's not related page but file's interval.
 
-Thanks,
-Daisuke Nishimura.
+Even if the page isn't really mapping at the vma, it returns
+SWAP_MLOCK since the vma have VM_LOCKED, then calls
+try_to_mlock_page. After all, mlocked counter is increased again.
+
+COWed anon page in a file-backed vma could be a such case.
+This patch resolves it. 
+
+This patch is based on 2.6.28-rc2-mm1.
+
+-- my test program --
+
+int main()
+{
+       mlockall(MCL_CURRENT);
+       return 0;
+}
+
+-- before --
+
+root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+Unevictable:           0 kB
+Mlocked:               0 kB
+
+-- after --
+
+root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
+Unevictable:           8 kB
+Mlocked:               8 kB
+
+Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Tested-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+
+---
+ mm/rmap.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1099394..bd24b55 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1080,7 +1080,8 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
+ 	spin_lock(&mapping->i_mmap_lock);
+ 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
+ 		if (MLOCK_PAGES && unlikely(unlock)) {
+-			if (!(vma->vm_flags & VM_LOCKED))
++			if (!((vma->vm_flags & VM_LOCKED) &&
++						page_mapped_in_vma(page, vma)))
+ 				continue;	/* must visit all vmas */
+ 			ret = SWAP_MLOCK;
+ 		} else {
+-- 
+1.5.4.3
+
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
