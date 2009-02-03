@@ -1,112 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id BCB835F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 05:29:37 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n13ATUaw022360
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Feb 2009 19:29:30 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id CF06A45DE57
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 19:29:29 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FED245DE4C
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 19:29:29 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 810181DB8040
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 19:29:29 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 293491DB8061
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 19:29:29 +0900 (JST)
-Date: Tue, 3 Feb 2009 19:28:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [-mm patch] Show memcg information during OOM (v2)
-Message-Id: <20090203192819.0c1e0544.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090203101921.GY918@balbir.in.ibm.com>
-References: <20090203072013.GU918@balbir.in.ibm.com>
-	<20090203072701.GV918@balbir.in.ibm.com>
-	<20090203170427.c6070cda.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090203101921.GY918@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id C20F55F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 05:36:53 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+Date: Tue, 3 Feb 2009 21:36:24 +1100
+References: <20090123154653.GA14517@wotan.suse.de> <1232959706.21504.7.camel@penberg-laptop> <20090203101205.GF9840@csn.ul.ie>
+In-Reply-To: <20090203101205.GF9840@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200902032136.26022.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Feb 2009 15:49:21 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-03 17:04:27]:
-> 
-> > On Tue, 3 Feb 2009 12:57:01 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > Checkpatch caught an additional space, so here is the patch again
-> > > 
-> > > 
-> > > Description: Add RSS and swap to OOM output from memcg
-> > > 
-> > > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > 
-> > > Changelog v2..v1:
-> > > 
-> > > 1. Add more information about task's memcg and the memcg
-> > >    over it's limit
-> > > 2. Print data in KB
-> > > 3. Move the print routine outside task_lock()
-> > > 4. Use rcu_read_lock() around cgroup_path, strictly speaking it
-> > >    is not required, but relying on the current memcg implementation
-> > >    is not a good idea.
-> > > 
-> > > 
-> > > This patch displays memcg values like failcnt, usage and limit
-> > > when an OOM occurs due to memcg.
-> > > 
-> > > Thanks go out to Johannes Weiner, Li Zefan, David Rientjes,
-> > > Kamezawa Hiroyuki, Daisuke Nishimura and KOSAKI Motohiro for
-> > > review.
-> > > 
-> > 
-> > IIUC, this oom_kill is serialized by memcg_tasklist mutex.
-> > Then, you don't have to allocate buffer on stack.
-> > 
-> > 
-> > > +void mem_cgroup_print_mem_info(struct mem_cgroup *memcg, struct task_struct *p)
-> > > +{
-> > > +	struct cgroup *task_cgrp;
-> > > +	struct cgroup *mem_cgrp;
-> > > +	/*
-> > > +	 * Need a buffer on stack, can't rely on allocations.
-> > > +	 */
-> > > +	char task_memcg_name[MEM_CGROUP_OOM_BUF_SIZE];
-> > > +	char memcg_name[MEM_CGROUP_OOM_BUF_SIZE];
-> > > +	int ret;
-> > > +
-> > 
-> > making this as
-> > 
-> > static char task_memcg_name[PATH_MAX];
-> > static char memcg_name[PATH_MAX];
-> > 
-> > is ok, I think. and the patch will be more simple.
+On Tuesday 03 February 2009 21:12:06 Mel Gorman wrote:
+> On Mon, Jan 26, 2009 at 10:48:26AM +0200, Pekka Enberg wrote:
+> > Hi Nick,
 > >
-> 
-> I am having second thoughts about this one. It introduces a standard
-> overhead of 2 pages on x86*, while the first one will work for most
-> cases and all the overhead is on stack, which disappears quickly.
-> That is the reason I did not do it in the first place and put it as a
-> NOTE.
->  
-But *128* is tooooooo short ;)
-And, your patch makes "OOM Message Format" unstable.
->From system administration view, it's unacceptable.
-Not printing name at all is better than "printed out sometimes you lucky"
+> > On Fri, 2009-01-23 at 16:46 +0100, Nick Piggin wrote:
+> > > Since last time, fixed bugs pointed out by Hugh and Andi, cleaned up
+> > > the code suggested by Ingo (haven't yet incorporated Ingo's last
+> > > patch).
+> > >
+> > > Should have fixed the crash reported by Yanmin (I was able to reproduce
+> > > it on an ia64 system and fix it).
+> > >
+> > > Significantly reduced static footprint of init arrays, thanks to Andi's
+> > > suggestion.
+> > >
+> > > Please consider for trial merge for linux-next.
+> >
+> > I merged a the one you resent privately as this one didn't apply at all.
+> > The code is in topic/slqb/core branch of slab.git and should appear in
+> > linux-next tomorrow.
+> >
+> > Testing and especially performance testing is welcome. If any of the HPC
+> > people are reading this, please do give SLQB a good beating as Nick's
+> > plan is to replace both, SLAB and SLUB, with it in the long run.As
+> > Christoph has expressed concerns over latency issues of SLQB, I suppose
+> > it would be interesting to hear if it makes any difference to the
+> > real-time folks.
+>
+> The HPC folks care about a few different workloads but speccpu is one that
+> shows up. I was in the position to run tests because I had put together
+> the test harness for a paper I spent the last month writing. This mail
+> shows a comparison between slab, slub and slqb for speccpu2006 running a
+> single thread and sysbench ranging clients from 1 to 4*num_online_cpus()
+> (16 in both cases). Additional tests were not run because just these two
+> take one day per kernel to complete. Results are ratios to the SLAB figures
+> and based on an x86-64 and ppc64 machine.
 
-Thanks,
--Kame
+Hi Mel,
 
+This is very nice, thanks for testing. SLQB and SLUB are quite similar
+in a lot of cases, which indeed could be explained by cacheline placement
+(both of these can allocate down to much smaller sizes, and both of them
+also put metadata directly in free object memory rather than external
+locations).
+
+But it will be interesting to try looking at some of the tests where
+SLQB has larger regressions, so that might give me something to go on
+if I can lay my hands on speccpu2006...
+
+I'd be interested to see how slub performs if booted with slub_min_objects=1
+(which should give similar order pages to SLAB and SLQB).
 
 
 --
