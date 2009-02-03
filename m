@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 497B56B004F
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 15:38:21 -0500 (EST)
-Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
-	by smtp-out.google.com with ESMTP id n13KcHs3026127
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 20:38:18 GMT
-Received: from yx-out-2324.google.com (yxb8.prod.google.com [10.190.1.72])
-	by zps38.corp.google.com with ESMTP id n13KcEO0019103
-	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 12:38:15 -0800
-Received: by yx-out-2324.google.com with SMTP id 8so733123yxb.73
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 12:38:14 -0800 (PST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1FC156B003D
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 17:25:18 -0500 (EST)
+Date: Tue, 3 Feb 2009 23:25:01 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: marching through all physical memory in software
+Message-ID: <20090203222501.GC2857@elf.ucw.cz>
+References: <715599.77204.qm@web50111.mail.re2.yahoo.com> <m1wscc7fop.fsf@fess.ebiederm.org> <49873B99.3070405@nortel.com> <37985.1233614746@turing-police.cc.vt.edu> <4988555B.8010408@nortel.com>
 MIME-Version: 1.0
-Date: Tue, 3 Feb 2009 12:38:14 -0800
-Message-ID: <77e5ae570902031238q5fc9231bpb65ecd511da5a9c7@mail.gmail.com>
-Subject: Swap Memory
-From: William Chan <williamchan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4988555B.8010408@nortel.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: wchan212@gmail.com
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: Valdis.Kletnieks@vt.edu, "Eric W. Biederman" <ebiederm@xmission.com>, Doug Thompson <norsk5@yahoo.com>, ncunningham-lkml@crca.org.au, Arjan van de Ven <arjan@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bluesmoke-devel@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+Hi!
 
-According to my understanding of the kernel mm, swap pages are
-allocated in order of priority.
+>>> The next question is who handles the conversion of the various 
+>>> different arch-specific BIOS mappings to a standard format that we 
+>>> can feed to the background "scrub" code.  Is this something that 
+>>> belongs in the edac memory controller code, or would it live in 
+>>> /arch/foo somewhere?
+>>
+>>
+>> If it's intended to be something basically stand-alone that doesn't require
+>> an actual EDAC chipset, it should probably live elsewhere.  Otherwise, you get
+>> into the case of people who don't enable it because they "know" their hardware
+>> doesn't have an EDAC ability, even if they *could* benefit from the function.
+>>
+>> On the other hand, if it's an EDAC-only thing, maybe under drivers/edac/$ARCH?
+>
+> I don't see anything in the name of EDAC that implies hardware only...a  
+> software memory scrub could be considered "error detection and  
+> correction".  Might have to update the config help text though.
 
-For example, I have the follow swap devices: FlashDevice1 with
-priority 1 and DiskDevice2 with priority 2 and DiskDevice3 with
-priority3. FlashDevice1 will get filled up, then DsikDevice2 and
-DiskDevice3.
+Software memory scrub would no longer be a "driver" :-). So it should
+go into kernel/scrub or mm/scrub or maybe mm/edac or something.
 
-To allocate a page of memroy in swap, the kernel will call
-get_swap_page to find the first device with available swap slots and
-then pass that device to scan_swap_map to allocate a page.
-
-I see a "problem" with this: The kernel does not take advantage of
-available bandwidth. For example: my system has 2 swap
-devices...DiskDevice2 and DiskDevice3, they are both identical 20 GB
-7200rpm drives. If we need 4 GB worth of swap pages, only DiskDevice2
-will be filled up. We have available free bandwidth on DiskDevice3
-that is never used. If we were to split the swap pages into the two
-drives, 2 GB of swap on each drive - we can potentially double our
-bandwidth (latency is another issue).
-
-Another problem that I am working on is what if one device is Flash
-and the second device is Rotational. Does the kernel mm employ a
-scheme to evict LRU pages in Priority1 swap to Priority2 swap?
-
-
-
-Regards,
-will
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
