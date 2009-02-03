@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E10ED5F0001
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 06:28:56 -0500 (EST)
-Date: Tue, 3 Feb 2009 11:28:52 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-Message-ID: <20090203112852.GJ9840@csn.ul.ie>
-References: <20090123154653.GA14517@wotan.suse.de> <1232959706.21504.7.camel@penberg-laptop> <20090203101205.GF9840@csn.ul.ie> <200902032136.26022.nickpiggin@yahoo.com.au>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 25E585F0001
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 06:48:01 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n13Blwet001614
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 3 Feb 2009 20:47:58 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 28FF745DE55
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:58 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E530E45DE51
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CEF2AE18006
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A814E38002
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 20:47:57 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: /proc/sys/vm/drop_caches: add error handling
+In-Reply-To: <20090203113319.GA2022@elf.ucw.cz>
+References: <20090203113319.GA2022@elf.ucw.cz>
+Message-Id: <20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <200902032136.26022.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue,  3 Feb 2009 20:47:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Pavel Machek <pavel@suse.cz>
+Cc: kosaki.motohiro@jp.fujitsu.com, kernel list <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 03, 2009 at 09:36:24PM +1100, Nick Piggin wrote:
-> On Tuesday 03 February 2009 21:12:06 Mel Gorman wrote:
-> > On Mon, Jan 26, 2009 at 10:48:26AM +0200, Pekka Enberg wrote:
-> > > Hi Nick,
-> > >
-> > > On Fri, 2009-01-23 at 16:46 +0100, Nick Piggin wrote:
-> > > > Since last time, fixed bugs pointed out by Hugh and Andi, cleaned up
-> > > > the code suggested by Ingo (haven't yet incorporated Ingo's last
-> > > > patch).
-> > > >
-> > > > Should have fixed the crash reported by Yanmin (I was able to reproduce
-> > > > it on an ia64 system and fix it).
-> > > >
-> > > > Significantly reduced static footprint of init arrays, thanks to Andi's
-> > > > suggestion.
-> > > >
-> > > > Please consider for trial merge for linux-next.
-> > >
-> > > I merged a the one you resent privately as this one didn't apply at all.
-> > > The code is in topic/slqb/core branch of slab.git and should appear in
-> > > linux-next tomorrow.
-> > >
-> > > Testing and especially performance testing is welcome. If any of the HPC
-> > > people are reading this, please do give SLQB a good beating as Nick's
-> > > plan is to replace both, SLAB and SLUB, with it in the long run.As
-> > > Christoph has expressed concerns over latency issues of SLQB, I suppose
-> > > it would be interesting to hear if it makes any difference to the
-> > > real-time folks.
-> >
-> > The HPC folks care about a few different workloads but speccpu is one that
-> > shows up. I was in the position to run tests because I had put together
-> > the test harness for a paper I spent the last month writing. This mail
-> > shows a comparison between slab, slub and slqb for speccpu2006 running a
-> > single thread and sysbench ranging clients from 1 to 4*num_online_cpus()
-> > (16 in both cases). Additional tests were not run because just these two
-> > take one day per kernel to complete. Results are ratios to the SLAB figures
-> > and based on an x86-64 and ppc64 machine.
 > 
-> Hi Mel,
-> 
-> This is very nice, thanks for testing. SLQB and SLUB are quite similar
-> in a lot of cases, which indeed could be explained by cacheline placement
-> (both of these can allocate down to much smaller sizes, and both of them
-> also put metadata directly in free object memory rather than external
-> locations).
-> 
-> But it will be interesting to try looking at some of the tests where
-> SLQB has larger regressions, so that might give me something to go on
-> if I can lay my hands on speccpu2006...
-> 
-> I'd be interested to see how slub performs if booted with slub_min_objects=1
-> (which should give similar order pages to SLAB and SLQB).
-> 
+> Document that drop_caches is unsafe, and add error checking so that it
+> bails out on invalid inputs. [Note that this was triggered by Android
+> trying to use it in production, and incidentally writing invalid
+> value...]
 
-Just to clarify on this last point, do you mean slub_max_order=0 to
-force order-0 allocations in SLUB?
+Yup. good patch.
+
+> -	return 0;
+> +	int res;
+> +	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+> +	if (res)
+> +		return res;
+> +	if (!write)
+> +		return res;
+> +	if (sysctl_drop_caches & ~3)
+> +		return -EINVAL;
+> +	if (sysctl_drop_caches & 1)
+> +		drop_pagecache();
+> +	if (sysctl_drop_caches & 2)
+> +		drop_slab();
+> +	return res;
+>  }
+
+I think following is clarify more.
+
+	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+	if (res)
+		return res;
+	if (!write)
+		return 0;
+	if (sysctl_drop_caches & ~3)
+		return -EINVAL;
+	if (sysctl_drop_caches & 1)
+		drop_pagecache();
+	if (sysctl_drop_caches & 2)
+		drop_slab();
+	return 0;
 
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+otherthings, _very_ looks good to me. :)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
