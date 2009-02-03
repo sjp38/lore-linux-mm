@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id A10C06B0062
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 13:47:50 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so985034fgg.4
-        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 10:47:48 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <84144f020902031042i31eaec14v53a0e7a203acd28b@mail.gmail.com>
-References: <20090114155923.GC1616@wotan.suse.de>
-	 <20090123155307.GB14517@wotan.suse.de>
-	 <alpine.DEB.1.10.0901261225240.1908@qirst.com>
-	 <200902031253.28078.nickpiggin@yahoo.com.au>
-	 <alpine.DEB.1.10.0902031217390.17910@qirst.com>
-	 <84144f020902031042i31eaec14v53a0e7a203acd28b@mail.gmail.com>
-Date: Tue, 3 Feb 2009 20:47:48 +0200
-Message-ID: <84144f020902031047o2e117652w28886efb495688c4@mail.gmail.com>
-Subject: Re: [patch] SLQB slab allocator
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D2BFA6B0062
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 14:03:11 -0500 (EST)
+Message-ID: <498893EE.9060107@cs.helsinki.fi>
+Date: Tue, 03 Feb 2009 20:58:54 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+MIME-Version: 1.0
+Subject: Re: [patch] SLQB slab allocator (try 2)
+References: <20090123154653.GA14517@wotan.suse.de> <1232959706.21504.7.camel@penberg-laptop> <20090203101205.GF9840@csn.ul.ie>
+In-Reply-To: <20090203101205.GF9840@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 3, 2009 at 8:42 PM, Pekka Enberg <penberg@cs.helsinki.fi> wrote:
->> It will grow unconstrained if you elect to defer queue processing. That
->> was what we discussed.
->
-> Well, the slab_hiwater() check in __slab_free() of mm/slqb.c will cap
-> the size of the queue. But we do the same thing in SLAB with
-> alien->limit in cache_free_alien() and ac->limit in __cache_free(). So
-> I'm not sure what you mean when you say that the queues will "grow
-> unconstrained" (in either of the allocators). Hmm?
+Hi Mel,
 
-That said, I can imagine a worst-case scenario where a queue with N
-objects is pinning N mostly empty slabs. As soon as we hit the
-periodical flush, we might need to do tons of work. That's pretty hard
-to control with watermarks as well as the scenario is solely dependent
-on allocation/free patterns.
+Mel Gorman wrote:
+> The OLTP workload results could indicate a downside with using sysbench
+> although it could also be hardware. The reports from the Intel guys have been
+> pretty clear-cut that SLUB is a loser but sysbench-postgres on these test
+> machines at least do not agree. Of course their results are perfectly valid
+> but the discrepency needs to be explained or there will be a disconnect
+> between developers and the performance people.  Something important is
+> missing that means sysbench-postgres *may* not be a reliable indicator of
+> TPC-C performance.  It could easily be down to the hardware as their tests
+> are on a mega-large machine with oodles of disks and probably NUMA where
+> the test machine used for this is a lot less respectable.
+
+Yup. That's more or less what I've been saying for a long time now. The 
+OLTP regression is not all obvious and while there has been plenty of 
+talk about it (cache line ping-pong due to lack of queues, high order 
+pages), I've yet to see a detailed analysis on it.
+
+It would be interesting to know what drivers the Intel setup uses. One 
+thing I speculated with Christoph at OLS is that the regression could be 
+due to bad interaction with the SCSI subsystem, for example. That would 
+explain why the regression doesn't show up in typical setups which have ATA.
+
+Anyway, even if we did end up going forward with SLQB, it would sure as 
+hell be less painful if we understood the reasons behind it.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
