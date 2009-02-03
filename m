@@ -1,156 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA1C5F0001
-	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 20:47:59 -0500 (EST)
-Subject: Re: [PATCH] fix mlocked page counter mismatch
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090202232719.GC13532@barrios-desktop>
-References: <20090202061622.GA13286@barrios-desktop>
-	 <1233594995.17895.144.camel@lts-notebook>
-	 <20090202232719.GC13532@barrios-desktop>
-Content-Type: text/plain
-Date: Mon, 02 Feb 2009 20:48:06 -0500
-Message-Id: <1233625686.17895.219.camel@lts-notebook>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A57805F0001
+	for <linux-mm@kvack.org>; Mon,  2 Feb 2009 20:49:08 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch] SLQB slab allocator
+Date: Tue, 3 Feb 2009 12:48:40 +1100
+References: <20090114150900.GC25401@wotan.suse.de> <20090123161017.GC14517@wotan.suse.de> <alpine.DEB.1.10.0901261230540.1908@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0901261230540.1908@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200902031248.42124.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: linux mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-02-03 at 08:27 +0900, MinChan Kim wrote:
-> On Mon, Feb 02, 2009 at 12:16:35PM -0500, Lee Schermerhorn wrote:
-> > On Mon, 2009-02-02 at 15:16 +0900, MinChan Kim wrote:
-> > > When I tested following program, I found that mlocked counter 
-> > > is strange. 
-> > > It couldn't free some mlocked pages of test program.
-> > > 
-> > > It is caused that try_to_unmap_file don't check real 
-> > > page mapping in vmas. 
-> > > That's because goal of address_space for file is to find all processes 
-> > > into which the file's specific interval is mapped. 
-> > > What I mean is that it's not related page but file's interval.
-> > > 
-> > > Even if the page isn't really mapping at the vma, it returns 
-> > > SWAP_MLOCK since the vma have VM_LOCKED, then calls 
-> > > try_to_mlock_page. After all, mlocked counter is increased again. 
-> > > 
-> > > This patch is based on 2.6.28-rc2-mm1.
-> > > 
-> > > -- my test program --
-> > > 
-> > > #include <stdio.h>
-> > > #include <sys/mman.h>
-> > > int main()
-> > > {
-> > >         mlockall(MCL_CURRENT);
-> > >         return 0;
-> > > }
-> > > 
-> > > -- before --
-> > > 
-> > > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-> > > Unevictable:           0 kB
-> > > Mlocked:               0 kB
-> > > 
-> > > -- after --
-> > > 
-> > > root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-> > > Unevictable:           8 kB
-> > > Mlocked:               8 kB
-> > > 
-> > > 
-> > > --
-> > > 
-> > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > > index 1099394..9ba1fdf 100644
-> > > --- a/mm/rmap.c
-> > > +++ b/mm/rmap.c
-> > > @@ -1073,6 +1073,9 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
-> > >  	unsigned long max_nl_size = 0;
-> > >  	unsigned int mapcount;
-> > >  	unsigned int mlocked = 0;
-> > > +	unsigned long address;
-> > > +	pte_t *pte;
-> > > +	spinlock_t *ptl;
-> > >  
-> > >  	if (MLOCK_PAGES && unlikely(unlock))
-> > >  		ret = SWAP_SUCCESS;	/* default for try_to_munlock() */
-> > > @@ -1089,6 +1092,13 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
-> > >  				goto out;
-> > >  		}
-> > >  		if (ret == SWAP_MLOCK) {
-> > > +     address = vma_address(page, vma);
-> > > +     if (address != -EFAULT) {
-> > > +       pte = page_check_address(page, vma->vm_mm, address, &ptl, 0);
-> > > +       if (!pte)
-> > > +            continue; 
-> > > +       pte_unmap_unlock(pte, ptl);
-> > > +     } 
-> > >  			mlocked = try_to_mlock_page(page, vma);
-> > >  			if (mlocked)
-> > >  				break;  /* stop if actually mlocked page */
-> > 
-> > Hi, MinChan:
-> > 
-> >    Interestingly, Rik had addressed this [simpler patch below] way back
-> > when he added the page_mapped_in_vma() function.  I asked him whether
-> 
-> 
-> > the rb tree shouldn't have filtered any vmas that didn't have the page
-> > mapped.  He agreed and removed the check from try_to_unmap_file().
-> > Guess I can be very convincing, even when I'm wrong [happening a lot
-> > lately].  Of course, in this instance, the rb-tree filtering only works
-> > for shared, page-cache pages.  The problem uncovered by your test case
-> 
-> It's not rb-tree but priority tree. ;-)
+On Tuesday 27 January 2009 04:34:21 Christoph Lameter wrote:
+> On Fri, 23 Jan 2009, Nick Piggin wrote:
+> > > SLUB can directly free an object to any slab page. "Queuing" on free
+> > > via the per cpu slab is only possible if the object came from that per
+> > > cpu slab. This is typically only the case for objects that were
+> > > recently allocated.
+> >
+> > Ah yes ok that's right. But then you don't get LIFO allocation
+> > behaviour for those cases.
+>
+> But you get more TLB local allocations.
 
-Yeah, that one :).
+Not necessarily at all. Because when the "active" page runs out, you've
+lost all the LIFO information about objects with active caches and TLBs.
 
-> 
-> > is with a COWed anon page in a file-backed vma.  Yes, the vma 'maps' the
-> > virtual address range containing the page in question, but since it's a
-> > private COWed anon page, it isn't necessarily "mapped" in the VM_LOCKED
-> > vma's mm's page table.  We need the check...
-> 
-> Indeed!
-> 
-> > 
-> > I've added the variant below [CURRENTLY UNTESTED] to my test tree.
-> > 
-> > Lee
-> > 
-> > [intentionally omitted sign off, until tested.]
-> 
-> I shouldn't forgot page_mapped_in_vma.
-> However, It looks good to me. 
-> Thank you for testing. 
 
-I did test this on 29-rc3 on a 4 socket x dual core x86_64 platform and
-it seems to resolve the statistics miscount.  How do you want to
-proceed.  Do you want to repost with this version of patch?  Or shall I?
+> > > Yes you can loose track of caching hot objects. That is one of the
+> > > concerns with the SLUB approach. On the other hand: Caching
+> > > architectures get more and more complex these days (especially in a
+> > > NUMA system). The
+> >
+> > Because it is more important to get good cache behaviour.
+>
+> Its going to be quite difficult to realize algorithm that guestimate what
+> information the processor keeps in its caches. The situation is quite
+> complex in NUMA systems.
 
-Regards,
-Lee
+LIFO is fine.
 
-> > 
-> > 
-> > Index: linux-2.6.29-rc3/mm/rmap.c
-> > ===================================================================
-> > --- linux-2.6.29-rc3.orig/mm/rmap.c	2009-01-30 14:13:56.000000000 -0500
-> > +++ linux-2.6.29-rc3/mm/rmap.c	2009-02-02 11:27:11.000000000 -0500
-> > @@ -1072,7 +1072,8 @@ static int try_to_unmap_file(struct page
-> >  	spin_lock(&mapping->i_mmap_lock);
-> >  	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
-> >  		if (MLOCK_PAGES && unlikely(unlock)) {
-> > -			if (!(vma->vm_flags & VM_LOCKED))
-> > +			if (!((vma->vm_flags & VM_LOCKED) &&
-> > +			      page_mapped_in_vma(page, vma)))
-> >  				continue;	/* must visit all vmas */
-> >  			ret = SWAP_MLOCK;
-> >  		} else {
-> > 
-> 
+
+> > So I think it is wrong to say it requires more metadata handling. SLUB
+> > will have to switch pages more often or free objects to pages other than
+> > the "fast" page (what do you call it?), so quite often I think you'll
+> > find SLUB has just as much if not more metadata handling.
+>
+> Its the per cpu slab. SLUB does not switch pages often but frees objects
+> not from the per cpu slab directly with minimal overhead compared to a per
+> cpu slab free. The overhead is much less than the SLAB slowpath which has
+> to be taken for alien caches etc.
+
+But the slab allocator isn't just about allocating. It is also about
+freeing. And you can be switching pages frequently in the freeing path.
+And depending on allocation patterns, it can still be quite frequent
+in the allocation path too (and even if you have gigantic pages, they
+can still get mostly filled up which reduces your queue size and
+increases rate of switching between them).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
