@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 07B5D6B0062
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 12:40:46 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6531782C4D9
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 12:43:14 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 0U5rErRQjROQ for <linux-mm@kvack.org>;
-	Tue,  3 Feb 2009 12:43:14 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 8046982C293
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 12:40:30 -0500 (EST)
-Date: Tue, 3 Feb 2009 12:33:14 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <200902031253.28078.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.DEB.1.10.0902031217390.17910@qirst.com>
-References: <20090114155923.GC1616@wotan.suse.de> <20090123155307.GB14517@wotan.suse.de> <alpine.DEB.1.10.0901261225240.1908@qirst.com> <200902031253.28078.nickpiggin@yahoo.com.au>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 563D96B0062
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 13:42:06 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so983472fgg.4
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 10:42:04 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.DEB.1.10.0902031217390.17910@qirst.com>
+References: <20090114155923.GC1616@wotan.suse.de>
+	 <20090123155307.GB14517@wotan.suse.de>
+	 <alpine.DEB.1.10.0901261225240.1908@qirst.com>
+	 <200902031253.28078.nickpiggin@yahoo.com.au>
+	 <alpine.DEB.1.10.0902031217390.17910@qirst.com>
+Date: Tue, 3 Feb 2009 20:42:04 +0200
+Message-ID: <84144f020902031042i31eaec14v53a0e7a203acd28b@mail.gmail.com>
+Subject: Re: [patch] SLQB slab allocator
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Feb 2009, Nick Piggin wrote:
+Hi Christoph,
 
-> Quite obviously it should. Behaviour of a slab allocation on behalf of
-> some task constrained within a given node should not depend on the task
-> which has previously run on this CPU and made some allocations. Surely
-> you can see this behaviour is not nice.
-
-If you want cache hot objects then its better to use what a prior task
-has used. This opportunistic use is only done if the task is not asking
-for memory from a specifc node. There is another tradeoff here.
-
-SLABs method there is to ignore all caching advantages even if the task
-did not ask for memory from a specific node. So it gets cache cold objects
-and if the node to allow from is remote then it always must use the slow
-path.
-
-> > Which have similar issues since memory policy application is depending on
-> > a task policy and on memory migration that has been applied to an address
-> > range.
+On Tue, Feb 3, 2009 at 7:33 PM, Christoph Lameter
+<cl@linux-foundation.org> wrote:
+>> > Trimming through water marks and allocating memory from the page allocator
+>> > is going to be very frequent if you continually allocate on one processor
+>> > and free on another.
+>>
+>> Um yes, that's the point. But you previously claimed that it would just
+>> grow unconstrained. Which is obviously wrong. So I don't understand what
+>> your point is.
 >
-> What similar issues? If a task ask to have slab allocations constrained
-> to node 0, then SLUB hands out objects from other nodes, then that's bad.
+> It will grow unconstrained if you elect to defer queue processing. That
+> was what we discussed.
 
-Of course. A task can ask to have allocations from node 0 and it will get
-the object from node 0. But if the task does not care to ask for data
-from a specific node then it can be satisfied from the cpu slab which
-contains cache hot objects.
+Well, the slab_hiwater() check in __slab_free() of mm/slqb.c will cap
+the size of the queue. But we do the same thing in SLAB with
+alien->limit in cache_free_alien() and ac->limit in __cache_free(). So
+I'm not sure what you mean when you say that the queues will "grow
+unconstrained" (in either of the allocators). Hmm?
 
-> > > But that is wrong. The lists obviously have high water marks that
-> > > get trimmed down. Periodic trimming as I keep saying basically is
-> > > alrady so infrequent that it is irrelevant (millions of objects
-> > > per cpu can be allocated anyway between existing trimming interval)
-> >
-> > Trimming through water marks and allocating memory from the page allocator
-> > is going to be very frequent if you continually allocate on one processor
-> > and free on another.
->
-> Um yes, that's the point. But you previously claimed that it would just
-> grow unconstrained. Which is obviously wrong. So I don't understand what
-> your point is.
-
-It will grow unconstrained if you elect to defer queue processing. That
-was what we discussed.
+                               Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
