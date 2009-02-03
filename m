@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BCA6B004F
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 14:14:55 -0500 (EST)
-Date: Tue, 3 Feb 2009 11:14:47 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: /proc/sys/vm/drop_caches: add error handling
-Message-Id: <20090203111447.41e2022c.akpm@linux-foundation.org>
-In-Reply-To: <20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20090203113319.GA2022@elf.ucw.cz>
-	<20090203204456.ECA3.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 497B56B004F
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 15:38:21 -0500 (EST)
+Received: from zps38.corp.google.com (zps38.corp.google.com [172.25.146.38])
+	by smtp-out.google.com with ESMTP id n13KcHs3026127
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 20:38:18 GMT
+Received: from yx-out-2324.google.com (yxb8.prod.google.com [10.190.1.72])
+	by zps38.corp.google.com with ESMTP id n13KcEO0019103
+	for <linux-mm@kvack.org>; Tue, 3 Feb 2009 12:38:15 -0800
+Received: by yx-out-2324.google.com with SMTP id 8so733123yxb.73
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 12:38:14 -0800 (PST)
+MIME-Version: 1.0
+Date: Tue, 3 Feb 2009 12:38:14 -0800
+Message-ID: <77e5ae570902031238q5fc9231bpb65ecd511da5a9c7@mail.gmail.com>
+Subject: Swap Memory
+From: William Chan <williamchan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: pavel@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: wchan212@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  3 Feb 2009 20:47:56 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+Hi All,
 
-> > 
-> > Document that drop_caches is unsafe, and add error checking so that it
-> > bails out on invalid inputs. [Note that this was triggered by Android
-> > trying to use it in production, and incidentally writing invalid
-> > value...]
-> 
-> Yup. good patch.
-> 
-> > -	return 0;
-> > +	int res;
-> > +	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
-> > +	if (res)
-> > +		return res;
-> > +	if (!write)
-> > +		return res;
-> > +	if (sysctl_drop_caches & ~3)
-> > +		return -EINVAL;
-> > +	if (sysctl_drop_caches & 1)
-> > +		drop_pagecache();
-> > +	if (sysctl_drop_caches & 2)
-> > +		drop_slab();
-> > +	return res;
-> >  }
-> 
-> I think following is clarify more.
-> 
-> 	res = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
-> 	if (res)
-> 		return res;
-> 	if (!write)
-> 		return 0;
-> 	if (sysctl_drop_caches & ~3)
-> 		return -EINVAL;
-> 	if (sysctl_drop_caches & 1)
-> 		drop_pagecache();
-> 	if (sysctl_drop_caches & 2)
-> 		drop_slab();
-> 	return 0;
-> 
-> 
-> otherthings, _very_ looks good to me. :)
-> 
+According to my understanding of the kernel mm, swap pages are
+allocated in order of priority.
 
-For better or for worse, my intent here was to be
-future-back-compatible.  So if we later add new flags, and people write
-code which uses those new flags, that code won't break on old kernels.
+For example, I have the follow swap devices: FlashDevice1 with
+priority 1 and DiskDevice2 with priority 2 and DiskDevice3 with
+priority3. FlashDevice1 will get filled up, then DsikDevice2 and
+DiskDevice3.
 
-Probably that wasn't a very good idea, and such userspace code isn't
-very good.
+To allocate a page of memroy in swap, the kernel will call
+get_swap_page to find the first device with available swap slots and
+then pass that device to scan_swap_map to allocate a page.
+
+I see a "problem" with this: The kernel does not take advantage of
+available bandwidth. For example: my system has 2 swap
+devices...DiskDevice2 and DiskDevice3, they are both identical 20 GB
+7200rpm drives. If we need 4 GB worth of swap pages, only DiskDevice2
+will be filled up. We have available free bandwidth on DiskDevice3
+that is never used. If we were to split the swap pages into the two
+drives, 2 GB of swap on each drive - we can potentially double our
+bandwidth (latency is another issue).
+
+Another problem that I am working on is what if one device is Flash
+and the second device is Rotational. Does the kernel mm employ a
+scheme to evict LRU pages in Priority1 swap to Priority2 swap?
+
+
+
+Regards,
+will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
