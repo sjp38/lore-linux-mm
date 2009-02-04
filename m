@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 23FF16B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 05:22:33 -0500 (EST)
-Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
-	by mtagate6.uk.ibm.com (8.13.8/8.13.8) with ESMTP id n14ALO7L378720
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 10:21:24 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
-	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n14ALOra3584194
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 10:21:24 GMT
-Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n14ALNH0014859
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 10:21:24 GMT
-Date: Wed, 4 Feb 2009 11:21:21 +0100
-From: Carsten Otte <cotte@de.ibm.com>
-Subject: [PATCH] ext2/xip: refuse to change xip flag during remount with
- busy inodes
-Message-ID: <20090204112121.4d03c20e@cotte.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4A6626B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 05:28:25 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n14ASLXl001496
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 4 Feb 2009 19:28:21 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DAAE45DE63
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:28:21 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC33A45DE5D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:28:20 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A6EDF1DB8042
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:28:20 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62C8E1DB8040
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:28:20 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
+In-Reply-To: <20090204045745.GC6212@barrios-desktop>
+References: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090204045745.GC6212@barrios-desktop>
+Message-Id: <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed,  4 Feb 2009 19:28:19 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Nick Piggin <npiggin@suse.de>
-Cc: Jared Hulbert <jaredeh@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, os@de.ibm.com
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-For a reason that I was unable to understand in three months
-of debugging, mount ext2 -o remount stopped working properly when
-remounting from regular operation to xip, or the other way around.
-According to a git bisect search, the problem was introduced with
-the VM_MIXEDMAP/PTE_SPECIAL rework in the vm:
-commit 70688e4dd1647f0ceb502bbd5964fa344c5eb411
-Author: Nick Piggin <npiggin@suse.de>
-Date:   Mon Apr 28 02:13:02 2008 -0700
-    xip: support non-struct page backed memory
-Signed-off-by: Nick Piggin <npiggin@suse.de>
-Acked-by: Carsten Otte <cotte@de.ibm.com>
-Cc: Jared Hulbert <jaredeh@gmail.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> With '29-rc3-git5', I found,
+> 
+> static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
+> {
+>   int mlocked = 0; 
+> 
+>   if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+>     if (vma->vm_flags & VM_LOCKED) {
+>       mlock_vma_page(page);
+>       mlocked++;  /* really mlocked the page */
+>     }    
+>     up_read(&vma->vm_mm->mmap_sem);
+>   }
+>   return mlocked;
+> }
+> 
+> It still try to downgrade mmap_sem.
+> Do I miss something ?
 
-In the failing scenario, the filesystem is mounted read only via root=
-kernel parameter on s390x. During remount (in rc.sysinit), the inodes of
-the bash binary and its libraries are busy and cannot be invalidated
-(the bash which is running rc.sysinit resides on subject filesystem).
-Afterwards, another bash process (running ifup-eth) recurses into a
-subshell, runs dup_mm (via fork). Some of the mappings in this bash
-process were created from inodes that could not be invalidated during
-remount.
-Both parent and child process crash some time later due
-to inconsistencies in their address spaces. The issue seems to
-be timing sensitive, various attempts to recreate it have failed.
+sorry, I misunderstood your "downgrade". I said linus removed downgrade_write(&mma_sem).
 
-This patch refuses to change the xip flag during remount in case
-some inodes cannot be invalidated. This patch keeps users from running
-into that issue.
+Now, I understand this issue perfectly. I agree you and lee-san's fix is correct.
+	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Signed-off-by: Carsten Otte <cotte@de.ibm.com>
----
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index da8bdea..1add0fe 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -1185,9 +1185,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
- 	es = sbi->s_es;
- 	if (((sbi->s_mount_opt & EXT2_MOUNT_XIP) !=
- 	    (old_mount_opt & EXT2_MOUNT_XIP)) &&
--	    invalidate_inodes(sb))
--		ext2_warning(sb, __func__, "busy inodes while remounting "\
--			     "xip remain in cache (no functional problem)");
-+	    invalidate_inodes(sb)) {
-+		ext2_warning(sb, __func__, "refusing change of xip flag "\
-+			     "with busy inodes while remounting");
-+		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
-+		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
-+	}
- 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
- 		return 0;
- 	if (*flags & MS_RDONLY) {
+
+and, I think current try_to_mlock_page() is correct. no need change.
+Why?
+
+1. Generally, mmap_sem holding is necessary when vma->vm_flags accessed.
+   that's vma's basic rule.
+2. However, try_to_unmap_one() doesn't held mamp_sem. but that's ok.
+   it often get incorrect result. but caller consider incorrect value safe.
+3. try_to_mlock_page() need mmap_sem because it obey rule (1).
+4. in try_to_mlock_page(), if down_read_trylock() is failure, 
+   we can't move the page to unevictable list. but that's ok.
+   the page in evictable list is periodically try to reclaim. and
+   be called try_to_unmap().
+   try_to_unmap() (and its caller) also move the unevictable page to unevictable list.
+   Therefore, in long term view, the page leak is not happend.
+
+this explanation is enough?
+
+thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
