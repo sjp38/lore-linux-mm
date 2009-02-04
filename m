@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4656B6B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 03:35:33 -0500 (EST)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp09.in.ibm.com (8.13.1/8.13.1) with ESMTP id n148I4Fj002556
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 13:48:04 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n148ZXx52011168
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 14:05:33 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n148ZR7k022932
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 19:35:27 +1100
-Date: Wed, 4 Feb 2009 14:05:24 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] use __GFP_NOWARN in page cgroup allocation
-Message-ID: <20090204083524.GJ4456@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090204170944.c93772d2.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090204170944.c93772d2.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 1BE2B6B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 04:56:15 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n149uCJb010891
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 4 Feb 2009 18:56:12 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 45D0D45DD75
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:56:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 271AE45DD74
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:56:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 255E81DB803F
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:56:12 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA3781DB803A
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:56:11 +0900 (JST)
+Date: Wed, 4 Feb 2009 18:55:01 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] release mmap_sem before starting migration (Was Re:
+ Need to take mmap_sem lock in move_pages.
+Message-Id: <20090204185501.837ff5d6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090204184028.09a4bbae.kamezawa.hiroyu@jp.fujitsu.com>
+References: <28631E6913C8074E95A698E8AC93D091B21561@caexch1.virident.info>
+	<20090204183600.f41e8b7e.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090204184028.09a4bbae.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, heiko.carstens@de.ibm.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: Swamy Gowda <swamy@virident.com>, linux-kernel@vger.kernel.org, cl@linux-foundation.org, Brice.Goglin@inria.fr, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-04 17:09:44]:
+On Wed, 4 Feb 2009 18:40:28 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-> This was recommended in
-> "kmalloc-return-null-instead-of-link-failure.patch added to -mm tree" thread
-> in the last month.
-> Thanks,
-> -Kame
-> =
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> On Wed, 4 Feb 2009 18:36:00 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>       Maybe up_read() can be moved before do_migrate_pages(), I think.
 > 
-> page_cgroup's page allocation at init/memory hotplug uses kmalloc() and
-> vmalloc(). If kmalloc() failes, vmalloc() is used.
-> 
-> This is because vmalloc() is very limited resource on 32bit systems.
-> We want to use kmalloc() first.
-> 
-> But in this kind of call, __GFP_NOWARN should be specified.
-> 
-> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
-> Index: mmotm-2.6.29-Feb03/mm/page_cgroup.c
-> ===================================================================
-> --- mmotm-2.6.29-Feb03.orig/mm/page_cgroup.c
-> +++ mmotm-2.6.29-Feb03/mm/page_cgroup.c
-> @@ -114,7 +114,8 @@ static int __init_refok init_section_pag
->  		nid = page_to_nid(pfn_to_page(pfn));
->  		table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
->  		if (slab_is_available()) {
-> -			base = kmalloc_node(table_size, GFP_KERNEL, nid);
-> +			base = kmalloc_node(table_size,
-> +					GFP_KERNEL | __GFP_NOWARN, nid);
+How about this ?
+==
 
-Thanks for getting to this.
+mmap_sem can be released after page table walk ends.
 
->  			if (!base)
->  				base = vmalloc_node(table_size, nid);
->  		} else {
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ mm/migrate.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-
-
--- 
-	Balbir
+Index: mmotm-2.6.29-Feb03/mm/migrate.c
+===================================================================
+--- mmotm-2.6.29-Feb03.orig/mm/migrate.c
++++ mmotm-2.6.29-Feb03/mm/migrate.c
+@@ -875,13 +875,13 @@ put_and_set:
+ set_status:
+ 		pp->status = err;
+ 	}
++	up_read(&mm->mmap_sem);
+ 
+ 	err = 0;
+ 	if (!list_empty(&pagelist))
+ 		err = migrate_pages(&pagelist, new_page_node,
+ 				(unsigned long)pm);
+ 
+-	up_read(&mm->mmap_sem);
+ 	return err;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
