@@ -1,69 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 47E866B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 06:01:25 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so1193753fgg.4
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2009 03:01:23 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090204083524.GJ4456@balbir.in.ibm.com>
-References: <20090204170944.c93772d2.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090204083524.GJ4456@balbir.in.ibm.com>
-Date: Wed, 4 Feb 2009 13:01:22 +0200
-Message-ID: <84144f020902040301p138411fam2295c37843515f90@mail.gmail.com>
-Subject: Re: [PATCH] use __GFP_NOWARN in page cgroup allocation
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 50C516B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 09:07:00 -0500 (EST)
+Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20090204045745.GC6212@barrios-desktop>
+	 <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Wed, 04 Feb 2009 09:07:16 -0500
+Message-Id: <1233756436.14819.13.camel@lts-notebook>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, heiko.carstens@de.ibm.com, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: MinChan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 4, 2009 at 10:35 AM, Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-04 17:09:44]:
->
->> This was recommended in
->> "kmalloc-return-null-instead-of-link-failure.patch added to -mm tree" thread
->> in the last month.
->> Thanks,
->> -Kame
->> =
->> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
->> page_cgroup's page allocation at init/memory hotplug uses kmalloc() and
->> vmalloc(). If kmalloc() failes, vmalloc() is used.
->>
->> This is because vmalloc() is very limited resource on 32bit systems.
->> We want to use kmalloc() first.
->>
->> But in this kind of call, __GFP_NOWARN should be specified.
->>
->> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
->> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> ---
->> Index: mmotm-2.6.29-Feb03/mm/page_cgroup.c
->> ===================================================================
->> --- mmotm-2.6.29-Feb03.orig/mm/page_cgroup.c
->> +++ mmotm-2.6.29-Feb03/mm/page_cgroup.c
->> @@ -114,7 +114,8 @@ static int __init_refok init_section_pag
->>               nid = page_to_nid(pfn_to_page(pfn));
->>               table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
->>               if (slab_is_available()) {
->> -                     base = kmalloc_node(table_size, GFP_KERNEL, nid);
->> +                     base = kmalloc_node(table_size,
->> +                                     GFP_KERNEL | __GFP_NOWARN, nid);
->
-> Thanks for getting to this.
->
->>                       if (!base)
->>                               base = vmalloc_node(table_size, nid);
->>               } else {
->
-> Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+On Wed, 2009-02-04 at 19:28 +0900, KOSAKI Motohiro wrote:
+> > With '29-rc3-git5', I found,
+> > 
+> > static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
+> > {
+> >   int mlocked = 0; 
+> > 
+> >   if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> >     if (vma->vm_flags & VM_LOCKED) {
+> >       mlock_vma_page(page);
+> >       mlocked++;  /* really mlocked the page */
+> >     }    
+> >     up_read(&vma->vm_mm->mmap_sem);
+> >   }
+> >   return mlocked;
+> > }
+> > 
+> > It still try to downgrade mmap_sem.
+> > Do I miss something ?
+> 
+> sorry, I misunderstood your "downgrade". I said linus removed downgrade_write(&mma_sem).
+> 
+> Now, I understand this issue perfectly. I agree you and lee-san's fix is correct.
+> 	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> 
+> 
+> and, I think current try_to_mlock_page() is correct. no need change.
+> Why?
+> 
+> 1. Generally, mmap_sem holding is necessary when vma->vm_flags accessed.
+>    that's vma's basic rule.
+> 2. However, try_to_unmap_one() doesn't held mamp_sem. but that's ok.
+>    it often get incorrect result. but caller consider incorrect value safe.
+> 3. try_to_mlock_page() need mmap_sem because it obey rule (1).
+> 4. in try_to_mlock_page(), if down_read_trylock() is failure, 
+>    we can't move the page to unevictable list. but that's ok.
+>    the page in evictable list is periodically try to reclaim. and
+>    be called try_to_unmap().
+>    try_to_unmap() (and its caller) also move the unevictable page to unevictable list.
+>    Therefore, in long term view, the page leak is not happend.
+> 
 
-Looks good to me as well.
+Also worth noting that down_read_trylock() does not "downgrade" the
+semaphore.  It only tries to acquire it in read mode.  
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+As Kosaki-san says, try_to_unmap() doesn't normally hold the mmap_sem.
+It needs to acquire it here to stabilize the vma [vm_flags] while
+mlocking the pages.  This is the place where a page mapped in a
+VM_LOCKED vma that vmscan found on the normal lru list--e.g., because we
+couldn't isolate them in mlock_vma_page()--get marked mlocked, if not
+already marked. mlock_vma_page() is a no-op if page is already mlocked.
+
+If we successsfully acquire the mmap_sem and the vma is still VM_LOCKED,
+we know that the page is mlocked and try_to_unmap() will return
+SWAP_MLOCK.  This allows vmscan [shrink_page_list()] to move the page to
+the unevictable list and not need to bother with it in subsequent scans
+until it becomes munlocked.
+
+Lee 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
