@@ -1,130 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0D1E16B003D
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 21:21:43 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <Pine.LNX.4.64.0902031150110.5290@blonde.anvils>
-References: <20090121143008.GV24891@wotan.suse.de>
-	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
-	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
-	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
-	 <1233545923.2604.60.camel@ymzhang>
-	 <1233565214.17835.13.camel@penberg-laptop>
-	 <1233646145.2604.137.camel@ymzhang>
-	 <Pine.LNX.4.64.0902031150110.5290@blonde.anvils>
-Content-Type: text/plain
-Date: Wed, 04 Feb 2009 10:21:30 +0800
-Message-Id: <1233714090.2604.186.camel@ymzhang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EB0666B004F
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 21:45:09 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id j3so1221772tid.8
+        for <linux-mm@kvack.org>; Tue, 03 Feb 2009 18:45:06 -0800 (PST)
+Date: Wed, 4 Feb 2009 11:44:47 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
+Message-ID: <20090204024447.GB6212@barrios-desktop>
+References: <2f11576a0902030844l64c25496sa5f2892bbb04e47c@mail.gmail.com> <20090203234408.GA6212@barrios-desktop> <20090204103648.ECAF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090204103648.ECAF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-02-03 at 12:18 +0000, Hugh Dickins wrote:
-> On Tue, 3 Feb 2009, Zhang, Yanmin wrote:
-> > On Mon, 2009-02-02 at 11:00 +0200, Pekka Enberg wrote:
-> > > On Mon, 2009-02-02 at 11:38 +0800, Zhang, Yanmin wrote:
-> > > > Can we add a checking about free memory page number/percentage in function
-> > > > allocate_slab that we can bypass the first try of alloc_pages when memory
-> > > > is hungry?
+On Wed, Feb 04, 2009 at 11:12:37AM +0900, KOSAKI Motohiro wrote:
+> > On Wed, Feb 04, 2009 at 01:44:52AM +0900, KOSAKI Motohiro wrote:
+> > > Hi MinChan,
 > > > 
-> > > If the check isn't too expensive, I don't any reason not to. How would
-> > > you go about checking how much free pages there are, though? Is there
-> > > something in the page allocator that we can use for this?
+> > > I'm confusing now.
+> > > Can you teach me?
 > > 
-> > We can use nr_free_pages(), totalram_pages and hugetlb_total_pages(). Below
-> > patch is a try. I tested it with hackbench and tbench on my stoakley
-> > (2 qual-core processors) and tigerton (4 qual-core processors).
-> > There is almost no regression.
-> 
-> May I repeat what I said yesterday?  Certainly I'm oversimplifying,
-> but if I'm plain wrong, please correct me.
-I did read your previous email carefully.
-
-> 
-> Having lots of free memory is a temporary accident following process
-> exit (when lots of anonymous memory has suddenly been freed), before
-> it has been put to use for page cache. 
-Some workloads do something like what you said. But lots of workloads
-don't use up most memory. Keepping an amount of free memory could
-quicken up system running.
-
-> The kernel tries to run with
-> a certain amount of free memory in reserve, and the rest of memory
-> put to (potentially) good use.  I don't think we have the number
-> you're looking for there, though perhaps some approximation could
-> be devised (or I'm looking at the problem the wrong way round).
-> 
-> Perhaps feedback from vmscan.c, on how much it's having to write back,
-> would provide a good clue.  There's plenty of stats maintained there.
-My startpoint is to look for a simple formula and the patch is a RFC.
-If we consider statistics of write back (and so on), what I am worried about
-is that page allocation called by allocate_slab might cause too many
-try_to_free_pages/page reclaim/swap when memory is hungry. Originally, I thought
-that's the root cause of your issue.
-
-In other hand, free memory wouldn't vary too much with a good stably
-running system. So the patch tries to change allocate_slab:
-If there are high-order free pages available without reclaim/swap/free_pages,
-just go to the first alloc_slab_page; If not, just jump to the second try of
-alloc_slab_page. Of course, the checking is just a guess, not a guarantee.
-
-
-> 
+> > No problem. :)
 > > 
-> > Besides this patch, I have another patch to try to reduce the calculation
-> > of "totalram_pages - hugetlb_total_pages()", but it touches many files.
-> > So just post the first simple patch here for review.
+> > > 
+> > > > When I tested following program, I found that mlocked counter
+> > > > is strange.
+> > > > It couldn't free some mlocked pages of test program.
+> > > > It is caused that try_to_unmap_file don't check real
+> > > > page mapping in vmas.
+> > > 
+> > > What meanining is "real" page mapping?
 > > 
+> > What I mean is that if the page is mapped at the vma,
+> > I call it's "real" page mapping.
+> > I explain it more detaily below.
 > > 
-> > Hugh,
+> > > 
+> > > 
+> > > > That's because goal of address_space for file is to find all processes
+> > > > into which the file's specific interval is mapped.
+> > > > What I mean is that it's not related page but file's interval.
+> > > 
+> > > hmmm. No.
+> > > I ran your reproduce program.
+> > > 
+> > > two vma pointing the same page cause this leaking.
 > > 
-> > Would you like to test it on your machines?
+> > I don't think so. 
 > 
-> Indeed I shall, starting in a few hours when I've finished with trying
-> the script I promised yesterday to send you.  And I won't be at all
-> surprised if your patch eliminates my worst cases, because I don't
-> expect to have any significant amount of free memory during my testing,
-> and my swap testing suffers from slub's thirst for higher orders.
+> Please confirm by actual machine and kernel.
+> I confirmed by printk debugging.
 > 
-> But I don't believe the kind of check you're making is appropriate,
-> and I do believe that when you try more extensive testing, you'll find
-> regressions in other tests which were relying on the higher orders.
-Yes, I agree. And we need find such tests which causes both memory used up
-and lots of higher-order allocations.
 
-> If all of your testing happens to have lots of free memory around,
-> I'm surprised; but perhaps I'm naive about how things actually work,
-> especially on the larger machines.
-I use dozeons of benchmarks, but they are mostly microbench. In addition, mostly,
-there are lots of free memory when they (except fio and membench) are running.
 
-I tried to enable some big benchmarks, such like specweb2005, but I failed because
-Tomcat scalability looks not good on 4 qual-core processor machines.
 
-I would find and add new benchmark/tests which use up memory even cause lots of swap
-into my testing framework.
+It seems that we have a misundersting.
+I think you can't understand my point. Sorry for my poor english.
+You're right and i also already tested it, of course.
+two vmas point to same address but have a different page due to COW.
+So, What I mean is that problem is lack of page_check_address.
+It causes this problem. :)
 
 > 
-> Or maybe your tests are relying crucially on the slabs allocated at
-> system startup, when of course there should be plenty of free memory
-> around.
+> > > iow, any library have .text and .data segment. then the tail of .text
+> > > and the head of .data vma point the same page.
+> > > its page was leaked.
+> > > 
+> > > 
+> > > > Even if the page isn't really mapping at the vma, it returns
+> > > > SWAP_MLOCK since the vma have VM_LOCKED, then calls
+> > > > try_to_mlock_page. After all, mlocked counter is increased again.
+> > > >
+> > > > COWed anon page in a file-backed vma could be a such case.
+> > > > This patch resolves it.
+> > > 
+> > > What meaning is "anon page in a file-backed"?
+> > > As far as I know, if cow happend on private mapping page, new page is
+> > > treated truth anon.
+> > > 
+> > 
+> > vm_area_struct's annotation can explain about your question. 
+> > 
+> > struct vm_area_struct {
+> >   struct mm_struct * vm_mm; /* The address space we belong to. */
+> >   ....
+> >   ....
+> >   /*  
+> >    * A file's MAP_PRIVATE vma can be in both i_mmap tree and anon_vma
+> >    * list, after a COW of one of the file pages.  A MAP_SHARED vma
+> >    * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
+> >    * or brk vma (with NULL file) can only be in an anon_vma list.
+> >    */
+> >   struct list_head anon_vma_node; /* Serialized by anon_vma->lock */
+> >   struct anon_vma *anon_vma;  /* Serialized by page_table_lock */
+> >   ....
+> >   ....
+> > }
+> > 
+> > Let us call it anon page in a file-backed. 
+> > In this case, the new page is mapped at the vma. 
+> > the vma don't include old page any more but i_mmap tree still have 
+> > the vma. 
 > 
-> By the way, when I went to remind myself of what nr_free_pages()
-> actually does, my grep immediately hit this remark in mm/mmap.c:
-> 		 * nr_free_pages() is very expensive on large systems,
-> I hope that's just a stale comment from before it was converted
-> to global_page_state(NR_FREE_PAGES)!
-I think so.
+> hmhm. thanks. 
+> my understanding largely improvement.
+> 
+> I agree page_check_address() checking is necessary.
+> 
+> > So, the i_mmap tree can have the vma which don't include
+> > the page if the one is anon page in a file-backed. 
+> > 
+> > This problem is caused by that. 
+> > Is it enough ?
+> 
+> Could you please teach me why this issue doesn't happend on munlockall()?
+> your scenario seems to don't depend on exit_mmap().
 
-I would try to reproduce your issue on my machines.
 
-Thanks for your scripts and suggestions.
+Good question.
+It's a different issue.
+It is related to mmap_sem locking issue. 
 
+Actually, I am about to make a patch.
+But, I can't understand that Why try_do_mlock_page should downgrade mm_sem ?
+Is it necessary ? 
+
+In munlockall path, mmap_sem already is holding in write-mode of mmap_sem.
+so, try_to_mlock_page always fail to downgrade mmap_sem.
+It's why it looks like working well about mlocked counter. 
+
+
+> 
+> 
+
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
