@@ -1,42 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 623186B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 15:15:33 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 4910282C4EA
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 15:18:08 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id Kxl78KfbaWyZ for <linux-mm@kvack.org>;
-	Wed,  4 Feb 2009 15:18:08 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id BB32882C4EB
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 15:18:00 -0500 (EST)
-Date: Wed, 4 Feb 2009 15:10:31 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator
-In-Reply-To: <84144f020902031042i31eaec14v53a0e7a203acd28b@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0902041509320.8154@qirst.com>
-References: <20090114155923.GC1616@wotan.suse.de>  <20090123155307.GB14517@wotan.suse.de>  <alpine.DEB.1.10.0901261225240.1908@qirst.com>  <200902031253.28078.nickpiggin@yahoo.com.au>  <alpine.DEB.1.10.0902031217390.17910@qirst.com>
- <84144f020902031042i31eaec14v53a0e7a203acd28b@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD966B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 17:04:34 -0500 (EST)
+Date: Wed, 4 Feb 2009 14:04:28 -0800
+From: Ravikiran G Thirumalai <kiran@scalex86.org>
+Subject: Cannot use SHM_HUGETLB as a regular user
+Message-ID: <20090204220428.GA6794@localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Lin Ming <ming.m.lin@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Feb 2009, Pekka Enberg wrote:
+Looks like a regular user cannot shmget more than 64k of memory using hugetlb!!
+Atleast if we go by Documentation/vm/hugetlbpage.txt
 
-> Well, the slab_hiwater() check in __slab_free() of mm/slqb.c will cap
-> the size of the queue. But we do the same thing in SLAB with
-> alien->limit in cache_free_alien() and ac->limit in __cache_free(). So
-> I'm not sure what you mean when you say that the queues will "grow
-> unconstrained" (in either of the allocators). Hmm?
+Quote Documentation/vm/hugetlbpage.txt:
 
-Nick said he wanted to defer queue processing. If the water marks are
-checked and queue processing run then of course queue processing is not
-deferred and the queue does not build up further.
+"Users who wish to use hugetlb page via shared memory segment should be a
+member of a supplementary group and system admin needs to configure that
+gid into /proc/sys/vm/hugetlb_shm_group."
+
+However, setting up hugetlb_shm_group with the right gid does not work!
+Looks like hugetlb uses mlock based rlimits which cause shmget
+with SHM_HUGETLB to fail with -ENOMEM.  Setting up right rlimits for mlock
+through /etc/security/limits.conf works though (regardless of
+hugetlb_shm_group).
+
+I understand most oracle users use this rlimit to use largepages.
+But why does this need to be based on mlock!? We do have shmmax and shmall
+to restrict this resource.
+
+As I see it we have the following options to fix this inconsistency:
+
+1. Do not depend on RLIMIT_MEMLOCK for hugetlb shm mappings.  If a user
+   has CAP_IPC_LOCK or if user belongs to /proc/sys/vm/hugetlb_shm_group,
+   he should be able to use shm memory according to shmmax and shmall OR
+2. Update the hugetlbpage documentation to mention the resource limit based
+   limitation, and remove the useless /proc/sys/vm/hugetlb_shm_group sysctl
+
+Which one is better?  I am leaning towards 1. and have a patch ready for 1.
+but I might be missing some historical reason for using RLIMIT_MEMLOCK with
+SHM_HUGETLB.
+
+Thanks,
+Kiran
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
