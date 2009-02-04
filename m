@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 129C76B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 17:11:24 -0500 (EST)
-Date: Wed, 4 Feb 2009 17:11:21 -0500
-From: wli@movementarian.org
-Subject: Re: Cannot use SHM_HUGETLB as a regular user
-Message-ID: <20090204221121.GD10229@movementarian.org>
-References: <20090204220428.GA6794@localdomain>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 881926B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:36:15 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so232693tia.8
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2009 15:36:12 -0800 (PST)
+Date: Thu, 5 Feb 2009 08:35:43 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
+Message-ID: <20090204233543.GA26159@barrios-desktop>
+References: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090204045745.GC6212@barrios-desktop> <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090204220428.GA6794@localdomain>
+In-Reply-To: <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 04, 2009 at 02:04:28PM -0800, Ravikiran G Thirumalai wrote:
-[..]
-> However, setting up hugetlb_shm_group with the right gid does not work!
-> Looks like hugetlb uses mlock based rlimits which cause shmget
-> with SHM_HUGETLB to fail with -ENOMEM.  Setting up right rlimits for mlock
-> through /etc/security/limits.conf works though (regardless of
-> hugetlb_shm_group).
-> I understand most oracle users use this rlimit to use largepages.
-> But why does this need to be based on mlock!? We do have shmmax and shmall
-> to restrict this resource.
-> As I see it we have the following options to fix this inconsistency:
-> 1. Do not depend on RLIMIT_MEMLOCK for hugetlb shm mappings.  If a user
->    has CAP_IPC_LOCK or if user belongs to /proc/sys/vm/hugetlb_shm_group,
->    he should be able to use shm memory according to shmmax and shmall OR
-> 2. Update the hugetlbpage documentation to mention the resource limit based
->    limitation, and remove the useless /proc/sys/vm/hugetlb_shm_group sysctl
-> Which one is better?  I am leaning towards 1. and have a patch ready for 1.
-> but I might be missing some historical reason for using RLIMIT_MEMLOCK with
-> SHM_HUGETLB.
+On Wed, Feb 04, 2009 at 07:28:19PM +0900, KOSAKI Motohiro wrote:
+> > With '29-rc3-git5', I found,
+> > 
+> > static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
+> > {
+> >   int mlocked = 0; 
+> > 
+> >   if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> >     if (vma->vm_flags & VM_LOCKED) {
+> >       mlock_vma_page(page);
+> >       mlocked++;  /* really mlocked the page */
+> >     }    
+> >     up_read(&vma->vm_mm->mmap_sem);
+> >   }
+> >   return mlocked;
+> > }
+> > 
+> > It still try to downgrade mmap_sem.
+> > Do I miss something ?
+> 
+> sorry, I misunderstood your "downgrade". I said linus removed downgrade_write(&mma_sem).
+> 
+> Now, I understand this issue perfectly. I agree you and lee-san's fix is correct.
+> 	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-We should do (1) because the hugetlb_shm_group and CAP_IPC_LOCK bits
-should both continue to work as they did prior to RLIMIT_MEMLOCK -based
-management of hugetlb. Please make sure the new RLIMIT_MEMLOCK -based
-management still enables hugetlb shm when hugetlb_shm_group and
-CAP_IPC_LOCK don't apply.
+Good. I will send adrew with your ACK agian.
 
+> 
+> 
+> and, I think current try_to_mlock_page() is correct. no need change.
+> Why?
+> 
+> 1. Generally, mmap_sem holding is necessary when vma->vm_flags accessed.
+>    that's vma's basic rule.
+> 2. However, try_to_unmap_one() doesn't held mamp_sem. but that's ok.
+>    it often get incorrect result. but caller consider incorrect value safe.
+> 3. try_to_mlock_page() need mmap_sem because it obey rule (1).
+> 4. in try_to_mlock_page(), if down_read_trylock() is failure, 
+>    we can't move the page to unevictable list. but that's ok.
+>    the page in evictable list is periodically try to reclaim. and
+>    be called try_to_unmap().
+>    try_to_unmap() (and its caller) also move the unevictable page to unevictable list.
+>    Therefore, in long term view, the page leak is not happend.
 
--- wli
+Thanks for clarification.
+In long term view, you're right.
+
+but My concern is that munlock[all] pathes always hold down of mmap_sem. 
+After all, down_read_trylock always wil fail for such cases.
+
+So, current task's mlocked pages only can be reclaimed 
+by background or direct reclaim path if the task don't exit.
+
+I think it can increase reclaim overhead unnecessary 
+if there are lots of such tasks.
+
+What's your opinion ?
+
+> 
+> this explanation is enough?
+> 
+> thanks.
+> 
+
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
