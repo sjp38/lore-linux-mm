@@ -1,251 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E3F36B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 00:18:25 -0500 (EST)
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 04 Feb 2009 16:18:06 +1100
-Subject: [PATCH] powerpc: Wire up /proc/vmallocinfo to our ioremap()
-Message-Id: <20090204051821.7333EDDEF8@ozlabs.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 540D66B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 00:26:10 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n145Q7ZL007417
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 4 Feb 2009 14:26:07 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A7E845DE61
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 14:26:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 060A645DE57
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 14:26:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D97F0E38002
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 14:26:06 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 808721DB803E
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 14:26:06 +0900 (JST)
+Date: Wed, 4 Feb 2009 14:24:55 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v3)
+Message-Id: <20090204142455.83c38ad6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090204033750.GB4456@balbir.in.ibm.com>
+References: <20090203172135.GF918@balbir.in.ibm.com>
+	<4988E727.8030807@cn.fujitsu.com>
+	<20090204033750.GB4456@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linuxppc-dev@ozlabs.org, Linux Memory Management <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This adds the necessary bits and pieces to powerpc implementation of
-ioremap to benefit from caller tracking in /proc/vmallocinfo, at least
-for ioremap's done after mem init as the older ones aren't tracked.
+On Wed, 4 Feb 2009 09:07:50 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-Note the small addition to the generic code exposing a __get_vm_area_caller()
-which we need for the ppc64 implementation.
+> > > +}
+> > > +
+> > >  #endif /* CONFIG_CGROUP_MEM_CONT */
+> > >  
+> > 
+> > > +void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+> > > +{
+> > > +	struct cgroup *task_cgrp;
+> > > +	struct cgroup *mem_cgrp;
+> > > +	/*
+> > > +	 * Need a buffer on stack, can't rely on allocations. The code relies
+> > 
+> > I think it's in .bss section, but not on stack, and it's better to explain why
+> > the static buffer is safe in the comment.
+> >
+> 
+> Yes, it is no longer on stack, in the original patch it was. I'll send
+> an updated patch 
+> 
+In the newest mmotm, OOM kill message is following.
+==
+Feb  4 13:16:28 localhost kernel: [  249.338911] malloc2 invoked oom-killer: gfp_mask=0xd0, order=0, oomkilladj=0
+Feb  4 13:16:28 localhost kernel: [  249.339018] malloc2 cpuset=/ mems_allowed=0
+Feb  4 13:16:28 localhost kernel: [  249.339023] Pid: 3459, comm: malloc2 Not tainted 2.6.29-rc3-mm1 #1
+Feb  4 13:16:28 localhost kernel: [  249.339185] Call Trace:
+Feb  4 13:16:28 localhost kernel: [  249.339202]  [<ffffffff8148dda6>] ? _spin_unlock+0x26/0x2a
+Feb  4 13:16:28 localhost kernel: [  249.339210]  [<ffffffff8108d48d>] oom_kill_process+0x99/0x272
+Feb  4 13:16:28 localhost kernel: [  249.339214]  [<ffffffff8108d918>] ? select_bad_process+0x9d/0xfa
+Feb  4 13:16:28 localhost kernel: [  249.339219]  [<ffffffff8108dc8f>] mem_cgroup_out_of_memory+0x65/0x82
+Feb  4 13:16:28 localhost kernel: [  249.339224]  [<ffffffff810bd457>] __mem_cgroup_try_charge+0x14c/0x196
+Feb  4 13:16:28 localhost kernel: [  249.339229]  [<ffffffff810bdffa>] mem_cgroup_charge_common+0x47/0x72
+Feb  4 13:16:28 localhost kernel: [  249.339234]  [<ffffffff810be063>] mem_cgroup_newpage_charge+0x3e/0x4f
+Feb  4 13:16:28 localhost kernel: [  249.339239]  [<ffffffff810a05f9>] handle_mm_fault+0x214/0x761
+Feb  4 13:16:28 localhost kernel: [  249.339244]  [<ffffffff8149062d>] do_page_fault+0x248/0x25f
+Feb  4 13:16:28 localhost kernel: [  249.339249]  [<ffffffff8148e64f>] page_fault+0x1f/0x30
+Feb  4 13:16:28 localhost kernel: [  249.339260] Task in /group_A/01 killed as a result of limit of /group_A
+Feb  4 13:16:28 localhost kernel: [  249.339264] memory: usage 39168kB, limit 40960kB, failcnt 1
+Feb  4 13:16:28 localhost kernel: [  249.339266] memory+swap: usage 40960kB, limit 40960kB, failcnt 15
+==
+Task in /group_A/01 is killed by mem+swap limit of /group_A. 
 
-Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
----
+Yeah, very nice look :) thank you.
 
-Can some mm person review the generic bit and maybe ack it ?
+BTW, I wonder can't we show the path of mount point ?
+/group_A/01 is /cgroup/group_A/01 and /group_A/ is /cgroup/group_A/ on this system.
+Very difficult ?
 
-Cheers,
-Ben.
- 
- arch/powerpc/include/asm/io.h                |    6 ++++++
- arch/powerpc/include/asm/machdep.h           |    2 +-
- arch/powerpc/mm/pgtable_32.c                 |   14 +++++++++++---
- arch/powerpc/mm/pgtable_64.c                 |   25 +++++++++++++++++--------
- arch/powerpc/platforms/cell/io-workarounds.c |    4 ++--
- arch/powerpc/platforms/iseries/setup.c       |    2 +-
- include/linux/vmalloc.h                      |    3 +++
- mm/vmalloc.c                                 |    8 ++++++++
- 8 files changed, 49 insertions(+), 15 deletions(-)
+Thanks,
+-Kame
 
---- linux-work.orig/arch/powerpc/include/asm/io.h	2009-02-04 15:37:43.000000000 +1100
-+++ linux-work/arch/powerpc/include/asm/io.h	2009-02-04 15:38:30.000000000 +1100
-@@ -632,6 +632,9 @@ static inline void iosync(void)
-  *   ioremap_flags and cannot be hooked (but can be used by a hook on one
-  *   of the previous ones)
-  *
-+ * * __ioremap_caller is the same as above but takes an explicit caller
-+ *   reference rather than using __builtin_return_address(0)
-+ *
-  * * __iounmap, is the low level implementation used by iounmap and cannot
-  *   be hooked (but can be used by a hook on iounmap)
-  *
-@@ -646,6 +649,9 @@ extern void iounmap(volatile void __iome
- 
- extern void __iomem *__ioremap(phys_addr_t, unsigned long size,
- 			       unsigned long flags);
-+extern void __iomem *__ioremap_caller(phys_addr_t, unsigned long size,
-+				      unsigned long flags, void *caller);
-+
- extern void __iounmap(volatile void __iomem *addr);
- 
- extern void __iomem * __ioremap_at(phys_addr_t pa, void *ea,
-Index: linux-work/arch/powerpc/include/asm/machdep.h
-===================================================================
---- linux-work.orig/arch/powerpc/include/asm/machdep.h	2009-02-04 15:35:20.000000000 +1100
-+++ linux-work/arch/powerpc/include/asm/machdep.h	2009-02-04 15:35:25.000000000 +1100
-@@ -90,7 +90,7 @@ struct machdep_calls {
- 	void		(*tce_flush)(struct iommu_table *tbl);
- 
- 	void __iomem *	(*ioremap)(phys_addr_t addr, unsigned long size,
--				   unsigned long flags);
-+				   unsigned long flags, void *caller);
- 	void		(*iounmap)(volatile void __iomem *token);
- 
- #ifdef CONFIG_PM
-Index: linux-work/arch/powerpc/mm/pgtable_32.c
-===================================================================
---- linux-work.orig/arch/powerpc/mm/pgtable_32.c	2009-02-04 15:40:22.000000000 +1100
-+++ linux-work/arch/powerpc/mm/pgtable_32.c	2009-02-04 15:41:43.000000000 +1100
-@@ -129,7 +129,8 @@ pgtable_t pte_alloc_one(struct mm_struct
- void __iomem *
- ioremap(phys_addr_t addr, unsigned long size)
- {
--	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
-+	return __ioremap_caller(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED,
-+				__builtin_return_address(0));
- }
- EXPORT_SYMBOL(ioremap);
- 
-@@ -143,13 +144,20 @@ ioremap_flags(phys_addr_t addr, unsigned
- 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
- 	flags &= ~(_PAGE_USER | _PAGE_EXEC | _PAGE_HWEXEC);
- 
--	return __ioremap(addr, size, flags);
-+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
- }
- EXPORT_SYMBOL(ioremap_flags);
- 
- void __iomem *
- __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
- {
-+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
-+}
-+
-+void __iomem *
-+__ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
-+		 void *caller)
-+{
- 	unsigned long v, i;
- 	phys_addr_t p;
- 	int err;
-@@ -212,7 +220,7 @@ __ioremap(phys_addr_t addr, unsigned lon
- 
- 	if (mem_init_done) {
- 		struct vm_struct *area;
--		area = get_vm_area(size, VM_IOREMAP);
-+		area = get_vm_area_caller(size, VM_IOREMAP, caller);
- 		if (area == 0)
- 			return NULL;
- 		v = (unsigned long) area->addr;
-Index: linux-work/arch/powerpc/mm/pgtable_64.c
-===================================================================
---- linux-work.orig/arch/powerpc/mm/pgtable_64.c	2009-02-04 15:31:20.000000000 +1100
-+++ linux-work/arch/powerpc/mm/pgtable_64.c	2009-02-04 15:50:54.000000000 +1100
-@@ -144,8 +144,8 @@ void __iounmap_at(void *ea, unsigned lon
- 	unmap_kernel_range((unsigned long)ea, size);
- }
- 
--void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
--			 unsigned long flags)
-+void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
-+				unsigned long flags, void *caller)
- {
- 	phys_addr_t paligned;
- 	void __iomem *ret;
-@@ -168,8 +168,9 @@ void __iomem * __ioremap(phys_addr_t add
- 	if (mem_init_done) {
- 		struct vm_struct *area;
- 
--		area = __get_vm_area(size, VM_IOREMAP,
--				     ioremap_bot, IOREMAP_END);
-+		area = __get_vm_area_caller(size, VM_IOREMAP,
-+					    ioremap_bot, IOREMAP_END,
-+					    caller);
- 		if (area == NULL)
- 			return NULL;
- 		ret = __ioremap_at(paligned, area->addr, size, flags);
-@@ -186,19 +187,27 @@ void __iomem * __ioremap(phys_addr_t add
- 	return ret;
- }
- 
-+void __iomem * __ioremap(phys_addr_t addr, unsigned long size,
-+			 unsigned long flags)
-+{
-+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
-+}
- 
- void __iomem * ioremap(phys_addr_t addr, unsigned long size)
- {
- 	unsigned long flags = _PAGE_NO_CACHE | _PAGE_GUARDED;
-+	void *caller = __builtin_return_address(0);
- 
- 	if (ppc_md.ioremap)
--		return ppc_md.ioremap(addr, size, flags);
--	return __ioremap(addr, size, flags);
-+		return ppc_md.ioremap(addr, size, flags, caller);
-+	return __ioremap_caller(addr, size, flags, caller);
- }
- 
- void __iomem * ioremap_flags(phys_addr_t addr, unsigned long size,
- 			     unsigned long flags)
- {
-+	void *caller = __builtin_return_address(0);
-+
- 	/* writeable implies dirty for kernel addresses */
- 	if (flags & _PAGE_RW)
- 		flags |= _PAGE_DIRTY;
-@@ -207,8 +216,8 @@ void __iomem * ioremap_flags(phys_addr_t
- 	flags &= ~(_PAGE_USER | _PAGE_EXEC);
- 
- 	if (ppc_md.ioremap)
--		return ppc_md.ioremap(addr, size, flags);
--	return __ioremap(addr, size, flags);
-+		return ppc_md.ioremap(addr, size, flags, caller);
-+	return __ioremap_caller(addr, size, flags, caller);
- }
- 
- 
-Index: linux-work/arch/powerpc/platforms/cell/io-workarounds.c
-===================================================================
---- linux-work.orig/arch/powerpc/platforms/cell/io-workarounds.c	2009-02-04 15:36:48.000000000 +1100
-+++ linux-work/arch/powerpc/platforms/cell/io-workarounds.c	2009-02-04 15:51:27.000000000 +1100
-@@ -131,10 +131,10 @@ static const struct ppc_pci_io __devinit
- };
- 
- static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
--						unsigned long flags)
-+				  unsigned long flags, void *caller)
- {
- 	struct iowa_bus *bus;
--	void __iomem *res = __ioremap(addr, size, flags);
-+	void __iomem *res = __ioremap_caller(addr, size, flags, caller);
- 	int busno;
- 
- 	bus = iowa_pci_find(0, (unsigned long)addr);
-Index: linux-work/arch/powerpc/platforms/iseries/setup.c
-===================================================================
---- linux-work.orig/arch/powerpc/platforms/iseries/setup.c	2009-02-04 15:39:22.000000000 +1100
-+++ linux-work/arch/powerpc/platforms/iseries/setup.c	2009-02-04 15:39:28.000000000 +1100
-@@ -617,7 +617,7 @@ static void iseries_dedicated_idle(void)
- }
- 
- static void __iomem *iseries_ioremap(phys_addr_t address, unsigned long size,
--				     unsigned long flags)
-+				     unsigned long flags, void *caller)
- {
- 	return (void __iomem *)address;
- }
-Index: linux-work/include/linux/vmalloc.h
-===================================================================
---- linux-work.orig/include/linux/vmalloc.h	2009-02-04 15:33:35.000000000 +1100
-+++ linux-work/include/linux/vmalloc.h	2009-02-04 15:33:47.000000000 +1100
-@@ -84,6 +84,9 @@ extern struct vm_struct *get_vm_area_cal
- 					unsigned long flags, void *caller);
- extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
- 					unsigned long start, unsigned long end);
-+extern struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
-+					      unsigned long start, unsigned long end,
-+					      void *caller);
- extern struct vm_struct *get_vm_area_node(unsigned long size,
- 					  unsigned long flags, int node,
- 					  gfp_t gfp_mask);
-Index: linux-work/mm/vmalloc.c
-===================================================================
---- linux-work.orig/mm/vmalloc.c	2009-02-04 15:32:47.000000000 +1100
-+++ linux-work/mm/vmalloc.c	2009-02-04 15:33:25.000000000 +1100
-@@ -1106,6 +1106,14 @@ struct vm_struct *__get_vm_area(unsigned
- }
- EXPORT_SYMBOL_GPL(__get_vm_area);
- 
-+struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
-+				       unsigned long start, unsigned long end,
-+				       void *caller)
-+{
-+	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL,
-+				  caller);
-+}
-+
- /**
-  *	get_vm_area  -  reserve a contiguous kernel virtual area
-  *	@size:		size of the area
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
