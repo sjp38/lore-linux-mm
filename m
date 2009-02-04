@@ -1,85 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 881926B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:36:15 -0500 (EST)
-Received: by ti-out-0910.google.com with SMTP id u3so232693tia.8
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2009 15:36:12 -0800 (PST)
-Date: Thu, 5 Feb 2009 08:35:43 +0900
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id D004F6B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 18:38:45 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so233689tia.8
+        for <linux-mm@kvack.org>; Wed, 04 Feb 2009 15:38:43 -0800 (PST)
+Date: Thu, 5 Feb 2009 08:38:14 +0900
 From: MinChan Kim <minchan.kim@gmail.com>
 Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
-Message-ID: <20090204233543.GA26159@barrios-desktop>
-References: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090204045745.GC6212@barrios-desktop> <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Message-ID: <20090204233814.GB26159@barrios-desktop>
+References: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090204045745.GC6212@barrios-desktop> <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com> <1233756436.14819.13.camel@lts-notebook>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090204171639.ECCE.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+In-Reply-To: <1233756436.14819.13.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 04, 2009 at 07:28:19PM +0900, KOSAKI Motohiro wrote:
-> > With '29-rc3-git5', I found,
+On Wed, Feb 04, 2009 at 09:07:16AM -0500, Lee Schermerhorn wrote:
+> On Wed, 2009-02-04 at 19:28 +0900, KOSAKI Motohiro wrote:
+> > > With '29-rc3-git5', I found,
+> > > 
+> > > static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
+> > > {
+> > >   int mlocked = 0; 
+> > > 
+> > >   if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> > >     if (vma->vm_flags & VM_LOCKED) {
+> > >       mlock_vma_page(page);
+> > >       mlocked++;  /* really mlocked the page */
+> > >     }    
+> > >     up_read(&vma->vm_mm->mmap_sem);
+> > >   }
+> > >   return mlocked;
+> > > }
+> > > 
+> > > It still try to downgrade mmap_sem.
+> > > Do I miss something ?
 > > 
-> > static int try_to_mlock_page(struct page *page, struct vm_area_struct *vma)
-> > {
-> >   int mlocked = 0; 
+> > sorry, I misunderstood your "downgrade". I said linus removed downgrade_write(&mma_sem).
 > > 
-> >   if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
-> >     if (vma->vm_flags & VM_LOCKED) {
-> >       mlock_vma_page(page);
-> >       mlocked++;  /* really mlocked the page */
-> >     }    
-> >     up_read(&vma->vm_mm->mmap_sem);
-> >   }
-> >   return mlocked;
-> > }
+> > Now, I understand this issue perfectly. I agree you and lee-san's fix is correct.
+> > 	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > > 
-> > It still try to downgrade mmap_sem.
-> > Do I miss something ?
+> > 
+> > and, I think current try_to_mlock_page() is correct. no need change.
+> > Why?
+> > 
+> > 1. Generally, mmap_sem holding is necessary when vma->vm_flags accessed.
+> >    that's vma's basic rule.
+> > 2. However, try_to_unmap_one() doesn't held mamp_sem. but that's ok.
+> >    it often get incorrect result. but caller consider incorrect value safe.
+> > 3. try_to_mlock_page() need mmap_sem because it obey rule (1).
+> > 4. in try_to_mlock_page(), if down_read_trylock() is failure, 
+> >    we can't move the page to unevictable list. but that's ok.
+> >    the page in evictable list is periodically try to reclaim. and
+> >    be called try_to_unmap().
+> >    try_to_unmap() (and its caller) also move the unevictable page to unevictable list.
+> >    Therefore, in long term view, the page leak is not happend.
+> > 
 > 
-> sorry, I misunderstood your "downgrade". I said linus removed downgrade_write(&mma_sem).
-> 
-> Now, I understand this issue perfectly. I agree you and lee-san's fix is correct.
-> 	Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Also worth noting that down_read_trylock() does not "downgrade" the
+> semaphore.  It only tries to acquire it in read mode.  
 
-Good. I will send adrew with your ACK agian.
-
-> 
-> 
-> and, I think current try_to_mlock_page() is correct. no need change.
-> Why?
-> 
-> 1. Generally, mmap_sem holding is necessary when vma->vm_flags accessed.
->    that's vma's basic rule.
-> 2. However, try_to_unmap_one() doesn't held mamp_sem. but that's ok.
->    it often get incorrect result. but caller consider incorrect value safe.
-> 3. try_to_mlock_page() need mmap_sem because it obey rule (1).
-> 4. in try_to_mlock_page(), if down_read_trylock() is failure, 
->    we can't move the page to unevictable list. but that's ok.
->    the page in evictable list is periodically try to reclaim. and
->    be called try_to_unmap().
->    try_to_unmap() (and its caller) also move the unevictable page to unevictable list.
->    Therefore, in long term view, the page leak is not happend.
-
-Thanks for clarification.
-In long term view, you're right.
-
-but My concern is that munlock[all] pathes always hold down of mmap_sem. 
-After all, down_read_trylock always wil fail for such cases.
-
-So, current task's mlocked pages only can be reclaimed 
-by background or direct reclaim path if the task don't exit.
-
-I think it can increase reclaim overhead unnecessary 
-if there are lots of such tasks.
-
-What's your opinion ?
+I selected wrong word. :(
 
 > 
-> this explanation is enough?
+> As Kosaki-san says, try_to_unmap() doesn't normally hold the mmap_sem.
+> It needs to acquire it here to stabilize the vma [vm_flags] while
+> mlocking the pages.  This is the place where a page mapped in a
+> VM_LOCKED vma that vmscan found on the normal lru list--e.g., because we
+> couldn't isolate them in mlock_vma_page()--get marked mlocked, if not
+> already marked. mlock_vma_page() is a no-op if page is already mlocked.
 > 
-> thanks.
+> If we successsfully acquire the mmap_sem and the vma is still VM_LOCKED,
+> we know that the page is mlocked and try_to_unmap() will return
+> SWAP_MLOCK.  This allows vmscan [shrink_page_list()] to move the page to
+> the unevictable list and not need to bother with it in subsequent scans
+> until it becomes munlocked.
+> 
+
+I answered my concern in Kosaki-san's reply.
+
+> Lee 
+> 
 > 
 
 -- 
