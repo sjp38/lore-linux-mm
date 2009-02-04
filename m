@@ -1,58 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id A06A86B003D
-	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 21:51:52 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n142pnjY019769
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 4 Feb 2009 11:51:49 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AD9D45DD7C
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 11:51:49 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0B9E445DD77
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 11:51:49 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7893E1DB803F
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 11:51:46 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E26A81DB8049
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 11:51:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH v2] fix mlocked page counter mistmatch
-In-Reply-To: <20090204024447.GB6212@barrios-desktop>
-References: <20090204103648.ECAF.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090204024447.GB6212@barrios-desktop>
-Message-Id: <20090204115047.ECB5.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 167066B003D
+	for <linux-mm@kvack.org>; Tue,  3 Feb 2009 22:36:39 -0500 (EST)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n143YoWb016098
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 14:34:50 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n143an0Q950436
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 14:36:52 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n143aVSw004156
+	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 14:36:31 +1100
+Date: Wed, 4 Feb 2009 09:06:28 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v3)
+Message-ID: <20090204033628.GA4456@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090203172135.GF918@balbir.in.ibm.com> <20090203144647.09bf9c97.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Wed,  4 Feb 2009 11:51:43 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090203144647.09bf9c97.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, linux mm <linux-mm@kvack.org>, linux kernel <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Could you please teach me why this issue doesn't happend on munlockall()?
-> > your scenario seems to don't depend on exit_mmap().
-> 
-> 
-> Good question.
-> It's a different issue.
-> It is related to mmap_sem locking issue. 
-> 
-> Actually, I am about to make a patch.
-> But, I can't understand that Why try_do_mlock_page should downgrade mm_sem ?
-> Is it necessary ? 
-> 
-> In munlockall path, mmap_sem already is holding in write-mode of mmap_sem.
-> so, try_to_mlock_page always fail to downgrade mmap_sem.
-> It's why it looks like working well about mlocked counter. 
+* Andrew Morton <akpm@linux-foundation.org> [2009-02-03 14:46:47]:
 
-lastest linus tree don't have downgrade mmap_sem.
-(recently it was removed)
+> -	 if (ret < 0) {
+> +	if (ret < 0) {
+i
+Andrew sorry about the whitespace issues, I ran checkpatch and it did
+not show up there, but I clearly see it in the patch. Do you want me
+to send you a fixed patch?
 
-please see it.
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
