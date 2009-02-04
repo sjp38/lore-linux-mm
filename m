@@ -1,97 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2036B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 01:43:00 -0500 (EST)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp01.au.ibm.com (8.13.1/8.13.1) with ESMTP id n146gdQE014818
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 17:42:39 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n146hB5e323936
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 17:43:12 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n146grWw011602
-	for <linux-mm@kvack.org>; Wed, 4 Feb 2009 17:42:54 +1100
-Date: Wed, 4 Feb 2009 12:12:49 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [-mm patch] Show memcg information during OOM (v3)
-Message-ID: <20090204064249.GC4456@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090203172135.GF918@balbir.in.ibm.com> <4988E727.8030807@cn.fujitsu.com> <20090204033750.GB4456@balbir.in.ibm.com> <20090204142455.83c38ad6.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id D36CE6B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 01:49:08 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+Date: Wed, 4 Feb 2009 17:48:40 +1100
+References: <20090123154653.GA14517@wotan.suse.de> <200902032136.26022.nickpiggin@yahoo.com.au> <20090203112226.GG9840@csn.ul.ie>
+In-Reply-To: <20090203112226.GG9840@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20090204142455.83c38ad6.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <200902041748.41801.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-04 14:24:55]:
+On Tuesday 03 February 2009 22:22:26 Mel Gorman wrote:
+> On Tue, Feb 03, 2009 at 09:36:24PM +1100, Nick Piggin wrote:
 
-> On Wed, 4 Feb 2009 09:07:50 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > > > +}
-> > > > +
-> > > >  #endif /* CONFIG_CGROUP_MEM_CONT */
-> > > >  
-> > > 
-> > > > +void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> > > > +{
-> > > > +	struct cgroup *task_cgrp;
-> > > > +	struct cgroup *mem_cgrp;
-> > > > +	/*
-> > > > +	 * Need a buffer on stack, can't rely on allocations. The code relies
-> > > 
-> > > I think it's in .bss section, but not on stack, and it's better to explain why
-> > > the static buffer is safe in the comment.
-> > >
-> > 
-> > Yes, it is no longer on stack, in the original patch it was. I'll send
-> > an updated patch 
-> > 
-> In the newest mmotm, OOM kill message is following.
-> ==
-> Feb  4 13:16:28 localhost kernel: [  249.338911] malloc2 invoked oom-killer: gfp_mask=0xd0, order=0, oomkilladj=0
-> Feb  4 13:16:28 localhost kernel: [  249.339018] malloc2 cpuset=/ mems_allowed=0
-> Feb  4 13:16:28 localhost kernel: [  249.339023] Pid: 3459, comm: malloc2 Not tainted 2.6.29-rc3-mm1 #1
-> Feb  4 13:16:28 localhost kernel: [  249.339185] Call Trace:
-> Feb  4 13:16:28 localhost kernel: [  249.339202]  [<ffffffff8148dda6>] ? _spin_unlock+0x26/0x2a
-> Feb  4 13:16:28 localhost kernel: [  249.339210]  [<ffffffff8108d48d>] oom_kill_process+0x99/0x272
-> Feb  4 13:16:28 localhost kernel: [  249.339214]  [<ffffffff8108d918>] ? select_bad_process+0x9d/0xfa
-> Feb  4 13:16:28 localhost kernel: [  249.339219]  [<ffffffff8108dc8f>] mem_cgroup_out_of_memory+0x65/0x82
-> Feb  4 13:16:28 localhost kernel: [  249.339224]  [<ffffffff810bd457>] __mem_cgroup_try_charge+0x14c/0x196
-> Feb  4 13:16:28 localhost kernel: [  249.339229]  [<ffffffff810bdffa>] mem_cgroup_charge_common+0x47/0x72
-> Feb  4 13:16:28 localhost kernel: [  249.339234]  [<ffffffff810be063>] mem_cgroup_newpage_charge+0x3e/0x4f
-> Feb  4 13:16:28 localhost kernel: [  249.339239]  [<ffffffff810a05f9>] handle_mm_fault+0x214/0x761
-> Feb  4 13:16:28 localhost kernel: [  249.339244]  [<ffffffff8149062d>] do_page_fault+0x248/0x25f
-> Feb  4 13:16:28 localhost kernel: [  249.339249]  [<ffffffff8148e64f>] page_fault+0x1f/0x30
-> Feb  4 13:16:28 localhost kernel: [  249.339260] Task in /group_A/01 killed as a result of limit of /group_A
-> Feb  4 13:16:28 localhost kernel: [  249.339264] memory: usage 39168kB, limit 40960kB, failcnt 1
-> Feb  4 13:16:28 localhost kernel: [  249.339266] memory+swap: usage 40960kB, limit 40960kB, failcnt 15
-> ==
-> Task in /group_A/01 is killed by mem+swap limit of /group_A. 
-> 
-> Yeah, very nice look :) thank you.
-> 
-
-Welcome! Thanks for the good suggestion earlier.
-
-> BTW, I wonder can't we show the path of mount point ?
-> /group_A/01 is /cgroup/group_A/01 and /group_A/ is /cgroup/group_A/ on this system.
-> Very difficult ?
+> > But it will be interesting to try looking at some of the tests where
+> > SLQB has larger regressions, so that might give me something to go on
+> > if I can lay my hands on speccpu2006...
 >
+> I can generate profile runs although it'll take 3 days to gather it all
+> together unless I target specific tests (the worst ones to start with
+> obviously). The suite has a handy feature called monitor hooks that allows
+> a pre and post script to run for each test which I use it to start/stop
+> oprofile and gather one report per benchmark. I didn't use it for this run
+> as profiling affects the outcome (7-9% overhead).
+>
+> I do have detailed profile data available for sysbench, both per thread run
+> and the entire run but with the instruction-level included, it's a lot of
+> data to upload. If you still want it, I'll start it going and it'll get up
+> there eventually.
 
-No, it is not very difficult, we just need to append the mount point.
-The reason for not doing it is consistency with output of
-/proc/<pid>/cgroup and other places where cgroup_path prints the path
-relative to the mount point. Since we are talking about memory, the
-administrator should know where it is mounted. Do you strongly feel
-the need to add mount point? My concern is consistency with other
-cgroup output (look at /proc/sched_debug) for example.
+It couldn't hurt, but it's usually tricky to read anything out of these from
+CPU cycle profiles. Especially if they are due to cache or tlb effects (which
+tend to just get spread out all over the profile).
 
--- 
-	Balbir
+slabinfo (for SLUB) and slqbinfo (for SLQB) activity data could be interesting
+(invoke with -AD).
+
+
+> > I'd be interested to see how slub performs if booted with
+> > slub_min_objects=1 (which should give similar order pages to SLAB and
+> > SLQB).
+>
+> I'll do this before profiling as only one run is required and should
+> only take a day.
+>
+> Making spec actually build is tricky so I've included a sample config for
+> x86-64 below that uses gcc and the monitor hooks in case someone else is in
+> the position to repeat the results.
+
+Thanks. I don't know if we have a copy of spec 2006 I can use, but I'll ask
+around.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
