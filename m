@@ -1,48 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 789CA6B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 16:05:43 -0500 (EST)
-Message-ID: <498B54A0.7040005@goop.org>
-Date: Thu, 05 Feb 2009 13:05:36 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A25B6B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 16:09:46 -0500 (EST)
+Date: Thu, 5 Feb 2009 21:09:04 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: pud_bad vs pud_bad
-References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <498B4F1F.5070306@goop.org> <Pine.LNX.4.64.0902052046240.18431@blonde.anvils>
-In-Reply-To: <Pine.LNX.4.64.0902052046240.18431@blonde.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090205205606.GG10229@movementarian.org>
+Message-ID: <Pine.LNX.4.64.0902052103080.20627@blonde.anvils>
+References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu>
+ <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu>
+ <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <20090205194932.GB3129@elte.hu>
+ <20090205195817.GF10229@movementarian.org> <Pine.LNX.4.64.0902052013230.12955@blonde.anvils>
+ <20090205205606.GG10229@movementarian.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Ingo Molnar <mingo@elte.hu>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: wli@movementarian.org
+Cc: Ingo Molnar <mingo@elte.hu>, Jeremy Fitzhardinge <jeremy@goop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
->> Hardware doesn't allow it.  It will explode (well, trap) if you set anything
->> other than P in the top level.
->>     
->
-> Oh, interesting, I'd never realized that.
->   
+On Thu, 5 Feb 2009, wli@movementarian.org wrote:
+> On Thu, 5 Feb 2009, wli@movementarian.org wrote:
+> >> The RW bit needs to be allowed to become read-only for hugetlb COW.
+> >> Changing it over to the 32-bit method is a bugfix by that token.
+> 
+> On Thu, Feb 05, 2009 at 08:14:42PM +0000, Hugh Dickins wrote:
+> > If there's a bugfix to be made there, of course I'm in favour:
+> > but how come we've never seen such a bug?  hugetlb COW has been
+> > around for a year or two by now, hasn't it?
+> 
+> We can tell from the code that a write-protected pte mapping of a
+> 1GB hugetlb page would be flagged as bad. It must not be called on
+> ptes mapping hugetlb pages if they're not getting flagged.
 
-There are some later extensions to reuse some of the bits for things 
-like tlb reload policy (I think; I'd have to check to be sure), so 
-they're fairly non-pte-like.
+Ah, I see what you mean now.  Yes, the hugetlb case goes its own way
+and doesn't normally hit those p??_bad() macro/inlines; but we got
+caught out in follow_page() a year ago, a bad looked huge or a
+huge looked bad, but I forget the details at this instant.
 
->> By the by, what are the chances we'll be able to deprecate non-PAE 32-bit?
->>     
->
-> I sincerely hope 0!  I shed no tears at losing support for NUMAQ,
-> but why should we be forced to double all the 32-bit ptes?  You want
-> us all to be using NX?  Or you just want to cut your test/edit matrix -
-> that I can well understand!
->   
-
-Yes, that's the gist of it.  We could simplify things by having only one 
-pte format and only have to parameterise with 3/4 level pagetables.  
-We'd lose support for non-PAE cpus, including the first Pentium M (which 
-is probably still in fairly wide use, unfortunately).
-
-    J
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
