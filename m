@@ -1,147 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 050936B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 08:49:58 -0500 (EST)
-Date: Thu, 5 Feb 2009 13:49:56 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-Message-ID: <20090205134956.GC12132@csn.ul.ie>
-References: <20090123154653.GA14517@wotan.suse.de> <200902041748.41801.nickpiggin@yahoo.com.au> <20090204152709.GA4799@csn.ul.ie> <200902051459.30064.nickpiggin@yahoo.com.au>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 825806B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 12:04:47 -0500 (EST)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n15H2gar020377
+	for <linux-mm@kvack.org>; Thu, 5 Feb 2009 12:02:42 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n15H4gCX184426
+	for <linux-mm@kvack.org>; Thu, 5 Feb 2009 12:04:43 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n15H3eJB007609
+	for <linux-mm@kvack.org>; Thu, 5 Feb 2009 12:03:40 -0500
+Date: Thu, 5 Feb 2009 09:06:17 -0800
+From: Nishanth Aravamudan <nacc@us.ibm.com>
+Subject: Re: [patch] mm: Fix SHM_HUGETLB to work with users in
+	hugetlb_shm_group
+Message-ID: <20090205170617.GB7490@us.ibm.com>
+References: <20090204221121.GD10229@movementarian.org> <20090205004157.GC6794@localdomain> <20090205104735.ECDA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200902051459.30064.nickpiggin@yahoo.com.au>
+In-Reply-To: <20090205104735.ECDA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, wli@movementarian.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org, Mel Gorman <mel@csn.ul.ie>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2009 at 02:59:29PM +1100, Nick Piggin wrote:
-> On Thursday 05 February 2009 02:27:10 Mel Gorman wrote:
-> > On Wed, Feb 04, 2009 at 05:48:40PM +1100, Nick Piggin wrote:
+On 05.02.2009 [11:03:09 +0900], KOSAKI Motohiro wrote:
+> (cc to Mel and Nishanth)
 > 
-> > > It couldn't hurt, but it's usually tricky to read anything out of these
-> > > from CPU cycle profiles. Especially if they are due to cache or tlb
-> > > effects (which tend to just get spread out all over the profile).
-> >
-> > Indeed. To date, I've used them for comparing relative counts of things
-> > like TLB and cache misses on the basis "relatively more misses running test
-> > X is bad" or working out things like tlb-misses-per-instructions but it's a
-> > bit vague. We might notice if one of the allocators is being particularly
-> > cache unfriendly due to a spike in cache misses.
+> I think this requirement is reasonable. but I also hope Mel or Nishanth
+> review this.
 > 
-> Very true. Total counts of TLB and cache misses could show some insight.
 > 
-
-Agreed. I'm collecting just cache misses in this run. Due to limitations
-on the ppc970 PMU, I can't collect TLB and cache at the same time. I
-can't remember if it can or not on the x86-64 but I went with the lowest
-common denominator in any case.
-
+> <<intentionally full quote>>
 > 
-> > PPC64 Test Machine
-> > Sysbench-Postgres
-> > -----------------
-> > Client           slab  slub-default  slub-minorder            slqb
-> >      1         1.0000        1.0153         1.0179          1.0051
-> >      2         1.0000        1.0273         1.0181          1.0269
-> >      3         1.0000        1.0299         1.0195          1.0234
-> >      4         1.0000        1.0159         1.0130          1.0146
-> >      5         1.0000        1.0232         1.0192          1.0264
-> >      6         1.0000        1.0238         1.0142          1.0088
-> >      7         1.0000        1.0240         1.0063          1.0076
-> >      8         1.0000        1.0134         0.9842          1.0024
-> >      9         1.0000        1.0154         1.0152          1.0077
-> >     10         1.0000        1.0126         1.0018          1.0009
-> >     11         1.0000        1.0100         0.9971          0.9933
-> >     12         1.0000        1.0112         0.9985          0.9993
-> >     13         1.0000        1.0131         1.0060          1.0035
-> >     14         1.0000        1.0237         1.0074          1.0071
-> >     15         1.0000        1.0098         0.9997          0.9997
-> >     16         1.0000        1.0110         0.9899          0.9994
-> > Geo. mean      1.0000        1.0175         1.0067          1.0078
-> >
-> > The order SLUB uses does not make much of a difference to SPEC CPU on
-> > either test machine or sysbench on x86-64. Howeer, on the ppc64 machine,
-> > the performance advantage SLUB has over SLAB appears to be eliminated if
-> > high-order pages are not used. I think I might run SLUB again incase the
-> > higher average performance was a co-incidence due to lucky cache layout.
-> > Otherwise, Christoph can probably put together a plausible theory on this
-> > result faster than I can.
-> 
-> It's interesting, thanks. It's a good result for SLQB I guess. 1% is fairly
-> large here (if it is statistically significant),
+> > On Wed, Feb 04, 2009 at 05:11:21PM -0500, wli@movementarian.org wrote:
+> > >On Wed, Feb 04, 2009 at 02:04:28PM -0800, Ravikiran G Thirumalai wrote:
+> > >> ...
+> > >> As I see it we have the following options to fix this inconsistency:
+> > >> 1. Do not depend on RLIMIT_MEMLOCK for hugetlb shm mappings.  If a user
+> > >>    has CAP_IPC_LOCK or if user belongs to /proc/sys/vm/hugetlb_shm_group,
+> > >>    he should be able to use shm memory according to shmmax and shmall OR
+> > >> 2. Update the hugetlbpage documentation to mention the resource limit based
+> > >>    limitation, and remove the useless /proc/sys/vm/hugetlb_shm_group sysctl
+> > >> Which one is better?  I am leaning towards 1. and have a patch ready for 1.
+> > >> but I might be missing some historical reason for using RLIMIT_MEMLOCK with
+> > >> SHM_HUGETLB.
+> > >
+> > >We should do (1) because the hugetlb_shm_group and CAP_IPC_LOCK bits
+> > >should both continue to work as they did prior to RLIMIT_MEMLOCK -based
+> > >management of hugetlb. Please make sure the new RLIMIT_MEMLOCK -based
+> > >management still enables hugetlb shm when hugetlb_shm_group and
+> > >CAP_IPC_LOCK don't apply.
+> > >
+> > 
+> > OK, here's the patch.
+> > 
+> > Thanks,
+> > Kiran
+> > 
+> > 
+> > Fix hugetlb subsystem so that non root users belonging to hugetlb_shm_group
+> > can actually allocate hugetlb backed shm.
+> > 
+> > Currently non root users cannot even map one large page using SHM_HUGETLB
+> > when they belong to the gid in /proc/sys/vm/hugetlb_shm_group.
+> > This is because allocation size is verified against RLIMIT_MEMLOCK resource
+> > limit even if the user belongs to hugetlb_shm_group.
+> > 
+> > This patch
+> > 1. Fixes hugetlb subsystem so that users with CAP_IPC_LOCK and users
+> >    belonging to hugetlb_shm_group don't need to be restricted with
+> >    RLIMIT_MEMLOCK resource limits
+> > 2. If a user has sufficient memlock limit he can still allocate the hugetlb
+> >    shm segment.
+> > 
+> > Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
 
-I believe it is. I don't recall the figures deviating much for sysbench but
-I have to alter the scripts to do multiple runs just in case.
+Seems reasonable.
 
-> but I don't think the
-> drawbacks of using higher order pages warrant changing anything by default
-> in SLQB. It does encourage me to add a boot or runtime parameter, though
-> (even if just for testing purposes).
-> 
+Acked-by: Nishanth Aravamudan <nacc@us.ibm.com>
 
-Based on this test-machine, it's not justified by default but as the tests are
-not allocator intensive it doesn't say much. tbench (or netperf or anything
-that is more slab intensive) might reveal something but it'll be Monday at
-the earliest before I can find out.
-
-> > On the TLB front, it is perfectly possible that the workloads on x86-64 are
-> > not allocator or memory intensive enough to take advantage of fewer calls
-> > to the page allocator or potentially reduced TLB pressure. As the kernel
-> > portion of the address space already uses huge pages slab objects may have
-> > to occupy a very large percentage of memory before TLB pressure became an
-> > issue. The L1 TLBs on both test machines are fully associative making
-> > testing reduced TLB pressure practically impossible. For bonus points, 1G
-> > pages are being used on the x86-64 so I have nowhere near enough memory to
-> > put that under TLB pressure.
-> 
-> TLB pressure... I would be interested in. I'm not exactly sold on the idea
-> that higher order allocations will give a significant TLB improvement.
-
-Currently, I suspect the machine has to be running a very long time and the
-memory footprint used by SLAB has to be significant before a large enough
-number of TLB entries are being used. A side-effect of anti-fragmentation
-is that kernel allocations get grouped into hugepages as much as possible
-without using high-order pages. This makes it even harder to cause TLB
-pressure within the kernel (a good thing in general).
-
-> Although for benchmark runs, maybe it is more likely (ie. if memory hasn't
-> been too fragmented).
-> 
-> Suppose you have a million slab objects scattered all over memory, the fact
-> you might have them clumped into 64K regions rather than 4K regions... is
-> it going to be significant?
-
-I doubt it's significant from a TLB perspective. Anti-frag will be clumping the
-the 4K pages together in 2MB (on x86-64) and 16MB (on ppc64) already. It would
-actually be pretty tricky to form an allocation pattern from userspace that
-would force use of multiple huge pages. While it is possible thh situation
-does occur, I don't think a realistic test-case can be put together that
-demonstrates it.
-
-What 64K regions will do is reduce the amount of management data needed by
-slab and reduce the number of calls to the page allocator. This is likely
-to be much more significant in general than TLBs.
-
-> How many access patterns are likely to soon touch
-> exactly those objects that are in the same page?
-> 
-> Sure it is possible to come up with a scenario where it does help. But also
-> others where it will not.
-> 
-> OTOH, if it is a win on ppc but not x86-64, then that may point to TLB...
-> 
-
-I'm not sure what it is, but I'm not convinced right now that TLB could make
-a 1% difference. Maybe the cache miss figures will show something up and
-if not, and there is nothign obvious in the profiles, I'll rerun with
-TLB profiling and see what pops up.
+Thanks,
+Nish
 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Nishanth Aravamudan <nacc@us.ibm.com>
+IBM Linux Technology Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
