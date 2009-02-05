@@ -1,33 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id ECA126B0047
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 15:02:17 -0500 (EST)
-Date: Thu, 5 Feb 2009 14:02:14 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [Patch] mmu_notifiers destroyed by __mmu_notifier_release()
-	retain extra mm_count.
-Message-ID: <20090205200214.GN8577@sgi.com>
-References: <20090205172303.GB8559@sgi.com> <alpine.DEB.1.10.0902051427280.13692@qirst.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 618AC6B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 15:13:26 -0500 (EST)
+Date: Thu, 5 Feb 2009 20:12:44 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: pud_bad vs pud_bad
+In-Reply-To: <20090205194932.GB3129@elte.hu>
+Message-ID: <Pine.LNX.4.64.0902052004550.12955@blonde.anvils>
+References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu>
+ <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu>
+ <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <20090205194932.GB3129@elte.hu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0902051427280.13692@qirst.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2009 at 02:30:29PM -0500, Christoph Lameter wrote:
-> The drop of the refcount needs to occur  after the last use of
-> data in the mmstruct because mmdrop() may free the mmstruct.
+On Thu, 5 Feb 2009, Ingo Molnar wrote:
+> * Hugh Dickins <hugh@veritas.com> wrote:
+> > 
+> > Simpler and more compact, but not as strict: in particular, a value of
+> > 0 or 1 is identified as bad by that 64-bit test, but not by the 32-bit.
+> 
+> yes, indeed you are right - the 64-bit test does not allow the KERNPG_TABLE 
+> bits to go zero.
+> 
+> Those are the present, rw, accessed and dirty bits. Do they really matter 
+> that much? If a toplevel entry goes !present or readonly, we notice that 
+> _fast_, without any checks. If it goes !access or !dirty - does that matter?
 
-Not this time.  We are being called from process termination and the
-calling function is assured to hold one reference count.
+I've not given it a great deal of thought, why this or that bit.
+These p??_bad checks originate from 2.4 or earlier, and by mistake
+got weakened somewhere along the way, and last time it was discussed
+we agreed to strenghthen them (and IIRC Jeremy himself did so).
 
-We would also have to track how many callouts were made and then do
-drops in a loop, but as stated above, I don't think it is needed.
+> 
+> These checks are done all the time, and even a single instruction can count. 
+> The bits that are checked are enough to notice random memory corruption.
 
-Robin
+Well, I am surprised that you would be arguing for weakening such
+a very simple check.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
