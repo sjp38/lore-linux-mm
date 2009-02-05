@@ -1,100 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AC2EB6B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 22:59:57 -0500 (EST)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-Date: Thu, 5 Feb 2009 14:59:29 +1100
-References: <20090123154653.GA14517@wotan.suse.de> <200902041748.41801.nickpiggin@yahoo.com.au> <20090204152709.GA4799@csn.ul.ie>
-In-Reply-To: <20090204152709.GA4799@csn.ul.ie>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 05B6B6B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 23:01:17 -0500 (EST)
+Message-ID: <498A6445.4030206@cn.fujitsu.com>
+Date: Thu, 05 Feb 2009 12:00:05 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-15"
+Subject: Re: [-mm patch] Show memcg information during OOM (v3)
+References: <20090203172135.GF918@balbir.in.ibm.com>
+In-Reply-To: <20090203172135.GF918@balbir.in.ibm.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200902051459.30064.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 05 February 2009 02:27:10 Mel Gorman wrote:
-> On Wed, Feb 04, 2009 at 05:48:40PM +1100, Nick Piggin wrote:
+Balbir Singh wrote:
+> Description: Add RSS and swap to OOM output from memcg
+> 
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Changelog v3..v2
+> 1. Use static char arrays of size PATH_MAX in order to make
+>    the OOM message more reliable.
+> 
+> Changelog v2..v1:
+> 
+> 1. Add more information about task's memcg and the memcg
+>    over it's limit
+> 2. Print data in KB
+> 3. Move the print routine outside task_lock()
+> 4. Use rcu_read_lock() around cgroup_path, strictly speaking it
+>    is not required, but relying on the current memcg implementation
+>    is not a good idea.
+> 
+> 
+> This patch displays memcg values like failcnt, usage and limit
+> when an OOM occurs due to memcg.
+> 
+> Thanks go out to Johannes Weiner, Li Zefan, David Rientjes,
+> Kamezawa Hiroyuki, Daisuke Nishimura and KOSAKI Motohiro for
+> review.
+> 
+> Sample output
+> -------------
+> 
+> Task in /a/x killed as a result of limit of /a
+> memory: usage 1048576kB, limit 1048576kB, failcnt 4183
+> memory+swap: usage 1400964kB, limit 9007199254740991kB, failcnt 0
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  include/linux/memcontrol.h |    6 ++++
+>  mm/memcontrol.c            |   63 ++++++++++++++++++++++++++++++++++++++++++++
+>  mm/oom_kill.c              |    1 +
+>  3 files changed, 70 insertions(+), 0 deletions(-)
+> 
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 326f45c..f9a6e78 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -104,6 +104,8 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+>  						      struct zone *zone);
+>  struct zone_reclaim_stat*
+>  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
+> +extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+> +					struct task_struct *p);
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  extern int do_swap_account;
+> @@ -270,6 +272,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+>  	return NULL;
+>  }
+>  
+> +void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+> +{
+> +}
+> +
+>  #endif /* CONFIG_CGROUP_MEM_CONT */
+>  
+>  #endif /* _LINUX_MEMCONTROL_H */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8e4be9c..44e053b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -27,6 +27,7 @@
+>  #include <linux/backing-dev.h>
+>  #include <linux/bit_spinlock.h>
+>  #include <linux/rcupdate.h>
+> +#include <linux/limits.h>
+>  #include <linux/mutex.h>
+>  #include <linux/slab.h>
+>  #include <linux/swap.h>
+> @@ -813,6 +814,68 @@ bool mem_cgroup_oom_called(struct task_struct *task)
+>  	rcu_read_unlock();
+>  	return ret;
+>  }
+> +
+> +/**
+> + * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in
+> + * read mode.
+> + * @memcg: The memory cgroup that went over limit
+> + * @p: Task that is going to be killed
+> + *
+> + * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
+> + * enabled
+> + */
+> +void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+> +{
+> +	struct cgroup *task_cgrp;
+> +	struct cgroup *mem_cgrp;
+> +	/*
+> +	 * Need a buffer on stack, can't rely on allocations. The code relies
+> +	 * on the assumption that OOM is serialized for memory controller.
+> +	 * If this assumption is broken, revisit this code.
+> +	 */
+> +	static char task_memcg_name[PATH_MAX];
+> +	static char memcg_name[PATH_MAX];
 
-> > It couldn't hurt, but it's usually tricky to read anything out of these
-> > from CPU cycle profiles. Especially if they are due to cache or tlb
-> > effects (which tend to just get spread out all over the profile).
->
-> Indeed. To date, I've used them for comparing relative counts of things
-> like TLB and cache misses on the basis "relatively more misses running test
-> X is bad" or working out things like tlb-misses-per-instructions but it's a
-> bit vague. We might notice if one of the allocators is being particularly
-> cache unfriendly due to a spike in cache misses.
+Is there any lock which protects this static data?
 
-Very true. Total counts of TLB and cache misses could show some insight.
+> +	int ret;
+> +
+> +	if (!memcg)
+> +		return;
+> +
+> +	mem_cgrp = memcg->css.cgroup;
+> +	task_cgrp = mem_cgroup_from_task(p)->css.cgroup;
+> +
+> +	rcu_read_lock();
+> +	ret = cgroup_path(task_cgrp, task_memcg_name, PATH_MAX);
+> +	if (ret < 0) {
+> +		/*
+> +		 * Unfortunately, we are unable to convert to a useful name
+> +		 * But we'll still print out the usage information
+> +		 */
+> +		rcu_read_unlock();
+> +		goto done;
+> +	}
+> +	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
+> +	 if (ret < 0) {
+> +		rcu_read_unlock();
+> +		goto done;
+> +	}
+> +
+> +	rcu_read_unlock();
 
+IIRC, a preempt_enable() will add about 50 bytes to kernel size.
 
-> PPC64 Test Machine
-> Sysbench-Postgres
-> -----------------
-> Client           slab  slub-default  slub-minorder            slqb
->      1         1.0000        1.0153         1.0179          1.0051
->      2         1.0000        1.0273         1.0181          1.0269
->      3         1.0000        1.0299         1.0195          1.0234
->      4         1.0000        1.0159         1.0130          1.0146
->      5         1.0000        1.0232         1.0192          1.0264
->      6         1.0000        1.0238         1.0142          1.0088
->      7         1.0000        1.0240         1.0063          1.0076
->      8         1.0000        1.0134         0.9842          1.0024
->      9         1.0000        1.0154         1.0152          1.0077
->     10         1.0000        1.0126         1.0018          1.0009
->     11         1.0000        1.0100         0.9971          0.9933
->     12         1.0000        1.0112         0.9985          0.9993
->     13         1.0000        1.0131         1.0060          1.0035
->     14         1.0000        1.0237         1.0074          1.0071
->     15         1.0000        1.0098         0.9997          0.9997
->     16         1.0000        1.0110         0.9899          0.9994
-> Geo. mean      1.0000        1.0175         1.0067          1.0078
->
-> The order SLUB uses does not make much of a difference to SPEC CPU on
-> either test machine or sysbench on x86-64. Howeer, on the ppc64 machine,
-> the performance advantage SLUB has over SLAB appears to be eliminated if
-> high-order pages are not used. I think I might run SLUB again incase the
-> higher average performance was a co-incidence due to lucky cache layout.
-> Otherwise, Christoph can probably put together a plausible theory on this
-> result faster than I can.
+I think these lines are also good for readability:
 
-It's interesting, thanks. It's a good result for SLQB I guess. 1% is fairly
-large here (if it is statistically significant), but I don't think the
-drawbacks of using higher order pages warrant changing anything by default
-in SLQB. It does encourage me to add a boot or runtime parameter, though
-(even if just for testing purposes).
+	rcu_read_lock();
+	ret = cgroup_path(task_cgrp, task_memcg_name, PATH_MAX);
+	if (ret >= 0)
+		ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
+	rcu_read_unlock();
 
+	if (ret < 0) {
+		/*
+		 * Unfortunately, we are unable to convert to a useful name
+		 * But we'll still print out the usage information
+		 */
+		goto done;
+	}
 
-> On the TLB front, it is perfectly possible that the workloads on x86-64 are
-> not allocator or memory intensive enough to take advantage of fewer calls
-> to the page allocator or potentially reduced TLB pressure. As the kernel
-> portion of the address space already uses huge pages slab objects may have
-> to occupy a very large percentage of memory before TLB pressure became an
-> issue. The L1 TLBs on both test machines are fully associative making
-> testing reduced TLB pressure practically impossible. For bonus points, 1G
-> pages are being used on the x86-64 so I have nowhere near enough memory to
-> put that under TLB pressure.
+Lai
 
-TLB pressure... I would be interested in. I'm not exactly sold on the idea
-that higher order allocations will give a significant TLB improvement.
-Although for benchmark runs, maybe it is more likely (ie. if memory hasn't
-been too fragmented).
+> +
+> +	printk(KERN_INFO "Task in %s killed as a result of limit of %s\n",
+> +			task_memcg_name, memcg_name);
+> +done:
+> +
+> +	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+> +		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
+> +		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
+> +		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> +	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
+> +		"failcnt %llu\n",
+> +		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
+> +		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
+> +		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+> +}
+> +
+>  /*
+>   * Unlike exported interface, "oom" parameter is added. if oom==true,
+>   * oom-killer can be invoked.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index d3b9bac..2f3166e 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -394,6 +394,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  		cpuset_print_task_mems_allowed(current);
+>  		task_unlock(current);
+>  		dump_stack();
+> +		mem_cgroup_print_oom_info(mem, current);
+>  		show_mem();
+>  		if (sysctl_oom_dump_tasks)
+>  			dump_tasks(mem);
+> 
 
-Suppose you have a million slab objects scattered all over memory, the fact
-you might have them clumped into 64K regions rather than 4K regions... is
-it going to be significant? How many access patterns are likely to soon touch
-exactly those objects that are in the same page?
-
-Sure it is possible to come up with a scenario where it does help. But also
-others where it will not.
-
-OTOH, if it is a win on ppc but not x86-64, then that may point to TLB...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
