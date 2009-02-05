@@ -1,46 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 618AC6B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 15:13:26 -0500 (EST)
-Date: Thu, 5 Feb 2009 20:12:44 +0000 (GMT)
+	by kanga.kvack.org (Postfix) with ESMTP id 934CB6B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 15:15:19 -0500 (EST)
+Date: Thu, 5 Feb 2009 20:14:42 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: pud_bad vs pud_bad
-In-Reply-To: <20090205194932.GB3129@elte.hu>
-Message-ID: <Pine.LNX.4.64.0902052004550.12955@blonde.anvils>
+In-Reply-To: <20090205195817.GF10229@movementarian.org>
+Message-ID: <Pine.LNX.4.64.0902052013230.12955@blonde.anvils>
 References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu>
  <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu>
  <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <20090205194932.GB3129@elte.hu>
+ <20090205195817.GF10229@movementarian.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: wli@movementarian.org
+Cc: Ingo Molnar <mingo@elte.hu>, Jeremy Fitzhardinge <jeremy@goop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Feb 2009, Ingo Molnar wrote:
-> * Hugh Dickins <hugh@veritas.com> wrote:
-> > 
-> > Simpler and more compact, but not as strict: in particular, a value of
-> > 0 or 1 is identified as bad by that 64-bit test, but not by the 32-bit.
+On Thu, 5 Feb 2009, wli@movementarian.org wrote:
 > 
-> yes, indeed you are right - the 64-bit test does not allow the KERNPG_TABLE 
-> bits to go zero.
-> 
-> Those are the present, rw, accessed and dirty bits. Do they really matter 
-> that much? If a toplevel entry goes !present or readonly, we notice that 
-> _fast_, without any checks. If it goes !access or !dirty - does that matter?
+> The RW bit needs to be allowed to become read-only for hugetlb COW.
+> Changing it over to the 32-bit method is a bugfix by that token.
 
-I've not given it a great deal of thought, why this or that bit.
-These p??_bad checks originate from 2.4 or earlier, and by mistake
-got weakened somewhere along the way, and last time it was discussed
-we agreed to strenghthen them (and IIRC Jeremy himself did so).
-
-> 
-> These checks are done all the time, and even a single instruction can count. 
-> The bits that are checked are enough to notice random memory corruption.
-
-Well, I am surprised that you would be arguing for weakening such
-a very simple check.
+If there's a bugfix to be made there, of course I'm in favour:
+but how come we've never seen such a bug?  hugetlb COW has been
+around for a year or two by now, hasn't it?
 
 Hugh
 
