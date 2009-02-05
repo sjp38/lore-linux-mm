@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 747F86B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:32:08 -0500 (EST)
-Date: Thu, 5 Feb 2009 20:31:21 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: pud_bad vs pud_bad
-Message-ID: <20090205193121.GA31839@elte.hu>
-References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <498B3D80.1010206@goop.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1E8626B004F
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:35:57 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 9A4AC82C39D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:38:35 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id UZVhjldWO576 for <linux-mm@kvack.org>;
+	Thu,  5 Feb 2009 14:38:31 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 6EC2282C381
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:38:28 -0500 (EST)
+Date: Thu, 5 Feb 2009 14:30:29 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [Patch] mmu_notifiers destroyed by __mmu_notifier_release()
+ retain extra mm_count.
+In-Reply-To: <20090205172303.GB8559@sgi.com>
+Message-ID: <alpine.DEB.1.10.0902051427280.13692@qirst.com>
+References: <20090205172303.GB8559@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <498B3D80.1010206@goop.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Robin Holt <holt@sgi.com>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@qumranet.com>, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+The drop of the refcount needs to occur  after the last use of
+data in the mmstruct because mmdrop() may free the mmstruct.
 
-* Jeremy Fitzhardinge <jeremy@goop.org> wrote:
-
-> Ingo Molnar wrote:
->> But the 32-bit check does the exact same thing but via a single binary  
->> operation: it checks whether any bits outside of those bits are zero - 
->> just via a simpler test that compiles to more compact code.
->>
->> So i'd go with the 32-bit version. (unless there are some 
->> sign-extension complications i'm missing - but i think we got rid of 
->> those already.)
->
-> OK, fair enough.  I wouldn't be surprised if gcc does that transform 
-> anyway, but we may as well be consistent about it.
-
-i checked and it doesnt - at least 4.3.2 inserts an extra AND instruction. 
-So the 32-bit version is really better. (beyond being more readable)
-
-	Ingo
+Place it after the synchronize_rcu?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
