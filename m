@@ -1,94 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D0C5A6B003D
-	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:37:32 -0500 (EST)
-Received: by ti-out-0910.google.com with SMTP id u3so257270tia.8
-        for <linux-mm@kvack.org>; Wed, 04 Feb 2009 16:37:30 -0800 (PST)
-Date: Thu, 5 Feb 2009 09:37:00 +0900
-From: MinChan Kim <minchan.kim@gmail.com>
-Subject: [PATCH v2][RESEND] fix mlocked page counter mismatch
-Message-ID: <20090205003700.GA26618@barrios-desktop>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC426B003D
+	for <linux-mm@kvack.org>; Wed,  4 Feb 2009 19:42:05 -0500 (EST)
+Date: Wed, 4 Feb 2009 16:41:57 -0800
+From: Ravikiran G Thirumalai <kiran@scalex86.org>
+Subject: [patch] mm: Fix SHM_HUGETLB to work with users in hugetlb_shm_group
+Message-ID: <20090205004157.GC6794@localdomain>
+References: <20090204220428.GA6794@localdomain> <20090204221121.GD10229@movementarian.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090204221121.GD10229@movementarian.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux kernel <linux-kernel@vger.kernel.org>, linux mm <linux-mm@kvack.org>
+To: wli@movementarian.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-I will resend this patch with Kosaki-san's ACK.
+On Wed, Feb 04, 2009 at 05:11:21PM -0500, wli@movementarian.org wrote:
+>On Wed, Feb 04, 2009 at 02:04:28PM -0800, Ravikiran G Thirumalai wrote:
+>> ...
+>> As I see it we have the following options to fix this inconsistency:
+>> 1. Do not depend on RLIMIT_MEMLOCK for hugetlb shm mappings.  If a user
+>>    has CAP_IPC_LOCK or if user belongs to /proc/sys/vm/hugetlb_shm_group,
+>>    he should be able to use shm memory according to shmmax and shmall OR
+>> 2. Update the hugetlbpage documentation to mention the resource limit based
+>>    limitation, and remove the useless /proc/sys/vm/hugetlb_shm_group sysctl
+>> Which one is better?  I am leaning towards 1. and have a patch ready for 1.
+>> but I might be missing some historical reason for using RLIMIT_MEMLOCK with
+>> SHM_HUGETLB.
+>
+>We should do (1) because the hugetlb_shm_group and CAP_IPC_LOCK bits
+>should both continue to work as they did prior to RLIMIT_MEMLOCK -based
+>management of hugetlb. Please make sure the new RLIMIT_MEMLOCK -based
+>management still enables hugetlb shm when hugetlb_shm_group and
+>CAP_IPC_LOCK don't apply.
+>
 
--- 
+OK, here's the patch.
 
-When I tested following program, I found that mlocked counter
-is strange.
-It couldn't free some mlocked pages of test program.
-It is caused that try_to_unmap_file don't check real
-page mapping in vmas.
-
-That's because goal of address_space for file is to find all processes
-into which the file's specific interval is mapped.
-What I mean is that it's not related page but file's interval.
-
-Even if the page isn't really mapping at the vma, it returns
-SWAP_MLOCK since the vma have VM_LOCKED, then calls
-try_to_mlock_page. After all, mlocked counter is increased again.
-
-COWed anon page in a file-backed vma could be a such case.
-This patch resolves it.
-
-This patch is based on 2.6.28-rc2-mm1.
-
--- my test program --
-
-int main()
-{
-       mlockall(MCL_CURRENT);
-       return 0;
-}
-
--- before --
-
-root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-Unevictable:           0 kB
-Mlocked:               0 kB
-
--- after --
-
-root@barrios-target-linux:~# cat /proc/meminfo | egrep 'Mlo|Unev'
-Unevictable:           8 kB
-Mlocked:               8 kB
+Thanks,
+Kiran
 
 
-Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
-Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Tested-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Fix hugetlb subsystem so that non root users belonging to hugetlb_shm_group
+can actually allocate hugetlb backed shm.
+
+Currently non root users cannot even map one large page using SHM_HUGETLB
+when they belong to the gid in /proc/sys/vm/hugetlb_shm_group.
+This is because allocation size is verified against RLIMIT_MEMLOCK resource
+limit even if the user belongs to hugetlb_shm_group.
+
+This patch
+1. Fixes hugetlb subsystem so that users with CAP_IPC_LOCK and users
+   belonging to hugetlb_shm_group don't need to be restricted with
+   RLIMIT_MEMLOCK resource limits
+2. If a user has sufficient memlock limit he can still allocate the hugetlb
+   shm segment.
+
+Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
 
 ---
- mm/rmap.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 1099394..bd24b55 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1080,7 +1080,8 @@ static int try_to_unmap_file(struct page *page, int unlock, int migration)
- 	spin_lock(&mapping->i_mmap_lock);
- 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
- 		if (MLOCK_PAGES && unlikely(unlock)) {
--			if (!(vma->vm_flags & VM_LOCKED))
-+			if (!((vma->vm_flags & VM_LOCKED) &&
-+						page_mapped_in_vma(page, vma)))
- 				continue;	/* must visit all vmas */
- 			ret = SWAP_MLOCK;
- 		} else {
--- 
-1.5.4.3
+ Documentation/vm/hugetlbpage.txt |   11 ++++++-----
+ fs/hugetlbfs/inode.c             |   18 ++++++++++++------
+ include/linux/mm.h               |    2 ++
+ mm/mlock.c                       |   11 ++++++++---
+ 4 files changed, 28 insertions(+), 14 deletions(-)
 
--- 
-Kinds Regards
-MinChan Kim
+Index: linux-2.6-tip/fs/hugetlbfs/inode.c
+===================================================================
+--- linux-2.6-tip.orig/fs/hugetlbfs/inode.c	2009-02-04 15:21:45.000000000 -0800
++++ linux-2.6-tip/fs/hugetlbfs/inode.c	2009-02-04 15:23:19.000000000 -0800
+@@ -943,8 +943,15 @@ static struct vfsmount *hugetlbfs_vfsmou
+ static int can_do_hugetlb_shm(void)
+ {
+ 	return likely(capable(CAP_IPC_LOCK) ||
+-			in_group_p(sysctl_hugetlb_shm_group) ||
+-			can_do_mlock());
++			in_group_p(sysctl_hugetlb_shm_group));
++}
++
++static void acct_huge_shm_lock(size_t size, struct user_struct *user)
++{
++	unsigned long pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
++	spin_lock(&shmlock_user_lock);
++	acct_shm_lock(pages, user);
++	spin_unlock(&shmlock_user_lock);
+ }
+ 
+ struct file *hugetlb_file_setup(const char *name, size_t size)
+@@ -959,12 +966,11 @@ struct file *hugetlb_file_setup(const ch
+ 	if (!hugetlbfs_vfsmount)
+ 		return ERR_PTR(-ENOENT);
+ 
+-	if (!can_do_hugetlb_shm())
++	if (can_do_hugetlb_shm())
++		acct_huge_shm_lock(size, user);
++	else if (!user_shm_lock(size, user))
+ 		return ERR_PTR(-EPERM);
+ 
+-	if (!user_shm_lock(size, user))
+-		return ERR_PTR(-ENOMEM);
+-
+ 	root = hugetlbfs_vfsmount->mnt_root;
+ 	quick_string.name = name;
+ 	quick_string.len = strlen(quick_string.name);
+Index: linux-2.6-tip/include/linux/mm.h
+===================================================================
+--- linux-2.6-tip.orig/include/linux/mm.h	2009-02-04 15:21:45.000000000 -0800
++++ linux-2.6-tip/include/linux/mm.h	2009-02-04 15:23:19.000000000 -0800
+@@ -737,8 +737,10 @@ extern unsigned long shmem_get_unmapped_
+ #endif
+ 
+ extern int can_do_mlock(void);
++extern void acct_shm_lock(unsigned long, struct user_struct *);
+ extern int user_shm_lock(size_t, struct user_struct *);
+ extern void user_shm_unlock(size_t, struct user_struct *);
++extern spinlock_t shmlock_user_lock;
+ 
+ /*
+  * Parameter block passed down to zap_pte_range in exceptional cases.
+Index: linux-2.6-tip/mm/mlock.c
+===================================================================
+--- linux-2.6-tip.orig/mm/mlock.c	2009-02-04 15:21:45.000000000 -0800
++++ linux-2.6-tip/mm/mlock.c	2009-02-04 15:23:19.000000000 -0800
+@@ -637,7 +637,13 @@ SYSCALL_DEFINE0(munlockall)
+  * Objects with different lifetime than processes (SHM_LOCK and SHM_HUGETLB
+  * shm segments) get accounted against the user_struct instead.
+  */
+-static DEFINE_SPINLOCK(shmlock_user_lock);
++DEFINE_SPINLOCK(shmlock_user_lock);
++
++void acct_shm_lock(unsigned long pages, struct user_struct *user)
++{
++	get_uid(user);
++	user->locked_shm += pages;
++}
+ 
+ int user_shm_lock(size_t size, struct user_struct *user)
+ {
+@@ -653,8 +659,7 @@ int user_shm_lock(size_t size, struct us
+ 	if (!allowed &&
+ 	    locked + user->locked_shm > lock_limit && !capable(CAP_IPC_LOCK))
+ 		goto out;
+-	get_uid(user);
+-	user->locked_shm += locked;
++	acct_shm_lock(locked, user);
+ 	allowed = 1;
+ out:
+ 	spin_unlock(&shmlock_user_lock);
+Index: linux-2.6-tip/Documentation/vm/hugetlbpage.txt
+===================================================================
+--- linux-2.6-tip.orig/Documentation/vm/hugetlbpage.txt	2009-02-04 15:21:45.000000000 -0800
++++ linux-2.6-tip/Documentation/vm/hugetlbpage.txt	2009-02-04 15:23:19.000000000 -0800
+@@ -147,11 +147,12 @@ used to change the file attributes on hu
+ 
+ Also, it is important to note that no such mount command is required if the
+ applications are going to use only shmat/shmget system calls.  Users who
+-wish to use hugetlb page via shared memory segment should be a member of
+-a supplementary group and system admin needs to configure that gid into
+-/proc/sys/vm/hugetlb_shm_group.  It is possible for same or different
+-applications to use any combination of mmaps and shm* calls, though the
+-mount of filesystem will be required for using mmap calls.
++wish to use hugetlb page via shared memory segment should either have
++sufficient memlock resource limits or, they need to be a member of
++a supplementary group, and system admin needs to configure that gid into
++/proc/sys/vm/hugetlb_shm_group. It is possible for same or different
++applications to use any combination of mmaps and shm* calls, though
++the mount of filesystem will be required for using mmap calls.
+ 
+ *******************************************************************
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
