@@ -1,52 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 956046B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 18:33:05 -0500 (EST)
-Date: Thu, 5 Feb 2009 18:32:57 -0500
-From: wli@movementarian.org
-Subject: Re: [patch] mm: Fix SHM_HUGETLB to work with users in hugetlb_shm_group
-Message-ID: <20090205233257.GH10229@movementarian.org>
-References: <20090204220428.GA6794@localdomain> <20090204221121.GD10229@movementarian.org> <20090205004157.GC6794@localdomain> <20090205132529.GA12132@csn.ul.ie> <20090205190851.GA6692@localdomain>
-Mime-Version: 1.0
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A55A86B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 18:42:49 -0500 (EST)
+Date: Fri, 6 Feb 2009 00:42:41 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: pud_bad vs pud_bad
+Message-ID: <20090205234241.GA14203@elte.hu>
+References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <498B4F1F.5070306@goop.org> <Pine.LNX.4.64.0902052046240.18431@blonde.anvils> <498B54A0.7040005@goop.org> <20090205215050.GB28097@elte.hu> <498B6325.1040401@goop.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090205190851.GA6692@localdomain>
+In-Reply-To: <498B6325.1040401@goop.org>
 Sender: owner-linux-mm@kvack.org
-To: Ravikiran G Thirumalai <kiran@scalex86.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Hugh Dickins <hugh@veritas.com>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2009 at 01:25:29PM +0000, Mel Gorman wrote:
->> This should be split into another patch (i.e. three in all). The
->> first patch allows users in thh shm_group to use huge pages. The
->> second that accounts for locked_shm properly. The third allows
->> users with a high enough locked rlimit to use shmget() with
->> hugepages. However, my feeling right now would be to ack 1,
->> re-reread 2 and nak 3.
 
-I'm saying to ack all 3 for backward compatibility reasons, once
-they're fixed up according to your other commentary.
+* Jeremy Fitzhardinge <jeremy@goop.org> wrote:
 
-On Thu, Feb 05, 2009 at 11:08:51AM -0800, Ravikiran G Thirumalai wrote:
-> I totally agree.  In fact yesterday I was thinking of resending
-> this patch to not account for shm memory when a user is not
-> validated against rlimits (when he has CAP_IPC_LOCK or if he
-> belongs to the sysctl_hugetlb_shm_group).
-> As I see it there must be two parts:
-> 1. Free ticket to CAP_IPC_LOCK and users belonging to
->    sysctl_hugetlb_shm_group
-> 2. Patch to have users not having CAP_IPC_LOCK or
->    sysctl_hugetlb_shm_group to check against memlock
->    rlimits, and account it.  Also mark this deprecated in
->    feature-removal-schedule.txt
-> Would this be OK?
+> Ingo Molnar wrote:
+>> We'd also lose a fair bit of performance (not to mention the pagetable  
+>> footprint doubling that Hugh already mentioned) on 32-bit PAE capable  
+>> systems that dont actually have RAM above 4G physical.
+>
+> Why's that?  Do you mean directly from using PAE, or as a side-effect of 
+> highmem?
 
-This is the ideal scenario, except I thought the rlimit was destined
-to replace the other methods, not vice-versa. I don't really mind
-going this way, but maybe we should check in with the rlimit authors.
+just the act of using PAE was measured to cause multi-percent slowdown in 
+fork() and exec() latencies, etc. The pagetables are twice as large so is 
+that really surprising?
 
-
--- wli
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
