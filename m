@@ -1,49 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AE6D6B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 16:56:23 -0500 (EST)
-Date: Thu, 5 Feb 2009 13:55:54 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [-mm patch] Show memcg information during OOM (v3)
-Message-Id: <20090205135554.61488ed6.akpm@linux-foundation.org>
-In-Reply-To: <20090203144647.09bf9c97.akpm@linux-foundation.org>
-References: <20090203172135.GF918@balbir.in.ibm.com>
-	<20090203144647.09bf9c97.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 155C76B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 17:07:38 -0500 (EST)
+Message-ID: <498B6325.1040401@goop.org>
+Date: Thu, 05 Feb 2009 14:07:33 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
+MIME-Version: 1.0
+Subject: Re: pud_bad vs pud_bad
+References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <498B4F1F.5070306@goop.org> <Pine.LNX.4.64.0902052046240.18431@blonde.anvils> <498B54A0.7040005@goop.org> <20090205215050.GB28097@elte.hu>
+In-Reply-To: <20090205215050.GB28097@elte.hu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Hugh Dickins <hugh@veritas.com>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Feb 2009 14:46:47 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+Ingo Molnar wrote:
+> We'd also lose a fair bit of performance (not to mention the pagetable 
+> footprint doubling that Hugh already mentioned) on 32-bit PAE capable 
+> systems that dont actually have RAM above 4G physical.
+>   
 
-> > +/**
-> > + * mem_cgroup_print_mem_info: Called from OOM with tasklist_lock held in
-> > + * read mode.
-> > + * @memcg: The memory cgroup that went over limit
-> > + * @p: Task that is going to be killed
-> > + *
-> > + * NOTE: @memcg and @p's mem_cgroup can be different when hierarchy is
-> > + * enabled
-> > + */
-> > +void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
-> > +{
-> > +	struct cgroup *task_cgrp;
-> > +	struct cgroup *mem_cgrp;
-> > +	/*
-> > +	 * Need a buffer on stack, can't rely on allocations. The code relies
-> > +	 * on the assumption that OOM is serialized for memory controller.
-> > +	 * If this assumption is broken, revisit this code.
-> > +	 */
-> > +	static char task_memcg_name[PATH_MAX];
-> > +	static char memcg_name[PATH_MAX];
-> 
-> I don't think we need both of these.  With a bit of shuffling we could
-> reuse the single buffer?
+Why's that?  Do you mean directly from using PAE, or as a side-effect of 
+highmem?
 
-ping?
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
