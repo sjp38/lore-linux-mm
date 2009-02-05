@@ -1,54 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D54D46B004F
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:41:37 -0500 (EST)
-Date: Thu, 5 Feb 2009 20:41:25 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C1186B004F
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 14:49:40 -0500 (EST)
+Date: Thu, 5 Feb 2009 20:49:32 +0100
 From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 2.6.28 1/2] memory: improve find_vma
-Message-ID: <20090205194125.GA3129@elte.hu>
-References: <8c5a844a0901220851g1c21169al4452825564487b9a@mail.gmail.com> <Pine.LNX.4.64.0901221658550.14302@blonde.anvils> <8c5a844a0901221500m7af8ff45v169b6523ad9d7ad3@mail.gmail.com> <20090122231358.GA27033@elte.hu> <8c5a844a0901230310h7aa1ec83h60817de2b36212d8@mail.gmail.com> <8c5a844a0901281331w4cea7ab2y305d5a1af96e313e@mail.gmail.com> <20090129141929.GP24391@elte.hu> <8c5a844a0902010319t20b853d0t6c156ecc84543f30@mail.gmail.com> <20090201130058.GA486@elte.hu> <8c5a844a0902050326v2155dbeaq5449f1e373f4245d@mail.gmail.com>
+Subject: Re: pud_bad vs pud_bad
+Message-ID: <20090205194932.GB3129@elte.hu>
+References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <Pine.LNX.4.64.0902051921150.30938@blonde.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8c5a844a0902050326v2155dbeaq5449f1e373f4245d@mail.gmail.com>
+In-Reply-To: <Pine.LNX.4.64.0902051921150.30938@blonde.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Daniel Lowengrub <lowdanie@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 
-* Daniel Lowengrub <lowdanie@gmail.com> wrote:
+* Hugh Dickins <hugh@veritas.com> wrote:
 
-> On Sun, Feb 1, 2009 at 3:00 PM, Ingo Molnar <mingo@elte.hu> wrote:
-> >
-> >  you should time it:
-> >
-> >  time ./mmap-perf
-> >
-> > and compare the before/after results.
-> >
-> >        Ingo
-> >
+> On Thu, 5 Feb 2009, Ingo Molnar wrote:
+> > * Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+> > > Ingo Molnar wrote:
+> > >> * Jeremy Fitzhardinge <jeremy@goop.org> wrote:
+> > >>   
+> > >>> I'm looking at unifying the 32 and 64-bit versions of pud_bad.
+> > >>>
+> > >>> 32-bits defines it as:
+> > >>>
+> > >>> static inline int pud_bad(pud_t pud)
+> > >>> {
+> > >>> 	return (pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+> > >>> }
+> > >>>
+> > >>> and 64 as:
+> > >>>
+> > >>> static inline int pud_bad(pud_t pud)
+> > >>> {
+> > >>> 	return (pud_val(pud) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+> > >>> }
+> > >>>
+> > >>>
+> > >>> I'm inclined to go with the 64-bit version, but I'm wondering if 
+> > >>> there's something subtle I'm missing here.
+> > >>>     
+> > >>
+> > >> Why go with the 64-bit version? The 32-bit check looks more compact and 
+> > >> should result in smaller code.
+> > >>   
+> > >
+> > > Well, its stricter.  But I don't really understand what condition its  
+> > > actually testing for.
+> > 
+> > Well it tests: "beyond the bits covered by PTE_PFN|_PAGE_USER, the rest 
+> > must only be _KERNPG_TABLE".
+> > 
+> > The _KERNPG_TABLE bits are disjunct from PTE_PFN|_PAGE_USER bits, so this 
+> > makes sense.
+> > 
+> > But the 32-bit check does the exact same thing but via a single binary 
+> > operation: it checks whether any bits outside of those bits are zero -
+> > just via a simpler test that compiles to more compact code.
 > 
-> I made a script that runs 'time ./mmap-perf' 100 times and outputs the
-> average.  The output on the standard kernel was:
->
->  real: 1.022600
->  user: 0.135900
->  system: 0.852600
->
-> The output after the patch was:
->
->  real: 0.815400
->  user: 0.113200
->  system: 0.622200
->
-> These results were consistent which isn't surprising considering the
-> fact that they themselves are averages.
-> What do you think?
+> Simpler and more compact, but not as strict: in particular, a value of
+> 0 or 1 is identified as bad by that 64-bit test, but not by the 32-bit.
 
-Those nymbers look very convincing to me, a cool 25.4% speedup!
-mmap-perf is very MM intense - including vma lookup.
+yes, indeed you are right - the 64-bit test does not allow the KERNPG_TABLE 
+bits to go zero.
+
+Those are the present, rw, accessed and dirty bits. Do they really matter 
+that much? If a toplevel entry goes !present or readonly, we notice that 
+_fast_, without any checks. If it goes !access or !dirty - does that matter?
+
+These checks are done all the time, and even a single instruction can count. 
+The bits that are checked are enough to notice random memory corruption.
+
+( albeit these days with large RAM sizes pagetable corruption is quite rare 
+  and only happens if it's specifically corrupting the pagetable - and then 
+  it's not just a single bit. Most of the memory corruption goes into the 
+  pagecache. )
 
 	Ingo
 
