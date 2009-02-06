@@ -1,33 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DE5A96B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 22:11:06 -0500 (EST)
-Message-ID: <498BAA22.50709@cn.fujitsu.com>
-Date: Fri, 06 Feb 2009 11:10:26 +0800
-From: Li Zefan <lizf@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [-mm patch] Show memcg information during OOM (v3)
-References: <20090203172135.GF918@balbir.in.ibm.com> <498BA857.3080809@cn.fujitsu.com>
-In-Reply-To: <498BA857.3080809@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 180636B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 22:12:54 -0500 (EST)
+Message-Id: <20090206031125.693559239@cmpxchg.org>
+Date: Fri, 06 Feb 2009 04:11:25 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 0/3] [PATCH 0/3] swsusp: shrink file cache first
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Li Zefan wrote:
->> +	mem_cgrp = memcg->css.cgroup;
->> +	task_cgrp = mem_cgroup_from_task(p)->css.cgroup;
-> 
-> I just noticed since v2, task's cgroup is also printed. Then 2 issues here:
-> 
-> 1. this is better: task_cgrp = task_subsys_state(p, mem_cgroup_subsys_id);
+[ grumble.  always check software for new behaviour after upgrade.
+  sorry for the mess up :/ ]
 
-sorry, s/task_subsys_state/task_cgroup/
+Hello!
 
-> 2. getting cgroup from a task should be protected by task_lock or rcu_read_lock,
->    so we can put the above statement inside rcu_read_lock below.
+here are three patches that adjust the memory shrinking code used for
+suspend-to-disk.
+
+The first two patches are cleanups only and can probably go in
+regardless of the third one.
+
+The third patch changes the shrink_all_memory() logic to drop the file
+cache first before touching any mapped files and only then goes for
+anon pages.
+
+The reason is that everything not shrunk before suspension has to go
+into the image and will be 'prefaulted' before the processes can
+resume and the system is usable again, so the image should be small
+and contain only pages that are likely to be used right after resume
+again.  And this in turn means that the inactive file cache is the
+best point to start decimating used memory.
+
+Also, right now, subsequent faults of contiguously mapped files are
+likely to perform better than swapin (see
+http://kernelnewbies.org/KernelProjects/SwapoutClustering), so not
+only file cache is preferred over other pages, but file pages over
+anon pages in general.
+
+Testing up to this point shows that the patch does what is intended,
+shrinking file cache in favor of anon pages.  But whether the idea is
+correct to begin with is a bit hard to quantify and I am still working
+on it, so RFC only.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
