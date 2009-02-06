@@ -1,51 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 55C106B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 20:44:04 -0500 (EST)
-Date: Fri, 6 Feb 2009 02:44:00 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [Patch] mmu_notifiers destroyed by __mmu_notifier_release()
-	retain extra mm_count.
-Message-ID: <20090206014400.GM14011@random.random>
-References: <20090205172303.GB8559@sgi.com> <alpine.DEB.1.10.0902051427280.13692@qirst.com> <20090205200214.GN8577@sgi.com> <alpine.DEB.1.10.0902051844390.17441@qirst.com> <20090206013805.GL14011@random.random>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 994626B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 21:08:24 -0500 (EST)
+Message-ID: <498B9B6C.3000808@cn.fujitsu.com>
+Date: Fri, 06 Feb 2009 10:07:40 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090206013805.GL14011@random.random>
+Subject: Re: [RFC][PATCH] Reduce size of swap_cgroup by CSS ID
+References: <20090205185959.7971dee4.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090205185959.7971dee4.kamezawa.hiroyu@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 06, 2009 at 02:38:05AM +0100, Andrea Arcangeli wrote:
-> It all boils down if unregister is mandatory or not. If it's mandatory
+> +/*
+> + * A helper function to get mem_cgroup from ID. must be called under
+> + * rcu_read_lock(). Because css_tryget() is called under this, css_put
+> + * should be called later.
+> + */
+> +static struct mem_cgroup *mem_cgroup_lookup_get(unsigned short id)
+> +{
+> +	struct cgroup_subsys_state *css;
+> +
+> +	/* ID 0 is unused ID */
+> +	if (!id)
+> +		return NULL;
+> +	css = css_lookup(&mem_cgroup_subsys, id);
+> +	if (css && css_tryget(css))
+> +		return container_of(css, struct mem_cgroup, css);
+> +	return NULL;
+> +}
 
-Oh I just found I documented it too!! ;)
+the returned mem_cgroup needn't be protected by rcu_read_lock(), so I
+think this is better:
+	rcu_read_lock();
+	css = css_lookup(&mem_cgroup_subsys, id);
+	rcu_read_unlock();
+and no lock is needed when calling mem_cgroup_lookup_get().
 
-/*
- * Must not hold mmap_sem nor any other VM related lock when calling
- * this registration function. Must also ensure mm_users can't go down
- * to zero while this runs to avoid races with mmu_notifier_release,
- * so mm has to be current->mm or the mm should be pinned safely such
- * as with get_task_mm(). If the mm is not current->mm, the mm_users
- * pin should be released by calling mmput after mmu_notifier_register
- * returns. mmu_notifier_unregister must be always called to
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- * unregister the notifier. mm_count is automatically pinned to allow
-   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- * mmu_notifier_unregister to safely run at any time later, before or 
-   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-* after exit_mmap. ->release will always be called before exit_mmap
- * frees the pages.
- */
+>   * Returns old value at success, NULL at failure.
+>   * (Of course, old value can be NULL.)
+>   */
+> -struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
+> +unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
 
-So in short the current code has no bugs and the fact you have to call
-unregister is intentional. Not patch required unless you request to
-change API. If you don't call unregister mm will be leaked,
-simply. For a moment I thought unregister wasn't mandatory because at
-some point in one of the dozen versions of the api it wasn't, but in
-the end I thought having an mm_count auto-pinning leaving no window
-for corrupted mmu_notifier list was preferable ;).
+kernel-doc needs to be updated
+
+>   * lookup_swap_cgroup - lookup mem_cgroup tied to swap entry
+>   * @ent: swap entry to be looked up.
+>   *
+> - * Returns pointer to mem_cgroup at success. NULL at failure.
+> + * Returns CSS ID of mem_cgroup at success. NULL at failure.
+
+s/NULL/0/
+
+>   */
+> -struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+> +unsigned short lookup_swap_cgroup(swp_entry_t ent)
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
