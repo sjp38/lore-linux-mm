@@ -1,128 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id AD58C6B003D
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 00:59:42 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n165xd1i011785
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 6 Feb 2009 14:59:39 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47E9A45DE5B
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 14:59:39 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BDB945DD86
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 14:59:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1130F1DB803B
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 14:59:38 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 16EE3E08006
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 14:59:37 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
-In-Reply-To: <20090206044907.GA18467@cmpxchg.org>
-References: <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090206044907.GA18467@cmpxchg.org>
-Message-Id: <20090206135302.628E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E168C6B003D
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 02:01:27 -0500 (EST)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id n166xljX010151
+	for <linux-mm@kvack.org>; Fri, 6 Feb 2009 17:59:47 +1100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1671b4c1065042
+	for <linux-mm@kvack.org>; Fri, 6 Feb 2009 18:01:38 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1671JpC019248
+	for <linux-mm@kvack.org>; Fri, 6 Feb 2009 18:01:19 +1100
+Date: Fri, 6 Feb 2009 12:31:16 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [-mm patch] Show memcg information during OOM (v3)
+Message-ID: <20090206070116.GE26688@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090203172135.GF918@balbir.in.ibm.com> <20090203144647.09bf9c97.akpm@linux-foundation.org> <20090205135554.61488ed6.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri,  6 Feb 2009 14:59:35 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090205135554.61488ed6.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, nishimura@mxp.nes.nec.co.jp, lizf@cn.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+* Andrew Morton <akpm@linux-foundation.org> [2009-02-05 13:55:54]:
 
-> > if we think suspend performance, we should consider swap device and file-backed device
-> > are different block device.
-> > the interleave of file-backed page out and swap out can improve total write out performce.
 > 
-> Hm, good point.  We could probably improve that but I don't think it's
-> too pressing because at least on my test boxen, actual shrinking time
-> is really short compared to the total of suspending to disk.
-
-ok.
-only remain problem is mesurement result posting :)
-
-
-> > if we think resume performance, we shold how think the on-disk contenious of the swap consist
-> > process's virtual address contenious.
-> > it cause to reduce unnecessary seek.
-> > but your patch doesn't this.
-> > 
-> > Could you explain this patch benefit?
-> 
-> The patch tries to shrink those pages first that are most unlikely to
-> be needed again after resume.  It assumes that active anon pages are
-> immediately needed after resume while inactive file pages are not.  So
-> it defers shrinking anon pages after file cache.
-
-hmm, I'm confusing.
-I agree active anon is important than inactive file.
-but I don't understand why scanning order at suspend change resume order.
-
-
-> But I just noticed that the old behaviour defers it as well, because
-> even if it does scan anon pages from the beginning, it allows writing
-> only starting from pass 3.
-
-Ah, I see.
-it's obiously wrong.
-
-> I couldn't quite understand what you wrote about on-disk
-> contiguousness, but that claim still stands: faulting in contiguous
-> pages from swap can be much slower than faulting file pages.  And my
-> patch prefers mapped file pages over anon pages.  This is probably
-> where I have seen the improvements after resume in my tests.
-
-sorry, I don't understand yet.
-Why "prefers mapped file pages over anon pages" makes large improvement?
-
-
-> So assuming that we can not save the whole working set, it's better to
-> preserve as much as possible of those pages that are the most
-> expensive ones to refault.
+> ping?
 >
-> > and, I think you should mesure performence result.
-> 
-> Yes, I'm still thinking about ideas how to quantify it properly.  I
-> have not yet found a reliable way to check for whether the working set
-> is intact besides seeing whether the resumed applications are
-> responsive right away or if they first have to swap in their pages
-> again.
 
-thanks.
-I'm looking for this :)
+Andrew,
 
+This patch fixes issues reported with the OOM printing patches.
 
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-> > > @@ -2134,17 +2144,17 @@ unsigned long shrink_all_memory(unsigned
-> > >  
-> > >  	/*
-> > >  	 * We try to shrink LRUs in 5 passes:
-> > > -	 * 0 = Reclaim from inactive_list only
-> > > -	 * 1 = Reclaim from active list but don't reclaim mapped
-> > > -	 * 2 = 2nd pass of type 1
-> > > -	 * 3 = Reclaim mapped (normal reclaim)
-> > > -	 * 4 = 2nd pass of type 3
-> > > +	 * 0 = Reclaim unmapped inactive file pages
-> > > +	 * 1 = Reclaim unmapped file pages
-> > 
-> > I think your patch reclaim mapped file at priority 0 and 1 too.
-> 
-> Doesn't the following check in shrink_page_list prevent this:
-> 
->                 if (!sc->may_swap && page_mapped(page))
->                         goto keep_locked;
-> 
-> ?
+1. It reduces the static buffers from 2 to 1
+2. It fixes comments that incorrectly indicate that the buffer is on stack
 
-Grr, you are right.
-I agree, currently may_swap doesn't control swap out or not.
-so I think we should change it correct name ;)
+This patch fails checkpatch.pl, due to split of the printk message.
+I could not find an easy way to fix it.
+
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+---
+
+ mm/memcontrol.c |   23 +++++++++++++++--------
+ 1 files changed, 15 insertions(+), 8 deletions(-)
 
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 839258e..9180702 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -736,22 +736,23 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 	struct cgroup *task_cgrp;
+ 	struct cgroup *mem_cgrp;
+ 	/*
+-	 * Need a buffer on stack, can't rely on allocations. The code relies
++	 * Need a buffer in BSS, can't rely on allocations. The code relies
+ 	 * on the assumption that OOM is serialized for memory controller.
+ 	 * If this assumption is broken, revisit this code.
+ 	 */
+-	static char task_memcg_name[PATH_MAX];
+ 	static char memcg_name[PATH_MAX];
+ 	int ret;
+ 
+ 	if (!memcg)
+ 		return;
+ 
+-	mem_cgrp = memcg->css.cgroup;
+-	task_cgrp = mem_cgroup_from_task(p)->css.cgroup;
+ 
+ 	rcu_read_lock();
+-	ret = cgroup_path(task_cgrp, task_memcg_name, PATH_MAX);
++
++	mem_cgrp = memcg->css.cgroup;
++	task_cgrp = task_cgroup(p, mem_cgroup_subsys_id);
++
++	ret = cgroup_path(task_cgrp, memcg_name, PATH_MAX);
+ 	if (ret < 0) {
+ 		/*
+ 		 * Unfortunately, we are unable to convert to a useful name
+@@ -760,16 +761,22 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 		rcu_read_unlock();
+ 		goto done;
+ 	}
++	rcu_read_unlock();
++
++	printk(KERN_INFO "Task in %s killed", memcg_name);
++
++	rcu_read_lock();
+ 	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
+ 	if (ret < 0) {
+ 		rcu_read_unlock();
+ 		goto done;
+ 	}
+-
+ 	rcu_read_unlock();
+ 
+-	printk(KERN_INFO "Task in %s killed as a result of limit of %s\n",
+-			task_memcg_name, memcg_name);
++	/*
++	 * Continues from above, so we don't need an KERN_ level
++	 */
++	printk(" as a result of limit of %s\n", memcg_name);
+ done:
+ 
+ 	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
