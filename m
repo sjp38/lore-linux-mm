@@ -1,45 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA756B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 20:29:05 -0500 (EST)
-Date: Thu, 5 Feb 2009 17:28:58 -0800
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch] mm: Fix SHM_HUGETLB to work with users in
-	hugetlb_shm_group
-Message-ID: <20090206012858.GB8946@localdomain>
-References: <20090204220428.GA6794@localdomain> <20090204221121.GD10229@movementarian.org> <20090205004157.GC6794@localdomain> <20090205132529.GA12132@csn.ul.ie> <20090205190851.GA6692@localdomain> <20090205233257.GH10229@movementarian.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C209E6B003D
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 20:38:11 -0500 (EST)
+Date: Fri, 6 Feb 2009 02:38:05 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [Patch] mmu_notifiers destroyed by __mmu_notifier_release()
+	retain extra mm_count.
+Message-ID: <20090206013805.GL14011@random.random>
+References: <20090205172303.GB8559@sgi.com> <alpine.DEB.1.10.0902051427280.13692@qirst.com> <20090205200214.GN8577@sgi.com> <alpine.DEB.1.10.0902051844390.17441@qirst.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090205233257.GH10229@movementarian.org>
+In-Reply-To: <alpine.DEB.1.10.0902051844390.17441@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: wli@movementarian.org
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2009 at 06:32:57PM -0500, wli@movementarian.org wrote:
->On Thu, Feb 05, 2009 at 11:08:51AM -0800, Ravikiran G Thirumalai wrote:
->> I totally agree.  In fact yesterday I was thinking of resending
->> this patch to not account for shm memory when a user is not
->> validated against rlimits (when he has CAP_IPC_LOCK or if he
->> belongs to the sysctl_hugetlb_shm_group).
->> As I see it there must be two parts:
->> 1. Free ticket to CAP_IPC_LOCK and users belonging to
->>    sysctl_hugetlb_shm_group
->> 2. Patch to have users not having CAP_IPC_LOCK or
->>    sysctl_hugetlb_shm_group to check against memlock
->>    rlimits, and account it.  Also mark this deprecated in
->>    feature-removal-schedule.txt
->> Would this be OK?
->
->This is the ideal scenario, except I thought the rlimit was destined
->to replace the other methods, not vice-versa. I don't really mind
->going this way, but maybe we should check in with the rlimit authors.
+On Thu, Feb 05, 2009 at 06:54:33PM -0500, Christoph Lameter wrote:
+> One also needs to wonder why we acquire the refcount for the mmu
+> notifier on the mmstruct at all. Maybe remove the
+> 
+> 	atomic_inc()
+> 
+> from mmu_notifier_register() instead? Looks strange there especially since
+> we have a BUG_ON there as well that verifies that the number of refcount
+> is already above 0.
+> 
+> How about this patch instead?
 
-RLIMIT_MEMLOCK for SHM_HUGETLB seems bad and unrelated!  And as Mel rightly
-pointed out,  currently rlimits are checked for hugetlb shm but not for
-hugetlb mmaps.  Unless whoever authored the rlimit limitation comes forward
-with a good explanation, I think it should be deprecated.
+Surely you have to remove mmdrop from mmu_notifier_unregister if you
+do that. But with the other patch that mmdrop should also be mvoed up
+now that I think about it. So both patches looks wrong.
+
+
+Ok I think the issue here is that with the current code the unregister
+call is mandatory to avoid memleak, if you do like KVM does everything
+is fine, even if ->release fires through exit_mmap, later unregister
+is called when the fd is closed so all works fine then.
+
+The reason of the mm_count pin is to avoid the driver having to
+increase mm_count itself _before_ mmu_notifier_register, basically the
+mm has to exist as long as any mmu notifier is attached to an mm, if
+mm goes away, clearly the notifier list gets corrupted.
+
+It all boils down if unregister is mandatory or not. If it's mandatory
+current code is ok, if it's not, then you've to decide if to remove
+both mmdrop and atomic_inc and have the caller handle it (which is
+likely ok with kvm) or to add mmdrop to the auto-disarming code, and
+then move the mmdrop up in the !hlist_unhashed path of unregister
+(which was missing from Robin's patch and could trigger a double
+mmdrop if one always calls unregister unconditionally which is meant
+to be allowed with current code and that's the kvm usage model too).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
