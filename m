@@ -1,31 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C1056B003D
-	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 19:08:36 -0500 (EST)
-Message-ID: <498B7F7F.3090701@goop.org>
-Date: Thu, 05 Feb 2009 16:08:31 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: pud_bad vs pud_bad
-References: <498B2EBC.60700@goop.org> <20090205184355.GF5661@elte.hu> <498B35F9.601@goop.org> <20090205191017.GF20470@elte.hu> <Pine.LNX.4.64.0902051921150.30938@blonde.anvils> <498B4F1F.5070306@goop.org> <Pine.LNX.4.64.0902052046240.18431@blonde.anvils> <498B54A0.7040005@goop.org> <20090205215050.GB28097@elte.hu> <498B6325.1040401@goop.org> <20090205234241.GA14203@elte.hu>
-In-Reply-To: <20090205234241.GA14203@elte.hu>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+	by kanga.kvack.org (Postfix) with SMTP id E43396B0047
+	for <linux-mm@kvack.org>; Thu,  5 Feb 2009 19:37:41 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n160bcxT012255
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 6 Feb 2009 09:37:39 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A7DD45DE51
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 09:37:38 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5824245DE4E
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 09:37:38 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F2BB1DB803A
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 09:37:38 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2EBA1DB803C
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 09:37:37 +0900 (JST)
+Date: Fri, 6 Feb 2009 09:36:27 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: Swap Memory
+Message-Id: <20090206093627.a90f23b5.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <77e5ae570902051240l1c7de8d5jbef5cfe55c156b6c@mail.gmail.com>
+References: <77e5ae570902031238q5fc9231bpb65ecd511da5a9c7@mail.gmail.com>
+	<Pine.LNX.4.64.0902051802480.1445@blonde.anvils>
+	<77e5ae570902051110v65e08d87t885378de659195e3@mail.gmail.com>
+	<Pine.LNX.4.64.0902051943360.6349@blonde.anvils>
+	<77e5ae570902051240l1c7de8d5jbef5cfe55c156b6c@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Hugh Dickins <hugh@veritas.com>, William Lee Irwin III <wli@movementarian.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: William Chan <williamchan@google.com>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, wchan212@gmail.com
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> just the act of using PAE was measured to cause multi-percent slowdown in 
-> fork() and exec() latencies, etc. The pagetables are twice as large so is 
-> that really surprising?
->   
+On Thu, 5 Feb 2009 12:40:31 -0800
+William Chan <williamchan@google.com> wrote:
+> > That could be changed, yes: but would multiply the amount of memory
+> > needed for recording pages out of swap.  The present design is to
+> > minimize the memory needed by what's out on swap.
+> 
+> Hopefully there will be less pages in swap than in system memory. If
+> this is true - the overhead introduced should be minimal relative to
+> the overhead the kernel already has for manging system memory pages.
+> 
+In my experience, you can't assume that ;)
 
-Is there a similar slowdown running the CPU in 32 vs 64 bit mode?  Or 
-does having more/wider registers mitigate it?
+BTW, if you want to do that, changing device layer is much easier than changing
+memory management layer. 
 
-    J
+Maybe adding device mapper for good-scheduled-swap(but not Raid0) is enough.
+Preparing device-mapper layer which does
+  1. It can tie several devices of different size.
+  2. It chases each block's usage by some logic (LRU) and do block migration
+     if necessary.
+  3. priority between devices can be set by dm's user-land tools.
+
+Hmm? But I'm not sure this is worth tring.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
