@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8326B004F
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 18:37:55 -0500 (EST)
-Date: Sat, 7 Feb 2009 00:37:14 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
-Message-ID: <20090206233714.GA3687@cmpxchg.org>
-References: <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090206044907.GA18467@cmpxchg.org> <20090206135302.628E.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090206122417.GB1580@cmpxchg.org> <28c262360902060535g22facdd0tf082ca0abaec3f80@mail.gmail.com> <28c262360902060915u18b2fb54t5f2c1f44d03306e3@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 217706B004F
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 18:40:40 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 0/3] swsusp: shrink file cache first
+Date: Sat, 7 Feb 2009 00:39:53 +0100
+References: <E1LVFiv-00032p-HX@cmpxchg.org>
+In-Reply-To: <E1LVFiv-00032p-HX@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-2"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <28c262360902060915u18b2fb54t5f2c1f44d03306e3@mail.gmail.com>
+Message-Id: <200902070039.54402.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: hannes@cmpxchg.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 07, 2009 at 02:15:21AM +0900, MinChan Kim wrote:
-> >>> Grr, you are right.
-> >>> I agree, currently may_swap doesn't control swap out or not.
-> >>> so I think we should change it correct name ;)
-> >>
-> >> Agreed.  What do you think about the following patch?
-> >
-> > As for me, I can't agree with you.
-> > There are two kinds of file-mapped pages.
-> >
-> > 1. file-mapped and dirty page.
-> > 2. file-mapped and no-dirty page
-> >
-> > Both pages are not swapped.
-> > File-mapped and dirty page is synced with original file
-> > File-mapped and no-dirty page is just discarded with viewpoint of reclaim.
-> >
-> > So, may_swap is just related to anon-pages
-> > Thus, I think may_swap is reasonable.
-> > How about you ?
-> 
-> Sorry for misunderstood your point.
-> It would be better to remain more detaily for git log ?
-> 
-> 'may_swap' applies not only to anon pages but to mapped file pages as
-> well. 'may_swap' term is sometime used for 'swap', sometime used for
-> 'sync|discard'.
-> In case of anon pages, 'may_swap' determines whether pages were swapout or not.
-> but In case of mapped file pages, it determines whether pages are
-> synced or discarded. so, 'may_swap' is rather awkward. Rename it to
-> 'may_unmap' which is the actual meaning.
-> 
-> If you find wrong word and sentence, Please, fix it. :)
+> Hello!
 
-Cool, thanks.  I will resend an updated version soon with your
-changelog text.  And on top of the two fixlets of this series which
-Andrew already picked up.
+Hi Hannes,
+ 
+> here are three patches that adjust the memory shrinking code used for
+> suspend-to-disk.
+> 
+> The first two patches are cleanups only and can probably go in
+> regardless of the third one.
+> 
+> The third patch changes the shrink_all_memory() logic to drop the file
+> cache first before touching any mapped files and only then goes for
+> anon pages.
+> 
+> The reason is that everything not shrunk before suspension has to go
+> into the image and will be 'prefaulted' before the processes can
+> resume and the system is usable again, so the image should be small
+> and contain only pages that are likely to be used right after resume
+> again.  And this in turn means that the inactive file cache is the
+> best point to start decimating used memory.
+> 
+> Also, right now, subsequent faults of contiguously mapped files are
+> likely to perform better than swapin (see
+> http://kernelnewbies.org/KernelProjects/SwapoutClustering), so not
+> only file cache is preferred over other pages, but file pages over
+> anon pages in general.
+> 
+> Testing up to this point shows that the patch does what is intended,
+> shrinking file cache in favor of anon pages.  But whether the idea is
+> correct to begin with is a bit hard to quantify and I am still working
+> on it, so RFC only.
 
-	Hannes
+Thanks a lot for the patches, I'll review them as soon as I can.
+
+I've got them with broken headers, but that's not a big deal.
+
+Best,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
