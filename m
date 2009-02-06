@@ -1,285 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 97B8B6B003D
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 08:35:28 -0500 (EST)
-Received: by yx-out-1718.google.com with SMTP id 36so314015yxh.26
-        for <linux-mm@kvack.org>; Fri, 06 Feb 2009 05:35:27 -0800 (PST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 8BA6D6B003D
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 10:10:44 -0500 (EST)
+Received: by ewy13 with SMTP id 13so338775ewy.14
+        for <linux-mm@kvack.org>; Fri, 06 Feb 2009 07:10:42 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20090206122417.GB1580@cmpxchg.org>
-References: <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20090206044907.GA18467@cmpxchg.org>
-	 <20090206135302.628E.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20090206122417.GB1580@cmpxchg.org>
-Date: Fri, 6 Feb 2009 22:35:26 +0900
-Message-ID: <28c262360902060535g22facdd0tf082ca0abaec3f80@mail.gmail.com>
-Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
-From: MinChan Kim <minchan.kim@gmail.com>
+Date: Fri, 6 Feb 2009 18:10:40 +0300
+Message-ID: <a4423d670902060710m4919f6d6p1ffae13859c891be@mail.gmail.com>
+Subject: next-20090206: kernel BUG at mm/slub.c:1132
+From: Alexander Beregalov <a.beregalov@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Thanks for kind explaining and good discussion, Hannes and Kosaki-san.
-Always, I learn lots of thing with such good discussion. :)
+Hi
 
-On Fri, Feb 6, 2009 at 9:24 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Fri, Feb 06, 2009 at 02:59:35PM +0900, KOSAKI Motohiro wrote:
->> Hi
->>
->> > > if we think suspend performance, we should consider swap device and file-backed device
->> > > are different block device.
->> > > the interleave of file-backed page out and swap out can improve total write out performce.
->> >
->> > Hm, good point.  We could probably improve that but I don't think it's
->> > too pressing because at least on my test boxen, actual shrinking time
->> > is really short compared to the total of suspending to disk.
->>
->> ok.
->> only remain problem is mesurement result posting :)
->>
->>
->> > > if we think resume performance, we shold how think the on-disk contenious of the swap consist
->> > > process's virtual address contenious.
->> > > it cause to reduce unnecessary seek.
->> > > but your patch doesn't this.
->> > >
->> > > Could you explain this patch benefit?
->> >
->> > The patch tries to shrink those pages first that are most unlikely to
->> > be needed again after resume.  It assumes that active anon pages are
->> > immediately needed after resume while inactive file pages are not.  So
->> > it defers shrinking anon pages after file cache.
->>
->> hmm, I'm confusing.
->> I agree active anon is important than inactive file.
->> but I don't understand why scanning order at suspend change resume order.
->
-> This is the problem: on suspend, we can only save about 50% of memory
-> through the suspend image because of the snapshotting.  So we have to
-> shrink memory before suspend.  Since you probably always have more RAM
-> used than 50%, you always have to shrink.  And the image is always the
-> same size.
->
-> After restoring the image, resuming processes want to continue their
-> work immediately and the user wants to use the applications again as
-> soon as possible.
->
-> Everything that is saved in the suspend image is restored and back in
-> memory when the processes resume their work.
->
-> Everything that is NOT saved in the suspend image is still on swap or
-> not yet in the page page when the processes resume their work.
->
-> So if we shrink the memory in the wrong order, after restoring the
-> image we have page cache in memory that is not needed and those anon
-> pages that are needed are swapped out.
+I run dbench on btrfs, which is on file on xfs
 
-It make sense.
+btrfs: disabling barriers on dev /dev/loop/0
+------------[ cut here ]------------
+kernel BUG at mm/slub.c:1132!
+invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+last sysfs file: /sys/kernel/uevent_seqnum
+CPU 1
+Modules linked in:
+Pid: 2078, comm: loop0 Not tainted 2.6.29-rc3-next-20090206 #1
+RIP: 0010:[<ffffffff802c25ae>]  [<ffffffff802c25ae>] __slab_alloc+0x41e/0x610
+RSP: 0018:ffff88007b17d620  EFLAGS: 00010202
+RAX: 0000000000000000 RBX: 0000000000120012 RCX: 0000000000000010
+RDX: 0000000000000000 RSI: ffffffff802c2301 RDI: ffffffff8026c12d
+RBP: ffff88007b17d670 R08: 0000000000000001 R09: 0000000000000000
+R10: ffff88007dbbce40 R11: 0000000000000000 R12: 0000000000000000
+R13: ffff88007db82ed8 R14: ffff88007d2554a8 R15: ffff88007d255488
+FS:  0000000000000000(0000) GS:ffff880004dd6000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b
+CR2: 00007ff50c1bb000 CR3: 000000006c19d000 CR4: 00000000000006e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process loop0 (pid: 2078, threadinfo ffff88007b17c000, task ffff88007dbbce40)
+Stack:
+ ffffffff802c27d9 ffffffff804379f7 ffffffff7d255488 0000001000120012
+ ffff88007b17d660 0000000000000000 0000000000000202 0000000000120012
+ ffff88007d255488 ffffffff804379f7 ffff88007b17d6b0 ffffffff802c2896
+Call Trace:
+ [<ffffffff802c27d9>] ? kmem_cache_alloc+0x39/0x100
+ [<ffffffff804379f7>] ? alloc_extent_state+0x17/0xa0
+ [<ffffffff804379f7>] ? alloc_extent_state+0x17/0xa0
+ [<ffffffff802c2896>] kmem_cache_alloc+0xf6/0x100
+ [<ffffffff804379f7>] alloc_extent_state+0x17/0xa0
+ [<ffffffff80439246>] clear_extent_bit+0x1a6/0x2e0
+ [<ffffffff80439cee>] try_release_extent_state+0x7e/0xa0
+ [<ffffffff80439e62>] try_release_extent_mapping+0x152/0x180
+ [<ffffffff802a0520>] ? __remove_mapping+0xd0/0x100
+ [<ffffffff804212f6>] __btrfs_releasepage+0x36/0x70
+ [<ffffffff80421355>] btrfs_releasepage+0x25/0x30
+ [<ffffffff8029391e>] try_to_release_page+0x2e/0x60
+ [<ffffffff802a1542>] shrink_page_list+0x572/0x860
+ [<ffffffff8062db3b>] ? _spin_unlock_irq+0x2b/0x60
+ [<ffffffff802a1ae1>] ? shrink_list+0x2b1/0x680
+ [<ffffffff802a1afd>] shrink_list+0x2cd/0x680
+ [<ffffffff802358a0>] ? sub_preempt_count+0xc0/0x130
+ [<ffffffff8062dbb2>] ? _spin_unlock_irqrestore+0x42/0x80
+ [<ffffffff80475890>] ? __up_write+0x70/0x120
+ [<ffffffff802a211b>] shrink_zone+0x26b/0x380
+ [<ffffffff802a2b35>] try_to_free_pages+0x255/0x3d0
+ [<ffffffff8029fc00>] ? isolate_pages_global+0x0/0x270
+ [<ffffffff8029a767>] __alloc_pages_internal+0x237/0x590
+ [<ffffffff80295545>] grab_cache_page_write_begin+0x85/0xd0
+ [<ffffffff8062b88c>] ? __mutex_lock_common+0x37c/0x4d0
+ [<ffffffff804fd7b3>] ? do_lo_send_aops+0x43/0x190
+ [<ffffffff802ee577>] block_write_begin+0x87/0xf0
+ [<ffffffff803eeee5>] xfs_vm_write_begin+0x25/0x30
+ [<ffffffff803ef270>] ? xfs_get_blocks+0x0/0x20
+ [<ffffffff802938eb>] pagecache_write_begin+0x1b/0x20
+ [<ffffffff804fd823>] do_lo_send_aops+0xb3/0x190
+ [<ffffffff8062db3b>] ? _spin_unlock_irq+0x2b/0x60
+ [<ffffffff802358a0>] ? sub_preempt_count+0xc0/0x130
+ [<ffffffff804fdd45>] loop_thread+0x445/0x4e0
+ [<ffffffff804fd770>] ? do_lo_send_aops+0x0/0x190
+ [<ffffffff80259420>] ? autoremove_wake_function+0x0/0x40
+ [<ffffffff804fd900>] ? loop_thread+0x0/0x4e0
+ [<ffffffff80258f76>] kthread+0x56/0x90
+ [<ffffffff8020ce5a>] child_rip+0xa/0x20
+ [<ffffffff80235759>] ? finish_task_switch+0x89/0x110
+ [<ffffffff8062db46>] ? _spin_unlock_irq+0x36/0x60
+ [<ffffffff8020c840>] ? restore_args+0x0/0x30
+ [<ffffffff80258f20>] ? kthread+0x0/0x90
+ [<ffffffff8020ce50>] ? child_rip+0x0/0x20
 
-> And the goal is that after restoring the image we have as much of the
-> working set back in memory and those pages in swap and on disk-only
-> that are unlikely to be used immediately by the resumed processes, so
-> they can continue their work without much disk io.
->
-
-Your intention is good to me.
-
->> > But I just noticed that the old behaviour defers it as well, because
->> > even if it does scan anon pages from the beginning, it allows writing
->> > only starting from pass 3.
->>
->> Ah, I see.
->> it's obiously wrong.
->>
->> > I couldn't quite understand what you wrote about on-disk
->> > contiguousness, but that claim still stands: faulting in contiguous
->> > pages from swap can be much slower than faulting file pages.  And my
->> > patch prefers mapped file pages over anon pages.  This is probably
->> > where I have seen the improvements after resume in my tests.
->>
->> sorry, I don't understand yet.
->> Why "prefers mapped file pages over anon pages" makes large improvement?
->
-> Because contigously mapped file pages are faster to read in than a
-> group of anon pages.  Or at least that is my claim.
-
-It make sense if general resume process happens fault which have
-locality pattern
-so, you should prove this.
-
->
-> And if we have to evict some of the working set just because the
-> working set is bigger than 50% of memory, then it's better to evict
-> those pages that are cheaper to refault.
->
-> Does that make sense?
-
-Indeed!
-
->> > Yes, I'm still thinking about ideas how to quantify it properly.  I
->> > have not yet found a reliable way to check for whether the working set
->> > is intact besides seeing whether the resumed applications are
->> > responsive right away or if they first have to swap in their pages
->> > again.
->>
->> thanks.
->> I'm looking for this :)
->
-> Thanks to YOU, also for for reviewing!
->
->> > > > @@ -2134,17 +2144,17 @@ unsigned long shrink_all_memory(unsigned
->> > > >
->> > > >         /*
->> > > >          * We try to shrink LRUs in 5 passes:
->> > > > -        * 0 = Reclaim from inactive_list only
->> > > > -        * 1 = Reclaim from active list but don't reclaim mapped
->> > > > -        * 2 = 2nd pass of type 1
->> > > > -        * 3 = Reclaim mapped (normal reclaim)
->> > > > -        * 4 = 2nd pass of type 3
->> > > > +        * 0 = Reclaim unmapped inactive file pages
->> > > > +        * 1 = Reclaim unmapped file pages
->> > >
->> > > I think your patch reclaim mapped file at priority 0 and 1 too.
->> >
->> > Doesn't the following check in shrink_page_list prevent this:
->> >
->> >                 if (!sc->may_swap && page_mapped(page))
->> >                         goto keep_locked;
->> >
->> > ?
->>
->> Grr, you are right.
->> I agree, currently may_swap doesn't control swap out or not.
->> so I think we should change it correct name ;)
->
-> Agreed.  What do you think about the following patch?
-
-As for me, I can't agree with you.
-There are two kinds of file-mapped pages.
-
-1. file-mapped and dirty page.
-2. file-mapped and no-dirty page
-
-Both pages are not swapped.
-File-mapped and dirty page is synced with original file
-File-mapped and no-dirty page is just discarded with viewpoint of reclaim.
-
-So, may_swap is just related to anon-pages
-Thus, I think may_swap is reasonable.
-How about you ?
-
->
-> ---
-> Subject: vmscan: rename may_swap scan control knob
->
-> may_swap applies not only to anon pages but to mapped file pages as
-> well.  Rename it to may_unmap which is the actual meaning.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9a27c44..2523600 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -60,8 +60,8 @@ struct scan_control {
->
->        int may_writepage;
->
-> -       /* Can pages be swapped as part of reclaim? */
-> -       int may_swap;
-> +       /* Reclaim mapped pages */
-> +       int may_unmap;
->
->        /* This context's SWAP_CLUSTER_MAX. If freeing memory for
->         * suspend, we effectively ignore SWAP_CLUSTER_MAX.
-> @@ -606,7 +606,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->                if (unlikely(!page_evictable(page, NULL)))
->                        goto cull_mlocked;
->
-> -               if (!sc->may_swap && page_mapped(page))
-> +               if (!sc->may_unmap && page_mapped(page))
->                        goto keep_locked;
->
->                /* Double the slab pressure for mapped and swapcache pages */
-> @@ -1694,7 +1694,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->                .gfp_mask = gfp_mask,
->                .may_writepage = !laptop_mode,
->                .swap_cluster_max = SWAP_CLUSTER_MAX,
-> -               .may_swap = 1,
-> +               .may_unmap = 1,
->                .swappiness = vm_swappiness,
->                .order = order,
->                .mem_cgroup = NULL,
-> @@ -1713,7 +1713,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->  {
->        struct scan_control sc = {
->                .may_writepage = !laptop_mode,
-> -               .may_swap = 1,
-> +               .may_unmap = 1,
->                .swap_cluster_max = SWAP_CLUSTER_MAX,
->                .swappiness = swappiness,
->                .order = 0,
-> @@ -1723,7 +1723,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
->        struct zonelist *zonelist;
->
->        if (noswap)
-> -               sc.may_swap = 0;
-> +               sc.may_unmap = 0;
->
->        sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->                        (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
-> @@ -1762,7 +1762,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order)
->        struct reclaim_state *reclaim_state = current->reclaim_state;
->        struct scan_control sc = {
->                .gfp_mask = GFP_KERNEL,
-> -               .may_swap = 1,
-> +               .may_unmap = 1,
->                .swap_cluster_max = SWAP_CLUSTER_MAX,
->                .swappiness = vm_swappiness,
->                .order = order,
-> @@ -2109,7 +2109,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
->        struct reclaim_state reclaim_state;
->        struct scan_control sc = {
->                .gfp_mask = GFP_KERNEL,
-> -               .may_swap = 0,
-> +               .may_unmap = 0,
->                .swap_cluster_max = nr_pages,
->                .may_writepage = 1,
->                .swappiness = vm_swappiness,
-> @@ -2147,7 +2147,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
->
->                /* Force reclaiming mapped pages in the passes #3 and #4 */
->                if (pass > 2) {
-> -                       sc.may_swap = 1;
-> +                       sc.may_unmap = 1;
->                        sc.swappiness = 100;
->                }
->
-> @@ -2292,7 +2292,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->        int priority;
->        struct scan_control sc = {
->                .may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
-> -               .may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-> +               .may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
->                .swap_cluster_max = max_t(unsigned long, nr_pages,
->                                        SWAP_CLUSTER_MAX),
->                .gfp_mask = gfp_mask,
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
--- 
-Kinds regards,
-MinChan Kim
+Code: e8 18 69 1b 00 e9 48 ff ff ff 31 c9 48 c7 c2 00 4f 81 80 89 c6
+e8 93 7f fd ff 48 89 c3 48 85 c0 0f 85 73 fe ff ff e9 91 fd ff ff <0f>
+0b eb fe 49 83 7f 60 00 90 0f 84 2d fd ff ff 4c 89 f7 e8 aa
+RIP  [<ffffffff802c25ae>] __slab_alloc+0x41e/0x610
+RSP <ffff88007b17d620>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
