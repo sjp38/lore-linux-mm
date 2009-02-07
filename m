@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 217706B004F
-	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 18:40:40 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH 0/3] swsusp: shrink file cache first
-Date: Sat, 7 Feb 2009 00:39:53 +0100
-References: <E1LVFiv-00032p-HX@cmpxchg.org>
-In-Reply-To: <E1LVFiv-00032p-HX@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-2"
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A496F6B003D
+	for <linux-mm@kvack.org>; Fri,  6 Feb 2009 23:40:24 -0500 (EST)
+Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
+From: Nigel Cunningham <ncunningham-lkml@crca.org.au>
+Reply-To: ncunningham-lkml@crca.org.au
+In-Reply-To: <20090206130009.99400d43.akpm@linux-foundation.org>
+References: <20090206031125.693559239@cmpxchg.org>
+	 <20090206031324.004715023@cmpxchg.org>
+	 <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	 <20090206044907.GA18467@cmpxchg.org>
+	 <20090206130009.99400d43.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Sat, 07 Feb 2009 15:41:00 +1100
+Message-Id: <1233981660.12224.1.camel@nigel-laptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200902070039.54402.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: hannes@cmpxchg.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, kosaki.motohiro@jp.fujitsu.com, rjw@sisk.pl, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Hello!
+Hi.
 
-Hi Hannes,
- 
-> here are three patches that adjust the memory shrinking code used for
-> suspend-to-disk.
+On Fri, 2009-02-06 at 13:00 -0800, Andrew Morton wrote:
+> On Fri, 6 Feb 2009 05:49:07 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> The first two patches are cleanups only and can probably go in
-> regardless of the third one.
+> > > and, I think you should mesure performence result.
+> > 
+> > Yes, I'm still thinking about ideas how to quantify it properly.  I
+> > have not yet found a reliable way to check for whether the working set
+> > is intact besides seeing whether the resumed applications are
+> > responsive right away or if they first have to swap in their pages
+> > again.
 > 
-> The third patch changes the shrink_all_memory() logic to drop the file
-> cache first before touching any mapped files and only then goes for
-> anon pages.
+> Describing your subjective non-quantitative impressions would be better
+> than nothing...
 > 
-> The reason is that everything not shrunk before suspension has to go
-> into the image and will be 'prefaulted' before the processes can
-> resume and the system is usable again, so the image should be small
-> and contain only pages that are likely to be used right after resume
-> again.  And this in turn means that the inactive file cache is the
-> best point to start decimating used memory.
+> The patch bugs me.
 > 
-> Also, right now, subsequent faults of contiguously mapped files are
-> likely to perform better than swapin (see
-> http://kernelnewbies.org/KernelProjects/SwapoutClustering), so not
-> only file cache is preferred over other pages, but file pages over
-> anon pages in general.
+> The whole darn point behind the whole darn page reclaim is "reclaim the
+> pages which we aren't likely to need soon".  There's nothing special
+> about the swsusp code at all!  We want it to do exactly what page
+> reclaim normally does, only faster.
 > 
-> Testing up to this point shows that the patch does what is intended,
-> shrinking file cache in favor of anon pages.  But whether the idea is
-> correct to begin with is a bit hard to quantify and I am still working
-> on it, so RFC only.
+> So why do we need to write special hand-rolled code to implement
+> something which we've already spent ten years writing?
+> 
+> hm?  And if this approach leads to less-than-optimum performance after
+> resume then the fault lies with core page reclaim - it reclaimed the
+> wrong pages!
+> 
+> That actually was my thinking when I first worked on
+> shrink_all_memory() and it did turn out to be surprisingly hard to
+> simply reuse the existing reclaim code for this application.  Things
+> kept on going wrong.  IIRC this was because we were freeing pages as we
+> were reclaiming, so the page reclaim logic kept on seeing all these
+> free pages and kept on wanting to bale out.
+> 
+> Now, the simple and obvious fix to this is not to free the pages - just
+> keep on allocating pages and storing them locally until we have
+> "enough" memory.  Then when we're all done, dump them all straight onto
+> to the freelists.
+> 
+> But for some reason which I do not recall, we couldn't do that.
+> 
+> It would be good to revisit all this.
 
-Thanks a lot for the patches, I'll review them as soon as I can.
+It would be. It would be good, too, if 'we' could make it actually free
+the number of pages it's asked for, too. At the moment, you generally
+get something like 90% of what you ask for. Makes carefully calculating
+how much you need to ask for a bit pointless :\
 
-I've got them with broken headers, but that's not a big deal.
-
-Best,
-Rafael
+Nigel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
