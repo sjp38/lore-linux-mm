@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CA8B36B003D
-	for <linux-mm@kvack.org>; Sat,  7 Feb 2009 16:20:12 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CA776B003D
+	for <linux-mm@kvack.org>; Sun,  8 Feb 2009 15:57:48 -0500 (EST)
+Date: Sun, 8 Feb 2009 21:56:50 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
-From: Nigel Cunningham <ncunningham-lkml@crca.org.au>
-Reply-To: ncunningham-lkml@crca.org.au
-In-Reply-To: <2f11576a0902070851q7d478679i8a47ad9b3810dc0e@mail.gmail.com>
-References: <20090206031125.693559239@cmpxchg.org>
-	 <20090206031324.004715023@cmpxchg.org>
-	 <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	 <20090206044907.GA18467@cmpxchg.org>
-	 <20090206130009.99400d43.akpm@linux-foundation.org>
-	 <2f11576a0902070851q7d478679i8a47ad9b3810dc0e@mail.gmail.com>
-Content-Type: text/plain
-Date: Sun, 08 Feb 2009 08:20:51 +1100
-Message-Id: <1234041651.7277.5.camel@nigel-laptop>
+Message-ID: <20090208205650.GA6188@cmpxchg.org>
+References: <20090206031125.693559239@cmpxchg.org> <20090206130009.99400d43.akpm@linux-foundation.org> <20090206232747.GA3539@cmpxchg.org> <200902071823.54259.rjw@sisk.pl>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200902071823.54259.rjw@sisk.pl>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, rjw@sisk.pl, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-On Sun, 2009-02-08 at 01:51 +0900, KOSAKI Motohiro wrote:
-> akpm wrote:
-> --------------
->  And what was the observed effect of all this?
+On Sat, Feb 07, 2009 at 06:23:53PM +0100, Rafael J. Wysocki wrote:
+> On Saturday 07 February 2009, Johannes Weiner wrote:
+> > On Fri, Feb 06, 2009 at 01:00:09PM -0800, Andrew Morton wrote:
+> > > On Fri, 6 Feb 2009 05:49:07 +0100
+> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > 
+> > > > > and, I think you should mesure performence result.
+> > > > 
+> > > > Yes, I'm still thinking about ideas how to quantify it properly.  I
+> > > > have not yet found a reliable way to check for whether the working set
+> > > > is intact besides seeing whether the resumed applications are
+> > > > responsive right away or if they first have to swap in their pages
+> > > > again.
+> > > 
+> > > Describing your subjective non-quantitative impressions would be better
+> > > than nothing...
+> > 
+> > Okay.
+> > 
+> > > The patch bugs me.
+> > 
+> > Please ignore it, it is broken as is.  My verbal cortex got obviously
+> > disconnected from my code cortex when writing the changelog...
 > 
-> Rafael wrote:
-> --------------
-> Measurable effects:
-> 1) It tends to free only as much memory as required, eg. if the image_size
-> is set to 450 MB, the actual image sizes are almost always well above
-> 400 MB and they tended to be below that number without the patch
-> (~5-10% of a difference, but still :-)).
+> If I understood this correctly, patch 3/3 is to be disregarded.
+> 
+> > And I will reconsider the actual change bits, I still think that we
+> > shouldn't scan anon page lists while may_swap is zero.
+> 
+> Hm, can you please remind me what may_swap == 0 acutally means?
 
-Do you always get at least the number of pages you ask for, if that's
-possible?
+That no mapped pages are reclaimed.  These are also mapped file pages,
+but more importantly in this case, anon pages.  See this check in
+shrink_page_list():
 
-Regards,
+                if (!sc->may_swap && page_mapped(page))
+                        goto keep_locked;
 
-Nigel
+So scanning anon lists without allowing to unmap doesn't free memory.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
