@@ -1,112 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7A1FE6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 01:12:30 -0500 (EST)
-Received: from toip7.srvr.bell.ca ([209.226.175.124])
-          by tomts13-srv.bellnexxia.net
-          (InterMail vM.5.01.06.13 201-253-122-130-113-20050324) with ESMTP
-          id <20090210061228.GYZQ1559.tomts13-srv.bellnexxia.net@toip7.srvr.bell.ca>
-          for <linux-mm@kvack.org>; Tue, 10 Feb 2009 01:12:28 -0500
-Date: Tue, 10 Feb 2009 01:12:27 -0500
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: Re: [PATCH] mm fix page writeback accounting to fix oom condition
-	under heavy I/O
-Message-ID: <20090210061226.GA1918@Krystal>
-References: <20090120122855.GF30821@kernel.dk> <20090120232748.GA10605@Krystal> <20090123220009.34DF.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090210033652.GA28435@Krystal> <alpine.LFD.2.00.0902092120450.3048@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3B5136B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 02:39:18 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1A7dFFG001793
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 10 Feb 2009 16:39:15 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1516245DE64
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:15 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D7C3945DE55
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A778E1DB8038
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 266071DB8047
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] introduce for_each_populated_zone() macro
+Message-Id: <20090210162220.6FBC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0902092120450.3048@localhost.localdomain>
+Date: Tue, 10 Feb 2009 16:39:13 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jens Axboe <jens.axboe@oracle.com>, akpm@linux-foundation.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, thomas.pi@arcor.dea, Yuriy Lalym <ylalym@gmail.com>, ltt-dev@lists.casi.polymtl.ca, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds (torvalds@linux-foundation.org) wrote:
-> 
-> 
-> On Mon, 9 Feb 2009, Mathieu Desnoyers wrote:
-> > 
-> > So this patch fixes this behavior by only decrementing the page accounting
-> > _after_ the block I/O writepage has been done.
-> 
-> This makes no sense, really.
-> 
-> Or rather, I don't mind the notion of updating the counters only after IO 
-> per se, and _that_ part of it probably makes sense. But why is it that you 
-> only then fix up two of the call-sites. There's a lot more call-sites than 
-> that for this function. 
-> 
-> So if this really makes a big difference, that's an interesting starting 
-> point for discussion, but I don't see how this particular patch could 
-> possibly be the right thing to do.
-> 
 
-Yes, you are right. Looking in more details at /proc/meminfo under the
-workload, I notice this :
+Impact: cleanup
 
-MemTotal:       16028812 kB
-MemFree:        13651440 kB
-Buffers:            8944 kB
-Cached:          2209456 kB   <--- increments up to ~16GB
+In almost case, for_each_zone() is used with populated_zone().
+It's because almost function doesn't need memoryless node information.
+Therefore, for_each_populated_zone() can help to make code simplify.
 
-        cached = global_page_state(NR_FILE_PAGES) -
-                        total_swapcache_pages - i.bufferram;
+This patch doesn't have any functional change.
 
-SwapCached:            0 kB
-Active:            34668 kB
-Inactive:        2200668 kB   <--- also
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+---
+ include/linux/mmzone.h  |   11 +++++++++++
+ kernel/power/snapshot.c |    9 +++------
+ kernel/power/swsusp.c   |   17 ++++++++---------
+ mm/page_alloc.c         |   26 +++++---------------------
+ mm/vmscan.c             |    6 +-----
+ mm/vmstat.c             |   11 ++---------
+ 6 files changed, 30 insertions(+), 50 deletions(-)
 
-                K(pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE]),
-
-Active(anon):      17136 kB
-Inactive(anon):        0 kB
-Active(file):      17532 kB
-Inactive(file):  2200668 kB   <--- also
-
-                K(pages[LRU_INACTIVE_FILE]),
-
-Unevictable:           0 kB
-Mlocked:               0 kB
-SwapTotal:      19535024 kB
-SwapFree:       19535024 kB
-Dirty:           1159036 kB
-Writeback:             0 kB  <--- stays close to 0
-AnonPages:         17060 kB
-Mapped:             9476 kB
-Slab:              96188 kB
-SReclaimable:      79776 kB
-SUnreclaim:        16412 kB
-PageTables:         3364 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:    27549428 kB
-Committed_AS:      54292 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:        9960 kB
-VmallocChunk:   34359727667 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-DirectMap4k:        7552 kB
-DirectMap2M:    16769024 kB
-
-So I think simply substracting K(pages[LRU_INACTIVE_FILE]) from
-avail_dirty in clip_bdi_dirty_limit() and to consider it in
-balance_dirty_pages() and throttle_vm_writeout() would probably make my
-problem go away, but I would like to understand exactly why this is
-needed and if I would need to consider other types of page counts that
-would have been forgotten.
-
-Mathieu
-
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 09c14e2..abda5ec 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -806,6 +806,17 @@ extern struct zone *next_zone(struct zone *zone);
+ 	     zone;					\
+ 	     zone = next_zone(zone))
+ 
++#define for_each_populated_zone(zone)		        \
++	for (zone = (first_online_pgdat())->node_zones; \
++	     zone;					\
++	     zone = next_zone(zone))			\
++		if (!populated_zone(zone))		\
++			; /* do nothing */		\
++		else
++
++
++
++
+ static inline struct zone *zonelist_zone(struct zoneref *zoneref)
+ {
+ 	return zoneref->zone;
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index f5fc2d7..33e2e4a 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -321,13 +321,10 @@ static int create_mem_extents(struct list_head *list, gfp_t gfp_mask)
+ 
+ 	INIT_LIST_HEAD(list);
+ 
+-	for_each_zone(zone) {
++	for_each_populated_zone(zone) {
+ 		unsigned long zone_start, zone_end;
+ 		struct mem_extent *ext, *cur, *aux;
+ 
+-		if (!populated_zone(zone))
+-			continue;
+-
+ 		zone_start = zone->zone_start_pfn;
+ 		zone_end = zone->zone_start_pfn + zone->spanned_pages;
+ 
+@@ -804,8 +801,8 @@ static unsigned int count_free_highmem_pages(void)
+ 	struct zone *zone;
+ 	unsigned int cnt = 0;
+ 
+-	for_each_zone(zone)
+-		if (populated_zone(zone) && is_highmem(zone))
++	for_each_populated_zone(zone)
++		if (is_highmem(zone))
+ 			cnt += zone_page_state(zone, NR_FREE_PAGES);
+ 
+ 	return cnt;
+diff --git a/kernel/power/swsusp.c b/kernel/power/swsusp.c
+index a92c914..1ee6636 100644
+--- a/kernel/power/swsusp.c
++++ b/kernel/power/swsusp.c
+@@ -229,17 +229,16 @@ int swsusp_shrink_memory(void)
+ 		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
+ 		tmp = size;
+ 		size += highmem_size;
+-		for_each_zone (zone)
+-			if (populated_zone(zone)) {
+-				tmp += snapshot_additional_pages(zone);
+-				if (is_highmem(zone)) {
+-					highmem_size -=
++		for_each_populated_zone(zone) {
++			tmp += snapshot_additional_pages(zone);
++			if (is_highmem(zone)) {
++				highmem_size -=
+ 					zone_page_state(zone, NR_FREE_PAGES);
+-				} else {
+-					tmp -= zone_page_state(zone, NR_FREE_PAGES);
+-					tmp += zone->lowmem_reserve[ZONE_NORMAL];
+-				}
++			} else {
++				tmp -= zone_page_state(zone, NR_FREE_PAGES);
++				tmp += zone->lowmem_reserve[ZONE_NORMAL];
+ 			}
++		}
+ 
+ 		if (highmem_size < 0)
+ 			highmem_size = 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5675b30..68610a9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -922,13 +922,10 @@ static void drain_pages(unsigned int cpu)
+ 	unsigned long flags;
+ 	struct zone *zone;
+ 
+-	for_each_zone(zone) {
++	for_each_populated_zone(zone) {
+ 		struct per_cpu_pageset *pset;
+ 		struct per_cpu_pages *pcp;
+ 
+-		if (!populated_zone(zone))
+-			continue;
+-
+ 		pset = zone_pcp(zone, cpu);
+ 
+ 		pcp = &pset->pcp;
+@@ -1874,10 +1871,7 @@ void show_free_areas(void)
+ 	int cpu;
+ 	struct zone *zone;
+ 
+-	for_each_zone(zone) {
+-		if (!populated_zone(zone))
+-			continue;
+-
++	for_each_populated_zone(zone) {
+ 		show_node(zone);
+ 		printk("%s per-cpu:\n", zone->name);
+ 
+@@ -1917,12 +1911,9 @@ void show_free_areas(void)
+ 		global_page_state(NR_PAGETABLE),
+ 		global_page_state(NR_BOUNCE));
+ 
+-	for_each_zone(zone) {
++	for_each_populated_zone(zone) {
+ 		int i;
+ 
+-		if (!populated_zone(zone))
+-			continue;
+-
+ 		show_node(zone);
+ 		printk("%s"
+ 			" free:%lukB"
+@@ -1962,12 +1953,9 @@ void show_free_areas(void)
+ 		printk("\n");
+ 	}
+ 
+-	for_each_zone(zone) {
++	for_each_populated_zone(zone) {
+  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
+ 
+-		if (!populated_zone(zone))
+-			continue;
+-
+ 		show_node(zone);
+ 		printk("%s: ", zone->name);
+ 
+@@ -2779,11 +2767,7 @@ static int __cpuinit process_zones(int cpu)
+ 
+ 	node_set_state(node, N_CPU);	/* this node has a cpu */
+ 
+-	for_each_zone(zone) {
+-
+-		if (!populated_zone(zone))
+-			continue;
+-
++	for_each_populated_zone(zone) {
+ 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
+ 					 GFP_KERNEL, node);
+ 		if (!zone_pcp(zone, cpu))
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9a27c44..b9c3cea 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2060,11 +2060,7 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+ 	unsigned long nr_to_scan, ret = 0;
+ 	enum lru_list l;
+ 
+-	for_each_zone(zone) {
+-
+-		if (!populated_zone(zone))
+-			continue;
+-
++	for_each_populated_zone(zone) {
+ 		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
+ 			continue;
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9114974..6fb76fa 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -135,11 +135,7 @@ static void refresh_zone_stat_thresholds(void)
+ 	int cpu;
+ 	int threshold;
+ 
+-	for_each_zone(zone) {
+-
+-		if (!zone->present_pages)
+-			continue;
+-
++	for_each_populated_zone(zone) {
+ 		threshold = calculate_threshold(zone);
+ 
+ 		for_each_online_cpu(cpu)
+@@ -301,12 +297,9 @@ void refresh_cpu_vm_stats(int cpu)
+ 	int i;
+ 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+ 
+-	for_each_zone(zone) {
++	for_each_populated_zone(zone) {
+ 		struct per_cpu_pageset *p;
+ 
+-		if (!populated_zone(zone))
+-			continue;
+-
+ 		p = zone_pcp(zone, cpu);
+ 
+ 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 -- 
-Mathieu Desnoyers
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+1.6.0.6
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
