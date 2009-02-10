@@ -1,262 +1,337 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3B5136B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 02:39:18 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1A7dFFG001793
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 10 Feb 2009 16:39:15 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1516245DE64
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:15 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D7C3945DE55
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A778E1DB8038
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 266071DB8047
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 16:39:14 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH] introduce for_each_populated_zone() macro
-Message-Id: <20090210162220.6FBC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C72E6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 03:07:09 -0500 (EST)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n1A873Xi027529
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 13:37:03 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1A84Zav3240026
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 13:34:35 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n1A872t7028326
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:07:03 +1100
+Date: Tue, 10 Feb 2009 13:37:00 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH] Reduce size of swap_cgroup by CSS ID v2
+Message-ID: <20090210080700.GC16317@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090205185959.7971dee4.kamezawa.hiroyu@jp.fujitsu.com> <20090209145557.d0754a9f.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 10 Feb 2009 16:39:13 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090209145557.d0754a9f.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-09 14:55:57]:
 
-Impact: cleanup
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Still !!EXPERIMENTAL!!, sorry.
+> 
+> This patch tires to use CSS ID for records in swap_cgroup.
+> By this, on 64bit machine, size of swap_cgroup goes down to 2 bytes from 8bytes.
+> 
+> This means, when 2GB of swap is equipped, (assume the page size is 4096bytes)
+> 	From size of swap_cgroup = 2G/4k * 8 = 4Mbytes.
+> 	To   size of swap_cgroup = 2G/4k * 2 = 1Mbytes.
+> Reduction is large. Of course, there are trade-offs. This CSS ID will add
+> overhead to swap-in/swap-out/swap-free.
+> 
+> But in general,
+>   - swap is a resource which the user tend to avoid use.
+>   - If swap is never used, swap_cgroup area is not used.
+>   - Reading traditional manuals, size of swap should be proportional to
+>     size of memory. Memory size of machine is increasing now.
+> 
+> I think reducing size of swap_cgroup makes sense.
+>     
+> Note:
+>   - ID->CSS lookup routine has no locks, it's under RCU-Read-Side.
+>   - memcg can be obsolete at rmdir() but not freed while refcnt from
+>     swap_cgroup is available.
+> 
+> This is still under test. Any comments are welcome.
 
-In almost case, for_each_zone() is used with populated_zone().
-It's because almost function doesn't need memoryless node information.
-Therefore, for_each_populated_zone() can help to make code simplify.
+Yes, this does save memory. I wonder if we should move away from
+mem_cgroup even in page_cgroup. I guess it depends on the cost of
+mem_cgroup lookup from CSS ID.
 
-This patch doesn't have any functional change.
+> 
+> Changelog: v1 -> v2
+>  - removed css_tryget().
+>  - fixed text in comments.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/page_cgroup.h |    9 ++----
+>  mm/memcontrol.c             |   64 +++++++++++++++++++++++++++++++++++++-------
+>  mm/page_cgroup.c            |   26 ++++++++---------
+>  3 files changed, 71 insertions(+), 28 deletions(-)
+> 
+> Index: mmotm-2.6.29-Feb05/include/linux/page_cgroup.h
+> ===================================================================
+> --- mmotm-2.6.29-Feb05.orig/include/linux/page_cgroup.h
+> +++ mmotm-2.6.29-Feb05/include/linux/page_cgroup.h
+> @@ -91,22 +91,21 @@ static inline void page_cgroup_init(void
+> 
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  #include <linux/swap.h>
+> -extern struct mem_cgroup *
+> -swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem);
+> -extern struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent);
+> +extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
+> +extern unsigned short lookup_swap_cgroup(swp_entry_t ent);
+>  extern int swap_cgroup_swapon(int type, unsigned long max_pages);
+>  extern void swap_cgroup_swapoff(int type);
+>  #else
+>  #include <linux/swap.h>
+> 
+>  static inline
+> -struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
+> +unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+>  {
+>  	return NULL;
+>  }
+> 
+>  static inline
+> -struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+> +unsigned short lookup_swap_cgroup(swp_entry_t ent)
+>  {
+>  	return NULL;
+>  }
+> Index: mmotm-2.6.29-Feb05/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.29-Feb05.orig/mm/memcontrol.c
+> +++ mmotm-2.6.29-Feb05/mm/memcontrol.c
+> @@ -1001,20 +1001,41 @@ nomem:
+>  	return -ENOMEM;
+>  }
+> 
+> +/*
+> + * A helper function to get mem_cgroup from ID. must be called under
+> + * rcu_read_lock(). The caller must check css_is_removed() or some if
+> + * it's concern. (dropping refcnt from swap can be called against removed
+> + * memcg.)
+> + */
+> +static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+> +{
+> +	struct cgroup_subsys_state *css;
+> +
+> +	/* ID 0 is unused ID */
+> +	if (!id)
+> +		return NULL;
+> +	css = css_lookup(&mem_cgroup_subsys, id);
+> +	if (!css)
+> +		return NULL;
+> +	return container_of(css, struct mem_cgroup, css);
+> +}
+> +
+>  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+>  {
+> -	struct mem_cgroup *mem;
+> +	unsigned short id;
+> +	struct mem_cgroup *mem = NULL;
+>  	swp_entry_t ent;
+> 
+>  	if (!PageSwapCache(page))
+>  		return NULL;
+> 
+>  	ent.val = page_private(page);
+> -	mem = lookup_swap_cgroup(ent);
+> -	if (!mem)
+> -		return NULL;
+> +	id = lookup_swap_cgroup(ent);
+> +	rcu_read_lock();
+> +	mem = mem_cgroup_lookup(id);
+>  	if (!css_tryget(&mem->css))
+> -		return NULL;
+> +		mem = NULL;
 
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/mmzone.h  |   11 +++++++++++
- kernel/power/snapshot.c |    9 +++------
- kernel/power/swsusp.c   |   17 ++++++++---------
- mm/page_alloc.c         |   26 +++++---------------------
- mm/vmscan.c             |    6 +-----
- mm/vmstat.c             |   11 ++---------
- 6 files changed, 30 insertions(+), 50 deletions(-)
+This part is a bit confusing. If the page got swapped out and the CSS
+it belonged to got swapped out, we set mem to NULL. Is this so that it
+can be charged to root cgroup? If so, could you please add a comment
+indicating the same.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 09c14e2..abda5ec 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -806,6 +806,17 @@ extern struct zone *next_zone(struct zone *zone);
- 	     zone;					\
- 	     zone = next_zone(zone))
- 
-+#define for_each_populated_zone(zone)		        \
-+	for (zone = (first_online_pgdat())->node_zones; \
-+	     zone;					\
-+	     zone = next_zone(zone))			\
-+		if (!populated_zone(zone))		\
-+			; /* do nothing */		\
-+		else
-+
-+
-+
-+
- static inline struct zone *zonelist_zone(struct zoneref *zoneref)
- {
- 	return zoneref->zone;
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index f5fc2d7..33e2e4a 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -321,13 +321,10 @@ static int create_mem_extents(struct list_head *list, gfp_t gfp_mask)
- 
- 	INIT_LIST_HEAD(list);
- 
--	for_each_zone(zone) {
-+	for_each_populated_zone(zone) {
- 		unsigned long zone_start, zone_end;
- 		struct mem_extent *ext, *cur, *aux;
- 
--		if (!populated_zone(zone))
--			continue;
--
- 		zone_start = zone->zone_start_pfn;
- 		zone_end = zone->zone_start_pfn + zone->spanned_pages;
- 
-@@ -804,8 +801,8 @@ static unsigned int count_free_highmem_pages(void)
- 	struct zone *zone;
- 	unsigned int cnt = 0;
- 
--	for_each_zone(zone)
--		if (populated_zone(zone) && is_highmem(zone))
-+	for_each_populated_zone(zone)
-+		if (is_highmem(zone))
- 			cnt += zone_page_state(zone, NR_FREE_PAGES);
- 
- 	return cnt;
-diff --git a/kernel/power/swsusp.c b/kernel/power/swsusp.c
-index a92c914..1ee6636 100644
---- a/kernel/power/swsusp.c
-+++ b/kernel/power/swsusp.c
-@@ -229,17 +229,16 @@ int swsusp_shrink_memory(void)
- 		size = count_data_pages() + PAGES_FOR_IO + SPARE_PAGES;
- 		tmp = size;
- 		size += highmem_size;
--		for_each_zone (zone)
--			if (populated_zone(zone)) {
--				tmp += snapshot_additional_pages(zone);
--				if (is_highmem(zone)) {
--					highmem_size -=
-+		for_each_populated_zone(zone) {
-+			tmp += snapshot_additional_pages(zone);
-+			if (is_highmem(zone)) {
-+				highmem_size -=
- 					zone_page_state(zone, NR_FREE_PAGES);
--				} else {
--					tmp -= zone_page_state(zone, NR_FREE_PAGES);
--					tmp += zone->lowmem_reserve[ZONE_NORMAL];
--				}
-+			} else {
-+				tmp -= zone_page_state(zone, NR_FREE_PAGES);
-+				tmp += zone->lowmem_reserve[ZONE_NORMAL];
- 			}
-+		}
- 
- 		if (highmem_size < 0)
- 			highmem_size = 0;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5675b30..68610a9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -922,13 +922,10 @@ static void drain_pages(unsigned int cpu)
- 	unsigned long flags;
- 	struct zone *zone;
- 
--	for_each_zone(zone) {
-+	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset *pset;
- 		struct per_cpu_pages *pcp;
- 
--		if (!populated_zone(zone))
--			continue;
--
- 		pset = zone_pcp(zone, cpu);
- 
- 		pcp = &pset->pcp;
-@@ -1874,10 +1871,7 @@ void show_free_areas(void)
- 	int cpu;
- 	struct zone *zone;
- 
--	for_each_zone(zone) {
--		if (!populated_zone(zone))
--			continue;
--
-+	for_each_populated_zone(zone) {
- 		show_node(zone);
- 		printk("%s per-cpu:\n", zone->name);
- 
-@@ -1917,12 +1911,9 @@ void show_free_areas(void)
- 		global_page_state(NR_PAGETABLE),
- 		global_page_state(NR_BOUNCE));
- 
--	for_each_zone(zone) {
-+	for_each_populated_zone(zone) {
- 		int i;
- 
--		if (!populated_zone(zone))
--			continue;
--
- 		show_node(zone);
- 		printk("%s"
- 			" free:%lukB"
-@@ -1962,12 +1953,9 @@ void show_free_areas(void)
- 		printk("\n");
- 	}
- 
--	for_each_zone(zone) {
-+	for_each_populated_zone(zone) {
-  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
- 
--		if (!populated_zone(zone))
--			continue;
--
- 		show_node(zone);
- 		printk("%s: ", zone->name);
- 
-@@ -2779,11 +2767,7 @@ static int __cpuinit process_zones(int cpu)
- 
- 	node_set_state(node, N_CPU);	/* this node has a cpu */
- 
--	for_each_zone(zone) {
--
--		if (!populated_zone(zone))
--			continue;
--
-+	for_each_populated_zone(zone) {
- 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
- 					 GFP_KERNEL, node);
- 		if (!zone_pcp(zone, cpu))
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a27c44..b9c3cea 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2060,11 +2060,7 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
- 	unsigned long nr_to_scan, ret = 0;
- 	enum lru_list l;
- 
--	for_each_zone(zone) {
--
--		if (!populated_zone(zone))
--			continue;
--
-+	for_each_populated_zone(zone) {
- 		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
- 			continue;
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 9114974..6fb76fa 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -135,11 +135,7 @@ static void refresh_zone_stat_thresholds(void)
- 	int cpu;
- 	int threshold;
- 
--	for_each_zone(zone) {
--
--		if (!zone->present_pages)
--			continue;
--
-+	for_each_populated_zone(zone) {
- 		threshold = calculate_threshold(zone);
- 
- 		for_each_online_cpu(cpu)
-@@ -301,12 +297,9 @@ void refresh_cpu_vm_stats(int cpu)
- 	int i;
- 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
- 
--	for_each_zone(zone) {
-+	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset *p;
- 
--		if (!populated_zone(zone))
--			continue;
--
- 		p = zone_pcp(zone, cpu);
- 
- 		for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
+> +	rcu_read_unlock();
+>  	return mem;
+>  }
+> 
+> @@ -1275,12 +1296,20 @@ int mem_cgroup_cache_charge(struct page 
+> 
+>  	if (do_swap_account && !ret && PageSwapCache(page)) {
+>  		swp_entry_t ent = {.val = page_private(page)};
+> +		unsigned short id;
+>  		/* avoid double counting */
+> -		mem = swap_cgroup_record(ent, NULL);
+> +		id = swap_cgroup_record(ent, 0);
+> +		rcu_read_lock();
+> +		mem = mem_cgroup_lookup(id);
+>  		if (mem) {
+> +			/*
+> +			 * Recorded ID can be obsolete. We avoid calling
+> +			 * css_tryget()
+> +			 */
+>  			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+>  			mem_cgroup_put(mem);
+>  		}
+
+If !mem, do we leak charge? BTW, We no longer hold css references if
+the page is swapped out?
+
+> +		rcu_read_unlock();
+>  	}
+>  	return ret;
+>  }
+> @@ -1345,13 +1374,21 @@ void mem_cgroup_commit_charge_swapin(str
+>  	 */
+>  	if (do_swap_account && PageSwapCache(page)) {
+>  		swp_entry_t ent = {.val = page_private(page)};
+> +		unsigned short id;
+>  		struct mem_cgroup *memcg;
+> -		memcg = swap_cgroup_record(ent, NULL);
+> +
+> +		id = swap_cgroup_record(ent, 0);
+> +		rcu_read_lock();
+> +		memcg = mem_cgroup_lookup(id);
+>  		if (memcg) {
+> +			/*
+> +			 * This recorded memcg can be obsolete one. So, avoid
+> +			 * calling css_tryget
+> +			 */
+>  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  			mem_cgroup_put(memcg);
+>  		}
+> -
+
+Same question as above
+
+> +		rcu_read_unlock();
+>  	}
+>  	/* add this page(page_cgroup) to the LRU we want. */
+> 
+> @@ -1472,7 +1509,7 @@ void mem_cgroup_uncharge_swapcache(struc
+>  					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
+>  	/* record memcg information */
+>  	if (do_swap_account && memcg) {
+> -		swap_cgroup_record(ent, memcg);
+> +		swap_cgroup_record(ent, css_id(&memcg->css));
+>  		mem_cgroup_get(memcg);
+>  	}
+>  	if (memcg)
+> @@ -1487,15 +1524,22 @@ void mem_cgroup_uncharge_swapcache(struc
+>  void mem_cgroup_uncharge_swap(swp_entry_t ent)
+>  {
+>  	struct mem_cgroup *memcg;
+> +	unsigned short id;
+> 
+>  	if (!do_swap_account)
+>  		return;
+> 
+> -	memcg = swap_cgroup_record(ent, NULL);
+> +	id = swap_cgroup_record(ent, 0);
+> +	rcu_read_lock();
+> +	memcg = mem_cgroup_lookup(id);
+>  	if (memcg) {
+> +		/*
+> +		 * This memcg can be obsolete one. We avoid calling css_tryget
+> +		 */
+>  		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  		mem_cgroup_put(memcg);
+>  	}
+> +	rcu_read_unlock();
+>  }
+>  #endif
+> 
+> Index: mmotm-2.6.29-Feb05/mm/page_cgroup.c
+> ===================================================================
+> --- mmotm-2.6.29-Feb05.orig/mm/page_cgroup.c
+> +++ mmotm-2.6.29-Feb05/mm/page_cgroup.c
+> @@ -290,7 +290,7 @@ struct swap_cgroup_ctrl swap_cgroup_ctrl
+>   * cgroup rather than pointer.
+>   */
+>  struct swap_cgroup {
+> -	struct mem_cgroup	*val;
+> +	unsigned short		id;
+>  };
+>  #define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
+>  #define SC_POS_MASK	(SC_PER_PAGE - 1)
+> @@ -342,10 +342,10 @@ not_enough_page:
+>   * @ent: swap entry to be recorded into
+>   * @mem: mem_cgroup to be recorded
+>   *
+> - * Returns old value at success, NULL at failure.
+> - * (Of course, old value can be NULL.)
+> + * Returns old value at success, 0 at failure.
+> + * (Of course, old value can be 0.)
+>   */
+> -struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
+> +unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+>  {
+>  	int type = swp_type(ent);
+>  	unsigned long offset = swp_offset(ent);
+> @@ -354,18 +354,18 @@ struct mem_cgroup *swap_cgroup_record(sw
+>  	struct swap_cgroup_ctrl *ctrl;
+>  	struct page *mappage;
+>  	struct swap_cgroup *sc;
+> -	struct mem_cgroup *old;
+> +	unsigned short old;
+> 
+>  	if (!do_swap_account)
+> -		return NULL;
+> +		return 0;
+> 
+>  	ctrl = &swap_cgroup_ctrl[type];
+> 
+>  	mappage = ctrl->map[idx];
+>  	sc = page_address(mappage);
+>  	sc += pos;
+> -	old = sc->val;
+> -	sc->val = mem;
+> +	old = sc->id;
+> +	sc->id = id;
+> 
+>  	return old;
+>  }
+> @@ -374,9 +374,9 @@ struct mem_cgroup *swap_cgroup_record(sw
+>   * lookup_swap_cgroup - lookup mem_cgroup tied to swap entry
+>   * @ent: swap entry to be looked up.
+>   *
+> - * Returns pointer to mem_cgroup at success. NULL at failure.
+> + * Returns CSS ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
+>   */
+> -struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
+> +unsigned short lookup_swap_cgroup(swp_entry_t ent)
+>  {
+>  	int type = swp_type(ent);
+>  	unsigned long offset = swp_offset(ent);
+> @@ -385,16 +385,16 @@ struct mem_cgroup *lookup_swap_cgroup(sw
+>  	struct swap_cgroup_ctrl *ctrl;
+>  	struct page *mappage;
+>  	struct swap_cgroup *sc;
+> -	struct mem_cgroup *ret;
+> +	unsigned short ret;
+> 
+>  	if (!do_swap_account)
+> -		return NULL;
+> +		return 0;
+> 
+>  	ctrl = &swap_cgroup_ctrl[type];
+>  	mappage = ctrl->map[idx];
+>  	sc = page_address(mappage);
+>  	sc += pos;
+> -	ret = sc->val;
+> +	ret = sc->id;
+>  	return ret;
+>  }
+> 
+> 
+
 -- 
-1.6.0.6
-
-
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
