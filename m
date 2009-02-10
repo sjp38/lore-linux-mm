@@ -1,164 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0906B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 11:21:32 -0500 (EST)
-Date: Tue, 10 Feb 2009 17:20:52 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB4A6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 11:52:03 -0500 (EST)
+Date: Tue, 10 Feb 2009 17:51:35 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] shrink_all_memory() use sc.nr_reclaimed
-Message-ID: <20090210162052.GB2371@cmpxchg.org>
-References: <28c262360902100440v765d3f7bnd56cc4b5510349c0@mail.gmail.com> <20090210215718.700D.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090210215811.7010.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Subject: [patch] vmscan: initialize sc.order in indirect shrink_list() users
+Message-ID: <20090210165134.GA2457@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090210215811.7010.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: MinChan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, William Lee Irwin III <wli@movementarian.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 10, 2009 at 10:00:26PM +0900, KOSAKI Motohiro wrote:
-> Impact: cleanup
-> 
-> Commit a79311c14eae4bb946a97af25f3e1b17d625985d "vmscan: bail out of
-> direct reclaim after swap_cluster_max pages" moved the nr_reclaimed
-> counter into the scan control to accumulate the number of all
-> reclaimed pages in a reclaim invocation.
-> 
-> shrink_all_memory() can use the same mechanism. it increase code 
-> consistency.
-> 
-> 
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: MinChan Kim <minchan.kim@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-> Cc: Rik van Riel <riel@redhat.com>
-> ---
->  mm/vmscan.c |   49 ++++++++++++++++++++++++-------------------------
->  1 file changed, 24 insertions(+), 25 deletions(-)
-> 
-> Index: b/mm/vmscan.c
-> ===================================================================
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2004,16 +2004,15 @@ unsigned long global_lru_pages(void)
->  #ifdef CONFIG_PM
->  /*
->   * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
-> - * from LRU lists system-wide, for given pass and priority, and returns the
-> - * number of reclaimed pages
-> + * from LRU lists system-wide, for given pass and priority.
->   *
->   * For pass > 3 we also try to shrink the LRU lists that contain a few pages
->   */
-> -static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
-> +static void shrink_all_zones(unsigned long nr_pages, int prio,
->  				      int pass, struct scan_control *sc)
->  {
->  	struct zone *zone;
-> -	unsigned long nr_to_scan, ret = 0;
-> +	unsigned long nr_to_scan;
->  	enum lru_list l;
+shrink_all_memory() and __zone_reclaim() currently don't initialize
+the .order field of their scan control.
 
-Basing it on swsusp-clean-up-shrink_all_zones.patch probably makes it
-easier for Andrew to pick it up.
+Both of them call into functions which use that field and make certain
+decisions based on a random value.
 
->  	for_each_zone(zone) {
-> @@ -2038,15 +2037,13 @@ static unsigned long shrink_all_zones(un
->  				nr_to_scan = min(nr_pages,
->  					zone_page_state(zone,
->  							NR_LRU_BASE + l));
-> -				ret += shrink_list(l, nr_to_scan, zone,
-> -								sc, prio);
-> -				if (ret >= nr_pages)
-> -					return ret;
-> +				sc->nr_reclaimed += shrink_list(l, nr_to_scan,
-> +								zone, sc, prio);
-> +				if (sc->nr_reclaimed >= nr_pages)
-> +					return;
->  			}
->  		}
->  	}
-> -
-> -	return ret;
->  }
->  
->  /*
-> @@ -2060,10 +2057,10 @@ static unsigned long shrink_all_zones(un
->  unsigned long shrink_all_memory(unsigned long nr_pages)
->  {
->  	unsigned long lru_pages, nr_slab;
-> -	unsigned long ret = 0;
->  	int pass;
->  	struct reclaim_state reclaim_state;
->  	struct scan_control sc = {
-> +		.nr_reclaimed = 0,
->  		.gfp_mask = GFP_KERNEL,
->  		.may_swap = 0,
->  		.swap_cluster_max = nr_pages,
-> @@ -2083,8 +2080,8 @@ unsigned long shrink_all_memory(unsigned
->  		if (!reclaim_state.reclaimed_slab)
->  			break;
->  
-> -		ret += reclaim_state.reclaimed_slab;
-> -		if (ret >= nr_pages)
-> +		sc.nr_reclaimed += reclaim_state.reclaimed_slab;
-> +		if (sc.nr_reclaimed >= nr_pages)
->  			goto out;
->  
->  		nr_slab -= reclaim_state.reclaimed_slab;
-> @@ -2108,18 +2105,18 @@ unsigned long shrink_all_memory(unsigned
->  		}
->  
->  		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
-> -			unsigned long nr_to_scan = nr_pages - ret;
-> +			unsigned long nr_to_scan = nr_pages - sc.nr_reclaimed;
->  
->  			sc.nr_scanned = 0;
-> -			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
-> -			if (ret >= nr_pages)
-> +			shrink_all_zones(nr_to_scan, prio, pass, &sc);
-> +			if (sc.nr_reclaimed >= nr_pages)
->  				goto out;
->  
->  			reclaim_state.reclaimed_slab = 0;
->  			shrink_slab(sc.nr_scanned, sc.gfp_mask,
->  					global_lru_pages());
-> -			ret += reclaim_state.reclaimed_slab;
-> -			if (ret >= nr_pages)
-> +			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
-> +			if (sc.nr_reclaimed >= nr_pages)
->  				goto out;
->  
->  			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
-> @@ -2128,21 +2125,23 @@ unsigned long shrink_all_memory(unsigned
->  	}
->  
->  	/*
-> -	 * If ret = 0, we could not shrink LRUs, but there may be something
-> -	 * in slab caches
-> +	 * If sc.nr_reclaimed = 0, we could not shrink LRUs, but there may be
-> +	 * something in slab caches
->  	 */
-> -	if (!ret) {
-> +	if (!sc.nr_reclaimed) {
->  		do {
->  			reclaim_state.reclaimed_slab = 0;
-> -			shrink_slab(nr_pages, sc.gfp_mask, global_lru_pages());
-> -			ret += reclaim_state.reclaimed_slab;
-> -		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
-> +			shrink_slab(nr_pages, sc.gfp_mask,
-> +				    global_lru_pages());
-> +			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
-> +		} while (sc.nr_reclaimed < nr_pages &&
-> +			 reclaim_state.reclaimed_slab > 0);
+The functions depending on the .order field are marked with a star,
+the faulty entry points are marked with a percentage sign:
 
-:(
+* shrink_page_list()
+  * shrink_inactive_list()
+  * shrink_active_list()
+    shrink_list()
+      shrink_all_zones()
+        % shrink_all_memory()
+      shrink_zone()
+        % __zone_reclaim()
 
-Is this really an improvement?  `ret' is better to read than
-`sc.nr_reclaimed'.
+Initialize .order to zero in shrink_all_memory().  Initialize .order
+to the order parameter in __zone_reclaim().
 
-	Hannes
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4422301..9ce85ea 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2112,6 +2112,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+ 		.may_unmap = 0,
+ 		.swap_cluster_max = nr_pages,
+ 		.may_writepage = 1,
++		.order = 0,
+ 		.isolate_pages = isolate_pages_global,
+ 	};
+ 
+@@ -2294,6 +2295,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 					SWAP_CLUSTER_MAX),
+ 		.gfp_mask = gfp_mask,
+ 		.swappiness = vm_swappiness,
++		.order = order,
+ 		.isolate_pages = isolate_pages_global,
+ 	};
+ 	unsigned long slab_reclaimable;
+-- 
+1.6.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
