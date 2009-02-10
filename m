@@ -1,113 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8B2D56B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 03:51:39 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1A8pak6005831
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 10 Feb 2009 17:51:36 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 734B345DE51
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 17:51:36 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4574B45DE50
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 17:51:36 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EE6701DB8037
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 17:51:35 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A9F41DB803B
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 17:51:32 +0900 (JST)
-Date: Tue, 10 Feb 2009 17:50:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] Reduce size of swap_cgroup by CSS ID v2
-Message-Id: <20090210175019.b100b279.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090210080700.GC16317@balbir.in.ibm.com>
-References: <20090205185959.7971dee4.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090209145557.d0754a9f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090210080700.GC16317@balbir.in.ibm.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 343946B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 03:57:03 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+In-Reply-To: <Pine.LNX.4.64.0902061216001.23313@blonde.anvils>
+References: <20090121143008.GV24891@wotan.suse.de>
+	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
+	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
+	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
+	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
+	 <1233545923.2604.60.camel@ymzhang>
+	 <1233565214.17835.13.camel@penberg-laptop>
+	 <1233646145.2604.137.camel@ymzhang>
+	 <Pine.LNX.4.64.0902031150110.5290@blonde.anvils>
+	 <1233714090.2604.186.camel@ymzhang>
+	 <Pine.LNX.4.64.0902051839540.1445@blonde.anvils>
+	 <1233910649.29891.26.camel@penberg-laptop>
+	 <Pine.LNX.4.64.0902061216001.23313@blonde.anvils>
+Content-Type: text/plain; charset=UTF-8
+Date: Tue, 10 Feb 2009 16:56:48 +0800
+Message-Id: <1234256208.2604.363.camel@ymzhang>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Feb 2009 13:37:00 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Fri, 2009-02-06 at 12:33 +0000, Hugh Dickins wrote:
+> On Fri, 6 Feb 2009, Pekka Enberg wrote:
+> > On Thu, 2009-02-05 at 19:04 +0000, Hugh Dickins wrote:
+> > > I then tried a patch I thought obviously better than yours: just mask
+> > > off __GFP_WAIT in that __GFP_NOWARN|__GFP_NORETRY preliminary call to
+> > > alloc_slab_page(): so we're not trying to infer anything about high-
+> > > order availability from the number of free order-0 pages, but actually
+> > > going to look for it and taking it if it's free, forgetting it if not.
+> > > 
+> > > That didn't work well at all: almost as bad as the unmodified slub.c.
+> > > I decided that was due to __alloc_pages_internal()'s
+> > > wakeup_kswapd(zone, order): just expressing an interest in a high-
+> > > order page was enough to send it off trying to reclaim them, though
+> > > not directly.  Hacked in a condition to suppress that in this case:
+> > > worked a lot better, but not nearly as well as yours.  I supposed
+> > > that was somehow(?) due to the subsequent get_page_from_freelist()
+> > > calls with different watermarking: hacked in another __GFP flag to
+> > > break out to nopage just like the NUMA_BUILD GFP_THISNODE case does.
+> > > Much better, getting close, but still not as good as yours.  
+I did the similiar hack. i>>?get_page_from_freelist, wakeup_kswapd, try_to_free_pages,
+and drain_all_pages consume time. If I disable them one by one, I see the result
+is improved gradually.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-09 14:55:57]:
-> 
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
-> >  {
-> > -	struct mem_cgroup *mem;
-> > +	unsigned short id;
-> > +	struct mem_cgroup *mem = NULL;
-> >  	swp_entry_t ent;
 > > 
-> >  	if (!PageSwapCache(page))
-> >  		return NULL;
-> > 
-> >  	ent.val = page_private(page);
-> > -	mem = lookup_swap_cgroup(ent);
-> > -	if (!mem)
-> > -		return NULL;
-> > +	id = lookup_swap_cgroup(ent);
-> > +	rcu_read_lock();
-> > +	mem = mem_cgroup_lookup(id);
-> >  	if (!css_tryget(&mem->css))
-> > -		return NULL;
-> > +		mem = NULL;
+> > Did you look at it with oprofile?
 > 
-> This part is a bit confusing. If the page got swapped out and the CSS
-> it belonged to got swapped out, we set mem to NULL. Is this so that it
-> can be charged to root cgroup?
-IIUC, this charge will go to "current" process's cgroup.
+> No, I didn't.  I didn't say so, but again it was elapsed time that
+> I was focussing on, so I don't think oprofile would be relevant.
+The vmstat data varies very much when testing runs. The original test case
+consists of 2 kbuild tasks and sometimes the 2 tasks almost run serially
+because it takes a long time to untie kernel source tarball on the loop ext2
+fs. So it's not appropriate to collect oprofile data.
 
-> If so, could you please add a comment indicating the same.
+I changed the script to run 2 tasks on tmpfs without loop ext2 device.
+The result difference between slub_max_order=0 and default order is about 25%.
+When kernel building is started, vmstat sys time is about 4%~10% on my
+2 qual-core processor stoakley. io-wait is mostly 40%~80%. I collected the
+oprofile data. Mostly, only free_pages_bulk seems a little abnormal. With
+default order, i>>?free_pages_bulk is more than 1% while it's 0.23%. By changing
+total memory quantity, i>>?free_pages_bulk difference between i>>?slub_max_order=0 and
+default order is about 1%.
+
+
+> There are some differences in system time, of course, consistent
+> with your point; but they're generally an order of magnitude less,
+> so didn't excite my interest.
 > 
-Ah yes, I'll add some comments.
-
-
-> > +	rcu_read_unlock();
-> >  	return mem;
-> >  }
-> > 
-> > @@ -1275,12 +1296,20 @@ int mem_cgroup_cache_charge(struct page 
-> > 
-> >  	if (do_swap_account && !ret && PageSwapCache(page)) {
-> >  		swp_entry_t ent = {.val = page_private(page)};
-> > +		unsigned short id;
-> >  		/* avoid double counting */
-> > -		mem = swap_cgroup_record(ent, NULL);
-> > +		id = swap_cgroup_record(ent, 0);
-> > +		rcu_read_lock();
-> > +		mem = mem_cgroup_lookup(id);
-> >  		if (mem) {
-> > +			/*
-> > +			 * Recorded ID can be obsolete. We avoid calling
-> > +			 * css_tryget()
-> > +			 */
-> >  			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
-> >  			mem_cgroup_put(mem);
-> >  		}
+> > One thing to keep in mind is that if
+> > there are 4K allocations going on, your approach will get double the
+> > overhead of page allocations (which can be substantial performance hit
+> > for slab).
 > 
-> If !mem, do we leak charge?
-No, it just means some other thread removed the ID before us.
+> Sure, and even the current allocate_slab() is inefficient in that
+> respect: I've followed it because I do for now have an interest in
+> the stats, but if stats are configured off then there's no point in
+> dividing it into two stages; and if they are really intended to be
+> ORDER_FALLBACK stats, then it shouldn't divide into two stages when
+> oo_order(s->oo) == oo_order(s->min).
+You are right theoretically. Under the real environment, the order mostly is 0
+when i>>?oo_order(s->oo) == oo_order(s->min), and order 0 page allocation almost
+doesn't fail even with flag i>>?__GFP_NORETRY. When default order isn't 0, mostly,
+i>>?oo_order(s->oo) isn't equal to i>>?oo_order(s->min).
 
-> BTW, We no longer hold css references if the page is swapped out?
-> 
-The situation is a bit complicated.
-When cgroup is obsolete but its mem_cgroup is alive (because of reference
-from swap), css_tryget() always fails. swap_cgroup_record() is atomic
-compare-and-exchange, so I think we can trust mem_cgroup_put/get refcnt
-management and doesn't need to rely on css's refcnt at swap management.
+>   On the other hand, I find it
+> interesting to see how often the __GFP_NORETRY fails, even when
+> the order is the same each time (and usually 0).
 
-
-Thanks,
--Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
