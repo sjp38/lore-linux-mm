@@ -1,99 +1,327 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 343946B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 03:57:03 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <Pine.LNX.4.64.0902061216001.23313@blonde.anvils>
-References: <20090121143008.GV24891@wotan.suse.de>
-	 <Pine.LNX.4.64.0901211705570.7020@blonde.anvils>
-	 <84144f020901220201g6bdc2d5maf3395fc8b21fe67@mail.gmail.com>
-	 <Pine.LNX.4.64.0901221239260.21677@blonde.anvils>
-	 <Pine.LNX.4.64.0901231357250.9011@blonde.anvils>
-	 <1233545923.2604.60.camel@ymzhang>
-	 <1233565214.17835.13.camel@penberg-laptop>
-	 <1233646145.2604.137.camel@ymzhang>
-	 <Pine.LNX.4.64.0902031150110.5290@blonde.anvils>
-	 <1233714090.2604.186.camel@ymzhang>
-	 <Pine.LNX.4.64.0902051839540.1445@blonde.anvils>
-	 <1233910649.29891.26.camel@penberg-laptop>
-	 <Pine.LNX.4.64.0902061216001.23313@blonde.anvils>
-Content-Type: text/plain; charset=UTF-8
-Date: Tue, 10 Feb 2009 16:56:48 +0800
-Message-Id: <1234256208.2604.363.camel@ymzhang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	by kanga.kvack.org (Postfix) with SMTP id 22C1B6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 04:42:37 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1A9gYUT032409
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 10 Feb 2009 18:42:34 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B430A45DD79
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 18:42:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8008045DE55
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 18:42:32 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 15FCE1DB8046
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 18:42:32 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AB791DB803C
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 18:42:31 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] mm: remove zone->prev_prioriy
+Message-Id: <20090210184055.6FCB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Feb 2009 18:42:30 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-02-06 at 12:33 +0000, Hugh Dickins wrote:
-> On Fri, 6 Feb 2009, Pekka Enberg wrote:
-> > On Thu, 2009-02-05 at 19:04 +0000, Hugh Dickins wrote:
-> > > I then tried a patch I thought obviously better than yours: just mask
-> > > off __GFP_WAIT in that __GFP_NOWARN|__GFP_NORETRY preliminary call to
-> > > alloc_slab_page(): so we're not trying to infer anything about high-
-> > > order availability from the number of free order-0 pages, but actually
-> > > going to look for it and taking it if it's free, forgetting it if not.
-> > > 
-> > > That didn't work well at all: almost as bad as the unmodified slub.c.
-> > > I decided that was due to __alloc_pages_internal()'s
-> > > wakeup_kswapd(zone, order): just expressing an interest in a high-
-> > > order page was enough to send it off trying to reclaim them, though
-> > > not directly.  Hacked in a condition to suppress that in this case:
-> > > worked a lot better, but not nearly as well as yours.  I supposed
-> > > that was somehow(?) due to the subsequent get_page_from_freelist()
-> > > calls with different watermarking: hacked in another __GFP flag to
-> > > break out to nopage just like the NUMA_BUILD GFP_THISNODE case does.
-> > > Much better, getting close, but still not as good as yours.  
-I did the similiar hack. i>>?get_page_from_freelist, wakeup_kswapd, try_to_free_pages,
-and drain_all_pages consume time. If I disable them one by one, I see the result
-is improved gradually.
 
-> > 
-> > Did you look at it with oprofile?
-> 
-> No, I didn't.  I didn't say so, but again it was elapsed time that
-> I was focussing on, so I don't think oprofile would be relevant.
-The vmstat data varies very much when testing runs. The original test case
-consists of 2 kbuild tasks and sometimes the 2 tasks almost run serially
-because it takes a long time to untie kernel source tarball on the loop ext2
-fs. So it's not appropriate to collect oprofile data.
-
-I changed the script to run 2 tasks on tmpfs without loop ext2 device.
-The result difference between slub_max_order=0 and default order is about 25%.
-When kernel building is started, vmstat sys time is about 4%~10% on my
-2 qual-core processor stoakley. io-wait is mostly 40%~80%. I collected the
-oprofile data. Mostly, only free_pages_bulk seems a little abnormal. With
-default order, i>>?free_pages_bulk is more than 1% while it's 0.23%. By changing
-total memory quantity, i>>?free_pages_bulk difference between i>>?slub_max_order=0 and
-default order is about 1%.
+KAMEZAWA Hiroyuki sugessted to remove zone->prev_priority.
+it's because Split-LRU VM doesn't use this parameter at all.
 
 
-> There are some differences in system time, of course, consistent
-> with your point; but they're generally an order of magnitude less,
-> so didn't excite my interest.
-> 
-> > One thing to keep in mind is that if
-> > there are 4K allocations going on, your approach will get double the
-> > overhead of page allocations (which can be substantial performance hit
-> > for slab).
-> 
-> Sure, and even the current allocate_slab() is inefficient in that
-> respect: I've followed it because I do for now have an interest in
-> the stats, but if stats are configured off then there's no point in
-> dividing it into two stages; and if they are really intended to be
-> ORDER_FALLBACK stats, then it shouldn't divide into two stages when
-> oo_order(s->oo) == oo_order(s->min).
-You are right theoretically. Under the real environment, the order mostly is 0
-when i>>?oo_order(s->oo) == oo_order(s->min), and order 0 page allocation almost
-doesn't fail even with flag i>>?__GFP_NORETRY. When default order isn't 0, mostly,
-i>>?oo_order(s->oo) isn't equal to i>>?oo_order(s->min).
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/memcontrol.h |   27 -------------------------
+ include/linux/mmzone.h     |   15 --------------
+ mm/memcontrol.c            |   31 -----------------------------
+ mm/page_alloc.c            |    2 -
+ mm/vmscan.c                |   48 ++-------------------------------------------
+ mm/vmstat.c                |    2 -
+ 6 files changed, 3 insertions(+), 122 deletions(-)
 
->   On the other hand, I find it
-> interesting to see how often the __GFP_NORETRY fails, even when
-> the order is the same each time (and usually 0).
+Index: b/mm/memcontrol.c
+===================================================================
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -150,8 +150,6 @@ struct mem_cgroup {
+ 	*/
+ 	spinlock_t reclaim_param_lock;
+ 
+-	int	prev_priority;	/* for recording reclaim priority */
+-
+ 	/*
+ 	 * While reclaiming in a hiearchy, we cache the last child we
+ 	 * reclaimed from. Protected by hierarchy_mutex
+@@ -464,35 +462,6 @@ int mem_cgroup_calc_mapped_ratio(struct 
+ 	return (int)((rss * 100L) / total);
+ }
+ 
+-/*
+- * prev_priority control...this will be used in memory reclaim path.
+- */
+-int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+-{
+-	int prev_priority;
+-
+-	spin_lock(&mem->reclaim_param_lock);
+-	prev_priority = mem->prev_priority;
+-	spin_unlock(&mem->reclaim_param_lock);
+-
+-	return prev_priority;
+-}
+-
+-void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem, int priority)
+-{
+-	spin_lock(&mem->reclaim_param_lock);
+-	if (priority < mem->prev_priority)
+-		mem->prev_priority = priority;
+-	spin_unlock(&mem->reclaim_param_lock);
+-}
+-
+-void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
+-{
+-	spin_lock(&mem->reclaim_param_lock);
+-	mem->prev_priority = priority;
+-	spin_unlock(&mem->reclaim_param_lock);
+-}
+-
+ static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
+ {
+ 	unsigned long active;
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1174,20 +1174,6 @@ done:
+ }
+ 
+ /*
+- * We are about to scan this zone at a certain priority level.  If that priority
+- * level is smaller (ie: more urgent) than the previous priority, then note
+- * that priority level within the zone.  This is done so that when the next
+- * process comes in to scan this zone, it will immediately start out at this
+- * priority level rather than having to build up its own scanning priority.
+- * Here, this priority affects only the reclaim-mapped threshold.
+- */
+-static inline void note_zone_scanning_priority(struct zone *zone, int priority)
+-{
+-	if (priority < zone->prev_priority)
+-		zone->prev_priority = priority;
+-}
+-
+-/*
+  * This moves pages from the active list to the inactive list.
+  *
+  * We move them the other way if the page is referenced by one or more
+@@ -1553,22 +1539,18 @@ static void shrink_zones(int priority, s
+ 		if (scanning_global_lru(sc)) {
+ 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 				continue;
+-			note_zone_scanning_priority(zone, priority);
+ 
+ 			if (zone_is_all_unreclaimable(zone) &&
+ 						priority != DEF_PRIORITY)
+ 				continue;	/* Let kswapd poll it */
+-			sc->all_unreclaimable = 0;
++
+ 		} else {
+ 			/*
+ 			 * Ignore cpuset limitation here. We just want to reduce
+ 			 * # of used pages by us regardless of memory shortage.
+ 			 */
+-			sc->all_unreclaimable = 0;
+-			mem_cgroup_note_reclaim_priority(sc->mem_cgroup,
+-							priority);
+ 		}
+-
++		sc->all_unreclaimable = 0;
+ 		shrink_zone(priority, zone, sc);
+ 	}
+ }
+@@ -1676,11 +1658,8 @@ out:
+ 
+ 			if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 				continue;
+-
+-			zone->prev_priority = priority;
+ 		}
+-	} else
+-		mem_cgroup_record_reclaim_priority(sc->mem_cgroup, priority);
++	}
+ 
+ 	delayacct_freepages_end();
+ 
+@@ -1769,11 +1748,6 @@ static unsigned long balance_pgdat(pg_da
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
+ 	};
+-	/*
+-	 * temp_priority is used to remember the scanning priority at which
+-	 * this zone was successfully refilled to free_pages == pages_high.
+-	 */
+-	int temp_priority[MAX_NR_ZONES];
+ 
+ loop_again:
+ 	total_scanned = 0;
+@@ -1781,9 +1755,6 @@ loop_again:
+ 	sc.may_writepage = !laptop_mode;
+ 	count_vm_event(PAGEOUTRUN);
+ 
+-	for (i = 0; i < pgdat->nr_zones; i++)
+-		temp_priority[i] = DEF_PRIORITY;
+-
+ 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
+ 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 		unsigned long lru_pages = 0;
+@@ -1854,9 +1825,7 @@ loop_again:
+ 			if (!zone_watermark_ok(zone, order, zone->pages_high,
+ 					       end_zone, 0))
+ 				all_zones_ok = 0;
+-			temp_priority[i] = priority;
+ 			sc.nr_scanned = 0;
+-			note_zone_scanning_priority(zone, priority);
+ 			/*
+ 			 * We put equal pressure on every zone, unless one
+ 			 * zone has way too many pages free already.
+@@ -1903,16 +1872,6 @@ loop_again:
+ 			break;
+ 	}
+ out:
+-	/*
+-	 * Note within each zone the priority level at which this zone was
+-	 * brought into a happy state.  So that the next thread which scans this
+-	 * zone will start out at that priority level.
+-	 */
+-	for (i = 0; i < pgdat->nr_zones; i++) {
+-		struct zone *zone = pgdat->node_zones + i;
+-
+-		zone->prev_priority = temp_priority[i];
+-	}
+ 	if (!all_zones_ok) {
+ 		cond_resched();
+ 
+@@ -2321,7 +2280,6 @@ static int __zone_reclaim(struct zone *z
+ 		 */
+ 		priority = ZONE_RECLAIM_PRIORITY;
+ 		do {
+-			note_zone_scanning_priority(zone, priority);
+ 			shrink_zone(priority, zone, &sc);
+ 			priority--;
+ 		} while (priority >= 0 && sc.nr_reclaimed < nr_pages);
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -337,21 +337,6 @@ struct zone {
+ 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+ 
+ 	/*
+-	 * prev_priority holds the scanning priority for this zone.  It is
+-	 * defined as the scanning priority at which we achieved our reclaim
+-	 * target at the previous try_to_free_pages() or balance_pgdat()
+-	 * invokation.
+-	 *
+-	 * We use prev_priority as a measure of how much stress page reclaim is
+-	 * under - it drives the swappiness decision: whether to unmap mapped
+-	 * pages.
+-	 *
+-	 * Access to both this field is quite racy even on uniprocessor.  But
+-	 * it is expected to average out OK.
+-	 */
+-	int prev_priority;
+-
+-	/*
+ 	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
+ 	 * this zone's LRU.  Maintained by the pageout code.
+ 	 */
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3516,8 +3516,6 @@ static void __paginginit free_area_init_
+ 		zone_seqlock_init(zone);
+ 		zone->zone_pgdat = pgdat;
+ 
+-		zone->prev_priority = DEF_PRIORITY;
+-
+ 		zone_pcp_init(zone);
+ 		for_each_lru(l) {
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
+Index: b/mm/vmstat.c
+===================================================================
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -775,11 +775,9 @@ static void zoneinfo_show_print(struct s
+ 	}
+ 	seq_printf(m,
+ 		   "\n  all_unreclaimable: %u"
+-		   "\n  prev_priority:     %i"
+ 		   "\n  start_pfn:         %lu"
+ 		   "\n  inactive_ratio:    %u",
+ 			   zone_is_all_unreclaimable(zone),
+-		   zone->prev_priority,
+ 		   zone->zone_start_pfn,
+ 		   zone->inactive_ratio);
+ 	seq_putc(m, '\n');
+Index: b/include/linux/memcontrol.h
+===================================================================
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -88,14 +88,7 @@ extern void mem_cgroup_end_migration(str
+ /*
+  * For memory reclaim.
+  */
+-extern int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem);
+ extern long mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem);
+-
+-extern int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem);
+-extern void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+-							int priority);
+-extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+-							int priority);
+ int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
+ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+ 				       struct zone *zone,
+@@ -209,31 +202,11 @@ static inline void mem_cgroup_end_migrat
+ {
+ }
+ 
+-static inline int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
+-{
+-	return 0;
+-}
+-
+ static inline int mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem)
+ {
+ 	return 0;
+ }
+ 
+-static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
+-{
+-	return 0;
+-}
+-
+-static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem,
+-						int priority)
+-{
+-}
+-
+-static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+-						int priority)
+-{
+-}
+-
+ static inline bool mem_cgroup_disabled(void)
+ {
+ 	return true;
+
 
 
 --
