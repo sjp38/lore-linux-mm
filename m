@@ -1,45 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C72DA6B0047
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 09:14:13 -0500 (EST)
-Date: Tue, 10 Feb 2009 15:14:05 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: Using module private memory to simulate microkernel's memory
-	protection
-Message-ID: <20090210141405.GA16147@elte.hu>
-References: <a5f59d880902100542x7243b13fuf40e7dd21faf7d7a@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9809E6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 09:21:44 -0500 (EST)
+Date: Tue, 10 Feb 2009 14:21:39 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] introduce for_each_populated_zone() macro
+Message-ID: <20090210142138.GD4023@csn.ul.ie>
+References: <20090210162220.6FBC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090210135050.GB4023@csn.ul.ie> <2f11576a0902100613g311f8387sb23f866c94bd48bf@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <a5f59d880902100542x7243b13fuf40e7dd21faf7d7a@mail.gmail.com>
+In-Reply-To: <2f11576a0902100613g311f8387sb23f866c94bd48bf@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Pengfei Hu <hpfei.cn@gmail.com>, Vegard Nossum <vegard.nossum@gmail.com>
-Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-
-* Pengfei Hu <hpfei.cn@gmail.com> wrote:
-
-> diff -Nurp old/arch/x86/Kconfig.debug new/arch/x86/Kconfig.debug
-> --- old/arch/x86/Kconfig.debug	2008-10-10 06:13:53.000000000 +0800
-> +++ new/arch/x86/Kconfig.debug	2008-12-07 19:19:40.000000000 +0800
-> @@ -67,6 +67,16 @@ config DEBUG_PAGEALLOC
->  	  This results in a large slowdown, but helps to find certain types
->  	  of memory corruptions.
+On Tue, Feb 10, 2009 at 11:13:12PM +0900, KOSAKI Motohiro wrote:
+> Hi
 > 
-> +config DEBUG_KM_PROTECT
-> +        bool "Debug kernel memory protect"
-> +        depends on DEBUG_KERNEL
-> +        select DEBUG_PAGEALLOC
-> +        select SLUB
-> +        help
-> +          Change page table's present flag to prevent other module's accidental
-> +          access. This results in a large slowdown and waste more memory, but
-> +          helps to find certain types of memory corruptions.
+> >> +#define for_each_populated_zone(zone)                        \
+> >> +     for (zone = (first_online_pgdat())->node_zones; \
+> >> +          zone;                                      \
+> >> +          zone = next_zone(zone))                    \
+> >> +             if (!populated_zone(zone))              \
+> >> +                     ; /* do nothing */              \
+> >> +             else
+> >> +
+> >> +
+> >> +
+> >> +
+> >
+> > There is tabs vs whitespace damage in there.
+> 
+> ??
+> I'm look at it again. but I don't found whitespace damage.
+> 
 
-Hm, are you aware of the kmemcheck project?
+Maybe there is some oddity in my mailer, but the second part of the for
+loop with "zone;" looks like a tab followed by spaces to me. Not a big
+deal, probably looks better with the spaces in this case.
 
-	Ingo
+> > Multiple empty lines are introduced for no apparent reason.
+> 
+> Will fix. thanks.
+> 
+> > It's not clear why you did not use if (populated_zone(zone))
+> > instead of an if/else.
+> 
+> Good question.
+> if we make following macro,
+> 
+> #define for_each_populated_zone(zone)                        \
+>      for (zone = (first_online_pgdat())->node_zones; \
+>           zone;                                      \
+>           zone = next_zone(zone))                    \
+>              if (populated_zone(zone))
+> 
+> and, writing following caller code.
+> 
+> if (always_true_assumption)
+>   for_each_populated_zone(){
+>      /* some code */
+>   }
+> else
+>   panic();
+> 
+> expand to
+> 
+> if (always_true_assumption)
+>   for()
+>      if (populated_zone() {
+>      /* some code */
+>   }
+> else
+>   panic();
+> 
+> then, memoryless node cause panic().
+> 
+
+Oof, that's tricky but you're correct. The macro has to work as you suggest
+or weird things can happen.
+
+> >
+> > Otherwise, I did not spot anything out of the ordinary. Nice cleanup.
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
