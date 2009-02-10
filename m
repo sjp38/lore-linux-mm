@@ -1,128 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 3A3E96B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 05:47:27 -0500 (EST)
-Received: by yw-out-1718.google.com with SMTP id 9so520099ywk.26
-        for <linux-mm@kvack.org>; Tue, 10 Feb 2009 02:47:26 -0800 (PST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B0D486B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 05:50:54 -0500 (EST)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1AAoqCN029761
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 10 Feb 2009 19:50:52 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 083DE45DE52
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:50:52 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AF2F845DE55
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:50:51 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BD151DB8046
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:50:51 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EF3941DB804A
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:50:50 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: remove zone->prev_prioriy
+In-Reply-To: <20090210104222.GB1740@cmpxchg.org>
+References: <20090210184055.6FCB.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090210104222.GB1740@cmpxchg.org>
+Message-Id: <20090210195002.6FE6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090209222416.GA9758@cmpxchg.org>
-References: <20090209222416.GA9758@cmpxchg.org>
-Date: Tue, 10 Feb 2009 19:47:26 +0900
-Message-ID: <28c262360902100247x1d537dc2kfef3c4c0f769a259@mail.gmail.com>
-Subject: Re: [RFC] vmscan: initialize sc->nr_reclaimed in do_try_to_free_pages()
-From: MinChan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 10 Feb 2009 19:50:50 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, William Lee Irwin III <wli@movementarian.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 10, 2009 at 7:24 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> Commit a79311c14eae4bb946a97af25f3e1b17d625985d "vmscan: bail out of
-> direct reclaim after swap_cluster_max pages" moved the nr_reclaimed
-> counter into the scan control to accumulate the number of all
-> reclaimed pages in one direct reclaim invocation.
->
-> The commit missed to actually adjust do_try_to_free_pages() which now
-> does not initialize sc.nr_reclaimed and makes shrink_zone() make
-> assumptions on whether to bail out of the reclaim cycle based on an
-> uninitialized value.
->
-> Fix it up by initializing the counter to zero before entering the
-> priority loop.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/vmscan.c |    1 +
->  1 file changed, 1 insertion(+)
->
-> The comment of the .nr_reclaimed field says it accumulates the reclaim
-> counter over ONE shrink_zones() call.  This means, we should break out
-> if ONE shrink_zones() call alone does more than swap_cluster_max.
->
-> OTOH, the patch title suggests that we break out if ALL shrink_zones()
-> calls in the priority loop have reclaimed that much.  I.e.
-> accumulating the reclaimed number over the prio loop, not just over
-> one zones iteration.
->
-> From the patch description I couldn't really make sure what the
-> intended behaviour was.
->
-> So, should the sc.nr_reclaimed be reset before the prio loop or in
-> each iteration of the prio loop?
->
-> Either this patch is wrong or the comment above .nr_reclaimed is.
->
-> And why didn't this have any observable effects?  Do I miss something
+> On Tue, Feb 10, 2009 at 06:42:30PM +0900, KOSAKI Motohiro wrote:
+> > 
+> > KAMEZAWA Hiroyuki sugessted to remove zone->prev_priority.
+> > it's because Split-LRU VM doesn't use this parameter at all.
+> > 
+> > 
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > ---
+> >  include/linux/memcontrol.h |   27 -------------------------
+> >  include/linux/mmzone.h     |   15 --------------
+> >  mm/memcontrol.c            |   31 -----------------------------
+> >  mm/page_alloc.c            |    2 -
+> >  mm/vmscan.c                |   48 ++-------------------------------------------
+> >  mm/vmstat.c                |    2 -
+> >  6 files changed, 3 insertions(+), 122 deletions(-)
+> 
+> > Index: b/include/linux/memcontrol.h
+> > ===================================================================
+> > --- a/include/linux/memcontrol.h
+> > +++ b/include/linux/memcontrol.h
+> > @@ -88,14 +88,7 @@ extern void mem_cgroup_end_migration(str
+> >  /*
+> >   * For memory reclaim.
+> >   */
+> > -extern int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem);
+> 
+> This bit crept in from the next patch, I think.
 
-Nice catch!!
-I think that's because situation Rik said is unusual.
+Grr.
+I'll fix this soon.
 
-> really obvious here?
+Thanks for carefully reviewing! 
 
 
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1618,6 +1618,7 @@ static unsigned long do_try_to_free_page
->                }
->        }
->
-> +       sc->nr_reclaimed = 0;
->        for (priority = DEF_PRIORITY; priority >= 0; priority--) {
->                sc->nr_scanned = 0;
->                if (!priority)
->
-> --
-
-I have a one comment.
-
-If you directly initialize nr_reclaimed in do_try_to_free_pages function,
-it might be a side effect.
-Because old functions use scan_control declaration and initialization
-method for initializing scan_control before calling
-do_try_to_free_pages.
-
-In future, If some function call do_try_to_free_pages after
-scan_control declaration and initialization of nr_reclaimed, your
-patch implementation reset nr_reclaimed to zero forcely, again.
-
-but I think it is unlikely that it initializes nr_reclaimed with not zero. :(
-
-But, like old functions, way to declaration and initialization is good
-for readability and portability, I think.
-
-Make sure below code is mangled and word-wrapped.
-It just is example.
-
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a27c44..18406ee 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1699,6 +1699,7 @@ unsigned long try_to_free_pages(struct zonelist
-*zonelist, int order,
-                .order = order,
-                .mem_cgroup = NULL,
-                .isolate_pages = isolate_pages_global,
-+               .nr_reclaimed = 0,
-        };
-
-        return do_try_to_free_pages(zonelist, &sc);
-@@ -1719,6 +1720,7 @@ unsigned long
-try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
-                .order = 0,
-                .mem_cgroup = mem_cont,
-                .isolate_pages = mem_cgroup_isolate_pages,
-+               .nr_reclaimed = 0;
-        };
-        struct zonelist *zonelist;
-
-
-
--- 
-Kinds regards,
-MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
