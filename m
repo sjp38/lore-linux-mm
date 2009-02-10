@@ -1,68 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 523286B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 06:50:24 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1ABoMjK010810
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 10 Feb 2009 20:50:22 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1361145DD76
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 20:50:22 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E8F6245DD75
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 20:50:21 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA8C01DB803E
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 20:50:21 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 990E21DB803A
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 20:50:18 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg: remove mem_cgroup_reclaim_imbalance() perfectly
-In-Reply-To: <20090210202939.6FEC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20090210110045.GE16317@balbir.in.ibm.com> <20090210202939.6FEC.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20090210204913.6FFB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id CD7416B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 07:03:20 -0500 (EST)
+Received: by yx-out-1718.google.com with SMTP id 4so182206yxp.26
+        for <linux-mm@kvack.org>; Tue, 10 Feb 2009 04:03:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <20090210204210.6FEF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20090209222416.GA9758@cmpxchg.org>
+	 <28c262360902100247x1d537dc2kfef3c4c0f769a259@mail.gmail.com>
+	 <20090210204210.6FEF.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Date: Tue, 10 Feb 2009 21:03:19 +0900
+Message-ID: <28c262360902100403m772576afp3c9212157dc9fcd@mail.gmail.com>
+Subject: Re: [RFC] vmscan: initialize sc->nr_reclaimed in do_try_to_free_pages()
+From: MinChan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Date: Tue, 10 Feb 2009 20:50:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, William Lee Irwin III <wli@movementarian.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Balbir,
+On Tue, Feb 10, 2009 at 8:43 PM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> ---
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 9a27c44..18406ee 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1699,6 +1699,7 @@ unsigned long try_to_free_pages(struct zonelist
+>> *zonelist, int order,
+>>                 .order = order,
+>>                 .mem_cgroup = NULL,
+>>                 .isolate_pages = isolate_pages_global,
+>> +               .nr_reclaimed = 0,
+>>         };
+>>
+>>         return do_try_to_free_pages(zonelist, &sc);
+>> @@ -1719,6 +1720,7 @@ unsigned long
+>> try_to_free_mem_cgroup_pages(struct mem_cgroup *mem_cont,
+>>                 .order = 0,
+>>                 .mem_cgroup = mem_cont,
+>>                 .isolate_pages = mem_cgroup_isolate_pages,
+>> +               .nr_reclaimed = 0;
+>>         };
+>>         struct zonelist *zonelist;
+>
+> I think this code is better.
+>
+> and, I think we also need to
+>
+>
+> static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> {
+>        /* Minimum pages needed in order to stay on node */
+>        const unsigned long nr_pages = 1 << order;
+>        struct task_struct *p = current;
+>        struct reclaim_state reclaim_state;
+>        int priority;
+>        struct scan_control sc = {
+>                .may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+>                .may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+>                .swap_cluster_max = max_t(unsigned long, nr_pages,
+>                                        SWAP_CLUSTER_MAX),
+>                .gfp_mask = gfp_mask,
+>                .swappiness = vm_swappiness,
+>                .isolate_pages = isolate_pages_global,
+> +               .nr_reclaimed = 0;
+>        };
+>
+>
+>
+>
+>
 
-> > * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-02-10 18:50:39]:
-> > 
-> > > 
-> > > commit 4f98a2fee8acdb4ac84545df98cccecfd130f8db (vmscan: 
-> > > split LRU lists into anon & file sets) remove mem_cgroup_reclaim_imbalance().
-> > > 
-> > > but it isn't enough.
-> > > memcontrol.h header file still have legacy parts.
-> > > 
-> > > 
-> > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > > ---
-> > >  include/linux/memcontrol.h |    6 ------
-> > >  1 file changed, 6 deletions(-)
-> > >
-> > 
-> > The calc_mapped_ratio prototype should also be removed from this file. 
-> 
-> ok, thanks.
-> I'll do that soon.
-
-I fixed this by "memcg: remove mem_cgroup_calc_mapped_ratio() take2".
-Then, We don't need to change this patch.
-
-Thanks!
+Hmm.. I missed that.  Thanks.
+There is one in shrink_all_memory.
 
 
+-- 
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
