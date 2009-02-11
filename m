@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AED96B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 20:52:57 -0500 (EST)
-Date: Wed, 11 Feb 2009 02:52:27 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] vmscan: initialize sc.order in indirect shrink_list() users
-Message-ID: <20090211015227.GA4605@cmpxchg.org>
-References: <20090210165134.GA2457@cmpxchg.org> <20090210162948.bd20d853.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090210162948.bd20d853.akpm@linux-foundation.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2356B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 23:49:00 -0500 (EST)
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 11 Feb 2009 15:48:26 +1100
+Subject: [PATCH] vmalloc: Add __get_vm_area_caller()
+Message-Id: <20090211044854.969CEDDDA9@ozlabs.org>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux Memory Management <linux-mm@kvack.org>
+Cc: linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-[added Mel to CC]
+We have get_vm_area_caller() and __get_vm_area() but not __get_vm_area_caller()
 
-On Tue, Feb 10, 2009 at 04:29:48PM -0800, Andrew Morton wrote:
-> On Tue, 10 Feb 2009 17:51:35 +0100
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > shrink_all_memory() and __zone_reclaim() currently don't initialize
-> > the .order field of their scan control.
-> > 
-> > Both of them call into functions which use that field and make certain
-> > decisions based on a random value.
-> > 
-> > The functions depending on the .order field are marked with a star,
-> > the faulty entry points are marked with a percentage sign:
-> > 
-> > * shrink_page_list()
-> >   * shrink_inactive_list()
-> >   * shrink_active_list()
-> >     shrink_list()
-> >       shrink_all_zones()
-> >         % shrink_all_memory()
-> >       shrink_zone()
-> >         % __zone_reclaim()
-> > 
-> > Initialize .order to zero in shrink_all_memory().  Initialize .order
-> > to the order parameter in __zone_reclaim().
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  mm/vmscan.c |    2 ++
-> >  1 files changed, 2 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 4422301..9ce85ea 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2112,6 +2112,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
-> >  		.may_unmap = 0,
-> >  		.swap_cluster_max = nr_pages,
-> >  		.may_writepage = 1,
-> > +		.order = 0,
-> >  		.isolate_pages = isolate_pages_global,
-> >  	};
-> >  
-> > @@ -2294,6 +2295,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> >  					SWAP_CLUSTER_MAX),
-> >  		.gfp_mask = gfp_mask,
-> >  		.swappiness = vm_swappiness,
-> > +		.order = order,
-> >  		.isolate_pages = isolate_pages_global,
-> >  	};
-> >  	unsigned long slab_reclaimable;
-> 
-> The second hunk might fix something, but it would need a correcter
-> changelog, and some thought about what its runtimes effects are likely
-> to be, please.
+On powerpc, I use __get_vm_area() to separate the ranges of addresses given
+to vmalloc vs. ioremap (various good reasons for that) so in order to be
+able to implement the new caller tracking in /proc/vmallocinfo, I need
+a "_caller" variant of it.
 
-zone_reclaim() is used by the watermark rebalancing of the buddy
-allocator right before trying to do an allocation.  Even though it
-tries to reclaim at least 1 << order pages, it doesn't raise sc.order
-to increase clustering efforts.
+Signed-off-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
 
-I think this happens with the assumption that the upcoming allocation
-can still succeed and in that case we don't want to lump too
-aggressively to refill the zone.  The allocation might succeed on
-another zone and now we have evicted precious pages due to clustering
-while we are still not sure it's even needed.
+I want to put into powerpc-next patches relying into that, so if the
+patch is ok with you guys, can I stick it in powerpc.git ?
 
-If the allocation fails from all zones, we still will use lumpy
-reclaim for higher orders in kswapd and try_to_free_pages().
+ include/linux/vmalloc.h |    3 +++
+ mm/vmalloc.c            |    8 ++++++++
+ 2 files changed, 11 insertions(+)
 
-So I think that __zone_reclaim() leaves sc.order = 0 intentionally.
-
-Mel?
-
-	Hannes
+--- linux-work.orig/include/linux/vmalloc.h	2009-02-04 15:33:35.000000000 +1100
++++ linux-work/include/linux/vmalloc.h	2009-02-04 15:33:47.000000000 +1100
+@@ -84,6 +84,9 @@ extern struct vm_struct *get_vm_area_cal
+ 					unsigned long flags, void *caller);
+ extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
+ 					unsigned long start, unsigned long end);
++extern struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
++					      unsigned long start, unsigned long end,
++					      void *caller);
+ extern struct vm_struct *get_vm_area_node(unsigned long size,
+ 					  unsigned long flags, int node,
+ 					  gfp_t gfp_mask);
+Index: linux-work/mm/vmalloc.c
+===================================================================
+--- linux-work.orig/mm/vmalloc.c	2009-02-04 15:32:47.000000000 +1100
++++ linux-work/mm/vmalloc.c	2009-02-04 15:33:25.000000000 +1100
+@@ -1106,6 +1106,14 @@ struct vm_struct *__get_vm_area(unsigned
+ }
+ EXPORT_SYMBOL_GPL(__get_vm_area);
+ 
++struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
++				       unsigned long start, unsigned long end,
++				       void *caller)
++{
++	return __get_vm_area_node(size, flags, start, end, -1, GFP_KERNEL,
++				  caller);
++}
++
+ /**
+  *	get_vm_area  -  reserve a contiguous kernel virtual area
+  *	@size:		size of the area
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
