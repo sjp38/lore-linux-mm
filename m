@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 847FE6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 18:18:37 -0500 (EST)
-Date: Wed, 11 Feb 2009 15:18:01 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: update_page_reclaim_stat() is called form page
- fault path
-Message-Id: <20090211151801.d9e8c84b.akpm@linux-foundation.org>
-In-Reply-To: <20090211213340.C3CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20090211213201.C3CA.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<20090211213340.C3CD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A27916B003D
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 18:53:36 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1BNrXkd020982
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 12 Feb 2009 08:53:34 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BAE5F45DD7B
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 951DA45DD78
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 839E51DB803B
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 439361DB8037
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] vmalloc: Add __get_vm_area_caller()
+In-Reply-To: <20090211144509.d22feeb8.akpm@linux-foundation.org>
+References: <20090211171804.7021.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090211144509.d22feeb8.akpm@linux-foundation.org>
+Message-Id: <20090212085156.C8DB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 12 Feb 2009 08:53:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@suse.de, hugh@veritas.com, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, benh@kernel.crashing.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Feb 2009 21:35:07 +0900 (JST)
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-
+> On Wed, 11 Feb 2009 17:22:47 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> Unfortunately, following two patch have a bit conflicted concept.
->   1. commit 9ff473b9a72942c5ac0ad35607cae28d8d59ed7a 
->      (vmscan: evict streaming IO first)
->   2. commit bf3f3bc5e734706730c12a323f9b2068052aa1f0
->      (mm: don't mark_page_accessed in fault path)
+> > > I want to put into powerpc-next patches relying into that, so if the
+> > > patch is ok with you guys, can I stick it in powerpc.git ?
+> > 
+> > hm.
+> > Generally, all MM patch should merge into -mm tree at first.
+> > but I don't think this patch have conflict risk. 
+> > 
+> > Andrew, What do you think?
 > 
-> (1) require page fault update reclaim stat via mark_page_accessed(), but
-> (2) removed mark_page_accessed() perfectly. 
-> 
-> However, (1) actually only need to update reclaim stat, but not activate page.
-> Then, fault-path calling update_page_reclaim_stat() solve thsi confliction.
-> 
-> ...
->
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1545,6 +1545,7 @@ retry_find:
->  	/*
->  	 * Found the page and have a reference on it.
->  	 */
-> +	update_page_reclaim_stat(page);
->  	ra->prev_pos = (loff_t)page->index << PAGE_CACHE_SHIFT;
->  	vmf->page = page;
->  	return ret | VM_FAULT_LOCKED;
+> We can sneak it into mainline later in the week?
 
-This is the minor fault hotpath.
+I think this patch obiously doesn't have any regression risk.
+I obey your judgement.
 
-> +void update_page_reclaim_stat(struct page *page)
-> +{
-> +	struct zone *zone = page_zone(page);
-> +
-> +	spin_lock_irq(&zone->lru_lock);
-> +	/* if the page isn't reclaimable, it doesn't update reclaim stat */
-> +	if (PageLRU(page) && !PageUnevictable(page)) {
-> +		update_page_reclaim_stat_locked(zone, page,
-> +					 !!page_is_file_cache(page), 1);
-> +	}
-> +	spin_unlock_irq(&zone->lru_lock);
-> +}
-
-And we just added a spin_lock_irq() and a bunch of other stuff to it.
-
-Can we improve this?
-
-Can we just omit it, even?
-
-Can we update those stats locklessly and accomodate the resulting
-inaccuracy over at the codesites where these statistics are actually
-used?
 
 
 --
