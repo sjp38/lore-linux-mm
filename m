@@ -1,44 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5FD6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 18:13:15 -0500 (EST)
-Date: Tue, 10 Feb 2009 15:12:47 -0800
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id D2CF36B003D
+	for <linux-mm@kvack.org>; Tue, 10 Feb 2009 19:30:00 -0500 (EST)
+Date: Tue, 10 Feb 2009 16:29:48 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: remove zone->prev_prioriy
-Message-Id: <20090210151247.6747f66e.akpm@linux-foundation.org>
-In-Reply-To: <28c262360902100257o6a8e2374v42f1ae906c53bcec@mail.gmail.com>
-References: <20090210184055.6FCB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-	<28c262360902100257o6a8e2374v42f1ae906c53bcec@mail.gmail.com>
+Subject: Re: [patch] vmscan: initialize sc.order in indirect shrink_list()
+ users
+Message-Id: <20090210162948.bd20d853.akpm@linux-foundation.org>
+In-Reply-To: <20090210165134.GA2457@cmpxchg.org>
+References: <20090210165134.GA2457@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Feb 2009 19:57:01 +0900
-MinChan Kim <minchan.kim@gmail.com> wrote:
+On Tue, 10 Feb 2009 17:51:35 +0100
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> As you know, prev_priority is used as a measure of how much stress page reclaim.
-> But now we doesn't need it due to split-lru's way.
+> shrink_all_memory() and __zone_reclaim() currently don't initialize
+> the .order field of their scan control.
 > 
-> I think it would be better to remain why prev_priority isn't needed any more
-> and how split-lru can replace prev_priority's role in changelog.
+> Both of them call into functions which use that field and make certain
+> decisions based on a random value.
 > 
-> In future, it help mm newbies understand change history, I think.
+> The functions depending on the .order field are marked with a star,
+> the faulty entry points are marked with a percentage sign:
+> 
+> * shrink_page_list()
+>   * shrink_inactive_list()
+>   * shrink_active_list()
+>     shrink_list()
+>       shrink_all_zones()
+>         % shrink_all_memory()
+>       shrink_zone()
+>         % __zone_reclaim()
+> 
+> Initialize .order to zero in shrink_all_memory().  Initialize .order
+> to the order parameter in __zone_reclaim().
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4422301..9ce85ea 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2112,6 +2112,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+>  		.may_unmap = 0,
+>  		.swap_cluster_max = nr_pages,
+>  		.may_writepage = 1,
+> +		.order = 0,
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+>  
+> @@ -2294,6 +2295,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>  					SWAP_CLUSTER_MAX),
+>  		.gfp_mask = gfp_mask,
+>  		.swappiness = vm_swappiness,
+> +		.order = order,
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+>  	unsigned long slab_reclaimable;
 
-Yes, I'd be fascinated to see that explanation.
-
-In http://groups.google.pn/group/linux.kernel/browse_thread/thread/fea9c9a0b43162a1
-it was asserted that we intend to use prev_priority again in the future.
-
-We discussed this back in November:
-http://lkml.indiana.edu/hypermail/linux/kernel/0811.2/index.html#00001
-
-And I think that I still think that the VM got worse due to its (new)
-failure to track previous state.  IIRC, the response to that concern
-was quite similar to handwavy waffling.
+The second hunk might fix something, but it would need a correcter
+changelog, and some thought about what its runtimes effects are likely
+to be, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
