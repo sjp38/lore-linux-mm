@@ -1,70 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EF9FF6B0055
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 08:03:14 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1BD3B2Z018547
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 11 Feb 2009 22:03:12 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7356945DE54
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 22:03:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FAA845DE50
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 22:03:11 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EE19B1DB803B
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 22:03:10 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A199F1DB803C
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 22:03:10 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] shrink_all_memory() use sc.nr_reclaimed
-In-Reply-To: <20090211215654.C3D6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-References: <20090211214324.6a9cfb58.minchan.kim@barrios-desktop> <20090211215654.C3D6.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-Message-Id: <20090211220044.C3D9.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 97E876B003D
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 09:04:17 -0500 (EST)
+Received: by qyk5 with SMTP id 5so163928qyk.14
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2009 06:04:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <20090210141405.GA16147@elte.hu>
+References: <a5f59d880902100542x7243b13fuf40e7dd21faf7d7a@mail.gmail.com>
+	 <20090210141405.GA16147@elte.hu>
+Date: Wed, 11 Feb 2009 22:04:16 +0800
+Message-ID: <a5f59d880902110604g40cf17b5w92431f60e6f16fa4@mail.gmail.com>
+Subject: Re: Using module private memory to simulate microkernel's memory
+	protection
+From: Pengfei Hu <hpfei.cn@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Wed, 11 Feb 2009 22:03:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: MinChan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, William Lee Irwin III <wli@movementarian.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>, Vegard Nossum <vegard.nossum@gmail.com>
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > I mean here.
-> > 
-> > '
-> >               NR_LRU_BASE + l)); 
-> >         ret += shrink_list(l, nr_to_scan, zone,
-> >                 sc, prio);
-> >         if (ret >= nr_pages)
-> >           return ret; 
-> >       }    
-> > '
-> > 
-> > I have to make patch again so that it will keep on old bale-out behavior. 
-> 
-> Sure.
-> thanks.
+>
+> Hm, are you aware of the kmemcheck project?
+>
+>        Ingo
+>
 
-As I mean,
+Frankly, I only know this project's name. Just when I nearly finished
+this patch, I browsed http://git.kernel.org/ first time. I am only a
+beginner in Linux kernel. Maybe I should first discuss before write
+code. But I think it is not too late.
 
-@@ -2082,15 +2082,14 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
- 				nr_to_scan = min(nr_pages,
- 					zone_page_state(zone,
- 							NR_LRU_BASE + l));
-				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
-								sc, prio);
--				if (nr_reclaimed >= nr_pages) 
--				if (nr_reclaimed > sc.swap_cluster_max) 
-					break;
- 		}
- 	}
-
-
-this is keep old behavior and consist shrink_zone(), I think.
-
+Can you tell me more about this project? I realy appreciate it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
