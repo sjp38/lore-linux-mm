@@ -1,120 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 8E9776B003D
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 02:25:42 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1C7Pecc028410
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 12 Feb 2009 16:25:40 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0888345DD72
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 16:25:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 32F4745DD78
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 16:25:36 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA305E08010
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 16:25:35 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A6F5E0800F
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 16:25:35 +0900 (JST)
-Date: Thu, 12 Feb 2009 16:24:21 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH 2/2] fix memmap init for handling memory hole
-Message-Id: <20090212162421.65bb7aa2.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090212161920.deedea35.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090212161920.deedea35.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id D119A6B003D
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 02:33:35 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so322591tia.8
+        for <linux-mm@kvack.org>; Wed, 11 Feb 2009 23:33:33 -0800 (PST)
+Date: Thu, 12 Feb 2009 16:33:10 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [PATCH v2]  shrink_all_memory() use sc.nr_reclaimed
+Message-Id: <20090212163310.b204e80a.minchan.kim@barrios-desktop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, davem@davemlloft.net, heiko.carstens@de.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Now, early_pfn_in_nid(PFN, NID) may returns false if PFN is a hole.
-and memmap initialization was not done. This was a trouble for
-sparc boot.
+Impact: cleanup
 
-To fix this, the PFN should be initialized and marked as PG_reserved.
-This patch changes early_pfn_in_nid() return true if PFN is a hole.
+Commit a79311c14eae4bb946a97af25f3e1b17d625985d "vmscan: bail out of
+direct reclaim after swap_cluster_max pages" moved the nr_reclaimed
+counter into the scan control to accumulate the number of all
+reclaimed pages in a reclaim invocation.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+The shrink_all_memory() can use the same mechanism. it increases code
+consistency and readability.
+
+It's based on mmtom 2009-02-11-17-15.
+
+Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Rik van Riel <riel@redhat.com>
+
+
 ---
- arch/ia64/mm/numa.c    |    2 +-
- include/linux/mmzone.h |    2 +-
- mm/page_alloc.c        |   23 ++++++++++++++++++++---
- 3 files changed, 22 insertions(+), 5 deletions(-)
+ mm/vmscan.c |   51 ++++++++++++++++++++++++++++++---------------------
+ 1 files changed, 30 insertions(+), 21 deletions(-)
 
-Index: mmotm-2.6.29-Feb11/mm/page_alloc.c
-===================================================================
---- mmotm-2.6.29-Feb11.orig/mm/page_alloc.c
-+++ mmotm-2.6.29-Feb11/mm/page_alloc.c
-@@ -2985,16 +2985,33 @@ int __meminit __early_pfn_to_nid(unsigne
- 		if (start_pfn <= pfn && pfn < end_pfn)
- 			return early_node_map[i].nid;
- 	}
--
--	return 0;
-+	/* This is a memory hole */
-+	return -1;
- }
- #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
- 
- int __meminit early_pfn_to_nid(unsigned long pfn)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index ae4202b..caa2de5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2055,16 +2055,15 @@ unsigned long global_lru_pages(void)
+ #ifdef CONFIG_PM
+ /*
+  * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+- * from LRU lists system-wide, for given pass and priority, and returns the
+- * number of reclaimed pages
++ * from LRU lists system-wide, for given pass and priority.
+  *
+  * For pass > 3 we also try to shrink the LRU lists that contain a few pages
+  */
+-static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
++static void shrink_all_zones(unsigned long nr_pages, int prio,
+ 				      int pass, struct scan_control *sc)
  {
--	return __early_pfn_to_nid(pfn);
-+	int nid;
-+
-+	nid = __early_pfn_to_nid(pfn);
-+	if (nid >= 0)
-+		return nid;
-+	/* just returns 0 */
-+	return 0;
+ 	struct zone *zone;
+-	unsigned long ret = 0;
++	unsigned long nr_reclaimed = 0;
+ 
+ 	for_each_populated_zone(zone) {
+ 		enum lru_list l;
+@@ -2087,14 +2086,16 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+ 
+ 				zone->lru[l].nr_scan = 0;
+ 				nr_to_scan = min(nr_pages, lru_pages);
+-				ret += shrink_list(l, nr_to_scan, zone,
++				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
+ 								sc, prio);
+-				if (ret >= nr_pages)
+-					return ret;
++				if (nr_reclaimed >= nr_pages) {
++					sc->nr_reclaimed = nr_reclaimed;
++					return;
++				}
+ 			}
+ 		}
+ 	}
+-	return ret;
++	sc->nr_reclaimed = nr_reclaimed;
  }
  
-+#ifdef CONFIG_NODES_SPAN_OTHER_NODES
-+bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
-+{
-+	int nid;
-+
-+	nid = __early_pfn_to_nid(pfn);
-+	if (nid >= 0 && nid != node)
-+		return false;
-+	return true;
-+}
-+#endif
+ /*
+@@ -2126,13 +2127,15 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+ 	/* If slab caches are huge, it's better to hit them first */
+ 	while (nr_slab >= lru_pages) {
+ 		reclaim_state.reclaimed_slab = 0;
+-		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
++		shrink_slab(sc.swap_cluster_max, sc.gfp_mask, lru_pages);
+ 		if (!reclaim_state.reclaimed_slab)
+ 			break;
  
- /* Basic iterator support to walk early_node_map[] */
- #define for_each_active_range_index_in_nid(i, nid) \
-Index: mmotm-2.6.29-Feb11/include/linux/mmzone.h
-===================================================================
---- mmotm-2.6.29-Feb11.orig/include/linux/mmzone.h
-+++ mmotm-2.6.29-Feb11/include/linux/mmzone.h
-@@ -1079,7 +1079,7 @@ void sparse_init(void);
- #endif /* CONFIG_SPARSEMEM */
+-		ret += reclaim_state.reclaimed_slab;
+-		if (ret >= nr_pages)
++		sc.nr_reclaimed += reclaim_state.reclaimed_slab;
++		if (sc.nr_reclaimed >= sc.swap_cluster_max) {
++			ret = sc.nr_reclaimed;
+ 			goto out;
++		}
  
- #ifdef CONFIG_NODES_SPAN_OTHER_NODES
--#define early_pfn_in_nid(pfn, nid)	(early_pfn_to_nid(pfn) == (nid))
-+bool early_pfn_in_nid(unsigned long pfn, int nid);
- #else
- #define early_pfn_in_nid(pfn, nid)	(1)
- #endif
-Index: mmotm-2.6.29-Feb11/arch/ia64/mm/numa.c
-===================================================================
---- mmotm-2.6.29-Feb11.orig/arch/ia64/mm/numa.c
-+++ mmotm-2.6.29-Feb11/arch/ia64/mm/numa.c
-@@ -70,7 +70,7 @@ int __meminit __early_pfn_to_nid(unsigne
- 			return node_memblk[i].nid;
+ 		nr_slab -= reclaim_state.reclaimed_slab;
+ 	}
+@@ -2153,19 +2156,23 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+ 			sc.may_unmap = 1;
+ 
+ 		for (prio = DEF_PRIORITY; prio >= 0; prio--) {
+-			unsigned long nr_to_scan = nr_pages - ret;
++			unsigned long nr_to_scan = sc.swap_cluster_max - sc.nr_reclaimed;
+ 
+ 			sc.nr_scanned = 0;
+-			ret += shrink_all_zones(nr_to_scan, prio, pass, &sc);
+-			if (ret >= nr_pages)
++			shrink_all_zones(nr_to_scan, prio, pass, &sc);
++			if (sc.nr_reclaimed >= sc.swap_cluster_max) {
++				ret = sc.nr_reclaimed;
+ 				goto out;
++			}
+ 
+ 			reclaim_state.reclaimed_slab = 0;
+ 			shrink_slab(sc.nr_scanned, sc.gfp_mask,
+ 					global_lru_pages());
+-			ret += reclaim_state.reclaimed_slab;
+-			if (ret >= nr_pages)
++			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
++			if (sc.nr_reclaimed >= sc.swap_cluster_max) {
++				ret = sc.nr_reclaimed;
+ 				goto out;
++			}
+ 
+ 			if (sc.nr_scanned && prio < DEF_PRIORITY - 2)
+ 				congestion_wait(WRITE, HZ / 10);
+@@ -2173,17 +2180,19 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
  	}
  
--	return 0;
-+	return -1;
- }
+ 	/*
+-	 * If ret = 0, we could not shrink LRUs, but there may be something
++	 * If sc.nr_reclaimed = 0, we could not shrink LRUs, but there may be something
+ 	 * in slab caches
+ 	 */
+-	if (!ret) {
++	if (!sc.nr_reclaimed) {
+ 		do {
+ 			reclaim_state.reclaimed_slab = 0;
+-			shrink_slab(nr_pages, sc.gfp_mask, global_lru_pages());
+-			ret += reclaim_state.reclaimed_slab;
+-		} while (ret < nr_pages && reclaim_state.reclaimed_slab > 0);
++			shrink_slab(sc.swap_cluster_max, sc.gfp_mask, global_lru_pages());
++			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
++		} while (sc.nr_reclaimed < sc.swap_cluster_max && reclaim_state.reclaimed_slab > 0);
+ 	}
  
- #ifdef CONFIG_MEMORY_HOTPLUG
++	ret = sc.nr_reclaimed;
++
+ out:
+ 	current->reclaim_state = NULL;
+ 
+-- 
+1.5.4.3
+
+
+
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
