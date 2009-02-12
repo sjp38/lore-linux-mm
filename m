@@ -1,44 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 79AAA6B003D
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 05:50:56 -0500 (EST)
-Date: Thu, 12 Feb 2009 18:50:34 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH] Export symbol ksize()
-Message-ID: <20090212105034.GC13859@gondor.apana.org.au>
-References: <1234272104-10211-1-git-send-email-kirill@shutemov.name> <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com> <20090210134651.GA5115@epbyminw8406h.minsk.epam.com> <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI> <20090212104349.GA13859@gondor.apana.org.au> <1234435521.28812.165.camel@penberg-laptop>
-MIME-Version: 1.0
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 42EE66B003D
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 06:26:34 -0500 (EST)
+Date: Thu, 12 Feb 2009 12:25:58 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2]  shrink_all_memory() use sc.nr_reclaimed
+Message-ID: <20090212112557.GA6677@cmpxchg.org>
+References: <20090212163310.b204e80a.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1234435521.28812.165.camel@penberg-laptop>
+In-Reply-To: <20090212163310.b204e80a.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 12, 2009 at 12:45:21PM +0200, Pekka Enberg wrote:
+On Thu, Feb 12, 2009 at 04:33:10PM +0900, MinChan Kim wrote:
 > 
-> Because the API was being widely abused in the nommu code, for example.
-> I'd rather not add it back for this special case which can be handled
-> otherwise.
+> Impact: cleanup
+> 
+> Commit a79311c14eae4bb946a97af25f3e1b17d625985d "vmscan: bail out of
+> direct reclaim after swap_cluster_max pages" moved the nr_reclaimed
+> counter into the scan control to accumulate the number of all
+> reclaimed pages in a reclaim invocation.
+> 
+> The shrink_all_memory() can use the same mechanism. it increases code
+> consistency and readability.
+> 
+> It's based on mmtom 2009-02-11-17-15.
+> 
+> Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+> Cc: Rik van Riel <riel@redhat.com>
+> 
+> 
+> ---
+>  mm/vmscan.c |   51 ++++++++++++++++++++++++++++++---------------------
+>  1 files changed, 30 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ae4202b..caa2de5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2055,16 +2055,15 @@ unsigned long global_lru_pages(void)
+>  #ifdef CONFIG_PM
+>  /*
+>   * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+> - * from LRU lists system-wide, for given pass and priority, and returns the
+> - * number of reclaimed pages
+> + * from LRU lists system-wide, for given pass and priority.
+>   *
+>   * For pass > 3 we also try to shrink the LRU lists that contain a few pages
+>   */
+> -static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+> +static void shrink_all_zones(unsigned long nr_pages, int prio,
+>  				      int pass, struct scan_control *sc)
+>  {
+>  	struct zone *zone;
+> -	unsigned long ret = 0;
+> +	unsigned long nr_reclaimed = 0;
 
-I'm sorry but that's like banning the use of heaters just because
-they can abused and cause fires.
+Why this extra variable?  You could use sc->nr_reclaimed throughout,
+like you do in shrink_all_memory().
 
-I think I've said this to you before but in networking we very much
-want to use ksize because the standard case of a 1500-byte packet
-has loads of extra room given by kmalloc which all goes to waste
-right now.
+>  	for_each_populated_zone(zone) {
+>  		enum lru_list l;
+> @@ -2087,14 +2086,16 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+>  
+>  				zone->lru[l].nr_scan = 0;
+>  				nr_to_scan = min(nr_pages, lru_pages);
+> -				ret += shrink_list(l, nr_to_scan, zone,
+> +				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
+>  								sc, prio);
+> -				if (ret >= nr_pages)
+> -					return ret;
+> +				if (nr_reclaimed >= nr_pages) {
+> +					sc->nr_reclaimed = nr_reclaimed;
+> +					return;
+> +				}
+>  			}
+>  		}
+>  	}
+> -	return ret;
+> +	sc->nr_reclaimed = nr_reclaimed;
+>  }
+>  
+>  /*
+> @@ -2126,13 +2127,15 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+>  	/* If slab caches are huge, it's better to hit them first */
+>  	while (nr_slab >= lru_pages) {
+>  		reclaim_state.reclaimed_slab = 0;
+> -		shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
+> +		shrink_slab(sc.swap_cluster_max, sc.gfp_mask, lru_pages);
+>  		if (!reclaim_state.reclaimed_slab)
+>  			break;
+>  
+> -		ret += reclaim_state.reclaimed_slab;
+> -		if (ret >= nr_pages)
+> +		sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+> +		if (sc.nr_reclaimed >= sc.swap_cluster_max) {
+> +			ret = sc.nr_reclaimed;
 
-If we could use ksize then we can stuff loads of metadata in that
-space.
+Why do you still maintain `ret'?  Just return sc.nr_reclaimed at the
+end and get rid of ret alltogether.
 
-Cheers,
--- 
-Visit Openswan at http://www.openswan.org/
-Email: Herbert Xu ~{PmV>HI~} <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+Using sc.swap_cluster_max here seems to be a good idea at first sight
+but really it is not.
+
+Usually, swap_cluster_max is smaller than the reclaim goal and reclaim
+code uses it combined with other conditions to bail out BEFORE the
+original reclaim goal is met.  But sc.swap_cluster_max IS our original
+reclaim goal, so it means something different.
+
+It's btw buggy, we never decrease swap_cluster_max which leads to
+funky overreclaim in shrink_inactive_list().  I will send the original
+patch from Kosaki-san for using sc->nr_reclaimed and a patch for the
+overreclaim problem.
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
