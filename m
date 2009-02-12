@@ -1,106 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 588B56B0055
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 06:51:56 -0500 (EST)
-Message-Id: <20090212114416.197688682@cmpxchg.org>
-Date: Thu, 12 Feb 2009 12:36:11 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/2] vmscan: clip swap_cluster_max in shrink_all_memory()
-References: <20090212113609.351980834@cmpxchg.org>
-Content-Disposition: inline; filename=vmscan-clip-swap_cluster_max-in-shrink_all_memory.patch
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0A86A6B003D
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:11:05 -0500 (EST)
+Received: by el-out-1112.google.com with SMTP id y26so442899ele.26
+        for <linux-mm@kvack.org>; Thu, 12 Feb 2009 05:11:04 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20090212112557.GA6677@cmpxchg.org>
+References: <20090212163310.b204e80a.minchan.kim@barrios-desktop>
+	 <20090212112557.GA6677@cmpxchg.org>
+Date: Thu, 12 Feb 2009 22:11:04 +0900
+Message-ID: <28c262360902120511kb3a90e4r929eebbbceae26e8@mail.gmail.com>
+Subject: Re: [PATCH v2] shrink_all_memory() use sc.nr_reclaimed
+From: MinChan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, MinChan Kim <minchan.kim@gmail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Nigel Cunningham <ncunningham-lkml@crca.org.au>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-shrink_inactive_list() scans in sc->swap_cluster_max chunks until it
-hits the scan limit it was passed.
+On Thu, Feb 12, 2009 at 8:25 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Thu, Feb 12, 2009 at 04:33:10PM +0900, MinChan Kim wrote:
+>>
+>> Impact: cleanup
+>>
+>> Commit a79311c14eae4bb946a97af25f3e1b17d625985d "vmscan: bail out of
+>> direct reclaim after swap_cluster_max pages" moved the nr_reclaimed
+>> counter into the scan control to accumulate the number of all
+>> reclaimed pages in a reclaim invocation.
+>>
+>> The shrink_all_memory() can use the same mechanism. it increases code
+>> consistency and readability.
+>>
+>> It's based on mmtom 2009-02-11-17-15.
+>>
+>> Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+>> Cc: Rik van Riel <riel@redhat.com>
+>>
+>>
+>> ---
+>>  mm/vmscan.c |   51 ++++++++++++++++++++++++++++++---------------------
+>>  1 files changed, 30 insertions(+), 21 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index ae4202b..caa2de5 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -2055,16 +2055,15 @@ unsigned long global_lru_pages(void)
+>>  #ifdef CONFIG_PM
+>>  /*
+>>   * Helper function for shrink_all_memory().  Tries to reclaim 'nr_pages' pages
+>> - * from LRU lists system-wide, for given pass and priority, and returns the
+>> - * number of reclaimed pages
+>> + * from LRU lists system-wide, for given pass and priority.
+>>   *
+>>   * For pass > 3 we also try to shrink the LRU lists that contain a few pages
+>>   */
+>> -static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+>> +static void shrink_all_zones(unsigned long nr_pages, int prio,
+>>                                     int pass, struct scan_control *sc)
+>>  {
+>>       struct zone *zone;
+>> -     unsigned long ret = 0;
+>> +     unsigned long nr_reclaimed = 0;
+>
+> Why this extra variable?  You could use sc->nr_reclaimed throughout,
+> like you do in shrink_all_memory().
 
-shrink_inactive_list()
-{
-	do {
-		isolate_pages(swap_cluster_max)
-		shrink_page_list()
-	} while (nr_scanned < max_scan);
-}
+It's just for matching shrink_zone style in order to code consistency.
+But, I have no objection to remove extra variable.
 
-This assumes that swap_cluster_max is not bigger than the scan limit
-because the latter is checked only after at least one iteration.
+>
+>>       for_each_populated_zone(zone) {
+>>               enum lru_list l;
+>> @@ -2087,14 +2086,16 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
+>>
+>>                               zone->lru[l].nr_scan = 0;
+>>                               nr_to_scan = min(nr_pages, lru_pages);
+>> -                             ret += shrink_list(l, nr_to_scan, zone,
+>> +                             nr_reclaimed += shrink_list(l, nr_to_scan, zone,
+>>                                                               sc, prio);
+>> -                             if (ret >= nr_pages)
+>> -                                     return ret;
+>> +                             if (nr_reclaimed >= nr_pages) {
+>> +                                     sc->nr_reclaimed = nr_reclaimed;
+>> +                                     return;
+>> +                             }
+>>                       }
+>>               }
+>>       }
+>> -     return ret;
+>> +     sc->nr_reclaimed = nr_reclaimed;
+>>  }
+>>
+>>  /*
+>> @@ -2126,13 +2127,15 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+>>       /* If slab caches are huge, it's better to hit them first */
+>>       while (nr_slab >= lru_pages) {
+>>               reclaim_state.reclaimed_slab = 0;
+>> -             shrink_slab(nr_pages, sc.gfp_mask, lru_pages);
+>> +             shrink_slab(sc.swap_cluster_max, sc.gfp_mask, lru_pages);
+>>               if (!reclaim_state.reclaimed_slab)
+>>                       break;
+>>
+>> -             ret += reclaim_state.reclaimed_slab;
+>> -             if (ret >= nr_pages)
+>> +             sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+>> +             if (sc.nr_reclaimed >= sc.swap_cluster_max) {
+>> +                     ret = sc.nr_reclaimed;
+>
+> Why do you still maintain `ret'?  Just return sc.nr_reclaimed at the
+> end and get rid of ret alltogether.
 
-In shrink_all_memory() sc->swap_cluster_max is initialized to the
-overall reclaim goal in the beginning but not decreased while reclaim
-is making progress which leads to subsequent calls to
-shrink_inactive_list() reclaiming way too much in the one iteration
-that is done unconditionally.
+It' just for emphasis on return variable.
+Of course, I have no objection to remove 'ret'. ;
 
-Set sc->swap_cluster_max always to the proper goal before doing
-  shrink_all_zones()
-    shrink_list()
-      shrink_inactive_list().
+> Using sc.swap_cluster_max here seems to be a good idea at first sight
+> but really it is not.
+>
+> Usually, swap_cluster_max is smaller than the reclaim goal and reclaim
+> code uses it combined with other conditions to bail out BEFORE the
+> original reclaim goal is met.  But sc.swap_cluster_max IS our original
+> reclaim goal, so it means something different.
+>
+> It's btw buggy, we never decrease swap_cluster_max which leads to
+> funky overreclaim in shrink_inactive_list().  I will send the original
+> patch from Kosaki-san for using sc->nr_reclaimed and a patch for the
+> overreclaim problem.
+>
+>        Hannes
+>
 
-While the current shrink_all_memory() happily reclaims more than
-actually requested, this patch fixes it to never exceed the goal:
 
-unpatched
-   wanted=10000 reclaimed=13356
-   wanted=10000 reclaimed=19711
-   wanted=10000 reclaimed=10289
-   wanted=10000 reclaimed=17306
-   wanted=10000 reclaimed=10700
-   wanted=10000 reclaimed=10004
-   wanted=10000 reclaimed=13301
-   wanted=10000 reclaimed=10976
-   wanted=10000 reclaimed=10605
-   wanted=10000 reclaimed=10088
-   wanted=10000 reclaimed=15000
 
-patched
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=9599
-   wanted=10000 reclaimed=8476
-   wanted=10000 reclaimed=8326
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=9919
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=9624
-   wanted=10000 reclaimed=10000
-   wanted=10000 reclaimed=10000
-   wanted=8500 reclaimed=8092
-   wanted=316 reclaimed=316
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: MinChan Kim <minchan.kim@gmail.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Nigel Cunningham <ncunningham-lkml@crca.org.au>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2105,7 +2105,6 @@ unsigned long shrink_all_memory(unsigned
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 0,
--		.swap_cluster_max = nr_pages,
- 		.may_writepage = 1,
- 		.isolate_pages = isolate_pages_global,
- 	};
-@@ -2147,6 +2146,7 @@ unsigned long shrink_all_memory(unsigned
- 			unsigned long nr_to_scan = nr_pages - sc.nr_reclaimed;
- 
- 			sc.nr_scanned = 0;
-+			sc.swap_cluster_max = nr_to_scan;
- 			shrink_all_zones(nr_to_scan, prio, pass, &sc);
- 			if (sc.nr_reclaimed >= nr_pages)
- 				goto out;
-
+-- 
+Kinds regards,
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
