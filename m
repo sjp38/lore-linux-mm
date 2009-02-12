@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A27916B003D
-	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 18:53:36 -0500 (EST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 6213D6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Feb 2009 19:02:04 -0500 (EST)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1BNrXkd020982
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 12 Feb 2009 08:53:34 +0900
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1C020MT030744
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 12 Feb 2009 09:02:01 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BAE5F45DD7B
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A811845DE5B
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 09:02:00 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 951DA45DD78
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C33345DD83
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 09:02:00 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 839E51DB803B
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 439361DB8037
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 08:53:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmalloc: Add __get_vm_area_caller()
-In-Reply-To: <20090211144509.d22feeb8.akpm@linux-foundation.org>
-References: <20090211171804.7021.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090211144509.d22feeb8.akpm@linux-foundation.org>
-Message-Id: <20090212085156.C8DB.KOSAKI.MOTOHIRO@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 34C26E08008
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 09:02:00 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA51B1DB8044
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 09:01:56 +0900 (JST)
+Date: Thu, 12 Feb 2009 09:00:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: remove zone->prev_prioriy
+Message-Id: <20090212090043.b07d6540.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090211201706.C3C0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+References: <20090211195252.C3BD.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+	<20090211031201.cace1c68.akpm@linux-foundation.org>
+	<20090211201706.C3C0.KOSAKI.MOTOHIRO@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu, 12 Feb 2009 08:53:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, benh@kernel.crashing.org, linux-mm@kvack.org, linuxppc-dev@ozlabs.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, MinChan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 11 Feb 2009 17:22:47 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > I want to put into powerpc-next patches relying into that, so if the
-> > > patch is ok with you guys, can I stick it in powerpc.git ?
+On Wed, 11 Feb 2009 20:23:39 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+
+> > On Wed, 11 Feb 2009 20:06:46 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > > 
-> > hm.
-> > Generally, all MM patch should merge into -mm tree at first.
-> > but I don't think this patch have conflict risk. 
+> > > > On Tue, 10 Feb 2009 19:57:01 +0900
+> > > > MinChan Kim <minchan.kim@gmail.com> wrote:
+> > > > 
+> > > > > As you know, prev_priority is used as a measure of how much stress page reclaim.
+> > > > > But now we doesn't need it due to split-lru's way.
+> > > > > 
+> > > > > I think it would be better to remain why prev_priority isn't needed any more
+> > > > > and how split-lru can replace prev_priority's role in changelog.
+> > > > > 
+> > > > > In future, it help mm newbies understand change history, I think.
+> > > > 
+> > > > Yes, I'd be fascinated to see that explanation.
+> > > > 
+> > > > In http://groups.google.pn/group/linux.kernel/browse_thread/thread/fea9c9a0b43162a1
+> > > > it was asserted that we intend to use prev_priority again in the future.
+> > > > 
+> > > > We discussed this back in November:
+> > > > http://lkml.indiana.edu/hypermail/linux/kernel/0811.2/index.html#00001
+> > > > 
+> > > > And I think that I still think that the VM got worse due to its (new)
+> > > > failure to track previous state.  IIRC, the response to that concern
+> > > > was quite similar to handwavy waffling.
+> > > 
+> > > Yes.
+> > > I still think it's valuable code.
+> > > I think, In theory, VM sould take parallel reclaim bonus.
 > > 
-> > Andrew, What do you think?
+> > prev_priority had nothing to do with concurrent reclaim?
+> > 
+> > It was there so that when a task enters direct reclaim against a zone,
+> > it will immediately adopt the state which the task which most recently
+> > ran direct reclaim had.
+> > 
+> > Without this feature, each time a task enters direct reclaim it will need
+> > to "relearn" that state - ramping up, making probably-incorrect
+> > decisions as it does so.
 > 
-> We can sneak it into mainline later in the week?
+> Yes, I perfectly agree to you.
+> theorically, prev_priority is very valuable stuff.
+> 
 
-I think this patch obiously doesn't have any regression risk.
-I obey your judgement.
+Ok, please implement the lost logic again.
 
-
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
