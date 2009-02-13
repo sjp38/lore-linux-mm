@@ -1,58 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9EE6B003D
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 12:41:59 -0500 (EST)
-Message-ID: <4995B0E3.3050201@goop.org>
-Date: Fri, 13 Feb 2009 09:41:55 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: disable preemption in apply_to_pte_range
-References: <4994BCF0.30005@goop.org>	 <200902140030.59027.nickpiggin@yahoo.com.au>	 <1234534611.6519.109.camel@twins>	 <200902140130.31985.nickpiggin@yahoo.com.au> <1234535938.6519.118.camel@twins>
-In-Reply-To: <1234535938.6519.118.camel@twins>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 0D5976B003D
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 17:21:27 -0500 (EST)
+Date: Fri, 13 Feb 2009 14:20:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] clean up for early_pfn_to_nid
+Message-Id: <20090213142032.09b4a4da.akpm@linux-foundation.org>
+In-Reply-To: <20090212162203.db3f07cb.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090212161920.deedea35.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090212162203.db3f07cb.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, davem@davemlloft.net, heiko.carstens@de.ibm.com, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Peter Zijlstra wrote:
-> If the lazy mmu code relies on per-cpu data, then it should be the lazy
-> mmu's responsibility to ensure stuff is properly serialized. Eg. it
-> should do get_cpu_var() and put_cpu_var().
->
-> Those constructs can usually be converted to preemptable variants quite
-> easily, as it clearly shows what data needs to be protected.
->   
+On Thu, 12 Feb 2009 16:22:03 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-At the moment the lazy update stuff is inherently cpu-affine.  The basic 
-model is that you can amortize the cost of individual update operations 
-(via hypercall, for example) by batching them up.  That batch is almost 
-certainly a piece of percpu state (in Xen's case its maintained on the 
-kernel side as per-cpu data, but in VMI it happens somewhere under their 
-ABI), and so we can't allow switching to another cpu while lazy update 
-mode is active.
+> Declaration of early_pfn_to_nid() is scattered over per-arch include files,
+> and it seems it's complicated to know when the declaration is used.
+> I think it makes fix-for-memmap-init not easy.
+> 
+> This patch moves all declaration to include/linux/mm.h
+> 
+> After this,
+>   if !CONFIG_NODES_POPULATES_NODE_MAP && !CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+>      -> Use static definition in include/linux/mm.h
+>   else if !CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+>      -> Use generic definition in mm/page_alloc.c
+>   else
+>      -> per-arch back end function will be called.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> ---
+>  arch/ia64/include/asm/mmzone.h   |    4 ----
+>  arch/ia64/mm/numa.c              |    2 +-
+>  arch/x86/include/asm/mmzone_32.h |    2 --
+>  arch/x86/include/asm/mmzone_64.h |    2 --
+>  arch/x86/mm/numa_64.c            |    2 +-
+>  include/linux/mm.h               |   19 ++++++++++++++++---
+>  mm/page_alloc.c                  |    8 +++++++-
+>  7 files changed, 25 insertions(+), 14 deletions(-)
 
-Preemption is also problematic because if we're doing lazy updates and 
-we switch to another task, it will likely get very confused if its 
-pagetable updates get deferred until some arbitrary point in the future...
+It's rather unfortunate that this bugfix includes a fair-sized cleanup
+patch, because we should backport it into 2.6.28.x.
 
-So at the moment, we just disable preemption, and take advantage of the 
-existing work to make sure pagetable updates are not non-preemptible for 
-too long.  This has been fine so far, because almost all the work on 
-using lazy mmu updates has focused on usermode mappings.
+Oh well.
 
-But I can see how this is problematic from your perspective.  One thing 
-we could consider is making the lazy mmu mode a per-task property, so if 
-we get preempted we can flush any pending changes and safely switch to 
-another task, and then reenable it when we get scheduled in again.  
-(This may be already possible with the existing paravirt-ops hooks in 
-switch_to.)
+I queued these as
 
-In this specific case, if the lazy mmu updates / non-preemptable section 
-is really causing heartburn, we can just back it out for now.
+mm-clean-up-for-early_pfn_to_nid.patch
+mm-fix-memmap-init-for-handling-memory-hole.patch
 
-    J
+and tagged them as needed-in-2.6.28.x.  I don't recall whether they are
+needed in earlier -stable releases?
+
+I don't have a record here of davem having tested these new patches, btw ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
