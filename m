@@ -1,41 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 599366B004F
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 17:22:04 -0500 (EST)
-Received: by fxm13 with SMTP id 13so4248529fxm.14
-        for <linux-mm@kvack.org>; Fri, 13 Feb 2009 14:22:02 -0800 (PST)
-Date: Sat, 14 Feb 2009 01:28:18 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: What can OpenVZ do?
-Message-ID: <20090213222818.GA17630@x200.localdomain>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu> <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090213102732.GB4608@elte.hu> <20090213113248.GA15275@x200.localdomain> <20090213114503.GG15679@elte.hu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090213114503.GG15679@elte.hu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D6F6B005A
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 18:29:00 -0500 (EST)
+Date: Fri, 13 Feb 2009 15:28:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v13][PATCH 00/14] Kernel based checkpoint/restart
+Message-Id: <20090213152836.0fbbfa7d.akpm@linux-foundation.org>
+In-Reply-To: <1234462282.30155.171.camel@nimitz>
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
+	<1234285547.30155.6.camel@nimitz>
+	<20090211141434.dfa1d079.akpm@linux-foundation.org>
+	<1234462282.30155.171.camel@nimitz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, torvalds@linux-foundation.org, tglx@linutronix.de, Pavel Emelyanov <xemul@openvz.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: mingo@elte.hu, orenl@cs.columbia.edu, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, hpa@zytor.com, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 13, 2009 at 12:45:03PM +0100, Ingo Molnar wrote:
-> 
-> * Alexey Dobriyan <adobriyan@gmail.com> wrote:
-> 
-> > On Fri, Feb 13, 2009 at 11:27:32AM +0100, Ingo Molnar wrote:
-> > > Merging checkpoints instead might give them the incentive to get
-> > > their act together.
-> > 
-> > Knowing how much time it takes to beat CPT back into usable shape every time
-> > big kernel rebase is done, OpenVZ/Virtuozzo have every single damn incentive
-> > to have CPT mainlined.
-> 
-> So where is the bottleneck? I suspect the effort in having forward ported
-> it across 4 major kernel releases in a single year is already larger than
-> the technical effort it would  take to upstream it. Any unreasonable upstream 
-> resistence/passivity you are bumping into?
+On Thu, 12 Feb 2009 10:11:22 -0800
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-People were busy with netns/containers stuff and OpenVZ/Virtuozzo bugs.
+> 
+> ...
+>
+> > - In bullet-point form, what features are missing, and should be added?
+> 
+>  * support for more architectures than i386
+>  * file descriptors:
+>   * sockets (network, AF_UNIX, etc...)
+>   * devices files
+>   * shmfs, hugetlbfs
+>   * epoll
+>   * unlinked files
+>  * Filesystem state
+>   * contents of files
+>   * mount tree for individual processes
+>  * flock
+>  * threads and sessions
+>  * CPU and NUMA affinity
+>  * sys_remap_file_pages()
+> 
+> This is a very minimal list that is surely incomplete and sure to grow.
+
+That's a worry.
+
+> 
+> > For extra marks:
+> > 
+> > - Will any of this involve non-trivial serialisation of kernel
+> >   objects?  If so, that's getting into the
+> >   unacceptably-expensive-to-maintain space, I suspect.
+> 
+> We have some structures that are certainly tied to the kernel-internal
+> ones.  However, we are certainly *not* simply writing kernel structures
+> to userspace.  We could do that with /dev/mem.  We are carefully pulling
+> out the minimal bits of information from the kernel structures that we
+> *need* to recreate the function of the structure at restart.  There is a
+> maintenance burden here but, so far, that burden is almost entirely in
+> checkpoint/*.c.  We intend to test this functionality thoroughly to
+> ensure that we don't regress once we have integrated it.
+
+I guess my question can be approximately simplified to: "will it end up
+looking like openvz"?  (I don't believe that we know of any other way
+of implementing this?)
+
+Because if it does then that's a concern, because my assessment when I
+looked at that code (a number of years ago) was that having code of
+that nature in mainline would be pretty costly to us, and rather
+unwelcome.
+
+The broadest form of the question is "will we end up regretting having
+done this".
+
+If we can arrange for the implementation to sit quietly over in a
+corner with a team of people maintaining it and not screwing up other
+people's work then I guess we'd be OK - if it breaks then the breakage
+is localised.
+
+
+
+And it's not just a matter of "does the diffstat only affect a single
+subdirectory".  We also should watch out for the imposition of new
+rules which kernel code must follow.  "you can't do that, because we
+can't serialise it", or something.
+
+Similar to the way in which perfectly correct and normal kernel
+sometimes has to be changed because it unexpectedly upsets the -rt
+patch.
+
+Do you expect that any restrictions of this type will be imposed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
