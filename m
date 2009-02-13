@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E4B36B003D
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 09:37:04 -0500 (EST)
-Subject: Re: [PATCH] mm: disable preemption in apply_to_pte_range
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <200902140130.31985.nickpiggin@yahoo.com.au>
-References: <4994BCF0.30005@goop.org>
-	 <200902140030.59027.nickpiggin@yahoo.com.au>
-	 <1234534611.6519.109.camel@twins>
-	 <200902140130.31985.nickpiggin@yahoo.com.au>
-Content-Type: text/plain
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id B09AD6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 11:57:54 -0500 (EST)
+Received: by gxk7 with SMTP id 7so839845gxk.14
+        for <linux-mm@kvack.org>; Fri, 13 Feb 2009 08:57:53 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <200902140020.45522.nickpiggin@yahoo.com.au>
+References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>
+	 <20090212230934.GA21609@gondor.apana.org.au>
+	 <1234481821.3152.27.camel@calx>
+	 <200902140020.45522.nickpiggin@yahoo.com.au>
+Date: Fri, 13 Feb 2009 11:57:52 -0500
+Message-ID: <f73f7ab80902130857x2acd13afk3e704f4ad64333a7@mail.gmail.com>
+Subject: Re: [PATCH] Export symbol ksize()
+From: Kyle Moffett <kyle@moffetthome.net>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Date: Fri, 13 Feb 2009 15:38:58 +0100
-Message-Id: <1234535938.6519.118.camel@twins>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+Cc: Matt Mackall <mpm@selenic.com>, Herbert Xu <herbert@gondor.apana.org.au>, Pekka Enberg <penberg@cs.helsinki.fi>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2009-02-14 at 01:30 +1100, Nick Piggin wrote:
-> On Saturday 14 February 2009 01:16:51 Peter Zijlstra wrote:
-> > On Sat, 2009-02-14 at 00:30 +1100, Nick Piggin wrote:
-> > > On Friday 13 February 2009 22:48:30 Peter Zijlstra wrote:
-> > > > On Thu, 2009-02-12 at 17:39 -0800, Jeremy Fitzhardinge wrote:
-> > > > > In general the model for lazy updates is that you're batching the
-> > > > > updates in some queue somewhere, which is almost certainly a piece of
-> > > > > percpu state being maintained by someone.  Its therefore broken
-> > > > > and/or meaningless to have the code making the updates wandering
-> > > > > between cpus for the duration of the lazy updates.
-> > > > >
-> > > > > > If so, should we do the preempt_disable/enable within those
-> > > > > > functions? Probably not worth the cost, I guess.
-> > > > >
-> > > > > The specific rules are that
-> > > > > arch_enter_lazy_mmu_mode()/arch_leave_lazy_mmu_mode() require you to
-> > > > > be holding the appropriate pte locks for the ptes you're updating, so
-> > > > > preemption is naturally disabled in that case.
-> > > >
-> > > > Right, except on -rt where the pte lock is a mutex.
-> > > >
-> > > > > This all goes a bit strange with init_mm's non-requirement for taking
-> > > > > pte locks.  The caller has to arrange for some kind of serialization
-> > > > > on updating the range in question, and that could be a mutex. 
-> > > > > Explicitly disabling preemption in enter_lazy_mmu_mode would make
-> > > > > sense for this case, but it would be redundant for the common case of
-> > > > > batched updates to usermode ptes.
-> > > >
-> > > > I really utterly hate how you just plonk preempt_disable() in there
-> > > > unconditionally and without very clear comments on how and why.
-> > >
-> > > And even on mainline kernels, builds without the lazy mmu mode stuff
-> > > don't need preemption disabled here either, so it is technically a
-> > > regression in those cases too.
-> >
-> > Well, normally we'd be holding the pte lock, which on regular kernels
-> > already disable preemption, as Jeremy noted. So in that respect it
-> > doesn't change things too much.
-> 
-> But not (necessarily) in the init_mm case.
+On Fri, Feb 13, 2009 at 8:20 AM, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+> On Friday 13 February 2009 10:37:01 Matt Mackall wrote:
+>> On Fri, 2009-02-13 at 07:09 +0800, Herbert Xu wrote:
+>> > On Fri, Feb 13, 2009 at 12:10:45AM +1100, Nick Piggin wrote:
+>> > > I would be interested to know how that goes. You always have this
+>> > > circular issue that if a little more space helps significantly, then
+>> > > maybe it is a good idea to explicitly ask for those bytes. Of course
+>> > > that larger allocation is also likely to have some slack bytes.
+>> >
+>> > Well, the thing is we don't know apriori whether we need the
+>> > extra space.  The idea is to use the extra space if available
+>> > to avoid reallocation when we hit things like IPsec.
+>>
+>> I'm not entirely convinced by this argument. If you're concerned about
+>> space rather than performance, then you want an allocator that doesn't
+>> waste space in the first place and you don't try to do "sub-allocations"
+>> by hand. If you're concerned about performance, you instead optimize
+>> your allocator to be as fast as possible and again avoid conditional
+>> branches for sub-allocations.
+>
+> Well, my earlier reasoning is no longer so clear cut if eg. there
+> are common cases where no extra space is required, but rare cases
+> where extra space might be a big win if it eg avoids extra
+> alloc, copy, free or something.
+>
+> Because even with performance oriented allocators, there is a non-zero
+> cost to explicitly asking for more memory -- queues tend to get smaller
+> at larger object sizes, and page allocation orders can increase. So if
+> it is very uncommon to need extra space you don't want to burden the
+> common case with it.
 
-Right.
+My concern would be that such extra-space reuse would be a very
+non-obvious performance hit if allocation patterns changed slightly.
+If being able to use the extra space really is a noticeable "big win"
+for the rare case, then minor changes to the memory allocator could
+dramatically impact performance in a totally nondeterministic way.  If
+the change isn't performance-significant in the grand scheme of
+things, then the use of ksize() would just be code obfuscation.  On
+the other hand if it *is* performance-significant, it should be
+redesigned to be able to guarantee that the space is available when it
+is needed.
 
-> > Its just that slapping preempt_disable()s around like there's not
-> > tomorrow is horridly annoying, its like using the BKL -- there's no data
-> > affinity what so ever, so trying to unravel the dependencies a year
-> > later when you notice its a latency concern is a massive pain in the
-> > backside.
-> 
-> Or like using memory barriers. Any of them are OK if they're properly
-> commented though, I guess.
-
-Yes, given sufficient comments and a good reason most things can be
-gotten away with ;-)
-
-> > > > I'd rather we'd fix up the init_mm to also have a pte lock.
-> > >
-> > > Well that wouldn't fix -rt; there would need to be a preempt_disable
-> > > within arch_enter_lazy_mmu_mode(), which I think is the cleanest
-> > > solution.
-> >
-> > Hmm, so you're saying we need to be cpu-affine for the lazy mmu stuff?
-> > Otherwise a -rt would just convert the init_mm pte lock to a mutex along
-> > with all other pte locks and there'd be no issue.
-> 
-> Well I don't see any other reason why it should have to use preempt_disable.
-> Not necessarily just cpu-affine, but perhaps it is using per-cpu data in
-> non-trivial way so cannot get switched out either.
-
-If the lazy mmu code relies on per-cpu data, then it should be the lazy
-mmu's responsibility to ensure stuff is properly serialized. Eg. it
-should do get_cpu_var() and put_cpu_var().
-
-Those constructs can usually be converted to preemptable variants quite
-easily, as it clearly shows what data needs to be protected.
+Cheers,
+Kyle Moffett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
