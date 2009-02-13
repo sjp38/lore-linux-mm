@@ -1,96 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D6F6B005A
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 18:29:00 -0500 (EST)
-Date: Fri, 13 Feb 2009 15:28:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v13][PATCH 00/14] Kernel based checkpoint/restart
-Message-Id: <20090213152836.0fbbfa7d.akpm@linux-foundation.org>
-In-Reply-To: <1234462282.30155.171.camel@nimitz>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
-	<1234285547.30155.6.camel@nimitz>
-	<20090211141434.dfa1d079.akpm@linux-foundation.org>
-	<1234462282.30155.171.camel@nimitz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 805A36B005D
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 18:38:23 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1DNcKaW024560
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sat, 14 Feb 2009 08:38:21 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id AC9C12AEA81
+	for <linux-mm@kvack.org>; Sat, 14 Feb 2009 08:38:20 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B8991EF083
+	for <linux-mm@kvack.org>; Sat, 14 Feb 2009 08:38:20 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7492EE08004
+	for <linux-mm@kvack.org>; Sat, 14 Feb 2009 08:38:17 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FC62E08002
+	for <linux-mm@kvack.org>; Sat, 14 Feb 2009 08:38:17 +0900 (JST)
+Message-ID: <2d734ee52c2801a284a4c8fa2d76dc49.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090213142032.09b4a4da.akpm@linux-foundation.org>
+References: <20090212161920.deedea35.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090212162203.db3f07cb.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090213142032.09b4a4da.akpm@linux-foundation.org>
+Date: Sat, 14 Feb 2009 08:38:16 +0900 (JST)
+Subject: Re: [PATCH 1/2] clean up for early_pfn_to_nid
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: mingo@elte.hu, orenl@cs.columbia.edu, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, viro@zeniv.linux.org.uk, hpa@zytor.com, tglx@linutronix.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, davem@davemlloft.net, heiko.carstens@de.ibm.com, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Feb 2009 10:11:22 -0800
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-
-> 
-> ...
+Andrew Morton wrote:
+> On Thu, 12 Feb 2009 16:22:03 +0900
+> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 >
-> > - In bullet-point form, what features are missing, and should be added?
-> 
->  * support for more architectures than i386
->  * file descriptors:
->   * sockets (network, AF_UNIX, etc...)
->   * devices files
->   * shmfs, hugetlbfs
->   * epoll
->   * unlinked files
->  * Filesystem state
->   * contents of files
->   * mount tree for individual processes
->  * flock
->  * threads and sessions
->  * CPU and NUMA affinity
->  * sys_remap_file_pages()
-> 
-> This is a very minimal list that is surely incomplete and sure to grow.
+>> Declaration of early_pfn_to_nid() is scattered over per-arch include
+>> files,
+>> and it seems it's complicated to know when the declaration is used.
+>> I think it makes fix-for-memmap-init not easy.
+>>
+>> This patch moves all declaration to include/linux/mm.h
+>>
+>> After this,
+>>   if !CONFIG_NODES_POPULATES_NODE_MAP &&
+>> !CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+>>      -> Use static definition in include/linux/mm.h
+>>   else if !CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+>>      -> Use generic definition in mm/page_alloc.c
+>>   else
+>>      -> per-arch back end function will be called.
+>>
+>> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>
+>> ---
+>>  arch/ia64/include/asm/mmzone.h   |    4 ----
+>>  arch/ia64/mm/numa.c              |    2 +-
+>>  arch/x86/include/asm/mmzone_32.h |    2 --
+>>  arch/x86/include/asm/mmzone_64.h |    2 --
+>>  arch/x86/mm/numa_64.c            |    2 +-
+>>  include/linux/mm.h               |   19 ++++++++++++++++---
+>>  mm/page_alloc.c                  |    8 +++++++-
+>>  7 files changed, 25 insertions(+), 14 deletions(-)
+>
+> It's rather unfortunate that this bugfix includes a fair-sized cleanup
+> patch, because we should backport it into 2.6.28.x.
+>
+> Oh well.
+>
+Sorry..but this part was too ugly to write a patch that convince me
+this patch is correct. If I should rewrite, I'll do.
 
-That's a worry.
+> I queued these as
+>
+> mm-clean-up-for-early_pfn_to_nid.patch
+> mm-fix-memmap-init-for-handling-memory-hole.patch
+>
+> and tagged them as needed-in-2.6.28.x.  I don't recall whether they are
+> needed in earlier -stable releases?
+>
+Maybe necessary for some machines, which may access memory holes.
 
-> 
-> > For extra marks:
-> > 
-> > - Will any of this involve non-trivial serialisation of kernel
-> >   objects?  If so, that's getting into the
-> >   unacceptably-expensive-to-maintain space, I suspect.
-> 
-> We have some structures that are certainly tied to the kernel-internal
-> ones.  However, we are certainly *not* simply writing kernel structures
-> to userspace.  We could do that with /dev/mem.  We are carefully pulling
-> out the minimal bits of information from the kernel structures that we
-> *need* to recreate the function of the structure at restart.  There is a
-> maintenance burden here but, so far, that burden is almost entirely in
-> checkpoint/*.c.  We intend to test this functionality thoroughly to
-> ensure that we don't regress once we have integrated it.
+> I don't have a record here of davem having tested these new patches, btw
+> ;)
+Sorry for bad CC.
+This fix's logic itself is not different from original one.
 
-I guess my question can be approximately simplified to: "will it end up
-looking like openvz"?  (I don't believe that we know of any other way
-of implementing this?)
-
-Because if it does then that's a concern, because my assessment when I
-looked at that code (a number of years ago) was that having code of
-that nature in mainline would be pretty costly to us, and rather
-unwelcome.
-
-The broadest form of the question is "will we end up regretting having
-done this".
-
-If we can arrange for the implementation to sit quietly over in a
-corner with a team of people maintaining it and not screwing up other
-people's work then I guess we'd be OK - if it breaks then the breakage
-is localised.
-
+-Kame
 
 
-And it's not just a matter of "does the diffstat only affect a single
-subdirectory".  We also should watch out for the imposition of new
-rules which kernel code must follow.  "you can't do that, because we
-can't serialise it", or something.
 
-Similar to the way in which perfectly correct and normal kernel
-sometimes has to be changed because it unexpectedly upsets the -rt
-patch.
 
-Do you expect that any restrictions of this type will be imposed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
