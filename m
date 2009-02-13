@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id EAAB76B0047
-	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 06:46:37 -0500 (EST)
-Subject: Re: [PATCH] mm: disable preemption in apply_to_pte_range
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <4994CF35.60507@goop.org>
-References: <4994BCF0.30005@goop.org>	<4994C052.9060907@goop.org>
-	 <20090212165539.5ce51468.akpm@linux-foundation.org>
-	 <4994CF35.60507@goop.org>
-Content-Type: text/plain
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5653F6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 08:21:23 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH] Export symbol ksize()
+Date: Sat, 14 Feb 2009 00:20:44 +1100
+References: <1234272104-10211-1-git-send-email-kirill@shutemov.name> <20090212230934.GA21609@gondor.apana.org.au> <1234481821.3152.27.camel@calx>
+In-Reply-To: <1234481821.3152.27.camel@calx>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Date: Fri, 13 Feb 2009 12:48:30 +0100
-Message-Id: <1234525710.6519.17.camel@twins>
-Mime-Version: 1.0
+Content-Disposition: inline
+Message-Id: <200902140020.45522.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Herbert Xu <herbert@gondor.apana.org.au>, Pekka Enberg <penberg@cs.helsinki.fi>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-02-12 at 17:39 -0800, Jeremy Fitzhardinge wrote:
+On Friday 13 February 2009 10:37:01 Matt Mackall wrote:
+> On Fri, 2009-02-13 at 07:09 +0800, Herbert Xu wrote:
+> > On Fri, Feb 13, 2009 at 12:10:45AM +1100, Nick Piggin wrote:
+> > > I would be interested to know how that goes. You always have this
+> > > circular issue that if a little more space helps significantly, then
+> > > maybe it is a good idea to explicitly ask for those bytes. Of course
+> > > that larger allocation is also likely to have some slack bytes.
+> >
+> > Well, the thing is we don't know apriori whether we need the
+> > extra space.  The idea is to use the extra space if available
+> > to avoid reallocation when we hit things like IPsec.
+>
+> I'm not entirely convinced by this argument. If you're concerned about
+> space rather than performance, then you want an allocator that doesn't
+> waste space in the first place and you don't try to do "sub-allocations"
+> by hand. If you're concerned about performance, you instead optimize
+> your allocator to be as fast as possible and again avoid conditional
+> branches for sub-allocations.
 
-> In general the model for lazy updates is that you're batching the 
-> updates in some queue somewhere, which is almost certainly a piece of 
-> percpu state being maintained by someone.  Its therefore broken and/or 
-> meaningless to have the code making the updates wandering between cpus 
-> for the duration of the lazy updates.
-> 
-> > If so, should we do the preempt_disable/enable within those functions? 
-> > Probably not worth the cost, I guess.
-> 
-> The specific rules are that 
-> arch_enter_lazy_mmu_mode()/arch_leave_lazy_mmu_mode() require you to be 
-> holding the appropriate pte locks for the ptes you're updating, so 
-> preemption is naturally disabled in that case.
+Well, my earlier reasoning is no longer so clear cut if eg. there
+are common cases where no extra space is required, but rare cases
+where extra space might be a big win if it eg avoids extra
+alloc, copy, free or something.
 
-Right, except on -rt where the pte lock is a mutex.
+Because even with performance oriented allocators, there is a non-zero
+cost to explicitly asking for more memory -- queues tend to get smaller
+at larger object sizes, and page allocation orders can increase. So if
+it is very uncommon to need extra space you don't want to burden the
+common case with it.
 
-> This all goes a bit strange with init_mm's non-requirement for taking 
-> pte locks.  The caller has to arrange for some kind of serialization on 
-> updating the range in question, and that could be a mutex.  Explicitly 
-> disabling preemption in enter_lazy_mmu_mode would make sense for this 
-> case, but it would be redundant for the common case of batched updates 
-> to usermode ptes.
-
-I really utterly hate how you just plonk preempt_disable() in there
-unconditionally and without very clear comments on how and why.
-
-I'd rather we'd fix up the init_mm to also have a pte lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
