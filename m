@@ -1,71 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A60C6B00A4
-	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 20:39:07 -0500 (EST)
-Message-ID: <4994CF35.60507@goop.org>
-Date: Thu, 12 Feb 2009 17:39:01 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id ABE2E6B00A6
+	for <linux-mm@kvack.org>; Thu, 12 Feb 2009 22:15:04 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1D3F1sE031417
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 13 Feb 2009 12:15:01 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B73F45DE50
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 12:15:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C59E45DE4E
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 12:15:01 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 30CF81DB8041
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 12:15:01 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E0EBA1DB8040
+	for <linux-mm@kvack.org>; Fri, 13 Feb 2009 12:14:57 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch 2/2 v2] vmscan: clip swap_cluster_max in shrink_all_memory()
+In-Reply-To: <20090213091615.28e6a689.minchan.kim@barrios-desktop>
+References: <20090213091615.28e6a689.minchan.kim@barrios-desktop>
+Message-Id: <20090213121412.0A67.KOSAKI.MOTOHIRO@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: disable preemption in apply_to_pte_range
-References: <4994BCF0.30005@goop.org>	<4994C052.9060907@goop.org> <20090212165539.5ce51468.akpm@linux-foundation.org>
-In-Reply-To: <20090212165539.5ce51468.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Fri, 13 Feb 2009 12:14:57 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Nigel Cunningham <ncunningham-lkml@crca.org.au>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> This weakens the apply_to_page_range() utility by newly requiring that
-> the callback function be callable under preempt_disable() if the target
-> mm is init_mm.  I guess we can live with that.
->
-> It's OK for the two present in-tree callers.  There might of course be
-> out-of-tree callers which break, but it is unlikely.
->
-> The patch should include a comment explaining why there is a random
-> preempt_disable() in this function.
->   
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: MinChan Kim <minchan.kim@gmail.com>
+> Acked-by: Nigel Cunningham <ncunningham@crca.org.au>
+> Acked-by: "Rafael J. Wysocki" <rjw@sisk.pl>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> 
+> 
+> ---
+>  mm/vmscan.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 172e394..ed329c4 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2114,7 +2114,6 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+>  	struct scan_control sc = {
+>  		.gfp_mask = GFP_KERNEL,
+>  		.may_unmap = 0,
+> -		.swap_cluster_max = nr_pages,
+>  		.may_writepage = 1,
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+> @@ -2156,6 +2155,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+>  			unsigned long nr_to_scan = nr_pages - sc.nr_reclaimed;
+>  
+>  			sc.nr_scanned = 0;
+> +			sc.swap_cluster_max = nr_to_scan;
+>  			shrink_all_zones(nr_to_scan, prio, pass, &sc);
+>  			if (sc.nr_reclaimed >= nr_pages) 
+>  				goto out;
 
-I cuddled them up to their corresponding arch_X_lazy_mmu_mode calls to 
-get this across, but I guess some prose would be helpful here.
+good catch.
 
-> Why is apply_to_page_range() exported to modules, btw?  I can find no
-> modules which need it.  Unexporting that function would make the
-> proposed weakening even less serious.
->   
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-I have some yet-to-be upstreamed code that can use it from modules.
 
-> The patch assumes that
-> arch_enter_lazy_mmu_mode()/arch_leave_lazy_mmu_mode() must have
-> preemption disabled for all architectures.  Is this a sensible
-> assumption?
->   
-
-In general the model for lazy updates is that you're batching the 
-updates in some queue somewhere, which is almost certainly a piece of 
-percpu state being maintained by someone.  Its therefore broken and/or 
-meaningless to have the code making the updates wandering between cpus 
-for the duration of the lazy updates.
-
-> If so, should we do the preempt_disable/enable within those functions? 
-> Probably not worth the cost, I guess.
-
-The specific rules are that 
-arch_enter_lazy_mmu_mode()/arch_leave_lazy_mmu_mode() require you to be 
-holding the appropriate pte locks for the ptes you're updating, so 
-preemption is naturally disabled in that case.
-
-This all goes a bit strange with init_mm's non-requirement for taking 
-pte locks.  The caller has to arrange for some kind of serialization on 
-updating the range in question, and that could be a mutex.  Explicitly 
-disabling preemption in enter_lazy_mmu_mode would make sense for this 
-case, but it would be redundant for the common case of batched updates 
-to usermode ptes.
-
-    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
