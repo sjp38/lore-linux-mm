@@ -1,98 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 805286B003D
-	for <linux-mm@kvack.org>; Sun, 15 Feb 2009 16:57:32 -0500 (EST)
-Date: Sun, 15 Feb 2009 13:55:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 202576B003D
+	for <linux-mm@kvack.org>; Sun, 15 Feb 2009 18:50:12 -0500 (EST)
 Subject: Re: [PATCH] Export symbol ksize()
-Message-Id: <20090215135555.688ae1a3.akpm@linux-foundation.org>
-In-Reply-To: <1234734194.5669.176.camel@calx>
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20090215135555.688ae1a3.akpm@linux-foundation.org>
 References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>
-	<84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com>
-	<20090210134651.GA5115@epbyminw8406h.minsk.epam.com>
-	<Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
-	<20090212104349.GA13859@gondor.apana.org.au>
-	<1234435521.28812.165.camel@penberg-laptop>
-	<20090212105034.GC13859@gondor.apana.org.au>
-	<1234454104.28812.175.camel@penberg-laptop>
-	<20090215133638.5ef517ac.akpm@linux-foundation.org>
-	<1234734194.5669.176.camel@calx>
+	 <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com>
+	 <20090210134651.GA5115@epbyminw8406h.minsk.epam.com>
+	 <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
+	 <20090212104349.GA13859@gondor.apana.org.au>
+	 <1234435521.28812.165.camel@penberg-laptop>
+	 <20090212105034.GC13859@gondor.apana.org.au>
+	 <1234454104.28812.175.camel@penberg-laptop>
+	 <20090215133638.5ef517ac.akpm@linux-foundation.org>
+	 <1234734194.5669.176.camel@calx>
+	 <20090215135555.688ae1a3.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Sun, 15 Feb 2009 17:49:41 -0600
+Message-Id: <1234741781.5669.204.camel@calx>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Herbert Xu <herbert@gondor.apana.org.au>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Feb 2009 15:43:14 -0600 Matt Mackall <mpm@selenic.com> wrote:
-
-> On Sun, 2009-02-15 at 13:36 -0800, Andrew Morton wrote:
-> > On Thu, 12 Feb 2009 17:55:04 +0200 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> > 
-> > > On Thu, Feb 12, 2009 at 12:45:21PM +0200, Pekka Enberg wrote:
+On Sun, 2009-02-15 at 13:55 -0800, Andrew Morton wrote:
+> On Sun, 15 Feb 2009 15:43:14 -0600 Matt Mackall <mpm@selenic.com> wrote:
+> 
+> > On Sun, 2009-02-15 at 13:36 -0800, Andrew Morton wrote:
+> > > On Thu, 12 Feb 2009 17:55:04 +0200 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> > > 
+> > > > On Thu, Feb 12, 2009 at 12:45:21PM +0200, Pekka Enberg wrote:
+> > > > > > 
+> > > > > > Because the API was being widely abused in the nommu code, for example.
+> > > > > > I'd rather not add it back for this special case which can be handled
+> > > > > > otherwise.
+> > > > 
+> > > > On Thu, 2009-02-12 at 18:50 +0800, Herbert Xu wrote:
+> > > > > I'm sorry but that's like banning the use of heaters just because
+> > > > > they can abused and cause fires.
 > > > > > 
-> > > > > Because the API was being widely abused in the nommu code, for example.
-> > > > > I'd rather not add it back for this special case which can be handled
-> > > > > otherwise.
-> > > 
-> > > On Thu, 2009-02-12 at 18:50 +0800, Herbert Xu wrote:
-> > > > I'm sorry but that's like banning the use of heaters just because
-> > > > they can abused and cause fires.
+> > > > > I think I've said this to you before but in networking we very much
+> > > > > want to use ksize because the standard case of a 1500-byte packet
+> > > > > has loads of extra room given by kmalloc which all goes to waste
+> > > > > right now.
+> > > > > 
+> > > > > If we could use ksize then we can stuff loads of metadata in that
+> > > > > space.
 > > > > 
-> > > > I think I've said this to you before but in networking we very much
-> > > > want to use ksize because the standard case of a 1500-byte packet
-> > > > has loads of extra room given by kmalloc which all goes to waste
-> > > > right now.
+> > > > OK, fair enough, I applied Kirill's patch. Thanks.
 > > > > 
-> > > > If we could use ksize then we can stuff loads of metadata in that
-> > > > space.
 > > > 
-> > > OK, fair enough, I applied Kirill's patch. Thanks.
+> > > Could we please have more details regarding this:
 > > > 
+> > > > The ksize() function is not exported to modules because it has non-standard
+> > > > behavour across different slab allocators. 
+> > > 
+> > > How does the behaviour differ?  It this documented?  Can we fix it?
 > > 
-> > Could we please have more details regarding this:
+> > SLAB and SLUB support calling ksize() on objects returned by
+> > kmem_cache_alloc.
 > > 
-> > > The ksize() function is not exported to modules because it has non-standard
-> > > behavour across different slab allocators. 
+> > SLOB only supports it on objects from kmalloc. This is because it does
+> > not store any size or type information in kmem_cache_alloc'ed objects.
+> > Instead, it infers them from the cache argument.
+> 
+> OK.  This is really bad, isn't it?
+
+No. There are very few ksize callers and very few of those are making
+this particular category error.
+
+And it -is- a category error. The fact that kmalloc is implemented on
+top of kmem_cache_alloc is an implementation detail that callers should
+not assume. They shouldn't call kfree() on kmem_cache_alloc objects
+(even though it might just happen to work), nor should they call
+ksize().
+
+> > Ideally SLAB and SLUB would complain about using ksize inappropriately
+> > when debugging was enabled.
 > > 
-> > How does the behaviour differ?  It this documented?  Can we fix it?
 > 
-> SLAB and SLUB support calling ksize() on objects returned by
-> kmem_cache_alloc.
+> OK, thanks.
 > 
-> SLOB only supports it on objects from kmalloc. This is because it does
-> not store any size or type information in kmem_cache_alloc'ed objects.
-> Instead, it infers them from the cache argument.
+> Ideally we would support ksize() for both kmalloc() and
+> kmem_cache_alloc() memory across all implementations.
 
-OK.  This is really bad, isn't it?  People will write code which
-happily works under slab and slub, only to have it crash for those small
-number of people who (very much later) test with slob?
+There's never a good reason to call ksize on a kmem_cache_alloced
+object. You -must- statically know what type of object you have already
+to be able to free it later with kmem_cache_free, ergo, you can
+statically know how big it is too.
 
-> Ideally SLAB and SLUB would complain about using ksize inappropriately
-> when debugging was enabled.
-> 
+Another alternative to the above is to throw sparse at it, and have it
+track what allocators a pointer might have come through. 
 
-OK, thanks.
+But as far as I'm aware, there's only been one actual bug in this area:
+nommu was calling ksize on pointers of all kinds, including stuff
+allocated at compile time.
 
-Ideally we would support ksize() for both kmalloc() and
-kmem_cache_alloc() memory across all implementations.
+> Gee this sucks.  Biggest mistake I ever made.  Are we working hard
+> enough to remove some of these sl?b implementations?  Would it help if
+> I randomly deleted a couple?
 
-Could we change ksize()'s argument so that callers must provide the
-cache pointer?  Then for kmalloc() callers, provide a
-kmem_cache *get_cache_for_kmalloc(size_t) function?
+Again, I think there's a strong argument for having two. We can't
+reasonably expect one allocator to work well on supercomputers and
+phones. One will likely value performance significantly higher than
+memory usage and vice-versa.
 
-Or could we have separate interfaces:
+I think most of the pain here is actually peripheral. SLUB in particular
+has churned a lot of interfaces. But we would have had that had we
+instead decided to throw a lot of effort into making SLAB better.
 
-	size_t kmalloc_ksize(size_t kmalloced_size);
-	size_t kmem_cache_alloc_ksize(struct kmem_cache *cachep);
+-- 
+http://selenic.com : development and support for Mercurial and Linux
 
-?
-
-
-Gee this sucks.  Biggest mistake I ever made.  Are we working hard
-enough to remove some of these sl?b implementations?  Would it help if
-I randomly deleted a couple?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
