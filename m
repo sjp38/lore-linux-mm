@@ -1,52 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA4F6B0099
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:04:54 -0500 (EST)
-Message-Id: <20090216144725.728476063@cmpxchg.org>
-Date: Mon, 16 Feb 2009 15:29:29 +0100
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DB116B009B
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:05:05 -0500 (EST)
+Message-Id: <20090216144725.901238204@cmpxchg.org>
+Date: Mon, 16 Feb 2009 15:29:31 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/8] s390: use kzfree()
+Subject: [patch 5/8] usb: use kzfree()
 References: <20090216142926.440561506@cmpxchg.org>
-Content-Disposition: inline; filename=s390-use-kzfree.patch
+Content-Disposition: inline; filename=usb-use-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
 Use kzfree() instead of memset() + kfree().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@suse.de>
 ---
- arch/s390/crypto/prng.c             |    3 +--
- drivers/s390/crypto/zcrypt_pcixcc.c |    3 +--
+ drivers/usb/host/hwa-hc.c   |    3 +--
+ drivers/usb/wusbcore/cbaf.c |    3 +--
  2 files changed, 2 insertions(+), 4 deletions(-)
 
---- a/arch/s390/crypto/prng.c
-+++ b/arch/s390/crypto/prng.c
-@@ -201,8 +201,7 @@ out_free:
- static void __exit prng_exit(void)
- {
- 	/* wipe me */
--	memset(p->buf, 0, prng_chunk_size);
--	kfree(p->buf);
-+	kzfree(p->buf);
- 	kfree(p);
+--- a/drivers/usb/host/hwa-hc.c
++++ b/drivers/usb/host/hwa-hc.c
+@@ -464,8 +464,7 @@ static int __hwahc_dev_set_key(struct wu
+ 			port_idx << 8 | iface_no,
+ 			keyd, keyd_len, 1000 /* FIXME: arbitrary */);
  
- 	misc_deregister(&prng_dev);
---- a/drivers/s390/crypto/zcrypt_pcixcc.c
-+++ b/drivers/s390/crypto/zcrypt_pcixcc.c
-@@ -781,8 +781,7 @@ static long zcrypt_pcixcc_send_cprb(stru
- 		/* Signal pending. */
- 		ap_cancel_message(zdev->ap_dev, &ap_msg);
- out_free:
--	memset(ap_msg.message, 0x0, ap_msg.length);
--	kfree(ap_msg.message);
-+	kzfree(ap_msg.message);
- 	return rc;
+-	memset(keyd, 0, sizeof(*keyd));	/* clear keys etc. */
+-	kfree(keyd);
++	kzfree(keyd);
+ 	return result;
  }
  
+--- a/drivers/usb/wusbcore/cbaf.c
++++ b/drivers/usb/wusbcore/cbaf.c
+@@ -638,8 +638,7 @@ static void cbaf_disconnect(struct usb_i
+ 	usb_put_intf(iface);
+ 	kfree(cbaf->buffer);
+ 	/* paranoia: clean up crypto keys */
+-	memset(cbaf, 0, sizeof(*cbaf));
+-	kfree(cbaf);
++	kzfree(cbaf);
+ }
+ 
+ static struct usb_device_id cbaf_id_table[] = {
 
 
 --
