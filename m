@@ -1,42 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E0C936B00B2
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 13:17:32 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so257141fgg.4
-        for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:17:31 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id B47F26B00B3
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 13:42:05 -0500 (EST)
+Date: Mon, 16 Feb 2009 18:42:00 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+Message-ID: <20090216184200.GA31264@csn.ul.ie>
+References: <20090123154653.GA14517@wotan.suse.de> <200902041748.41801.nickpiggin@yahoo.com.au> <20090204152709.GA4799@csn.ul.ie> <200902051459.30064.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-In-Reply-To: <20090216153351.GB27520@cmpxchg.org>
-References: <20090216142926.440561506@cmpxchg.org>
-	 <20090216144725.976425091@cmpxchg.org>
-	 <84144f020902160713y7341b2b4g8aa10919405ab82d@mail.gmail.com>
-	 <20090216153351.GB27520@cmpxchg.org>
-Date: Mon, 16 Feb 2009 20:17:31 +0200
-Message-ID: <84144f020902161017s5439a4d8ra9792250243dd43f@mail.gmail.com>
-Subject: Re: [patch 6/8] cifs: use kzfree()
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <200902051459.30064.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steve French <sfrench@samba.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 16, 2009 at 5:33 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> Here is the delta to fold into the above:
->
-> [ btw, do these require an extra SOB?  If so:
->  Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->
->  And for http://lkml.org/lkml/2009/2/16/184:
->  Signed-off-by: Johannes Weiner <hannes@cmpxchg.org> ]
 
-Looks good to me. As I like to see my name in the LWN stats articles,
-consider the whole patch:
-
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Slightly later than hoped for, but here are the results of the profile
+run between the different slab allocators. It also includes information on
+the performance on SLUB with the allocator pass-thru logic reverted by commit
+http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=97a4871761e735b6f1acd3bc7c3bac30dae3eab9
