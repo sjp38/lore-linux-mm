@@ -1,139 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 018086B0088
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:32:38 -0500 (EST)
-Date: Mon, 16 Feb 2009 14:32:32 +0000
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7C86B008A
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:53:54 -0500 (EST)
+Date: Mon, 16 Feb 2009 14:53:49 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] fix vmaccnt at fork (Was Re: "heuristic overcommit"
-	and fork())
-Message-ID: <20090216143231.GB16153@csn.ul.ie>
-References: <ED3886372DB5491AAA799709DBA78F6F@david> <20090213103655.3a0ea204.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch] vmscan: initialize sc.order in indirect shrink_list()
+	users
+Message-ID: <20090216145349.GC16153@csn.ul.ie>
+References: <20090210165134.GA2457@cmpxchg.org> <20090210162948.bd20d853.akpm@linux-foundation.org> <20090211015227.GA4605@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090213103655.3a0ea204.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090211015227.GA4605@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, David CHAMPELOVIER <david@champelovier.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 13, 2009 at 10:36:55AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Wed, 11 Feb 2009 20:26:32 +0100
-> "David CHAMPELOVIER" <david@champelovier.com> wrote:
+On Wed, Feb 11, 2009 at 02:52:27AM +0100, Johannes Weiner wrote:
+> [added Mel to CC]
 > 
-> > Hi,
+> On Tue, Feb 10, 2009 at 04:29:48PM -0800, Andrew Morton wrote:
+> > On Tue, 10 Feb 2009 17:51:35 +0100
+> > Johannes Weiner <hannes@cmpxchg.org> wrote:
 > > 
-> > Recently, I was unable to fork() a 38 GB process on a system with 64 GB RAM
-> > and no swap.
-> > Having a look at the kernel source, I surprisingly found that in "heuristic
-> > overcommit" mode, fork() always checks that there is enough memory to
-> > duplicate process memory.
+> > > shrink_all_memory() and __zone_reclaim() currently don't initialize
+> > > the .order field of their scan control.
+> > > 
+> > > Both of them call into functions which use that field and make certain
+> > > decisions based on a random value.
+> > > 
+> > > The functions depending on the .order field are marked with a star,
+> > > the faulty entry points are marked with a percentage sign:
+> > > 
+> > > * shrink_page_list()
+> > >   * shrink_inactive_list()
+> > >   * shrink_active_list()
+> > >     shrink_list()
+> > >       shrink_all_zones()
+> > >         % shrink_all_memory()
+> > >       shrink_zone()
+> > >         % __zone_reclaim()
+> > > 
+> > > Initialize .order to zero in shrink_all_memory().  Initialize .order
+> > > to the order parameter in __zone_reclaim().
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > ---
+> > >  mm/vmscan.c |    2 ++
+> > >  1 files changed, 2 insertions(+), 0 deletions(-)
+> > > 
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 4422301..9ce85ea 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2112,6 +2112,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
+> > >  		.may_unmap = 0,
+> > >  		.swap_cluster_max = nr_pages,
+> > >  		.may_writepage = 1,
+> > > +		.order = 0,
+> > >  		.isolate_pages = isolate_pages_global,
+> > >  	};
+> > >  
+> > > @@ -2294,6 +2295,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+> > >  					SWAP_CLUSTER_MAX),
+> > >  		.gfp_mask = gfp_mask,
+> > >  		.swappiness = vm_swappiness,
+> > > +		.order = order,
+> > >  		.isolate_pages = isolate_pages_global,
+> > >  	};
+> > >  	unsigned long slab_reclaimable;
 > > 
-> > As far as I know, overcommit was introduced in the kernel for several
-> > reasons, and fork() was one of them, since applications often exec() just
-> > after fork(). I know fork() is not the most judicious choice in this case,
-> > but well, this is the way many applications are written.
-> > 
-> > Moreover, I can read in the proc man page that in "heuristic overcommit
-> > mode", "obvious overcommits of address space are refused". I do not think
-> > fork() is an obvious overcommit, that's why I would expect fork() to be
-> > always accepted in this mode.
-> > 
-> > So, is there a reason why fork() checks for available memory in "heuristic
-> > mode" ?
-> > 
+> > The second hunk might fix something, but it would need a correcter
+> > changelog, and some thought about what its runtimes effects are likely
+> > to be, please.
 > 
-> fork() is used for duplicate process and it means to duplicate memory space.
-> Because of Copy-On-Write, the page will not be used acutally. But, it's not
-> different from mmap() case.
-
-Pretty much. At fork() time, you cannot know if the process is going to
-exec or not.
-
-> In that case, overcommit_guess compares
-> requested size and size of free memory for all that we use demand paging.
-> So, the behavior is not surprizing.  For notifing the kernel can assume
-> exec-is-called-after-fork, we may need some flags or paramater.
+> zone_reclaim() is used by the watermark rebalancing of the buddy
+> allocator right before trying to do an allocation.  Even though it
+> tries to reclaim at least 1 << order pages, it doesn't raise sc.order
+> to increase clustering efforts.
 > 
 
-There already is one of sorts. Use madvise(MADV_DONTFORK) on the large
-memory regions so they don't get copied. If that doesn't work, it means
-the accounting for the VMAs is being done in the wrong order.
+This affects lumpy reclaim. Direct reclaim via try_to_free_pages() and
+kswapd() is still working but the earlier reclaim attempt via zone_reclaim()
+on unmapped file and slab pages is ignoring teh order. While it'd be tricky
+to measure any difference, it does make sense that __zone_reclaim() initialse
+the order with what the caller requested.
 
-> But, hmm.., there is something strange, following. Mel, how do you think ?
-> ==
-> 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Vm accounting at fork() should use the same logic as mmap().
-> 
+> I think this happens with the assumption that the upcoming allocation
+> can still succeed and in that case we don't want to lump too
+> aggressively to refill the zone. 
 
-This alters semantics in a fairly subtle manner and I think would break
-counters as well.
+I don't get what you mean here. The caller requested the higher order so
+the work has been requested.
 
-accountable_mapping() is used to determine if VM_ACCOUNT is set or
-not. Once set, it gets accounted after that. even if the overcommit settings
-change. Somewhat weirdly, the overcommit decisions at the time of mmap()
-are reused at fork() even if the overcommit settings change.  This is odd
-behaviour and arguably your patch could fix this anomoly. However, it
-would make more sense to me to recalculate if VM_ACCOUNT should be set
-or not rather than what you do here.
-
-I think this patch also has subtle breakage. We could do something like;
-
-1. mmap(), VM_ACCOUNT not set due to overcommit settings
-2. overcommit set to strict
-3. fork()
-4. check flags, note that VM_ACCOUNT would have been used, account but
-   VM_ACCOUNT is still not set
-5. child exits, VM_ACCOUNT not set so reserves are not given back
-
-So reserves can constantly go up and never down. It would require root but
-a bad program could eventually push the reserves up to the size of physical
-memory without any of the memory actually being used.
-
-
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  include/linux/mm.h |    2 ++
->  kernel/fork.c      |    3 ++-
->  2 files changed, 4 insertions(+), 1 deletion(-)
-> 
-> Index: mmotm-2.6.29-Feb11/kernel/fork.c
-> ===================================================================
-> --- mmotm-2.6.29-Feb11.orig/kernel/fork.c
-> +++ mmotm-2.6.29-Feb11/kernel/fork.c
-> @@ -301,7 +301,8 @@ static int dup_mmap(struct mm_struct *mm
->  			continue;
->  		}
->  		charge = 0;
-> -		if (mpnt->vm_flags & VM_ACCOUNT) {
-> +		if (accountable_mapping(mpnt->vm_file, mpnt->vm_flags) &&
-> +			mpnt->vm_flags & VM_ACCOUNT) {
->  			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
->  			if (security_vm_enough_memory(len))
->  				goto fail_nomem;
-> Index: mmotm-2.6.29-Feb11/include/linux/mm.h
-> ===================================================================
-> --- mmotm-2.6.29-Feb11.orig/include/linux/mm.h
-> +++ mmotm-2.6.29-Feb11/include/linux/mm.h
-> @@ -1047,6 +1047,8 @@ extern void free_bootmem_with_active_reg
->  typedef int (*work_fn_t)(unsigned long, unsigned long, void *);
->  extern void work_with_active_regions(int nid, work_fn_t work_fn, void *data);
->  extern void sparse_memory_present_with_active_regions(int nid);
-> +extern int accountable_mapping(struct file *file, unsigned int vmflags);
-> +
-
-accountable_mapping() is a static inline in mm/mmap.c so I'd be
-surprised if this compiles.
-
->  #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
->  
->  #if !defined(CONFIG_ARCH_POPULATES_NODE_MAP) && \
-> 
+> The allocation might succeed on
+> another zone and now we have evicted precious pages due to clustering
+> while we are still not sure it's even needed.
 > 
 
-NAK.
+Also not sure what you are getting at here. zone_reclaim() is called for the
+preferred zones in order. Attempts are made to free within the preferred zone
+and then allocate from it. Granted, it might evict pages and the clustering
+was ineffective, but this is the cost of high-order reclaim.
+
+> If the allocation fails from all zones, we still will use lumpy
+> reclaim for higher orders in kswapd and try_to_free_pages().
+> 
+> So I think that __zone_reclaim() leaves sc.order = 0 intentionally.
+> 
+> Mel?
+> 
+
+I don't believe it's intentional. The caller called zone_reclaim() with
+a given order. It should be used as part of the reclaim decision.
 
 -- 
 Mel Gorman
