@@ -1,294 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FFB6B006A
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 06:09:24 -0500 (EST)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp08.au.ibm.com (8.13.1/8.13.1) with ESMTP id n1GB9KTg023851
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:09:20 +1100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1GB9K0p868426
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:09:20 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1GB9Kit011002
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:09:20 +1100
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 16 Feb 2009 16:39:16 +0530
-Message-Id: <20090216110916.29795.41945.sendpatchset@localhost.localdomain>
-In-Reply-To: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
-References: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
-Subject: [RFC][PATCH 4/4] Memory controller soft limit reclaim on contention (v2)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0946B007E
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 08:55:10 -0500 (EST)
+Date: Mon, 16 Feb 2009 14:56:43 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] Export symbol ksize()
+Message-ID: <20090216135643.GA6927@cmpxchg.org>
+References: <1234272104-10211-1-git-send-email-kirill@shutemov.name> <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com> <20090210134651.GA5115@epbyminw8406h.minsk.epam.com> <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Pekka J Enberg <penberg@cs.helsinki.fi>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Herbert Xu <herbert@gondor.apana.org.au>, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 10, 2009 at 04:06:53PM +0200, Pekka J Enberg wrote:
+> On Tue, Feb 10, 2009 at 03:35:03PM +0200, Pekka Enberg wrote:
+> > > We unexported ksize() because it's a problematic interface and you
+> > > almost certainly want to use the alternatives (e.g. krealloc). I think
+> > > I need bit more convincing to apply this patch...
+>  
+> On Tue, 10 Feb 2009, Kirill A. Shutemov wrote:
+> > It just a quick fix. If anybody knows better solution, I have no
+> > objections.
+> 
+> Herbert, what do you think of this (untested) patch? Alternatively, we 
+> could do something like kfree_secure() but it seems overkill for this one 
+> call-site.
 
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
+There are more callsites which do memset() + kfree():
 
-Changelog v2...v1
-1. Added support for hierarchical soft limits
+	arch/s390/crypto/prng.c
+	drivers/s390/crypto/zcrypt_pcixcc.c
+	drivers/md/dm-crypt.c
+	drivers/usb/host/hwa-hc.c
+	drivers/usb/wusbcore/cbaf.c
+	(drivers/w1/w1{,_int}.c)
+	fs/cifs/misc.c
+	fs/cifs/connect.c
+	fs/ecryptfs/keystore.c
+	fs/ecryptfs/messaging.c
+	net/atm/mpoa_caches.c
 
-This patch allows reclaim from memory cgroups on contention (via the
-__alloc_pages_internal() path). If a order greater than 0 is specified, we
-anyway fall back on try_to_free_pages().
+How about the attached patch?  One problem is that zeroing ksize()
+bytes can have an overhead of nearly twice the actual allocation size.
 
-memory cgroup soft limit reclaim finds the group that exceeds its soft limit
-by the largest amount and reclaims pages from it and then reinserts the
-cgroup into its correct place in the rbtree.
+So we would need an interface that lets the caller pass in either a
+number of bytes it wants to have zeroed out or say idontknow.
 
-Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+Perhaps add a size parameter that is cut to ksize() if it's too big?
+Or (ssize_t)-1 for figureitoutyourself?
+
+	Hannes
+
 ---
+Subject: slab: introduce kzfree()
 
- include/linux/memcontrol.h |    1 
- mm/memcontrol.c            |  105 +++++++++++++++++++++++++++++++++++++++-----
- mm/page_alloc.c            |   10 ++++
- 3 files changed, 104 insertions(+), 12 deletions(-)
+kzfree() is a wrapper for kfree() that additionally zeroes the
+underlying memory before releasing it to the slab allocator.
 
+---
+ include/linux/slab.h |    1 +
+ mm/util.c            |   20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 18146c9..a50f73e 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -116,6 +116,7 @@ static inline bool mem_cgroup_disabled(void)
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -127,6 +127,7 @@ int kmem_ptr_validate(struct kmem_cache 
+ void * __must_check __krealloc(const void *, size_t, gfp_t);
+ void * __must_check krealloc(const void *, size_t, gfp_t);
+ void kfree(const void *);
++void kzfree(const void *);
+ size_t ksize(const void *);
+ 
+ /*
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -129,6 +129,26 @@ void *krealloc(const void *p, size_t new
  }
+ EXPORT_SYMBOL(krealloc);
  
- extern bool mem_cgroup_oom_called(struct task_struct *task);
-+extern unsigned long mem_cgroup_soft_limit_reclaim(gfp_t gfp_mask);
- 
- #else /* CONFIG_CGROUP_MEM_RES_CTLR */
- struct mem_cgroup;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a2617ac..dd835d3 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -188,6 +188,7 @@ struct mem_cgroup {
- 	struct rb_node mem_cgroup_node;
- 	unsigned long long usage_in_excess;
- 	unsigned long last_tree_update;
-+	bool on_tree;
- 
- 	/*
- 	 * statistics. This must be placed at the end of memcg.
-@@ -195,7 +196,7 @@ struct mem_cgroup {
- 	struct mem_cgroup_stat stat;
- };
- 
--#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ)
-+#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ/4)
- 
- enum charge_type {
- 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
-@@ -229,14 +230,15 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
- 
--static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
-+static void __mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
- {
- 	struct rb_node **p = &mem_cgroup_soft_limit_exceeded_groups.rb_node;
- 	struct rb_node *parent = NULL;
- 	struct mem_cgroup *mem_node;
--	unsigned long flags;
- 
--	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
-+	if (mem->on_tree)
++/**
++ * kzfree - like kfree but zero memory
++ * @p: object to free memory of
++ * @zsize: size of the memory region to zero
++ *
++ * The memory of the object @p points to is zeroed before freed.
++ * If @p is %NULL, kzfree() does nothing.
++ */
++void kzfree(const void *p)
++{
++	size_t ks;
++	void *mem = (void *)p;
++
++	if (unlikely(ZERO_OR_NULL_PTR(mem)))
 +		return;
-+
- 	while (*p) {
- 		parent = *p;
- 		mem_node = rb_entry(parent, struct mem_cgroup, mem_cgroup_node);
-@@ -253,6 +255,23 @@ static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
- 	rb_insert_color(&mem->mem_cgroup_node,
- 			&mem_cgroup_soft_limit_exceeded_groups);
- 	mem->last_tree_update = jiffies;
-+	mem->on_tree = true;
++	ks = ksize(mem);
++	memset(mem, 0, ks);
++	kfree(mem);
 +}
 +
-+static void __mem_cgroup_remove_exceeded(struct mem_cgroup *mem)
-+{
-+	if (!mem->on_tree)
-+		return;
-+	rb_erase(&mem->mem_cgroup_node, &mem_cgroup_soft_limit_exceeded_groups);
-+	mem->on_tree = false;
-+}
-+
-+static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
-+{
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
-+	__mem_cgroup_insert_exceeded(mem);
- 	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
- }
- 
-@@ -260,10 +279,34 @@ static void mem_cgroup_remove_exceeded(struct mem_cgroup *mem)
- {
- 	unsigned long flags;
- 	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
--	rb_erase(&mem->mem_cgroup_node, &mem_cgroup_soft_limit_exceeded_groups);
-+	__mem_cgroup_remove_exceeded(mem);
- 	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
- }
- 
-+static struct mem_cgroup *mem_cgroup_get_largest_soft_limit_exceeding_node(void)
-+{
-+	struct rb_node *rightmost = NULL;
-+	struct mem_cgroup *mem = NULL;
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
-+	rightmost = rb_last(&mem_cgroup_soft_limit_exceeded_groups);
-+	if (!rightmost)
-+		goto done;		/* Nothing to reclaim from */
-+
-+	mem = rb_entry(rightmost, struct mem_cgroup, mem_cgroup_node);
-+	mem_cgroup_get(mem);
-+	/*
-+	 * Remove the node now but someone else can add it back,
-+	 * we will to add it back at the end of reclaim to its correct
-+	 * position in the tree.
-+	 */
-+	__mem_cgroup_remove_exceeded(mem);
-+done:
-+	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
-+	return mem;
-+}
-+
- static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
- 					 struct page_cgroup *pc,
- 					 bool charge)
-@@ -886,7 +929,8 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
-  * If shrink==true, for avoiding to free too much, this returns immedieately.
-  */
- static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
--				   gfp_t gfp_mask, bool noswap, bool shrink)
-+				   gfp_t gfp_mask, bool noswap, bool shrink,
-+				   bool check_soft)
- {
- 	struct mem_cgroup *victim;
- 	int ret, total = 0;
-@@ -913,7 +957,11 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
- 		if (shrink)
- 			return ret;
- 		total += ret;
--		if (mem_cgroup_check_under_limit(root_mem))
-+
-+		if (check_soft) {
-+			if (res_counter_soft_limit_excess(&root_mem->res))
-+				return 1 + total;
-+		} else if (mem_cgroup_check_under_limit(root_mem))
- 			return 1 + total;
- 	}
- 	return total;
-@@ -1044,7 +1092,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 			goto nomem;
- 
- 		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
--							noswap, false);
-+							noswap, false, false);
- 		if (ret)
- 			continue;
- 
-@@ -1686,7 +1734,7 @@ int mem_cgroup_shrink_usage(struct page *page,
- 
- 	do {
- 		progress = mem_cgroup_hierarchical_reclaim(mem,
--					gfp_mask, true, false);
-+					gfp_mask, true, false, false);
- 		progress += mem_cgroup_check_under_limit(mem);
- 	} while (!progress && --retry);
- 
-@@ -1741,7 +1789,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 			break;
- 
- 		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
--						   false, true);
-+						   false, true, false);
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
-   		if (curusage >= oldusage)
-@@ -1789,7 +1837,8 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		if (!ret)
- 			break;
- 
--		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true);
-+		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true,
-+						false);
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -1940,6 +1989,38 @@ try_to_free:
- 	goto out;
- }
- 
-+unsigned long mem_cgroup_soft_limit_reclaim(gfp_t gfp_mask)
-+{
-+	unsigned long nr_reclaimed = 0;
-+	struct mem_cgroup *mem;
-+	unsigned long flags;
-+
-+	do {
-+		mem = mem_cgroup_get_largest_soft_limit_exceeding_node();
-+		if (!mem)
-+			break;
-+		if (mem_cgroup_is_obsolete(mem)) {
-+			mem_cgroup_put(mem);
-+			continue;
-+		}
-+		nr_reclaimed +=
-+			mem_cgroup_hierarchical_reclaim(mem, gfp_mask, false,
-+							false, true);
-+		spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
-+		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-+		/*
-+		 * We need to remove and reinsert the node in its correct
-+		 * position
-+		 */
-+		__mem_cgroup_remove_exceeded(mem);
-+		if (mem->usage_in_excess)
-+			__mem_cgroup_insert_exceeded(mem);
-+		spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
-+		mem_cgroup_put(mem);
-+	} while (!nr_reclaimed);
-+	return nr_reclaimed;
-+}
-+
- int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
- {
- 	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
-@@ -2528,6 +2609,8 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	mem->last_scanned_child = 0;
- 	mem->usage_in_excess = 0;
- 	mem->last_tree_update = 0;	/* Yes, time begins at 0 here */
-+	mem->on_tree = false;
-+
- 	spin_lock_init(&mem->reclaim_param_lock);
- 
- 	if (parent)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7be9386..c50e29b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1579,7 +1579,15 @@ nofail_alloc:
- 	reclaim_state.reclaimed_slab = 0;
- 	p->reclaim_state = &reclaim_state;
- 
--	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-+	did_some_progress = mem_cgroup_soft_limit_reclaim(gfp_mask);
-+	/*
-+	 * If we made no progress or need higher order allocations
-+	 * try_to_free_pages() is still our best bet, since mem_cgroup
-+	 * reclaim does not handle freeing pages greater than order 0
-+	 */
-+	if (!did_some_progress || order)
-+		did_some_progress = try_to_free_pages(zonelist, order,
-+							gfp_mask);
- 
- 	p->reclaim_state = NULL;
- 	p->flags &= ~PF_MEMALLOC;
-
--- 
-	Balbir
+ /*
+  * strndup_user - duplicate an existing string from user space
+  * @s: The string to duplicate
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
