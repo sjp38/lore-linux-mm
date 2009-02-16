@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C39F6B0092
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:04:38 -0500 (EST)
-Message-Id: <20090216142926.440561506@cmpxchg.org>
-Date: Mon, 16 Feb 2009 15:29:26 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 24F656B0095
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:04:48 -0500 (EST)
+Message-Id: <20090216144725.572446535@cmpxchg.org>
+Date: Mon, 16 Feb 2009 15:29:27 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 0/8] kzfree()
+Subject: [patch 1/8] slab: introduce kzfree()
+References: <20090216142926.440561506@cmpxchg.org>
+Content-Disposition: inline; filename=slab-introduce-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-This series introduces kzfree() and converts callsites which do
-memset() + kfree() explicitely.
+kzfree() is a wrapper for kfree() that additionally zeroes the
+underlying memory before releasing it to the slab allocator.
 
-The callsites may be incomplete, I used coccinelle [1] to find them.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>
+---
+ include/linux/slab.h |    1 +
+ mm/util.c            |   19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)
 
-Regarding the recent re-exporting of ksize() to modules and the
-discussion around it [2], this removes the single modular in-tree user
-of ksize() again (unless I overgrepped something).
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -127,6 +127,7 @@ int kmem_ptr_validate(struct kmem_cache 
+ void * __must_check __krealloc(const void *, size_t, gfp_t);
+ void * __must_check krealloc(const void *, size_t, gfp_t);
+ void kfree(const void *);
++void kzfree(const void *);
+ size_t ksize(const void *);
+ 
+ /*
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -129,6 +129,25 @@ void *krealloc(const void *p, size_t new
+ }
+ EXPORT_SYMBOL(krealloc);
+ 
++/**
++ * kzfree - like kfree but zero memory
++ * @p: object to free memory of
++ *
++ * The memory of the object @p points to is zeroed before freed.
++ * If @p is %NULL, kzfree() does nothing.
++ */
++void kzfree(const void *p)
++{
++	size_t ks;
++	void *mem = (void *)p;
++
++	if (unlikely(ZERO_OR_NULL_PTR(mem)))
++		return;
++	ks = ksize(mem);
++	memset(mem, 0, ks);
++	kfree(mem);
++}
++
+ /*
+  * strndup_user - duplicate an existing string from user space
+  * @s: The string to duplicate
 
-kfree() uses ksize() internally to determine the size of the memory
-region to zero out.  This could mean overhead as the size is actually
-that of the kmalloc cache the object is from, but memset() + kfree()
-isn't really the common fast path pattern.
-
-I left out w1 because I think it doesn't need to zero the memory at
-all.  I will take a deeper look into it and send a followup with
-either a kzfree() conversion or removal of the memset() alltogether.
-
-	Hannes
-
-[1] http://www.emn.fr/x-info/coccinelle/
-
-	@@
-	expression M, S;
-	@@
-
-	- memset(M, 0, S);
-	- kfree(M);
-	+ kzfree(M);
-
-   (from the back of my head, no coccinelle installed on this box)
-
-[2] http://lkml.org/lkml/2009/2/10/144
-
- arch/s390/crypto/prng.c             |    3 +--
- crypto/api.c                        |    5 +----
- drivers/md/dm-crypt.c               |    6 ++----
- drivers/s390/crypto/zcrypt_pcixcc.c |    3 +--
- drivers/usb/host/hwa-hc.c           |    3 +--
- drivers/usb/wusbcore/cbaf.c         |    3 +--
- fs/cifs/connect.c                   |    7 ++-----
- fs/cifs/misc.c                      |   12 ++++--------
- fs/ecryptfs/keystore.c              |    3 +--
- fs/ecryptfs/messaging.c             |    3 +--
- include/linux/slab.h                |    1 +
- mm/util.c                           |   19 +++++++++++++++++++
- net/atm/mpoa_caches.c               |   14 ++++----------
- 13 files changed, 39 insertions(+), 43 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
