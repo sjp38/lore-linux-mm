@@ -1,79 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A63436B003D
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 06:08:54 -0500 (EST)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n1GAkDEH004784
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 16:16:13 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1GB8qln3432612
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 16:38:53 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n1GB8ioE015311
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 16:38:45 +0530
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E48796B004F
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 06:09:04 -0500 (EST)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id n1GB7KDJ016266
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:07:20 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1GB8rhI381414
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:08:55 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1GB8qaa027726
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 22:08:53 +1100
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Date: Mon, 16 Feb 2009 16:38:44 +0530
-Message-Id: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
-Subject: [RFC][PATCH 0/4] Memory controller soft limit patches (v2)
+Date: Mon, 16 Feb 2009 16:38:49 +0530
+Message-Id: <20090216110849.29795.65329.sendpatchset@localhost.localdomain>
+In-Reply-To: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
+References: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
+Subject: [RFC][PATCH 1/4] Memory controller soft limit documentation (v2)
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+Add documentation for soft limit feature support.
 
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Changelog v2...v1
-1. Soft limits now support hierarchies
-2. Use spinlocks instead of mutexes for synchronization of the RB tree
-
-Here is v2 of the new soft limit implementation. Soft limits is a new feature
-for the memory resource controller, something similar has existed in the
-group scheduler in the form of shares. The CPU controllers interpretation
-of shares is very different though. We'll compare shares and soft limits
-below.
-
-Soft limits are the most useful feature to have for environments where
-the administrator wants to overcommit the system, such that only on memory
-contention do the limits become active. The current soft limits implementation
-provides a soft_limit_in_bytes interface for the memory controller and not
-for memory+swap controller. The implementation maintains an RB-Tree of groups
-that exceed their soft limit and starts reclaiming from the group that
-exceeds this limit by the maximum amount.
-
-This is an RFC implementation and is not meant for inclusion
-
-TODOs
-
-1. The current implementation maintains the delta from the soft limit
-   and pushes back groups to their soft limits, a ratio of delta/soft_limit
-   is more useful
-2. It would be nice to have more targetted reclaim (in terms of pages to
-   recalim) interface. So that groups are pushed back, close to their soft
-   limits.
-
-Tests
------
-
-I've run two memory intensive workloads with differing soft limits and
-seen that they are pushed back to their soft limit on contention. Their usage
-was their soft limit plus additional memory that they were able to grab
-on the system.
-
-Please review, comment.
-
-Series
-------
-
-memcg-soft-limit-documentation.patch
-memcg-add-soft-limit-interface.patch
-memcg-organize-over-soft-limit-groups.patch
-memcg-soft-limit-reclaim-on-contention.patch
+Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 ---
 
- 0 files changed, 0 insertions(+), 0 deletions(-)
+ Documentation/cgroups/memory.txt |   28 +++++++++++++++++++++++++++-
+ 1 files changed, 27 insertions(+), 1 deletions(-)
 
 
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index a98a7fe..6e6ef41 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -360,7 +360,33 @@ cgroups created below it.
+ 
+ NOTE2: This feature can be enabled/disabled per subtree.
+ 
+-7. TODO
++7. Soft limits
++
++Soft limits allow for greater sharing of memory. The idea behind soft limits
++is to allow control groups to use as much of the memory as needed, provided
++
++a. There is no memory contention
++b. They do not exceed their hard limit
++
++When the system detects memory contention (through do_try_to_free_pages(),
++while allocating), control groups are pushed back to their soft limits if
++possible. If the soft limit of each control group is very high, they are
++pushed back as much as possible to make sure that one control group does not
++starve the others.
++
++7.1 Interface
++
++Soft limits can be setup by using the following commands (in this example we
++assume a soft limit of 256 megabytes)
++
++# echo 256M > memory.soft_limit_in_bytes
++
++If we want to change this to 1G, we can at any time use
++
++# echo 1G > memory.soft_limit_in_bytes
++
++
++8. TODO
+ 
+ 1. Add support for accounting huge pages (as a separate controller)
+ 2. Make per-cgroup scanner reclaim not-shared pages first
 
 -- 
 	Balbir
