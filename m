@@ -1,92 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4D9A36B003D
-	for <linux-mm@kvack.org>; Sun, 15 Feb 2009 19:51:58 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1G0puog013698
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 16 Feb 2009 09:51:56 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0AE145DD82
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:51:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F66545DD7E
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:51:55 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 69D8FE0800F
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:51:55 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F06DE08007
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:51:55 +0900 (JST)
-Date: Mon, 16 Feb 2009 09:50:42 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 1/2] clean up for early_pfn_to_nid
-Message-Id: <20090216095042.95f4a6d0.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090213.221226.264144345.davem@davemloft.net>
-References: <20090212161920.deedea35.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090212162203.db3f07cb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090213142032.09b4a4da.akpm@linux-foundation.org>
-	<20090213.221226.264144345.davem@davemloft.net>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 87BCD6B003D
+	for <linux-mm@kvack.org>; Sun, 15 Feb 2009 20:02:04 -0500 (EST)
+Date: Sun, 15 Feb 2009 17:00:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] Export symbol ksize()
+Message-Id: <20090215170052.44ee8fd5.akpm@linux-foundation.org>
+In-Reply-To: <1234741781.5669.204.camel@calx>
+References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>
+	<84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com>
+	<20090210134651.GA5115@epbyminw8406h.minsk.epam.com>
+	<Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
+	<20090212104349.GA13859@gondor.apana.org.au>
+	<1234435521.28812.165.camel@penberg-laptop>
+	<20090212105034.GC13859@gondor.apana.org.au>
+	<1234454104.28812.175.camel@penberg-laptop>
+	<20090215133638.5ef517ac.akpm@linux-foundation.org>
+	<1234734194.5669.176.camel@calx>
+	<20090215135555.688ae1a3.akpm@linux-foundation.org>
+	<1234741781.5669.204.camel@calx>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, davem@davemlloft.net, heiko.carstens@de.ibm.com, stable@kernel.org
+To: Matt Mackall <mpm@selenic.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Herbert Xu <herbert@gondor.apana.org.au>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Feb 2009 22:12:26 -0800 (PST)
-David Miller <davem@davemloft.net> wrote:
+On Sun, 15 Feb 2009 17:49:41 -0600 Matt Mackall <mpm@selenic.com> wrote:
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Date: Fri, 13 Feb 2009 14:20:32 -0800
-> 
-> > I queued these as
+> On Sun, 2009-02-15 at 13:55 -0800, Andrew Morton wrote:
+> > On Sun, 15 Feb 2009 15:43:14 -0600 Matt Mackall <mpm@selenic.com> wrote:
 > > 
-> > mm-clean-up-for-early_pfn_to_nid.patch
-> > mm-fix-memmap-init-for-handling-memory-hole.patch
+> > > On Sun, 2009-02-15 at 13:36 -0800, Andrew Morton wrote:
+> > > > On Thu, 12 Feb 2009 17:55:04 +0200 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
+> > > > 
+> > > > > On Thu, Feb 12, 2009 at 12:45:21PM +0200, Pekka Enberg wrote:
+> > > > > > > 
+> > > > > > > Because the API was being widely abused in the nommu code, for example.
+> > > > > > > I'd rather not add it back for this special case which can be handled
+> > > > > > > otherwise.
+> > > > > 
+> > > > > On Thu, 2009-02-12 at 18:50 +0800, Herbert Xu wrote:
+> > > > > > I'm sorry but that's like banning the use of heaters just because
+> > > > > > they can abused and cause fires.
+> > > > > > 
+> > > > > > I think I've said this to you before but in networking we very much
+> > > > > > want to use ksize because the standard case of a 1500-byte packet
+> > > > > > has loads of extra room given by kmalloc which all goes to waste
+> > > > > > right now.
+> > > > > > 
+> > > > > > If we could use ksize then we can stuff loads of metadata in that
+> > > > > > space.
+> > > > > 
+> > > > > OK, fair enough, I applied Kirill's patch. Thanks.
+> > > > > 
+> > > > 
+> > > > Could we please have more details regarding this:
+> > > > 
+> > > > > The ksize() function is not exported to modules because it has non-standard
+> > > > > behavour across different slab allocators. 
+> > > > 
+> > > > How does the behaviour differ?  It this documented?  Can we fix it?
+> > > 
+> > > SLAB and SLUB support calling ksize() on objects returned by
+> > > kmem_cache_alloc.
+> > > 
+> > > SLOB only supports it on objects from kmalloc. This is because it does
+> > > not store any size or type information in kmem_cache_alloc'ed objects.
+> > > Instead, it infers them from the cache argument.
 > > 
-> > and tagged them as needed-in-2.6.28.x.  I don't recall whether they are
-> > needed in earlier -stable releases?
+> > OK.  This is really bad, isn't it?
 > 
-> Every kernel going back to at least 2.6.24 has this bug.  It's likely
-> been around even longer, I didn't bother checking.
+> No. There are very few ksize callers and very few of those are making
+> this particular category error.
 > 
+> And it -is- a category error. The fact that kmalloc is implemented on
+> top of kmem_cache_alloc is an implementation detail that callers should
+> not assume. They shouldn't call kfree() on kmem_cache_alloc objects
+> (even though it might just happen to work), nor should they call
+> ksize().
 
-Sparc64's one is broken from this commit.
+But they could call a new kmem_cache_size(cachep, obj)?
 
-09337f501ebdd224cd69df6d168a5c4fe75d86fa
-sparc64: Kill CONFIG_SPARC32_COMPAT
+> > > Ideally SLAB and SLUB would complain about using ksize inappropriately
+> > > when debugging was enabled.
+> > > 
+> > 
+> > OK, thanks.
+> > 
+> > Ideally we would support ksize() for both kmalloc() and
+> > kmem_cache_alloc() memory across all implementations.
+> 
+> There's never a good reason to call ksize on a kmem_cache_alloced
+> object. You -must- statically know what type of object you have already
+> to be able to free it later with kmem_cache_free, ergo, you can
+> statically know how big it is too.
 
-CONFIG_NODES_SPAN_OTEHR_NODES is set and config allows following kind of NUMA
-This is requirements from powerpc.
+But kmem_cache_size() would tell you how much extra secret memory there
+is available after the object?
 
-low address ---<-   max order     ->---- high address
-               [Node0][Node1][Node0]
-So, nid is checked at memmap init.
+How that gets along with redzoning is a bit of a mystery though.
 
-But it included this bug in following case.
-low address ---<-   max order     ->---- high address
-               [Node0][Hole][Node0]
+The whole concept is quite hacky and nasty, isn't it?.  Does
+networking/crypto actually show any gain from pulling this stunt?
 
-Hmm..I'm not sure how many kind of machines will see this bug. But there may be
-some.
+> Another alternative to the above is to throw sparse at it, and have it
+> track what allocators a pointer might have come through. 
+> 
+> But as far as I'm aware, there's only been one actual bug in this area:
+> nommu was calling ksize on pointers of all kinds, including stuff
+> allocated at compile time.
+> 
+> > Gee this sucks.  Biggest mistake I ever made.  Are we working hard
+> > enough to remove some of these sl?b implementations?  Would it help if
+> > I randomly deleted a couple?
+> 
+> Again, I think there's a strong argument for having two. We can't
+> reasonably expect one allocator to work well on supercomputers and
+> phones.
 
-[kamezawa@bluextal linux-2.6.28]$ grep  -R CONFIG_NODES_SPAN arch/*
-arch/powerpc/configs/celleb_defconfig:CONFIG_NODES_SPAN_OTHER_NODES=y
-arch/powerpc/configs/pseries_defconfig:CONFIG_NODES_SPAN_OTHER_NODES=y
-arch/powerpc/configs/cell_defconfig:CONFIG_NODES_SPAN_OTHER_NODES=y
-arch/sparc64/defconfig:CONFIG_NODES_SPAN_OTHER_NODES=y
-arch/x86/configs/x86_64_defconfig:CONFIG_NODES_SPAN_OTHER_NODES=y
+We can't reasonably expect an OS to work well on supercomputers and
+phones ;)  It's a matter of how much person-power gets tossed at it.
 
-powerpc/sparc64/x86 can see this bug.
+> One will likely value performance significantly higher than
+> memory usage and vice-versa.
+> 
+> I think most of the pain here is actually peripheral. SLUB in particular
+> has churned a lot of interfaces. But we would have had that had we
+> instead decided to throw a lot of effort into making SLAB better.
 
-IMHO, following 2 arch will be safe because..
-On x86-64, it seems it doesn't allows above style of memmap. (BUG_ON() will hit)
-Powerpc is originator of this CONFIG_NODES_SPAN_OTHER_NODES and they did test.
-
-Thanks,
--Kame
+hm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
