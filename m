@@ -1,82 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F9D06B00A8
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:25:51 -0500 (EST)
-Date: Mon, 16 Feb 2009 16:27:51 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C71DD6B00AA
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:31:43 -0500 (EST)
+Date: Mon, 16 Feb 2009 16:33:51 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/8] slab: introduce kzfree()
-Message-ID: <20090216152751.GA27520@cmpxchg.org>
-References: <20090216142926.440561506@cmpxchg.org> <20090216144725.572446535@cmpxchg.org>
+Subject: Re: [patch 6/8] cifs: use kzfree()
+Message-ID: <20090216153351.GB27520@cmpxchg.org>
+References: <20090216142926.440561506@cmpxchg.org> <20090216144725.976425091@cmpxchg.org> <84144f020902160713y7341b2b4g8aa10919405ab82d@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090216144725.572446535@cmpxchg.org>
+In-Reply-To: <84144f020902160713y7341b2b4g8aa10919405ab82d@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steve French <sfrench@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 16, 2009 at 03:29:27PM +0100, Johannes Weiner wrote:
-> kzfree() is a wrapper for kfree() that additionally zeroes the
-> underlying memory before releasing it to the slab allocator.
+On Mon, Feb 16, 2009 at 05:13:30PM +0200, Pekka Enberg wrote:
+> Hi Johannes,
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Nick Piggin <npiggin@suse.de>
-> ---
->  include/linux/slab.h |    1 +
->  mm/util.c            |   19 +++++++++++++++++++
->  2 files changed, 20 insertions(+)
+> On Mon, Feb 16, 2009 at 4:29 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > @@ -2433,11 +2433,8 @@ mount_fail_check:
+> >  out:
+> >        /* zero out password before freeing */
+> >        if (volume_info) {
+> > -               if (volume_info->password != NULL) {
+> > -                       memset(volume_info->password, 0,
+> > -                               strlen(volume_info->password));
+> > -                       kfree(volume_info->password);
+> > -               }
+> > +               if (volume_info->password != NULL)
+> > +                       kzfree(volume_info->password);
 > 
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -127,6 +127,7 @@ int kmem_ptr_validate(struct kmem_cache 
->  void * __must_check __krealloc(const void *, size_t, gfp_t);
->  void * __must_check krealloc(const void *, size_t, gfp_t);
->  void kfree(const void *);
-> +void kzfree(const void *);
->  size_t ksize(const void *);
->  
->  /*
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -129,6 +129,25 @@ void *krealloc(const void *p, size_t new
->  }
->  EXPORT_SYMBOL(krealloc);
->  
-> +/**
-> + * kzfree - like kfree but zero memory
-> + * @p: object to free memory of
-> + *
-> + * The memory of the object @p points to is zeroed before freed.
-> + * If @p is %NULL, kzfree() does nothing.
-> + */
-> +void kzfree(const void *p)
-> +{
-> +	size_t ks;
-> +	void *mem = (void *)p;
-> +
-> +	if (unlikely(ZERO_OR_NULL_PTR(mem)))
-> +		return;
-> +	ks = ksize(mem);
-> +	memset(mem, 0, ks);
-> +	kfree(mem);
-> +}
+> The NULL check here is unnecessary.
+> 
+> >                kfree(volume_info->UNC);
+> >                kfree(volume_info->prepath);
+> >                kfree(volume_info);
+> > --- a/fs/cifs/misc.c
+> > +++ b/fs/cifs/misc.c
+> > @@ -97,10 +97,8 @@ sesInfoFree(struct cifsSesInfo *buf_to_f
+> >        kfree(buf_to_free->serverOS);
+> >        kfree(buf_to_free->serverDomain);
+> >        kfree(buf_to_free->serverNOS);
+> > -       if (buf_to_free->password) {
+> > -               memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+> > -               kfree(buf_to_free->password);
+> > -       }
+> > +       if (buf_to_free->password)
+> > +               kzfree(buf_to_free->password);
+> 
+> And here.
 
-Sorry, please fold this delta:
+Thanks, Pekka!
 
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -147,6 +147,7 @@ void kzfree(const void *p)
- 	memset(mem, 0, ks);
- 	kfree(mem);
+Here is the delta to fold into the above:
+
+[ btw, do these require an extra SOB?  If so:
+  Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+  And for http://lkml.org/lkml/2009/2/16/184:
+  Signed-off-by: Johannes Weiner <hannes@cmpxchg.org> ]
+
+--- a/fs/cifs/connect.c
++++ b/fs/cifs/connect.c
+@@ -2433,8 +2433,7 @@ mount_fail_check:
+ out:
+ 	/* zero out password before freeing */
+ 	if (volume_info) {
+-		if (volume_info->password != NULL)
+-			kzfree(volume_info->password);
++		kzfree(volume_info->password);
+ 		kfree(volume_info->UNC);
+ 		kfree(volume_info->prepath);
+ 		kfree(volume_info);
+--- a/fs/cifs/misc.c
++++ b/fs/cifs/misc.c
+@@ -97,8 +97,7 @@ sesInfoFree(struct cifsSesInfo *buf_to_f
+ 	kfree(buf_to_free->serverOS);
+ 	kfree(buf_to_free->serverDomain);
+ 	kfree(buf_to_free->serverNOS);
+-	if (buf_to_free->password)
+-		kzfree(buf_to_free->password);
++	kzfree(buf_to_free->password);
+ 	kfree(buf_to_free->domainName);
+ 	kfree(buf_to_free);
  }
-+EXPORT_SYMBOL(kzfree);
+@@ -130,8 +129,7 @@ tconInfoFree(struct cifsTconInfo *buf_to
+ 	}
+ 	atomic_dec(&tconInfoAllocCount);
+ 	kfree(buf_to_free->nativeFileSystem);
+-	if (buf_to_free->password)
+-		kzfree(buf_to_free->password);
++	kzfree(buf_to_free->password);
+ 	kfree(buf_to_free);
+ }
  
- /*
-  * strndup_user - duplicate an existing string from user space
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
