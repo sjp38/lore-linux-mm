@@ -1,15 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FF876B00BA
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 14:22:14 -0500 (EST)
-Message-ID: <4999BBE6.2080003@cs.helsinki.fi>
-Date: Mon, 16 Feb 2009 21:17:58 +0200
-From: Pekka Enberg <penberg@cs.helsinki.fi>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 251436B00BC
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 14:25:38 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so269102fgg.4
+        for <linux-mm@kvack.org>; Mon, 16 Feb 2009 11:25:36 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [patch] SLQB slab allocator (try 2)
-References: <20090123154653.GA14517@wotan.suse.de> <200902041748.41801.nickpiggin@yahoo.com.au> <20090204152709.GA4799@csn.ul.ie> <200902051459.30064.nickpiggin@yahoo.com.au> <20090216184200.GA31264@csn.ul.ie>
 In-Reply-To: <20090216184200.GA31264@csn.ul.ie>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+References: <20090123154653.GA14517@wotan.suse.de>
+	 <200902041748.41801.nickpiggin@yahoo.com.au>
+	 <20090204152709.GA4799@csn.ul.ie>
+	 <200902051459.30064.nickpiggin@yahoo.com.au>
+	 <20090216184200.GA31264@csn.ul.ie>
+Date: Mon, 16 Feb 2009 21:25:35 +0200
+Message-ID: <84144f020902161125r59de8a53nfe01566d20ff1658@mail.gmail.com>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
@@ -18,32 +24,20 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Mel,
 
-Mel Gorman wrote:
-> I haven't done much digging in here yet. Between the large page bug and
-> other patches in my inbox, I haven't had the chance yet but that doesn't
-> stop anyone else taking a look.
+On Mon, Feb 16, 2009 at 8:42 PM, Mel Gorman <mel@csn.ul.ie> wrote:
+> Slightly later than hoped for, but here are the results of the profile
+> run between the different slab allocators. It also includes information on
+> the performance on SLUB with the allocator pass-thru logic reverted by commit
+> http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=97a4871761e735b6f1acd3bc7c3bac30dae3eab9
 
-So how big does an improvement/regression have to be not to be 
-considered within noise? I mean, I randomly picked one of the results 
-("x86-64 speccpu integer tests") and ran it through my "summarize" 
-script and got the following results:
+Did you just cherry-pick the patch or did you run it with the
+topic/slub/perf branch? There's a follow-up patch from Yanmin which
+will make a difference for large allocations when page-allocator
+pass-through is reverted:
 
-		min      max      mean     std_dev
-   slub		0.96     1.09     1.01     0.04
-   slub-min	0.95     1.10     1.00     0.04
-   slub-rvrt	0.90     1.08     0.99     0.05
-   slqb		0.96     1.07     1.00     0.04
+http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=79b350ab63458ef1d11747b4f119baea96771a6e
 
-Apart from slub-rvrt (which seems to be regressing, interesting) all the 
-allocators seem to perform equally well. Hmm?
-
-Btw, Yanmin, do you have access to the tests Mel is running (especially 
-the ones where slub-rvrt seems to do worse)? Can you see this kind of 
-regression? The results make we wonder whether we should avoid reverting 
-all of the page allocator pass-through and just add a kmalloc cache for 
-8K allocations. Or not address the netperf regression at all. Double-hmm.
-
-			Pekka
+                            Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
