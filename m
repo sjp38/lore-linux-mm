@@ -1,37 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D43D6B00C6
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 14:59:43 -0500 (EST)
-Date: Mon, 16 Feb 2009 11:59:31 -0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB636B00C7
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 15:02:13 -0500 (EST)
+Date: Mon, 16 Feb 2009 12:02:04 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/8] kzfree()
-Message-Id: <20090216115931.12d9b7ed.akpm@linux-foundation.org>
-In-Reply-To: <20090216142926.440561506@cmpxchg.org>
+Subject: Re: [patch 7/8] ecryptfs: use kzfree()
+Message-Id: <20090216120204.44f78aa2.akpm@linux-foundation.org>
+In-Reply-To: <20090216144726.088020837@cmpxchg.org>
 References: <20090216142926.440561506@cmpxchg.org>
+	<20090216144726.088020837@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Feb 2009 15:29:26 +0100 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, 16 Feb 2009 15:29:33 +0100 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> This series introduces kzfree() and converts callsites which do
-> memset() + kfree() explicitely.
+> --- a/fs/ecryptfs/keystore.c
+> +++ b/fs/ecryptfs/keystore.c
+> @@ -740,8 +740,7 @@ ecryptfs_write_tag_70_packet(char *dest,
+>  out_release_free_unlock:
+>  	crypto_free_hash(s->hash_desc.tfm);
+>  out_free_unlock:
+> -	memset(s->block_aligned_filename, 0, s->block_aligned_filename_size);
+> -	kfree(s->block_aligned_filename);
+> +	kzfree(s->block_aligned_filename);
+>  out_unlock:
+>  	mutex_unlock(s->tfm_mutex);
+>  out:
+> --- a/fs/ecryptfs/messaging.c
+> +++ b/fs/ecryptfs/messaging.c
+> @@ -291,8 +291,7 @@ int ecryptfs_exorcise_daemon(struct ecry
+>  	if (daemon->user_ns)
+>  		put_user_ns(daemon->user_ns);
+>  	mutex_unlock(&daemon->mux);
+> -	memset(daemon, 0, sizeof(*daemon));
+> -	kfree(daemon);
+> +	kzfree(daemon);
+>  out:
+>  	return rc;
+>  }
 
-I dunno, this looks like putting lipstick on a pig.
+Except for this one and the crypto one, which might have been done for
+security reasons.
 
-What is the point in zeroing memory just before freeing it?  afacit
-this is always done as a poor-man's poisoning operation.
-
-But the slab allocators _already_ do poisoning, and they do it better. 
-And they do it configurably, whereas those sites you've been looking at
-are permanently slowing the kernel down.
-
-So I would cheerily merge and push patches titled "remove pointless
-memset before kfree".
+Even though both of them forgot to add a comment explaining this, which
+is bad, wrong, stupid and irritating.  Sigh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
