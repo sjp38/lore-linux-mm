@@ -1,51 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DB116B009B
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:05:05 -0500 (EST)
-Message-Id: <20090216144725.901238204@cmpxchg.org>
-Date: Mon, 16 Feb 2009 15:29:31 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id D2EF06B009E
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 10:05:12 -0500 (EST)
+Message-Id: <20090216144725.976425091@cmpxchg.org>
+Date: Mon, 16 Feb 2009 15:29:32 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 5/8] usb: use kzfree()
+Subject: [patch 6/8] cifs: use kzfree()
 References: <20090216142926.440561506@cmpxchg.org>
-Content-Disposition: inline; filename=usb-use-kzfree.patch
+Content-Disposition: inline; filename=cifs-use-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Steve French <sfrench@samba.org>
 List-ID: <linux-mm.kvack.org>
 
 Use kzfree() instead of memset() + kfree().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Kroah-Hartman <gregkh@suse.de>
+Cc: Steve French <sfrench@samba.org>
 ---
- drivers/usb/host/hwa-hc.c   |    3 +--
- drivers/usb/wusbcore/cbaf.c |    3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ fs/cifs/connect.c |    7 ++-----
+ fs/cifs/misc.c    |   12 ++++--------
+ 2 files changed, 6 insertions(+), 13 deletions(-)
 
---- a/drivers/usb/host/hwa-hc.c
-+++ b/drivers/usb/host/hwa-hc.c
-@@ -464,8 +464,7 @@ static int __hwahc_dev_set_key(struct wu
- 			port_idx << 8 | iface_no,
- 			keyd, keyd_len, 1000 /* FIXME: arbitrary */);
- 
--	memset(keyd, 0, sizeof(*keyd));	/* clear keys etc. */
--	kfree(keyd);
-+	kzfree(keyd);
- 	return result;
+--- a/fs/cifs/connect.c
++++ b/fs/cifs/connect.c
+@@ -2433,11 +2433,8 @@ mount_fail_check:
+ out:
+ 	/* zero out password before freeing */
+ 	if (volume_info) {
+-		if (volume_info->password != NULL) {
+-			memset(volume_info->password, 0,
+-				strlen(volume_info->password));
+-			kfree(volume_info->password);
+-		}
++		if (volume_info->password != NULL)
++			kzfree(volume_info->password);
+ 		kfree(volume_info->UNC);
+ 		kfree(volume_info->prepath);
+ 		kfree(volume_info);
+--- a/fs/cifs/misc.c
++++ b/fs/cifs/misc.c
+@@ -97,10 +97,8 @@ sesInfoFree(struct cifsSesInfo *buf_to_f
+ 	kfree(buf_to_free->serverOS);
+ 	kfree(buf_to_free->serverDomain);
+ 	kfree(buf_to_free->serverNOS);
+-	if (buf_to_free->password) {
+-		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+-		kfree(buf_to_free->password);
+-	}
++	if (buf_to_free->password)
++		kzfree(buf_to_free->password);
+ 	kfree(buf_to_free->domainName);
+ 	kfree(buf_to_free);
+ }
+@@ -132,10 +130,8 @@ tconInfoFree(struct cifsTconInfo *buf_to
+ 	}
+ 	atomic_dec(&tconInfoAllocCount);
+ 	kfree(buf_to_free->nativeFileSystem);
+-	if (buf_to_free->password) {
+-		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+-		kfree(buf_to_free->password);
+-	}
++	if (buf_to_free->password)
++		kzfree(buf_to_free->password);
+ 	kfree(buf_to_free);
  }
  
---- a/drivers/usb/wusbcore/cbaf.c
-+++ b/drivers/usb/wusbcore/cbaf.c
-@@ -638,8 +638,7 @@ static void cbaf_disconnect(struct usb_i
- 	usb_put_intf(iface);
- 	kfree(cbaf->buffer);
- 	/* paranoia: clean up crypto keys */
--	memset(cbaf, 0, sizeof(*cbaf));
--	kfree(cbaf);
-+	kzfree(cbaf);
- }
- 
- static struct usb_device_id cbaf_id_table[] = {
 
 
 --
