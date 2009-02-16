@@ -1,74 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0606B0082
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:09:15 -0500 (EST)
-Subject: Re: [PATCH] Export symbol ksize()
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090216135643.GA6927@cmpxchg.org>
-References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>
-	 <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com>
-	 <20090210134651.GA5115@epbyminw8406h.minsk.epam.com>
-	 <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
-	 <20090216135643.GA6927@cmpxchg.org>
-Date: Mon, 16 Feb 2009 16:09:11 +0200
-Message-Id: <1234793351.8944.12.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 018086B0088
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 09:32:38 -0500 (EST)
+Date: Mon, 16 Feb 2009 14:32:32 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] fix vmaccnt at fork (Was Re: "heuristic overcommit"
+	and fork())
+Message-ID: <20090216143231.GB16153@csn.ul.ie>
+References: <ED3886372DB5491AAA799709DBA78F6F@david> <20090213103655.3a0ea204.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090213103655.3a0ea204.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Herbert Xu <herbert@gondor.apana.org.au>, Geert.Uytterhoeven@sonycom.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, David CHAMPELOVIER <david@champelovier.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Johannes,
-
-On Mon, 2009-02-16 at 14:56 +0100, Johannes Weiner wrote:
-> On Tue, Feb 10, 2009 at 04:06:53PM +0200, Pekka J Enberg wrote:
-> > On Tue, Feb 10, 2009 at 03:35:03PM +0200, Pekka Enberg wrote:
-> > > > We unexported ksize() because it's a problematic interface and you
-> > > > almost certainly want to use the alternatives (e.g. krealloc). I think
-> > > > I need bit more convincing to apply this patch...
-> >  
-> > On Tue, 10 Feb 2009, Kirill A. Shutemov wrote:
-> > > It just a quick fix. If anybody knows better solution, I have no
-> > > objections.
+On Fri, Feb 13, 2009 at 10:36:55AM +0900, KAMEZAWA Hiroyuki wrote:
+> On Wed, 11 Feb 2009 20:26:32 +0100
+> "David CHAMPELOVIER" <david@champelovier.com> wrote:
+> 
+> > Hi,
 > > 
-> > Herbert, what do you think of this (untested) patch? Alternatively, we 
-> > could do something like kfree_secure() but it seems overkill for this one 
-> > call-site.
+> > Recently, I was unable to fork() a 38 GB process on a system with 64 GB RAM
+> > and no swap.
+> > Having a look at the kernel source, I surprisingly found that in "heuristic
+> > overcommit" mode, fork() always checks that there is enough memory to
+> > duplicate process memory.
+> > 
+> > As far as I know, overcommit was introduced in the kernel for several
+> > reasons, and fork() was one of them, since applications often exec() just
+> > after fork(). I know fork() is not the most judicious choice in this case,
+> > but well, this is the way many applications are written.
+> > 
+> > Moreover, I can read in the proc man page that in "heuristic overcommit
+> > mode", "obvious overcommits of address space are refused". I do not think
+> > fork() is an obvious overcommit, that's why I would expect fork() to be
+> > always accepted in this mode.
+> > 
+> > So, is there a reason why fork() checks for available memory in "heuristic
+> > mode" ?
+> > 
 > 
-> There are more callsites which do memset() + kfree():
-> 
-> 	arch/s390/crypto/prng.c
-> 	drivers/s390/crypto/zcrypt_pcixcc.c
-> 	drivers/md/dm-crypt.c
-> 	drivers/usb/host/hwa-hc.c
-> 	drivers/usb/wusbcore/cbaf.c
-> 	(drivers/w1/w1{,_int}.c)
-> 	fs/cifs/misc.c
-> 	fs/cifs/connect.c
-> 	fs/ecryptfs/keystore.c
-> 	fs/ecryptfs/messaging.c
-> 	net/atm/mpoa_caches.c
-> 
-> How about the attached patch?  One problem is that zeroing ksize()
-> bytes can have an overhead of nearly twice the actual allocation size.
-> 
-> So we would need an interface that lets the caller pass in either a
-> number of bytes it wants to have zeroed out or say idontknow.
-> 
-> Perhaps add a size parameter that is cut to ksize() if it's too big?
-> Or (ssize_t)-1 for figureitoutyourself?
+> fork() is used for duplicate process and it means to duplicate memory space.
+> Because of Copy-On-Write, the page will not be used acutally. But, it's not
+> different from mmap() case.
 
-I'd prefer the kzfree() interface as-is. I don't think you want to do
-the memset/kfree in a fast-path anyway.
+Pretty much. At fork() time, you cannot know if the process is going to
+exec or not.
 
-If you can convince Andrew to pick this patch up and maybe convert some
-call-sites to actually use it, then:
+> In that case, overcommit_guess compares
+> requested size and size of free memory for all that we use demand paging.
+> So, the behavior is not surprizing.  For notifing the kernel can assume
+> exec-is-called-after-fork, we may need some flags or paramater.
+> 
 
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+There already is one of sorts. Use madvise(MADV_DONTFORK) on the large
+memory regions so they don't get copied. If that doesn't work, it means
+the accounting for the VMAs is being done in the wrong order.
 
-			Pekka
+> But, hmm.., there is something strange, following. Mel, how do you think ?
+> ==
+> 
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> Vm accounting at fork() should use the same logic as mmap().
+> 
+
+This alters semantics in a fairly subtle manner and I think would break
+counters as well.
+
+accountable_mapping() is used to determine if VM_ACCOUNT is set or
+not. Once set, it gets accounted after that. even if the overcommit settings
+change. Somewhat weirdly, the overcommit decisions at the time of mmap()
+are reused at fork() even if the overcommit settings change.  This is odd
+behaviour and arguably your patch could fix this anomoly. However, it
+would make more sense to me to recalculate if VM_ACCOUNT should be set
+or not rather than what you do here.
+
+I think this patch also has subtle breakage. We could do something like;
+
+1. mmap(), VM_ACCOUNT not set due to overcommit settings
+2. overcommit set to strict
+3. fork()
+4. check flags, note that VM_ACCOUNT would have been used, account but
+   VM_ACCOUNT is still not set
+5. child exits, VM_ACCOUNT not set so reserves are not given back
+
+So reserves can constantly go up and never down. It would require root but
+a bad program could eventually push the reserves up to the size of physical
+memory without any of the memory actually being used.
+
+
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/mm.h |    2 ++
+>  kernel/fork.c      |    3 ++-
+>  2 files changed, 4 insertions(+), 1 deletion(-)
+> 
+> Index: mmotm-2.6.29-Feb11/kernel/fork.c
+> ===================================================================
+> --- mmotm-2.6.29-Feb11.orig/kernel/fork.c
+> +++ mmotm-2.6.29-Feb11/kernel/fork.c
+> @@ -301,7 +301,8 @@ static int dup_mmap(struct mm_struct *mm
+>  			continue;
+>  		}
+>  		charge = 0;
+> -		if (mpnt->vm_flags & VM_ACCOUNT) {
+> +		if (accountable_mapping(mpnt->vm_file, mpnt->vm_flags) &&
+> +			mpnt->vm_flags & VM_ACCOUNT) {
+>  			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
+>  			if (security_vm_enough_memory(len))
+>  				goto fail_nomem;
+> Index: mmotm-2.6.29-Feb11/include/linux/mm.h
+> ===================================================================
+> --- mmotm-2.6.29-Feb11.orig/include/linux/mm.h
+> +++ mmotm-2.6.29-Feb11/include/linux/mm.h
+> @@ -1047,6 +1047,8 @@ extern void free_bootmem_with_active_reg
+>  typedef int (*work_fn_t)(unsigned long, unsigned long, void *);
+>  extern void work_with_active_regions(int nid, work_fn_t work_fn, void *data);
+>  extern void sparse_memory_present_with_active_regions(int nid);
+> +extern int accountable_mapping(struct file *file, unsigned int vmflags);
+> +
+
+accountable_mapping() is a static inline in mm/mmap.c so I'd be
+surprised if this compiles.
+
+>  #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+>  
+>  #if !defined(CONFIG_ARCH_POPULATES_NODE_MAP) && \
+> 
+> 
+
+NAK.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
