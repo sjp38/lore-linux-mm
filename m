@@ -1,44 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E91866B00CA
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 15:20:08 -0500 (EST)
-Date: Mon, 16 Feb 2009 12:19:25 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 0/8] kzfree()
-Message-Id: <20090216121925.a34cca6e.akpm@linux-foundation.org>
-In-Reply-To: <4999C556.7010605@cs.helsinki.fi>
-References: <20090216142926.440561506@cmpxchg.org>
-	<20090216115931.12d9b7ed.akpm@linux-foundation.org>
-	<4999C556.7010605@cs.helsinki.fi>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BF2A6B009F
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 15:26:16 -0500 (EST)
+Date: Mon, 16 Feb 2009 21:28:22 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 7/8] ecryptfs: use kzfree()
+Message-ID: <20090216202822.GA2759@cmpxchg.org>
+References: <20090216142926.440561506@cmpxchg.org> <20090216144726.088020837@cmpxchg.org> <20090216120204.44f78aa2.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090216120204.44f78aa2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Feb 2009 21:58:14 +0200 Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-
-> Hi Andrew,
+On Mon, Feb 16, 2009 at 12:02:04PM -0800, Andrew Morton wrote:
+> On Mon, 16 Feb 2009 15:29:33 +0100 Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> Andrew Morton wrote:
-> > On Mon, 16 Feb 2009 15:29:26 +0100 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > 
-> >> This series introduces kzfree() and converts callsites which do
-> >> memset() + kfree() explicitely.
-> > 
-> > I dunno, this looks like putting lipstick on a pig.
-> > 
-> > What is the point in zeroing memory just before freeing it?  afacit
-> > this is always done as a poor-man's poisoning operation.
+> > --- a/fs/ecryptfs/keystore.c
+> > +++ b/fs/ecryptfs/keystore.c
+> > @@ -740,8 +740,7 @@ ecryptfs_write_tag_70_packet(char *dest,
+> >  out_release_free_unlock:
+> >  	crypto_free_hash(s->hash_desc.tfm);
+> >  out_free_unlock:
+> > -	memset(s->block_aligned_filename, 0, s->block_aligned_filename_size);
+> > -	kfree(s->block_aligned_filename);
+> > +	kzfree(s->block_aligned_filename);
+> >  out_unlock:
+> >  	mutex_unlock(s->tfm_mutex);
+> >  out:
+> > --- a/fs/ecryptfs/messaging.c
+> > +++ b/fs/ecryptfs/messaging.c
+> > @@ -291,8 +291,7 @@ int ecryptfs_exorcise_daemon(struct ecry
+> >  	if (daemon->user_ns)
+> >  		put_user_ns(daemon->user_ns);
+> >  	mutex_unlock(&daemon->mux);
+> > -	memset(daemon, 0, sizeof(*daemon));
+> > -	kfree(daemon);
+> > +	kzfree(daemon);
+> >  out:
+> >  	return rc;
+> >  }
 > 
-> I think they do it as security paranoia to make sure other callers don't 
-> accidentally see parts of crypto keys, passwords, and such. So I don't 
-> think we can just get rid of the memsets.
+> Except for this one and the crypto one, which might have been done for
+> security reasons.
 
-Ok, you're right - I thought only a couple were doing that but it looks like
-all of them except for perhaps ATM are being non-stupid.
+Actually, only atm is not security related and should probably be
+dropped.  I didn't convert w1 for the same reason.
+
+> Even though both of them forgot to add a comment explaining this, which
+> is bad, wrong, stupid and irritating.  Sigh.
+
+Humm, I considered
+
+	kfree(stuff->foo);
+	kzfree(stuff->secret_password);
+	kfree(stuff);
+
+self-explaining.
+
+Comments could still be added.  Even easier, as kzfree() is easier to
+grep for then a memset() + kfree() sequence ;)
+
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
