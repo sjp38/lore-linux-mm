@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9416B00B2
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:44:02 -0500 (EST)
-Message-Id: <20090217184135.997082882@cmpxchg.org>
-Date: Tue, 17 Feb 2009 19:26:19 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E6E46B00B3
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:44:06 -0500 (EST)
+Message-Id: <20090217184136.258819597@cmpxchg.org>
+Date: Tue, 17 Feb 2009 19:26:22 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/7] md: use kzfree()
+Subject: [patch 7/7] ecryptfs: use kzfree()
 References: <20090217182615.897042724@cmpxchg.org>
-Content-Disposition: inline; filename=md-use-kzfree.patch
+Content-Disposition: inline; filename=ecryptfs-use-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alasdair Kergon <dm-devel@redhat.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
 Use kzfree() instead of memset() + kfree().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Alasdair Kergon <dm-devel@redhat.com>
+Acked-by: Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 ---
- drivers/md/dm-crypt.c |    6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ fs/ecryptfs/keystore.c  |    3 +--
+ fs/ecryptfs/messaging.c |    3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
 
---- a/drivers/md/dm-crypt.c
-+++ b/drivers/md/dm-crypt.c
-@@ -1137,8 +1137,7 @@ bad_ivmode:
- 	crypto_free_ablkcipher(tfm);
- bad_cipher:
- 	/* Must zero key material before freeing */
--	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
--	kfree(cc);
-+	kzfree(cc);
- 	return -EINVAL;
+--- a/fs/ecryptfs/keystore.c
++++ b/fs/ecryptfs/keystore.c
+@@ -740,8 +740,7 @@ ecryptfs_write_tag_70_packet(char *dest,
+ out_release_free_unlock:
+ 	crypto_free_hash(s->hash_desc.tfm);
+ out_free_unlock:
+-	memset(s->block_aligned_filename, 0, s->block_aligned_filename_size);
+-	kfree(s->block_aligned_filename);
++	kzfree(s->block_aligned_filename);
+ out_unlock:
+ 	mutex_unlock(s->tfm_mutex);
+ out:
+--- a/fs/ecryptfs/messaging.c
++++ b/fs/ecryptfs/messaging.c
+@@ -291,8 +291,7 @@ int ecryptfs_exorcise_daemon(struct ecry
+ 	if (daemon->user_ns)
+ 		put_user_ns(daemon->user_ns);
+ 	mutex_unlock(&daemon->mux);
+-	memset(daemon, 0, sizeof(*daemon));
+-	kfree(daemon);
++	kzfree(daemon);
+ out:
+ 	return rc;
  }
- 
-@@ -1164,8 +1163,7 @@ static void crypt_dtr(struct dm_target *
- 	dm_put_device(ti, cc->dev);
- 
- 	/* Must zero key material before freeing */
--	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
--	kfree(cc);
-+	kzfree(cc);
- }
- 
- static int crypt_map(struct dm_target *ti, struct bio *bio,
 
 
 --
