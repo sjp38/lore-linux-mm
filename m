@@ -1,98 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1296B008A
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 01:44:01 -0500 (EST)
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id n1H6hseG016853
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:13:54 +0530
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1H6fGiW3252350
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:11:16 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id n1H6hrgq022436
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 17:43:54 +1100
-Date: Tue, 17 Feb 2009 12:13:49 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 0/4] Memory controller soft limit patches (v2)
-Message-ID: <20090217064349.GC3513@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090216110844.29795.17804.sendpatchset@localhost.localdomain> <20090217090523.975bbec2.kamezawa.hiroyu@jp.fujitsu.com> <20090217030526.GA20958@balbir.in.ibm.com> <20090217130352.4ba7f91c.kamezawa.hiroyu@jp.fujitsu.com> <20090217044110.GD20958@balbir.in.ibm.com> <20090217141039.440e5463.kamezawa.hiroyu@jp.fujitsu.com> <20090217053903.GA3513@balbir.in.ibm.com> <20090217153658.225e1c5c.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA896B0055
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 02:51:44 -0500 (EST)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e34.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1H7o3FD021719
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 00:50:03 -0700
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1H7pgsQ213568
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 00:51:42 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1H7pfWj022716
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 00:51:42 -0700
+Message-ID: <499A6C7C.9060106@linux.vnet.ibm.com>
+Date: Tue, 17 Feb 2009 01:51:24 -0600
+From: Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090217153658.225e1c5c.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 7/8] ecryptfs: use kzfree()
+References: <20090216142926.440561506@cmpxchg.org> <20090216144726.088020837@cmpxchg.org>
+In-Reply-To: <20090216144726.088020837@cmpxchg.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="------------enig82585C0BC219E1CC4686197B"
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-17 15:36:58]:
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig82585C0BC219E1CC4686197B
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-> On Tue, 17 Feb 2009 11:09:03 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-17 14:10:39]:
-> > 
-> > > On Tue, 17 Feb 2009 10:11:10 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-02-17 13:03:52]:
-> > > > 
-> > > > > On Tue, 17 Feb 2009 08:35:26 +0530
-> > > > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > > > I don't want to add any new big burden to kernel hackers of memory management,
-> > > > > they work hard to improve memory reclaim. This patch will change the behavior.
-> > > > > 
-> > > > 
-> > > > I don't think I agree, this approach suggests that before doing global
-> > > > reclaim, there are several groups that are using more than their
-> > > > share of memory, so it makes sense to reclaim from them first.
-> > > > 
-> > > 
-> > > > 
-> > > > > BTW, in typical bad case, several threads on cpus goes into memory recalim at once and
-> > > > > all thread will visit this memcg's soft-limit tree at once and soft-limit will
-> > > > > not work as desired anyway.
-> > > > > You can't avoid this problem at alloc_page() hot-path.
-> > > > 
-> > > > Even if all threads go into soft-reclaim at once, the tree will become
-> > > > empty after a point and we will just return saying there are no more
-> > > > memcg's to reclaim from (we remove the memcg from the tree when
-> > > > reclaiming), then those threads will go into regular reclaim if there
-> > > > is still memory pressure.
-> > > 
-> > > Yes. the largest-excess group will be removed. So, it seems that it doesn't work
-> > > as designed. rbtree is considered as just a hint ? If so, rbtree seems to be
-> > > overkill.
-> > > 
-> > > just a question:
-> > > Assume memcg under hierarchy.
-> > >    ../group_A/                 usage=1G, soft_limit=900M  hierarchy=1
-> > >               01/              usage=200M, soft_limit=100M
-> > >               02/              usage=300M, soft_limit=200M
-> > >               03/              usage=500M, soft_limit=300M  <==== 200M over.
-> > >                  004/          usage=200M, soft_limit=100M
-> > >                  005/          usage=300M, soft_limit=200M
-> > > 
-> > > At memory shortage, group 03's memory will be reclaimed 
-> > >   - reclaim memory from 03, 03/004, 03/005
-> > > 
-> > > When 100M of group 03' memory is reclaimed, group_A 's memory is reclaimd at the
-> > > same time, implicitly. Doesn't this break your rb-tree ?
-> > > 
-> > > I recommend you that soft-limit can be only applied to the node which is top of
-> > > hierarchy.
-> > 
-> > Yes, that can be done, but the reason for putting both was to target
-> > the right memcg early.
-> > 
-> My point is  that sort by rb-tree is broken in above case.
->
+Johannes Weiner wrote:
+> Use kzfree() instead of memset() + kfree().
+>=20
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 
-OK, I'll explore, experiment and think about adding just the root 
+Acked-by: Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 
--- 
-	Balbir
+Thanks for kzfree() and the updates to eCryptfs - I will put it to use
+in the future.
+
+> ---
+>  fs/ecryptfs/keystore.c  |    3 +--
+>  fs/ecryptfs/messaging.c |    3 +--
+>  2 files changed, 2 insertions(+), 4 deletions(-)
+>=20
+> --- a/fs/ecryptfs/keystore.c
+> +++ b/fs/ecryptfs/keystore.c
+> @@ -740,8 +740,7 @@ ecryptfs_write_tag_70_packet(char *dest,
+>  out_release_free_unlock:
+>  	crypto_free_hash(s->hash_desc.tfm);
+>  out_free_unlock:
+> -	memset(s->block_aligned_filename, 0, s->block_aligned_filename_size);=
+
+> -	kfree(s->block_aligned_filename);
+> +	kzfree(s->block_aligned_filename);
+>  out_unlock:
+>  	mutex_unlock(s->tfm_mutex);
+>  out:
+> --- a/fs/ecryptfs/messaging.c
+> +++ b/fs/ecryptfs/messaging.c
+> @@ -291,8 +291,7 @@ int ecryptfs_exorcise_daemon(struct ecry
+>  	if (daemon->user_ns)
+>  		put_user_ns(daemon->user_ns);
+>  	mutex_unlock(&daemon->mux);
+> -	memset(daemon, 0, sizeof(*daemon));
+> -	kfree(daemon);
+> +	kzfree(daemon);
+>  out:
+>  	return rc;
+>  }
+>=20
+>=20
+
+
+
+--------------enig82585C0BC219E1CC4686197B
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (GNU/Linux)
+Comment: Using GnuPG with Fedora - http://enigmail.mozdev.org
+
+iEYEARECAAYFAkmabIIACgkQqDCb9l015QLPyACcCSOVkzCRUeBe3Jc1N0Cfxxf0
+CZ8AnA+6FD4jFxDuGQGfrrQuzDb+9Zko
+=8FHV
+-----END PGP SIGNATURE-----
+
+--------------enig82585C0BC219E1CC4686197B--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
