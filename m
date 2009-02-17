@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 059526B00AA
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:43:49 -0500 (EST)
-Message-Id: <20090217184135.913080050@cmpxchg.org>
-Date: Tue, 17 Feb 2009 19:26:18 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A93BB6B00AE
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:43:55 -0500 (EST)
+Message-Id: <20090217184135.747921027@cmpxchg.org>
+Date: Tue, 17 Feb 2009 19:26:16 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/7] s390: use kzfree()
+Subject: [patch 1/7] slab: introduce kzfree()
 References: <20090217182615.897042724@cmpxchg.org>
-Content-Disposition: inline; filename=s390-use-kzfree.patch
+Content-Disposition: inline; filename=slab-introduce-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Use kzfree() instead of memset() + kfree().
+kzfree() is a wrapper for kfree() that additionally zeroes the
+underlying memory before releasing it to the slab allocator.
+
+Currently there is code which memset()s the memory region of an object
+before releasing it back to the slab allocator to make sure
+security-sensitive data are really zeroed out after use.
+
+These callsites can then just use kzfree() which saves some code,
+makes users greppable and allows for a stupid destructor that isn't
+necessarily aware of the actual object size.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>
 ---
- arch/s390/crypto/prng.c             |    3 +--
- drivers/s390/crypto/zcrypt_pcixcc.c |    3 +--
- 2 files changed, 2 insertions(+), 4 deletions(-)
+ include/linux/slab.h |    1 +
+ mm/util.c            |   20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)
 
---- a/arch/s390/crypto/prng.c
-+++ b/arch/s390/crypto/prng.c
-@@ -201,8 +201,7 @@ out_free:
- static void __exit prng_exit(void)
- {
- 	/* wipe me */
--	memset(p->buf, 0, prng_chunk_size);
--	kfree(p->buf);
-+	kzfree(p->buf);
- 	kfree(p);
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -127,6 +127,7 @@ int kmem_ptr_validate(struct kmem_cache 
+ void * __must_check __krealloc(const void *, size_t, gfp_t);
+ void * __must_check krealloc(const void *, size_t, gfp_t);
+ void kfree(const void *);
++void kzfree(const void *);
+ size_t ksize(const void *);
  
- 	misc_deregister(&prng_dev);
---- a/drivers/s390/crypto/zcrypt_pcixcc.c
-+++ b/drivers/s390/crypto/zcrypt_pcixcc.c
-@@ -781,8 +781,7 @@ static long zcrypt_pcixcc_send_cprb(stru
- 		/* Signal pending. */
- 		ap_cancel_message(zdev->ap_dev, &ap_msg);
- out_free:
--	memset(ap_msg.message, 0x0, ap_msg.length);
--	kfree(ap_msg.message);
-+	kzfree(ap_msg.message);
- 	return rc;
+ /*
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -129,6 +129,26 @@ void *krealloc(const void *p, size_t new
  }
+ EXPORT_SYMBOL(krealloc);
  
++/**
++ * kzfree - like kfree but zero memory
++ * @p: object to free memory of
++ *
++ * The memory of the object @p points to is zeroed before freed.
++ * If @p is %NULL, kzfree() does nothing.
++ */
++void kzfree(const void *p)
++{
++	size_t ks;
++	void *mem = (void *)p;
++
++	if (unlikely(ZERO_OR_NULL_PTR(mem)))
++		return;
++	ks = ksize(mem);
++	memset(mem, 0, ks);
++	kfree(mem);
++}
++EXPORT_SYMBOL(kzfree);
++
+ /*
+  * strndup_user - duplicate an existing string from user space
+  * @s: The string to duplicate
 
 
 --
