@@ -1,36 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 49D9F6B0095
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:09:57 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 6CDFB6B0096
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:24:46 -0500 (EST)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 5EE0A82C2B6
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:13:50 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2DDE482C23C
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:28:40 -0500 (EST)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id WwrDF7ESl0us for <linux-mm@kvack.org>;
-	Tue, 17 Feb 2009 11:13:45 -0500 (EST)
+	with ESMTP id OpgidXkKnyw2 for <linux-mm@kvack.org>;
+	Tue, 17 Feb 2009 11:28:40 -0500 (EST)
 Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 8D80282C42B
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:12:50 -0500 (EST)
-Date: Tue, 17 Feb 2009 11:01:30 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4D11C82C262
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 11:28:30 -0500 (EST)
+Date: Tue, 17 Feb 2009 11:17:19 -0500 (EST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 1/8] slab: introduce kzfree()
-In-Reply-To: <1234885876.11511.3.camel@penberg-laptop>
-Message-ID: <alpine.DEB.1.10.0902171100520.29986@qirst.com>
-References: <20090216142926.440561506@cmpxchg.org>  <20090216144725.572446535@cmpxchg.org> <20090216152751.GA27520@cmpxchg.org>  <alpine.DEB.1.10.0902171007010.19685@qirst.com> <1234885876.11511.3.camel@penberg-laptop>
+Subject: Re: [PATCH] Export symbol ksize()
+In-Reply-To: <1234741781.5669.204.camel@calx>
+Message-ID: <alpine.DEB.1.10.0902171115010.29986@qirst.com>
+References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>  <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com>  <20090210134651.GA5115@epbyminw8406h.minsk.epam.com>  <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
+ <20090212104349.GA13859@gondor.apana.org.au>  <1234435521.28812.165.camel@penberg-laptop>  <20090212105034.GC13859@gondor.apana.org.au>  <1234454104.28812.175.camel@penberg-laptop>  <20090215133638.5ef517ac.akpm@linux-foundation.org>  <1234734194.5669.176.camel@calx>
+  <20090215135555.688ae1a3.akpm@linux-foundation.org> <1234741781.5669.204.camel@calx>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Herbert Xu <herbert@gondor.apana.org.au>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Feb 2009, Pekka Enberg wrote:
+On Sun, 15 Feb 2009, Matt Mackall wrote:
 
-> Johannes, I suppose it would make sense to resend the series to Andrew
-> with all the updates?
+> And it -is- a category error. The fact that kmalloc is implemented on
+> top of kmem_cache_alloc is an implementation detail that callers should
+> not assume. They shouldn't call kfree() on kmem_cache_alloc objects
+> (even though it might just happen to work), nor should they call
+> ksize().
 
-Ah now when looking at the whole set I see the point.
+ksize does not take a kmem_cache pointer and it is mainly used for
+figuring out how much space kmalloc really allocated for an object. As
+such its more part of the kmalloc/kfree set of calls than the
+kmem_cache_* calls.
+
+We could add another call
+
+	kmem_cache_size()
+
+for symmetries sake.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
