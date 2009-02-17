@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3C86B00AF
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:43:56 -0500 (EST)
-Message-Id: <20090217184135.837159784@cmpxchg.org>
-Date: Tue, 17 Feb 2009 19:26:17 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D9416B00B2
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 14:44:02 -0500 (EST)
+Message-Id: <20090217184135.997082882@cmpxchg.org>
+Date: Tue, 17 Feb 2009 19:26:19 +0100
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/7] crypto: use kzfree()
+Subject: [patch 4/7] md: use kzfree()
 References: <20090217182615.897042724@cmpxchg.org>
-Content-Disposition: inline; filename=crypto-use-kzfree.patch
+Content-Disposition: inline; filename=md-use-kzfree.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Herbert Xu <herbert@gondor.apana.org.au>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alasdair Kergon <dm-devel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Use kzfree() instead of memset() + kfree().
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Herbert Xu <herbert@gondor.apana.org.au>
+Cc: Alasdair Kergon <dm-devel@redhat.com>
 ---
- crypto/api.c |    5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ drivers/md/dm-crypt.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
---- a/crypto/api.c
-+++ b/crypto/api.c
-@@ -569,20 +569,17 @@ EXPORT_SYMBOL_GPL(crypto_alloc_tfm);
- void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm)
- {
- 	struct crypto_alg *alg;
--	int size;
- 
- 	if (unlikely(!mem))
- 		return;
- 
- 	alg = tfm->__crt_alg;
--	size = ksize(mem);
- 
- 	if (!tfm->exit && alg->cra_exit)
- 		alg->cra_exit(tfm);
- 	crypto_exit_ops(tfm);
- 	crypto_mod_put(alg);
--	memset(mem, 0, size);
--	kfree(mem);
-+	kzfree(mem);
+--- a/drivers/md/dm-crypt.c
++++ b/drivers/md/dm-crypt.c
+@@ -1137,8 +1137,7 @@ bad_ivmode:
+ 	crypto_free_ablkcipher(tfm);
+ bad_cipher:
+ 	/* Must zero key material before freeing */
+-	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
+-	kfree(cc);
++	kzfree(cc);
+ 	return -EINVAL;
  }
- EXPORT_SYMBOL_GPL(crypto_destroy_tfm);
  
+@@ -1164,8 +1163,7 @@ static void crypt_dtr(struct dm_target *
+ 	dm_put_device(ti, cc->dev);
+ 
+ 	/* Must zero key material before freeing */
+-	memset(cc, 0, sizeof(*cc) + cc->key_size * sizeof(u8));
+-	kfree(cc);
++	kzfree(cc);
+ }
+ 
+ static int crypt_map(struct dm_target *ti, struct bio *bio,
 
 
 --
