@@ -1,32 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 742266B00BE
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 15:14:00 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 4049E82C45E
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 15:17:55 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id vgmDlovd4js5 for <linux-mm@kvack.org>;
-	Tue, 17 Feb 2009 15:17:54 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 368AA82C4AF
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 15:17:34 -0500 (EST)
-Date: Tue, 17 Feb 2009 15:06:12 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 1/7] slab: introduce kzfree()
-In-Reply-To: <20090217184135.747921027@cmpxchg.org>
-Message-ID: <alpine.DEB.1.10.0902171505570.24395@qirst.com>
-References: <20090217182615.897042724@cmpxchg.org> <20090217184135.747921027@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0766B00BF
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 16:58:04 -0500 (EST)
+Message-ID: <499B32E4.4080501@goop.org>
+Date: Tue, 17 Feb 2009 13:57:56 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
+References: <49416494.6040009@goop.org> <200707241140.12945.nickpiggin@yahoo.com.au> <49470433.4050504@goop.org> <200812301442.37654.nickpiggin@yahoo.com.au>
+In-Reply-To: <200812301442.37654.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
+Nick Piggin wrote:
+> I have patches to move the tlb flushing to an asynchronous process context...
+> but all tweaks to that (including flushing at vmap) are just variations on the
+> existing flushing scheme and don't solve your problem, so I don't think we
+> really need to change that for the moment (my patches are mainly for latency
+> improvement and to allow vunmap to be usable from interrupt context).
+>   
 
-Acked-by: Christoph Lameter <cl@linux-foundation.org>
+Hi Nick,
+
+I'm very interested in being able to call vm_unmap_aliases() from 
+interrupt context.  Does the work you mention here encompass that?
+
+For Xen dom0, when someone does something like dma_alloc_coherent, we 
+allocate the memory as normal, and then swizzle the underlying physical 
+pages to be machine physically contiguous (vs contiguous pseudo-physical 
+guest memory), and within the addressable range for the device.  In 
+order to do that, we need to make sure the pages are only mapped by the 
+linear mapping, and there are no other aliases.
+
+And since drivers are free to allocate dma memory at interrupt time, 
+this needs to happen at interrupt time too.
+
+(The tlb flush issue that started this read should be a non-issue for 
+Xen, at least, because all cross-cpu tlb flushes should happen via  a 
+hypercall rather than kernel-initiated IPIs, so there's no possibility 
+of deadlock.  Though I'll happily admit that taking advantage of the 
+implementation properties of a particular implementation is not very 
+pretty...)
+
+Thanks,
+    J
 
 
 --
