@@ -1,35 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2113E6B0087
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:16:16 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id DACD382C4E9
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:09 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id sYAbqqQxKltl for <linux-mm@kvack.org>;
-	Tue, 17 Feb 2009 10:20:05 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 81B8082C4EA
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:00 -0500 (EST)
-Date: Tue, 17 Feb 2009 10:08:21 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch 1/8] slab: introduce kzfree()
-In-Reply-To: <20090216152751.GA27520@cmpxchg.org>
-Message-ID: <alpine.DEB.1.10.0902171007010.19685@qirst.com>
-References: <20090216142926.440561506@cmpxchg.org> <20090216144725.572446535@cmpxchg.org> <20090216152751.GA27520@cmpxchg.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id A86C26B0088
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:24:48 -0500 (EST)
+Date: Tue, 17 Feb 2009 10:24:46 -0500 (EST)
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] Add tracepoints to track pagecache transition
+In-Reply-To: <499A99BC.2080700@bk.jp.nec.com>
+Message-ID: <alpine.DEB.1.10.0902171021320.910@gandalf.stny.rr.com>
+References: <499A7CAD.9030409@bk.jp.nec.com> <1234863220.4744.34.camel@laptop> <499A99BC.2080700@bk.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Nick Piggin <npiggin@suse.de>
+To: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Jason Baron <jbaron@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mathieu Desnoyers <compudj@krystal.dyndns.org>, "Frank Ch. Eigler" <fche@redhat.com>, Kazuto Miyoshi <miyoshi@linux.bs1.fc.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Why would you want to zero an object on release? Is this for security?
 
-Please give us some rationale for this. Do we need free on zero now for
-all allocators?
+On Tue, 17 Feb 2009, Atsushi Tsuji wrote:
+> > 
+> > This is rather asymmetric, why don't we care about the offset for the
+> > removed page?
+> > 
+> 
+> Indeed.
+> I added the offset to the argument for the removed page and resend fixed patch.
+> 
+> Signed-off-by: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 
+Could you package it up in one patch again and resend with [PATCH v2].
+Also make sure to Cc the memory folks, and ask for an Acked-by from them.
+
+Thanks,
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
