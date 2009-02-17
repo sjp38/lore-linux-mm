@@ -1,60 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7834E6B003D
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 03:43:37 -0500 (EST)
-Date: Tue, 17 Feb 2009 09:43:31 +0100 (CET)
-From: Geert Uytterhoeven <Geert.Uytterhoeven@sonycom.com>
-Subject: Re: [PATCH] Export symbol ksize()
-In-Reply-To: <1234748316.5669.222.camel@calx>
-Message-ID: <alpine.LRH.2.00.0902170940430.3391@vixen.sonytel.be>
-References: <1234272104-10211-1-git-send-email-kirill@shutemov.name> <84144f020902100535i4d626a9fj8cbb305120cf332a@mail.gmail.com> <20090210134651.GA5115@epbyminw8406h.minsk.epam.com> <Pine.LNX.4.64.0902101605070.20991@melkki.cs.Helsinki.FI>
- <20090212104349.GA13859@gondor.apana.org.au> <1234435521.28812.165.camel@penberg-laptop> <20090212105034.GC13859@gondor.apana.org.au> <1234454104.28812.175.camel@penberg-laptop> <20090215133638.5ef517ac.akpm@linux-foundation.org> <1234734194.5669.176.camel@calx>
- <20090215135555.688ae1a3.akpm@linux-foundation.org> <1234741781.5669.204.camel@calx> <20090215170052.44ee8fd5.akpm@linux-foundation.org> <1234748316.5669.222.camel@calx>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-15
-Content-Transfer-Encoding: 8BIT
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F7346B003D
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 04:33:49 -0500 (EST)
+Subject: Re: [PATCH] Add tracepoints to track pagecache transition
+From: Peter Zijlstra <peterz@infradead.org>
+In-Reply-To: <499A7CAD.9030409@bk.jp.nec.com>
+References: <499A7CAD.9030409@bk.jp.nec.com>
+Content-Type: text/plain
+Date: Tue, 17 Feb 2009 10:33:40 +0100
+Message-Id: <1234863220.4744.34.camel@laptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Herbert Xu <herbert@gondor.apana.org.au>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org
+To: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, Jason Baron <jbaron@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mathieu Desnoyers <compudj@krystal.dyndns.org>, "Frank Ch. Eigler" <fche@redhat.com>, Kazuto Miyoshi <miyoshi@linux.bs1.fc.nec.co.jp>, rostedt@goodmis.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Feb 2009, Matt Mackall wrote:
-> On Sun, 2009-02-15 at 17:00 -0800, Andrew Morton wrote:
-> > On Sun, 15 Feb 2009 17:49:41 -0600 Matt Mackall <mpm@selenic.com> wrote:
+On Tue, 2009-02-17 at 18:00 +0900, Atsushi Tsuji wrote:
+
+> The below patch adds instrumentation for pagecache.
+
+And somehow you forgot to CC any of the mm people.. ;-)
+
+> I thought it would be useful to trace pagecache behavior for problem
+> analysis (performance bottlenecks, behavior differences between stable
+> time and trouble time).
 > 
-> > The whole concept is quite hacky and nasty, isn't it?.
+> By using those tracepoints, we can describe and visualize pagecache
+> transition (file-by-file basis) in kernel and  pagecache
+> consumes most of the memory in running system and pagecache hit rate
+> and writeback behavior will influence system load and performance.
+
+> Signed-off-by: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+> ---
+> diff --git a/include/trace/filemap.h b/include/trace/filemap.h
+> new file mode 100644
+> index 0000000..196955e
+> --- /dev/null
+> +++ b/include/trace/filemap.h
+> @@ -0,0 +1,13 @@
+> +#ifndef _TRACE_FILEMAP_H
+> +#define _TRACE_FILEMAP_H
+> +
+> +#include <linux/tracepoint.h>
+> +
+> +DECLARE_TRACE(filemap_add_to_page_cache,
+> +	TPPROTO(struct address_space *mapping, pgoff_t offset),
+> +	TPARGS(mapping, offset));
+> +DECLARE_TRACE(filemap_remove_from_page_cache,
+> +	TPPROTO(struct address_space *mapping),
+> +	TPARGS(mapping));
+
+This is rather asymmetric, why don't we care about the offset for the
+removed page?
+
+> +#endif
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 23acefe..76a6887 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -34,6 +34,7 @@
+>  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+>  #include <linux/memcontrol.h>
+>  #include <linux/mm_inline.h> /* for page_is_file_cache() */
+> +#include <trace/filemap.h>
+>  #include "internal.h"
+>  
+>  /*
+> @@ -43,6 +44,8 @@
+>  
+>  #include <asm/mman.h>
+>  
+> +DEFINE_TRACE(filemap_add_to_page_cache);
+> +DEFINE_TRACE(filemap_remove_from_page_cache);
+>  
+>  /*
+>   * Shared mappings implemented 30.11.1994. It's not fully working yet,
+> @@ -120,6 +123,7 @@ void __remove_from_page_cache(struct page *page)
+>  	page->mapping = NULL;
+>  	mapping->nrpages--;
+>  	__dec_zone_page_state(page, NR_FILE_PAGES);
+> +	trace_filemap_remove_from_page_cache(mapping);
+>  	BUG_ON(page_mapped(page));
+>  	mem_cgroup_uncharge_cache_page(page);
+>  
+> @@ -475,6 +479,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+>  		if (likely(!error)) {
+>  			mapping->nrpages++;
+>  			__inc_zone_page_state(page, NR_FILE_PAGES);
+> +			trace_filemap_add_to_page_cache(mapping, offset);
+>  		} else {
+>  			page->mapping = NULL;
+>  			mem_cgroup_uncharge_cache_page(page);
 > 
-> It is, which is part of why we were trying to kill it. The primary users
-> were thing growing buffers ala realloc. So we were pushing to change the
-> callers to just do a realloc. But IPSEC doesn't fit well into that mold.
 > 
-> The fundamental problem here for networking is that 1500 is not very
-> close to a power of two and just about everything in the VM wants it to
-> be. If we could get SKBs fitting more nicely in memory, I think it would
-> cease to be a concern.
-
-Does it help to remind that 4 KiB - 2 * 1500 = 1096 \approx 1024?
-(hmm, the difference is 72 \approx 64)?
-
-If 1500 is so common as an allocation size, it may make sense to start
-special-casing it...
-
-With kind regards,
-
-Geert Uytterhoeven
-Software Architect
-
-Sony Techsoft Centre Europe
-The Corporate Village . Da Vincilaan 7-D1 . B-1935 Zaventem . Belgium
-
-Phone:    +32 (0)2 700 8453
-Fax:      +32 (0)2 700 8622
-E-mail:   Geert.Uytterhoeven@sonycom.com
-Internet: http://www.sony-europe.com/
-
-A division of Sony Europe (Belgium) N.V.
-VAT BE 0413.825.160 . RPR Brussels
-Fortis . BIC GEBABEBB . IBAN BE41293037680010
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
