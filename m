@@ -1,66 +1,348 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 879DF6B00D9
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 20:07:14 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator (try 2)
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <4999BBE6.2080003@cs.helsinki.fi>
-References: <20090123154653.GA14517@wotan.suse.de>
-	 <200902041748.41801.nickpiggin@yahoo.com.au>
-	 <20090204152709.GA4799@csn.ul.ie>
-	 <200902051459.30064.nickpiggin@yahoo.com.au>
-	 <20090216184200.GA31264@csn.ul.ie>  <4999BBE6.2080003@cs.helsinki.fi>
-Content-Type: text/plain; charset=UTF-8
-Date: Tue, 17 Feb 2009 09:06:55 +0800
-Message-Id: <1234832815.2604.410.camel@ymzhang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6E0176B00DA
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 20:20:51 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1H1KllR019580
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 17 Feb 2009 10:20:47 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 24C7145DE5C
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:47 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AB90B45DD85
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:46 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE6FE1DB803C
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:45 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B263E08004
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 10:20:45 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 4/4] Memory controller soft limit reclaim on contention (v2)
+In-Reply-To: <20090216110916.29795.41945.sendpatchset@localhost.localdomain>
+References: <20090216110844.29795.17804.sendpatchset@localhost.localdomain> <20090216110916.29795.41945.sendpatchset@localhost.localdomain>
+Message-Id: <20090217100001.8BCC.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 17 Feb 2009 10:20:44 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-02-16 at 21:17 +0200, Pekka Enberg wrote:
-> Hi Mel,
 > 
-> Mel Gorman wrote:
-> > I haven't done much digging in here yet. Between the large page bug and
-> > other patches in my inbox, I haven't had the chance yet but that doesn't
-> > stop anyone else taking a look.
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-> So how big does an improvement/regression have to be not to be 
-> considered within noise? I mean, I randomly picked one of the results 
-> ("x86-64 speccpu integer tests") and ran it through my "summarize" 
-> script and got the following results:
+> Changelog v2...v1
+> 1. Added support for hierarchical soft limits
 > 
-> 		min      max      mean     std_dev
->    slub		0.96     1.09     1.01     0.04
->    slub-min	0.95     1.10     1.00     0.04
->    slub-rvrt	0.90     1.08     0.99     0.05
->    slqb		0.96     1.07     1.00     0.04
+> This patch allows reclaim from memory cgroups on contention (via the
+> __alloc_pages_internal() path). If a order greater than 0 is specified, we
+> anyway fall back on try_to_free_pages().
 > 
-> Apart from slub-rvrt (which seems to be regressing, interesting) all the 
-> allocators seem to perform equally well. Hmm?
-I wonder if different compilation of kernel might cause different cache alignment
-which has much impact on small result difference.
+> memory cgroup soft limit reclaim finds the group that exceeds its soft limit
+> by the largest amount and reclaims pages from it and then reinserts the
+> cgroup into its correct place in the rbtree.
+> 
+> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> ---
+> 
+>  include/linux/memcontrol.h |    1 
+>  mm/memcontrol.c            |  105 +++++++++++++++++++++++++++++++++++++++-----
+>  mm/page_alloc.c            |   10 ++++
+>  3 files changed, 104 insertions(+), 12 deletions(-)
+> 
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 18146c9..a50f73e 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -116,6 +116,7 @@ static inline bool mem_cgroup_disabled(void)
+>  }
+>  
+>  extern bool mem_cgroup_oom_called(struct task_struct *task);
+> +extern unsigned long mem_cgroup_soft_limit_reclaim(gfp_t gfp_mask);
+>  
+>  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+>  struct mem_cgroup;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a2617ac..dd835d3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -188,6 +188,7 @@ struct mem_cgroup {
+>  	struct rb_node mem_cgroup_node;
+>  	unsigned long long usage_in_excess;
+>  	unsigned long last_tree_update;
+> +	bool on_tree;
+>  
+>  	/*
+>  	 * statistics. This must be placed at the end of memcg.
+> @@ -195,7 +196,7 @@ struct mem_cgroup {
+>  	struct mem_cgroup_stat stat;
+>  };
+>  
+> -#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ)
+> +#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ/4)
 
-If a workload isn't slab-allocation intensive, perhaps the impact caused by different
-compilation is a little bigger.
+??
+moving [3/4] is proper more?
 
 
-> 
-> Btw, Yanmin, do you have access to the tests Mel is running (especially 
-> the ones where slub-rvrt seems to do worse)?
-As it takes a long time (more than 20 hours) to run cpu2006, I run cpu2000 instead
-of cpu2006. Now, we are trying to integrate cpu2006 into testing infrastructure.
-i>>?Let me check it firstly.
+>  
+>  enum charge_type {
+>  	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+> @@ -229,14 +230,15 @@ static void mem_cgroup_get(struct mem_cgroup *mem);
+>  static void mem_cgroup_put(struct mem_cgroup *mem);
+>  static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
+>  
+> -static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
+> +static void __mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
+>  {
+>  	struct rb_node **p = &mem_cgroup_soft_limit_exceeded_groups.rb_node;
+>  	struct rb_node *parent = NULL;
+>  	struct mem_cgroup *mem_node;
+> -	unsigned long flags;
+>  
+> -	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
+> +	if (mem->on_tree)
+> +		return;
+> +
+>  	while (*p) {
+>  		parent = *p;
+>  		mem_node = rb_entry(parent, struct mem_cgroup, mem_cgroup_node);
+> @@ -253,6 +255,23 @@ static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
+>  	rb_insert_color(&mem->mem_cgroup_node,
+>  			&mem_cgroup_soft_limit_exceeded_groups);
+>  	mem->last_tree_update = jiffies;
+> +	mem->on_tree = true;
+> +}
+> +
+> +static void __mem_cgroup_remove_exceeded(struct mem_cgroup *mem)
+> +{
+> +	if (!mem->on_tree)
+> +		return;
+> +	rb_erase(&mem->mem_cgroup_node, &mem_cgroup_soft_limit_exceeded_groups);
+> +	mem->on_tree = false;
+> +}
+> +
+> +static void mem_cgroup_insert_exceeded(struct mem_cgroup *mem)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
+> +	__mem_cgroup_insert_exceeded(mem);
+>  	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
+>  }
+>  
+> @@ -260,10 +279,34 @@ static void mem_cgroup_remove_exceeded(struct mem_cgroup *mem)
+>  {
+>  	unsigned long flags;
+>  	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
+> -	rb_erase(&mem->mem_cgroup_node, &mem_cgroup_soft_limit_exceeded_groups);
+> +	__mem_cgroup_remove_exceeded(mem);
+>  	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
+>  }
+>  
+> +static struct mem_cgroup *mem_cgroup_get_largest_soft_limit_exceeding_node(void)
+> +{
+> +	struct rb_node *rightmost = NULL;
+> +	struct mem_cgroup *mem = NULL;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
+> +	rightmost = rb_last(&mem_cgroup_soft_limit_exceeded_groups);
+> +	if (!rightmost)
+> +		goto done;		/* Nothing to reclaim from */
+> +
+> +	mem = rb_entry(rightmost, struct mem_cgroup, mem_cgroup_node);
+> +	mem_cgroup_get(mem);
+> +	/*
+> +	 * Remove the node now but someone else can add it back,
+> +	 * we will to add it back at the end of reclaim to its correct
+> +	 * position in the tree.
+> +	 */
+> +	__mem_cgroup_remove_exceeded(mem);
+> +done:
+> +	spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
+> +	return mem;
+> +}
+> +
 
->  Can you see this kind of 
-> regression? The results make we wonder whether we should avoid reverting 
-> all of the page allocator pass-through and just add a kmalloc cache for 
-> 8K allocations. Or not address the netperf regression at all. Double-hmm.
-> 
-> 			Pekka
+Do you remember we discuss about zone reclaim balancing thing 
+in "reclaim bail out"thread at about 2 month ago?
+
+The "largest exceeding" policy seems to have similar problems.
+if largest exceeding group is most active, 
+
+  1. do the largest group activity and charge memory over softlimit.
+  2. reclaim memory from the largest group.
+  3. goto 1.
+
+then, system can become livelock.
+
+I think per-group priority is not good idea.
+
+
+
+>  static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
+>  					 struct page_cgroup *pc,
+>  					 bool charge)
+> @@ -886,7 +929,8 @@ mem_cgroup_select_victim(struct mem_cgroup *root_mem)
+>   * If shrink==true, for avoiding to free too much, this returns immedieately.
+>   */
+>  static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+> -				   gfp_t gfp_mask, bool noswap, bool shrink)
+> +				   gfp_t gfp_mask, bool noswap, bool shrink,
+> +				   bool check_soft)
+
+Now, we get three boolean argument.
+So, can we convert "int flags" argument?
+
+I don't think mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, false, true, false) is
+self-described good look.
+
+
+>  {
+>  	struct mem_cgroup *victim;
+>  	int ret, total = 0;
+> @@ -913,7 +957,11 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
+>  		if (shrink)
+>  			return ret;
+>  		total += ret;
+> -		if (mem_cgroup_check_under_limit(root_mem))
+> +
+> +		if (check_soft) {
+> +			if (res_counter_soft_limit_excess(&root_mem->res))
+> +				return 1 + total;
+> +		} else if (mem_cgroup_check_under_limit(root_mem))
+>  			return 1 + total;
+
+I don't understand what's mean "1 +".
+
+
+>  	}
+>  	return total;
+> @@ -1044,7 +1092,7 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+>  			goto nomem;
+>  
+>  		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, gfp_mask,
+> -							noswap, false);
+> +							noswap, false, false);
+>  		if (ret)
+>  			continue;
+>  
+> @@ -1686,7 +1734,7 @@ int mem_cgroup_shrink_usage(struct page *page,
+>  
+>  	do {
+>  		progress = mem_cgroup_hierarchical_reclaim(mem,
+> -					gfp_mask, true, false);
+> +					gfp_mask, true, false, false);
+>  		progress += mem_cgroup_check_under_limit(mem);
+>  	} while (!progress && --retry);
+>  
+> @@ -1741,7 +1789,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  			break;
+>  
+>  		progress = mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL,
+> -						   false, true);
+> +						   false, true, false);
+>  		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
+>  		/* Usage is reduced ? */
+>    		if (curusage >= oldusage)
+> @@ -1789,7 +1837,8 @@ int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  		if (!ret)
+>  			break;
+>  
+> -		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true);
+> +		mem_cgroup_hierarchical_reclaim(memcg, GFP_KERNEL, true, true,
+> +						false);
+>  		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  		/* Usage is reduced ? */
+>  		if (curusage >= oldusage)
+> @@ -1940,6 +1989,38 @@ try_to_free:
+>  	goto out;
+>  }
+>  
+> +unsigned long mem_cgroup_soft_limit_reclaim(gfp_t gfp_mask)
+> +{
+> +	unsigned long nr_reclaimed = 0;
+> +	struct mem_cgroup *mem;
+> +	unsigned long flags;
+> +
+> +	do {
+> +		mem = mem_cgroup_get_largest_soft_limit_exceeding_node();
+> +		if (!mem)
+> +			break;
+> +		if (mem_cgroup_is_obsolete(mem)) {
+> +			mem_cgroup_put(mem);
+> +			continue;
+> +		}
+> +		nr_reclaimed +=
+> +			mem_cgroup_hierarchical_reclaim(mem, gfp_mask, false,
+> +							false, true);
+> +		spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
+> +		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
+> +		/*
+> +		 * We need to remove and reinsert the node in its correct
+> +		 * position
+> +		 */
+> +		__mem_cgroup_remove_exceeded(mem);
+> +		if (mem->usage_in_excess)
+> +			__mem_cgroup_insert_exceeded(mem);
+> +		spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
+> +		mem_cgroup_put(mem);
+> +	} while (!nr_reclaimed);
+> +	return nr_reclaimed;
+> +}
+
+this function is called from reclaim hotpath. but it grab glocal spin lock..
+I don't like this.
+
+
+> +
+>  int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+>  {
+>  	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
+> @@ -2528,6 +2609,8 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	mem->last_scanned_child = 0;
+>  	mem->usage_in_excess = 0;
+>  	mem->last_tree_update = 0;	/* Yes, time begins at 0 here */
+> +	mem->on_tree = false;
+> +
+>  	spin_lock_init(&mem->reclaim_param_lock);
+>  
+>  	if (parent)
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7be9386..c50e29b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1579,7 +1579,15 @@ nofail_alloc:
+>  	reclaim_state.reclaimed_slab = 0;
+>  	p->reclaim_state = &reclaim_state;
+>  
+> -	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
+> +	did_some_progress = mem_cgroup_soft_limit_reclaim(gfp_mask);
+> +	/*
+> +	 * If we made no progress or need higher order allocations
+> +	 * try_to_free_pages() is still our best bet, since mem_cgroup
+> +	 * reclaim does not handle freeing pages greater than order 0
+> +	 */
+> +	if (!did_some_progress || order)
+> +		did_some_progress = try_to_free_pages(zonelist, order,
+> +							gfp_mask);
+>  
+>  	p->reclaim_state = NULL;
+>  	p->flags &= ~PF_MEMALLOC;
+
+this is very freqently called place. then we want to
+  - if no memcgroup using, no performance regression.
+  - if no softlimit but using memcg, performance degression is smaller than 1%.
+
+Do you have any performance number?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
