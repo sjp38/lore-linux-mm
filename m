@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0F45C6B00A0
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:14:02 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2A19982C514
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:17:57 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id mOy23rjM+U-E for <linux-mm@kvack.org>;
-	Tue, 17 Feb 2009 12:17:57 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id B8A2782C519
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:17:49 -0500 (EST)
-Date: Tue, 17 Feb 2009 12:06:37 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH] Export symbol ksize()
-In-Reply-To: <84144f020902170903g5756cf4cy57f98cd5955ff2e3@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0902171205390.15929@qirst.com>
-References: <1234272104-10211-1-git-send-email-kirill@shutemov.name>  <20090212104349.GA13859@gondor.apana.org.au>  <1234435521.28812.165.camel@penberg-laptop>  <20090212105034.GC13859@gondor.apana.org.au>  <1234454104.28812.175.camel@penberg-laptop>
- <20090215133638.5ef517ac.akpm@linux-foundation.org>  <1234734194.5669.176.camel@calx>  <20090215135555.688ae1a3.akpm@linux-foundation.org>  <1234741781.5669.204.camel@calx>  <alpine.DEB.1.10.0902171115010.29986@qirst.com>
- <84144f020902170903g5756cf4cy57f98cd5955ff2e3@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D7CC56B00A4
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 12:24:54 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator (try 2)
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <alpine.DEB.1.10.0902171204070.15929@qirst.com>
+References: <20090123154653.GA14517@wotan.suse.de>
+	 <200902041748.41801.nickpiggin@yahoo.com.au>
+	 <20090204152709.GA4799@csn.ul.ie>
+	 <200902051459.30064.nickpiggin@yahoo.com.au>
+	 <20090216184200.GA31264@csn.ul.ie> <4999BBE6.2080003@cs.helsinki.fi>
+	 <alpine.DEB.1.10.0902171120040.27813@qirst.com>
+	 <1234890096.11511.6.camel@penberg-laptop>
+	 <alpine.DEB.1.10.0902171204070.15929@qirst.com>
+Date: Tue, 17 Feb 2009 19:24:52 +0200
+Message-Id: <1234891492.11511.8.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Herbert Xu <herbert@gondor.apana.org.au>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-crypto@vger.kernel.org, Geert.Uytterhoeven@sonycom.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Feb 2009, Pekka Enberg wrote:
+On Tue, 2009-02-17 at 12:05 -0500, Christoph Lameter wrote:
+> Well yes you missed two locations (kmalloc_caches array has to be
+> redimensioned) and I also was writing the same patch...
 
-> Hmm, kmem_cache_size() seems bit pointless to me. For
-> kmem_cache_create()'d caches, actual allocated size should be more or
-> less optimal with no extra space.
+:-)
 
-Cacheline alignment and word alignment etc etc can still add some space to
-the object.
+On Tue, 2009-02-17 at 12:05 -0500, Christoph Lameter wrote:
+> Subject: SLUB: Do not pass 8k objects through to the page allocator
+> 
+> Increase the maximum object size in SLUB so that 8k objects are not
+> passed through to the page allocator anymore. The network stack uses 8k
+> objects for performance critical operations.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+
+Looks good to me. Yanmin, please retest netperf with this one instead if
+you have the time. I'll replace the revert with this patch but keep your
+default order tweak patch.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
