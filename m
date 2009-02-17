@@ -1,120 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A53FE6B00D4
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 17:01:01 -0500 (EST)
-Date: Mon, 16 Feb 2009 23:03:02 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] vmscan: initialize sc.order in indirect shrink_list() users
-Message-ID: <20090216220302.GA3415@cmpxchg.org>
-References: <20090210165134.GA2457@cmpxchg.org> <20090210162948.bd20d853.akpm@linux-foundation.org> <20090211015227.GA4605@cmpxchg.org> <20090216145349.GC16153@csn.ul.ie>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4D6656B00D6
+	for <linux-mm@kvack.org>; Mon, 16 Feb 2009 19:06:40 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1H06bV8018500
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 17 Feb 2009 09:06:37 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F3E45DE53
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 09:06:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F12C45DE4F
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 09:06:37 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F0D91DB8042
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 09:06:37 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CD591DB803C
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 09:06:36 +0900 (JST)
+Date: Tue, 17 Feb 2009 09:05:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/4] Memory controller soft limit patches (v2)
+Message-Id: <20090217090523.975bbec2.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
+References: <20090216110844.29795.17804.sendpatchset@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090216145349.GC16153@csn.ul.ie>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 16, 2009 at 02:53:49PM +0000, Mel Gorman wrote:
-> On Wed, Feb 11, 2009 at 02:52:27AM +0100, Johannes Weiner wrote:
-> > [added Mel to CC]
-> > 
-> > On Tue, Feb 10, 2009 at 04:29:48PM -0800, Andrew Morton wrote:
-> > > On Tue, 10 Feb 2009 17:51:35 +0100
-> > > Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > 
-> > > > shrink_all_memory() and __zone_reclaim() currently don't initialize
-> > > > the .order field of their scan control.
-> > > > 
-> > > > Both of them call into functions which use that field and make certain
-> > > > decisions based on a random value.
-> > > > 
-> > > > The functions depending on the .order field are marked with a star,
-> > > > the faulty entry points are marked with a percentage sign:
-> > > > 
-> > > > * shrink_page_list()
-> > > >   * shrink_inactive_list()
-> > > >   * shrink_active_list()
-> > > >     shrink_list()
-> > > >       shrink_all_zones()
-> > > >         % shrink_all_memory()
-> > > >       shrink_zone()
-> > > >         % __zone_reclaim()
-> > > > 
-> > > > Initialize .order to zero in shrink_all_memory().  Initialize .order
-> > > > to the order parameter in __zone_reclaim().
-> > > > 
-> > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > ---
-> > > >  mm/vmscan.c |    2 ++
-> > > >  1 files changed, 2 insertions(+), 0 deletions(-)
-> > > > 
-> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > index 4422301..9ce85ea 100644
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > > > @@ -2112,6 +2112,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
-> > > >  		.may_unmap = 0,
-> > > >  		.swap_cluster_max = nr_pages,
-> > > >  		.may_writepage = 1,
-> > > > +		.order = 0,
-> > > >  		.isolate_pages = isolate_pages_global,
-> > > >  	};
-> > > >  
-> > > > @@ -2294,6 +2295,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
-> > > >  					SWAP_CLUSTER_MAX),
-> > > >  		.gfp_mask = gfp_mask,
-> > > >  		.swappiness = vm_swappiness,
-> > > > +		.order = order,
-> > > >  		.isolate_pages = isolate_pages_global,
-> > > >  	};
-> > > >  	unsigned long slab_reclaimable;
-> > > 
-> > > The second hunk might fix something, but it would need a correcter
-> > > changelog, and some thought about what its runtimes effects are likely
-> > > to be, please.
-> > 
-> > zone_reclaim() is used by the watermark rebalancing of the buddy
-> > allocator right before trying to do an allocation.  Even though it
-> > tries to reclaim at least 1 << order pages, it doesn't raise sc.order
-> > to increase clustering efforts.
-> > 
-> 
-> This affects lumpy reclaim. Direct reclaim via try_to_free_pages() and
-> kswapd() is still working but the earlier reclaim attempt via zone_reclaim()
-> on unmapped file and slab pages is ignoring teh order. While it'd be tricky
-> to measure any difference, it does make sense that __zone_reclaim() initialse
-> the order with what the caller requested.
-> 
-> > I think this happens with the assumption that the upcoming allocation
-> > can still succeed and in that case we don't want to lump too
-> > aggressively to refill the zone. 
-> 
-> I don't get what you mean here. The caller requested the higher order so
-> the work has been requested.
+On Mon, 16 Feb 2009 16:38:44 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-I meant the buffered_rmqueue() might still succeed even without lumpy
-reclaim in the case of low watermarks reached.  And if it does, we
-reclaimed 'in aggressive mode without reason'.  If it does NOT, we
-still drop into direct reclaim with lumpy reclaim.  Well, this is at
-least what I had in mind when writing the above.
-
-> > The allocation might succeed on
-> > another zone and now we have evicted precious pages due to clustering
-> > while we are still not sure it's even needed.
-> > 
 > 
-> Also not sure what you are getting at here. zone_reclaim() is called for the
-> preferred zones in order. Attempts are made to free within the preferred zone
-> and then allocate from it. Granted, it might evict pages and the clustering
-> was ineffective, but this is the cost of high-order reclaim.
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Changelog v2...v1
+> 1. Soft limits now support hierarchies
+> 2. Use spinlocks instead of mutexes for synchronization of the RB tree
+> 
+> Here is v2 of the new soft limit implementation. Soft limits is a new feature
+> for the memory resource controller, something similar has existed in the
+> group scheduler in the form of shares. The CPU controllers interpretation
+> of shares is very different though. We'll compare shares and soft limits
+> below.
+> 
+> Soft limits are the most useful feature to have for environments where
+> the administrator wants to overcommit the system, such that only on memory
+> contention do the limits become active. The current soft limits implementation
+> provides a soft_limit_in_bytes interface for the memory controller and not
+> for memory+swap controller. The implementation maintains an RB-Tree of groups
+> that exceed their soft limit and starts reclaiming from the group that
+> exceeds this limit by the maximum amount.
+> 
+> This is an RFC implementation and is not meant for inclusion
+> 
 
-Sure, agreed.  I was just wondering whether higher-order reclaim was
-needed up-front when the low watermarks are reached or if it was
-enough when direct reclaim is lumpy in case the allocation fails.
+some thoughts after reading patch.
 
-	Hannes
+1. As I pointed out, cpuset/mempolicy case is not handled yet.
+2. I don't like to change usual direct-memory-reclaim path. It will be obstacles
+   for VM-maintaners to improve memory reclaim. memcg's LRU is designed for
+   shrinking memory usage and not for avoiding memory shortage. IOW, it's slow routine
+   for reclaiming memory for memory shortage.
+3. After this patch, res_counter is no longer for general purpose res_counter...
+   It seems to have too many unnecessary accessories for general purpose.  
+4. please use css_tryget() rather than mem_cgroup_get().
+5. please remove mem_cgroup from tree at force_empty or rmdir.
+   Just making  memcg->on_tree=false is enough ? I'm in doubt.
+6. What happens when the-largest-soft-limit-memcg has tons on Anon on swapless
+   system and memory reclaim cannot make enough progress ?
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
