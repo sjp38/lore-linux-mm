@@ -1,30 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 35B3D6B008A
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:54:52 -0500 (EST)
-Subject: Re: [patch 1/7] slab: introduce kzfree()
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <499BE7F8.80901@csr.com>
-References: <20090217182615.897042724@cmpxchg.org>
-	 <20090217184135.747921027@cmpxchg.org>  <499BE7F8.80901@csr.com>
-Date: Wed, 18 Feb 2009 12:54:48 +0200
-Message-Id: <1234954488.24030.46.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C76436B0093
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 07:56:49 -0500 (EST)
+Received: by gxk12 with SMTP id 12so2424273gxk.14
+        for <linux-mm@kvack.org>; Wed, 18 Feb 2009 04:56:48 -0800 (PST)
+Date: Wed, 18 Feb 2009 20:56:49 +0800
+From: =?utf-8?Q?Am=C3=A9rico?= Wang <xiyou.wangcong@gmail.com>
+Subject: [Patch] mm: fix null pointer dereference in vm_normal_page()
+Message-ID: <20090218125649.GU7272@hack.private>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: David Vrabel <david.vrabel@csr.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
-> Johannes Weiner wrote:
-> > +void kzfree(const void *p)
-> 
-> Shouldn't this be void * since it writes to the memory?
 
-No. kfree() writes to the memory as well to update freelists, poisoning
-and such so kzfree() is not at all different from it.
+One usage of vm_normal_page() is:
+
+    struct page *page = vm_normal_page(gate_vma, start, *pte);
+
+where gate_vma is returned by get_gate_vma() which can be NULL.
+So let vm_normal_page return NULL when vma is NULL.
+
+Signed-off-by: WANG Cong <wangcong@zeuux.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>
+
+---
+diff --git a/mm/memory.c b/mm/memory.c
+index baa999e..e428aa6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -493,6 +493,9 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ {
+ 	unsigned long pfn = pte_pfn(pte);
+ 
++	if (!vma)
++		return NULL;
++
+ 	if (HAVE_PTE_SPECIAL) {
+ 		if (likely(!pte_special(pte)))
+ 			goto check_pfn;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
