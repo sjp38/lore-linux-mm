@@ -1,36 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BC916B0089
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:53:25 -0500 (EST)
-Received: from rly22g.srv.mailcontrol.com (localhost.localdomain [127.0.0.1])
-	by rly22g.srv.mailcontrol.com (MailControl) with ESMTP id n1IArB6i001906
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 10:53:12 GMT
-Received: from submission.mailcontrol.com (submission.mailcontrol.com [86.111.216.190])
-	by rly22g.srv.mailcontrol.com (MailControl) id n1IAqC5Z027359
-	for linux-mm@kvack.org; Wed, 18 Feb 2009 10:52:12 GMT
-Message-ID: <499BE83D.6040406@csr.com>
-Date: Wed, 18 Feb 2009 10:51:41 +0000
-From: David Vrabel <david.vrabel@csr.com>
-MIME-Version: 1.0
-Subject: Re: [patch 5/7] usb: use kzfree()
-References: <20090217182615.897042724@cmpxchg.org> <20090217184136.097882343@cmpxchg.org>
-In-Reply-To: <20090217184136.097882343@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B3D6B008A
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:54:52 -0500 (EST)
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+In-Reply-To: <499BE7F8.80901@csr.com>
+References: <20090217182615.897042724@cmpxchg.org>
+	 <20090217184135.747921027@cmpxchg.org>  <499BE7F8.80901@csr.com>
+Date: Wed, 18 Feb 2009 12:54:48 +0200
+Message-Id: <1234954488.24030.46.camel@penberg-laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@suse.de>
+To: David Vrabel <david.vrabel@csr.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-This is in the WUSB code so:
+On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
+> Johannes Weiner wrote:
+> > +void kzfree(const void *p)
+> 
+> Shouldn't this be void * since it writes to the memory?
 
-Acked-by: David Vrabel <david.vrabel@csr.com>
-
-David
--- 
-David Vrabel, Senior Software Engineer, Drivers
-CSR, Churchill House, Cambridge Business Park,  Tel: +44 (0)1223 692562
-Cowley Road, Cambridge, CB4 0WZ                 http://www.csr.com/
+No. kfree() writes to the memory as well to update freelists, poisoning
+and such so kzfree() is not at all different from it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
