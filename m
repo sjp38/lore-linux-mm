@@ -1,64 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 834156B00C9
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 19:40:44 -0500 (EST)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1I0dZmu002640
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 17:39:35 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1I0egNE209042
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 17:40:43 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1I0egmQ005406
-	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 17:40:42 -0700
-Subject: Re: What can OpenVZ do?
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20090218003217.GB25856@elte.hu>
-References: <20090211141434.dfa1d079.akpm@linux-foundation.org>
-	 <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx>
-	 <20090212114207.e1c2de82.akpm@linux-foundation.org>
-	 <1234475483.30155.194.camel@nimitz>
-	 <20090212141014.2cd3d54d.akpm@linux-foundation.org>
-	 <20090213105302.GC4608@elte.hu> <1234817490.30155.287.camel@nimitz>
-	 <20090217222319.GA10546@elte.hu> <1234909849.4816.9.camel@nimitz>
-	 <20090218003217.GB25856@elte.hu>
-Content-Type: text/plain
-Date: Tue, 17 Feb 2009 16:40:39 -0800
-Message-Id: <1234917639.4816.12.camel@nimitz>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CB84D6B00CB
+	for <linux-mm@kvack.org>; Tue, 17 Feb 2009 19:48:13 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1I0mA3D022080
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 18 Feb 2009 09:48:11 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 994DC45DD75
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 09:48:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A13645DD72
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 09:48:10 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 821871DB8046
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 09:48:10 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 316291DB8043
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 09:48:10 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [patch] SLQB slab allocator (try 2)
+In-Reply-To: <alpine.DEB.1.10.0902171504090.24395@qirst.com>
+References: <84144f020902171143i5844ef83h20cb4bee4f65c904@mail.gmail.com> <alpine.DEB.1.10.0902171504090.24395@qirst.com>
+Message-Id: <20090218093858.8990.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 18 Feb 2009 09:48:09 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mpm@selenic.com, tglx@linutronix.de, torvalds@linux-foundation.org, xemul@openvz.org, Nathan Lynch <nathanl@austin.ibm.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-02-18 at 01:32 +0100, Ingo Molnar wrote:
-> > > Uncheckpointable should be a one-way flag anyway. We want this 
-> > > to become usable, so uncheckpointable functionality should be as 
-> > > painful as possible, to make sure it's getting fixed ...
-> > 
-> > Again, as these patches stand, we don't support checkpointing 
-> > when non-simple files are opened.  Basically, if a 
-> > open()/lseek() pair won't get you back where you were, we 
-> > don't deal with them.
-> > 
-> > init does non-checkpointable things.  If the flag is a one-way 
-> > trip, we'll never be able to checkpoint because we'll always 
-> > inherit init's ! checkpointable flag.
-> > 
-> > To fix this, we could start working on making sure we can 
-> > checkpoint init, but that's practically worthless.
+> On Tue, 17 Feb 2009, Pekka Enberg wrote:
 > 
-> i mean, it should be per process (per app) one-way flag of 
-> course. If the app does something unsupported, it gets 
-> non-checkpointable and that's it.
+> > >> +#define SLUB_MAX_SIZE (2 * PAGE_SIZE)
+> >
+> > On Tue, Feb 17, 2009 at 8:11 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > This relies on PAGE_SIZE being 4k.  If you want 8k, why don't you say
+> > > so?  Pekka did this explicitely.
+> >
+> > That could be a problem, sure. Especially for architecture that have 64 K pages.
+> 
+> You could likely put a complicated formula in there instead. But 2 *
+> PAGE_SIZE is simple and will work on all platforms regardless of pagesize.
 
-OK, we can definitely do that.  Do you think it is OK to run through a
-set of checks at exec() time to check if the app currently has any
-unsupported things going on?  If we don't directly inherit the parent's
-status, then we need to have *some* time when we check it.
+I think 2 * PAGE_SIZE is best and the patch description is needed change.
+it's because almost architecture use two pages for stack and current page
+allocator don't have delayed consolidation mechanism for order-1 page.
 
--- Dave
+In addition, if pekka patch (SLAB_LIMIT = 8K) run on ia64, 16K allocation 
+always fallback to page allocator and using 64K (4 times memory consumption!).
+
+Am I misunderstand anything?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
