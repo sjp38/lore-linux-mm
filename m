@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 058E06B0062
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 04:19:22 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator (try 2)
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-In-Reply-To: <1234947664.24030.39.camel@penberg-laptop>
-References: <20090123154653.GA14517@wotan.suse.de>
-	 <200902041748.41801.nickpiggin@yahoo.com.au>
-	 <20090204152709.GA4799@csn.ul.ie>
-	 <200902051459.30064.nickpiggin@yahoo.com.au>
-	 <20090216184200.GA31264@csn.ul.ie> <4999BBE6.2080003@cs.helsinki.fi>
-	 <alpine.DEB.1.10.0902171120040.27813@qirst.com>
-	 <1234890096.11511.6.camel@penberg-laptop>
-	 <alpine.DEB.1.10.0902171204070.15929@qirst.com>
-	 <1234919143.2604.417.camel@ymzhang>
-	 <1234943296.24030.2.camel@penberg-laptop>
-	 <1234946582.2604.423.camel@ymzhang>
-	 <1234947664.24030.39.camel@penberg-laptop>
-Content-Type: text/plain
-Date: Wed, 18 Feb 2009 17:19:04 +0800
-Message-Id: <1234948744.2604.426.camel@ymzhang>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D99A86B007E
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:12:08 -0500 (EST)
+Date: Wed, 18 Feb 2009 10:12:04 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch] vmscan: respect higher order in zone_reclaim()
+Message-ID: <20090218101204.GA27970@csn.ul.ie>
+References: <20090217194826.GA17415@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090217194826.GA17415@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-02-18 at 11:01 +0200, Pekka Enberg wrote:
-> On Wed, 2009-02-18 at 16:43 +0800, Zhang, Yanmin wrote:
-> > > > Code: be 3f 06 00 00 48 c7 c7 c7 96 80 80 e8 b8 e2 f9 ff e8 c5 c2
-> > 45 00 9c 5b fa 65 8b 04 25 24 00 00 00 48 98 49 8b 94 c4 e8  
-> > > > RIP  [<ffffffff8028fae3>] kmem_cache_alloc+0x43/0x97
-> > > >  RSP <ffff88022f865e20>
-> > > > CR2: 0000000000000000
-> > > > ---[ end trace a7919e7f17c0a725 ]---
-> > > > swapper used greatest stack depth: 5376 bytes left
-> > > > Kernel panic - not syncing: Attempted to kill init!
-> > > 
-> > > Aah, we need to fix up some more PAGE_SHIFTs in the code.
-> > The new patch fixes hang issue. netperf UDP-U-4k (start CPU_NUM clients) result is pretty good.
+On Tue, Feb 17, 2009 at 08:48:27PM +0100, Johannes Weiner wrote:
+> zone_reclaim() already tries to free the requested 2^order pages but
+> doesn't pass the order information into the inner reclaim code.
 > 
-> Do you have your patch on top of it as well?
-Yes.
+> This prevents lumpy reclaim from happening on higher orders although
+> the caller explicitely asked for that.
+> 
+> Fix it up by initializing the order field of the scan control
+> according to the request.
+> 
 
->  Btw, can I add a Tested-by
-> tag from you to the patch?
-Ok. Another testing with UDP-U-4k (start 1 client and bind client and server to different
-cpu) result is improved, but is not so good as SLQB's. But we can increase slub_max_order
-to get the similiar result like SLQB.
+I'm fine with the patch but the changelog could have been better.  Optionally
+take this changelog but either way.
 
+Acked-by: Mel Gorman <mel@csn.ul.ie>
+
+Optional alternative changelog
+==============================
+
+During page allocation, there are two stages of direct reclaim that are applied
+to each zone in the preferred list. The first stage using zone_reclaim()
+reclaims unmapped file backed pages and slab pages if over defined limits as
+these are cheaper to reclaim. The caller specifies the order of the target
+allocation but the scan control is not being correctly initialised.
+
+The impact is that the correct number of pages are being reclaimed but that
+lumpy reclaim is not being applied. This increases the chances of a full
+direct reclaim via try_to_free_pages() is required.
+
+This patch initialises the order field of the scan control as requested
+by the caller.
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> ---
+>  mm/vmscan.c |    1 +
+>  1 file changed, 1 insertion(+)
+> 
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2297,6 +2297,7 @@ static int __zone_reclaim(struct zone *z
+>  					SWAP_CLUSTER_MAX),
+>  		.gfp_mask = gfp_mask,
+>  		.swappiness = vm_swappiness,
+> +		.order = order,
+>  		.isolate_pages = isolate_pages_global,
+>  	};
+>  	unsigned long slab_reclaimable;
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
