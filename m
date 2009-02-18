@@ -1,55 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CB6C46B0082
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:23:58 -0500 (EST)
-Date: Wed, 18 Feb 2009 11:26:03 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] vmscan: respect higher order in zone_reclaim()
-Message-ID: <20090218102603.GA2160@cmpxchg.org>
-References: <20090217194826.GA17415@cmpxchg.org> <20090218101204.GA27970@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090218101204.GA27970@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9946B0087
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 05:53:06 -0500 (EST)
+Received: from rly22g.srv.mailcontrol.com (localhost.localdomain [127.0.0.1])
+	by rly22g.srv.mailcontrol.com (MailControl) with ESMTP id n1IApxHV025809
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 10:52:45 GMT
+Received: from submission.mailcontrol.com (submission.mailcontrol.com [86.111.216.190])
+	by rly22g.srv.mailcontrol.com (MailControl) id n1IApvoq025387
+	for linux-mm@kvack.org; Wed, 18 Feb 2009 10:51:57 GMT
+Message-ID: <499BE7F8.80901@csr.com>
+Date: Wed, 18 Feb 2009 10:50:32 +0000
+From: David Vrabel <david.vrabel@csr.com>
+MIME-Version: 1.0
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+References: <20090217182615.897042724@cmpxchg.org> <20090217184135.747921027@cmpxchg.org>
+In-Reply-To: <20090217184135.747921027@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 18, 2009 at 10:12:04AM +0000, Mel Gorman wrote:
-> On Tue, Feb 17, 2009 at 08:48:27PM +0100, Johannes Weiner wrote:
-> > zone_reclaim() already tries to free the requested 2^order pages but
-> > doesn't pass the order information into the inner reclaim code.
-> > 
-> > This prevents lumpy reclaim from happening on higher orders although
-> > the caller explicitely asked for that.
-> > 
-> > Fix it up by initializing the order field of the scan control
-> > according to the request.
-> > 
-> 
-> I'm fine with the patch but the changelog could have been better.  Optionally
-> take this changelog but either way.
-> 
-> Acked-by: Mel Gorman <mel@csn.ul.ie>
-> 
-> Optional alternative changelog
-> ==============================
-> 
-> During page allocation, there are two stages of direct reclaim that are applied
-> to each zone in the preferred list. The first stage using zone_reclaim()
-> reclaims unmapped file backed pages and slab pages if over defined limits as
-> these are cheaper to reclaim. The caller specifies the order of the target
-> allocation but the scan control is not being correctly initialised.
-> 
-> The impact is that the correct number of pages are being reclaimed but that
-> lumpy reclaim is not being applied. This increases the chances of a full
-> direct reclaim via try_to_free_pages() is required.
-> 
-> This patch initialises the order field of the scan control as requested
-> by the caller.
+Johannes Weiner wrote:
+> +void kzfree(const void *p)
 
-Agreed, this is better.  Thank you, Mel.
+Shouldn't this be void * since it writes to the memory?
+
+David
+-- 
+David Vrabel, Senior Software Engineer, Drivers
+CSR, Churchill House, Cambridge Business Park,  Tel: +44 (0)1223 692562
+Cowley Road, Cambridge, CB4 0WZ                 http://www.csr.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
