@@ -1,45 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D45A6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 03:40:57 -0500 (EST)
-Subject: Re: [patch] SLQB slab allocator (try 2)
+	by kanga.kvack.org (Postfix) with ESMTP id 0859D6B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 04:13:40 -0500 (EST)
+Subject: Re: [patch 1/7] slab: introduce kzfree()
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <alpine.DEB.1.10.0902171204070.15929@qirst.com>
-References: <20090123154653.GA14517@wotan.suse.de>
-	 <200902041748.41801.nickpiggin@yahoo.com.au>
-	 <20090204152709.GA4799@csn.ul.ie>
-	 <200902051459.30064.nickpiggin@yahoo.com.au>
-	 <20090216184200.GA31264@csn.ul.ie> <4999BBE6.2080003@cs.helsinki.fi>
-	 <alpine.DEB.1.10.0902171120040.27813@qirst.com>
-	 <1234890096.11511.6.camel@penberg-laptop>
-	 <alpine.DEB.1.10.0902171204070.15929@qirst.com>
-Date: Thu, 19 Feb 2009 10:40:53 +0200
-Message-Id: <1235032853.29813.2.camel@penberg-laptop>
+In-Reply-To: <20090219101336.9556.A69D9226@jp.fujitsu.com>
+References: <499BE7F8.80901@csr.com>
+	 <1234954488.24030.46.camel@penberg-laptop>
+	 <20090219101336.9556.A69D9226@jp.fujitsu.com>
+Date: Thu, 19 Feb 2009 11:13:37 +0200
+Message-Id: <1235034817.29813.6.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-02-17 at 12:05 -0500, Christoph Lameter wrote:
-> Well yes you missed two locations (kmalloc_caches array has to be
-> redimensioned) and I also was writing the same patch...
-> 
-> Here is mine:
-> 
-> Subject: SLUB: Do not pass 8k objects through to the page allocator
-> 
-> Increase the maximum object size in SLUB so that 8k objects are not
-> passed through to the page allocator anymore. The network stack uses 8k
-> objects for performance critical operations.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
+> > > Johannes Weiner wrote:
+> > > > +void kzfree(const void *p)
+> > > 
+> > > Shouldn't this be void * since it writes to the memory?
+> > 
+> > No. kfree() writes to the memory as well to update freelists, poisoning
+> > and such so kzfree() is not at all different from it.
 
-This is merged now with my fixlets:
+On Thu, 2009-02-19 at 10:22 +0900, KOSAKI Motohiro wrote:
+> I don't think so. It's debetable thing.
+> 
+> poisonig is transparent feature from caller.
+> but the caller of kzfree() know to fill memory and it should know.
 
-http://git.kernel.org/?p=linux/kernel/git/penberg/slab-2.6.git;a=commitdiff;h=8573e12414365585bfd601dc8c093b3efbef8854
+Debatable, sure, but doesn't seem like a big enough reason to make
+kzfree() differ from kfree().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
