@@ -1,54 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 679CA6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 07:51:50 -0500 (EST)
-Received: by wa-out-1112.google.com with SMTP id k22so213176waf.22
-        for <linux-mm@kvack.org>; Thu, 19 Feb 2009 04:51:49 -0800 (PST)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0D9A16B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 08:12:20 -0500 (EST)
+Received: by wa-out-1112.google.com with SMTP id k22so217419waf.22
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2009 05:12:17 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1235034967.29813.10.camel@penberg-laptop>
-References: <20090218093858.8990.A69D9226@jp.fujitsu.com>
-	 <1234944569.24030.20.camel@penberg-laptop>
-	 <20090219085229.954A.A69D9226@jp.fujitsu.com>
-	 <1235034967.29813.10.camel@penberg-laptop>
-Date: Thu, 19 Feb 2009 21:51:48 +0900
-Message-ID: <2f11576a0902190451w294aa2fan29b61fa3619f459b@mail.gmail.com>
-Subject: Re: [patch] SLQB slab allocator (try 2)
+In-Reply-To: <499CE2FE.90503@bk.jp.nec.com>
+References: <1234863220.4744.34.camel@laptop> <499A99BC.2080700@bk.jp.nec.com>
+	 <20090217201651.576E.A69D9226@jp.fujitsu.com>
+	 <499CE2FE.90503@bk.jp.nec.com>
+Date: Thu, 19 Feb 2009 22:12:17 +0900
+Message-ID: <2f11576a0902190512y1ac60b11s4927533977dc01e7@mail.gmail.com>
+Subject: Re: [PATCH] Add tracepoints to track pagecache transition
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Jason Baron <jbaron@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mathieu Desnoyers <compudj@krystal.dyndns.org>, "Frank Ch. Eigler" <fche@redhat.com>, Kazuto Miyoshi <miyoshi@linux.bs1.fc.nec.co.jp>, rostedt@goodmis.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-2009/2/19 Pekka Enberg <penberg@cs.helsinki.fi>:
-> On Wed, 2009-02-18 at 09:48 +0900, KOSAKI Motohiro wrote:
->> > > In addition, if pekka patch (SLAB_LIMIT = 8K) run on ia64, 16K allocation
->> > > always fallback to page allocator and using 64K (4 times memory consumption!).
->> >
->> > Yes, correct, but SLUB does that already by passing all allocations over
->> > 4K to the page allocator.
+> Hi Kosaki-san,
+>
+> Thank you for your comment.
+>
+> KOSAKI Motohiro wrote:
+>> Hi
 >>
->> hmhm
->> OK. my mail was pointless.
 >>
->> but why? In my understanding, slab framework mainly exist for efficient
->> sub-page allocation.
->> the fallbacking of 4K allocation in 64K page-sized architecture seems
->> inefficient.
+>> In my 1st impression, this patch description is a bit strange.
+>>
+>>> The below patch adds instrumentation for pagecache.
+>>>
+>>> I thought it would be useful to trace pagecache behavior for problem
+>>> analysis (performance bottlenecks, behavior differences between stable
+>>> time and trouble time).
+>>>
+>>> By using those tracepoints, we can describe and visualize pagecache
+>>> transition (file-by-file basis) in kernel and  pagecache
+>>> consumes most of the memory in running system and pagecache hit rate
+>>> and writeback behavior will influence system load and performance.
+>>
+>> Why do you think this tracepoint describe pagecache hit rate?
+>> and, why describe writeback behavior?
 >
-> I don't think any of the slab allocators are known for memory
-> efficiency. That said, the original patch description sums up the
-> rationale for page allocator pass-through:
->
-> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=aadb4bc4a1f9108c1d0fbd121827c936c2ed4217
->
-> Interesting enough, there seems to be some performance gain from it as
-> well as seen by Mel Gorman's recent slab allocator benchmarks.
+> I mean, we can describe file-by-file basis pagecache usage by using
+> these tracepoints and it is important for analyzing process I/O behavior.
 
-Honestly, I'm bit confusing.
-above url's patch use PAGE_SIZE, but not 4K nor architecture independent value.
-Your 4K mean PAGE_SIZE?
+More confusing.
+Your page cache tracepoint don't have any per-process information.
+
+
+> Currently, we can understand the amount of pagecache from "Cached"
+> in /proc/meminfo. So I'd like to understand which files are using pagecache.
+
+There is one meta question, Why do you think file-by-file pagecache
+infomartion is valueable?
+
+
+>>> I attached an example which is visualization of pagecache status using
+>>> SystemTap.
+>>
+>> it seems no attached. and SystemTap isn't used kernel developer at all.
+>> I don't think it's enough explanation.
+>> Can you make seekwatcher liked completed comsumer program?
+>> (if you don't know seekwatcher, see http://oss.oracle.com/~mason/seekwatcher/)
+>
+> I understand a tracer using these tracepoints need to be implemented.
+> What I want to do is counting pagecache per file. We can retrieve inode
+> from mapping and count pagecache per inode in these tracepoints.
+>
+>
+>>> That graph describes pagecache transition of File A and File B
+>>> on a file-by-file basis with the situation where regular I/O to File A
+>>> is delayed because of other I/O to File B.
+>>
+>> If you want to see I/O activity, you need to add tracepoint into block layer.
+>
+> I think tracking pagecache is useful for understanding process I/O activity,
+> because whether process I/O completes by accessing memory or HDD is determined by
+> accessed files on pagecache or not.
+
+I don't know your opinion is right or not.
+However, your opinion don't get consensus yet.
+
+Perhaps, you need to make demonstrate programs, I think.
+
+
+>> And, both function is freqentlly called one.
+>> I worry about performance issue. can you prove no degression?
+>
+> I will try to probe that.
+
+Perhaps, this is not needed yet.
+Generally, worthless patch is never merged although it's no performance penalty.
+So, I think you should explain the patch worth at first :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
