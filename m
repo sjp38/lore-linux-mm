@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 955166B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 13:30:16 -0500 (EST)
-Date: Thu, 19 Feb 2009 18:28:55 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 1/7] slab: introduce kzfree()
-In-Reply-To: <1235066556.3166.26.camel@calx>
-Message-ID: <Pine.LNX.4.64.0902191819060.28475@blonde.anvils>
-References: <499BE7F8.80901@csr.com>  <1234954488.24030.46.camel@penberg-laptop>
-  <20090219101336.9556.A69D9226@jp.fujitsu.com>  <1235034817.29813.6.camel@penberg-laptop>
-  <Pine.LNX.4.64.0902191616250.8594@blonde.anvils> <1235066556.3166.26.camel@calx>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CBBA6B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 13:52:13 -0500 (EST)
+Date: Thu, 19 Feb 2009 13:51:54 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] Add tracepoints to track pagecache transition
+Message-ID: <20090219185154.GA24117@infradead.org>
+References: <499A7CAD.9030409@bk.jp.nec.com> <1234863220.4744.34.camel@laptop> <499A99BC.2080700@bk.jp.nec.com> <alpine.DEB.1.10.0902171021320.910@gandalf.stny.rr.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0902171021320.910@gandalf.stny.rr.com>
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Jason Baron <jbaron@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mathieu Desnoyers <compudj@krystal.dyndns.org>, "Frank Ch. Eigler" <fche@redhat.com>, Kazuto Miyoshi <miyoshi@linux.bs1.fc.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Feb 2009, Matt Mackall wrote:
-> On Thu, 2009-02-19 at 16:34 +0000, Hugh Dickins wrote:
-> > On Thu, 19 Feb 2009, Pekka Enberg wrote:
-> > > On Thu, 2009-02-19 at 10:22 +0900, KOSAKI Motohiro wrote:
-> > > > 
-> > > > poisonig is transparent feature from caller.
-> > > > but the caller of kzfree() know to fill memory and it should know.
+On Tue, Feb 17, 2009 at 10:24:46AM -0500, Steven Rostedt wrote:
+> 
+> On Tue, 17 Feb 2009, Atsushi Tsuji wrote:
 > > > 
-> > > Debatable, sure, but doesn't seem like a big enough reason to make
-> > > kzfree() differ from kfree().
+> > > This is rather asymmetric, why don't we care about the offset for the
+> > > removed page?
+> > > 
 > > 
-> > There may be more important things for us to worry about,
-> > but I do strongly agree with KOSAKI-san on this.
+> > Indeed.
+> > I added the offset to the argument for the removed page and resend fixed patch.
 > > 
-> > kzfree() already differs from kfree() by a "z": that "z" says please
-> > zero the buffer pointed to; "const" says it won't modify the buffer
-> > pointed to.  What sense does kzfree(const void *) make?  Why is
-> > keeping the declarations the same apart from the "z" desirable?
-> > 
-> > By all means refuse to add kzfree(), but please don't add it with const.
-> > 
-> > I can see that the "const" in kfree(const void *) is debatable
-> > [looks to see how userspace free() is defined: without a const],
-> > I can see that it might be nice to have some "goesaway" attribute
-> > for such pointers instead; but I don't see how you can argue for
-> > kzalloc(const void *).
-    ^^^^^^^^^^^^^^^^^^^^^
-(Of course I meant to say "kzfree(const void *)" there.)
-
+> > Signed-off-by: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
 > 
-> This is what Linus said last time this came up:
-> 
-> http://lkml.org/lkml/2008/1/16/227
+> Could you package it up in one patch again and resend with [PATCH v2].
+> Also make sure to Cc the memory folks, and ask for an Acked-by from them.
 
-Thanks for that, I remember it now.
+Well, until we actually get a consumer of those tracepoints, e.g. a
+ftrace pluging into the tree strong NACK for me.
 
-Okay, that's some justification for kfree(const void *).
-
-But I fail to see it as a justification for kzfree(const void *):
-if someone has "const char *string = kmalloc(size)" and then
-wants that string zeroed before it is freed, then I think it's
-quite right to cast out the const when calling kzfree().
-
-Hugh
+(p.s. I really don't get it why people keep trying to push dead code
+ into the tree)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
