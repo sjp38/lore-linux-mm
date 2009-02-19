@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 6C0556B009E
-	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 19:05:18 -0500 (EST)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9CE7D6B00A1
+	for <linux-mm@kvack.org>; Wed, 18 Feb 2009 20:22:52 -0500 (EST)
 Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1J05FwB001288
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1J1MQb8001257
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 19 Feb 2009 09:05:15 +0900
+	Thu, 19 Feb 2009 10:22:26 +0900
 Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 38BCD45DD72
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:05:15 +0900 (JST)
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 61C7445DE4F
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 10:22:26 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 17C1345DE4F
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:05:15 +0900 (JST)
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 48BE145DD72
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 10:22:26 +0900 (JST)
 Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id F3B4E1DB803E
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:05:14 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A72321DB8040
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:05:11 +0900 (JST)
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 34091E18001
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 10:22:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E43D01DB8037
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 10:22:25 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-In-Reply-To: <1234944569.24030.20.camel@penberg-laptop>
-References: <20090218093858.8990.A69D9226@jp.fujitsu.com> <1234944569.24030.20.camel@penberg-laptop>
-Message-Id: <20090219085229.954A.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+In-Reply-To: <1234954488.24030.46.camel@penberg-laptop>
+References: <499BE7F8.80901@csr.com> <1234954488.24030.46.camel@penberg-laptop>
+Message-Id: <20090219101336.9556.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 19 Feb 2009 09:05:10 +0900 (JST)
+Date: Thu, 19 Feb 2009 10:22:24 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: kosaki.motohiro@jp.fujitsu.com, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Hi Pekka,
-
-> Hi!
+> On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
+> > Johannes Weiner wrote:
+> > > +void kzfree(const void *p)
+> > 
+> > Shouldn't this be void * since it writes to the memory?
 > 
-> On Wed, 2009-02-18 at 09:48 +0900, KOSAKI Motohiro wrote:
-> > I think 2 * PAGE_SIZE is best and the patch description is needed change.
-> > it's because almost architecture use two pages for stack and current page
-> > allocator don't have delayed consolidation mechanism for order-1 page.
-> 
-> Do you mean alloc_thread_info()? Not all architectures use kmalloc() to
-> implement it so I'm not sure if that's relevant for this patch.
-> 
-> On Wed, 2009-02-18 at 09:48 +0900, KOSAKI Motohiro wrote:
-> > In addition, if pekka patch (SLAB_LIMIT = 8K) run on ia64, 16K allocation 
-> > always fallback to page allocator and using 64K (4 times memory consumption!).
-> 
-> Yes, correct, but SLUB does that already by passing all allocations over
-> 4K to the page allocator.
+> No. kfree() writes to the memory as well to update freelists, poisoning
+> and such so kzfree() is not at all different from it.
 
-hmhm
-OK. my mail was pointless.
+I don't think so. It's debetable thing.
 
-but why? In my understanding, slab framework mainly exist for efficient
-sub-page allocation.
-the fallbacking of 4K allocation in 64K page-sized architecture seems
-inefficient.
-
-
-> I'm not totally against 2 * PAGE_SIZE but I just worry that as SLUB
-> performance will be bound to architecture page size, we will see skewed
-> results in performance tests without realizing it. That's why I'm in
-> favor of a fixed size that's unified across architectures.
-
-fair point.
+poisonig is transparent feature from caller.
+but the caller of kzfree() know to fill memory and it should know.
 
 
 
