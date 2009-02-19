@@ -1,74 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4877A6B0047
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 14:12:12 -0500 (EST)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e37.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1JJBoJO013384
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 12:11:50 -0700
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.1) with ESMTP id n1JJBwRe220586
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 12:11:59 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1JJBvoP024034
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 12:11:58 -0700
-Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20090219190637.GA4846@x200.localdomain>
-References: <20090213105302.GC4608@elte.hu>
-	 <1234817490.30155.287.camel@nimitz> <20090217222319.GA10546@elte.hu>
-	 <1234909849.4816.9.camel@nimitz> <20090218003217.GB25856@elte.hu>
-	 <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain>
-	 <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz>
-	 <20090218231545.GA17524@elte.hu>  <20090219190637.GA4846@x200.localdomain>
-Content-Type: text/plain
-Date: Thu, 19 Feb 2009 11:11:54 -0800
-Message-Id: <1235070714.26788.56.camel@nimitz>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 383446B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 14:47:40 -0500 (EST)
+Date: Thu, 19 Feb 2009 20:48:51 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+Message-ID: <20090219194851.GA2608@cmpxchg.org>
+References: <499BE7F8.80901@csr.com> <1234954488.24030.46.camel@penberg-laptop> <20090219101336.9556.A69D9226@jp.fujitsu.com> <1235034817.29813.6.camel@penberg-laptop> <Pine.LNX.4.64.0902191616250.8594@blonde.anvils> <1235066556.3166.26.camel@calx> <Pine.LNX.4.64.0902191819060.28475@blonde.anvils>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0902191819060.28475@blonde.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Matt Mackall <mpm@selenic.com>, Pekka Enberg <penberg@cs.helsinki.fi>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Vrabel <david.vrabel@csr.com>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-02-19 at 22:06 +0300, Alexey Dobriyan wrote:
-> Inotify isn't supported yet? You do
+On Thu, Feb 19, 2009 at 06:28:55PM +0000, Hugh Dickins wrote:
+> On Thu, 19 Feb 2009, Matt Mackall wrote:
+> > On Thu, 2009-02-19 at 16:34 +0000, Hugh Dickins wrote:
+> > > On Thu, 19 Feb 2009, Pekka Enberg wrote:
+> > > > On Thu, 2009-02-19 at 10:22 +0900, KOSAKI Motohiro wrote:
+> > > > > 
+> > > > > poisonig is transparent feature from caller.
+> > > > > but the caller of kzfree() know to fill memory and it should know.
+> > > > 
+> > > > Debatable, sure, but doesn't seem like a big enough reason to make
+> > > > kzfree() differ from kfree().
+> > > 
+> > > There may be more important things for us to worry about,
+> > > but I do strongly agree with KOSAKI-san on this.
+> > > 
+> > > kzfree() already differs from kfree() by a "z": that "z" says please
+> > > zero the buffer pointed to; "const" says it won't modify the buffer
+> > > pointed to.  What sense does kzfree(const void *) make?  Why is
+> > > keeping the declarations the same apart from the "z" desirable?
+> > > 
+> > > By all means refuse to add kzfree(), but please don't add it with const.
+> > > 
+> > > I can see that the "const" in kfree(const void *) is debatable
+> > > [looks to see how userspace free() is defined: without a const],
+> > > I can see that it might be nice to have some "goesaway" attribute
+> > > for such pointers instead; but I don't see how you can argue for
+> > > kzalloc(const void *).
+>     ^^^^^^^^^^^^^^^^^^^^^
+> (Of course I meant to say "kzfree(const void *)" there.)
 > 
->         if (!list_empty(&inode->inotify_watches))
->                 return -E;
+> > 
+> > This is what Linus said last time this came up:
+> > 
+> > http://lkml.org/lkml/2008/1/16/227
 > 
-> without hooking into inotify syscalls.
+> Thanks for that, I remember it now.
 > 
-> ptrace(2) isn't supported -- look at struct task_struct::ptraced and
-> friends.
+> Okay, that's some justification for kfree(const void *).
 > 
-> And so on.
-> 
-> System call (or whatever) does something with some piece of kernel
-> internals. We look at this "something" when walking data structures
-> and
-> abort if it's scary enough.
-> 
-> Please, show at least one counter-example.
+> But I fail to see it as a justification for kzfree(const void *):
+> if someone has "const char *string = kmalloc(size)" and then
+> wants that string zeroed before it is freed, then I think it's
+> quite right to cast out the const when calling kzfree().
 
-Alexey, I agree with you here.  I've been fighting myself internally
-about these two somewhat opposing approaches.  Of *course* we can
-determine the "checkpointability" at sys_checkpoint() time by checking
-all the various bits of state.
+You could argue that the pointer passed to kzfree() points to an
+abstract slab object and kzfree() uses this to find the memory of that
+object which it then zeroes.  The translation of course is a no-op as
+the object pointer and the memory pointer coincide.
 
-The problem that I think Ingo is trying to address here is that doing it
-then makes it hard to figure out _when_ you went wrong.  That's the
-single most critical piece of finding out how to go address it.
+It depends on how transparent you want to make kzfree() for the
+caller.  Is it 'zero out and then free the object' or is it 'free the
+object, but note that it contains security-sensitive data, so make
+sure that it never gets into the hands of somebody else'?
 
-I see where you are coming from.  Ingo's suggestion has the *huge*
-downside that we've got to go muck with a lot of generic code and hook
-into all the things we don't support.
+No strong opinion from me, though, I can not say which one feels
+better.  I made it intuitively const, so I guess I would lean to the
+more opaque version of the function.
 
-I think what I posted is a decent compromise.  It gets you those
-warnings at runtime and is a one-way trip for any given process.  But,
-it does detect in certain cases (fork() and unshare(FILES)) when it is
-safe to make the trip back to the "I'm checkpointable" state again.
+> Hugh
 
--- Dave
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
