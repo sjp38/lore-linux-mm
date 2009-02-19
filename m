@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0859D6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 04:13:40 -0500 (EST)
-Subject: Re: [patch 1/7] slab: introduce kzfree()
+	by kanga.kvack.org (Postfix) with ESMTP id D84896B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 04:16:10 -0500 (EST)
+Subject: Re: [patch] SLQB slab allocator (try 2)
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090219101336.9556.A69D9226@jp.fujitsu.com>
-References: <499BE7F8.80901@csr.com>
-	 <1234954488.24030.46.camel@penberg-laptop>
-	 <20090219101336.9556.A69D9226@jp.fujitsu.com>
-Date: Thu, 19 Feb 2009 11:13:37 +0200
-Message-Id: <1235034817.29813.6.camel@penberg-laptop>
+In-Reply-To: <20090219085229.954A.A69D9226@jp.fujitsu.com>
+References: <20090218093858.8990.A69D9226@jp.fujitsu.com>
+	 <1234944569.24030.20.camel@penberg-laptop>
+	 <20090219085229.954A.A69D9226@jp.fujitsu.com>
+Date: Thu, 19 Feb 2009 11:16:07 +0200
+Message-Id: <1235034967.29813.10.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
-> > > Johannes Weiner wrote:
-> > > > +void kzfree(const void *p)
-> > > 
-> > > Shouldn't this be void * since it writes to the memory?
+On Wed, 2009-02-18 at 09:48 +0900, KOSAKI Motohiro wrote:
+> > > In addition, if pekka patch (SLAB_LIMIT = 8K) run on ia64, 16K allocation 
+> > > always fallback to page allocator and using 64K (4 times memory consumption!).
 > > 
-> > No. kfree() writes to the memory as well to update freelists, poisoning
-> > and such so kzfree() is not at all different from it.
-
-On Thu, 2009-02-19 at 10:22 +0900, KOSAKI Motohiro wrote:
-> I don't think so. It's debetable thing.
+> > Yes, correct, but SLUB does that already by passing all allocations over
+> > 4K to the page allocator.
 > 
-> poisonig is transparent feature from caller.
-> but the caller of kzfree() know to fill memory and it should know.
+> hmhm
+> OK. my mail was pointless.
+> 
+> but why? In my understanding, slab framework mainly exist for efficient
+> sub-page allocation.
+> the fallbacking of 4K allocation in 64K page-sized architecture seems
+> inefficient.
 
-Debatable, sure, but doesn't seem like a big enough reason to make
-kzfree() differ from kfree().
+I don't think any of the slab allocators are known for memory
+efficiency. That said, the original patch description sums up the
+rationale for page allocator pass-through:
+
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=aadb4bc4a1f9108c1d0fbd121827c936c2ed4217
+
+Interesting enough, there seems to be some performance gain from it as
+well as seen by Mel Gorman's recent slab allocator benchmarks.
+
+			Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
