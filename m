@@ -1,51 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id C16BF6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:28:04 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0662A82C5FF
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:32:10 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id eGwHowGyjX58 for <linux-mm@kvack.org>;
-	Thu, 19 Feb 2009 09:32:09 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id BBFEB82C601
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 09:32:02 -0500 (EST)
-Date: Thu, 19 Feb 2009 09:19:57 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [patch] SLQB slab allocator (try 2)
-In-Reply-To: <2f11576a0902190549p2d3c90e2md16726cbe2f5d019@mail.gmail.com>
-Message-ID: <alpine.DEB.1.10.0902190915460.32273@qirst.com>
-References: <20090218093858.8990.A69D9226@jp.fujitsu.com>  <1234944569.24030.20.camel@penberg-laptop>  <20090219085229.954A.A69D9226@jp.fujitsu.com>  <1235034967.29813.10.camel@penberg-laptop>  <2f11576a0902190451w294aa2fan29b61fa3619f459b@mail.gmail.com>
- <1235049334.29813.18.camel@penberg-laptop> <2f11576a0902190549p2d3c90e2md16726cbe2f5d019@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D96126B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 11:37:02 -0500 (EST)
+Date: Thu, 19 Feb 2009 16:34:41 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+In-Reply-To: <1235034817.29813.6.camel@penberg-laptop>
+Message-ID: <Pine.LNX.4.64.0902191616250.8594@blonde.anvils>
+References: <499BE7F8.80901@csr.com>  <1234954488.24030.46.camel@penberg-laptop>
+  <20090219101336.9556.A69D9226@jp.fujitsu.com> <1235034817.29813.6.camel@penberg-laptop>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, Nick Piggin <nickpiggin@yahoo.com.au>, Nick Piggin <npiggin@suse.de>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Lin Ming <ming.m.lin@intel.com>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-What could be changed in the patch is to set SLUB_MAX_SIZE depending on
-the page size of the underlying architecture.
+On Thu, 19 Feb 2009, Pekka Enberg wrote:
+> On Wed, 2009-02-18 at 10:50 +0000, David Vrabel wrote:
+> > > > Johannes Weiner wrote:
+> > > > > +void kzfree(const void *p)
+> > > > 
+> > > > Shouldn't this be void * since it writes to the memory?
+> > > 
+> > > No. kfree() writes to the memory as well to update freelists, poisoning
+> > > and such so kzfree() is not at all different from it.
+> 
+> On Thu, 2009-02-19 at 10:22 +0900, KOSAKI Motohiro wrote:
+> > I don't think so. It's debetable thing.
+> > 
+> > poisonig is transparent feature from caller.
+> > but the caller of kzfree() know to fill memory and it should know.
+> 
+> Debatable, sure, but doesn't seem like a big enough reason to make
+> kzfree() differ from kfree().
 
-#define SLUB_MAX_SIZE MAX(PAGE_SIZE, 8192)
+There may be more important things for us to worry about,
+but I do strongly agree with KOSAKI-san on this.
 
-So on 4k architectures SLUB_MAX_SIZE is set to 8192 and on 16k or 64k
-arches its set to PAGE_SIZE.
+kzfree() already differs from kfree() by a "z": that "z" says please
+zero the buffer pointed to; "const" says it won't modify the buffer
+pointed to.  What sense does kzfree(const void *) make?  Why is
+keeping the declarations the same apart from the "z" desirable?
 
-And then define
+By all means refuse to add kzfree(), but please don't add it with const.
 
-#define SLUB_MAX_KMALLOC_ORDER get_order(SLUB_MAX_SIZE)
+I can see that the "const" in kfree(const void *) is debatable
+[looks to see how userspace free() is defined: without a const],
+I can see that it might be nice to have some "goesaway" attribute
+for such pointers instead; but I don't see how you can argue for
+kzalloc(const void *).
 
-which will be 1 on 4k arches and 0 on higher sized arches.
-
-Then also the kmalloc array would need to be dimensioned using
-SLUB_MAX_KMALLOC_ORDER.
-
-
-The definition of SLUB_NAX_KMALLOC_ORDER could be a bit challenging for
-the C compiler.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
