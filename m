@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CBBA6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 13:52:13 -0500 (EST)
-Date: Thu, 19 Feb 2009 13:51:54 -0500
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] Add tracepoints to track pagecache transition
-Message-ID: <20090219185154.GA24117@infradead.org>
-References: <499A7CAD.9030409@bk.jp.nec.com> <1234863220.4744.34.camel@laptop> <499A99BC.2080700@bk.jp.nec.com> <alpine.DEB.1.10.0902171021320.910@gandalf.stny.rr.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4C5176B003D
+	for <linux-mm@kvack.org>; Thu, 19 Feb 2009 14:00:11 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so1154985fgg.4
+        for <linux-mm@kvack.org>; Thu, 19 Feb 2009 11:00:08 -0800 (PST)
+Date: Thu, 19 Feb 2009 22:06:37 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Banning checkpoint (was: Re: What can OpenVZ do?)
+Message-ID: <20090219190637.GA4846@x200.localdomain>
+References: <20090213105302.GC4608@elte.hu> <1234817490.30155.287.camel@nimitz> <20090217222319.GA10546@elte.hu> <1234909849.4816.9.camel@nimitz> <20090218003217.GB25856@elte.hu> <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain> <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz> <20090218231545.GA17524@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0902171021320.910@gandalf.stny.rr.com>
+In-Reply-To: <20090218231545.GA17524@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, Jason Baron <jbaron@redhat.com>, Ingo Molnar <mingo@elte.hu>, Mathieu Desnoyers <compudj@krystal.dyndns.org>, "Frank Ch. Eigler" <fche@redhat.com>, Kazuto Miyoshi <miyoshi@linux.bs1.fc.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 17, 2009 at 10:24:46AM -0500, Steven Rostedt wrote:
-> 
-> On Tue, 17 Feb 2009, Atsushi Tsuji wrote:
-> > > 
-> > > This is rather asymmetric, why don't we care about the offset for the
-> > > removed page?
-> > > 
-> > 
-> > Indeed.
-> > I added the offset to the argument for the removed page and resend fixed patch.
-> > 
-> > Signed-off-by: Atsushi Tsuji <a-tsuji@bk.jp.nec.com>
-> 
-> Could you package it up in one patch again and resend with [PATCH v2].
-> Also make sure to Cc the memory folks, and ask for an Acked-by from them.
+I think that all these efforts to abort checkpoint "intelligently" by
+banning it early are completely misguided.
 
-Well, until we actually get a consumer of those tracepoints, e.g. a
-ftrace pluging into the tree strong NACK for me.
+"Checkpointable" property isn't one-way ticket like "tainted" flag,
+so doing it like tainted var isn't right, atomic or not, SMP-safe or
+not.
 
-(p.s. I really don't get it why people keep trying to push dead code
- into the tree)
+With filesystems, one has ->f_op field to compare against banned
+filesystems, one more flag isn't necessary.
+
+Inotify isn't supported yet? You do
+
+	if (!list_empty(&inode->inotify_watches))
+		return -E;
+
+without hooking into inotify syscalls.
+
+ptrace(2) isn't supported -- look at struct task_struct::ptraced and
+friends.
+
+And so on.
+
+System call (or whatever) does something with some piece of kernel
+internals. We look at this "something" when walking data structures and
+abort if it's scary enough.
+
+Please, show at least one counter-example.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
