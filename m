@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A85F6B0083
-	for <linux-mm@kvack.org>; Sat, 21 Feb 2009 11:25:26 -0500 (EST)
-Message-ID: <49A029F9.40902@cs.helsinki.fi>
-Date: Sat, 21 Feb 2009 18:21:13 +0200
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2716B0085
+	for <linux-mm@kvack.org>; Sat, 21 Feb 2009 11:26:06 -0500 (EST)
+Message-ID: <49A02A23.8000308@cs.helsinki.fi>
+Date: Sat, 21 Feb 2009 18:21:55 +0200
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH] kmemcheck: disable fast string operations on P4 CPUs
-References: <1235223364-2097-1-git-send-email-vegard.nossum@gmail.com> <1235223364-2097-2-git-send-email-vegard.nossum@gmail.com>
-In-Reply-To: <1235223364-2097-2-git-send-email-vegard.nossum@gmail.com>
+Subject: Re: [PATCH] kmemcheck: rip out REP instruction emulation
+References: <1235223364-2097-1-git-send-email-vegard.nossum@gmail.com> <1235223364-2097-3-git-send-email-vegard.nossum@gmail.com>
+In-Reply-To: <1235223364-2097-3-git-send-email-vegard.nossum@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,43 +17,14 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu
 List-ID: <linux-mm.kvack.org>
 
 Vegard Nossum wrote:
-> This patch may allow us to remove the REP emulation code from
-> kmemcheck.
+> As it turns out, disabling the "fast strings" of the P4 fixed the
+> REP single-stepping issue, so this code is not needed anymore.
+> 
+> Celebrate, for we just got rid of a LOT of complexity and pain.
 > 
 > Signed-off-by: Vegard Nossum <vegard.nossum@gmail.com>
 
-Looks good to me!
-
 Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
-
-> +#ifdef CONFIG_KMEMCHECK
-> +	/*
-> +	 * P4s have a "fast strings" feature which causes single-
-> +	 * stepping REP instructions to only generate a #DB on
-> +	 * cache-line boundaries.
-> +	 *
-> +	 * Ingo Molnar reported a Pentium D (model 6) and a Xeon
-> +	 * (model 2) with the same problem.
-> +	 */
-
-Minor nit: I'd move the latter part of the comment to the changelog.
-
-> +	if (c->x86 == 15) {
-> +		u64 misc_enable;
-> +
-> +		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
-> +
-> +		if (misc_enable & MSR_IA32_MISC_ENABLE_FAST_STRING) {
-> +			printk(KERN_INFO "kmemcheck: Disabling fast string operations\n");
-> +
-> +			misc_enable &= ~MSR_IA32_MISC_ENABLE_FAST_STRING;
-> +			wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
-> +		}
-> +	}
-> +#endif
->  }
->  
->  #ifdef CONFIG_X86_32
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
