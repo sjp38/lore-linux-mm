@@ -1,88 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BDF26B003D
-	for <linux-mm@kvack.org>; Fri, 20 Feb 2009 20:57:54 -0500 (EST)
-Date: Fri, 20 Feb 2009 17:57:48 -0800
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: [patch 2/2] mm: Reintroduce and deprecate rlimit based access for
-	SHM_HUGETLB
-Message-ID: <20090221015748.GB32674@localdomain>
-References: <20090221015457.GA32674@localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E2D6B003D
+	for <linux-mm@kvack.org>; Fri, 20 Feb 2009 23:36:04 -0500 (EST)
+Received: from unknown (HELO [192.168.14.27]) (viral.mehta@[192.168.14.27])
+          (envelope-sender <viral.mehta@einfochips.com>)
+          by ahmedabad.einfochips.com (qmail-ldap-1.03) with SMTP
+          for <linux-mm@kvack.org>; 21 Feb 2009 04:30:21 -0000
+Message-ID: <499F8300.1020300@einfochips.com>
+Date: Sat, 21 Feb 2009 09:58:48 +0530
+From: Viral Mehta <viral.mehta@einfochips.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090221015457.GA32674@localdomain>
+Subject: kmap problem
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: wli@movementarian.org, mel@csn.ul.ie, linux-mm@kvack.org, shai@scalex86.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Allow non root users with sufficient mlock rlimits to be able to allocate
-hugetlb backed shm for now.  Deprecate this though.  This is being
-deprecated because the mlock based rlimit checks for SHM_HUGETLB
-is not consistent with mmap based huge page allocations.
+Hi All,
+I am writing a kernel module. And I am facing a problem relate to Kmap.
 
-Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Wli <wli@movementarian.org>
+I am retriving Kernel Virtual Address for a specific Page using kmap() 
+and then after some time I am doing kunmap().
+Now, I know that kmap can give A LIMITED NUMBER OF MAPPINGS and so such 
+mapping should NOT be held longer. But in my case it is absolutely 
+necessary to hold more than 1024 such mappings.
 
-Index: linux-2.6-tip/fs/hugetlbfs/inode.c
-===================================================================
---- linux-2.6-tip.orig/fs/hugetlbfs/inode.c	2009-02-10 13:30:05.000000000 -0800
-+++ linux-2.6-tip/fs/hugetlbfs/inode.c	2009-02-11 21:58:23.000000000 -0800
-@@ -948,6 +948,7 @@ static int can_do_hugetlb_shm(void)
- struct file *hugetlb_file_setup(const char *name, size_t size)
- {
- 	int error = -ENOMEM;
-+	int unlock_shm = 0;
- 	struct file *file;
- 	struct inode *inode;
- 	struct dentry *dentry, *root;
-@@ -957,8 +958,14 @@ struct file *hugetlb_file_setup(const ch
- 	if (!hugetlbfs_vfsmount)
- 		return ERR_PTR(-ENOENT);
+The same code is NOT working on 2.6.10 kernel and IS WORKING on 2.6.18 
+kernel. The system is same and there are two kernels that I am playing 
+with.
+
+My only question is what is so changed in 2.6.18 kernel from 2.6.10 that 
+the same code is working and evidently kmap can hold more than 1024 
+virtual address mappings.
+
+The other thing I would like to know if there is ANY generic way to 
+handle this situation in 2.6.10 kernel.
+
+Thanks,
+Viral
+-- 
+_____________________________________________________________________
+Disclaimer: This e-mail message and all attachments transmitted with it
+are intended solely for the use of the addressee and may contain legally
+privileged and confidential information. If the reader of this message
+is not the intended recipient, or an employee or agent responsible for
+delivering this message to the intended recipient, you are hereby
+notified that any dissemination, distribution, copying, or other use of
+this message or its attachments is strictly prohibited. If you have
+received this message in error, please notify the sender immediately by
+replying to this message and please delete it from your computer. Any
+views expressed in this message are those of the individual sender
+unless otherwise stated.Company has taken enough precautions to prevent
+the spread of viruses. However the company accepts no liability for any
+damage caused by any virus transmitted by this email.
+__________________________________________________________________________
  
--	if (!can_do_hugetlb_shm())
--		return ERR_PTR(-EPERM);
-+	if (!can_do_hugetlb_shm()) {
-+		if (user_shm_lock(size, user)) {
-+			unlock_shm = 1;
-+			WARN_ONCE(1,
-+			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
-+		} else
-+			return ERR_PTR(-EPERM);
-+	}
- 
- 	root = hugetlbfs_vfsmount->mnt_root;
- 	quick_string.name = name;
-@@ -997,6 +1004,8 @@ out_inode:
- out_dentry:
- 	dput(dentry);
- out_shm_unlock:
-+	if (unlock_shm)
-+		user_shm_unlock(size, user);
- 	return ERR_PTR(error);
- }
- 
-Index: linux-2.6-tip/Documentation/feature-removal-schedule.txt
-===================================================================
---- linux-2.6-tip.orig/Documentation/feature-removal-schedule.txt	2009-02-09 16:45:47.000000000 -0800
-+++ linux-2.6-tip/Documentation/feature-removal-schedule.txt	2009-02-11 21:35:28.000000000 -0800
-@@ -335,3 +335,14 @@ Why:	In 2.6.18 the Secmark concept was i
- 	Secmark, it is time to deprecate the older mechanism and start the
- 	process of removing the old code.
- Who:	Paul Moore <paul.moore@hp.com>
-+---------------------------
-+
-+What:	Ability for non root users to shm_get hugetlb pages based on mlock
-+	resource limits
-+When:	2.6.31
-+Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
-+	have CAP_IPC_LOCK to be able to allocate shm segments backed by
-+	huge pages.  The mlock based rlimit check to allow shm hugetlb is
-+	inconsistent with mmap based allocations.  Hence it is being
-+	deprecated.
-+Who:	Ravikiran Thirumalai <kiran@scalex86.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
