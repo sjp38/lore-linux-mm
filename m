@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 079636B0085
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A026B006A
 	for <linux-mm@kvack.org>; Sun, 22 Feb 2009 18:16:29 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 12/20] Inline __rmqueue_smallest()
-Date: Sun, 22 Feb 2009 23:17:21 +0000
-Message-Id: <1235344649-18265-13-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/20] Simplify the check on whether cpusets are a factor or not
+Date: Sun, 22 Feb 2009 23:17:16 +0000
+Message-Id: <1235344649-18265-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
 References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,70 +13,51 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Inline __rmqueue_smallest by altering flow very slightly so that there
-is only one call site. This allows the function to be inlined without
-additional text bloat.
+The check whether cpuset contraints need to be checked or not is complex
+and often repeated.  This patch makes the check in advance to the comparison
+is simplier to compute.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/page_alloc.c |   23 ++++++++++++++++++-----
- 1 files changed, 18 insertions(+), 5 deletions(-)
+ mm/page_alloc.c |   11 +++++++++--
+ 1 files changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 36d30f3..d8a6828 100644
+index 503d692..dc50c47 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -665,7 +665,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-  * Go through the free lists for the given migratetype and remove
-  * the smallest available page from the freelists
-  */
--static struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-+static inline
-+struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	unsigned int current_order;
-@@ -835,24 +836,36 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
- 		}
- 	}
+@@ -1400,6 +1400,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
++	int alloc_cpuset = 0;
  
--	/* Use MIGRATE_RESERVE rather than fail an allocation */
--	return __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
-+	return NULL;
- }
+ 	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+ 							&preferred_zone);
+@@ -1410,6 +1411,12 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
  
- /*
-  * Do the hard work of removing an element from the buddy allocator.
-  * Call me with the zone->lock already held.
-  */
--static struct page *__rmqueue(struct zone *zone, unsigned int order,
-+static inline
-+struct page *__rmqueue(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	struct page *page;
+ 	VM_BUG_ON(order >= MAX_ORDER);
  
-+retry_reserve:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
--	if (unlikely(!page))
-+	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
- 		page = __rmqueue_fallback(zone, order, migratetype);
- 
-+		/*
-+		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
-+		 * is used because __rmqueue_smallest is an inline function
-+		 * and we want just one call site
-+		 */
-+		if (!page) {
-+			migratetype = MIGRATE_RESERVE;
-+			goto retry_reserve;
-+		}
-+	}
++#ifdef CONFIG_CPUSETS
++	/* Determine in advance if the cpuset checks will be needed */
++	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
++		alloc_cpuset = 1;
++#endif
 +
- 	return page;
- }
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -1420,8 +1427,8 @@ zonelist_scan:
+ 		if (NUMA_BUILD && zlc_active &&
+ 			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+ 				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
++		if (alloc_cpuset)
++			if (!cpuset_zone_allowed_softwall(zone, gfp_mask))
+ 				goto try_next_zone;
  
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 -- 
 1.5.6.5
 
