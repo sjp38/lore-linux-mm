@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id CEDBC6B0098
-	for <linux-mm@kvack.org>; Sun, 22 Feb 2009 18:16:34 -0500 (EST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F4B6B0083
+	for <linux-mm@kvack.org>; Sun, 22 Feb 2009 18:16:35 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 17/20] Do not double sanity check page attributes during allocation
-Date: Sun, 22 Feb 2009 23:17:26 +0000
-Message-Id: <1235344649-18265-18-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 19/20] Batch free pages from migratetype per-cpu lists
+Date: Sun, 22 Feb 2009 23:17:28 +0000
+Message-Id: <1235344649-18265-20-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
 References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,37 +13,69 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On every page free, free_pages_check() sanity checks the page details,
-including some atomic operations. On page allocation, the same checks
-are been made. This is excessively paranoid as it will only catch severe
-memory corruption bugs that are going to manifest in a variety of fun
-and entertaining ways with or without this check. This patch removes the
-overhead of double checking the page state on every allocation.
+When the PCP lists are too large, a number of pages are freed in bulk.
+Currently the free lists are examined in a round-robin fashion but it's
+not unusual for only pages of the one type to be in the PCP lists so
+quite an amount of time is spent checking empty lists. This patch still
+frees pages in a round-robin fashion but multiple pages are freed for
+each migratetype at a time.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/page_alloc.c |    8 --------
- 1 files changed, 0 insertions(+), 8 deletions(-)
+ mm/page_alloc.c |   36 ++++++++++++++++++++++++------------
+ 1 files changed, 24 insertions(+), 12 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9e16aec..452f708 100644
+index 50e2fdc..627837c 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -646,14 +646,6 @@ static inline void expand(struct zone *zone, struct page *page,
-  */
- static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- {
--	if (unlikely(page_mapcount(page) |
--		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
--		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
--		bad_page(page);
--		return 1;
--	}
--
- 	set_page_private(page, 0);
- 	set_page_refcounted(page);
+@@ -532,22 +532,34 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 	spin_lock(&zone->lock);
+ 	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+ 	zone->pages_scanned = 0;
+-	while (count--) {
++
++	/* Remove pages from lists in a semi-round-robin fashion */
++	while (count) {
+ 		struct page *page;
+ 		struct list_head *list;
++		int batch;
  
+-		/* Remove pages from lists in a round-robin fashion */
+-		do {
+-			if (migratetype == MIGRATE_PCPTYPES)
+-				migratetype = 0;
+-			list = &pcp->lists[migratetype];
+-			migratetype++;
+-		} while (list_empty(list));
++		if (++migratetype == MIGRATE_PCPTYPES)
++			migratetype = 0;
++		list = &pcp->lists[migratetype];
+ 		
+-		page = list_entry(list->prev, struct page, lru);
+-		/* have to delete it as __free_one_page list manipulates */
+-		list_del(&page->lru);
+-		__free_one_page(page, zone, 0, page_private(page));
++		/*
++		 * Free from the lists in batches of 8. Batching avoids
++		 * the case where the pcp lists contain mainly pages of
++		 * one type and constantly cycling around checking empty
++		 * lists. The choice of 8 is somewhat arbitrary but based
++		 * on the expected maximum size of the PCP lists
++		 */
++		for (batch = 0; batch < 8 && count; batch++) {
++			if (list_empty(list))
++				break;
++			page = list_entry(list->prev, struct page, lru);
++
++			/* have to delete as __free_one_page list manipulates */
++			list_del(&page->lru);
++			__free_one_page(page, zone, 0, page_private(page));
++			count--;
++		}
+ 	}
+ 	spin_unlock(&zone->lock);
+ }
 -- 
 1.5.6.5
 
