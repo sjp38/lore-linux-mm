@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7742A6B009D
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 06:55:12 -0500 (EST)
-Subject: [PATCH] mm: clean up __GFP_* flags a bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E8B6B00A0
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 06:55:13 -0500 (EST)
+Subject: [PATCH] mm: gfp_to_alloc_flags()
 From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1235344649-18265-5-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
 References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
-	 <1235344649-18265-5-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain
-Date: Mon, 23 Feb 2009 12:55:01 +0100
-Message-Id: <1235390101.4645.79.camel@laptop>
+Date: Mon, 23 Feb 2009 12:55:03 +0100
+Message-Id: <1235390103.4645.80.camel@laptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,52 +16,163 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Subject: mm: clean up __GFP_* flags a bit
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Mon Feb 23 12:28:33 CET 2009
+I've always found the below a clean-up, respun it on top of your changes.
+Test box still boots ;-)
 
-re-sort them and poke at some whitespace alignment for easier reading.
+---
+Subject: mm: gfp_to_alloc_flags()
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Date: Mon Feb 23 12:46:36 CET 2009
+
+Clean up the code by factoring out the gfp to alloc_flags mapping.
+
+[neilb@suse.de says]
+As the test:
+
+-       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+-                       && !in_interrupt()) {
+-               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+
+has been replaced with a slightly weaker one:
+
++       if (alloc_flags & ALLOC_NO_WATERMARKS) {
+
+we need to ensure we don't recurse when PF_MEMALLOC is set
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 ---
- include/linux/gfp.h |   13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ mm/page_alloc.c |   90 ++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 52 insertions(+), 38 deletions(-)
 
-Index: linux-2.6/include/linux/gfp.h
+Index: linux-2.6/mm/page_alloc.c
 ===================================================================
---- linux-2.6.orig/include/linux/gfp.h
-+++ linux-2.6/include/linux/gfp.h
-@@ -25,6 +25,8 @@ struct vm_area_struct;
- #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
- #define __GFP_DMA32	((__force gfp_t)0x04u)
+--- linux-2.6.orig/mm/page_alloc.c
++++ linux-2.6/mm/page_alloc.c
+@@ -1658,16 +1658,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
+ 	return page;
+ }
  
-+#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
-+
+-static inline int is_allocation_high_priority(struct task_struct *p,
+-							gfp_t gfp_mask)
+-{
+-	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+-			&& !in_interrupt())
+-		if (!(gfp_mask & __GFP_NOMEMALLOC))
+-			return 1;
+-	return 0;
+-}
+-
  /*
-  * Action modifiers - doesn't change the zoning
-  *
-@@ -50,16 +52,15 @@ struct vm_area_struct;
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
--#define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
--#define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
--#define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_NOMEMALLOC  ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-+#define __GFP_HARDWALL    ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
-+#define __GFP_THISNODE	  ((__force gfp_t)0x40000u) /* No fallback, no policies */
- #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
--#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
+  * This is called in the allocator slow-path if the allocation request is of
+  * sufficient urgency to ignore watermarks and take other desperate measures
+@@ -1702,6 +1692,44 @@ void wake_all_kswapd(unsigned int order,
+ 		wakeup_kswapd(zone, order);
+ }
  
- #ifdef CONFIG_KMEMCHECK
--#define __GFP_NOTRACK	((__force gfp_t)0x200000u)  /* Don't track with kmemcheck */
-+#define __GFP_NOTRACK	  ((__force gfp_t)0x100000u) /* Don't track with kmemcheck */
- #else
--#define __GFP_NOTRACK	((__force gfp_t)0)
-+#define __GFP_NOTRACK	  ((__force gfp_t)0)
- #endif
++/*
++ * get the deepest reaching allocation flags for the given gfp_mask
++ */
++static int gfp_to_alloc_flags(gfp_t gfp_mask)
++{
++	struct task_struct *p = current;
++	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
++	const gfp_t wait = gfp_mask & __GFP_WAIT;
++
++	/*
++	 * The caller may dip into page reserves a bit more if the caller
++	 * cannot run direct reclaim, or if the caller has realtime scheduling
++	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
++	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
++	 */
++	if (gfp_mask & __GFP_HIGH)
++		alloc_flags |= ALLOC_HIGH;
++
++	if (!wait) {
++		alloc_flags |= ALLOC_HARDER;
++		/*
++		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
++		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
++		 */
++		alloc_flags &= ~ALLOC_CPUSET;
++	} else if (unlikely(rt_task(p)) && !in_interrupt())
++		alloc_flags |= ALLOC_HARDER;
++
++	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
++		if (!in_interrupt() &&
++		    ((p->flags & PF_MEMALLOC) ||
++		     unlikely(test_thread_flag(TIF_MEMDIE))))
++			alloc_flags |= ALLOC_NO_WATERMARKS;
++	}
++
++	return alloc_flags;
++}
++
+ static struct page * noinline
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+@@ -1732,48 +1760,34 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
+ 	 * OK, we're below the kswapd watermark and have kicked background
+ 	 * reclaim. Now things get more complex, so set up alloc_flags according
+ 	 * to how we want to proceed.
+-	 *
+-	 * The caller may dip into page reserves a bit more if the caller
+-	 * cannot run direct reclaim, or if the caller has realtime scheduling
+-	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+-	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+ 	 */
+-	alloc_flags = ALLOC_WMARK_MIN;
+-	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+-		alloc_flags |= ALLOC_HARDER;
+-	if (gfp_mask & __GFP_HIGH)
+-		alloc_flags |= ALLOC_HIGH;
+-	if (wait)
+-		alloc_flags |= ALLOC_CPUSET;
++	alloc_flags = gfp_to_alloc_flags(gfp_mask);
  
- #define __GFP_BITS_SHIFT 22	/* Room for 22 __GFP_FOO bits */
+ restart:
+-	/*
+-	 * Go through the zonelist again. Let __GFP_HIGH and allocations
+-	 * coming from realtime tasks go deeper into reserves.
+-	 *
+-	 * This is the last chance, in general, before the goto nopage.
+-	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+-	 */
++	/* This is the last chance, in general, before the goto nopage. */
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+-						high_zoneidx, alloc_flags,
+-						preferred_zone,
+-						migratetype);
++			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
++			preferred_zone, migratetype);
+ 	if (page)
+ 		goto got_pg;
+ 
+ 	/* Allocate without watermarks if the context allows */
+-	if (is_allocation_high_priority(p, gfp_mask))
++	if (alloc_flags & ALLOC_NO_WATERMARKS) {
+ 		page = __alloc_pages_high_priority(gfp_mask, order,
+-			zonelist, high_zoneidx, nodemask, preferred_zone,
+-			migratetype);
+-	if (page)
+-		goto got_pg;
++				zonelist, high_zoneidx, nodemask,
++				preferred_zone, migratetype);
++		if (page)
++			goto got_pg;
++	}
+ 
+ 	/* Atomic allocations - we can't balance anything */
+ 	if (!wait)
+ 		goto nopage;
+ 
++	/* Avoid recursion of direct reclaim */
++	if (p->flags & PF_MEMALLOC)
++		goto nopage;
++
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+ 					zonelist, high_zoneidx,
 
 
 --
