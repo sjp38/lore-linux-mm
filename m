@@ -1,49 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BD96A6B00A0
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 15:27:21 -0500 (EST)
-Received: by bwz28 with SMTP id 28so5596502bwz.14
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2009 12:27:19 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20090223180134.GR6740@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B4686B00E5
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 18:00:45 -0500 (EST)
+Date: Mon, 23 Feb 2009 14:59:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: gfp_to_alloc_flags()
+Message-Id: <20090223145936.ba2b51e7.akpm@linux-foundation.org>
+In-Reply-To: <1235390103.4645.80.camel@laptop>
 References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
-	 <1235344649-18265-5-git-send-email-mel@csn.ul.ie>
-	 <1235390101.4645.79.camel@laptop> <20090223180134.GR6740@csn.ul.ie>
-Date: Mon, 23 Feb 2009 21:27:19 +0100
-Message-ID: <19f34abd0902231227v687deb70r294bcf9a9b059d6@mail.gmail.com>
-Subject: Re: [PATCH] mm: clean up __GFP_* flags a bit
-From: Vegard Nossum <vegard.nossum@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	<1235390103.4645.80.camel@laptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mel@csn.ul.ie, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, hannes@cmpxchg.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-2009/2/23 Mel Gorman <mel@csn.ul.ie>:
-> On Mon, Feb 23, 2009 at 12:55:01PM +0100, Peter Zijlstra wrote:
->> Subject: mm: clean up __GFP_* flags a bit
->> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
->> Date: Mon Feb 23 12:28:33 CET 2009
->>
->> re-sort them and poke at some whitespace alignment for easier reading.
->>
->> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
->
-> It didn't apply because we are working off different trees. I was on
-> git-latest from last Wednesday and this looks to be -mm based on the presense
-> of CONFIG_KMEMCHECK. I rebased and ended up with the patch below. Thanks
+On Mon, 23 Feb 2009 12:55:03 +0100
+Peter Zijlstra <peterz@infradead.org> wrote:
 
-I will take the remaining parts and apply it to the kmemcheck tree. Thanks!
+> +static int gfp_to_alloc_flags(gfp_t gfp_mask)
+> +{
+> +	struct task_struct *p = current;
+> +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+> +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> +
+> +	/*
+> +	 * The caller may dip into page reserves a bit more if the caller
+> +	 * cannot run direct reclaim, or if the caller has realtime scheduling
+> +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+> +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+> +	 */
+> +	if (gfp_mask & __GFP_HIGH)
+> +		alloc_flags |= ALLOC_HIGH;
+
+This could be sped up by making ALLOC_HIGH==__GFP_HIGH (hack)
+
+> +	if (!wait) {
+> +		alloc_flags |= ALLOC_HARDER;
+> +		/*
+> +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+> +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> +		 */
+> +		alloc_flags &= ~ALLOC_CPUSET;
+> +	} else if (unlikely(rt_task(p)) && !in_interrupt())
+> +		alloc_flags |= ALLOC_HARDER;
+> +
+> +	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> +		if (!in_interrupt() &&
+> +		    ((p->flags & PF_MEMALLOC) ||
+> +		     unlikely(test_thread_flag(TIF_MEMDIE))))
+> +			alloc_flags |= ALLOC_NO_WATERMARKS;
+> +	}
+> +	return alloc_flags;
+> +}
 
 
-Vegard
-
--- 
-"The animistic metaphor of the bug that maliciously sneaked in while
-the programmer was not looking is intellectually dishonest as it
-disguises that the error is the programmer's own creation."
-	-- E. W. Dijkstra, EWD1036
+But really, the whole function can be elided on the fastpath.  Try the
+allocation with the current flags (and __GFP_NOWARN) and only if it
+failed will we try altering the flags to try harder?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
