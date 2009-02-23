@@ -1,95 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 43A576B00D9
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 14:21:12 -0500 (EST)
-Date: Mon, 23 Feb 2009 11:21:04 -0800
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch 1/2] mm: Fix SHM_HUGETLB to work with users in
-	hugetlb_shm_group
-Message-ID: <20090223192104.GB27240@localdomain>
-References: <20090221015457.GA32674@localdomain> <20090223110404.GA6740@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 52EB06B00DB
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 14:27:06 -0500 (EST)
+Message-ID: <49A2F885.8030407@goop.org>
+Date: Mon, 23 Feb 2009 11:27:01 -0800
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090223110404.GA6740@csn.ul.ie>
+Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
+References: <49416494.6040009@goop.org> <200902231514.01965.nickpiggin@yahoo.com.au> <49A25086.30606@goop.org> <200902232013.43054.nickpiggin@yahoo.com.au>
+In-Reply-To: <200902232013.43054.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: akpm@linux-foundation.org, wli@movementarian.org, linux-mm@kvack.org, shai@scalex86.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 23, 2009 at 11:04:05AM +0000, Mel Gorman wrote:
->On Fri, Feb 20, 2009 at 05:54:57PM -0800, Ravikiran G Thirumalai wrote:
->> This is a two patch series to fix a long standing inconsistency with the
->> mechanism to allow non root users allocate hugetlb shm.  The patch changelog
->> is self explanatory.  Here's a link to the previous discussion as well:
->> 
->> 	http://lkml.org/lkml/2009/2/10/89
->> 
->
->checkpatch complains about the () around the check being unnecessary.
->Not a big issue though.
->
+Nick Piggin wrote:
+> Here's a start for you. I think it gets rid of all the dead code and
+> data without introducing any actual conditional compilation...
+>   
 
-Hmm! I could have sworn I ran it through checkpatch.pl (usually I do)
-but apparently this time I didn't.  Here's the corrected patch.
+OK, I can get started with this, but it will need to be a runtime 
+switch; a Xen kernel running native is just a normal kernel, and I don't 
+think we want to disable lazy flushes in that case.
 
-Thanks,
-Kiran
-
----
-
-Fix hugetlb subsystem so that non root users belonging to hugetlb_shm_group
-can actually allocate hugetlb backed shm.
-
-Currently non root users cannot even map one large page using SHM_HUGETLB
-when they belong to the gid in /proc/sys/vm/hugetlb_shm_group.
-This is because allocation size is verified against RLIMIT_MEMLOCK resource
-limit even if the user belongs to hugetlb_shm_group.
-
-This patch
-1. Fixes hugetlb subsystem so that users with CAP_IPC_LOCK and users
-   belonging to hugetlb_shm_group don't need to be restricted with
-   RLIMIT_MEMLOCK resource limits
-2. This patch also disables mlock based rlimit checking (which will
-   be reinstated and marked deprecated in a subsequent patch).
-
-Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-Cc: Wli <wli@movementarian.org>
-
-Index: git.tip/fs/hugetlbfs/inode.c
-===================================================================
---- git.tip.orig/fs/hugetlbfs/inode.c	2009-02-19 09:47:58.000000000 -0800
-+++ git.tip/fs/hugetlbfs/inode.c	2009-02-23 11:09:46.000000000 -0800
-@@ -943,9 +943,7 @@ static struct vfsmount *hugetlbfs_vfsmou
- 
- static int can_do_hugetlb_shm(void)
- {
--	return likely(capable(CAP_IPC_LOCK) ||
--			in_group_p(sysctl_hugetlb_shm_group) ||
--			can_do_mlock());
-+	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
- }
- 
- struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
-@@ -963,9 +961,6 @@ struct file *hugetlb_file_setup(const ch
- 	if (!can_do_hugetlb_shm())
- 		return ERR_PTR(-EPERM);
- 
--	if (!user_shm_lock(size, user))
--		return ERR_PTR(-ENOMEM);
--
- 	root = hugetlbfs_vfsmount->mnt_root;
- 	quick_string.name = name;
- 	quick_string.len = strlen(quick_string.name);
-@@ -1004,7 +999,6 @@ out_inode:
- out_dentry:
- 	dput(dentry);
- out_shm_unlock:
--	user_shm_unlock(size, user);
- 	return ERR_PTR(error);
- }
- 
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
