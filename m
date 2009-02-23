@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id CB68A6B00B1
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:48:30 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2C08882C2FF
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:53:01 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 6NAKLqxr0OUK for <linux-mm@kvack.org>;
-	Mon, 23 Feb 2009 09:53:01 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 0B1E482C304
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:52:38 -0500 (EST)
-Date: Mon, 23 Feb 2009 09:38:58 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC PATCH 00/20] Cleanup and optimise the page allocator
-In-Reply-To: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0902230934360.7298@qirst.com>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 88A4C6B00B2
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:52:27 -0500 (EST)
+Date: Mon, 23 Feb 2009 14:51:05 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+In-Reply-To: <200902240101.26362.nickpiggin@yahoo.com.au>
+Message-ID: <Pine.LNX.4.64.0902231429360.28573@blonde.anvils>
+References: <499BE7F8.80901@csr.com> <499DB6EC.3020904@cs.helsinki.fi>
+ <Pine.LNX.4.64.0902192022210.8254@blonde.anvils> <200902240101.26362.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Feb 2009, Mel Gorman wrote:
+On Tue, 24 Feb 2009, Nick Piggin wrote:
+> 
+> Well, the buffer is only non-modified in the case of one of the
+> allocators (SLAB). All others overwrite some of the data region
+> with their own metadata.
+> 
+> I think it is OK to use const, though. Because k(z)free has the
+> knowledge that the data will not be touched by the caller any
+> longer.
 
-> I haven't run a page-allocator micro-benchmark to see what sort of figures
-> that gives. Christoph, I recall you had some sort of page allocator
-> micro-benchmark. Do you want to give it a shot or remind me how to use
-> it please?
+Sorry, you're not adding anything new to the thread here.
 
-The page allocator / slab allocator microbenchmarks are in my VM
-development git tree. The branch is named tests.
+Yes, the caller is surrendering the buffer, so we can get
+away with calling the argument const; and Linus argues that's
+helpful in the case of kfree (to allow passing a const pointer
+without having to cast it).
 
-http://git.kernel.org/?p=linux/kernel/git/christoph/vm.git;a=shortlog;h=tests
+My contention is that kzfree(const void *ptr) is nonsensical
+because it says please zero this buffer without modifying it.
 
+But the change has gone in, I seem to be the only one still
+bothered by it, and I've conceded that the "z" might stand
+for zap rather than zero.
+
+So it may be saying please hide the contents of this buffer,
+rather than please zero it.  And then it can be argued that
+the modification is an implementation detail which happens
+(like other housekeeping internal to the sl?b allocator)
+only after the original buffer has been freed.
+
+Philosophy.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
