@@ -1,31 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 52EB06B00DB
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 14:27:06 -0500 (EST)
-Message-ID: <49A2F885.8030407@goop.org>
-Date: Mon, 23 Feb 2009 11:27:01 -0800
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
-References: <49416494.6040009@goop.org> <200902231514.01965.nickpiggin@yahoo.com.au> <49A25086.30606@goop.org> <200902232013.43054.nickpiggin@yahoo.com.au>
-In-Reply-To: <200902232013.43054.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 249CE6B00DD
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 14:42:59 -0500 (EST)
+Date: Mon, 23 Feb 2009 11:42:00 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 1/7] slab: introduce kzfree()
+Message-Id: <20090223114200.3d14cc3b.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0902231429360.28573@blonde.anvils>
+References: <499BE7F8.80901@csr.com>
+	<499DB6EC.3020904@cs.helsinki.fi>
+	<Pine.LNX.4.64.0902192022210.8254@blonde.anvils>
+	<200902240101.26362.nickpiggin@yahoo.com.au>
+	<Pine.LNX.4.64.0902231429360.28573@blonde.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: nickpiggin@yahoo.com.au, penberg@cs.helsinki.fi, mpm@selenic.com, kosaki.motohiro@jp.fujitsu.com, david.vrabel@csr.com, hannes@cmpxchg.org, chas@cmf.nrl.navy.mil, johnpol@2ka.mipt.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> Here's a start for you. I think it gets rid of all the dead code and
-> data without introducing any actual conditional compilation...
->   
+On Mon, 23 Feb 2009 14:51:05 +0000 (GMT)
+Hugh Dickins <hugh@veritas.com> wrote:
 
-OK, I can get started with this, but it will need to be a runtime 
-switch; a Xen kernel running native is just a normal kernel, and I don't 
-think we want to disable lazy flushes in that case.
+> On Tue, 24 Feb 2009, Nick Piggin wrote:
+> > 
+> > Well, the buffer is only non-modified in the case of one of the
+> > allocators (SLAB). All others overwrite some of the data region
+> > with their own metadata.
+> > 
+> > I think it is OK to use const, though. Because k(z)free has the
+> > knowledge that the data will not be touched by the caller any
+> > longer.
+> 
+> Sorry, you're not adding anything new to the thread here.
+> 
+> Yes, the caller is surrendering the buffer, so we can get
+> away with calling the argument const; and Linus argues that's
+> helpful in the case of kfree (to allow passing a const pointer
+> without having to cast it).
+> 
+> My contention is that kzfree(const void *ptr) is nonsensical
+> because it says please zero this buffer without modifying it.
 
-    J
+yup.  The intent of kzfree() is explicitly, overtly, deliberately to
+modify the passed memory before freeing it.  Marking it const is dopey.
+
+But the const marker is potentially useful to some caller.  An arguably
+misdesigned caller.
+
+> But the change has gone in, I seem to be the only one still
+> bothered by it, and I've conceded that the "z" might stand
+> for zap rather than zero.
+
+Yeah.  But it's a very small bother.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
