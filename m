@@ -1,58 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 00C0E6B00B2
-	for <linux-mm@kvack.org>; Sun, 22 Feb 2009 23:14:36 -0500 (EST)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
-Date: Mon, 23 Feb 2009 15:14:00 +1100
-References: <49416494.6040009@goop.org> <200902200441.08541.nickpiggin@yahoo.com.au> <499DAEE4.8010507@goop.org>
-In-Reply-To: <499DAEE4.8010507@goop.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="utf-8"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2586B00B3
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 01:04:33 -0500 (EST)
+Date: Mon, 23 Feb 2009 14:58:28 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH] Reduce size of swap_cgroup by CSS ID v2
+Message-Id: <20090223145828.d14ff015.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090209145557.d0754a9f.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090205185959.7971dee4.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090209145557.d0754a9f.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200902231514.01965.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, nishimura@mxp.nes.nec.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Friday 20 February 2009 06:11:32 Jeremy Fitzhardinge wrote:
-> Nick Piggin wrote:
-> > Then what is the point of the vm_unmap_aliases? If you are doing it
-> > for security it won't work because other CPUs might still be able
-> > to write through dangling TLBs. If you are not doing it for
-> > security then it does not need to be done at all.
->
-> Xen will make sure any danging tlb entries are flushed before handing
-> the page out to anyone else.
->
-> > Unless it is something strange that Xen does with the page table
-> > structure and you just need to get rid of those?
->
-> Yeah.  A pte pointing at a page holds a reference on it, saying that it
-> belongs to the domain.  You can't return it to Xen until the refcount is 0.
+I'm sorry for my late reply.
 
-OK. Then I will remember to find some time to get the interrupt
-safe patches working. I wonder why you can't just return it to
-Xen when (or have Xen hold it somewhere until) the refcount
-reaches 0?
+It looks good basically, but I have 1 comment.
 
-Anyway...
+>  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+>  {
+> -	struct mem_cgroup *mem;
+> +	unsigned short id;
+> +	struct mem_cgroup *mem = NULL;
+>  	swp_entry_t ent;
+>  
+>  	if (!PageSwapCache(page))
+>  		return NULL;
+>  
+>  	ent.val = page_private(page);
+> -	mem = lookup_swap_cgroup(ent);
+> -	if (!mem)
+> -		return NULL;
+> +	id = lookup_swap_cgroup(ent);
+> +	rcu_read_lock();
+> +	mem = mem_cgroup_lookup(id);
+>  	if (!css_tryget(&mem->css))
+We should check whether "mem" is NULL or not before css_tryget, because
+"mem" can be NULL(or "id" can be 0) if the page is on swapcache,
+that is, remove_from_swap_cache has not been called yet.
 
-> > Or... what if we just allow a compile and/or boot time flag to direct
-> > that it does not want lazy vmap unmapping and it will just revert to
-> > synchronous unmapping? If Xen needs lots of flushing anyway it might
-> > not be a win anyway.
->
-> That may be worth considering.
+Actually, I got NULL pointer dereference bug here.
 
-... in the meantime, shall we just do this for Xen? It is probably
-safer and may end up with no worse performance on Xen anyway. If
-we get more vmap users and it becomes important, you could look at
-more sophisticated ways of doing this. Eg. a page could be flagged
-if it potentially has lazy vmaps.
+> -		return NULL;
+> +		mem = NULL;
+> +	rcu_read_unlock();
+>  	return mem;
+>  }
+>  
+
+
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
