@@ -1,64 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1A9C76B00B5
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:08:28 -0500 (EST)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 1/7] slab: introduce kzfree()
-Date: Tue, 24 Feb 2009 02:07:52 +1100
-References: <499BE7F8.80901@csr.com> <200902240101.26362.nickpiggin@yahoo.com.au> <Pine.LNX.4.64.0902231429360.28573@blonde.anvils>
-In-Reply-To: <Pine.LNX.4.64.0902231429360.28573@blonde.anvils>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id ECD286B00B7
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:10:25 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0312182C17C
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:14:57 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id uGMAaC1AZIgn for <linux-mm@kvack.org>;
+	Mon, 23 Feb 2009 10:14:52 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0898482C26C
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:14:27 -0500 (EST)
+Date: Mon, 23 Feb 2009 10:01:35 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 03/20] Do not check NUMA node ID when the caller knows
+ the node is valid
+In-Reply-To: <1235344649-18265-4-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0902230958440.7298@qirst.com>
+References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235344649-18265-4-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200902240207.53590.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Matt Mackall <mpm@selenic.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Vrabel <david.vrabel@csr.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Chas Williams <chas@cmf.nrl.navy.mil>, Evgeniy Polyakov <johnpol@2ka.mipt.ru>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 24 February 2009 01:51:05 Hugh Dickins wrote:
-> On Tue, 24 Feb 2009, Nick Piggin wrote:
-> > Well, the buffer is only non-modified in the case of one of the
-> > allocators (SLAB). All others overwrite some of the data region
-> > with their own metadata.
-> >
-> > I think it is OK to use const, though. Because k(z)free has the
-> > knowledge that the data will not be touched by the caller any
-> > longer.
->
-> Sorry, you're not adding anything new to the thread here.
->
-> Yes, the caller is surrendering the buffer, so we can get
-> away with calling the argument const; and Linus argues that's
-> helpful in the case of kfree (to allow passing a const pointer
-> without having to cast it).
+On Sun, 22 Feb 2009, Mel Gorman wrote:
 
-(Yes, not that I agree his argument is strong enough to be able
-to call libc's definition wrong)
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 75f49d3..6566c9e 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1318,11 +1318,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  	for (i = 0; i < area->nr_pages; i++) {
+>  		struct page *page;
+>
+> -		if (node < 0)
+> -			page = alloc_page(gfp_mask);
+> -		else
+> -			page = alloc_pages_node(node, gfp_mask, 0);
+> -
+> +		page = alloc_pages_node(node, gfp_mask, 0);
+>  		if (unlikely(!page)) {
+>  			/* Successfully allocated i pages, free them in __vunmap() */
+>  			area->nr_pages = i;
+>
 
-> My contention is that kzfree(const void *ptr) is nonsensical
-> because it says please zero this buffer without modifying it.
->
-> But the change has gone in, I seem to be the only one still
-> bothered by it, and I've conceded that the "z" might stand
-> for zap rather than zero.
->
-> So it may be saying please hide the contents of this buffer,
-> rather than please zero it.  And then it can be argued that
-> the modification is an implementation detail which happens
-> (like other housekeeping internal to the sl?b allocator)
-> only after the original buffer has been freed.
->
-> Philosophy.
-
-Hmm, well it better if kzfree is defined to zap rather than zero
-anyway. zap is a better definition because it theoretically allows
-the implementation to do something else (poision it with some
-other value; mark it as zapped and don't reallocate it without
-zeroing it; etc). And also it doesn't imply that the caller still
-cares about what it actually gets filled with.
+That wont work. alloc_pages() obeys memory policies. alloc_pages_node()
+does not.
 
 
 --
