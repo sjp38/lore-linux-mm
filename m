@@ -1,54 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7016B6B007E
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 04:37:45 -0500 (EST)
-Date: Mon, 23 Feb 2009 01:37:23 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-Message-Id: <20090223013723.1d8f11c1.akpm@linux-foundation.org>
-In-Reply-To: <1235344649-18265-21-git-send-email-mel@csn.ul.ie>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
-	<1235344649-18265-21-git-send-email-mel@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EAF66B0089
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 06:04:10 -0500 (EST)
+Date: Mon, 23 Feb 2009 11:04:05 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [patch 1/2] mm: Fix SHM_HUGETLB to work with users in
+	hugetlb_shm_group
+Message-ID: <20090223110404.GA6740@csn.ul.ie>
+References: <20090221015457.GA32674@localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090221015457.GA32674@localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+To: Ravikiran G Thirumalai <kiran@scalex86.org>
+Cc: akpm@linux-foundation.org, wli@movementarian.org, linux-mm@kvack.org, shai@scalex86.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Feb 2009 23:17:29 +0000 Mel Gorman <mel@csn.ul.ie> wrote:
-
-> Currently an effort is made to determine if a page is hot or cold when
-> it is being freed so that cache hot pages can be allocated to callers if
-> possible. However, the reasoning used whether to mark something hot or
-> cold is a bit spurious. A profile run of kernbench showed that "cold"
-> pages were never freed so it either doesn't happen generally or is so
-> rare, it's barely measurable.
+On Fri, Feb 20, 2009 at 05:54:57PM -0800, Ravikiran G Thirumalai wrote:
+> This is a two patch series to fix a long standing inconsistency with the
+> mechanism to allow non root users allocate hugetlb shm.  The patch changelog
+> is self explanatory.  Here's a link to the previous discussion as well:
 > 
-> It's dubious as to whether pages are being correctly marked hot and cold
-> anyway. Things like page cache and pages being truncated are are considered
-> "hot" but there is no guarantee that these pages have been recently used
-> and are cache hot. Pages being reclaimed from the LRU are considered
-> cold which is logical because they cannot have been referenced recently
-> but if the system is reclaiming pages, then we have entered allocator
-> slowpaths and are not going to notice any potential performance boost
-> because a "hot" page was freed.
+> 	http://lkml.org/lkml/2009/2/10/89
 > 
-> This patch just deletes the concept of freeing hot or cold pages and
-> just frees them all as hot.
+> ---
+> Fix hugetlb subsystem so that non root users belonging to hugetlb_shm_group
+> can actually allocate hugetlb backed shm.
 > 
+> Currently non root users cannot even map one large page using SHM_HUGETLB
+> when they belong to the gid in /proc/sys/vm/hugetlb_shm_group.
+> This is because allocation size is verified against RLIMIT_MEMLOCK resource
+> limit even if the user belongs to hugetlb_shm_group.
+> 
+> This patch
+> 1. Fixes hugetlb subsystem so that users with CAP_IPC_LOCK and users
+>    belonging to hugetlb_shm_group don't need to be restricted with
+>    RLIMIT_MEMLOCK resource limits
+> 2. This patch also disables mlock based rlimit checking (which will
+>    be reinstated and marked deprecated in a subsequent patch).
+> 
+> Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Wli <wli@movementarian.org>
+> 
+> Index: linux-2.6-tip/fs/hugetlbfs/inode.c
+> ===================================================================
+> --- linux-2.6-tip.orig/fs/hugetlbfs/inode.c	2009-02-10 13:24:56.000000000 -0800
+> +++ linux-2.6-tip/fs/hugetlbfs/inode.c	2009-02-10 13:30:05.000000000 -0800
+> @@ -942,9 +942,7 @@ static struct vfsmount *hugetlbfs_vfsmou
+>  
+>  static int can_do_hugetlb_shm(void)
+>  {
+> -	return likely(capable(CAP_IPC_LOCK) ||
+> -			in_group_p(sysctl_hugetlb_shm_group) ||
+> -			can_do_mlock());
+> +	return (capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group));
+>  }
+>  
 
-Well yes.  We waffled for months over whether to merge that code originally.
+checkpatch complains about the () around the check being unnecessary.
+Not a big issue though.
 
-What tipped the balance was a dopey microbenchmark which I wrote which
-sat in a loop extending (via write()) and then truncating the same file
-by 32 kbytes (or thereabouts).  Its performance was increased by a lot
-(2x or more, iirc) and no actual regressions were demonstrable, so we
-merged it.
+>  struct file *hugetlb_file_setup(const char *name, size_t size)
+> @@ -962,9 +960,6 @@ struct file *hugetlb_file_setup(const ch
+>  	if (!can_do_hugetlb_shm())
+>  		return ERR_PTR(-EPERM);
+>  
+> -	if (!user_shm_lock(size, user))
+> -		return ERR_PTR(-ENOMEM);
+> -
+>  	root = hugetlbfs_vfsmount->mnt_root;
+>  	quick_string.name = name;
+>  	quick_string.len = strlen(quick_string.name);
+> @@ -1002,7 +997,6 @@ out_inode:
+>  out_dentry:
+>  	dput(dentry);
+>  out_shm_unlock:
+> -	user_shm_unlock(size, user);
+>  	return ERR_PTR(error);
+>  }
+>  
 
-Could you check that please?  I'd suggest trying various values of 32k,
-too.
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
