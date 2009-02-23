@@ -1,43 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4828D6B00CE
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 12:14:23 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E092F82C288
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 12:18:54 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id jM7Hv7WKIKTa for <linux-mm@kvack.org>;
-	Mon, 23 Feb 2009 12:18:54 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6F73982C34D
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 12:17:21 -0500 (EST)
-Date: Mon, 23 Feb 2009 12:03:50 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 04/20] Convert gfp_zone() to use a table of precalculated
- value
-In-Reply-To: <20090223164047.GO6740@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0902231203050.25810@qirst.com>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235344649-18265-5-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0902231003090.7298@qirst.com> <200902240241.48575.nickpiggin@yahoo.com.au> <alpine.DEB.1.10.0902231042440.7790@qirst.com>
- <20090223164047.GO6740@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EF746B00CF
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 12:31:46 -0500 (EST)
+Date: Mon, 23 Feb 2009 18:49:48 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC PATCH 00/20] Cleanup and optimise the page allocator
+Message-ID: <20090223174947.GT26292@one.firstfloor.org>
+References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <87ljryuij0.fsf@basil.nowhere.org> <20090223143232.GJ6740@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090223143232.GJ6740@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Feb 2009, Mel Gorman wrote:
+> hmm, it would be ideal but I haven't looked too closely at how it could
+> be implemented. I thought first you could just associate a zonelist with
 
-> > Maybe we can come up with a version of gfp_zone that has no branches and
-> > no lookup?
-> >
->
-> Ideally, yes, but I didn't spot any obvious way of figuring it out at
-> compile time then or now. Suggestions?
+Yes like that. This was actually discussed during the initial cpuset
+implementation. I thought back then it would be better to do it
+elsewhere, but changed my mind later when I saw the impact on the
+fast path.
 
-Can we just mask the relevant bits and then find the highest set bit? With
-some rearrangement of gfp flags this may work.
+> the cpuset but you'd need one for each node allowed by the cpuset so it
+> could get quite large. Then again, it might be worthwhile if cpusets
+
+Yes you would need one per node, but that's not a big problem because
+systems with lots of nodes are also expected to have lots of memory.
+Most systems have a very small number of nodes.
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
