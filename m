@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 52CBF6B00BD
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:32:35 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 59A4382C326
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:37:06 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 5qaSfSn2MHKS for <linux-mm@kvack.org>;
-	Mon, 23 Feb 2009 10:37:05 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id AE21482C318
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:37:05 -0500 (EST)
-Date: Mon, 23 Feb 2009 10:23:52 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 04/20] Convert gfp_zone() to use a table of precalculated
- values
-In-Reply-To: <1235344649-18265-5-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0902231003090.7298@qirst.com>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235344649-18265-5-git-send-email-mel@csn.ul.ie>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 19F2E6B00BE
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 10:33:17 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 11/20] Inline get_page_from_freelist() in the fast-path
+Date: Tue, 24 Feb 2009 02:32:37 +1100
+References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235344649-18265-12-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1235344649-18265-12-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200902240232.39140.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Feb 2009, Mel Gorman wrote:
+On Monday 23 February 2009 10:17:20 Mel Gorman wrote:
+> In the best-case scenario, use an inlined version of
+> get_page_from_freelist(). This increases the size of the text but avoids
+> time spent pushing arguments onto the stack.
 
-> Every page allocation uses gfp_zone() to calcuate what the highest zone
-> allowed by a combination of GFP flags is. This is a large number of branches
-> to have in a fast path. This patch replaces the branches with a lookup
-> table that is calculated at boot-time and stored in the read-mostly section
-> so it can be shared. This requires __GFP_MOVABLE to be redefined but it's
-> debatable as to whether it should be considered a zone modifier or not.
+I'm quite fond of inlining ;) But it can increase register pressure as
+well as icache footprint as well. x86-64 isn't spilling a lot more
+registers to stack after these changes, is it?
 
-Are you sure that this is a benefit? Jumps are forward and pretty short
-and the compiler is optimizing a branch away in the current code.
+Also,
 
 
-0xffffffff8027bde8 <try_to_free_pages+95>:      mov    %esi,-0x58(%rbp)
-0xffffffff8027bdeb <try_to_free_pages+98>:      movq   $0xffffffff80278cd0,-0x48(%rbp)
-0xffffffff8027bdf3 <try_to_free_pages+106>:     test   $0x1,%r8b
-0xffffffff8027bdf7 <try_to_free_pages+110>:     mov    0x620(%rax),%rax
-0xffffffff8027bdfe <try_to_free_pages+117>:     mov    %rax,-0x88(%rbp)
-0xffffffff8027be05 <try_to_free_pages+124>:     jne    0xffffffff8027be2c <try_to_free_pages+163>
-0xffffffff8027be07 <try_to_free_pages+126>:     mov    $0x1,%r14d
-0xffffffff8027be0d <try_to_free_pages+132>:     test   $0x4,%r8b
-0xffffffff8027be11 <try_to_free_pages+136>:     jne    0xffffffff8027be2c <try_to_free_pages+163>
-0xffffffff8027be13 <try_to_free_pages+138>:     xor    %r14d,%r14d
-0xffffffff8027be16 <try_to_free_pages+141>:     and    $0x100002,%r8d
-0xffffffff8027be1d <try_to_free_pages+148>:     cmp    $0x100002,%r8d
-0xffffffff8027be24 <try_to_free_pages+155>:     sete   %r14b
-0xffffffff8027be28 <try_to_free_pages+159>:     add    $0x2,%r14d
-0xffffffff8027be2c <try_to_free_pages+163>:     mov    %gs:0x8,%rdx
+> @@ -1780,8 +1791,8 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int
+> order, if (!preferred_zone)
+>  		return NULL;
+>
+> -	/* First allocation attempt */
+> -	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+> +	/* First allocation attempt. Fastpath uses inlined version */
+> +	page = __get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+>  			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
+>  			preferred_zone, migratetype);
+>  	if (unlikely(!page))
+
+I think in a common case where there is background reclaim going on,
+it will be quite common to fail this, won't it? (I haven't run
+statistics though).
+
+In which case you will get extra icache footprint. What speedup does
+it give in the cache-hot microbenchmark case?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
