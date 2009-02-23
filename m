@@ -1,197 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id CC00A6B00D7
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 13:17:18 -0500 (EST)
-Date: Mon, 23 Feb 2009 18:17:13 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] mm: gfp_to_alloc_flags()
-Message-ID: <20090223181713.GS6740@csn.ul.ie>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235390103.4645.80.camel@laptop>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A576B00D9
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 14:21:12 -0500 (EST)
+Date: Mon, 23 Feb 2009 11:21:04 -0800
+From: Ravikiran G Thirumalai <kiran@scalex86.org>
+Subject: Re: [patch 1/2] mm: Fix SHM_HUGETLB to work with users in
+	hugetlb_shm_group
+Message-ID: <20090223192104.GB27240@localdomain>
+References: <20090221015457.GA32674@localdomain> <20090223110404.GA6740@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1235390103.4645.80.camel@laptop>
+In-Reply-To: <20090223110404.GA6740@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: akpm@linux-foundation.org, wli@movementarian.org, linux-mm@kvack.org, shai@scalex86.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 23, 2009 at 12:55:03PM +0100, Peter Zijlstra wrote:
-> I've always found the below a clean-up, respun it on top of your changes.
-> Test box still boots ;-)
-> 
-> ---
-> Subject: mm: gfp_to_alloc_flags()
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Date: Mon Feb 23 12:46:36 CET 2009
-> 
-> Clean up the code by factoring out the gfp to alloc_flags mapping.
-> 
-> [neilb@suse.de says]
-> As the test:
-> 
-> -       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
-> -                       && !in_interrupt()) {
-> -               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-> 
+On Mon, Feb 23, 2009 at 11:04:05AM +0000, Mel Gorman wrote:
+>On Fri, Feb 20, 2009 at 05:54:57PM -0800, Ravikiran G Thirumalai wrote:
+>> This is a two patch series to fix a long standing inconsistency with the
+>> mechanism to allow non root users allocate hugetlb shm.  The patch changelog
+>> is self explanatory.  Here's a link to the previous discussion as well:
+>> 
+>> 	http://lkml.org/lkml/2009/2/10/89
+>> 
+>
+>checkpatch complains about the () around the check being unnecessary.
+>Not a big issue though.
+>
 
-At what point was this code deleted?
+Hmm! I could have sworn I ran it through checkpatch.pl (usually I do)
+but apparently this time I didn't.  Here's the corrected patch.
 
-If it still exists, then I like the idea of this patch anyway. It takes
-more code out of the loop. We end up checking if __GFP_WAIT is set twice,
-but no major harm in that.
+Thanks,
+Kiran
 
-> has been replaced with a slightly weaker one:
-> 
-> +       if (alloc_flags & ALLOC_NO_WATERMARKS) {
-> 
-> we need to ensure we don't recurse when PF_MEMALLOC is set
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> ---
->  mm/page_alloc.c |   90 ++++++++++++++++++++++++++++++++------------------------
->  1 file changed, 52 insertions(+), 38 deletions(-)
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -1658,16 +1658,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_m
->  	return page;
->  }
->  
-> -static inline int is_allocation_high_priority(struct task_struct *p,
-> -							gfp_t gfp_mask)
-> -{
-> -	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
-> -			&& !in_interrupt())
-> -		if (!(gfp_mask & __GFP_NOMEMALLOC))
-> -			return 1;
-> -	return 0;
-> -}
-> -
->  /*
->   * This is called in the allocator slow-path if the allocation request is of
->   * sufficient urgency to ignore watermarks and take other desperate measures
-> @@ -1702,6 +1692,44 @@ void wake_all_kswapd(unsigned int order,
->  		wakeup_kswapd(zone, order);
->  }
->  
-> +/*
-> + * get the deepest reaching allocation flags for the given gfp_mask
-> + */
-> +static int gfp_to_alloc_flags(gfp_t gfp_mask)
-> +{
-> +	struct task_struct *p = current;
-> +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-> +	const gfp_t wait = gfp_mask & __GFP_WAIT;
-> +
-> +	/*
-> +	 * The caller may dip into page reserves a bit more if the caller
-> +	 * cannot run direct reclaim, or if the caller has realtime scheduling
-> +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-> +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-> +	 */
-> +	if (gfp_mask & __GFP_HIGH)
-> +		alloc_flags |= ALLOC_HIGH;
-> +
-> +	if (!wait) {
-> +		alloc_flags |= ALLOC_HARDER;
-> +		/*
-> +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-> +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> +		 */
-> +		alloc_flags &= ~ALLOC_CPUSET;
-> +	} else if (unlikely(rt_task(p)) && !in_interrupt())
-> +		alloc_flags |= ALLOC_HARDER;
-> +
-> +	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> +		if (!in_interrupt() &&
-> +		    ((p->flags & PF_MEMALLOC) ||
-> +		     unlikely(test_thread_flag(TIF_MEMDIE))))
-> +			alloc_flags |= ALLOC_NO_WATERMARKS;
-> +	}
-> +
-> +	return alloc_flags;
-> +}
-> +
->  static struct page * noinline
->  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	struct zonelist *zonelist, enum zone_type high_zoneidx,
-> @@ -1732,48 +1760,34 @@ __alloc_pages_slowpath(gfp_t gfp_mask, u
->  	 * OK, we're below the kswapd watermark and have kicked background
->  	 * reclaim. Now things get more complex, so set up alloc_flags according
->  	 * to how we want to proceed.
-> -	 *
-> -	 * The caller may dip into page reserves a bit more if the caller
-> -	 * cannot run direct reclaim, or if the caller has realtime scheduling
-> -	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-> -	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
->  	 */
-> -	alloc_flags = ALLOC_WMARK_MIN;
-> -	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
-> -		alloc_flags |= ALLOC_HARDER;
-> -	if (gfp_mask & __GFP_HIGH)
-> -		alloc_flags |= ALLOC_HIGH;
-> -	if (wait)
-> -		alloc_flags |= ALLOC_CPUSET;
-> +	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->  
->  restart:
-> -	/*
-> -	 * Go through the zonelist again. Let __GFP_HIGH and allocations
-> -	 * coming from realtime tasks go deeper into reserves.
-> -	 *
-> -	 * This is the last chance, in general, before the goto nopage.
-> -	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-> -	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> -	 */
-> +	/* This is the last chance, in general, before the goto nopage. */
->  	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
-> -						high_zoneidx, alloc_flags,
-> -						preferred_zone,
-> -						migratetype);
-> +			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
-> +			preferred_zone, migratetype);
->  	if (page)
->  		goto got_pg;
->  
->  	/* Allocate without watermarks if the context allows */
-> -	if (is_allocation_high_priority(p, gfp_mask))
-> +	if (alloc_flags & ALLOC_NO_WATERMARKS) {
->  		page = __alloc_pages_high_priority(gfp_mask, order,
-> -			zonelist, high_zoneidx, nodemask, preferred_zone,
-> -			migratetype);
-> -	if (page)
-> -		goto got_pg;
-> +				zonelist, high_zoneidx, nodemask,
-> +				preferred_zone, migratetype);
-> +		if (page)
-> +			goto got_pg;
-> +	}
->  
->  	/* Atomic allocations - we can't balance anything */
->  	if (!wait)
->  		goto nopage;
->  
-> +	/* Avoid recursion of direct reclaim */
-> +	if (p->flags & PF_MEMALLOC)
-> +		goto nopage;
-> +
->  	/* Try direct reclaim and then allocating */
->  	page = __alloc_pages_direct_reclaim(gfp_mask, order,
->  					zonelist, high_zoneidx,
-> 
+---
 
-Looks good eyeballing it here at least. I'll slot it in and see what the
-end result looks like but I think it'll be good.
+Fix hugetlb subsystem so that non root users belonging to hugetlb_shm_group
+can actually allocate hugetlb backed shm.
 
-Thanks
+Currently non root users cannot even map one large page using SHM_HUGETLB
+when they belong to the gid in /proc/sys/vm/hugetlb_shm_group.
+This is because allocation size is verified against RLIMIT_MEMLOCK resource
+limit even if the user belongs to hugetlb_shm_group.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+This patch
+1. Fixes hugetlb subsystem so that users with CAP_IPC_LOCK and users
+   belonging to hugetlb_shm_group don't need to be restricted with
+   RLIMIT_MEMLOCK resource limits
+2. This patch also disables mlock based rlimit checking (which will
+   be reinstated and marked deprecated in a subsequent patch).
+
+Signed-off-by: Ravikiran Thirumalai <kiran@scalex86.org>
+Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+Cc: Wli <wli@movementarian.org>
+
+Index: git.tip/fs/hugetlbfs/inode.c
+===================================================================
+--- git.tip.orig/fs/hugetlbfs/inode.c	2009-02-19 09:47:58.000000000 -0800
++++ git.tip/fs/hugetlbfs/inode.c	2009-02-23 11:09:46.000000000 -0800
+@@ -943,9 +943,7 @@ static struct vfsmount *hugetlbfs_vfsmou
+ 
+ static int can_do_hugetlb_shm(void)
+ {
+-	return likely(capable(CAP_IPC_LOCK) ||
+-			in_group_p(sysctl_hugetlb_shm_group) ||
+-			can_do_mlock());
++	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+ }
+ 
+ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag)
+@@ -963,9 +961,6 @@ struct file *hugetlb_file_setup(const ch
+ 	if (!can_do_hugetlb_shm())
+ 		return ERR_PTR(-EPERM);
+ 
+-	if (!user_shm_lock(size, user))
+-		return ERR_PTR(-ENOMEM);
+-
+ 	root = hugetlbfs_vfsmount->mnt_root;
+ 	quick_string.name = name;
+ 	quick_string.len = strlen(quick_string.name);
+@@ -1004,7 +999,6 @@ out_inode:
+ out_dentry:
+ 	dput(dentry);
+ out_shm_unlock:
+-	user_shm_unlock(size, user);
+ 	return ERR_PTR(error);
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
