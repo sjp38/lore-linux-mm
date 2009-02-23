@@ -1,110 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C366A6B00A9
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:25:09 -0500 (EST)
-Date: Mon, 23 Feb 2009 14:25:06 +0000
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 88C766B00AD
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 09:32:37 -0500 (EST)
+Date: Mon, 23 Feb 2009 14:32:32 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 15/20] Do not disable interrupts in free_page_mlock()
-Message-ID: <20090223142505.GI6740@csn.ul.ie>
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <1235344649-18265-16-git-send-email-mel@csn.ul.ie> <1235380740.4645.2.camel@laptop> <20090223122331.GF6740@csn.ul.ie> <1235393058.4645.134.camel@laptop>
+Subject: Re: [RFC PATCH 00/20] Cleanup and optimise the page allocator
+Message-ID: <20090223143232.GJ6740@csn.ul.ie>
+References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <87ljryuij0.fsf@basil.nowhere.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1235393058.4645.134.camel@laptop>
+In-Reply-To: <87ljryuij0.fsf@basil.nowhere.org>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
+To: Andi Kleen <andi@firstfloor.org>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 23, 2009 at 01:44:18PM +0100, Peter Zijlstra wrote:
-> On Mon, 2009-02-23 at 12:23 +0000, Mel Gorman wrote:
-> > On Mon, Feb 23, 2009 at 10:19:00AM +0100, Peter Zijlstra wrote:
-> > > On Sun, 2009-02-22 at 23:17 +0000, Mel Gorman wrote:
+On Mon, Feb 23, 2009 at 01:02:59AM +0100, Andi Kleen wrote:
+> Mel Gorman <mel@csn.ul.ie> writes:
 > 
-> > > >  static inline void free_page_mlock(struct page *page)
-> > > >  {
-> > > > -	if (unlikely(TestClearPageMlocked(page))) {
-> > > > -		unsigned long flags;
-> > > > -
-> > > > -		local_irq_save(flags);
-> > > > -		__dec_zone_page_state(page, NR_MLOCK);
-> > > > -		__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> > > > -		local_irq_restore(flags);
-> > > > -	}
-> > > > +	__dec_zone_page_state(page, NR_MLOCK);
-> > > > +	__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> > > >  }
-> > > 
-> > > Its not actually clearing PG_mlocked anymore, so the name is now a tad
-> > > misleading.
-> > > 
-> > 
-> > Really? I see the following
 > 
-> > So there is a PG_mlocked bit once UNEVITABLE_LRU is set which was the
-> > case on the tests I was running. I'm probably missing something silly.
-> 
-> What I was trying to say was that free_page_mlock() doesn't change the
-> page-state after your change, hence the 'free' part of its name is
-> misleading.
+> BTW one additional tuning opportunity would be to change cpusets to
+> always precompute zonelists out of line and then avoid doing
+> all these checks in the fast path.
 > 
 
-Ah right. As you pointed out on mail, the newer version clears the bit
-again so while the name was misleading, it's sortof ok again now. Mind you,
-it's not freeing a page as such. A name like account_freed_mlock() might be
-better. As it is only used in page_alloc.c, it could also be taken out of
-the header file altogether.
+hmm, it would be ideal but I haven't looked too closely at how it could
+be implemented. I thought first you could just associate a zonelist with
+the cpuset but you'd need one for each node allowed by the cpuset so it
+could get quite large. Then again, it might be worthwhile if cpusets
+were expected to be very long lived.
 
-> > > That said, since we're freeing the page, there ought to not be another
-> > > reference to the page, in which case it appears to me we could safely
-> > > use the unlocked variant of TestClear*().
-> > > 
-> > 
-> > Regrettably, unlocked variants do not appear to be defined as such but
-> > the following should do the job, right? It applies on top of the current
-> > change.
-> > 
-> > diff --git a/mm/internal.h b/mm/internal.h
-> > index b52bf86..7f775a1 100644
-> > --- a/mm/internal.h
-> > +++ b/mm/internal.h
-> > @@ -155,6 +155,7 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
-> >   */
-> >  static inline void free_page_mlock(struct page *page)
-> >  {
-> 	VM_BUG_ON(!PageMlocked(page)); ?
-> 
-> > +	__ClearPageMlocked(page);
-> >  	__dec_zone_page_state(page, NR_MLOCK);
-> >  	__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> >  }
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index edac673..8bd0533 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -580,7 +580,7 @@ static void __free_pages_ok(struct page *page, unsigned int order,
-> >  	unsigned long flags;
-> >  	int i;
-> >  	int bad = 0;
-> > -	int clearMlocked = TestClearPageMlocked(page);
-> > +	int clearMlocked = PageMlocked(page);
-> >  
-> >  	for (i = 0 ; i < (1 << order) ; ++i)
-> >  		bad += free_pages_check(page + i);
-> > @@ -1040,7 +1040,7 @@ static void free_pcp_page(struct page *page)
-> >  	struct per_cpu_pages *pcp;
-> >  	unsigned long flags;
-> >  	int migratetype;
-> > -	int clearMlocked = TestClearPageMlocked(page);
-> > +	int clearMlocked = PageMlocked(page);
-> >  
-> >  	if (PageAnon(page))
-> >  		page->mapping = NULL;
-> 
-> Right, that should do.
-> 
-
-Nice, thanks.
+If there are any users of cpusets watching, would you be interested in
+profiling with cpusets enabled and see how much time we spend in that
+code?
 
 -- 
 Mel Gorman
