@@ -1,75 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id CEA796B005A
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 23:41:18 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so42409fgg.4
-        for <linux-mm@kvack.org>; Mon, 23 Feb 2009 20:41:15 -0800 (PST)
-Date: Tue, 24 Feb 2009 07:47:52 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
-Message-ID: <20090224044752.GB3202@x200.localdomain>
-References: <20090217222319.GA10546@elte.hu> <1234909849.4816.9.camel@nimitz> <20090218003217.GB25856@elte.hu> <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain> <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz> <20090218231545.GA17524@elte.hu> <20090219190637.GA4846@x200.localdomain> <1235070714.26788.56.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1235070714.26788.56.camel@nimitz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CAD1C6B005A
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 00:22:02 -0500 (EST)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n1O5M0BF004127
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 24 Feb 2009 14:22:00 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D0C0345DE52
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:21:59 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A6DF345DE4F
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:21:59 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C7001DB8041
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:21:59 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F4691DB8037
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:21:56 +0900 (JST)
+Date: Tue, 24 Feb 2009 14:20:40 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 04/20] Convert gfp_zone() to use a table of
+ precalculated value
+Message-Id: <20090224142040.5db39fbd.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <200902241459.35435.nickpiggin@yahoo.com.au>
+References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie>
+	<20090223164047.GO6740@csn.ul.ie>
+	<20090224103226.e9e2766f.kamezawa.hiroyu@jp.fujitsu.com>
+	<200902241459.35435.nickpiggin@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 19, 2009 at 11:11:54AM -0800, Dave Hansen wrote:
-> On Thu, 2009-02-19 at 22:06 +0300, Alexey Dobriyan wrote:
-> > Inotify isn't supported yet? You do
-> > 
-> >         if (!list_empty(&inode->inotify_watches))
-> >                 return -E;
-> > 
-> > without hooking into inotify syscalls.
-> > 
-> > ptrace(2) isn't supported -- look at struct task_struct::ptraced and
-> > friends.
-> > 
-> > And so on.
-> > 
-> > System call (or whatever) does something with some piece of kernel
-> > internals. We look at this "something" when walking data structures
-> > and
-> > abort if it's scary enough.
-> > 
-> > Please, show at least one counter-example.
+On Tue, 24 Feb 2009 14:59:34 +1100
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+
+> On Tuesday 24 February 2009 12:32:26 KAMEZAWA Hiroyuki wrote:
+> > On Mon, 23 Feb 2009 16:40:47 +0000
+> >
+> > Mel Gorman <mel@csn.ul.ie> wrote:
+> > > On Mon, Feb 23, 2009 at 10:43:20AM -0500, Christoph Lameter wrote:
+> > > > On Tue, 24 Feb 2009, Nick Piggin wrote:
+> > > > > > Are you sure that this is a benefit? Jumps are forward and pretty
+> > > > > > short and the compiler is optimizing a branch away in the current
+> > > > > > code.
+> > > > >
+> > > > > Pretty easy to mispredict there, though, especially as you can tend
+> > > > > to get allocations interleaved between kernel and movable (or simply
+> > > > > if the branch predictor is cold there are a lot of branches on
+> > > > > x86-64).
+> > > > >
+> > > > > I would be interested to know if there is a measured improvement.
+> > >
+> > > Not in kernbench at least, but that is no surprise. It's a small
+> > > percentage of the overall cost. It'll appear in the noise for anything
+> > > other than micro-benchmarks.
+> > >
+> > > > > It
+> > > > > adds an extra dcache line to the footprint, but OTOH the instructions
+> > > > > you quote is more than one icache line, and presumably Mel's code
+> > > > > will be a lot shorter.
+> > >
+> > > Yes, it's an index lookup of a shared read-only cache line versus a lot
+> > > of code with branches to mispredict. I wasn't happy with the cache line
+> > > consumption but it was the first obvious alternative.
+> > >
+> > > > Maybe we can come up with a version of gfp_zone that has no branches
+> > > > and no lookup?
+> > >
+> > > Ideally, yes, but I didn't spot any obvious way of figuring it out at
+> > > compile time then or now. Suggestions?
+> >
+> > Assume
+> >   ZONE_DMA=0
+> >   ZONE_DMA32=1
+> >   ZONE_NORMAL=2
+> >   ZONE_HIGHMEM=3
+> >   ZONE_MOVABLE=4
+> >
+> > #define __GFP_DMA       ((__force gfp_t)0x01u)
+> > #define __GFP_DMA32     ((__force gfp_t)0x02u)
+> > #define __GFP_HIGHMEM   ((__force gfp_t)0x04u)
+> > #define __GFP_MOVABLE   ((__force gfp_t)0x08u)
+> >
+> > #define GFP_MAGIC (0400030102) ) #depends on config.
+> >
+> > gfp_zone(mask) = ((GFP_MAGIC >> ((mask & 0xf)*3) & 0x7)
 > 
-> Alexey, I agree with you here.  I've been fighting myself internally
-> about these two somewhat opposing approaches.  Of *course* we can
-> determine the "checkpointability" at sys_checkpoint() time by checking
-> all the various bits of state.
+> Clever!
 > 
-> The problem that I think Ingo is trying to address here is that doing it
-> then makes it hard to figure out _when_ you went wrong.  That's the
-> single most critical piece of finding out how to go address it.
+> But I wonder if it is even valid to perform bitwise operations on
+> the zone bits of the gfp mask? Hmm, I see a few places doing it,
+> but if we stamped that out, we could just have a simple zone mask
+> that takes the zone idx out of the gfp, which would be slightly
+> simpler again and more extendible.
 > 
-> I see where you are coming from.  Ingo's suggestion has the *huge*
-> downside that we've got to go muck with a lot of generic code and hook
-> into all the things we don't support.
-> 
-> I think what I posted is a decent compromise.  It gets you those
-> warnings at runtime and is a one-way trip for any given process.  But,
-> it does detect in certain cases (fork() and unshare(FILES)) when it is
-> safe to make the trip back to the "I'm checkpointable" state again.
+IIRC, __GFP_MOVALE works as flag.
 
-"Checkpointable" is not even per-process property.
+And, one troube is that there is no __GFP_NORMAL flag.
 
-Imagine, set of SAs (struct xfrm_state) and SPDs (struct xfrm_policy).
-They are a) per-netns, b) persistent.
+I wrote follwoing in old days(before ZONE_MOVABLE). Assume ZONE_NORMAL=2.
 
-You can hook into socketcalls to mark process as uncheckpointable,
-but since SAs and SPDs are persistent, original process already exited.
-You're going to walk every process with same netns as SA adder and mark
-it as uncheckpointable. Definitely doable, but ugly, isn't it?
+//trasnslate gfp_mask to zone_idx.
+#define __GFP_DMA	(2)
+#define __GFP_DMA32	(3)
+#define __GFP_HIGHMEM	(1)
+#define __GFP_MOVABLE	(6)
 
-Same for iptable rules.
+gfp_zone(mask)	= (mask & 0x7) ^ 0x2 //ZONE_NORMAL=2)
 
-"Checkpointable" is container property, OK?
+But, this doesn't work. ZONE_NORMAL can be 0,1,2. 
+(and ppc doesn't have ZONE_NORMAL)
+
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
