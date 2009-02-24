@@ -1,46 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 155396B00CA
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:55:50 -0500 (EST)
-Date: Tue, 24 Feb 2009 17:55:44 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 08/19] Simplify the check on whether cpusets are a
-	factor or not
-Message-ID: <20090224175544.GD5333@csn.ul.ie>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235477835-14500-9-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0902241226280.32227@qirst.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 18C7B6B00CD
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:46:55 -0500 (EST)
+Date: Tue, 24 Feb 2009 11:46:53 -0800 (PST)
+From: SANDYA MANNARSWAMY <sandyasm@yahoo.com>
+Reply-To: sandyasm@yahoo.com
+Subject: how to find the set of pages accessed by each thread in a process during a time window
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0902241226280.32227@qirst.com>
+Content-Type: text/plain; charset=us-ascii
+Message-ID: <500621.38863.qm@web65603.mail.ac4.yahoo.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 24, 2009 at 12:27:02PM -0500, Christoph Lameter wrote:
-> On Tue, 24 Feb 2009, Mel Gorman wrote:
-> 
-> > @@ -1420,8 +1429,8 @@ zonelist_scan:
-> >  		if (NUMA_BUILD && zlc_active &&
-> >  			!zlc_zone_worth_trying(zonelist, z, allowednodes))
-> >  				continue;
-> > -		if ((alloc_flags & ALLOC_CPUSET) &&
-> > -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > +		if (alloc_cpuset)
-> > +			if (!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> >  				goto try_next_zone;
-> 
-> Hmmm... Why remove the && here? Looks more confusing to me.
-> 
+Hi,
 
-At the time, just because it was what I was splitting out. Chances are
-it makes no difference to the assembly. I'll double check and if not,
-switch it back.
+we are studying thread scheduling based on data access affinity on linux X-86 multicore systems. Basically if we can group threads of an application based on the affinity to the data they access, we would like to have them scheduled on the same processor so that they can use the shared caches in X86. There has been a number of papers in this area, both in academic and industry. Many of them are based on using the processor hardware counters  information to derive the information on data affinity for the threads.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+We are looking at deriving a coarser level affinity information by looking at the set of VM pages accessed by each thread during a time window. Basically if we can dump out the set of pages accessed by each thread during a time window, we wanted to correlate that information across threads to see if we can derive a coarse affinity information for the threads. We are not interested in the physical page details per se, corresponding to the virtual page, but more in obtaining information/stats on which VM data pages of a process are accessed by each thread during each time window. 
+
+I wanted to find out on whether there are any existing linux tools which provide this information. Should we try and gather this information by looking at the reference bit of each page table entry or is there a better way to go about it? 
+
+Thanks in advance,
+regards
+sandya
+
+
+      
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
