@@ -1,68 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 46D2B6B0082
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 07:17:25 -0500 (EST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 18/19] Do not check for compound pages during the page allocator sanity checks
-Date: Tue, 24 Feb 2009 12:17:14 +0000
-Message-Id: <1235477835-14500-19-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 053396B00AD
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 07:23:59 -0500 (EST)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH RFC] vm_unmap_aliases: allow callers to inhibit TLB flush
+Date: Tue, 24 Feb 2009 23:23:05 +1100
+References: <49416494.6040009@goop.org> <200902232013.43054.nickpiggin@yahoo.com.au> <49A2F885.8030407@goop.org>
+In-Reply-To: <49A2F885.8030407@goop.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200902242323.05879.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>, Arjan van de Ven <arjan@linux.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-A number of sanity checks are made on each page allocation and free
-including that the page count is zero. page_count() checks for
-compound pages and checks the count of the head page if true. However,
-in these paths, we do not care if the page is compound or not as the
-count of each tail page should also be zero.
+On Tuesday 24 February 2009 06:27:01 Jeremy Fitzhardinge wrote:
+> Nick Piggin wrote:
+> > Here's a start for you. I think it gets rid of all the dead code and
+> > data without introducing any actual conditional compilation...
+>
+> OK, I can get started with this, but it will need to be a runtime
+> switch; a Xen kernel running native is just a normal kernel, and I don't
+> think we want to disable lazy flushes in that case.
 
-This patch makes two changes to the use of page_count() in the free path. It
-converts one check of page_count() to a VM_BUG_ON() as the count should
-have been unconditionally checked earlier in the free path. It also avoids
-checking for compound pages.
-
-[mel@csn.ul.ie: Wrote changelog]
-Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
----
- mm/page_alloc.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e598da8..8a8db71 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -426,7 +426,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 		return 0;
- 
- 	if (PageBuddy(buddy) && page_order(buddy) == order) {
--		BUG_ON(page_count(buddy) != 0);
-+		VM_BUG_ON(page_count(buddy) != 0);
- 		return 1;
- 	}
- 	return 0;
-@@ -503,7 +503,7 @@ static inline int free_pages_check(struct page *page)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
-+		(atomic_read(&page->_count) != 0) |
- 		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
- 		bad_page(page);
- 		return 1;
-@@ -648,7 +648,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
-+		(atomic_read(&page->_count) != 0)  |
- 		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
- 		bad_page(page);
- 		return 1;
--- 
-1.5.6.5
+That's fine, just make it a constant 1 if !CONFIG_XEN? And otherwise
+a variable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
