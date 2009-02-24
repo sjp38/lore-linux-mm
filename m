@@ -1,90 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B58266B004F
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id DE7266B005A
 	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 07:17:13 -0500 (EST)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 01/19] Replace __alloc_pages_internal() with __alloc_pages_nodemask()
-Date: Tue, 24 Feb 2009 12:16:57 +0000
-Message-Id: <1235477835-14500-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
+Subject: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+Date: Tue, 24 Feb 2009 12:16:56 +0000
+Message-Id: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-__alloc_pages_internal is the core page allocator function but
-essentially it is an alias of __alloc_pages_nodemask. Naming a publicly
-available and exported function "internal" is also a big ugly. This
-patch renames __alloc_pages_internal() to __alloc_pages_nodemask() and
-deletes the old nodemask function.
+Still a work in progress but enough has changed that I want to show what
+it current looks like. Performance is still improved a little but there are
+some large outstanding pieces of fruit
 
-Warning - This patch renames an exported symbol. No kernel driver is
-affected by external drivers calling __alloc_pages_internal() should
-change the call to __alloc_pages_nodemask() without any alteration of
-parameters.
+1. Improving free_pcppages_bulk() does a lot of looping, maybe could be better
+2. gfp_zone() is still using a cache line for data. I wasn't able to translate
+   Kamezawa-sans suggestion into usable code
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- include/linux/gfp.h |   12 ++----------
- mm/page_alloc.c     |    4 ++--
- 2 files changed, 4 insertions(+), 12 deletions(-)
+The following two items should be picked up in a second or third pass at
+improving the page allocator
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index dd20cd7..dcf0ab8 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -168,24 +168,16 @@ static inline void arch_alloc_page(struct page *page, int order) { }
- #endif
- 
- struct page *
--__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
-+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 		       struct zonelist *zonelist, nodemask_t *nodemask);
- 
- static inline struct page *
- __alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		struct zonelist *zonelist)
- {
--	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
-+	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
- }
- 
--static inline struct page *
--__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
--		struct zonelist *zonelist, nodemask_t *nodemask)
--{
--	return __alloc_pages_internal(gfp_mask, order, zonelist, nodemask);
--}
--
--
- static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- 						unsigned int order)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5675b30..61051d5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1464,7 +1464,7 @@ try_next_zone:
-  * This is the 'heart' of the zoned buddy allocator.
-  */
- struct page *
--__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
-+__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 			struct zonelist *zonelist, nodemask_t *nodemask)
- {
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
-@@ -1670,7 +1670,7 @@ nopage:
- got_pg:
- 	return page;
- }
--EXPORT_SYMBOL(__alloc_pages_internal);
-+EXPORT_SYMBOL(__alloc_pages_nodemask);
- 
- /*
-  * Common helper functions.
--- 
-1.5.6.5
+1. Working out if knowing whether pages are cold/hot on free is worth it or
+   not
+2. Precalculating zonelists for cpusets (Andi described how it could be done,
+   it's straight-forward, just will take time but it doesn't affect the
+   majority of users)
+
+Changes since V1
+  o Remove the ifdef CONFIG_CPUSETS from inside get_page_from_freelist()
+  o Use non-lock bit operations for clearing the mlock flag
+  o Factor out alloc_flags calculation so it is only done once (Peter)
+  o Make gfp.h a bit prettier and clear-cut (Peter)
+  o Instead of deleting a debugging check, replace page_count() in the
+    free path with a version that does not check for compound pages (Nick)
+  o Drop the alteration for hot/cold page freeing until we know if it
+    helps or not
+
+The complexity of the page allocator has been increasing for some time
+and it has now reached the point where the SLUB allocator is doing strange
+tricks to avoid the page allocator. This is obviously bad as it may encourage
+other subsystems to try avoiding the page allocator as well.
+
+This series of patches is intended to reduce the cost of the page
+allocator by doing the following.
+
+Patches 1-3 iron out the entry paths slightly and remove stupid sanity
+checks from the fast path.
+
+Patch 4 uses a lookup table instead of a number of branches to decide what
+zones are usable given the GFP flags.
+
+Patch 5 tidies up some flags
+
+Patch 6 avoids repeated checks of the zonelist
+
+Patch 7 breaks the allocator up into a fast and slow path where the fast
+path later becomes one long inlined function.
+
+Patches 8-12 avoids calculating the same things repeatedly and instead
+calculates them once.
+
+Patches 13-14 inline parts of the allocator fast path
+
+Patch 15 avoids calling get_pageblock_migratetype() potentially twice on
+every page free
+
+Patch 16 reduces the number of times interrupts are disabled by reworking
+what free_page_mlock() does and not using locked versions of bit operations.
+
+Patch 17 avoids using the zonelist cache on non-NUMA machines
+
+Patch 18 simplifies some debugging checks made during alloc and free.
+
+Patch 19 avoids a list search in the allocator fast path.
+
+Running all of these through a profiler shows me the cost of page allocation
+and freeing is reduced by a nice amount without drastically altering how the
+allocator actually works. Excluding the cost of zeroing pages, the cost of
+allocation is reduced by 25% and the cost of freeing by 12%.  Again excluding
+zeroing a page, much of the remaining cost is due to counters, debugging
+checks and interrupt disabling.  Of course when a page has to be zeroed,
+the dominant cost of a page allocation is zeroing it.
+
+These patches reduce the text size of the kernel by 180 bytes on the one
+x86-64 machine I checked.
+
+Range of results (positive is good) on 7 machines that completed tests.
+
+o Kernbench elapsed time	-0.04	to	0.79%
+o Kernbench system time		0 	to	3.74%
+o tbench			-2.85%  to	5.52%
+o Hackbench-sockets		all differences within  noise
+o Hackbench-pipes		-2.98%  to	9.11%
+o Sysbench			-0.04%  to	5.50%
+
+With hackbench-pipes, only 2 machines out of 7 showed results outside of
+the noise. In almost all cases the strandard deviation between runs of
+hackbench-pipes was reduced with the patches.
+
+I still haven't run a page-allocator micro-benchmark to see what sort of
+figures that gives.
+
+ arch/ia64/hp/common/sba_iommu.c   |    2 
+ arch/ia64/kernel/mca.c            |    3 
+ arch/ia64/kernel/uncached.c       |    3 
+ arch/ia64/sn/pci/pci_dma.c        |    3 
+ arch/powerpc/platforms/cell/ras.c |    2 
+ arch/x86/kvm/vmx.c                |    2 
+ drivers/misc/sgi-gru/grufile.c    |    2 
+ drivers/misc/sgi-xp/xpc_uv.c      |    2 
+ include/linux/cpuset.h            |    2 
+ include/linux/gfp.h               |   62 +--
+ include/linux/mm.h                |    1 
+ include/linux/mmzone.h            |    8 
+ init/main.c                       |    1 
+ kernel/profile.c                  |    8 
+ mm/filemap.c                      |    2 
+ mm/hugetlb.c                      |    4 
+ mm/internal.h                     |   11 
+ mm/mempolicy.c                    |    2 
+ mm/migrate.c                      |    2 
+ mm/page_alloc.c                   |  642 +++++++++++++++++++++++++-------------
+ mm/slab.c                         |    4 
+ mm/slob.c                         |    4 
+ mm/vmalloc.c                      |    1 
+ 23 files changed, 490 insertions(+), 283 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
