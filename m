@@ -1,32 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 18C7B6B00CD
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 14:46:55 -0500 (EST)
-Date: Tue, 24 Feb 2009 11:46:53 -0800 (PST)
-From: SANDYA MANNARSWAMY <sandyasm@yahoo.com>
-Reply-To: sandyasm@yahoo.com
-Subject: how to find the set of pages accessed by each thread in a process during a time window
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 76B3F6B00CF
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 15:03:00 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so138046fgg.4
+        for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:02:58 -0800 (PST)
+Date: Tue, 24 Feb 2009 23:09:34 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
+Message-ID: <20090224200934.GA16862@x200.localdomain>
+References: <20090218003217.GB25856@elte.hu> <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain> <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz> <20090218231545.GA17524@elte.hu> <20090219190637.GA4846@x200.localdomain> <1235070714.26788.56.camel@nimitz> <20090224044752.GB3202@x200.localdomain> <1235452285.26788.226.camel@nimitz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Message-ID: <500621.38863.qm@web65603.mail.ac4.yahoo.com>
+Content-Disposition: inline
+In-Reply-To: <1235452285.26788.226.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, Feb 23, 2009 at 09:11:25PM -0800, Dave Hansen wrote:
+> On Tue, 2009-02-24 at 07:47 +0300, Alexey Dobriyan wrote:
+> > > I think what I posted is a decent compromise.  It gets you those
+> > > warnings at runtime and is a one-way trip for any given process.  But,
+> > > it does detect in certain cases (fork() and unshare(FILES)) when it is
+> > > safe to make the trip back to the "I'm checkpointable" state again.
+> > 
+> > "Checkpointable" is not even per-process property.
+> > 
+> > Imagine, set of SAs (struct xfrm_state) and SPDs (struct xfrm_policy).
+> > They are a) per-netns, b) persistent.
+> > 
+> > You can hook into socketcalls to mark process as uncheckpointable,
+> > but since SAs and SPDs are persistent, original process already exited.
+> > You're going to walk every process with same netns as SA adder and mark
+> > it as uncheckpointable. Definitely doable, but ugly, isn't it?
+> > 
+> > Same for iptable rules.
+> > 
+> > "Checkpointable" is container property, OK?
+> 
+> Ideally, I completely agree.
+> 
+> But, we don't currently have a concept of a true container in the
+> kernel.  Do you have any suggestions for any current objects that we
+> could use in its place for a while?
 
-we are studying thread scheduling based on data access affinity on linux X-86 multicore systems. Basically if we can group threads of an application based on the affinity to the data they access, we would like to have them scheduled on the same processor so that they can use the shared caches in X86. There has been a number of papers in this area, both in academic and industry. Many of them are based on using the processor hardware counters  information to derive the information on data affinity for the threads.
+After all foo_ns changes struct nsproxy is such thing.
 
-We are looking at deriving a coarser level affinity information by looking at the set of VM pages accessed by each thread during a time window. Basically if we can dump out the set of pages accessed by each thread during a time window, we wanted to correlate that information across threads to see if we can derive a coarse affinity information for the threads. We are not interested in the physical page details per se, corresponding to the virtual page, but more in obtaining information/stats on which VM data pages of a process are accessed by each thread during each time window. 
-
-I wanted to find out on whether there are any existing linux tools which provide this information. Should we try and gather this information by looking at the reference bit of each page table entry or is there a better way to go about it? 
-
-Thanks in advance,
-regards
-sandya
-
-
-      
+More specific, a process with fully cloned nsproxy acting as init,
+all its children. In terms of data structures, every task_struct in such
+tree, every nsproxy of them, every foo_ns, and so on to lower levels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
