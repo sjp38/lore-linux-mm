@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2FE0B6B00C1
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:33:07 -0500 (EST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 78D686B00C5
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:35:33 -0500 (EST)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 765EB82C447
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:37:44 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 432A682C454
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:40:11 -0500 (EST)
 Received: from smtp.ultrahosting.com ([74.213.175.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id dZgWE2ZU6Ks2 for <linux-mm@kvack.org>;
-	Tue, 24 Feb 2009 12:37:39 -0500 (EST)
+	with ESMTP id zDsPERLw8m1T for <linux-mm@kvack.org>;
+	Tue, 24 Feb 2009 12:40:06 -0500 (EST)
 Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 371B682C444
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:37:33 -0500 (EST)
-Date: Tue, 24 Feb 2009 12:24:28 -0500 (EST)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 99EF482C43D
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 12:40:06 -0500 (EST)
+Date: Tue, 24 Feb 2009 12:27:02 -0500 (EST)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 06/19] Check only once if the zonelist is suitable for
- the allocation
-In-Reply-To: <1235477835-14500-7-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0902241220300.32227@qirst.com>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235477835-14500-7-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 08/19] Simplify the check on whether cpusets are a factor
+ or not
+In-Reply-To: <1235477835-14500-9-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0902241226280.32227@qirst.com>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235477835-14500-9-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,16 +28,17 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 24 Feb 2009, Mel Gorman wrote:
 
-> It is possible with __GFP_THISNODE that no zones are suitable. This
-> patch makes sure the check is only made once.
+> @@ -1420,8 +1429,8 @@ zonelist_scan:
+>  		if (NUMA_BUILD && zlc_active &&
+>  			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+>  				continue;
+> -		if ((alloc_flags & ALLOC_CPUSET) &&
+> -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> +		if (alloc_cpuset)
+> +			if (!cpuset_zone_allowed_softwall(zone, gfp_mask))
+>  				goto try_next_zone;
 
-GFP_THISNODE is only a performance factor if SLAB is the slab allocator.
-The restart logic in __alloc_pages_internal() is mainly used by OOM
-processing.
-
-But the patch looks okay regardless...
-
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Hmmm... Why remove the && here? Looks more confusing to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
