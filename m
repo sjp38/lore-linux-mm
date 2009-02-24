@@ -1,55 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD506B00BB
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:07:04 -0500 (EST)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1OG4ZC3030161
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:04:35 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n1OG71eM127054
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:07:01 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1OG5keP025313
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:05:48 -0500
-Subject: Re: [RFC v13][PATCH 05/14] x86 support for checkpoint/restart
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20090224014739.1b82fc35@thinkcentre.lan>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
-	 <1233076092-8660-6-git-send-email-orenl@cs.columbia.edu>
-	 <20090224014739.1b82fc35@thinkcentre.lan>
-Content-Type: text/plain
-Date: Tue, 24 Feb 2009 08:06:46 -0800
-Message-Id: <1235491606.26788.248.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 28A1D6B00BD
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:53:31 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DB25082C43F
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:58:08 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id Z8GFwb2idKqN for <linux-mm@kvack.org>;
+	Tue, 24 Feb 2009 11:58:04 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 26B3482C41E
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 11:58:04 -0500 (EST)
+Date: Tue, 24 Feb 2009 11:43:29 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 04/19] Convert gfp_zone() to use a table of precalculated
+ values
+In-Reply-To: <1235477835-14500-5-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0902241112310.22519@qirst.com>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235477835-14500-5-git-send-email-mel@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nathan Lynch <ntl@pobox.com>
-Cc: Oren Laadan <orenl@cs.columbia.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-02-24 at 01:47 -0600, Nathan Lynch wrote:
-> But I think this has been pointed out before.  If I understand the
-> justification for cr_hbuf_get correctly, the allocations it services
-> are somehow known to be bounded in size and nesting.  But even if that
-> is the case, it's not much of a reason to avoid using kmalloc, is it?
+On Tue, 24 Feb 2009, Mel Gorman wrote:
 
-Oren wants this particular facility to be used for live migration.  To
-support good live migration, we need to be able to return from the
-syscall as fast as possible.  To do that, Oren proposed that we buffer
-all the data needed for the checkpoint inside the kernel.
+>  static inline enum zone_type gfp_zone(gfp_t flags)
+>  {
+> -#ifdef CONFIG_ZONE_DMA
+> -	if (flags & __GFP_DMA)
+> -		return ZONE_DMA;
+> -#endif
+> -#ifdef CONFIG_ZONE_DMA32
+> -	if (flags & __GFP_DMA32)
+> -		return ZONE_DMA32;
+> -#endif
+> -	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
+> -			(__GFP_HIGHMEM | __GFP_MOVABLE))
+> -		return ZONE_MOVABLE;
+> -#ifdef CONFIG_HIGHMEM
+> -	if (flags & __GFP_HIGHMEM)
+> -		return ZONE_HIGHMEM;
+> -#endif
+> -	return ZONE_NORMAL;
+> +	return gfp_zone_table[flags & GFP_ZONEMASK];
+>  }
 
-The current cr_hbuf_put/get() could easily be modified to support this
-usage by basically making put() do nothing, then handing off a handle to
-the cr_ctx structure elsewhere in the kernel.  When the time comes to
-free up the in-memory image, you only have one simple structure to go
-free (the hbuf) as opposed to a bunch of little kmalloc()'d objects.
+Aassume
 
-I'm sure I'm missing something.  I'm also sure that this *will* work
-eventually.  But, I don't think the code as it stands supports keeping
-the abstraction in there.  It is virtually impossible to debate the
-design or its alternatives in this state.
+GFP_DMA		= 0x01
+GFP_DMA32	= 0x02
+GFP_MOVABLE	= 0x04
+GFP_HIGHMEM	= 0x08
 
--- Dave
+ZONE_NORMAL	= 0
+ZONE_DMA	= 1
+ZONE_DMA32	= 2
+ZONE_MOVABLE	= 3
+ZONE_HIGHMEM	= 4
+
+then we could implement gfp_zone simply as:
+
+static inline enum zone_type gfp_zone(gfp_t flags)
+{
+	return ffs(flags & 0xf);
+}
+
+However, this would return ZONE_MOVABLE if only GFP_MOVABLE would be
+set but not GFP_HIGHMEM.
+
+If we could make sure that GFP_MOVABLE always includes GFP_HIGHMEM then
+this would not be a problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
