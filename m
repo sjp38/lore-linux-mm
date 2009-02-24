@@ -1,66 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 53B806B005C
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 02:47:54 -0500 (EST)
-Date: Tue, 24 Feb 2009 01:47:39 -0600
-From: Nathan Lynch <ntl@pobox.com>
-Subject: Re: [RFC v13][PATCH 05/14] x86 support for checkpoint/restart
-Message-ID: <20090224014739.1b82fc35@thinkcentre.lan>
-In-Reply-To: <1233076092-8660-6-git-send-email-orenl@cs.columbia.edu>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
- <1233076092-8660-6-git-send-email-orenl@cs.columbia.edu>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 49EA36B0062
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 02:51:44 -0500 (EST)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1O7hmhX021434
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 02:43:48 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n1O7pgOV193980
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 02:51:42 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1O7lo2x006664
+	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 02:50:29 -0500
+Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090224044752.GB3202@x200.localdomain>
+References: <20090217222319.GA10546@elte.hu>
+	 <1234909849.4816.9.camel@nimitz> <20090218003217.GB25856@elte.hu>
+	 <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain>
+	 <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz>
+	 <20090218231545.GA17524@elte.hu> <20090219190637.GA4846@x200.localdomain>
+	 <1235070714.26788.56.camel@nimitz> <20090224044752.GB3202@x200.localdomain>
+Content-Type: text/plain
+Date: Mon, 23 Feb 2009 21:11:25 -0800
+Message-Id: <1235452285.26788.226.camel@nimitz>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@osdl.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "H. Peter
- Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, this is an old thread I guess, but I just noticed some issues while
-looking at this code.
+On Tue, 2009-02-24 at 07:47 +0300, Alexey Dobriyan wrote:
+> > I think what I posted is a decent compromise.  It gets you those
+> > warnings at runtime and is a one-way trip for any given process.  But,
+> > it does detect in certain cases (fork() and unshare(FILES)) when it is
+> > safe to make the trip back to the "I'm checkpointable" state again.
+> 
+> "Checkpointable" is not even per-process property.
+> 
+> Imagine, set of SAs (struct xfrm_state) and SPDs (struct xfrm_policy).
+> They are a) per-netns, b) persistent.
+> 
+> You can hook into socketcalls to mark process as uncheckpointable,
+> but since SAs and SPDs are persistent, original process already exited.
+> You're going to walk every process with same netns as SA adder and mark
+> it as uncheckpointable. Definitely doable, but ugly, isn't it?
+> 
+> Same for iptable rules.
+> 
+> "Checkpointable" is container property, OK?
 
-On Tue, 27 Jan 2009 12:08:03 -0500
-Oren Laadan <orenl@cs.columbia.edu> wrote:
-> +static int cr_read_cpu_fpu(struct cr_ctx *ctx, struct task_struct *t)
-> +{
-> +	void *xstate_buf = cr_hbuf_get(ctx, xstate_size);
-> +	int ret;
-> +
-> +	ret = cr_kread(ctx, xstate_buf, xstate_size);
-> +	if (ret < 0)
-> +		goto out;
-> +
-> +	/* i387 + MMU + SSE */
-> +	preempt_disable();
-> +
-> +	/* init_fpu() also calls set_used_math() */
-> +	ret = init_fpu(current);
-> +	if (ret < 0)
-> +		return ret;
+Ideally, I completely agree.
 
-Several problems here:
-* init_fpu can call kmem_cache_alloc(GFP_KERNEL), but is called here
-  with preempt disabled (init_fpu could use a might_sleep annotation?)
-* if init_fpu returns an error, we get preempt imbalance
-* if init_fpu returns an error, we "leak" the cr_hbuf_get for
-  xstate_buf
+But, we don't currently have a concept of a true container in the
+kernel.  Do you have any suggestions for any current objects that we
+could use in its place for a while?
 
-Speaking of cr_hbuf_get... I'd prefer to see that "allocator" go away
-and its users converted to kmalloc/kfree (this is what I've done for
-the powerpc C/R code, btw).
-
-Using the slab allocator would:
-
-* make the code less obscure and easier to review
-* make the code more amenable to static analysis
-* gain the benefits of slab debugging at runtime
-
-But I think this has been pointed out before.  If I understand the
-justification for cr_hbuf_get correctly, the allocations it services
-are somehow known to be bounded in size and nesting.  But even if that
-is the case, it's not much of a reason to avoid using kmalloc, is it?
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
