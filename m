@@ -1,85 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 163616B004F
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 23:00:10 -0500 (EST)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 04/20] Convert gfp_zone() to use a table of precalculated value
-Date: Tue, 24 Feb 2009 14:59:34 +1100
-References: <1235344649-18265-1-git-send-email-mel@csn.ul.ie> <20090223164047.GO6740@csn.ul.ie> <20090224103226.e9e2766f.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090224103226.e9e2766f.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id CEA796B005A
+	for <linux-mm@kvack.org>; Mon, 23 Feb 2009 23:41:18 -0500 (EST)
+Received: by fg-out-1718.google.com with SMTP id 19so42409fgg.4
+        for <linux-mm@kvack.org>; Mon, 23 Feb 2009 20:41:15 -0800 (PST)
+Date: Tue, 24 Feb 2009 07:47:52 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
+Message-ID: <20090224044752.GB3202@x200.localdomain>
+References: <20090217222319.GA10546@elte.hu> <1234909849.4816.9.camel@nimitz> <20090218003217.GB25856@elte.hu> <1234917639.4816.12.camel@nimitz> <20090218051123.GA9367@x200.localdomain> <20090218181644.GD19995@elte.hu> <1234992447.26788.12.camel@nimitz> <20090218231545.GA17524@elte.hu> <20090219190637.GA4846@x200.localdomain> <1235070714.26788.56.camel@nimitz>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200902241459.35435.nickpiggin@yahoo.com.au>
+In-Reply-To: <1235070714.26788.56.camel@nimitz>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 24 February 2009 12:32:26 KAMEZAWA Hiroyuki wrote:
-> On Mon, 23 Feb 2009 16:40:47 +0000
->
-> Mel Gorman <mel@csn.ul.ie> wrote:
-> > On Mon, Feb 23, 2009 at 10:43:20AM -0500, Christoph Lameter wrote:
-> > > On Tue, 24 Feb 2009, Nick Piggin wrote:
-> > > > > Are you sure that this is a benefit? Jumps are forward and pretty
-> > > > > short and the compiler is optimizing a branch away in the current
-> > > > > code.
-> > > >
-> > > > Pretty easy to mispredict there, though, especially as you can tend
-> > > > to get allocations interleaved between kernel and movable (or simply
-> > > > if the branch predictor is cold there are a lot of branches on
-> > > > x86-64).
-> > > >
-> > > > I would be interested to know if there is a measured improvement.
-> >
-> > Not in kernbench at least, but that is no surprise. It's a small
-> > percentage of the overall cost. It'll appear in the noise for anything
-> > other than micro-benchmarks.
-> >
-> > > > It
-> > > > adds an extra dcache line to the footprint, but OTOH the instructions
-> > > > you quote is more than one icache line, and presumably Mel's code
-> > > > will be a lot shorter.
-> >
-> > Yes, it's an index lookup of a shared read-only cache line versus a lot
-> > of code with branches to mispredict. I wasn't happy with the cache line
-> > consumption but it was the first obvious alternative.
-> >
-> > > Maybe we can come up with a version of gfp_zone that has no branches
-> > > and no lookup?
-> >
-> > Ideally, yes, but I didn't spot any obvious way of figuring it out at
-> > compile time then or now. Suggestions?
->
-> Assume
->   ZONE_DMA=0
->   ZONE_DMA32=1
->   ZONE_NORMAL=2
->   ZONE_HIGHMEM=3
->   ZONE_MOVABLE=4
->
-> #define __GFP_DMA       ((__force gfp_t)0x01u)
-> #define __GFP_DMA32     ((__force gfp_t)0x02u)
-> #define __GFP_HIGHMEM   ((__force gfp_t)0x04u)
-> #define __GFP_MOVABLE   ((__force gfp_t)0x08u)
->
-> #define GFP_MAGIC (0400030102) ) #depends on config.
->
-> gfp_zone(mask) = ((GFP_MAGIC >> ((mask & 0xf)*3) & 0x7)
+On Thu, Feb 19, 2009 at 11:11:54AM -0800, Dave Hansen wrote:
+> On Thu, 2009-02-19 at 22:06 +0300, Alexey Dobriyan wrote:
+> > Inotify isn't supported yet? You do
+> > 
+> >         if (!list_empty(&inode->inotify_watches))
+> >                 return -E;
+> > 
+> > without hooking into inotify syscalls.
+> > 
+> > ptrace(2) isn't supported -- look at struct task_struct::ptraced and
+> > friends.
+> > 
+> > And so on.
+> > 
+> > System call (or whatever) does something with some piece of kernel
+> > internals. We look at this "something" when walking data structures
+> > and
+> > abort if it's scary enough.
+> > 
+> > Please, show at least one counter-example.
+> 
+> Alexey, I agree with you here.  I've been fighting myself internally
+> about these two somewhat opposing approaches.  Of *course* we can
+> determine the "checkpointability" at sys_checkpoint() time by checking
+> all the various bits of state.
+> 
+> The problem that I think Ingo is trying to address here is that doing it
+> then makes it hard to figure out _when_ you went wrong.  That's the
+> single most critical piece of finding out how to go address it.
+> 
+> I see where you are coming from.  Ingo's suggestion has the *huge*
+> downside that we've got to go muck with a lot of generic code and hook
+> into all the things we don't support.
+> 
+> I think what I posted is a decent compromise.  It gets you those
+> warnings at runtime and is a one-way trip for any given process.  But,
+> it does detect in certain cases (fork() and unshare(FILES)) when it is
+> safe to make the trip back to the "I'm checkpointable" state again.
 
-Clever!
+"Checkpointable" is not even per-process property.
 
-But I wonder if it is even valid to perform bitwise operations on
-the zone bits of the gfp mask? Hmm, I see a few places doing it,
-but if we stamped that out, we could just have a simple zone mask
-that takes the zone idx out of the gfp, which would be slightly
-simpler again and more extendible.
+Imagine, set of SAs (struct xfrm_state) and SPDs (struct xfrm_policy).
+They are a) per-netns, b) persistent.
 
-But if it's too hard to avoid the bitwise operations, then your idea
-is pretty cool ;)
+You can hook into socketcalls to mark process as uncheckpointable,
+but since SAs and SPDs are persistent, original process already exited.
+You're going to walk every process with same netns as SA adder and mark
+it as uncheckpointable. Definitely doable, but ugly, isn't it?
+
+Same for iptable rules.
+
+"Checkpointable" is container property, OK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
