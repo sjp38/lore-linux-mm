@@ -1,39 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F40CF6B00E8
-	for <linux-mm@kvack.org>; Wed, 25 Feb 2009 11:42:54 -0500 (EST)
-Message-ID: <49A5750A.1080006@oracle.com>
-Date: Wed, 25 Feb 2009 08:42:50 -0800
-From: Zach Brown <zach.brown@oracle.com>
-MIME-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 483E36B00E9
+	for <linux-mm@kvack.org>; Wed, 25 Feb 2009 11:48:54 -0500 (EST)
 Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-References: <20090225093629.GD22785@wotan.suse.de>
+From: Chris Mason <chris.mason@oracle.com>
 In-Reply-To: <20090225093629.GD22785@wotan.suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <20090225093629.GD22785@wotan.suse.de>
+Content-Type: text/plain
+Date: Wed, 25 Feb 2009 11:48:44 -0500
+Message-Id: <1235580524.32346.5.camel@think.oraclecorp.com>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Mark Fasheh <mfasheh@suse.com>, Sage Weil <sage@newdream.net>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Wed, 2009-02-25 at 10:36 +0100, Nick Piggin wrote:
 > I want to have the page be protected by page lock between page_mkwrite
 > notification to the filesystem, and the actual setting of the page
 > dirty. Do this by holding the page lock over page_mkwrite, and keep it
 > held until after set_page_dirty.
 
-I fear that this will end up creating lock inversions with file systems
-who grab cross-node locks, which are ordered outside of the page lock,
-inside their ->page_mkwrite().  See ocfs2's call of ocfs2_inode_lock()
-from ocfs2_page_mkwrite().
+Are any of the filesystems ordering the journal lock outside the page
+lock?  I thought ocfs2 and ext4 were either doing this or discussing it.
+If they are, this will make fsblock hard to use for them.
 
-In a sense, it's prepare_write() all over again.  Please don't call into
-file systems after having acquired the page lock.
+-chris
 
-Instead, can we get a helper that the file system would call after
-having acquired its locks and the page lock?  Something like that.
-
-- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
