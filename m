@@ -1,75 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id F40966B003D
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 11:21:17 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so451254fgg.4
-        for <linux-mm@kvack.org>; Thu, 26 Feb 2009 08:21:15 -0800 (PST)
-Date: Thu, 26 Feb 2009 19:27:56 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090226162755.GB1456@x200.localdomain>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu> <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D67166B004D
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 11:37:23 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 537B982C879
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 11:42:13 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 3UG0IrArSBwZ for <linux-mm@kvack.org>;
+	Thu, 26 Feb 2009 11:42:13 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id DFB6182C87A
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 11:42:12 -0500 (EST)
+Date: Thu, 26 Feb 2009 11:28:03 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+In-Reply-To: <1235647139.16552.34.camel@penberg-laptop>
+Message-ID: <alpine.DEB.1.10.0902261127230.17756@qirst.com>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>  <1235639427.11390.11.camel@minggr>  <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1234479845.30155.220.camel@nimitz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, mingo@elte.hu, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Mel Gorman <mel@csn.ul.ie>, Lin Ming <ming.m.lin@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Regarding interactions of C/R with other code:
+On Thu, 26 Feb 2009, Pekka Enberg wrote:
 
-1. trivia
-1a. field in some datastructure is removed
+> > > UDP-U-4k	-2%		0%		-2%
+> >
+> > Pekka, for this test was SLUB or the page allocator handling the 4K
+> > allocations?
+>
+> The page allocator. The pass-through revert is not in 2.6.29-rc6 and I
+> won't be sending it until 2.6.30 opens up.
 
-	technically, compilation breaks
-
-	Need to decide what to do -- from trivial compile fix
-	by removing code to ignoring some fields in dump image.
-
-1b. field is added
-
-	This is likely to happen silently, so maintainers
-	will have to keep an eye on critical data structures
-	and general big changes in core kernel.
-
-	Need to decide what to do with new field --
-	anything from 'doesn't matter' to 'yeah, needs C/R part'
-	with dump format change.
-
-2. non-trivia
-2a. standalone subsystem added (say, network protocol)
-
-    If submitter sends C/R part -- excellent.
-    If he doesn't, well, don't forget to add tiny bit of check
-	and abort if said subsystem is in use.
-
-2b. massacre inside some subsystem (say, struct cred introduction)
-
-	Likely, C/R non-trivially breaks both in compilation and
-	in working, requires non-trivial changes in algorithms and in
-	C/R dump image.
-
-For some very core data structures dump file images should be made
-fatter than needed to more future-proof, like
-a) statistics in u64 regardless of in-kernel width.
-b) ->vm_flags in image should be at least u64 and bits made append-only
-	so dump format would survive flags addition, removal and
-	renumbering.
-and so on.
-
-
-
-So I guess, at first C/R maintainers will take care of all of these issues
-with default policy being 'return -E, implement C/R later',
-but, ideally, C/R will have same rights as other kernel subsystem, so people
-will make non-trivial changes in C/R as they make their own non-trivial
-changes.
-
-If last statement isn't acceptable, in-kernel C/R is likely doomed from
-the start (especially given lack of in-kernel testsuite).
+The page allocator will handle allocs >4k. 4k itself is already buffered
+since we saw tbench regressions if we passed 4k through.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
