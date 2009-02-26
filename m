@@ -1,33 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 275F36B003D
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 04:20:24 -0500 (EST)
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <20090225093629.GD22785@wotan.suse.de>
-References: <20090225093629.GD22785@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 26 Feb 2009 10:20:18 +0100
-Message-Id: <1235640018.4645.4692.camel@laptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0D63F6B003D
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 04:26:31 -0500 (EST)
+Received: by bwz18 with SMTP id 18so430648bwz.38
+        for <linux-mm@kvack.org>; Thu, 26 Feb 2009 01:26:29 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1235639427.11390.11.camel@minggr>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
+	 <1235639427.11390.11.camel@minggr>
+Date: Thu, 26 Feb 2009 11:26:29 +0200
+Message-ID: <84144f020902260126g589be187j5c5f52e1d8e13abf@mail.gmail.com>
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Lin Ming <ming.m.lin@intel.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-02-25 at 10:36 +0100, Nick Piggin wrote:
-> +               if (!page_mkwrite)
-> +                       wait_on_page_locked(dirty_page);
->                 set_page_dirty_balance(dirty_page, page_mkwrite);
->                 put_page(dirty_page);
-> +               if (page_mkwrite) {
-> +                       unlock_page(old_page);
-> +                       page_cache_release(old_page);
-> +               }
-
-We're calling into the whole balance_dirty_pages() writeout path with a
-page locked.. is that sensible?
+T24gVGh1LCBGZWIgMjYsIDIwMDkgYXQgMTE6MTAgQU0sIExpbiBNaW5nIDxtaW5nLm0ubGluQGlu
+dGVsLmNvbT4gd3JvdGU6Cj4gV2UgdGVzdGVkIHRoaXMgdjIgcGF0Y2ggc2VyaWVzIHdpdGggMi42
+LjI5LXJjNiBvbiBkaWZmZXJlbnQgbWFjaGluZXMuCgpXaGF0IC5jb25maWcgaXMgdGhpcz8gU3Bl
+Y2lmaWNhbGx5LCBpcyBTTFVCIG9yIFNMQUIgdXNlZCBoZXJlPwoKPgo+IKAgoCCgIKAgoCCgIKAg
+oDRQIHF1YWwtY29yZSCgIKAyUCBxdWFsLWNvcmUgoCCgMlAgcXVhbC1jb3JlIEhUCj4goCCgIKAg
+oCCgIKAgoCCgdGlnZXJ0b24goCCgIKAgoHN0b2NrbGV5IKAgoCCgIKBOZWhhbGVtCj4goCCgIKAg
+oCCgIKAgoCCgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+Cj4gdGJlbmNoIKAgoCCgIKAgoCszJSCgIKAgoCCgIKAgoCArMiUgoCCgIKAgoCCgIKAgMCUKPiBv
+bHRwIKAgoCCgIKAgoCCgLTIlIKAgoCCgIKAgoCCgIDAlIKAgoCCgIKAgoCCgIKAwJQo+IGFpbTcg
+oCCgIKAgoCCgIKAwJSCgIKAgoCCgIKAgoCCgMCUgoCCgIKAgoCCgIKAgoDAlCj4gc3BlY2piYjIw
+MDUgoCCgICszJSCgIKAgoCCgIKAgoCAwJSCgIKAgoCCgIKAgoCCgMCUKPiBoYWNrYmVuY2ggoCCg
+IKAgMCUgoCCgIKAgoCCgIKAgoDAlIKAgoCCgIKAgoCCgIKAwJQo+Cj4gbmV0cGVyZjoKPiBUQ1At
+Uy0xMTJrIKAgoCCgMCUgoCCgIKAgoCCgIKAgoC0xJSCgIKAgoCCgIKAgoCAwJQo+IFRDUC1TLTY0
+ayCgIKAgoCAwJSCgIKAgoCCgIKAgoCCgLTElIKAgoCCgIKAgoCCgICsxJQo+IFRDUC1SUi0xIKAg
+oCCgIKAwJSCgIKAgoCCgIKAgoCCgMCUgoCCgIKAgoCCgIKAgoCsxJQo+IFVEUC1VLTRrIKAgoCCg
+IKAtMiUgoCCgIKAgoCCgIKAgMCUgoCCgIKAgoCCgIKAgoC0yJQo+IFVEUC1VLTFrIKAgoCCgIKAr
+MyUgoCCgIKAgoCCgIKAgMCUgoCCgIKAgoCCgIKAgoDAlCj4gVURQLVJSLTEgoCCgIKAgoDAlIKAg
+oCCgIKAgoCCgIKAwJSCgIKAgoCCgIKAgoCCgMCUKPiBVRFAtUlItNTEyIKAgoCCgLTElIKAgoCCg
+IKAgoCCgIDAlIKAgoCCgIKAgoCCgIKArMSUK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
