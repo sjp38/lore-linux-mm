@@ -1,103 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 682046B003D
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:33:33 -0500 (EST)
-Date: Thu, 26 Feb 2009 18:33:02 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090226173302.GB29439@elte.hu>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu> <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226162755.GB1456@x200.localdomain>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id D60E86B003D
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:40:14 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2F1A482C7A9
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:45:05 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id RWi6f+k16Unm for <linux-mm@kvack.org>;
+	Thu, 26 Feb 2009 12:45:05 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id E62CE82C7AC
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:44:57 -0500 (EST)
+Date: Thu, 26 Feb 2009 12:30:45 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
+In-Reply-To: <20090226171549.GH32756@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0902261226370.26440@qirst.com>
+References: <1235344649-18265-21-git-send-email-mel@csn.ul.ie> <20090223013723.1d8f11c1.akpm@linux-foundation.org> <20090223233030.GA26562@csn.ul.ie> <20090223155313.abd41881.akpm@linux-foundation.org> <20090224115126.GB25151@csn.ul.ie>
+ <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090226162755.GB1456@x200.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@linux.vnet.ibm.com>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 26 Feb 2009, Mel Gorman wrote:
 
-* Alexey Dobriyan <adobriyan@gmail.com> wrote:
+> > I tried the general use of a pool of zeroed pages back in 2005. Zeroing
+> > made sense only if the code allocating the page did not immediately touch
+> > the cachelines of the page.
+>
+> Any feeling as to how often this was the case?
 
-> Regarding interactions of C/R with other code:
-> 
-> 1. trivia
-> 1a. field in some datastructure is removed
-> 
-> 	technically, compilation breaks
-> 
-> 	Need to decide what to do -- from trivial compile fix
-> 	by removing code to ignoring some fields in dump image.
-> 
-> 1b. field is added
-> 
-> 	This is likely to happen silently, so maintainers
-> 	will have to keep an eye on critical data structures
-> 	and general big changes in core kernel.
-> 
-> 	Need to decide what to do with new field --
-> 	anything from 'doesn't matter' to 'yeah, needs C/R part'
-> 	with dump format change.
-> 
-> 2. non-trivia
-> 2a. standalone subsystem added (say, network protocol)
-> 
->     If submitter sends C/R part -- excellent.
->     If he doesn't, well, don't forget to add tiny bit of check
-> 	and abort if said subsystem is in use.
-> 
-> 2b. massacre inside some subsystem (say, struct cred introduction)
-> 
-> 	Likely, C/R non-trivially breaks both in compilation and
-> 	in working, requires non-trivial changes in algorithms and in
-> 	C/R dump image.
-> 
-> For some very core data structures dump file images should be made
-> fatter than needed to more future-proof, like
-> a) statistics in u64 regardless of in-kernel width.
-> b) ->vm_flags in image should be at least u64 and bits made append-only
-> 	so dump format would survive flags addition, removal and
-> 	renumbering.
-> and so on.
-> 
-> 
-> 
-> So I guess, at first C/R maintainers will take care of all of 
-> these issues with default policy being 'return -E, implement 
-> C/R later', but, ideally, C/R will have same rights as other 
-> kernel subsystem, so people will make non-trivial changes in 
-> C/R as they make their own non-trivial changes.
-> 
-> If last statement isn't acceptable, in-kernel C/R is likely 
-> doomed from the start (especially given lack of in-kernel 
-> testsuite).
+Not often enough to justify the merging of my patches at the time. This
+was publicly discussed on lkml:
 
-Well, given the fact that OpenVZ has followed such upstream 
-changes for years successfully, there's precedent that it's 
-possible to do it and stay sane.
+http://lkml.indiana.edu/hypermail/linux/kernel/0503.2/0482.html
 
-If C/R is bitrotting will it be blamed on the maintainer who 
-broke it, or on C/R maintainers? Do we have a good, fast and 
-thin vector along which we can quickly tag Kconfig spaces (or 
-even runtime flags) that are known (or discovered) to be C/R 
-unsafe?
+> Indeed, any gain if it existed would be avoiding zeroing the pages used
+> by userspace. The cleanup would be reducing the amount of
+> architecture-specific code.
+>
+> I reckon it's worth an investigate but there is still other lower-lying
+> fruit.
 
-Is there any automated test that could discover C/R breakage via 
-brute force? All that matters in such cases is to get the "you 
-broke stuff" information as soon as possible. If it comes at an 
-early stage developers can generally just fix stuff. If it comes 
-in late, close to some release, people become more argumentative 
-and might attack C/R instead of fixing the code.
+I hope we can get rid of various ugly elements of the quicklists if the
+page allocator would offer some sort of support. I would think that the
+slow allocation and freeing behavior is also a factor that makes
+quicklists advantageous. The quicklist page lists are simply a linked list
+of pages and a page can simply be dequeued and used.
 
-I think the main question is: will we ever find ourselves in the 
-future saying that "C/R sucks, nobody but a small minority uses 
-it, wish we had never merged it"? I think the likelyhood of that 
-is very low. I think the current OpenVZ stuff already looks very 
-useful, and i dont think we've realized (let alone explored) all 
-the possibilities yet.
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
