@@ -1,57 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D60E86B003D
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:40:14 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 2F1A482C7A9
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:45:05 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id RWi6f+k16Unm for <linux-mm@kvack.org>;
-	Thu, 26 Feb 2009 12:45:05 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E62CE82C7AC
-	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 12:44:57 -0500 (EST)
-Date: Thu, 26 Feb 2009 12:30:45 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-In-Reply-To: <20090226171549.GH32756@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0902261226370.26440@qirst.com>
-References: <1235344649-18265-21-git-send-email-mel@csn.ul.ie> <20090223013723.1d8f11c1.akpm@linux-foundation.org> <20090223233030.GA26562@csn.ul.ie> <20090223155313.abd41881.akpm@linux-foundation.org> <20090224115126.GB25151@csn.ul.ie>
- <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 72F9E6B003D
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 13:31:28 -0500 (EST)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate5.de.ibm.com (8.14.3/8.13.8) with ESMTP id n1QIUO8A331070
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 18:30:24 GMT
+Received: from d12av04.megacenter.de.ibm.com (d12av04.megacenter.de.ibm.com [9.149.165.229])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n1QIULP01986584
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 19:30:23 +0100
+Received: from d12av04.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av04.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1QIULNS012421
+	for <linux-mm@kvack.org>; Thu, 26 Feb 2009 19:30:21 +0100
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+ do?
+From: Greg Kurz <gkurz@fr.ibm.com>
+In-Reply-To: <20090226173302.GB29439@elte.hu>
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
+	 <1234285547.30155.6.camel@nimitz>
+	 <20090211141434.dfa1d079.akpm@linux-foundation.org>
+	 <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx>
+	 <20090212114207.e1c2de82.akpm@linux-foundation.org>
+	 <1234475483.30155.194.camel@nimitz>
+	 <20090212141014.2cd3d54d.akpm@linux-foundation.org>
+	 <1234479845.30155.220.camel@nimitz>
+	 <20090226162755.GB1456@x200.localdomain>  <20090226173302.GB29439@elte.hu>
+Content-Type: text/plain
+Date: Thu, 26 Feb 2009 19:30:16 +0100
+Message-Id: <1235673016.5877.62.camel@bahia>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mpm@selenic.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Feb 2009, Mel Gorman wrote:
+On Thu, 2009-02-26 at 18:33 +0100, Ingo Molnar wrote:
+> I think the main question is: will we ever find ourselves in the 
+> future saying that "C/R sucks, nobody but a small minority uses 
+> it, wish we had never merged it"? I think the likelyhood of that 
+> is very low. I think the current OpenVZ stuff already looks very 
 
-> > I tried the general use of a pool of zeroed pages back in 2005. Zeroing
-> > made sense only if the code allocating the page did not immediately touch
-> > the cachelines of the page.
->
-> Any feeling as to how often this was the case?
+We've been maintaining for some years now a C/R middleware with only a
+few hooks in the kernel. Our strategy is to leverage existing kernel
+paths as they do most of the work right.
 
-Not often enough to justify the merging of my patches at the time. This
-was publicly discussed on lkml:
+Most of the checkpoint is performed from userspace, using regular
+syscalls in a signal handler or /proc parsing. Restart is a bit trickier
+and needs some kernel support to bypass syscall checks and enforce a
+specific id for a resource. At the end, we support C/R and live
+migration of networking apps (websphere application server for example).
 
-http://lkml.indiana.edu/hypermail/linux/kernel/0503.2/0482.html
+>From our experience, we can tell:
 
-> Indeed, any gain if it existed would be avoiding zeroing the pages used
-> by userspace. The cleanup would be reducing the amount of
-> architecture-specific code.
->
-> I reckon it's worth an investigate but there is still other lower-lying
-> fruit.
+Pros: mostly not-so-tricky userland code, independent from kernel
+internals
+Cons: sub-optimal for some resources
 
-I hope we can get rid of various ugly elements of the quicklists if the
-page allocator would offer some sort of support. I would think that the
-slow allocation and freeing behavior is also a factor that makes
-quicklists advantageous. The quicklist page lists are simply a linked list
-of pages and a page can simply be dequeued and used.
+-- 
+Gregory Kurz                                     gkurz@fr.ibm.com
+Software Engineer @ IBM/Meiosys                  http://www.ibm.com
+Tel +33 (0)534 638 479                           Fax +33 (0)561 400 420
 
+"Anarchy is about taking complete responsibility for yourself."
+        Alan Moore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
