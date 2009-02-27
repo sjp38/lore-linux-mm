@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 623276B0055
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 05:52:54 -0500 (EST)
-Received: by fg-out-1718.google.com with SMTP id 19so573916fgg.4
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2009 02:52:52 -0800 (PST)
-Date: Fri, 27 Feb 2009 13:59:35 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090227105935.GD2939@x200.localdomain>
-References: <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226162755.GB1456@x200.localdomain> <20090226173302.GB29439@elte.hu> <20090226223112.GA2939@x200.localdomain> <20090227090323.GC16211@elte.hu> <20090227012209.65401324.akpm@linux-foundation.org>
-MIME-Version: 1.0
+	by kanga.kvack.org (Postfix) with ESMTP id 42D406B0047
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 06:26:25 -0500 (EST)
+Date: Fri, 27 Feb 2009 12:26:22 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch][rfc] mm: new address space calls
+Message-ID: <20090227112622.GA13428@wotan.suse.de>
+References: <20090225104839.GG22785@wotan.suse.de> <1235595597.32346.77.camel@think.oraclecorp.com> <20090226051702.GA25605@wotan.suse.de> <1235654505.26790.12.camel@think.oraclecorp.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090227012209.65401324.akpm@linux-foundation.org>
+In-Reply-To: <1235654505.26790.12.camel@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Dave Hansen <dave@linux.vnet.ibm.com>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Chris Mason <chris.mason@oracle.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 27, 2009 at 01:22:09AM -0800, Andrew Morton wrote:
-> On Fri, 27 Feb 2009 10:03:23 +0100 Ingo Molnar <mingo@elte.hu> wrote:
-> 
-> > >  arch/x86/include/asm/unistd_32.h   |    2 
-> > >  arch/x86/kernel/syscall_table_32.S |    2 
-> > >  include/linux/Kbuild               |    1 
-> > >  include/linux/cr.h                 |   56 ++++++
-> > >  include/linux/ipc_namespace.h      |    3 
-> > >  include/linux/syscalls.h           |    5 
-> > >  init/Kconfig                       |    2 
-> > >  kernel/Makefile                    |    1 
-> > >  kernel/cr/Kconfig                  |   11 +
-> > >  kernel/cr/Makefile                 |    8 
-> > >  kernel/cr/cpt-cred.c               |  115 +++++++++++++
-> > >  kernel/cr/cpt-fs.c                 |  122 +++++++++++++
-> > >  kernel/cr/cpt-mm.c                 |  134 +++++++++++++++
-> > >  kernel/cr/cpt-ns.c                 |  324 +++++++++++++++++++++++++++++++++++++
-> > >  kernel/cr/cpt-signal.c             |  121 +++++++++++++
-> > >  kernel/cr/cpt-sys.c                |  228 ++++++++++++++++++++++++++
-> > >  kernel/cr/cr-ctx.c                 |  141 ++++++++++++++++
-> > >  kernel/cr/cr.h                     |   61 ++++++
-> > >  kernel/cr/rst-sys.c                |    9 +
-> > >  kernel/sys_ni.c                    |    3 
-> > >  20 files changed, 1349 insertions(+)
+On Thu, Feb 26, 2009 at 08:21:45AM -0500, Chris Mason wrote:
+> > > One problem I have with the btrfs extent state code is that I might
+> > > choose to release the extent state in releasepage, but the VM might not
+> > > choose to free the page.  So I've got an up to date page without any of
+> > > the rest of my state.
 > > 
-> > That does not look scary to me at all. Andrew?
+> > I'm not sure. What semantics do you want there? In most cases (including
+> > fsblock default case where the filesystem does not have a pin), we're
+> > happy to leave clean, uptodate pages in pagecache in that case.
 > 
-> btw, why is there no need for a kernel/cr/cpt-net.c?
+> Right, but it really limits the state that we can keep outside the page
+> bits.  Take a subpage block, where we know the first 1k is up to date.
+> releasepage comes and we free our tracking that says the first 1k is up
+> to date, but the VM doesn't free the page.
+> 
+> Now we have a page where the uptodate bit isn't set, but the first 1k
+> has valid data.  We have to reread it.
 
-Too early :-) There is no rst-*.c counterparts either :-) But I'm
-working on this.
+Well I don't see how that limits us? Either we prefer to keep the
+metadata, or we throw it away and it is inevitable that we lose
+information. 
 
-But, yes, cpt-net.c will be definitely: all sorts of sockets, virtual
-netdevices, iptables, ...
+Regardless of whether you store the data in a tree of extends in the
+inode, or per-page buffers, you have the same problem (buffer heads
+have that same problem too).
+
+
+> I'd like a form of releasepage that knows if the vm is going to really
+> get rid of the page.  Or another callback that happens when the VM is
+> sure the page will be freed so we can drop extra metadata that doesn't
+> pin the page, but we always want to stay with the page.
+
+Well, for page reclaim/invalidate/truncate, we have releasepage that you
+can use even if the metadata is stored outside the page, just set PagePrivate
+and it will still get called when the page is about to be freed.
+
+There are *some* races that can result in the page subsequently not being
+freed, but I don't think that should be a big deal. I don't want to add
+a callback in the pagecache remove path if possible, but we can try to
+rework or improve things if btrfs needs something specific..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
