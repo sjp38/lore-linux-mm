@@ -1,56 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 927DB6B003D
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 01:37:29 -0500 (EST)
-Date: Thu, 26 Feb 2009 22:37:13 -0800 (PST)
-Message-Id: <20090226.223713.92203280.davem@davemloft.net>
-Subject: Re: [PATCH 1/2] clean up for early_pfn_to_nid
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20090216095042.95f4a6d0.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090213142032.09b4a4da.akpm@linux-foundation.org>
-	<20090213.221226.264144345.davem@davemloft.net>
-	<20090216095042.95f4a6d0.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 25DDE6B003D
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 03:48:24 -0500 (EST)
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+From: Lin Ming <ming.m.lin@intel.com>
+In-Reply-To: <20090226112232.GE32756@csn.ul.ie>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
+	 <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie>
+	 <1235647139.16552.34.camel@penberg-laptop>
+	 <20090226112232.GE32756@csn.ul.ie>
+Content-Type: text/plain
+Date: Fri, 27 Feb 2009 16:44:43 +0800
+Message-Id: <1235724283.11610.212.camel@minggr>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: kamezawa.hiroyu@jp.fujitsu.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, davem@davemlloft.net, heiko.carstens@de.ibm.com, stable@kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Date: Mon, 16 Feb 2009 09:50:42 +0900
+On Thu, 2009-02-26 at 19:22 +0800, Mel Gorman wrote: 
+> In that case, Lin, could I also get the profiles for UDP-U-4K please so I
+> can see how time is being spent and why it might have gotten worse?
 
-> On Fri, 13 Feb 2009 22:12:26 -0800 (PST)
-> David Miller <davem@davemloft.net> wrote:
-> 
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Date: Fri, 13 Feb 2009 14:20:32 -0800
-> > 
-> > > I queued these as
-> > > 
-> > > mm-clean-up-for-early_pfn_to_nid.patch
-> > > mm-fix-memmap-init-for-handling-memory-hole.patch
-> > > 
-> > > and tagged them as needed-in-2.6.28.x.  I don't recall whether they are
-> > > needed in earlier -stable releases?
-> > 
-> > Every kernel going back to at least 2.6.24 has this bug.  It's likely
-> > been around even longer, I didn't bother checking.
-> > 
-> 
-> Sparc64's one is broken from this commit.
-> 
-> 09337f501ebdd224cd69df6d168a5c4fe75d86fa
-> sparc64: Kill CONFIG_SPARC32_COMPAT
-> 
-> CONFIG_NODES_SPAN_OTEHR_NODES is set and config allows following kind of NUMA
-> This is requirements from powerpc.
+I have done the profiling (oltp and UDP-U-4K) with and without your v2
+patches applied to 2.6.29-rc6.
+I also enabled CONFIG_DEBUG_INFO so you can translate address to source
+line with addr2line.
 
-Well, actually this means that what broke sparc64 was the addition of
-NUMA support then.  Users could and were enabling these options
-on sparc64 beforehand, I just updated defconfig to reflect the
-fact that my workstation was NUMA capable :)
+You can download the oprofile data and vmlinux from below link,
+http://www.filefactory.com/file/af2330b/
+
+Lin Ming
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
