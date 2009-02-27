@@ -1,41 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 460FC6B005C
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:50:46 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 38C0882C735
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:55:42 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id zei+1IpO006P for <linux-mm@kvack.org>;
-	Fri, 27 Feb 2009 10:55:42 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C7A8182C73D
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:55:39 -0500 (EST)
-Date: Fri, 27 Feb 2009 10:40:17 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-In-Reply-To: <20090227113333.GA21296@wotan.suse.de>
-Message-ID: <alpine.DEB.1.10.0902271039440.31801@qirst.com>
-References: <20090223233030.GA26562@csn.ul.ie> <20090223155313.abd41881.akpm@linux-foundation.org> <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org>
- <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id D2B6B6B005D
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 11:15:03 -0500 (EST)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n1RGC5cV012661
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 11:12:05 -0500
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n1RGF13d128644
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 11:15:01 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1RGF06W022515
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 11:15:01 -0500
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+	do?
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090226223112.GA2939@x200.localdomain>
+References: <1234285547.30155.6.camel@nimitz>
+	 <20090211141434.dfa1d079.akpm@linux-foundation.org>
+	 <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx>
+	 <20090212114207.e1c2de82.akpm@linux-foundation.org>
+	 <1234475483.30155.194.camel@nimitz>
+	 <20090212141014.2cd3d54d.akpm@linux-foundation.org>
+	 <1234479845.30155.220.camel@nimitz>
+	 <20090226162755.GB1456@x200.localdomain> <20090226173302.GB29439@elte.hu>
+	 <20090226223112.GA2939@x200.localdomain>
+Content-Type: text/plain
+Date: Fri, 27 Feb 2009 08:14:58 -0800
+Message-Id: <1235751298.26788.372.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mpm@selenic.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Feb 2009, Nick Piggin wrote:
+On Fri, 2009-02-27 at 01:31 +0300, Alexey Dobriyan wrote:
+> > I think the main question is: will we ever find ourselves in the 
+> > future saying that "C/R sucks, nobody but a small minority uses 
+> > it, wish we had never merged it"? I think the likelyhood of that 
+> > is very low. I think the current OpenVZ stuff already looks very 
+> > useful, and i dont think we've realized (let alone explored) all 
+> > the possibilities yet.
+> 
+> This is collecting and start of dumping part of cleaned up OpenVZ C/R
+> implementation, FYI.
 
-> > I hope we can get rid of various ugly elements of the quicklists if the
-> > page allocator would offer some sort of support. I would think that the
->
-> Only if it provides significant advantages over existing quicklists or
-> adds *no* extra overhead to the page allocator common cases. :)
+Are you just posting this to show how you expect c/r to look eventually?
+Or are you proposing this as an alternative to what Oren has bee
+posting?
 
-And only if the page allocator gets fast enough to be usable for
-allocs instead of quicklists.
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
