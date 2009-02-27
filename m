@@ -1,36 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 455F56B0047
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 06:38:20 -0500 (EST)
-Date: Fri, 27 Feb 2009 12:38:13 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-Message-ID: <20090227113813.GB21296@wotan.suse.de>
-References: <20090223013723.1d8f11c1.akpm@linux-foundation.org> <20090223233030.GA26562@csn.ul.ie> <20090223155313.abd41881.akpm@linux-foundation.org> <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie>
-Mime-Version: 1.0
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id F36346B003D
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 08:27:34 -0500 (EST)
+Date: Fri, 27 Feb 2009 14:27:27 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
+Message-ID: <20090227132726.GE1482@ucw.cz>
+References: <20090206031125.693559239@cmpxchg.org> <20090206031324.004715023@cmpxchg.org> <20090206122129.79CC.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090206044907.GA18467@cmpxchg.org> <20090206130009.99400d43.akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090226171549.GH32756@csn.ul.ie>
+In-Reply-To: <20090206130009.99400d43.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, kosaki.motohiro@jp.fujitsu.com, rjw@sisk.pl, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 26, 2009 at 05:15:49PM +0000, Mel Gorman wrote:
-> On Thu, Feb 26, 2009 at 12:00:22PM -0500, Christoph Lameter wrote:
-> > I tried the general use of a pool of zeroed pages back in 2005. Zeroing
-> > made sense only if the code allocating the page did not immediately touch
-> > the cachelines of the page.
+On Fri 2009-02-06 13:00:09, Andrew Morton wrote:
+> On Fri, 6 Feb 2009 05:49:07 +0100
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> Any feeling as to how often this was the case?
+> > > and, I think you should mesure performence result.
+> > 
+> > Yes, I'm still thinking about ideas how to quantify it properly.  I
+> > have not yet found a reliable way to check for whether the working set
+> > is intact besides seeing whether the resumed applications are
+> > responsive right away or if they first have to swap in their pages
+> > again.
+> 
+> Describing your subjective non-quantitative impressions would be better
+> than nothing...
+> 
+> The patch bugs me.
+> 
+> The whole darn point behind the whole darn page reclaim is "reclaim the
+> pages which we aren't likely to need soon".  There's nothing special
+> about the swsusp code at all!  We want it to do exactly what page
+> reclaim normally does, only faster.
+> 
+> So why do we need to write special hand-rolled code to implement
+> something which we've already spent ten years writing?
+> 
+> hm?  And if this approach leads to less-than-optimum performance after
+> resume then the fault lies with core page reclaim - it reclaimed the
+> wrong pages!
+> 
+> That actually was my thinking when I first worked on
+> shrink_all_memory() and it did turn out to be surprisingly hard to
+> simply reuse the existing reclaim code for this application.  Things
+> kept on going wrong.  IIRC this was because we were freeing pages as we
+> were reclaiming, so the page reclaim logic kept on seeing all these
+> free pages and kept on wanting to bale out.
+> 
+> Now, the simple and obvious fix to this is not to free the pages - just
+> keep on allocating pages and storing them locally until we have
+> "enough" memory.  Then when we're all done, dump them all straight onto
+> to the freelists.
+> 
+> But for some reason which I do not recall, we couldn't do that.
 
-IMO background zeroing or anything like that is only going to
-become less attractive. Heat and energy considerations are
-relatively increasing, so doing speculative work in the kernel
-is going to become relatively more costly. Especially in this
-case where you use nontemporal stores or otherwise reduce the
-efficiency of the CPU caches (and increase activity on bus and
-memory).
+We used to do that. I remember having loop doing get_free_page and
+doing linklist of them. I believe it was considered quite an hack.
+
+.....one reason is that ee don't want to OOMkill anything if memory is
+low, we want to abort the hibernation...
+
+Sorry for being late.....
+
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
