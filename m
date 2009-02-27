@@ -1,74 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B8DF46B004F
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 09:56:43 -0500 (EST)
-Received: by fxm18 with SMTP id 18so1160161fxm.38
-        for <linux-mm@kvack.org>; Fri, 27 Feb 2009 06:56:41 -0800 (PST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 460FC6B005C
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:50:46 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 38C0882C735
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:55:42 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id zei+1IpO006P for <linux-mm@kvack.org>;
+	Fri, 27 Feb 2009 10:55:42 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id C7A8182C73D
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 10:55:39 -0500 (EST)
+Date: Fri, 27 Feb 2009 10:40:17 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
+In-Reply-To: <20090227113333.GA21296@wotan.suse.de>
+Message-ID: <alpine.DEB.1.10.0902271039440.31801@qirst.com>
+References: <20090223233030.GA26562@csn.ul.ie> <20090223155313.abd41881.akpm@linux-foundation.org> <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org>
+ <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20090127210727.GA9592@us.ibm.com>
-References: <4973AEEC.70504@gmail.com> <20090119175919.GA7476@us.ibm.com>
-	 <20090126223350.610b0283.akpm@linux-foundation.org>
-	 <20090127210727.GA9592@us.ibm.com>
-Date: Fri, 27 Feb 2009 15:56:40 +0100
-Message-ID: <25e057c00902270656x1781d04er5703058e47df455f@mail.gmail.com>
-Subject: Re: [PATCH] mm: get_nid_for_pfn() returns int
-From: roel kluin <roel.kluin@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Gary Hade <garyhade@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, y-goto@jp.fujitsu.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
->> > > get_nid_for_pfn() returns int
+On Fri, 27 Feb 2009, Nick Piggin wrote:
 
->> > My mistake. =A0Good catch.
+> > I hope we can get rid of various ugly elements of the quicklists if the
+> > page allocator would offer some sort of support. I would think that the
+>
+> Only if it provides significant advantages over existing quicklists or
+> adds *no* extra overhead to the page allocator common cases. :)
 
->> Presumably the (nid < 0) case has never happened.
->
-> We do know that it is happening on one system while creating
-> a symlink for a memory section so it should also happen on
-> the same system if unregister_mem_sect_under_nodes() were
-> called to remove the same symlink.
->
-> The test was actually added in response to a problem with an
-> earlier version reported by Yasunori Goto where one or more
-> of the leading pages of a memory section on the 2nd node of
-> one of his systems was uninitialized because I believe they
-> coincided with a memory hole. =A0The earlier version did not
-> ignore uninitialized pages and determined the nid by considering
-> only the 1st page of each memory section. =A0This caused the
-> symlink to the 1st memory section on the 2nd node to be
-> incorrectly created in /sys/devices/system/node/node0 instead
-> of /sys/devices/system/node/node1. =A0The problem was fixed by
-> adding the test to skip over uninitialized pages.
->
-> I suspect we have not seen any reports of the non-removal
-> of a symlink due to the incorrect declaration of the nid
-> variable in unregister_mem_sect_under_nodes() because
-> =A0- systems where a memory section could have an uninitialized
-> =A0 =A0range of leading pages are probably rare.
-> =A0- memory remove is probably not done very frequently on the
-> =A0 =A0systems that are capable of demonstrating the problem.
-> =A0- lingering symlink(s) that should have been removed may
-> =A0 =A0have simply gone unnoticed.
->>
->> Should we retain the test?
->
-> Yes.
->
->>
->> Is silently skipping the node in that case desirable behaviour?
->
-> It actually silently skips pages (not nodes) in it's quest
-> for valid nids for all the nodes that the memory section scans.
-> This is definitely desirable.
->
-> I hope this answers your questions.
-
-This still isn't applied, was it lost?
-
-Roel
+And only if the page allocator gets fast enough to be usable for
+allocs instead of quicklists.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
