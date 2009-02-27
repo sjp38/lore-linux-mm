@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 657D96B003D
-	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 04:22:26 -0500 (EST)
-Date: Fri, 27 Feb 2009 01:22:09 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6266B003D
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 04:36:42 -0500 (EST)
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate4.uk.ibm.com (8.14.3/8.13.8) with ESMTP id n1R9adq2135698
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 09:36:39 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n1R9adZG3559652
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 09:36:39 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n1R9acHd002575
+	for <linux-mm@kvack.org>; Fri, 27 Feb 2009 09:36:39 GMT
+Message-ID: <49A7B425.4010606@fr.ibm.com>
+Date: Fri, 27 Feb 2009 10:36:37 +0100
+From: Cedric Le Goater <clg@fr.ibm.com>
+MIME-Version: 1.0
 Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
  do?
-Message-Id: <20090227012209.65401324.akpm@linux-foundation.org>
-In-Reply-To: <20090227090323.GC16211@elte.hu>
-References: <20090211141434.dfa1d079.akpm@linux-foundation.org>
-	<1234462282.30155.171.camel@nimitz>
-	<1234467035.3243.538.camel@calx>
-	<20090212114207.e1c2de82.akpm@linux-foundation.org>
-	<1234475483.30155.194.camel@nimitz>
-	<20090212141014.2cd3d54d.akpm@linux-foundation.org>
-	<1234479845.30155.220.camel@nimitz>
-	<20090226162755.GB1456@x200.localdomain>
-	<20090226173302.GB29439@elte.hu>
-	<20090226223112.GA2939@x200.localdomain>
-	<20090227090323.GC16211@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20090211141434.dfa1d079.akpm@linux-foundation.org>	<1234462282.30155.171.camel@nimitz>	<1234467035.3243.538.camel@calx>	<20090212114207.e1c2de82.akpm@linux-foundation.org>	<1234475483.30155.194.camel@nimitz>	<20090212141014.2cd3d54d.akpm@linux-foundation.org>	<1234479845.30155.220.camel@nimitz>	<20090226162755.GB1456@x200.localdomain>	<20090226173302.GB29439@elte.hu> <1235673016.5877.62.camel@bahia> <20090226221709.GA2924@x200.localdomain>
+In-Reply-To: <20090226221709.GA2924@x200.localdomain>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Greg Kurz <gkurz@fr.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Feb 2009 10:03:23 +0100 Ingo Molnar <mingo@elte.hu> wrote:
-
-> >  arch/x86/include/asm/unistd_32.h   |    2 
-> >  arch/x86/kernel/syscall_table_32.S |    2 
-> >  include/linux/Kbuild               |    1 
-> >  include/linux/cr.h                 |   56 ++++++
-> >  include/linux/ipc_namespace.h      |    3 
-> >  include/linux/syscalls.h           |    5 
-> >  init/Kconfig                       |    2 
-> >  kernel/Makefile                    |    1 
-> >  kernel/cr/Kconfig                  |   11 +
-> >  kernel/cr/Makefile                 |    8 
-> >  kernel/cr/cpt-cred.c               |  115 +++++++++++++
-> >  kernel/cr/cpt-fs.c                 |  122 +++++++++++++
-> >  kernel/cr/cpt-mm.c                 |  134 +++++++++++++++
-> >  kernel/cr/cpt-ns.c                 |  324 +++++++++++++++++++++++++++++++++++++
-> >  kernel/cr/cpt-signal.c             |  121 +++++++++++++
-> >  kernel/cr/cpt-sys.c                |  228 ++++++++++++++++++++++++++
-> >  kernel/cr/cr-ctx.c                 |  141 ++++++++++++++++
-> >  kernel/cr/cr.h                     |   61 ++++++
-> >  kernel/cr/rst-sys.c                |    9 +
-> >  kernel/sys_ni.c                    |    3 
-> >  20 files changed, 1349 insertions(+)
+Alexey Dobriyan wrote:
+> On Thu, Feb 26, 2009 at 07:30:16PM +0100, Greg Kurz wrote:
+>> On Thu, 2009-02-26 at 18:33 +0100, Ingo Molnar wrote:
+>>> I think the main question is: will we ever find ourselves in the 
+>>> future saying that "C/R sucks, nobody but a small minority uses 
+>>> it, wish we had never merged it"? I think the likelyhood of that 
+>>> is very low. I think the current OpenVZ stuff already looks very 
+>> We've been maintaining for some years now a C/R middleware with only a
+>> few hooks in the kernel. Our strategy is to leverage existing kernel
+>> paths as they do most of the work right.
+>>
+>> Most of the checkpoint is performed from userspace, using regular
+>> syscalls in a signal handler or /proc parsing. Restart is a bit trickier
+>> and needs some kernel support to bypass syscall checks and enforce a
+>> specific id for a resource. At the end, we support C/R and live
+>> migration of networking apps (websphere application server for example).
+>>
+>> >From our experience, we can tell:
+>>
+>> Pros: mostly not-so-tricky userland code, independent from kernel
+>> internals
+>> Cons: sub-optimal for some resources
 > 
-> That does not look scary to me at all. Andrew?
+> How do you restore struct task_struct::did_exec ?
 
-btw, why is there no need for a kernel/cr/cpt-net.c?
+greg didn't say there was _no_ kernel support.
+
+without discussing the pros and cons of such and such implemention, full 
+C/R from kernel means more maintenance work from kernel maintainers, so
+it seems a good idea to leverage existing API when they exist. less work.
+
+duplicating the get/set of the cpu state which is already done in the
+signal handling is one example of extra work.
+
+now, there's a definitely a need for kernel support for some resources. the 
+question now is finding the right path, this is still work in progress IMHO.
+
+C.
+
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
