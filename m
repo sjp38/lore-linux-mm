@@ -1,84 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 449886B003D
-	for <linux-mm@kvack.org>; Sat, 28 Feb 2009 00:52:25 -0500 (EST)
-Date: Sat, 28 Feb 2009 06:52:21 +0100
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A0AF06B003D
+	for <linux-mm@kvack.org>; Sat, 28 Feb 2009 06:29:03 -0500 (EST)
+Date: Sat, 28 Feb 2009 12:28:59 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] mm: new address space calls
-Message-ID: <20090228055221.GB28496@wotan.suse.de>
-References: <20090225104839.GG22785@wotan.suse.de> <1235595597.32346.77.camel@think.oraclecorp.com> <20090226051702.GA25605@wotan.suse.de> <1235654505.26790.12.camel@think.oraclecorp.com> <20090227112622.GA13428@wotan.suse.de> <1235742767.10511.7.camel@think.oraclecorp.com>
+Subject: [rfc][patch 0/5] fsblock preview
+Message-ID: <20090228112858.GD28496@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1235742767.10511.7.camel@think.oraclecorp.com>
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 27, 2009 at 08:52:47AM -0500, Chris Mason wrote:
-> On Fri, 2009-02-27 at 12:26 +0100, Nick Piggin wrote:
-> > Well I don't see how that limits us? Either we prefer to keep the
-> > metadata, or we throw it away and it is inevitable that we lose
-> > information. 
-> > 
-> 
-> We can't have metadata that isn't freed by releasepage unless we want to
-> pin the page completely.  There was a time when the btrfs metadata had a
-> bit for 'this block needs defrag', and I ended up not being able to use
-> it because releasepage was consistently freeing my extra data while the
-> page was still around.
+Hi,
 
-Hmm, it sounds like that data perhaps is more a property of the
-filesystem / block management rather than the pagecache (OK, it's
-a blurry line)...
+Lately fsblock is taking better shape. Dave was also interested to see how
+XFS would work with it, so I'll repost. ext2 is pretty robust if anyone is
+interested in doing performance tests. System should be fairly stable with
+buffer_head filesystems running along size fsblock, although I have changed
+->writepage API and not audited all filesystems so beware (ext3 seem fine).
 
-But I mean 'this block neds defrag' sounds like important metadata
-even if the page is *not* still around? (but the block is)
+- private metadata mapping
+  This is all working nicely now. A filesystem just has to register its
+  superblock with fsblock and it doesn't have to bother with the details.
+  One little problem is that you still need bufferheads to bootstrap the
+  filesystem AFAIKS unless I guess you could completely tear down the
+  private inode and make a new one when changing block sizes?
 
-Having your own private metadata, perhaps with the ->shrinker callback
-is an option. In fsblock actually for the block mapping cache tree,
-I don't use a shrinker, because (I'm lazy and) reclaim will eventaully
-reclaim the inode in which case the tree will be taken down with the
-new aop->release callback.
+- superpage blocks
+  I have recently forward ported minix filesystem so testing superpage blocks
+  shows it is mostly working, so I have included all that here FYI (in previous
+  fsblock submissions I'd cut it out). It is still not *quite* right though
+  (needs a bit more changes in generic code to deal with some truncate
+  problems), but it can run dbench OK! Of course, mkfs.minix doesn't create
+  minix v3 filesystems, so getting an image isn't easy! I should port ext2,
+  but directory pagecache isn't completely trivial when directory entries can
+  span pages.
 
-But in theory even when the in-memory inode goes away, the block mapping
-is still valid metadata, so you could keep it around somewhere (in which
-case it would need a shrinker callback).
+  However if I submit fsblock for merge, I think it will initially be with
+  the superpage block stuff stripped out, so it is more reviewable for those
+  familiar with buffer.c.
 
+- xfs conversion
+  I managed to grok xfs *just* well enough to come up with something that
+  gives the appearance of working :P. Mostly it does work actually, except
+  sub-page blocks. "XXX" mostly marks the places where I need help. It is
+  important that fsblock can support delalloc/unwritten blocks as well as
+  buffer.c
 
-> > > I'd like a form of releasepage that knows if the vm is going to really
-> > > get rid of the page.  Or another callback that happens when the VM is
-> > > sure the page will be freed so we can drop extra metadata that doesn't
-> > > pin the page, but we always want to stay with the page.
-> > 
-> > Well, for page reclaim/invalidate/truncate, we have releasepage that you
-> > can use even if the metadata is stored outside the page, just set PagePrivate
-> > and it will still get called when the page is about to be freed.
-> > 
-> 
-> For clean pages, shrink_page_list seems to check the page count after
-> the releasepage call.  It was a big enough window for me to see it in
-> practice under normal workloads.
+  One thing about fsblock is that it doesn't carry bdev in the metadata,
+  and it appears that XFS might want that. I'm not *completely* adverse
+  to bumping fsblock size up from 32 bytes to 64 (it's HWCACHE aligned)
+  for this or other things that might pop up, because that's still half
+  the size of buffer-head, and proper refcounting means that you don't get
+  insane amounts of them lying around anyway. But if possible, obviously
+  much preferred not to add anything to fsblock struct.
 
-Oh yes, you would see it, but it just shouldn't be *too* common I think.
-It's a hard race to close. You would ned to effectively take a spinlock
-to prevent pagecache lookup over the releasepage call (OK, with lockless
-pagecache it is no longer really tree_lock, but setting page->_count to
-0, which causes lookup to basically do equivalent spinning anyway).
+- ext2 conversion
+  ext2 is the canonical "quick" conversion (quick meaning that metadata
+  fsblocks still provide a ->data pointer and don't require mapping APIs).
+  It supports everything except superpage blocks. One interesting thing
+  is that it supports fsb_extentmap, which is a module sitting between
+  the filesystem's "get_block()", and fsblock proper, which is a simple
+  rbtree extent cache of an inode's block mappings.
 
-Of course it still may be closed with a new callback at pagecache
-removal time... but I'm not convinced you need one yet ;) Maybe I don't
-understand the requirements properly yet.
+  Another interesting thing is that it runs dbench on ext2 on brd about
+  5% faster than buffer_head based ext2, when debug options are turned
+  off (see include/linux/fsblock_types.h).
 
- 
-> > There are *some* races that can result in the page subsequently not being
-> > freed, but I don't think that should be a big deal. I don't want to add
-> > a callback in the pagecache remove path if possible, but we can try to
-> > rework or improve things if btrfs needs something specific..
-> 
-> Btrfs doesn't need it today, but it should help once I finally get
-> subpage blocks going again (and metadata defrag as well).
+- todo
+  some API support missing. mpage, direct IO, etc. This shouldn't be
+  too difficult to add. Actually direct-IO via fsb_extentmap rather
+  than always calling into get_block could be a nice efficiency
+  improvement...
+
+- known bugs
+  There are some bugs in subpage and superpage block sizes with truncate.
+  buffer.c actually has equivalent problems with its subpage buffers, but
+  fsblock will actually go bug if you have debugging turned on. Pretty
+  hard to hit unless truncating partial mmapped pages that are under
+  writeout :P Turn off debugging and it should "work" just as well as
+  buffer.c.
+
+- plans
+  fsblock IMO is buffer_heads done right (not to say it was wrong back
+  when it was written, but it has virtually been unable to be modernised
+  due to close ties with so many filesystems). I don't dismiss alternatives
+  like extent state mapping but I would have to see them compete. And we
+  want them to compete against the modern fsblock rather than crufty old
+  buffer heads. So I'm pretty intent on getting it merged sooner or later.
+
+  If I have to sell it (again), before anybody asks, fsblock:
+   - data structure is 1/3 the size of buffer head
+   - properly refcounted, so you don't have incredible buildup of buffer heads
+     or "nobh" hack.
+   - properly refcounted, so you don't get these "orphan" pages filling
+     memory if you want to keep metadata around after page is truncated.
+   - it's riddled with assertions :)
+   - tightly synchronised state between buffer and page flags. eg. page is
+     dirty iff buffer is dirty.
+   - robust memory behaviour. fsblock never has to perform any allocations
+     in order to write back a dirty page. This also makes it possible for
+     filesystems to also follow suit and be good memory citizens. (trivial
+     filesystems including ext2 don't need anything further).
+   - no per-inode locking in fsblock core. this makes getblk and its
+     callers fast and scalable. and means we can do away with the bh lrus
+     and their global IPIs too.
+   - can support superpage block sizes (with performance very close to
+     best case blocksize (== page size)).
+   - apparently better performance than buffer heads, although I was
+     just running one test on one filesystem on one system. Good thing is
+     that with all these features it is not obviously worse perofrmance.
+   - other good stuff
+    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
