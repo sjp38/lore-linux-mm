@@ -1,88 +1,84 @@
-From: Bodo Eggert <7eggert@gmx.de>
-Subject: Re: Banning checkpoint (was: Re: What can OpenVZ do?)
-Date: Tue, 24 Feb 2009 14:00:27 +0100
-Message-ID: <E1Lbwtf-0001Zc-Uq__9082.01355855471$1235480540$gmane$org@be1.7eggert.dyndns.org>
-References: <c6GC9-3l7-11@gated-at.bofh.it> <c6GLN-3xO-31@gated-at.bofh.it> <c6IDT-6AZ-9@gated-at.bofh.it> <c6INu-6Ol-1@gated-at.bofh.it> <c6MR7-54s-3@gated-at.bofh.it> <c6ZbG-hF-13@gated-at.bofh.it> <c729F-5gF-21@gated-at.bofh.it> <c73S1-8dJ-19@gated-at.bofh.it> <c7mrC-4YD-3@gated-at.bofh.it> <c7mBk-5b2-23@gated-at.bofh.it> <c8Xp3-3TH-3@gated-at.bofh.it>
-Reply-To: 7eggert@gmx.de
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7Bit
-Return-path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E8C4A6B00AE
-	for <linux-mm@kvack.org>; Tue, 24 Feb 2009 08:00:35 -0500 (EST)
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B6F66B0092
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 01:30:10 -0500 (EST)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id n216U14f028652
+	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 12:00:01 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n216U8KM3227866
+	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 12:00:09 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n216U0Dn007034
+	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 17:30:00 +1100
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Sun, 01 Mar 2009 11:59:59 +0530
+Message-Id: <20090301062959.31557.31079.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/4] Memory controller soft limit patches (v3)
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>, Ingo Molnar <mingo@elte.hu>, Nathan Lynch <nathanl@austin.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com
-List-Id: linux-mm.kvack.org
+To: linux-mm@kvack.org
+Cc: Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+List-ID: <linux-mm.kvack.org>
 
-Alexey Dobriyan <adobriyan@gmail.com> wrote:
-> On Thu, Feb 19, 2009 at 11:11:54AM -0800, Dave Hansen wrote:
->> On Thu, 2009-02-19 at 22:06 +0300, Alexey Dobriyan wrote:
 
->> Alexey, I agree with you here.  I've been fighting myself internally
->> about these two somewhat opposing approaches.  Of *course* we can
->> determine the "checkpointability" at sys_checkpoint() time by checking
->> all the various bits of state.
->> 
->> The problem that I think Ingo is trying to address here is that doing it
->> then makes it hard to figure out _when_ you went wrong.  That's the
->> single most critical piece of finding out how to go address it.
->> 
->> I see where you are coming from.  Ingo's suggestion has the *huge*
->> downside that we've got to go muck with a lot of generic code and hook
->> into all the things we don't support.
->> 
->> I think what I posted is a decent compromise.  It gets you those
->> warnings at runtime and is a one-way trip for any given process.  But,
->> it does detect in certain cases (fork() and unshare(FILES)) when it is
->> safe to make the trip back to the "I'm checkpointable" state again.
-> 
-> "Checkpointable" is not even per-process property.
-> 
-> Imagine, set of SAs (struct xfrm_state) and SPDs (struct xfrm_policy).
-> They are a) per-netns, b) persistent.
-> 
-> You can hook into socketcalls to mark process as uncheckpointable,
-> but since SAs and SPDs are persistent, original process already exited.
-> You're going to walk every process with same netns as SA adder and mark
-> it as uncheckpointable. Definitely doable, but ugly, isn't it?
-> 
-> Same for iptable rules.
-> 
-> "Checkpointable" is container property, OK?
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-IMO: Everything around the process may change as long as you can do the same
-using 'kill -STOP $PID; ...; kill -CONT $PID;'. E.g. changing iptables rules
-can be done to a normal process, so this should not prevent checkpointing
-(unless you checkpoint iptables, but don't do that then?).
+Changelog v3...v2
+1. Implemented several review comments from Kosaki-San and Kamezawa-San
+   Please see individual changelogs for changes
 
-BTW1: I might want to checkpoint something like seti@home. It will connect
-to a server from time to time, and send/receive a packet. If having opened
-a socket once in a lifetime would prevent checkpointing, this won't be
-possible. I see the benefit of the one-way-flag forcing to make all
-syscalls be checkpointable, but this won't work on sockets.
+Changelog v2...v1
+1. Soft limits now support hierarchies
+2. Use spinlocks instead of mutexes for synchronization of the RB tree
 
-Therefore I think you need something inbetween. Some syscalls (etc.) are not
-supported, so just make the process be uncheckpointable. But some syscalls
-will enter and leave non-checkpointable states by design, they need at least
-counters.
+Here is v3 of the new soft limit implementation. Soft limits is a new feature
+for the memory resource controller, something similar has existed in the
+group scheduler in the form of shares. The CPU controllers interpretation
+of shares is very different though. 
 
-Maybe you'll want to let the application decide if it's OK to be checkpointed
-on some conditions, too. The Seti client might know how to handle broken
-connections, and doing duplicate transfers or skipping them is expected, too.
-So the Seti client might declare the socket to be checkpointable, instead of
-making the do-the-checkpoint application wait until it's closed.
+Soft limits are the most useful feature to have for environments where
+the administrator wants to overcommit the system, such that only on memory
+contention do the limits become active. The current soft limits implementation
+provides a soft_limit_in_bytes interface for the memory controller and not
+for memory+swap controller. The implementation maintains an RB-Tree of groups
+that exceed their soft limit and starts reclaiming from the group that
+exceeds this limit by the maximum amount.
 
-BTW2: There is the problem of invalidating checkpoints, too. If a browser did
-a HTTP PUT, you don't want to restore the checkpoint where it was just about
-to start the PUT request. The application should be able to signal this to
-a checkpointing daemon. There will be a race, so having a signal "Invalidate
-checkpoints" won't work, but if the application sends a stable hash value,
-the duplicate can be detected. (Off cause you'd say "don't do that then" for
-browsers, but it's just an example. Off cause 2, the checkpoint daemon is
-only needed for advanced setups, a simple "checkpoint $povray --store jobfile"
-should just work.)
+If there are no major objections to the patches, I would like to get them
+included in -mm.
 
+TODOs
+
+1. The current implementation maintains the delta from the soft limit
+   and pushes back groups to their soft limits, a ratio of delta/soft_limit
+   might be more useful
+2. It would be nice to have more targetted reclaim (in terms of pages to
+   recalim) interface. So that groups are pushed back, close to their soft
+   limits.
+
+Tests
+-----
+
+I've run two memory intensive workloads with differing soft limits and
+seen that they are pushed back to their soft limit on contention. Their usage
+was their soft limit plus additional memory that they were able to grab
+on the system. Soft limit can take a while before we see the expected
+results.
+
+Please review, comment.
+
+Series
+------
+
+memcg-soft-limit-documentation.patch
+memcg-add-soft-limit-interface.patch
+memcg-organize-over-soft-limit-groups.patch
+memcg-soft-limit-reclaim-on-contention.patch
+
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
