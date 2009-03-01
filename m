@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8FD066B00A2
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 03:17:49 -0500 (EST)
-Date: Sun, 1 Mar 2009 19:17:44 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-Message-ID: <20090301081744.GI26138@disturbed>
-References: <20090225093629.GD22785@wotan.suse.de>
+	by kanga.kvack.org (Postfix) with SMTP id 249806B00A2
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 05:37:44 -0500 (EST)
+Date: Sun, 1 Mar 2009 19:37:36 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 3/3][RFC] swsusp: shrink file cache first
+In-Reply-To: <20090227132726.GE1482@ucw.cz>
+References: <20090206130009.99400d43.akpm@linux-foundation.org> <20090227132726.GE1482@ucw.cz>
+Message-Id: <20090228154120.6FC3.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090225093629.GD22785@wotan.suse.de>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, rjw@sisk.pl, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Feb 25, 2009 at 10:36:29AM +0100, Nick Piggin wrote:
-> I need this in fsblock because I am working to ensure filesystem metadata
-> can be correctly allocated and refcounted. This means that page cleaning
-> should not require memory allocation (to be really robust).
+> > hm?  And if this approach leads to less-than-optimum performance after
+> > resume then the fault lies with core page reclaim - it reclaimed the
+> > wrong pages!
+> > 
+> > That actually was my thinking when I first worked on
+> > shrink_all_memory() and it did turn out to be surprisingly hard to
+> > simply reuse the existing reclaim code for this application.  Things
+> > kept on going wrong.  IIRC this was because we were freeing pages as we
+> > were reclaiming, so the page reclaim logic kept on seeing all these
+> > free pages and kept on wanting to bale out.
+> > 
+> > Now, the simple and obvious fix to this is not to free the pages - just
+> > keep on allocating pages and storing them locally until we have
+> > "enough" memory.  Then when we're all done, dump them all straight onto
+> > to the freelists.
+> > 
+> > But for some reason which I do not recall, we couldn't do that.
+> 
+> We used to do that. I remember having loop doing get_free_page and
+> doing linklist of them. I believe it was considered quite an hack.
+> 
+> .....one reason is that ee don't want to OOMkill anything if memory is
+> low, we want to abort the hibernation...
+> 
+> Sorry for being late.....
 
-Which, unfortunately, is just a dream for any filesystem that uses
-delayed allocation. i.e. they have to walk the free space trees
-which may need to be read from disk and therefore require memory
-to succeed....
+Not at all.
+your information is really helpful.
 
-Cheers,
+maybe, I expect we can make simplification without oomkill...
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
