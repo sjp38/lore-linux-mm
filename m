@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 471D76B00BB
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 23:44:27 -0500 (EST)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id n224gfP1027578
-	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 15:42:41 +1100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n224ibCd413842
-	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 15:44:38 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n224iJxn019974
-	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 15:44:19 +1100
-Date: Mon, 2 Mar 2009 10:14:06 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 086746B00BD
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 23:46:40 -0500 (EST)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id n224kYsI022092
+	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 10:16:34 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n224hbRj1749022
+	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 10:13:37 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n224kXke020680
+	for <linux-mm@kvack.org>; Mon, 2 Mar 2009 10:16:34 +0530
+Date: Mon, 2 Mar 2009 10:16:31 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
-	(v3)
-Message-ID: <20090302044406.GD11421@balbir.in.ibm.com>
+Subject: Re: [PATCH 2/4] Memory controller soft limit interface (v3)
+Message-ID: <20090302044631.GE11421@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain> <20090301063041.31557.86588.sendpatchset@localhost.localdomain> <20090302120052.6FEC.A69D9226@jp.fujitsu.com>
+References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain> <20090301063011.31557.42094.sendpatchset@localhost.localdomain> <20090302110323.1a9b9e6b.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090302120052.6FEC.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090302110323.1a9b9e6b.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-02 12:08:01]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-02 11:03:23]:
 
-> Hi Balbir,
+> On Sun, 01 Mar 2009 12:00:11 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> > @@ -2015,9 +2016,12 @@ static int kswapd(void *p)
-> >  		finish_wait(&pgdat->kswapd_wait, &wait);
-> >  
-> >  		if (!try_to_freeze()) {
-> > +			struct zonelist *zl = pgdat->node_zonelists;
-> >  			/* We can speed up thawing tasks if we don't call
-> >  			 * balance_pgdat after returning from the refrigerator
-> >  			 */
-> > +			if (!order)
-> > +				mem_cgroup_soft_limit_reclaim(zl, GFP_KERNEL);
-> >  			balance_pgdat(pgdat, order);
-> >  		}
-> >  	}
-> 
-> kswapd's roll is increasing free pages until zone->pages_high in "own node".
-> mem_cgroup_soft_limit_reclaim() free one (or more) exceed page in any node.
-> 
-> Oh, well.
-> I think it is not consistency.
-> 
-> if mem_cgroup_soft_limit_reclaim() is aware to target node and its pages_high,
-> I'm glad.
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> > Changelog v2...v1
+> > 1. Add support for res_counter_check_soft_limit_locked. This is used
+> >    by the hierarchy code.
+> > 
+> > Add an interface to allow get/set of soft limits. Soft limits for memory plus
+> > swap controller (memsw) is currently not supported. Resource counters have
+> > been enhanced to support soft limits and new type RES_SOFT_LIMIT has been
+> > added. Unlike hard limits, soft limits can be directly set and do not
+> > need any reclaim or checks before setting them to a newer value.
+> > 
+> > Kamezawa-San raised a question as to whether soft limit should belong
+> > to res_counter. Since all resources understand the basic concepts of
+> > hard and soft limits, it is justified to add soft limits here. Soft limits
+> > are a generic resource usage feature, even file system quotas support
+> > soft limits.
+> > 
+> I don't convice adding more logics to res_counter is a good to do, yet.
 >
 
-Yes, correct the role of kswapd is to keep increasing free pages until
-zone->pages_high and the first set of pages to consider is the memory
-controller over their soft limits. We pass the zonelist to ensure that
-while doing soft reclaim, we focus on the zonelist associated with the
-node. Kamezawa had concernes over calling the soft limit reclaim from
-__alloc_pages_internal(), did you prefer that call path? 
-
+Even though it is extensible and you pay the cost only when soft
+limits is turned on? Can you show me why you are not convinced?
+ 
 -- 
 	Balbir
 
