@@ -1,88 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5DF6B0047
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 12:52:56 -0500 (EST)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp09.au.ibm.com (8.13.1/8.13.1) with ESMTP id n22Hfljo003021
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 04:41:47 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n22Hr53E1118368
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 04:53:05 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n22HqlAC005987
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 04:52:48 +1100
-Date: Mon, 2 Mar 2009 23:22:35 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
-Message-ID: <20090302175235.GN11421@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain> <20090302092404.1439d2a6.kamezawa.hiroyu@jp.fujitsu.com> <20090302044043.GC11421@balbir.in.ibm.com> <20090302143250.f47758f9.kamezawa.hiroyu@jp.fujitsu.com> <20090302060519.GG11421@balbir.in.ibm.com> <20090302151830.3770e528.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090302151830.3770e528.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2F86B0047
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 17:28:42 -0500 (EST)
+Date: Mon, 2 Mar 2009 14:27:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mmtom :  add VM_BUG_ON in __get_free_pages
+Message-Id: <20090302142757.1cc014aa.akpm@linux-foundation.org>
+In-Reply-To: <20090302183148.a4dfcc22.minchan.kim@barrios-desktop>
+References: <20090302183148.a4dfcc22.minchan.kim@barrios-desktop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: MinChan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-02 15:18:30]:
+On Mon, 2 Mar 2009 18:31:48 +0900
+MinChan Kim <minchan.kim@gmail.com> wrote:
 
-> On Mon, 2 Mar 2009 11:35:19 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> > > Then, not-sorted RB-tree can be there.
-> > > 
-> > > BTW,
-> > >    time_after(jiffies, 0)
-> > > is buggy (see definition). If you want make this true always,
-> > >    time_after(jiffies, jiffies +1)
-> > >
-> > 
-> > HZ/4 is 250/4 jiffies in the worst case (62). We have
-> > time_after(jiffies, next_update_interval) and next_update_interval is
-> > set to last_tree_update + 62. Not sure if I got what you are pointing
-> > to.
-> > 
-> +	unsigned long next_update = 0;
-> +	unsigned long flags;
-> +
-> +	if (!css_tryget(&mem->css))
-> +		return;
-> +	prev_usage_in_excess = mem->usage_in_excess;
-> +	new_usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-> +
-> +	if (time_check)
-> +		next_update = mem->last_tree_update +
-> +				MEM_CGROUP_TREE_UPDATE_INTERVAL;
-> +	if (new_usage_in_excess && time_after(jiffies, next_update)) {
-> +		if (prev_usage_in_excess)
-> +			mem_cgroup_remove_exceeded(mem);
-> +		mem_cgroup_insert_exceeded(mem);
-> +		updated_tree = true;
-> +	} else if (prev_usage_in_excess && !new_usage_in_excess) {
-> +		mem_cgroup_remove_exceeded(mem);
-> +		updated_tree = true;
-> +	}
+> The __get_free_pages is used in many place. 
+> Also, driver developers can use it freely due to export function.
+> Some developers might use it to allocate high pages by mistake. 
 > 
-> My point is what happens if time_check==false.
-> time_afrter(jiffies, 0) is buggy.
->
+> The __get_free_pages can allocate high page using alloc_pages, 
+> but it can't return linear address for high page.
+> 
+> Even worse, in this csse, caller can't free page which are there in high zone. 
+> So, It would be better to add VM_BUG_ON. 
+> 
+> It's based on mmtom 2009-02-27-13-54.
+>  
+> Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+> ---
+>  mm/page_alloc.c |    7 +++++++
+>  1 files changed, 7 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8294107..381056b 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1681,6 +1681,13 @@ EXPORT_SYMBOL(__alloc_pages_internal);
+>  unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+>  {
+>  	struct page * page;
+> +
+> +	/*
+> +	 * __get_free_pages() returns a 32-bit address, which cannot represent
+> +	 * a highmem page
+> +	 */
+> +	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+> +
+>  	page = alloc_pages(gfp_mask, order);
+>  	if (!page)
+>  		return 0;
 
-I see your point now, but the idea behind doing so is that
-time_after(jiffies, 0) will always return false, which forces the
-prev_usage_in_excess and !new_usage_in_excess check to execute. We set
-the value to false only from __mem_cgroup_free().
+If someone calls __get_free_pages(__GFP_HIGHMEM) then page_address()
+will reliably return NULL and the caller's code will oops.
 
-Are you suggesting that calling time_after(jiffies, 0) is buggy?
-The comment
+Yes, there's a decent (and increasing) risk that the developer won't be
+testing the code on a highmem machine, but there are enough highmem
+machines out there that the bug should be discovered pretty quickly.
 
-  Do this with "<0" and ">=0" to only test the sign of the result. A
- 
-I think refers to the comparison check and not to the parameters. I
-hope I am reading this right.
--- 
-	Balbir
+So I'm not sure that this test is worth the additional overhead to a
+fairly frequently called function?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
