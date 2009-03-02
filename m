@@ -1,75 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A456B00B1
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 17:21:32 -0500 (EST)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e32.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n21MJ3Oa016842
-	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 15:19:03 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n21MLVcC207602
-	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 15:21:31 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n21MLUap004171
-	for <linux-mm@kvack.org>; Sun, 1 Mar 2009 15:21:31 -0700
-Date: Sun, 1 Mar 2009 16:21:30 -0600
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090301222130.GA27198@us.ibm.com>
-References: <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226162755.GB1456@x200.localdomain> <20090226173302.GB29439@elte.hu> <20090226223112.GA2939@x200.localdomain> <20090301013304.GA2428@x200.localdomain> <20090301200231.GA25276@us.ibm.com> <20090301205659.GA7276@x200.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090301205659.GA7276@x200.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9AC006B00B3
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 19:25:25 -0500 (EST)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n220PMBD012433
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 2 Mar 2009 09:25:22 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AE8845DE53
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 09:25:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 1912C45DE51
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 09:25:22 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id EFAA71DB805D
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 09:25:21 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 920A31DB803C
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 09:25:21 +0900 (JST)
+Date: Mon, 2 Mar 2009 09:24:04 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
+Message-Id: <20090302092404.1439d2a6.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090301062959.31557.31079.sendpatchset@localhost.localdomain>
+References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mpm@selenic.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Alexey Dobriyan (adobriyan@gmail.com):
-> On Sun, Mar 01, 2009 at 02:02:31PM -0600, Serge E. Hallyn wrote:
-> > Quoting Alexey Dobriyan (adobriyan@gmail.com):
-> > > On Fri, Feb 27, 2009 at 01:31:12AM +0300, Alexey Dobriyan wrote:
-> > > > This is collecting and start of dumping part of cleaned up OpenVZ C/R
-> > > > implementation, FYI.
-> > > 
-> > > OK, here is second version which shows what to do with shared objects
-> > > (cr_dump_nsproxy(), cr_dump_task_struct()), introduced more checks
-> > > (still no unlinked files) and dumps some more information including
-> > > structures connections (cr_pos_*)
-> > > 
-> > > Dumping pids in under thinking because in OpenVZ pids are saved as
-> > > numbers due to CLONE_NEWPID is not allowed in container. In presense
-> > > of multiple CLONE_NEWPID levels this must present a big problem. Looks
-> > > like there is now way to not dump pids as separate object.
-> > > 
-> > > As result, struct cr_image_pid is variable-sized, don't know how this will
-> > > play later.
-> > > 
-> > > Also, pid refcount check for external pointers is busted right now,
-> > > because /proc inode pins struct pid, so there is almost always refcount
-> > > vs ->o_count mismatch.
-> > > 
-> > > No restore yet. ;-)
-> > 
-> > Hi Alexey,
-> > 
-> > thanks for posting this.  Of course there are some predictable responses
-> > (I like the simplicity of pure in-kernel, Dave will not :) but this
-> > needs to be posted to make us talk about it.
-> > 
-> > A few more comments that came to me while looking it over:
-> > 
-> > 1. cap_sys_admin check is unfortunate.  In discussions about Oren's
-> > patchset we've agreed that not having that check from the outset forces
-> > us to consider security with each new patch and feature, which is a good
-> > thing.
+On Sun, 01 Mar 2009 11:59:59 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
 > 
-> Removing CAP_SYS_ADMIN on restore?
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Changelog v3...v2
+> 1. Implemented several review comments from Kosaki-San and Kamezawa-San
+>    Please see individual changelogs for changes
+> 
+> Changelog v2...v1
+> 1. Soft limits now support hierarchies
+> 2. Use spinlocks instead of mutexes for synchronization of the RB tree
+> 
+> Here is v3 of the new soft limit implementation. Soft limits is a new feature
+> for the memory resource controller, something similar has existed in the
+> group scheduler in the form of shares. The CPU controllers interpretation
+> of shares is very different though. 
+> 
+> Soft limits are the most useful feature to have for environments where
+> the administrator wants to overcommit the system, such that only on memory
+> contention do the limits become active. The current soft limits implementation
+> provides a soft_limit_in_bytes interface for the memory controller and not
+> for memory+swap controller. The implementation maintains an RB-Tree of groups
+> that exceed their soft limit and starts reclaiming from the group that
+> exceeds this limit by the maximum amount.
+> 
+> If there are no major objections to the patches, I would like to get them
+> included in -mm.
+> 
+> TODOs
+> 
+> 1. The current implementation maintains the delta from the soft limit
+>    and pushes back groups to their soft limits, a ratio of delta/soft_limit
+>    might be more useful
+> 2. It would be nice to have more targetted reclaim (in terms of pages to
+>    recalim) interface. So that groups are pushed back, close to their soft
+>    limits.
+> 
+> Tests
+> -----
+> 
+> I've run two memory intensive workloads with differing soft limits and
+> seen that they are pushed back to their soft limit on contention. Their usage
+> was their soft limit plus additional memory that they were able to grab
+> on the system. Soft limit can take a while before we see the expected
+> results.
+> 
+> Please review, comment.
+> 
+Please forgive me to say....that the code itself is getting better but far from
+what I want. Maybe I have to show my own implementation to show my idea
+and the answer is between yours and mine. If now was the last year, I have enough
+time until distro's target kernel and may welcome any innovative patches even if
+it seems to give me concerns, but I have to be conservative now.
 
-And checkpoint.
+At first, it's said "When cgroup people adds something, the kernel gets slow".
+This is my start point of reviewing. Below is comments to this version of patch.
 
--serge
+ 1. I think it's bad to add more hooks to res_counter. It's enough slow to give up
+    adding more fancy things..
+
+ 2. please avoid to add hooks to hot-path. In your patch, especially a hook to
+    mem_cgroup_uncharge_common() is annoying me.
+
+ 3. please avoid to use global spinlock more. 
+    no lock is best. mutex is better, maybe.
+
+ 4. RB-tree seems broken. Following is example. (please note you do all ops
+    in lazy manner (once in HZ/4.)
+
+   i). while running, the tree is constructed as following
+ 
+             R           R=exceed=300M
+            / \ 
+           A   B      A=exceed=200M  B=exceed=400M
+   ii) A process B exits, but and usage goes down.
+
+   iii)      R          R=exceed=300M
+            / \
+           A   B      A=exceed=200M  B=exceed=10M
+
+   vi) A new node inserted
+             R         R=exceed=300M
+            / \       
+           A   B       A=exceed=200M B=exceed=10M
+              / \
+             nil C     C=exceed=310M
+
+   v) Time expires and remove "R" and do rotate.
+
+   Hmm ? Is above status is allowed ? I'm sorry if I misunderstand RBtree.
+
+I'll post my own version in this week (more conservative version, maybe).
+please discuss and compare trafe-offs.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
