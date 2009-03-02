@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AD2936B00D1
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 02:18:28 -0500 (EST)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n227IQkN030395
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 2 Mar 2009 16:18:26 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AA7645DE54
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 16:18:25 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0177245DE4E
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 16:18:25 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2C2E1DB8041
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 16:18:24 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BC981DB8040
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 16:18:24 +0900 (JST)
-Date: Mon, 2 Mar 2009 16:17:08 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
-Message-Id: <20090302161708.beae2dd6.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090302160602.521928a5.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain>
-	<20090302092404.1439d2a6.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090302044043.GC11421@balbir.in.ibm.com>
-	<20090302143250.f47758f9.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090302060519.GG11421@balbir.in.ibm.com>
-	<20090302152128.e74f51ef.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090302063649.GJ11421@balbir.in.ibm.com>
-	<20090302160602.521928a5.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7386B00D3
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 03:19:59 -0500 (EST)
+Date: Mon, 2 Mar 2009 19:19:53 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
+Message-ID: <20090302081953.GK26138@disturbed>
+References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090301135057.GA26905@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: balbir@linux.vnet.ibm.com, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Mar 2009 16:06:02 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->  Considering above 2, it's not bad to find victim by proper logic
->  from balance_pgdat() by using mem_cgroup_select_victim().
->  like this:
-> ==
->  struct mem_cgroup *select_vicitim_at_soft_limit_via_balance_pgdat(int nid, int zid)
->  {
->      while (?) {
->         vitcim = mem_cgroup_select_victim(init_mem_cgroup);  #need some modification.
+On Sun, Mar 01, 2009 at 02:50:57PM +0100, Nick Piggin wrote:
+> On Sun, Mar 01, 2009 at 07:17:44PM +1100, Dave Chinner wrote:
+> > On Wed, Feb 25, 2009 at 10:36:29AM +0100, Nick Piggin wrote:
+> > > I need this in fsblock because I am working to ensure filesystem metadata
+> > > can be correctly allocated and refcounted. This means that page cleaning
+> > > should not require memory allocation (to be really robust).
+> > 
+> > Which, unfortunately, is just a dream for any filesystem that uses
+> > delayed allocation. i.e. they have to walk the free space trees
+> > which may need to be read from disk and therefore require memory
+> > to succeed....
+> 
+> Well it's a dream because probably none of them get it right, but
+> that doesn't mean its impossible.
+> 
+> You don't need complete memory allocation up-front to be robust,
+> but having reserves or degraded modes that simply guarantee
+> forward progress is enough.
+> 
+> For example, if you need to read/write filesystem metadata to find
+> and allocate free space, then you really only need a page to do all
+> the IO.
 
-Another choice is that when a user set soft-limit via interface, add it to
-our own private list and scan it here. (of course, remove at rmdir.)
+For journalling filesystems, dirty metadata is pinned for at least the
+duration of the transaction and in many cases it is pinned for
+multiple transactions (i.e. in memory aggregation of commits like
+XFS does). And then once the transaction is complete, it can't be
+reused until it is written to disk.
 
-Thanks,
--Kame
+For the worst case usage in XFS, think about a complete btree split
+of both free space trees, plus a complete btree split of the extent
+tree.  That is two buffers per level per btree that are pinned by
+the transaction.
+
+The free space trees are bound in depth by the AG size so the limit
+is (IIRC) 15 buffers per tree at 1TB AG size. However, the inode
+extent tree can be deeper than that (bound by filesystem size). In
+effect, writing back a single page could require memory allocation
+of 30-40 pages just for metadata that is dirtied by the allocation
+transaction.
+
+And then the next page written back goes into a different
+AG and splits the trees there. And then the next does the same.
+
+Luckily, this sort of thing doesn't happen very often, but it does
+serve to demonstrate how difficult it is to quantify how much memory
+the writeback path really needs to guarantee forward progress.
+Hence the dream......
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
