@@ -1,222 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 068C96B00B4
-	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 21:04:45 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2224ggx006225
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 2 Mar 2009 11:04:42 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 34FAB45DD7E
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 11:04:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE4D145DD77
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 11:04:40 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D97CE0800B
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 11:04:40 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BF0EE08001
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 11:04:39 +0900 (JST)
-Date: Mon, 2 Mar 2009 11:03:23 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 2/4] Memory controller soft limit interface (v3)
-Message-Id: <20090302110323.1a9b9e6b.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090301063011.31557.42094.sendpatchset@localhost.localdomain>
-References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain>
-	<20090301063011.31557.42094.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id B5A386B00B7
+	for <linux-mm@kvack.org>; Sun,  1 Mar 2009 22:08:06 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n22383vO032472
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Mon, 2 Mar 2009 12:08:04 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B33FD45DD82
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 12:08:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 84B0345DD7B
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 12:08:03 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D2031DB8038
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 12:08:03 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 79AB61DB803F
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 12:08:02 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention (v3)
+In-Reply-To: <20090301063041.31557.86588.sendpatchset@localhost.localdomain>
+References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain> <20090301063041.31557.86588.sendpatchset@localhost.localdomain>
+Message-Id: <20090302120052.6FEC.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Mon,  2 Mar 2009 12:08:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 01 Mar 2009 12:00:11 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+Hi Balbir,
 
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Changelog v2...v1
-> 1. Add support for res_counter_check_soft_limit_locked. This is used
->    by the hierarchy code.
-> 
-> Add an interface to allow get/set of soft limits. Soft limits for memory plus
-> swap controller (memsw) is currently not supported. Resource counters have
-> been enhanced to support soft limits and new type RES_SOFT_LIMIT has been
-> added. Unlike hard limits, soft limits can be directly set and do not
-> need any reclaim or checks before setting them to a newer value.
-> 
-> Kamezawa-San raised a question as to whether soft limit should belong
-> to res_counter. Since all resources understand the basic concepts of
-> hard and soft limits, it is justified to add soft limits here. Soft limits
-> are a generic resource usage feature, even file system quotas support
-> soft limits.
-> 
-I don't convice adding more logics to res_counter is a good to do, yet.
-
-
-Thanks,
--Kame
-
-
-
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
-> 
->  include/linux/res_counter.h |   47 +++++++++++++++++++++++++++++++++++++++++++
->  kernel/res_counter.c        |    3 +++
->  mm/memcontrol.c             |   20 ++++++++++++++++++
->  3 files changed, 70 insertions(+), 0 deletions(-)
-> 
-> 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index 4c5bcf6..b5f14fa 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -35,6 +35,10 @@ struct res_counter {
->  	 */
->  	unsigned long long limit;
->  	/*
-> +	 * the limit that usage can be exceed
-> +	 */
-> +	unsigned long long soft_limit;
-> +	/*
->  	 * the number of unsuccessful attempts to consume the resource
->  	 */
->  	unsigned long long failcnt;
-> @@ -85,6 +89,7 @@ enum {
->  	RES_MAX_USAGE,
->  	RES_LIMIT,
->  	RES_FAILCNT,
-> +	RES_SOFT_LIMIT,
->  };
+> @@ -2015,9 +2016,12 @@ static int kswapd(void *p)
+>  		finish_wait(&pgdat->kswapd_wait, &wait);
 >  
->  /*
-> @@ -130,6 +135,36 @@ static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
->  	return false;
->  }
->  
-> +static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
-> +{
-> +	if (cnt->usage < cnt->soft_limit)
-> +		return true;
-> +
-> +	return false;
-> +}
-> +
-> +/**
-> + * Get the difference between the usage and the soft limit
-> + * @cnt: The counter
-> + *
-> + * Returns 0 if usage is less than or equal to soft limit
-> + * The difference between usage and soft limit, otherwise.
-> + */
-> +static inline unsigned long long
-> +res_counter_soft_limit_excess(struct res_counter *cnt)
-> +{
-> +	unsigned long long excess;
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	if (cnt->usage <= cnt->soft_limit)
-> +		excess = 0;
-> +	else
-> +		excess = cnt->usage - cnt->soft_limit;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return excess;
-> +}
-> +
->  /*
->   * Helper function to detect if the cgroup is within it's limit or
->   * not. It's currently called from cgroup_rss_prepare()
-> @@ -178,4 +213,16 @@ static inline int res_counter_set_limit(struct res_counter *cnt,
->  	return ret;
->  }
->  
-> +static inline int
-> +res_counter_set_soft_limit(struct res_counter *cnt,
-> +				unsigned long long soft_limit)
-> +{
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	cnt->soft_limit = soft_limit;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return 0;
-> +}
-> +
->  #endif
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index bf8e753..4e6dafe 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -19,6 +19,7 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent)
->  {
->  	spin_lock_init(&counter->lock);
->  	counter->limit = (unsigned long long)LLONG_MAX;
-> +	counter->soft_limit = (unsigned long long)LLONG_MAX;
->  	counter->parent = parent;
->  }
->  
-> @@ -101,6 +102,8 @@ res_counter_member(struct res_counter *counter, int member)
->  		return &counter->limit;
->  	case RES_FAILCNT:
->  		return &counter->failcnt;
-> +	case RES_SOFT_LIMIT:
-> +		return &counter->soft_limit;
->  	};
->  
->  	BUG();
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 7bb14fd..75a7b1a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1939,6 +1939,20 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
->  		else
->  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
->  		break;
-> +	case RES_SOFT_LIMIT:
-> +		ret = res_counter_memparse_write_strategy(buffer, &val);
-> +		if (ret)
-> +			break;
-> +		/*
-> +		 * For memsw, soft limits are hard to implement in terms
-> +		 * of semantics, for now, we support soft limits for
-> +		 * control without swap
-> +		 */
-> +		if (type == _MEM)
-> +			ret = res_counter_set_soft_limit(&memcg->res, val);
-> +		else
-> +			ret = -EINVAL;
-> +		break;
->  	default:
->  		ret = -EINVAL; /* should be BUG() ? */
->  		break;
-> @@ -2188,6 +2202,12 @@ static struct cftype mem_cgroup_files[] = {
->  		.read_u64 = mem_cgroup_read,
->  	},
->  	{
-> +		.name = "soft_limit_in_bytes",
-> +		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
-> +		.write_string = mem_cgroup_write,
-> +		.read_u64 = mem_cgroup_read,
-> +	},
-> +	{
->  		.name = "failcnt",
->  		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
->  		.trigger = mem_cgroup_reset,
-> 
-> -- 
-> 	Balbir
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+>  		if (!try_to_freeze()) {
+> +			struct zonelist *zl = pgdat->node_zonelists;
+>  			/* We can speed up thawing tasks if we don't call
+>  			 * balance_pgdat after returning from the refrigerator
+>  			 */
+> +			if (!order)
+> +				mem_cgroup_soft_limit_reclaim(zl, GFP_KERNEL);
+>  			balance_pgdat(pgdat, order);
+>  		}
+>  	}
+
+kswapd's roll is increasing free pages until zone->pages_high in "own node".
+mem_cgroup_soft_limit_reclaim() free one (or more) exceed page in any node.
+
+Oh, well.
+I think it is not consistency.
+
+if mem_cgroup_soft_limit_reclaim() is aware to target node and its pages_high,
+I'm glad.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
