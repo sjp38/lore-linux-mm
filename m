@@ -1,89 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A7B286B00D5
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 03:37:21 -0500 (EST)
-Date: Mon, 2 Mar 2009 09:37:18 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-Message-ID: <20090302083718.GE1257@wotan.suse.de>
-References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed>
+	by kanga.kvack.org (Postfix) with SMTP id 9702C6B00D9
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 04:33:07 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so2698593tia.8
+        for <linux-mm@kvack.org>; Mon, 02 Mar 2009 01:33:05 -0800 (PST)
+Date: Mon, 2 Mar 2009 18:31:48 +0900
+From: MinChan Kim <minchan.kim@gmail.com>
+Subject: [PATCH] mmtom :  add VM_BUG_ON in __get_free_pages
+Message-Id: <20090302183148.a4dfcc22.minchan.kim@barrios-desktop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090302081953.GK26138@disturbed>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 02, 2009 at 07:19:53PM +1100, Dave Chinner wrote:
-> On Sun, Mar 01, 2009 at 02:50:57PM +0100, Nick Piggin wrote:
-> > On Sun, Mar 01, 2009 at 07:17:44PM +1100, Dave Chinner wrote:
-> > > On Wed, Feb 25, 2009 at 10:36:29AM +0100, Nick Piggin wrote:
-> > > > I need this in fsblock because I am working to ensure filesystem metadata
-> > > > can be correctly allocated and refcounted. This means that page cleaning
-> > > > should not require memory allocation (to be really robust).
-> > > 
-> > > Which, unfortunately, is just a dream for any filesystem that uses
-> > > delayed allocation. i.e. they have to walk the free space trees
-> > > which may need to be read from disk and therefore require memory
-> > > to succeed....
-> > 
-> > Well it's a dream because probably none of them get it right, but
-> > that doesn't mean its impossible.
-> > 
-> > You don't need complete memory allocation up-front to be robust,
-> > but having reserves or degraded modes that simply guarantee
-> > forward progress is enough.
-> > 
-> > For example, if you need to read/write filesystem metadata to find
-> > and allocate free space, then you really only need a page to do all
-> > the IO.
-> 
-> For journalling filesystems, dirty metadata is pinned for at least the
-> duration of the transaction and in many cases it is pinned for
-> multiple transactions (i.e. in memory aggregation of commits like
-> XFS does). And then once the transaction is complete, it can't be
-> reused until it is written to disk.
-> 
-> For the worst case usage in XFS, think about a complete btree split
-> of both free space trees, plus a complete btree split of the extent
-> tree.  That is two buffers per level per btree that are pinned by
-> the transaction.
-> 
-> The free space trees are bound in depth by the AG size so the limit
-> is (IIRC) 15 buffers per tree at 1TB AG size. However, the inode
-> extent tree can be deeper than that (bound by filesystem size). In
-> effect, writing back a single page could require memory allocation
-> of 30-40 pages just for metadata that is dirtied by the allocation
-> transaction.
-> 
-> And then the next page written back goes into a different
-> AG and splits the trees there. And then the next does the same.
 
-So assuming there is no reasonable way to do out of core algorithms
-on the filesystem metadata (and likely you don't want to anyway
-because it would be a significant slowdown or diverge of code
-paths), you still only need to reserve one set of those 30-40 pages
-for the entire kernel.
+The __get_free_pages is used in many place. 
+Also, driver developers can use it freely due to export function.
+Some developers might use it to allocate high pages by mistake. 
 
-You only ever need to reserve enough memory for a *single* page
-to be processed. In the worst case that there are multiple pages
-under writeout but can't allocate memory, only one will be allowed
-access to reserves and the others will block until it is finished
-and can unpin them all.
+The __get_free_pages can allocate high page using alloc_pages, 
+but it can't return linear address for high page.
+
+Even worse, in this csse, caller can't free page which are there in high zone. 
+So, It would be better to add VM_BUG_ON. 
+
+It's based on mmtom 2009-02-27-13-54.
+ 
+Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+---
+ mm/page_alloc.c |    7 +++++++
+ 1 files changed, 7 insertions(+), 0 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8294107..381056b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1681,6 +1681,13 @@ EXPORT_SYMBOL(__alloc_pages_internal);
+ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+ {
+ 	struct page * page;
++
++	/*
++	 * __get_free_pages() returns a 32-bit address, which cannot represent
++	 * a highmem page
++	 */
++	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
++
+ 	page = alloc_pages(gfp_mask, order);
+ 	if (!page)
+ 		return 0;
+-- 
+1.5.4.3
 
 
-> Luckily, this sort of thing doesn't happen very often, but it does
-> serve to demonstrate how difficult it is to quantify how much memory
-> the writeback path really needs to guarantee forward progress.
-> Hence the dream......
-
-Well I'm not saying it is an immediate problem or it would be a
-good use of anybody's time to rush out and try to redesign their
-fs code to fix it ;) But at least for any new core/generic library
-functionality like fsblock, it would be silly not to close the hole
-there (not least because the problem is simpler here than in a
-complex fs).
+-- 
+Kinds Regards
+MinChan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
