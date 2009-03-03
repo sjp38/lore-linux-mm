@@ -1,118 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C156B0085
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 12:25:44 -0500 (EST)
-Date: Tue, 3 Mar 2009 17:25:36 +0000
-From: Jamie Lokier <jamie@shareable.org>
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-Message-ID: <20090303172535.GA16993@shareable.org>
-References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed> <20090302083718.GE1257@wotan.suse.de> <49ABFA9D.90801@hp.com> <20090303043338.GB3973@wotan.suse.de>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A2D6B00A0
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 13:28:26 -0500 (EST)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n23IQRD7011187
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:26:27 -0700
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n23ISMaT166710
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:28:22 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n23ISLQK021835
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:28:21 -0700
+Date: Tue, 3 Mar 2009 12:28:21 -0600
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+	do?
+Message-ID: <20090303182821.GA4088@us.ibm.com>
+References: <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226162755.GB1456@x200.localdomain> <20090226173302.GB29439@elte.hu> <20090226223112.GA2939@x200.localdomain> <20090301013304.GA2428@x200.localdomain> <20090301200231.GA25276@us.ibm.com> <20090301205659.GA7276@x200.localdomain> <49AD581F.2090903@free.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090303043338.GB3973@wotan.suse.de>
+In-Reply-To: <49AD581F.2090903@free.fr>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: jim owens <jowens@hp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Cedric Le Goater <legoater@free.fr>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> > >You only ever need to reserve enough memory for a *single* page
-> > >to be processed. In the worst case that there are multiple pages
-> > >under writeout but can't allocate memory, only one will be allowed
-> > >access to reserves and the others will block until it is finished
-> > >and can unpin them all.
+Quoting Cedric Le Goater (legoater@free.fr):
+> 
+> >> 1. cap_sys_admin check is unfortunate.  In discussions about Oren's
+> >> patchset we've agreed that not having that check from the outset forces
+> >> us to consider security with each new patch and feature, which is a good
+> >> thing.
 > > 
-> > Sure, nobody will mind seeing lots of extra pinned memory ;)
+> > Removing CAP_SYS_ADMIN on restore?
 > 
-> 40 pages (160k) isn't a huge amount. You could always have a
-> boot option to disable the memory reserve if it is a big
-> deal.
->  
-> > Don't forget to add the space for data transforms and raid
-> > driver operations in the write stack, and whatever else we
-> > may not have thought of.  With good engineering we can make
+> we've kept the capabilities in our patchset but the user tools doing checkpoint
+> and restart are setcap'ed appropriately to be able to do different things like : 
+> 	
+> 	clone() the namespaces
+> 	mount /dev/mqueue
+> 	interact with net_ns
+> 	etc.
+
+Right, that stuff done in userspace requires capabilities.
+
+> at restart, the task are restarted through execve() so they loose their 
+> capabilities automatically.
 > 
-> The block layer below the filesystem should be robust. Well
-> actually the core block layer is (except maybe for the new
-> bio integrity stuff that looks pretty nasty). Not sure about
-> md/dm, but they really should be safe (they use mempools etc).
+> but I think we could drop the CAP_SYS_ADMIN tests for some namespaces,
+> uts and ipc are good candidates. I guess network should require some 
+> privilege.  
 
-Are mempools fully safe, or just statistically safer?
+Eric and i have talked about that a lot, and so far are continuing
+to punt on it.  There are too many possibilities for subtle exploits
+so I'm not suggesting changing those now.
 
-> > it so "we can always make forward progress".  But it won't
-> > matter because once a real user drives the system off this
-> > cliff there is no difference between "hung" and "really slow
-> > progress".  They are going to crash it and report a hang.
-> 
-> I don't think that is the case. These are situations that
-> would be *really* rare and transient. It is not like thrashing
-> in that your working set size exceeds physical RAM, but just
-> a combination of conditions that causes an unusual spike in the
-> required memory to clean some dirty pages (eg. Dave's example
-> of several IOs requiring btree splits over several AGs). Could
-> cause a resource deadlock.
+But checkpoint and restart are entirely new.  If at each small step
+we accept that an unprivileged user should be able to use it safely,
+that will lead to a better design, i.e. doing may_ptrace before
+checkpoint, and always doing access checks before re-creating a
+resource.
 
-Suppose the systems has two pages to be written.  The first must
-_reserve_ 40 pages of scratch space just in case the operation will
-need them.  If the second page write is initiated concurrently with
-the first, the second must reserve another 40 pages concurrently.
+If we *don't* do that, we'll have a big-stick setuid root checkpoint
+and restart program which isn't at all trustworthy (bc it hasn't
+received due scrutiny at each commit point), but must be trusted by
+anyone wanting to use it.
 
-If 10 page writes are concurrent, that's 400 pages of scratch space
-needed in reserve...
+And if we're too afraid to remove CAP_SYS_ADMIN checks from unsharing
+one innocuous namespace, will we ever convince ourselves to remove it
+from an established feature that can recreate every type of resource on
+the system?
 
-Your idea that the system can serialises page writes to limit the
-scratch used will limit this.  But how does it know when to serialise
-page writes, if not by reserving 40 pages of memory per written page,
-until it knows better?
-
-In other words, do you need 40 pages of metadata space times the
-number of concurrent page writes - until the write logic for each page
-reaches the point of "unreserving" because they've worked out which
-metadata they don't need to touch?
-
-It sounds like a classic concurrency problem - how many things to
-start in parallel, each having a large upper bound on the memory they
-may need when they are started, even though the average is much lower.
-
-A solution to that is each concurrent thing being able to reserve
-memory "I may need X memory later" and block at reservation time, so
-it doesn't have to block when it's later allocating and using memory.
-Then to keep up global concurrency, each thing is able to unreserve
-memory as it progresses.  Or reserve some more.  The point is
-reservation can block, while later processing which may need the
-memory doesn't block.
-
--- Jamie
-
-
-> 
-> 
-> > >Well I'm not saying it is an immediate problem or it would be a
-> > >good use of anybody's time to rush out and try to redesign their
-> > >fs code to fix it ;) But at least for any new core/generic library
-> > >functionality like fsblock, it would be silly not to close the hole
-> > >there (not least because the problem is simpler here than in a
-> > >complex fs).
-> > 
-> > Hey, I appreciate anything you do in VM to make the ugly
-> > dance with filesystems (my area) a little less ugly.
-> 
-> Well thanks.
-> 
-> 
-> > I'm sure you also appreciate that every time VM tries to
-> > save 32 bytes, someone else tries to take 32 K-bytes.
-> > As they say... memory is cheap :)
-> 
-> Well that's OK. If core vm/fs code saves a little bit of memory
-> that enables something else like a filesystem to use it to cache
-> a tiny bit more useful data, then I think it is a good result :)
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
