@@ -1,78 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A2D6B00A0
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 13:28:26 -0500 (EST)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e38.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n23IQRD7011187
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:26:27 -0700
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n23ISMaT166710
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:28:22 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n23ISLQK021835
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 11:28:21 -0700
-Date: Tue, 3 Mar 2009 12:28:21 -0600
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090303182821.GA4088@us.ibm.com>
-References: <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226162755.GB1456@x200.localdomain> <20090226173302.GB29439@elte.hu> <20090226223112.GA2939@x200.localdomain> <20090301013304.GA2428@x200.localdomain> <20090301200231.GA25276@us.ibm.com> <20090301205659.GA7276@x200.localdomain> <49AD581F.2090903@free.fr>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 1E1D36B00B7
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:04:14 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 02B843056BC
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:09:36 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id EjqRU8pwccIz for <linux-mm@kvack.org>;
+	Tue,  3 Mar 2009 14:09:35 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 581113056BE
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:09:25 -0500 (EST)
+Date: Tue, 3 Mar 2009 13:53:47 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
+In-Reply-To: <20090303135254.GE10577@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903031350020.18013@qirst.com>
+References: <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com>
+ <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de> <alpine.DEB.1.10.0902271039440.31801@qirst.com> <20090303135254.GE10577@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <49AD581F.2090903@free.fr>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Cedric Le Goater <legoater@free.fr>
-Cc: Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, Ingo Molnar <mingo@elte.hu>, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, xemul@openvz.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-Quoting Cedric Le Goater (legoater@free.fr):
-> 
-> >> 1. cap_sys_admin check is unfortunate.  In discussions about Oren's
-> >> patchset we've agreed that not having that check from the outset forces
-> >> us to consider security with each new patch and feature, which is a good
-> >> thing.
-> > 
-> > Removing CAP_SYS_ADMIN on restore?
-> 
-> we've kept the capabilities in our patchset but the user tools doing checkpoint
-> and restart are setcap'ed appropriately to be able to do different things like : 
-> 	
-> 	clone() the namespaces
-> 	mount /dev/mqueue
-> 	interact with net_ns
-> 	etc.
+On Tue, 3 Mar 2009, Mel Gorman wrote:
 
-Right, that stuff done in userspace requires capabilities.
+> > And only if the page allocator gets fast enough to be usable for
+> > allocs instead of quicklists.
+> It appears the x86 doesn't even use the quicklists. I know patches for
+> i386 support used to exist, what happened with them?
 
-> at restart, the task are restarted through execve() so they loose their 
-> capabilities automatically.
-> 
-> but I think we could drop the CAP_SYS_ADMIN tests for some namespaces,
-> uts and ipc are good candidates. I guess network should require some 
-> privilege.  
+The x86 patches were not applied because of an issue with early NUMA
+freeing. The problem has been fixed but the x86 patches were left
+unmerged. There was also an issue with the quicklists growing too large.
 
-Eric and i have talked about that a lot, and so far are continuing
-to punt on it.  There are too many possibilities for subtle exploits
-so I'm not suggesting changing those now.
+> That aside, I think we could win slightly by just knowing when a page is
+> zeroed and being freed back to the allocator such as when the quicklists
+> are being drained. I wrote a patch along those lines but it started
+> getting really messy on x86 so I'm postponing it for the moment.
 
-But checkpoint and restart are entirely new.  If at each small step
-we accept that an unprivileged user should be able to use it safely,
-that will lead to a better design, i.e. doing may_ptrace before
-checkpoint, and always doing access checks before re-creating a
-resource.
-
-If we *don't* do that, we'll have a big-stick setuid root checkpoint
-and restart program which isn't at all trustworthy (bc it hasn't
-received due scrutiny at each commit point), but must be trusted by
-anyone wanting to use it.
-
-And if we're too afraid to remove CAP_SYS_ADMIN checks from unsharing
-one innocuous namespace, will we ever convince ourselves to remove it
-from an established feature that can recreate every type of resource on
-the system?
-
--serge
+quicklist tied into the tlb freeing logic. The tlb freeing logic could
+itself keep a list of zeroed pages which may be cleaner.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
