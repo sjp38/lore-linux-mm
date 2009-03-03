@@ -1,94 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id EDDC16B0083
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 16:36:44 -0500 (EST)
-Date: Tue, 3 Mar 2009 13:36:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] generic debug pagealloc
-Message-Id: <20090303133610.cb771fef.akpm@linux-foundation.org>
-In-Reply-To: <20090303160103.GB5812@localhost.localdomain>
-References: <20090303160103.GB5812@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 137736B0087
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 16:48:46 -0500 (EST)
+Date: Tue, 3 Mar 2009 21:48:42 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+Message-ID: <20090303214842.GL10577@csn.ul.ie>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop> <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr> <20090302112122.GC21145@csn.ul.ie> <alpine.DEB.1.10.0903031130550.26454@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0903031130550.26454@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Mar 2009 01:01:04 +0900
-Akinobu Mita <akinobu.mita@gmail.com> wrote:
+On Tue, Mar 03, 2009 at 11:31:46AM -0500, Christoph Lameter wrote:
+> On Mon, 2 Mar 2009, Mel Gorman wrote:
+> 
+> > Going by the vanilla kernel, a *large* amount of time is spent doing
+> > high-order allocations. Over 25% of the cost of buffered_rmqueue() is in
+> > the branch dealing with high-order allocations. Does UDP-U-4K mean that 8K
+> > pages are required for the packets? That means high-order allocations and
+> > high contention on the zone-list. That is bad obviously and has implications
+> > for the SLUB-passthru patch because whether 8K allocations are handled by
+> > SL*B or the page allocator has a big impact on locking.
+> >
+> > Next, a little over 50% of the cost get_page_from_freelist() is being spent
+> > acquiring the zone spinlock. The implication is that the SL*B allocators
+> > passing in order-1 allocations to the page allocator are currently going to
+> > hit scalability problems in a big way. The solution may be to extend the
+> > per-cpu allocator to handle magazines up to PAGE_ALLOC_COSTLY_ORDER. I'll
+> > check it out.
+> 
+> Then we are increasing the number of queues dramatically in the page
+> allocator. More of a memory sink. Less cache hotness.
+> 
 
-> +static void unpoison_page(struct page *page)
-> +{
-> +	unsigned char *mem;
-> +	int i;
-> +
-> +	if (!page->poison)
-> +		return;
-> +
-> +	mem = kmap_atomic(page, KM_USER0);
-> +	for (i = 0; i < PAGE_SIZE; i++) {
-> +		if (mem[i] != PAGE_POISON) {
-> +			dump_broken_mem(mem);
-> +			break;
-> +		}
-> +	}
-> +	kunmap_atomic(mem, KM_USER0);
-> +	page->poison = false;
-> +}
-> +
-> +static void unpoison_pages(struct page *page, int n)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < n; i++)
-> +		unpoison_page(page + i);
-> +}
-> +
-> +void kernel_map_pages(struct page *page, int numpages, int enable)
-> +{
-> +	if (!debug_pagealloc_enabled)
-> +		return;
-> +
-> +	if (enable)
-> +		unpoison_pages(page, numpages);
-> +	else
-> +		poison_pages(page, numpages);
-> +}
+It doesn't have to be more queues and networking is doing order-1 allocations
+based on a quick instrumentation so we might be justified in doing this to
+avoid contending excessively on the zone lock.
 
-kernel_map_pages() is called from the memory-allocation and
-memory-freeing paths.  Hence it can be called from interrupt contexts.
+Without the patchset, we do a search of the pcp lists for a page of the
+appropriate migrate type. There is a patch that removes this search at
+the cost of one cache line per CPU and it works reasonably well.
 
-KM_USER0 must not be used from interrupt context - it will corrupt the
-non-interrupt context's pte, causing unpleasing very hard to track down
-memory corruption.  Often memory which is getting written to the user's
-disk.  This makes users unhappy.
-
-We could use KM_IRQ0 here.  The code should disable local interrupts
-when holding a KM_IRQ0 kmap.
-
-If this code were to switch to using KM_IRQ0 then we still have a
-problem - if any other place in the kernel does a memory allcoation or
-free while holding a KM_IRQ0 kmap, then this new code will corrupt the
-caller's pte.
-
-So I guess we'll need to create a new kmap_atomic slot for this
-application.  It will need interrupt protection - the page allocator can
-be called from interrupt context while it is already running in
-non-interrupt context.
-
-
-Alternatively, we could just not do the kmap_atomic() at all.  i386
-won't be using this code and IIRC the only other highmem architecture
-is powerpc32, and ppc32 appears to also have its own DEBUG_PAGEALLOC
-implementation.  So you could remove the kmap_atomic() stuff and put
-
-#ifdef CONFIG_HIGHMEM
-#error i goofed
-#endif
-
-in there.
+However, if the search was left in place, you can add pages of other orders
+and just search for those which should be a lot less costly. Yes, the search
+is unfortunate but you avoid acquiring the zone lock without increasing
+the size of the per-cpu structure. The search will require cache lines it's
+probably less than acquiring teh zone lock and going through the whole buddy
+allocator for order-1 pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
