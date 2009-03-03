@@ -1,110 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A4726B0088
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 06:17:24 -0500 (EST)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n23BFSSL015370
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 22:15:28 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n23BHcXx434280
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 22:17:38 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n23BHJUP010983
-	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 22:17:20 +1100
-Date: Tue, 3 Mar 2009 16:47:13 +0530
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D9936B0093
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 06:23:14 -0500 (EST)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp09.in.ibm.com (8.13.1/8.13.1) with ESMTP id n23B03KN010438
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 16:30:03 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n23BNF3u3903600
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 16:53:15 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id n23BN7SN024183
+	for <linux-mm@kvack.org>; Tue, 3 Mar 2009 22:23:08 +1100
+Date: Tue, 3 Mar 2009 16:53:06 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
-	(v3)
-Message-ID: <20090303111713.GQ11421@balbir.in.ibm.com>
+Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
+Message-ID: <20090303112305.GR11421@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20090302120052.6FEC.A69D9226@jp.fujitsu.com> <20090302044406.GD11421@balbir.in.ibm.com> <20090303095833.D9FC.A69D9226@jp.fujitsu.com>
+References: <20090301062959.31557.31079.sendpatchset@localhost.localdomain> <20090302092404.1439d2a6.kamezawa.hiroyu@jp.fujitsu.com> <20090302044043.GC11421@balbir.in.ibm.com> <20090302143250.f47758f9.kamezawa.hiroyu@jp.fujitsu.com> <20090302060519.GG11421@balbir.in.ibm.com> <20090302151830.3770e528.kamezawa.hiroyu@jp.fujitsu.com> <20090302175235.GN11421@balbir.in.ibm.com> <20090303090303.ca430b43.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090303095833.D9FC.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090303090303.ca430b43.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-03 11:43:49]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-03 09:03:03]:
 
-> > * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-02 12:08:01]:
+> On Mon, 2 Mar 2009 23:22:35 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-02 15:18:30]:
 > > 
-> > > Hi Balbir,
+> > > On Mon, 2 Mar 2009 11:35:19 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > > > 
-> > > > @@ -2015,9 +2016,12 @@ static int kswapd(void *p)
-> > > >  		finish_wait(&pgdat->kswapd_wait, &wait);
-> > > >  
-> > > >  		if (!try_to_freeze()) {
-> > > > +			struct zonelist *zl = pgdat->node_zonelists;
-> > > >  			/* We can speed up thawing tasks if we don't call
-> > > >  			 * balance_pgdat after returning from the refrigerator
-> > > >  			 */
-> > > > +			if (!order)
-> > > > +				mem_cgroup_soft_limit_reclaim(zl, GFP_KERNEL);
-> > > >  			balance_pgdat(pgdat, order);
-> > > >  		}
-> > > >  	}
+> > > > > Then, not-sorted RB-tree can be there.
+> > > > > 
+> > > > > BTW,
+> > > > >    time_after(jiffies, 0)
+> > > > > is buggy (see definition). If you want make this true always,
+> > > > >    time_after(jiffies, jiffies +1)
+> > > > >
+> > > > 
+> > > > HZ/4 is 250/4 jiffies in the worst case (62). We have
+> > > > time_after(jiffies, next_update_interval) and next_update_interval is
+> > > > set to last_tree_update + 62. Not sure if I got what you are pointing
+> > > > to.
+> > > > 
+> > > +	unsigned long next_update = 0;
+> > > +	unsigned long flags;
+> > > +
+> > > +	if (!css_tryget(&mem->css))
+> > > +		return;
+> > > +	prev_usage_in_excess = mem->usage_in_excess;
+> > > +	new_usage_in_excess = res_counter_soft_limit_excess(&mem->res);
+> > > +
+> > > +	if (time_check)
+> > > +		next_update = mem->last_tree_update +
+> > > +				MEM_CGROUP_TREE_UPDATE_INTERVAL;
+> > > +	if (new_usage_in_excess && time_after(jiffies, next_update)) {
+> > > +		if (prev_usage_in_excess)
+> > > +			mem_cgroup_remove_exceeded(mem);
+> > > +		mem_cgroup_insert_exceeded(mem);
+> > > +		updated_tree = true;
+> > > +	} else if (prev_usage_in_excess && !new_usage_in_excess) {
+> > > +		mem_cgroup_remove_exceeded(mem);
+> > > +		updated_tree = true;
+> > > +	}
 > > > 
-> > > kswapd's roll is increasing free pages until zone->pages_high in "own node".
-> > > mem_cgroup_soft_limit_reclaim() free one (or more) exceed page in any node.
-> > > 
-> > > Oh, well.
-> > > I think it is not consistency.
-> > > 
-> > > if mem_cgroup_soft_limit_reclaim() is aware to target node and its pages_high,
-> > > I'm glad.
+> > > My point is what happens if time_check==false.
+> > > time_afrter(jiffies, 0) is buggy.
+> > >
 > > 
-> > Yes, correct the role of kswapd is to keep increasing free pages until
-> > zone->pages_high and the first set of pages to consider is the memory
-> > controller over their soft limits. We pass the zonelist to ensure that
-> > while doing soft reclaim, we focus on the zonelist associated with the
-> > node. Kamezawa had concernes over calling the soft limit reclaim from
-> > __alloc_pages_internal(), did you prefer that call path? 
+> > I see your point now, but the idea behind doing so is that
+> > time_after(jiffies, 0) will always return false, which forces the
+> > prev_usage_in_excess and !new_usage_in_excess check to execute. We set
+> > the value to false only from __mem_cgroup_free().
+> > 
+> > Are you suggesting that calling time_after(jiffies, 0) is buggy?
+> > The comment
+> > 
+> >   Do this with "<0" and ">=0" to only test the sign of the result. A
+> >  
+> > I think refers to the comparison check and not to the parameters. I
+> > hope I am reading this right.
 > 
-> I read your patch again.
-> So, mem_cgroup_soft_limit_reclaim() caller place seems in balance_pgdat() is better.
+>  106 #define time_after(a,b)         \
+>  107         (typecheck(unsigned long, a) && \
+>  108          typecheck(unsigned long, b) && \
+>  109          ((long)(b) - (long)(a) < 0))
 > 
-> Please imazine most bad scenario.
-> CPU0 (kswapd) take to continue shrinking.
-> CPU1 take another activity and charge memcg conteniously.
-> At that time, balance_pgdat() don't exit very long time. then 
-> mem_cgroup_soft_limit_reclaim() is never called.
+> Reading above.
 > 
+>   if b==0.
+>      if (long)a <0  -> false
+>      if (long)a >0  -> true
+> 
+> jiffies is unsigned value. please think of bit-pattern of signed/unsigned value.
 
-Yes, true... that is why I added the hooks in __alloc_pages_internal()
-in the first two revisions, but Kamezawa objected to them. In the
-scenario that you mention that balance_pgdat() is busy, if we are
-under global system memory pressure, even after freeing memory from
-soft limited cgroups, we don't have sufficient free memory. We need to
-go reclaim from the whole system. An administrator can easily avoid
-the above scenario by using hard limits on the cgroup running on CPU1.
-
-> In ideal, if another cpu take another charge, kswapd should shrink 
-> soft limit again.
->
-
-Could you please elaborate further?
- 
-> 
-> btw, I don't like "if (!order)" condition. memcg soft limit sould be
-> always shrinked although 
-> it's the order of because wakeup_kswapd() argument is merely hint.
-> 
-> another process want another order.
-> 
-
-Agreed, I'll remove the check.
-
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Fair enough, the cast to long will be an issue. I'll fix it.
 
 -- 
 	Balbir
