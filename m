@@ -1,49 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 1E1D36B00B7
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:04:14 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 02B843056BC
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:09:36 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id EjqRU8pwccIz for <linux-mm@kvack.org>;
-	Tue,  3 Mar 2009 14:09:35 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 581113056BE
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 14:09:25 -0500 (EST)
-Date: Tue, 3 Mar 2009 13:53:47 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-In-Reply-To: <20090303135254.GE10577@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903031350020.18013@qirst.com>
-References: <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com>
- <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de> <alpine.DEB.1.10.0902271039440.31801@qirst.com> <20090303135254.GE10577@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id EDDC16B0083
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 16:36:44 -0500 (EST)
+Date: Tue, 3 Mar 2009 13:36:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] generic debug pagealloc
+Message-Id: <20090303133610.cb771fef.akpm@linux-foundation.org>
+In-Reply-To: <20090303160103.GB5812@localhost.localdomain>
+References: <20090303160103.GB5812@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Mar 2009, Mel Gorman wrote:
+On Wed, 4 Mar 2009 01:01:04 +0900
+Akinobu Mita <akinobu.mita@gmail.com> wrote:
 
-> > And only if the page allocator gets fast enough to be usable for
-> > allocs instead of quicklists.
-> It appears the x86 doesn't even use the quicklists. I know patches for
-> i386 support used to exist, what happened with them?
+> +static void unpoison_page(struct page *page)
+> +{
+> +	unsigned char *mem;
+> +	int i;
+> +
+> +	if (!page->poison)
+> +		return;
+> +
+> +	mem = kmap_atomic(page, KM_USER0);
+> +	for (i = 0; i < PAGE_SIZE; i++) {
+> +		if (mem[i] != PAGE_POISON) {
+> +			dump_broken_mem(mem);
+> +			break;
+> +		}
+> +	}
+> +	kunmap_atomic(mem, KM_USER0);
+> +	page->poison = false;
+> +}
+> +
+> +static void unpoison_pages(struct page *page, int n)
+> +{
+> +	int i;
+> +
+> +	for (i = 0; i < n; i++)
+> +		unpoison_page(page + i);
+> +}
+> +
+> +void kernel_map_pages(struct page *page, int numpages, int enable)
+> +{
+> +	if (!debug_pagealloc_enabled)
+> +		return;
+> +
+> +	if (enable)
+> +		unpoison_pages(page, numpages);
+> +	else
+> +		poison_pages(page, numpages);
+> +}
 
-The x86 patches were not applied because of an issue with early NUMA
-freeing. The problem has been fixed but the x86 patches were left
-unmerged. There was also an issue with the quicklists growing too large.
+kernel_map_pages() is called from the memory-allocation and
+memory-freeing paths.  Hence it can be called from interrupt contexts.
 
-> That aside, I think we could win slightly by just knowing when a page is
-> zeroed and being freed back to the allocator such as when the quicklists
-> are being drained. I wrote a patch along those lines but it started
-> getting really messy on x86 so I'm postponing it for the moment.
+KM_USER0 must not be used from interrupt context - it will corrupt the
+non-interrupt context's pte, causing unpleasing very hard to track down
+memory corruption.  Often memory which is getting written to the user's
+disk.  This makes users unhappy.
 
-quicklist tied into the tlb freeing logic. The tlb freeing logic could
-itself keep a list of zeroed pages which may be cleaner.
+We could use KM_IRQ0 here.  The code should disable local interrupts
+when holding a KM_IRQ0 kmap.
+
+If this code were to switch to using KM_IRQ0 then we still have a
+problem - if any other place in the kernel does a memory allcoation or
+free while holding a KM_IRQ0 kmap, then this new code will corrupt the
+caller's pte.
+
+So I guess we'll need to create a new kmap_atomic slot for this
+application.  It will need interrupt protection - the page allocator can
+be called from interrupt context while it is already running in
+non-interrupt context.
+
+
+Alternatively, we could just not do the kmap_atomic() at all.  i386
+won't be using this code and IIRC the only other highmem architecture
+is powerpc32, and ppc32 appears to also have its own DEBUG_PAGEALLOC
+implementation.  So you could remove the kmap_atomic() stuff and put
+
+#ifdef CONFIG_HIGHMEM
+#error i goofed
+#endif
+
+in there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
