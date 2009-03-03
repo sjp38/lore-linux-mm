@@ -1,103 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 606036B0088
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 06:51:01 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n23Bowlw031997
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 3 Mar 2009 20:50:58 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E91845DD79
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 20:50:58 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E535045DD75
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 20:50:57 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B3163E18005
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 20:50:57 +0900 (JST)
-Received: from ml12.s.css.fujitsu.com (ml12.s.css.fujitsu.com [10.249.87.102])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C31EE18003
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 20:50:57 +0900 (JST)
-Message-ID: <52c02febf1e87a4f0a6e81124e00876a.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090303111244.GP11421@balbir.in.ibm.com>
-References: <20090302044043.GC11421@balbir.in.ibm.com>
-    <20090302143250.f47758f9.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090302060519.GG11421@balbir.in.ibm.com>
-    <20090302152128.e74f51ef.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090302063649.GJ11421@balbir.in.ibm.com>
-    <20090302160602.521928a5.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090302124210.GK11421@balbir.in.ibm.com>
-    <c31ccd23cb41f0f7594b3f56b20f0165.squirrel@webmail-b.css.fujitsu.com>
-    <20090302174156.GM11421@balbir.in.ibm.com>
-    <20090303085914.555089b1.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090303111244.GP11421@balbir.in.ibm.com>
-Date: Tue, 3 Mar 2009 20:50:56 +0900 (JST)
-Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 91FB66B0082
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 07:05:24 -0500 (EST)
+Received: by wf-out-1314.google.com with SMTP id 28so2973413wfa.11
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2009 04:05:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090302231628.GA7228@cmpxchg.org>
+References: <20090302183148.a4dfcc22.minchan.kim@barrios-desktop>
+	 <20090302142757.1cc014aa.akpm@linux-foundation.org>
+	 <20090302231628.GA7228@cmpxchg.org>
+Date: Tue, 3 Mar 2009 21:05:22 +0900
+Message-ID: <28c262360903030405uf54660axebce0ee19e27f7c@mail.gmail.com>
+Subject: Re: [PATCH] mmtom : add VM_BUG_ON in __get_free_pages
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-03
-> 08:59:14]:
->> But, on NUMA, because memcg just checks "usage" and doesn't check
->> "usage-per-node", there can be memory shortage and this kind of
->> soft-limit
->> sounds attractive for me.
+Hi, Hannes.
+Thanks for careful review.
+
+On Tue, Mar 3, 2009 at 8:16 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Mon, Mar 02, 2009 at 02:27:57PM -0800, Andrew Morton wrote:
+>> On Mon, 2 Mar 2009 18:31:48 +0900
+>> MinChan Kim <minchan.kim@gmail.com> wrote:
 >>
+>> >
+>> > The __get_free_pages is used in many place.
+>> > Also, driver developers can use it freely due to export function.
+>> > Some developers might use it to allocate high pages by mistake.
+>> >
+>> > The __get_free_pages can allocate high page using alloc_pages,
+>> > but it can't return linear address for high page.
+>> >
+>> > Even worse, in this csse, caller can't free page which are there in hi=
+gh zone.
+>> > So, It would be better to add VM_BUG_ON.
+>> >
+>> > It's based on mmtom 2009-02-27-13-54.
+>> >
+>> > Signed-off-by: MinChan Kim <minchan.kim@gmail.com>
+>> > ---
+>> > =C2=A0mm/page_alloc.c | =C2=A0 =C2=A07 +++++++
+>> > =C2=A01 files changed, 7 insertions(+), 0 deletions(-)
+>> >
+>> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> > index 8294107..381056b 100644
+>> > --- a/mm/page_alloc.c
+>> > +++ b/mm/page_alloc.c
+>> > @@ -1681,6 +1681,13 @@ EXPORT_SYMBOL(__alloc_pages_internal);
+>> > =C2=A0unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int orde=
+r)
+>> > =C2=A0{
+>> > =C2=A0 =C2=A0 struct page * page;
+>> > +
+>> > + =C2=A0 /*
+>> > + =C2=A0 =C2=A0* __get_free_pages() returns a 32-bit address, which ca=
+nnot represent
+>> > + =C2=A0 =C2=A0* a highmem page
+>> > + =C2=A0 =C2=A0*/
+>> > + =C2=A0 VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) !=3D 0);
+>> > +
+>> > =C2=A0 =C2=A0 page =3D alloc_pages(gfp_mask, order);
+>> > =C2=A0 =C2=A0 if (!page)
+>> > =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return 0;
+>>
+>> If someone calls __get_free_pages(__GFP_HIGHMEM) then page_address()
+>> will reliably return NULL and the caller's code will oops.
 >
+> It will allocate a page, fail to translate it to a virtual address,
+> return 0 and the caller will think allocation failed because it checks
+> for the return value.
 >
-> Could you please elaborate further on this?
+> But the highmem page is still allocated and now leaked, isn't it?
+
+That was my point.
+
+>> Yes, there's a decent (and increasing) risk that the developer won't be
+>> testing the code on a highmem machine, but there are enough highmem
+>> machines out there that the bug should be discovered pretty quickly.
 >
-Try to explain by artificial example..
-.
-Assume a system with 4 nodes, and 1G of memory per node.
-==
-     Node0 -- 1G
-     Node1 -- 1G
-     Node2 -- 1G
-     Node3 -- 1G
-==
-And assume there are 3 memory cgroups of following hard-limit.
-==
-    GroupA -- 1G
-    GroupB -- 0.6G
-    GroupC -- 0.6G
-==
-If the machine is not-NUMA and 4G SMP, we expect 1.8G of free memory and
-we can assume "global memory shortage" is a rare event.
+> Another thing is that a device driver developer does not necessarily
+> has CONFIG_DEBUG_VM set. =C2=A0Can we expect him to?
 
-But on NUMA, memory usage can be following.
-==
-     GroupA -- 950M of usage
-     GrouoB -- 550M of usage
-     GroupC -- 550M of usage
-and
-     Node0 -- usage=1G
-     Node1 -- usage=1G
-     Node2 -- usage=50M
-     Node2 -- Usage=0
-==
-In this case, kswapd will work on Node0, and Node1.
-Softlimit will have chance to work. If the user declares GroupA's softlimit
-is 800M, GroupA will be victim in this case.
+Hmm. I agree.
+Even, Many embedded guys don't upload their driver source to mainline
+for revewing and testing.
+so, others who have high mem machine can't review and test driver code.
+Of couse, It depends on their willing but it would be better to care them.
 
-But we have to admit this is hard-to-use scheduling paramter. Almost all
-administrator will not be able to set proper value.
-A useful case I can think of is creating some "victim" group and guard
-other groups from global memory reclaim. I think I need some study about
-how-to-use softlimit. But we'll need this kind of paramater,anyway and
-I don't have onjection to add this kind of scheduling parameter.
-But implementation should be simple at this stage and we should
-find best scheduling algorithm under use-case finally...
+>> So I'm not sure that this test is worth the additional overhead to a
+>> fairly frequently called function?
+>
+> Well, it's only done conditionally if you want to debug the thing
+> anyway. =C2=A0But as mentioned above, maybe this isn't the right conditio=
+n.
+>
+I added VM_DEUBG_ON as referencing get_zeroed_page without serious consider=
+ing.
+I agree with your opinion.
+so, we have to change __get_free_page and get_zeroed_page.
+Do you mean BUG_ON instead of VM_BUG_ON ?
 
-Thanks,
--Kame
+Andrew, How about that ?
+you think it is rather big overhead even if it's vm debug mode ?
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
