@@ -1,41 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C7B866B00AA
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:05:11 -0500 (EST)
-Date: Tue, 3 Mar 2009 17:05:03 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] generic debug pagealloc
-Message-ID: <20090303160503.GA6538@elte.hu>
-References: <20090303160103.GB5812@localhost.localdomain>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id AD5096B009D
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:12:40 -0500 (EST)
+Received: by fxm18 with SMTP id 18so2667039fxm.38
+        for <linux-mm@kvack.org>; Tue, 03 Mar 2009 08:12:38 -0800 (PST)
+Message-ID: <49AD56F3.6020305@gmail.com>
+Date: Tue, 03 Mar 2009 17:12:35 +0100
+From: Jiri Slaby <jirislaby@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH] generic debug pagealloc
+References: <20090303160103.GB5812@localhost.localdomain>
 In-Reply-To: <20090303160103.GB5812@localhost.localdomain>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Akinobu Mita <akinobu.mita@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
+On 3.3.2009 17:01, Akinobu Mita wrote:
+...
+> +static void dump_broken_mem(unsigned char *mem)
+> +{
+> +	int i;
+> +	int start = 0;
+> +	int end = PAGE_SIZE - 1;
+> +
+> +	for (i = 0; i<  PAGE_SIZE; i++) {
+> +		if (mem[i] != PAGE_POISON) {
+> +			start = i;
+> +			break;
+> +		}
+> +	}
+> +	for (i = PAGE_SIZE - 1; i>= start; i--) {
+> +		if (mem[i] != PAGE_POISON) {
+> +			end = i;
+> +			break;
+> +		}
+> +	}
+> +	printk(KERN_ERR "Page corruption: %p-%p\n", mem + start, mem + end);
+> +	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, mem + start,
+> +			end - start + 1, 1);
+> +}
+> +
+> +static void unpoison_page(struct page *page)
+> +{
+> +	unsigned char *mem;
+> +	int i;
+> +
+> +	if (!page->poison)
+> +		return;
+> +
+> +	mem = kmap_atomic(page, KM_USER0);
+> +	for (i = 0; i<  PAGE_SIZE; i++) {
+> +		if (mem[i] != PAGE_POISON) {
+> +			dump_broken_mem(mem);
 
-* Akinobu Mita <akinobu.mita@gmail.com> wrote:
+Just an optimisation: pass the i to the dump_broken_mem as a start index.
 
-> CONFIG_DEBUG_PAGEALLOC is now supported by x86, powerpc, sparc 
-> (64bit), and s390. This patch implements it for the rest of 
-> the architectures by filling the pages with poison byte 
-> patterns after free_pages() and verifying the poison patterns 
-> before alloc_pages().
-> 
-> This generic one cannot detect invalid read accesses and it 
-> can only detect invalid write accesses after a long delay. But 
-> it is an feasible way for nommu architectures.
-
-if every architecture supports it now then i guess this config 
-switch can go away:
-
-> +config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-> +	def_bool y
-
-	Ingo
+> +			break;
+> +		}
+> +	}
+> +	kunmap_atomic(mem, KM_USER0);
+> +	page->poison = false;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
