@@ -1,68 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id ADABB6B008C
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 08:51:08 -0500 (EST)
-Date: Tue, 3 Mar 2009 13:51:05 +0000
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A44506B009E
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 08:52:58 -0500 (EST)
+Date: Tue, 3 Mar 2009 13:52:54 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
-Message-ID: <20090303135105.GD10577@csn.ul.ie>
-References: <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop> <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr> <20090302112122.GC21145@csn.ul.ie> <20090302113936.GJ1257@wotan.suse.de> <20090302121632.GA14217@csn.ul.ie> <20090303044239.GC3973@wotan.suse.de> <20090303082511.GA2809@csn.ul.ie> <20090303090442.GA17042@wotan.suse.de>
+Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
+Message-ID: <20090303135254.GE10577@csn.ul.ie>
+References: <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de> <alpine.DEB.1.10.0902271039440.31801@qirst.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090303090442.GA17042@wotan.suse.de>
+In-Reply-To: <alpine.DEB.1.10.0902271039440.31801@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 03, 2009 at 10:04:42AM +0100, Nick Piggin wrote:
-> On Tue, Mar 03, 2009 at 08:25:12AM +0000, Mel Gorman wrote:
-> > On Tue, Mar 03, 2009 at 05:42:40AM +0100, Nick Piggin wrote:
-> > > or if some change resulted in more cross-cpu operations then it
-> > > could result in worse cache efficiency.
-> > > 
-> > 
-> > It occured to me before sleeping last night that there could be a lot
-> > of cross-cpu operations taking place in the buddy allocator itself. When
-> > bulk-freeing pages, we have to examine all the buddies and merge them. In
-> > the case of a freshly booted system, many of the pages of interest will be
-> > within the same MAX_ORDER blocks. If multiple CPUs bulk free their pages,
-> > they'll bounce the struct pages between each other a lot as we are writing
-> > those cache lines. However, this would be incurring with or without my patches.
+On Fri, Feb 27, 2009 at 10:40:17AM -0500, Christoph Lameter wrote:
+> On Fri, 27 Feb 2009, Nick Piggin wrote:
 > 
-> Oh yes it would definitely be a factor I think.
+> > > I hope we can get rid of various ugly elements of the quicklists if the
+> > > page allocator would offer some sort of support. I would think that the
+> >
+> > Only if it provides significant advantages over existing quicklists or
+> > adds *no* extra overhead to the page allocator common cases. :)
+> 
+> And only if the page allocator gets fast enough to be usable for
+> allocs instead of quicklists.
 > 
 
-It's on the list for a second or third pass to investigate.
+It appears the x86 doesn't even use the quicklists. I know patches for
+i386 support used to exist, what happened with them?
 
->  
-> > > OK, but the dynamic behaviour too. Free page A, free page B, allocate page
-> > > A allocate page B etc.
-> > > 
-> > > The hot/cold removal would be an obvious example of what I mean, although
-> > > that wasn't included in this recent patchset anyway.
-> > > 
-> > 
-> > I get your point though, I'll keep it in mind. I've gone from plain
-> > "reduce the clock cycles" to "reduce the cache misses" as if OLTP is
-> > sensitive to this it has to be addressed as well.
-> 
-> OK cool. The patchset did look pretty good for reducing clock cycles
-> though, so hopefully it turns out to be something simple.
-> 
-
-I'm hoping it is. I noticed a few oddities where we use more cache than we
-need to that I cleaned up. However, the strongest possibility of being a
-problem is actually the patch that removes the list-search for a page of a
-given migratetype in the allocation path. The fix simplifies the allocation
-path but increases the complexity of the bulk-free path by quite a bit and
-increases the number of cache lines that are accessed. Worse, the fix grows
-the per-cpu structure from one cache line to two on x86-64 NUMA machines
-which I think is significant. I'm testing that at the moment but I might
-end up dropping the patch from the first pass as a result and confine
-the set to "obvious" wins.
-
+That aside, I think we could win slightly by just knowing when a page is
+zeroed and being freed back to the allocator such as when the quicklists
+are being drained. I wrote a patch along those lines but it started
+getting really messy on x86 so I'm postponing it for the moment.
 
 -- 
 Mel Gorman
