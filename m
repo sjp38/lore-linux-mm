@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 8E8216B0047
-	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 21:43:54 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n232hppr000386
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 3 Mar 2009 11:43:51 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E631E45DE55
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:43:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C2B1745DE51
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:43:50 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A1C44E18005
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:43:50 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E9C21DB803A
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:43:50 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention (v3)
-In-Reply-To: <20090302044406.GD11421@balbir.in.ibm.com>
-References: <20090302120052.6FEC.A69D9226@jp.fujitsu.com> <20090302044406.GD11421@balbir.in.ibm.com>
-Message-Id: <20090303095833.D9FC.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue,  3 Mar 2009 11:43:49 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 517DD6B0047
+	for <linux-mm@kvack.org>; Mon,  2 Mar 2009 23:33:42 -0500 (EST)
+Date: Tue, 3 Mar 2009 05:33:38 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
+Message-ID: <20090303043338.GB3973@wotan.suse.de>
+References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed> <20090302083718.GE1257@wotan.suse.de> <49ABFA9D.90801@hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49ABFA9D.90801@hp.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: jim owens <jowens@hp.com>
+Cc: linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-02 12:08:01]:
+On Mon, Mar 02, 2009 at 10:26:21AM -0500, jim owens wrote:
+> Nick Piggin wrote:
+> >
+> >So assuming there is no reasonable way to do out of core algorithms
+> >on the filesystem metadata (and likely you don't want to anyway
+> >because it would be a significant slowdown or diverge of code
+> >paths), you still only need to reserve one set of those 30-40 pages
+> >for the entire kernel.
+> >
+> >You only ever need to reserve enough memory for a *single* page
+> >to be processed. In the worst case that there are multiple pages
+> >under writeout but can't allocate memory, only one will be allowed
+> >access to reserves and the others will block until it is finished
+> >and can unpin them all.
 > 
-> > Hi Balbir,
-> > 
-> > > @@ -2015,9 +2016,12 @@ static int kswapd(void *p)
-> > >  		finish_wait(&pgdat->kswapd_wait, &wait);
-> > >  
-> > >  		if (!try_to_freeze()) {
-> > > +			struct zonelist *zl = pgdat->node_zonelists;
-> > >  			/* We can speed up thawing tasks if we don't call
-> > >  			 * balance_pgdat after returning from the refrigerator
-> > >  			 */
-> > > +			if (!order)
-> > > +				mem_cgroup_soft_limit_reclaim(zl, GFP_KERNEL);
-> > >  			balance_pgdat(pgdat, order);
-> > >  		}
-> > >  	}
-> > 
-> > kswapd's roll is increasing free pages until zone->pages_high in "own node".
-> > mem_cgroup_soft_limit_reclaim() free one (or more) exceed page in any node.
-> > 
-> > Oh, well.
-> > I think it is not consistency.
-> > 
-> > if mem_cgroup_soft_limit_reclaim() is aware to target node and its pages_high,
-> > I'm glad.
+> Sure, nobody will mind seeing lots of extra pinned memory ;)
+
+40 pages (160k) isn't a huge amount. You could always have a
+boot option to disable the memory reserve if it is a big
+deal.
+
+ 
+> Don't forget to add the space for data transforms and raid
+> driver operations in the write stack, and whatever else we
+> may not have thought of.  With good engineering we can make
+
+The block layer below the filesystem should be robust. Well
+actually the core block layer is (except maybe for the new
+bio integrity stuff that looks pretty nasty). Not sure about
+md/dm, but they really should be safe (they use mempools etc).
+
+
+> it so "we can always make forward progress".  But it won't
+> matter because once a real user drives the system off this
+> cliff there is no difference between "hung" and "really slow
+> progress".  They are going to crash it and report a hang.
+
+I don't think that is the case. These are situations that
+would be *really* rare and transient. It is not like thrashing
+in that your working set size exceeds physical RAM, but just
+a combination of conditions that causes an unusual spike in the
+required memory to clean some dirty pages (eg. Dave's example
+of several IOs requiring btree splits over several AGs). Could
+cause a resource deadlock.
+
+
+> >Well I'm not saying it is an immediate problem or it would be a
+> >good use of anybody's time to rush out and try to redesign their
+> >fs code to fix it ;) But at least for any new core/generic library
+> >functionality like fsblock, it would be silly not to close the hole
+> >there (not least because the problem is simpler here than in a
+> >complex fs).
 > 
-> Yes, correct the role of kswapd is to keep increasing free pages until
-> zone->pages_high and the first set of pages to consider is the memory
-> controller over their soft limits. We pass the zonelist to ensure that
-> while doing soft reclaim, we focus on the zonelist associated with the
-> node. Kamezawa had concernes over calling the soft limit reclaim from
-> __alloc_pages_internal(), did you prefer that call path? 
+> Hey, I appreciate anything you do in VM to make the ugly
+> dance with filesystems (my area) a little less ugly.
 
-I read your patch again.
-So, mem_cgroup_soft_limit_reclaim() caller place seems in balance_pgdat() is better.
-
-Please imazine most bad scenario.
-CPU0 (kswapd) take to continue shrinking.
-CPU1 take another activity and charge memcg conteniously.
-At that time, balance_pgdat() don't exit very long time. then 
-mem_cgroup_soft_limit_reclaim() is never called.
-
-In ideal, if another cpu take another charge, kswapd should shrink 
-soft limit again.
+Well thanks.
 
 
-btw, I don't like "if (!order)" condition. memcg soft limit sould be
-always shrinked although 
-it's the order of because wakeup_kswapd() argument is merely hint.
+> I'm sure you also appreciate that every time VM tries to
+> save 32 bytes, someone else tries to take 32 K-bytes.
+> As they say... memory is cheap :)
 
-another process want another order.
-
-
+Well that's OK. If core vm/fs code saves a little bit of memory
+that enables something else like a filesystem to use it to cache
+a tiny bit more useful data, then I think it is a good result :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
