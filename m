@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id A44506B009E
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 08:52:58 -0500 (EST)
-Date: Tue, 3 Mar 2009 13:52:54 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 20/20] Get rid of the concept of hot/cold page freeing
-Message-ID: <20090303135254.GE10577@csn.ul.ie>
-References: <20090224115126.GB25151@csn.ul.ie> <20090224160103.df238662.akpm@linux-foundation.org> <20090225160124.GA31915@csn.ul.ie> <20090225081954.8776ba9b.akpm@linux-foundation.org> <20090226163751.GG32756@csn.ul.ie> <alpine.DEB.1.10.0902261157100.7472@qirst.com> <20090226171549.GH32756@csn.ul.ie> <alpine.DEB.1.10.0902261226370.26440@qirst.com> <20090227113333.GA21296@wotan.suse.de> <alpine.DEB.1.10.0902271039440.31801@qirst.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0902271039440.31801@qirst.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 169906B009B
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 09:26:13 -0500 (EST)
+Subject: Re: [rfc][patch 2/2] buffer, btrfs: fix page_mkwrite error cases
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <20090303104114.GD17042@wotan.suse.de>
+References: <20090303103838.GC17042@wotan.suse.de>
+	 <20090303104114.GD17042@wotan.suse.de>
+Content-Type: text/plain
+Date: Tue, 03 Mar 2009 09:26:03 -0500
+Message-Id: <1236090363.782.6.camel@think.oraclecorp.com>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, penberg@cs.helsinki.fi, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 27, 2009 at 10:40:17AM -0500, Christoph Lameter wrote:
-> On Fri, 27 Feb 2009, Nick Piggin wrote:
+On Tue, 2009-03-03 at 11:41 +0100, Nick Piggin wrote:
+> page_mkwrite is called with neither the page lock nor the ptl held. This
+> means a page can be concurrently truncated or invalidated out from underneath
+> it. Callers are supposed to prevent truncate races themselves, however
+> previously the only thing they can do in case they hit one is to raise a
+> SIGBUS. A sigbus is wrong for the case that the page has been invalidated
+> or truncated within i_size (eg. hole punched). Callers may also have to
+> perform memory allocations in this path, where again, SIGBUS would be wrong.
 > 
-> > > I hope we can get rid of various ugly elements of the quicklists if the
-> > > page allocator would offer some sort of support. I would think that the
-> >
-> > Only if it provides significant advantages over existing quicklists or
-> > adds *no* extra overhead to the page allocator common cases. :)
-> 
-> And only if the page allocator gets fast enough to be usable for
-> allocs instead of quicklists.
+> The previous patch made it possible to properly specify errors. Convert
+> the generic buffer.c code and btrfs to return sane error values
+> (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
+> fault handler to exit without doing anything, and the fault will be retried 
+> properly).
 > 
 
-It appears the x86 doesn't even use the quicklists. I know patches for
-i386 support used to exist, what happened with them?
+Thanks Nick.  I think the btrfs patch needs an extra } to compile, but
+it looks fine.
 
-That aside, I think we could win slightly by just knowing when a page is
-zeroed and being freed back to the allocator such as when the quicklists
-are being drained. I wrote a patch along those lines but it started
-getting really messy on x86 so I'm postponing it for the moment.
+-chris
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
