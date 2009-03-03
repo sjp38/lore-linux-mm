@@ -1,50 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id E437E6B00AD
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:42:40 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 3149630556C
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:48:01 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 7cu64Yy+Sh0S for <linux-mm@kvack.org>;
-	Tue,  3 Mar 2009 11:48:01 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 53530305571
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 11:47:56 -0500 (EST)
-Date: Tue, 3 Mar 2009 11:31:46 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
-In-Reply-To: <20090302112122.GC21145@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903031130550.26454@qirst.com>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop> <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr>
- <20090302112122.GC21145@csn.ul.ie>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C156B0085
+	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 12:25:44 -0500 (EST)
+Date: Tue, 3 Mar 2009 17:25:36 +0000
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
+Message-ID: <20090303172535.GA16993@shareable.org>
+References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed> <20090302083718.GE1257@wotan.suse.de> <49ABFA9D.90801@hp.com> <20090303043338.GB3973@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090303043338.GB3973@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: jim owens <jowens@hp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Mar 2009, Mel Gorman wrote:
+Nick Piggin wrote:
+> > >You only ever need to reserve enough memory for a *single* page
+> > >to be processed. In the worst case that there are multiple pages
+> > >under writeout but can't allocate memory, only one will be allowed
+> > >access to reserves and the others will block until it is finished
+> > >and can unpin them all.
+> > 
+> > Sure, nobody will mind seeing lots of extra pinned memory ;)
+> 
+> 40 pages (160k) isn't a huge amount. You could always have a
+> boot option to disable the memory reserve if it is a big
+> deal.
+>  
+> > Don't forget to add the space for data transforms and raid
+> > driver operations in the write stack, and whatever else we
+> > may not have thought of.  With good engineering we can make
+> 
+> The block layer below the filesystem should be robust. Well
+> actually the core block layer is (except maybe for the new
+> bio integrity stuff that looks pretty nasty). Not sure about
+> md/dm, but they really should be safe (they use mempools etc).
 
-> Going by the vanilla kernel, a *large* amount of time is spent doing
-> high-order allocations. Over 25% of the cost of buffered_rmqueue() is in
-> the branch dealing with high-order allocations. Does UDP-U-4K mean that 8K
-> pages are required for the packets? That means high-order allocations and
-> high contention on the zone-list. That is bad obviously and has implications
-> for the SLUB-passthru patch because whether 8K allocations are handled by
-> SL*B or the page allocator has a big impact on locking.
->
-> Next, a little over 50% of the cost get_page_from_freelist() is being spent
-> acquiring the zone spinlock. The implication is that the SL*B allocators
-> passing in order-1 allocations to the page allocator are currently going to
-> hit scalability problems in a big way. The solution may be to extend the
-> per-cpu allocator to handle magazines up to PAGE_ALLOC_COSTLY_ORDER. I'll
-> check it out.
+Are mempools fully safe, or just statistically safer?
 
-Then we are increasing the number of queues dramatically in the page
-allocator. More of a memory sink. Less cache hotness.
+> > it so "we can always make forward progress".  But it won't
+> > matter because once a real user drives the system off this
+> > cliff there is no difference between "hung" and "really slow
+> > progress".  They are going to crash it and report a hang.
+> 
+> I don't think that is the case. These are situations that
+> would be *really* rare and transient. It is not like thrashing
+> in that your working set size exceeds physical RAM, but just
+> a combination of conditions that causes an unusual spike in the
+> required memory to clean some dirty pages (eg. Dave's example
+> of several IOs requiring btree splits over several AGs). Could
+> cause a resource deadlock.
+
+Suppose the systems has two pages to be written.  The first must
+_reserve_ 40 pages of scratch space just in case the operation will
+need them.  If the second page write is initiated concurrently with
+the first, the second must reserve another 40 pages concurrently.
+
+If 10 page writes are concurrent, that's 400 pages of scratch space
+needed in reserve...
+
+Your idea that the system can serialises page writes to limit the
+scratch used will limit this.  But how does it know when to serialise
+page writes, if not by reserving 40 pages of memory per written page,
+until it knows better?
+
+In other words, do you need 40 pages of metadata space times the
+number of concurrent page writes - until the write logic for each page
+reaches the point of "unreserving" because they've worked out which
+metadata they don't need to touch?
+
+It sounds like a classic concurrency problem - how many things to
+start in parallel, each having a large upper bound on the memory they
+may need when they are started, even though the average is much lower.
+
+A solution to that is each concurrent thing being able to reserve
+memory "I may need X memory later" and block at reservation time, so
+it doesn't have to block when it's later allocating and using memory.
+Then to keep up global concurrency, each thing is able to unreserve
+memory as it progresses.  Or reserve some more.  The point is
+reservation can block, while later processing which may need the
+memory doesn't block.
+
+-- Jamie
+
+
+> 
+> 
+> > >Well I'm not saying it is an immediate problem or it would be a
+> > >good use of anybody's time to rush out and try to redesign their
+> > >fs code to fix it ;) But at least for any new core/generic library
+> > >functionality like fsblock, it would be silly not to close the hole
+> > >there (not least because the problem is simpler here than in a
+> > >complex fs).
+> > 
+> > Hey, I appreciate anything you do in VM to make the ugly
+> > dance with filesystems (my area) a little less ugly.
+> 
+> Well thanks.
+> 
+> 
+> > I'm sure you also appreciate that every time VM tries to
+> > save 32 bytes, someone else tries to take 32 K-bytes.
+> > As they say... memory is cheap :)
+> 
+> Well that's OK. If core vm/fs code saves a little bit of memory
+> that enables something else like a filesystem to use it to cache
+> a tiny bit more useful data, then I think it is a good result :)
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
