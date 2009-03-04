@@ -1,35 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 21C2A6B0087
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 02:23:50 -0500 (EST)
-Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <1236132307.2567.25.camel@ymzhang>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
-	 <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie>
-	 <1235647139.16552.34.camel@penberg-laptop>
-	 <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr>
-	 <20090302112122.GC21145@csn.ul.ie>  <1236132307.2567.25.camel@ymzhang>
-Content-Type: text/plain
-Date: Wed, 04 Mar 2009 08:23:34 +0100
-Message-Id: <1236151414.5330.6692.camel@laptop>
+	by kanga.kvack.org (Postfix) with ESMTP id 058826B008C
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 02:39:56 -0500 (EST)
+Date: Tue, 3 Mar 2009 23:39:08 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] atomic highmem kmap page pinning
+Message-Id: <20090303233908.32e05aa4.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.0903040014140.5511@xanadu.home>
+References: <alpine.LFD.2.00.0903040014140.5511@xanadu.home>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>
+To: Nicolas Pitre <nico@cam.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Russell King - ARM Linux <linux@arm.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-03-04 at 10:05 +0800, Zhang, Yanmin wrote:
-> FAIR_GROUP_SCHED is a feature to support configurable cpu weight for different users.
-> We did find it takes lots of time to check/update the share weight which might create
-> lots of cache ping-pang. With sysbench(oltp)+mysql, that becomes more severe because
-> mysql runs as user mysql and sysbench runs as another regular user. When starting
-> the testing with 1 thread in command line, there are 2 mysql threads and 1 sysbench
-> thread are proactive.
+On Wed, 04 Mar 2009 00:58:13 -0500 (EST) Nicolas Pitre <nico@cam.org> wrote:
 
-cgroup based group scheduling doesn't bother with users. So unless you
-create sched-cgroups your should all be in the same (root) group.
+> I've implemented highmem for ARM.  Yes, some ARM machines do have lots 
+> of memory...
+> 
+> The problem is that most ARM machines have a non IO coherent cache, 
+> meaning that the dma_map_* set of functions must clean and/or invalidate 
+> the affected memory manually.  And because the majority of those 
+> machines have a VIVT cache, the cache maintenance operations must be 
+> performed using virtual addresses.
+> 
+> In dma_map_page(), an highmem pages could still be mapped and cached 
+> even after kunmap() was called on it.  As long as highmem pages are 
+> mapped, page_address(page) is non null and we can use that to 
+> synchronize the cache.
+> 
+> It is unlikely but still possible for kmap() to race and recycle the 
+> obtained virtual address above, and use it for another page though.  In 
+> that case, the new mapping could end up with dirty cache lines for 
+> another page, and the unsuspecting cache invalidation loop in 
+> dma_map_page() won't notice resulting in data loss.  Hence the need for 
+> some kind of kmap page pinning which can be used in any context, 
+> including IRQ context.
+> 
+> This is a RFC patch implementing the necessary part in the core code, as 
+> suggested by RMK. Please comment.
+
+Seems harmless enough to me.
+
+> +void *kmap_high_get(struct page *page)
+> +{
+> +	unsigned long vaddr, flags;
+> +
+> +	spin_lock_irqsave(&kmap_lock, flags);
+> +	vaddr = (unsigned long)page_address(page);
+> +	if (vaddr) {
+> +		BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 1);
+> +		pkmap_count[PKMAP_NR(vaddr)]++;
+> +	}
+> +	spin_unlock_irqrestore(&kmap_lock, flags);
+> +	return (void*) vaddr;
+> +}
+
+We could remove a pile of ugly casts if we changed PKMAP_NR() to take a
+void*.  Not that this is relevant.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
