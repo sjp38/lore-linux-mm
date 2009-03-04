@@ -1,73 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 124AC6B009A
-	for <linux-mm@kvack.org>; Tue,  3 Mar 2009 23:38:05 -0500 (EST)
-Date: Wed, 4 Mar 2009 15:37:39 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-Message-ID: <20090304043739.GM26138@disturbed>
-References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed> <20090302083718.GE1257@wotan.suse.de> <49ABFA9D.90801@hp.com> <20090303043338.GB3973@wotan.suse.de> <20090303172535.GA16993@shareable.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090303172535.GA16993@shareable.org>
+	by kanga.kvack.org (Postfix) with SMTP id 6EDDE6B0087
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 01:04:55 -0500 (EST)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-type: TEXT/PLAIN; charset=US-ASCII
+Received: from xanadu.home ([66.131.194.97]) by VL-MO-MR003.ip.videotron.ca
+ (Sun Java(tm) System Messaging Server 6.3-4.01 (built Aug  3 2007; 32bit))
+ with ESMTP id <0KFY00G2IWL1F860@VL-MO-MR003.ip.videotron.ca> for
+ linux-mm@kvack.org; Wed, 04 Mar 2009 00:58:13 -0500 (EST)
+Date: Wed, 04 Mar 2009 00:58:13 -0500 (EST)
+From: Nicolas Pitre <nico@cam.org>
+Subject: [RFC] atomic highmem kmap page pinning
+Message-id: <alpine.LFD.2.00.0903040014140.5511@xanadu.home>
 Sender: owner-linux-mm@kvack.org
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Nick Piggin <npiggin@suse.de>, jim owens <jowens@hp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 03, 2009 at 05:25:36PM +0000, Jamie Lokier wrote:
-> > > it so "we can always make forward progress".  But it won't
-> > > matter because once a real user drives the system off this
-> > > cliff there is no difference between "hung" and "really slow
-> > > progress".  They are going to crash it and report a hang.
-> > 
-> > I don't think that is the case. These are situations that
-> > would be *really* rare and transient. It is not like thrashing
-> > in that your working set size exceeds physical RAM, but just
-> > a combination of conditions that causes an unusual spike in the
-> > required memory to clean some dirty pages (eg. Dave's example
-> > of several IOs requiring btree splits over several AGs). Could
-> > cause a resource deadlock.
-> 
-> Suppose the systems has two pages to be written.  The first must
-> _reserve_ 40 pages of scratch space just in case the operation will
-> need them.  If the second page write is initiated concurrently with
-> the first, the second must reserve another 40 pages concurrently.
-> 
-> If 10 page writes are concurrent, that's 400 pages of scratch space
-> needed in reserve...
+I've implemented highmem for ARM.  Yes, some ARM machines do have lots 
+of memory...
 
-Therein lies the problem. XFS can do this in parallel in every AG at
-the same time. i.e. the reserve is per AG. The maximum number of AGs
-in XFS is 2^32, and I know of filesystems out there that have
-thousands of AGs in them. Hence reserving 40 pages per AG is
-definitely unreasonable. ;)
+The problem is that most ARM machines have a non IO coherent cache, 
+meaning that the dma_map_* set of functions must clean and/or invalidate 
+the affected memory manually.  And because the majority of those 
+machines have a VIVT cache, the cache maintenance operations must be 
+performed using virtual addresses.
 
-Even if we look at concurrent allocations as the upper bound, I've
-seen an 8p machine with several hundred concurrent allocation
-transactions in progress. Even that is unreasonable if you consider
-machines with 64k pages - it's hundreds of megabytes of RAM that are
-mostly going to be unused.
+In dma_map_page(), an highmem pages could still be mapped and cached 
+even after kunmap() was called on it.  As long as highmem pages are 
+mapped, page_address(page) is non null and we can use that to 
+synchronize the cache.
 
-Specifying a pool of pages is not a guaranteed solution, either,
-as someone will always exhaust it as we can't guarantee any given
-transaction will complete before the pool is exhausted. i.e.
-the mempool design as it stands can't be used.
+It is unlikely but still possible for kmap() to race and recycle the 
+obtained virtual address above, and use it for another page though.  In 
+that case, the new mapping could end up with dirty cache lines for 
+another page, and the unsuspecting cache invalidation loop in 
+dma_map_page() won't notice resulting in data loss.  Hence the need for 
+some kind of kmap page pinning which can be used in any context, 
+including IRQ context.
 
-AFAIC, "should never allocate during writeback" is a great goal, but
-it is one that we will never be able to reach without throwing
-everything away and starting again. Minimising allocation is
-something we can do but we can't avoid it entirely. The higher
-layers need to understand this, not assert that the lower layers
-must conform to an impossible constraint and break if they don't.....
+This is a RFC patch implementing the necessary part in the core code, as 
+suggested by RMK. Please comment.
 
-Cheers,
+diff --git a/mm/highmem.c b/mm/highmem.c
+index b36b83b..548ca77 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -113,9 +113,9 @@ static void flush_all_zero_pkmaps(void)
+  */
+ void kmap_flush_unused(void)
+ {
+-	spin_lock(&kmap_lock);
++	spin_lock_irq(&kmap_lock);
+ 	flush_all_zero_pkmaps();
+-	spin_unlock(&kmap_lock);
++	spin_unlock_irq(&kmap_lock);
+ }
+ 
+ static inline unsigned long map_new_virtual(struct page *page)
+@@ -145,10 +145,10 @@ start:
+ 
+ 			__set_current_state(TASK_UNINTERRUPTIBLE);
+ 			add_wait_queue(&pkmap_map_wait, &wait);
+-			spin_unlock(&kmap_lock);
++			spin_unlock_irq(&kmap_lock);
+ 			schedule();
+ 			remove_wait_queue(&pkmap_map_wait, &wait);
+-			spin_lock(&kmap_lock);
++			spin_lock_irq(&kmap_lock);
+ 
+ 			/* Somebody else might have mapped it while we slept */
+ 			if (page_address(page))
+@@ -184,19 +184,43 @@ void *kmap_high(struct page *page)
+ 	 * For highmem pages, we can't trust "virtual" until
+ 	 * after we have the lock.
+ 	 */
+-	spin_lock(&kmap_lock);
++	spin_lock_irq(&kmap_lock);
+ 	vaddr = (unsigned long)page_address(page);
+ 	if (!vaddr)
+ 		vaddr = map_new_virtual(page);
+ 	pkmap_count[PKMAP_NR(vaddr)]++;
+ 	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+-	spin_unlock(&kmap_lock);
++	spin_unlock_irq(&kmap_lock);
+ 	return (void*) vaddr;
+ }
+ 
+ EXPORT_SYMBOL(kmap_high);
+ 
+ /**
++ * kmap_high_get - pin a highmem page into memory
++ * @page: &struct page to pin
++ *
++ * Returns the page's current virtual memory address, or NULL if no mapping
++ * exists.  When and only when a non null address is returned then a
++ * matching call to kunmap_high() is necessary.
++ *
++ * This can be called from interrupt context.
++ */
++void *kmap_high_get(struct page *page)
++{
++	unsigned long vaddr, flags;
++
++	spin_lock_irqsave(&kmap_lock, flags);
++	vaddr = (unsigned long)page_address(page);
++	if (vaddr) {
++		BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 1);
++		pkmap_count[PKMAP_NR(vaddr)]++;
++	}
++	spin_unlock_irqrestore(&kmap_lock, flags);
++	return (void*) vaddr;
++}
++
++/**
+  * kunmap_high - map a highmem page into memory
+  * @page: &struct page to unmap
+  */
+@@ -204,9 +228,10 @@ void kunmap_high(struct page *page)
+ {
+ 	unsigned long vaddr;
+ 	unsigned long nr;
++	unsigned long flags;
+ 	int need_wakeup;
+ 
+-	spin_lock(&kmap_lock);
++	spin_lock_irqsave(&kmap_lock, flags);
+ 	vaddr = (unsigned long)page_address(page);
+ 	BUG_ON(!vaddr);
+ 	nr = PKMAP_NR(vaddr);
+@@ -232,7 +257,7 @@ void kunmap_high(struct page *page)
+ 		 */
+ 		need_wakeup = waitqueue_active(&pkmap_map_wait);
+ 	}
+-	spin_unlock(&kmap_lock);
++	spin_unlock_irqrestore(&kmap_lock, flags);
+ 
+ 	/* do wake-up, if needed, race-free outside of the spin lock */
+ 	if (need_wakeup)
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
