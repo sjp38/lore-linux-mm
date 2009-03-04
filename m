@@ -1,178 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 57C146B00AB
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 13:47:48 -0500 (EST)
-From: Markus <M4rkusXXL@web.de>
-Subject: Re: drop_caches ...
-Date: Wed, 4 Mar 2009 19:47:41 +0100
-References: <200903041057.34072.M4rkusXXL@web.de> <200903041447.49534.M4rkusXXL@web.de> <49AE8BA8.3080504@redhat.com>
-In-Reply-To: <49AE8BA8.3080504@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
-Message-Id: <200903041947.41542.M4rkusXXL@web.de>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 7323F6B00AC
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 18:09:09 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so3419323tia.8
+        for <linux-mm@kvack.org>; Wed, 04 Mar 2009 15:09:06 -0800 (PST)
+Date: Thu, 5 Mar 2009 08:07:17 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: [RFC] atomic highmem kmap page pinning
+Message-Id: <20090305080717.f7832c63.minchan.kim@barrios-desktop>
+In-Reply-To: <alpine.LFD.2.00.0903041101170.5511@xanadu.home>
+References: <alpine.LFD.2.00.0903040014140.5511@xanadu.home>
+	<20090304171429.c013013c.minchan.kim@barrios-desktop>
+	<alpine.LFD.2.00.0903041101170.5511@xanadu.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: Zdenek Kabelac <zkabelac@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org
+To: Nicolas Pitre <nico@cam.org>
+Cc: Minchan Kim <minchan.kim@gmail.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Russell King - ARM Linux <linux@arm.linux.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-Am Mittwoch, 4. M=E4rz 2009 schrieb Zdenek Kabelac:
-> Markus napsal(a):
-> >>>>>>> The memory mapped pages won't be dropped in this way.
-> >>>>>>> "cat /proc/meminfo" will show you the number of mapped pages.
-> >>>>>> # sync ; echo 3 > /proc/sys/vm/drop_caches ; free -m ;=20
-> >>>> cat /proc/meminfo
-> >>>>>>              total       used       free     shared    buffers    =
-=20
-> >>>>>> cached
-> >>>>>> Mem:          3950       3262        688          0          0    =
-   =20
-> >>>>>> 359
-> >>>>>> -/+ buffers/cache:       2902       1047
-> >>>>>> Swap:         5890       1509       4381
-> >>>>>> MemTotal:        4045500 kB
-> >>>>>> MemFree:          705180 kB
-> >>>>>> Buffers:             508 kB
-> >>>>>> Cached:           367748 kB
-> >>>>>> SwapCached:       880744 kB
-> >>>>>> Active:          1555032 kB
-> >>>>>> Inactive:        1634868 kB
-> >>>>>> Active(anon):    1527100 kB
-> >>>>>> Inactive(anon):  1607328 kB
-> >>>>>> Active(file):      27932 kB
-> >>>>>> Inactive(file):    27540 kB
-> >>>>>> Unevictable:         816 kB
-> >>>>>> Mlocked:               0 kB
-> >>>>>> SwapTotal:       6032344 kB
-> >>>>>> SwapFree:        4486496 kB
-> >>>>>> Dirty:                 0 kB
-> >>>>>> Writeback:             0 kB
-> >>>>>> AnonPages:       2378112 kB
-> >>>>>> Mapped:            52196 kB
-> >>>>>> Slab:              65640 kB
-> >>>>>> SReclaimable:      46192 kB
-> >>>>>> SUnreclaim:        19448 kB
-> >>>>>> PageTables:        28200 kB
-> >>>>>> NFS_Unstable:          0 kB
-> >>>>>> Bounce:                0 kB
-> >>>>>> WritebackTmp:          0 kB
-> >>>>>> CommitLimit:     8055092 kB
-> >>>>>> Committed_AS:    4915636 kB
-> >>>>>> VmallocTotal:   34359738367 kB
-> >>>>>> VmallocUsed:       44580 kB
-> >>>>>> VmallocChunk:   34359677239 kB
-> >>>>>> DirectMap4k:     3182528 kB
-> >>>>>> DirectMap2M:     1011712 kB
-> >>>>>>
-> >>>>>> The cached reduced to 359 MB (after the dropping).
-> >>>>>> I dont know where to read the "number of mapped pages".
-> >>>>>> "Mapped" is about 51 MB.
-> >>>>> Does your tmpfs store lots of files?
-> >>>> Dont think so:
-> >>>>
-> >>>> # df -h
-> >>>> Filesystem            Size  Used Avail Use% Mounted on
-> >>>> /dev/md6               14G  8.2G  5.6G  60% /
-> >>>> udev                   10M  304K  9.8M   3% /dev
-> >>>> cachedir              4.0M  100K  4.0M   3% /lib64/splash/cache
-> >>>> /dev/md4               19G   15G  3.1G  83% /home
-> >>>> /dev/md3              8.3G  4.5G  3.9G  55% /usr/portage
-> >>>> shm                   2.0G     0  2.0G   0% /dev/shm
-> >>>> /dev/md1               99M   19M   76M  20% /boot
-> >>>>
-> >>>> I dont know what exactly all that memory is used for. It varies=20
-> > from=20
-> >>>> about 300 MB to up to one GB.
-> >>>> Tell me where to look and I will!
-> >>> So you don't have lots of mapped pages(Mapped=3D51M) or tmpfs files. =
-=20
-> > It's
-> >>> strange to me that there are so many undroppable cached=20
-> > pages(Cached=3D359M),
-> >>> and most of them lie out of the LRU queue(Active+Inactive=20
-> > file=3D53M)...
-> >>> Anyone have better clues on these 'hidden' pages?
-> >> Maybe try this:
-> >>
-> >> cat /proc/`pidof X`/smaps | grep drm | wc -l
-> >>
-> >> you will see some growing numbers.
-> >>
-> >> Also check  cat /proc/dri/0/gem_objects
-> >> there should be some number  # object bytes - which should be close=20
-to=20
-> > your=20
-> >> missing cached pages.
-> >>
-> >>
-> >> If you are using Intel GEM driver - there is some unlimited caching=20
-> > issue
-> >> see: http://bugs.freedesktop.org/show_bug.cgi?id=3D20404
-> >>
-> > # cat /proc/`pidof X`/smaps | grep drm | wc -l
-> > 0
-> > # cat /proc/dri/0/gem_objects
-> > cat: /proc/dri/0/gem_objects: No such file or directory
-> >=20
-> > I use Xorg 1.3 with an nvidia gpu. Dont know if I use a "Intel GEM=20
-> > driver".
-> >=20
->=20
->=20
-> Are you using binary  driver from NVidia ??
-> Maybe you should ask authors of this binary blob ?
->=20
-> Could you try to use for a while Vesa driver to see, if you are able=20
-to get=20
-> same strange results ?
+Hi, Nicolas.
 
-I rebooted in console without the nvidia-module loaded and have the same=20
-results (updated to 2.6.28.7 btw):
-# sync ; echo 3 > /proc/sys/vm/drop_caches ; free -m ; cat /proc/meminfo
-             total       used       free     shared    buffers    =20
-cached
-Mem:          3950       1647       2303          0          0       =20
-924
-=2D/+ buffers/cache:        722       3228
-Swap:         5890          0       5890
-MemTotal:        4045444 kB
-MemFree:         2358944 kB
-Buffers:             544 kB
-Cached:           946624 kB
-SwapCached:            0 kB
-Active:          1614756 kB
-Inactive:           7632 kB
-Active(anon):    1602476 kB
-Inactive(anon):        0 kB
-Active(file):      12280 kB
-Inactive(file):     7632 kB
-Unevictable:           0 kB
-Mlocked:               0 kB
-SwapTotal:       6032344 kB
-SwapFree:        6032344 kB
-Dirty:                72 kB
-Writeback:            32 kB
-AnonPages:        675224 kB
-Mapped:            17756 kB
-Slab:              19936 kB
-SReclaimable:       9652 kB
-SUnreclaim:        10284 kB
-PageTables:         8296 kB
-NFS_Unstable:          0 kB
-Bounce:                0 kB
-WritebackTmp:          0 kB
-CommitLimit:     8055064 kB
-Committed_AS:    3648088 kB
-VmallocTotal:   34359738367 kB
-VmallocUsed:       10616 kB
-VmallocChunk:   34359716459 kB
-DirectMap4k:        6080 kB
-DirectMap2M:     4188160 kB
+On Wed, 04 Mar 2009 12:26:00 -0500 (EST)
+Nicolas Pitre <nico@cam.org> wrote:
 
-Thanks!
-Markus
+> On Wed, 4 Mar 2009, Minchan Kim wrote:
+> 
+> > On Wed, 04 Mar 2009 00:58:13 -0500 (EST)
+> > Nicolas Pitre <nico@cam.org> wrote:
+> > 
+> > > I've implemented highmem for ARM.  Yes, some ARM machines do have lots 
+> > > of memory...
+> > > 
+> > > The problem is that most ARM machines have a non IO coherent cache, 
+> > > meaning that the dma_map_* set of functions must clean and/or invalidate 
+> > > the affected memory manually.  And because the majority of those 
+> > > machines have a VIVT cache, the cache maintenance operations must be 
+> > > performed using virtual addresses.
+> > > 
+> > > In dma_map_page(), an highmem pages could still be mapped and cached 
+> > > even after kunmap() was called on it.  As long as highmem pages are 
+> > > mapped, page_address(page) is non null and we can use that to 
+> > > synchronize the cache.
+> > > It is unlikely but still possible for kmap() to race and recycle the 
+> > > obtained virtual address above, and use it for another page though.  In 
+> > > that case, the new mapping could end up with dirty cache lines for 
+> > > another page, and the unsuspecting cache invalidation loop in 
+> > > dma_map_page() won't notice resulting in data loss.  Hence the need for 
+> > > some kind of kmap page pinning which can be used in any context, 
+> > > including IRQ context.
+> > > 
+> > > This is a RFC patch implementing the necessary part in the core code, as 
+> > > suggested by RMK. Please comment.
+> > 
+> > I am not sure if i understand your concern totally.
+> > I can understand it can be recycled. but Why is it racing ?
+> 
+> Suppose this sequence of events:
+> 
+> 	- dma_map_page(..., DMA_FROM_DEVICE) is called on a highmem page.
+> 
+> 	-->	- vaddr = page_address(page) is non null. In this case
+> 		  it is likely that the page has valid cache lines
+> 		  associated with vaddr. Remember that the cache is VIVT.
+> 
+> 		-->	- for (i = vaddr; i < vaddr + PAGE_SIZE; i += 32)
+> 				invalidate_cache_line(i);
+> 
+> 	*** preemption occurs in the middle of the loop above ***
+> 
+> 	- kmap_high() is called for a different page.
+> 
+> 	-->	- last_pkmap_nr wraps to zero and flush_all_zero_pkmaps()
+> 		  is called.  The pkmap_count value for the page passed
+> 		  to dma_map_page() above happens to be 1, so it is 
+> 		  unmapped.  But prior to that, flush_cache_kmaps() 
+> 		  cleared the cache for it.  So far so good.
+
+Thanks for kind explanation.:)
+
+I thought kmap and dma_map_page usage was following.
+
+kmap(page);
+...
+dma_map_page(...)
+  invalidate_cache_line
+
+kunmap(page);
+
+In this case, how do pkmap_count value for the page passed to dma_map_page become 1 ?
+The caller have to make sure to complete dma_map_page before kunmap.
+      
+Do I miss something ?
+
+> 
+> 		- A fresh pkmap entry is assigned for this kmap request.
+> 		  The Murphy law says it will eventually happen to use 
+> 		  the same vaddr as the one which used to belong to the
+> 		  other page being processed by dma_map_page() in the
+> 		  preempted thread above.
+> 
+> 	- The caller of kmap_high() start dirtying the cache using the 
+> 	  new virtual mapping for its page.
+> 
+> 	*** the first thread is rescheduled ***
+> 
+> 			- The for loop is resumed, but now cached data 
+> 			  belonging to a different physical page is 
+> 			  being discarded!
+> And this is not only a preemption issue.  ARM can be SMP as well where 
+> this scenario is just as likely, and disabling preemption in 
+> dma_map_page() won't prevent it.
+> 
+> > Now, kmap semantic is that it can't be called in interrupt context.
+> 
+> I know.  And in this case I don't need the full kmap_high() semantics.  
+> What I need is a guarantee that, if I start invalidating cache lines 
+> from an highmem page, its virtual mapping won't go away.  Meaning that I 
+> need to increase pkmap_count whenever it is not zero.  And if it is zero 
+> then there is simply no cache invalidation to worry about.  And that 
+> pkmap_count increment must be possible from any context as its primary 
+> user would be dma_map_page().
+> 
+> > As far as I understand, To make irq_disable to prevent this problem is 
+> > rather big cost.
+> 
+> How big?  Could you please elaborate on the significance of this cost?
+
+I don't have a number. It depends on you for submitting this patch. 
+The kernel have been used kmap in many fs and driver, even mm. 
+So, For merging this path, you should provide benchmark result. 
+Sometime, other server guy can help you for getting the data. 
+ 
+> > I think it would be better to make page_address can return null in that case
+> > where pkmap_count is less than one
+> 
+> This is already the case, and when it happens then there is no cache 
+> invalidation to perform like I say above.  The race is possible when 
+> pkmap_count is 1 or becomes 1.
+> 
+> > or it's not previous page mapping.
+> 
+> Even if the cache invalidation loop checks on every iteration if the 
+> page mapping changed which would be terribly inefficient, there is still 
+> a race window for the mapping to change between the mapping test 
+> and the actual cache line invalidation instruction.
+> 
+> 
+> Nicolas
+
+
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
