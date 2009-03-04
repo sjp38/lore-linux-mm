@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D150B6B00A0
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 04:23:47 -0500 (EST)
-Date: Wed, 4 Mar 2009 10:23:43 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 533226B004F
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 05:21:11 -0500 (EST)
+Date: Wed, 4 Mar 2009 11:21:07 +0100
 From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch][rfc] mm: hold page lock over page_mkwrite
-Message-ID: <20090304092343.GB27043@wotan.suse.de>
-References: <20090225093629.GD22785@wotan.suse.de> <20090301081744.GI26138@disturbed> <20090301135057.GA26905@wotan.suse.de> <20090302081953.GK26138@disturbed> <20090302083718.GE1257@wotan.suse.de> <49ABFA9D.90801@hp.com> <20090303043338.GB3973@wotan.suse.de> <20090303172535.GA16993@shareable.org>
+Subject: Re: [patch 1/2] mm: page_mkwrite change prototype to match fault
+Message-ID: <20090304102107.GE27043@wotan.suse.de>
+References: <20090303103838.GC17042@wotan.suse.de> <20090303155835.GA28851@infradead.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090303172535.GA16993@shareable.org>
+In-Reply-To: <20090303155835.GA28851@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Jamie Lokier <jamie@shareable.org>
-Cc: jim owens <jowens@hp.com>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 03, 2009 at 05:25:36PM +0000, Jamie Lokier wrote:
-> Nick Piggin wrote:
-> > The block layer below the filesystem should be robust. Well
-> > actually the core block layer is (except maybe for the new
-> > bio integrity stuff that looks pretty nasty). Not sure about
-> > md/dm, but they really should be safe (they use mempools etc).
-> 
-> Are mempools fully safe, or just statistically safer?
-
-They will guarantee forward progress if used correctly, so
-yes fully safe.
-
- 
-> > > it so "we can always make forward progress".  But it won't
-> > > matter because once a real user drives the system off this
-> > > cliff there is no difference between "hung" and "really slow
-> > > progress".  They are going to crash it and report a hang.
+On Tue, Mar 03, 2009 at 10:58:35AM -0500, Christoph Hellwig wrote:
+> On Tue, Mar 03, 2009 at 11:38:38AM +0100, Nick Piggin wrote:
 > > 
-> > I don't think that is the case. These are situations that
-> > would be *really* rare and transient. It is not like thrashing
-> > in that your working set size exceeds physical RAM, but just
-> > a combination of conditions that causes an unusual spike in the
-> > required memory to clean some dirty pages (eg. Dave's example
-> > of several IOs requiring btree splits over several AGs). Could
-> > cause a resource deadlock.
+> > Change the page_mkwrite prototype to take a struct vm_fault, and return
+> > VM_FAULT_xxx flags. Same as ->fault handler. Should be no change in
+> > behaviour.
 > 
-> Suppose the systems has two pages to be written.  The first must
-> _reserve_ 40 pages of scratch space just in case the operation will
-> need them.  If the second page write is initiated concurrently with
-> the first, the second must reserve another 40 pages concurrently.
+> How about just merging it into ->fault?
 > 
-> If 10 page writes are concurrent, that's 400 pages of scratch space
-> needed in reserve...
+> > This is required for a subsequent fix. And will also make it easier to
+> > merge page_mkwrite() with fault() in future.
+> 
+> Ah, I should read until the end :)  Any reason not to do the merge just
+> yet?
 
-You only need to guarantee forward progress, so you would reserve
-40 pages up front for the entire machine (some mempools have more
-memory than strictly needed to improve performance, so you could
-toy with that, but let's just describe the baseline).
+Getting there... after my proposed locking change as well it should
+be even another step closer.
 
-So allocations happen as normal, except when an allocation fails,
-then the task which fails the allocation is given access to this
-reserve memory, any other task requiring reserve will then block.
+The only thing is that we probably need to keep the page_mkwrite callback
+in the fs layer, but just move it out of the VM. Because it is hard to
+make a generic fault function that does the right page_mkwrite thing
+for all filesystems.
 
-Now the reserve provides enough pages to guarantee forward progress,
-so that one task is going to be able to proceed and eventually its
-pages will become freeable and can be returned to the reserve. Once
-the writeout has finished, the reserve will become available to
-other tasks.
+But at least pushing it down that step will give better efficiency and
+be simpler in the VM. (full page fault today has to lock and unlock the
+page 3 times with page_mkwrite, wheras it should go to 2 after my locking
+change, and then 1 when page_mkwrite gets merged into fault).
 
-So this way you only have to reserve enough to write out 1 page,
-and you only start blocking things when their memory allocations
-wolud have failed *anyway*. And you guarantee forward progress.
-
+It's coming... just a bit slowly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
