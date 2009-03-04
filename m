@@ -1,50 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 533226B004F
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 05:21:11 -0500 (EST)
-Date: Wed, 4 Mar 2009 11:21:07 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 1/2] mm: page_mkwrite change prototype to match fault
-Message-ID: <20090304102107.GE27043@wotan.suse.de>
-References: <20090303103838.GC17042@wotan.suse.de> <20090303155835.GA28851@infradead.org>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 26A776B00A3
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 06:58:01 -0500 (EST)
+Date: Wed, 4 Mar 2009 19:57:02 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: drop_caches ...
+Message-ID: <20090304115702.GA17565@localhost>
+References: <200903041057.34072.M4rkusXXL@web.de> <200903041132.04451.M4rkusXXL@web.de> <20090304110558.GA17014@localhost> <200903041229.41482.M4rkusXXL@web.de>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090303155835.GA28851@infradead.org>
+In-Reply-To: <200903041229.41482.M4rkusXXL@web.de>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Markus <M4rkusXXL@web.de>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 03, 2009 at 10:58:35AM -0500, Christoph Hellwig wrote:
-> On Tue, Mar 03, 2009 at 11:38:38AM +0100, Nick Piggin wrote:
+On Wed, Mar 04, 2009 at 01:29:40PM +0200, Markus wrote:
+> > > > The memory mapped pages won't be dropped in this way.
+> > > > "cat /proc/meminfo" will show you the number of mapped pages.
+> > > 
+> > > # sync ; echo 3 > /proc/sys/vm/drop_caches ; free -m ; 
+> cat /proc/meminfo
+> > >              total       used       free     shared    buffers     
+> > > cached
+> > > Mem:          3950       3262        688          0          0        
+> > > 359
+> > > -/+ buffers/cache:       2902       1047
+> > > Swap:         5890       1509       4381
+> > > MemTotal:        4045500 kB
+> > > MemFree:          705180 kB
+> > > Buffers:             508 kB
+> > > Cached:           367748 kB
+> > > SwapCached:       880744 kB
+> > > Active:          1555032 kB
+> > > Inactive:        1634868 kB
+> > > Active(anon):    1527100 kB
+> > > Inactive(anon):  1607328 kB
+> > > Active(file):      27932 kB
+> > > Inactive(file):    27540 kB
+> > > Unevictable:         816 kB
+> > > Mlocked:               0 kB
+> > > SwapTotal:       6032344 kB
+> > > SwapFree:        4486496 kB
+> > > Dirty:                 0 kB
+> > > Writeback:             0 kB
+> > > AnonPages:       2378112 kB
+> > > Mapped:            52196 kB
+> > > Slab:              65640 kB
+> > > SReclaimable:      46192 kB
+> > > SUnreclaim:        19448 kB
+> > > PageTables:        28200 kB
+> > > NFS_Unstable:          0 kB
+> > > Bounce:                0 kB
+> > > WritebackTmp:          0 kB
+> > > CommitLimit:     8055092 kB
+> > > Committed_AS:    4915636 kB
+> > > VmallocTotal:   34359738367 kB
+> > > VmallocUsed:       44580 kB
+> > > VmallocChunk:   34359677239 kB
+> > > DirectMap4k:     3182528 kB
+> > > DirectMap2M:     1011712 kB
+> > > 
+> > > The cached reduced to 359 MB (after the dropping).
+> > > I dont know where to read the "number of mapped pages".
+> > > "Mapped" is about 51 MB.
 > > 
-> > Change the page_mkwrite prototype to take a struct vm_fault, and return
-> > VM_FAULT_xxx flags. Same as ->fault handler. Should be no change in
-> > behaviour.
+> > Does your tmpfs store lots of files?
 > 
-> How about just merging it into ->fault?
+> Dont think so:
 > 
-> > This is required for a subsequent fix. And will also make it easier to
-> > merge page_mkwrite() with fault() in future.
+> # df -h
+> Filesystem            Size  Used Avail Use% Mounted on
+> /dev/md6               14G  8.2G  5.6G  60% /
+> udev                   10M  304K  9.8M   3% /dev
+> cachedir              4.0M  100K  4.0M   3% /lib64/splash/cache
+> /dev/md4               19G   15G  3.1G  83% /home
+> /dev/md3              8.3G  4.5G  3.9G  55% /usr/portage
+> shm                   2.0G     0  2.0G   0% /dev/shm
+> /dev/md1               99M   19M   76M  20% /boot
 > 
-> Ah, I should read until the end :)  Any reason not to do the merge just
-> yet?
+> # mount
+> /dev/md6 on / type ext3 (rw,noatime,nodiratime,barrier=0)
+> /proc on /proc type proc (rw,noexec,nosuid,noatime,nodiratime)
+> sysfs on /sys type sysfs (rw,nosuid,nodev,noexec)
+> udev on /dev type tmpfs (rw,nosuid,size=10240k,mode=755)
+> devpts on /dev/pts type devpts (rw,nosuid,noexec,gid=5,mode=620)
+> cachedir on /lib64/splash/cache type tmpfs (rw,size=4096k,mode=644)
+> /dev/md4 on /home type ext3 (rw,noatime,nodiratime,barrier=0)
+> /dev/md3 on /usr/portage type ext4 (rw,noatime,nodiratime,barrier=0)
+> shm on /dev/shm type tmpfs (rw,noexec,nosuid,nodev)
+> usbfs on /proc/bus/usb type usbfs 
+> (rw,noexec,nosuid,devmode=0664,devgid=85)
+> automount(pid6507) on /mnt/.autofs/misc type autofs 
+> (rw,fd=4,pgrp=6507,minproto=2,maxproto=4)
+> automount(pid6521) on /mnt/.autofs/usb type autofs 
+> (rw,fd=4,pgrp=6521,minproto=2,maxproto=4)
+> /dev/md1 on /boot type ext2 (rw,noatime,nodiratime)
+> 
+> I dont know what exactly all that memory is used for. It varies from 
+> about 300 MB to up to one GB.
+> Tell me where to look and I will!
 
-Getting there... after my proposed locking change as well it should
-be even another step closer.
+So you don't have lots of mapped pages(Mapped=51M) or tmpfs files.  It's
+strange to me that there are so many undroppable cached pages(Cached=359M),
+and most of them lie out of the LRU queue(Active+Inactive file=53M)...
 
-The only thing is that we probably need to keep the page_mkwrite callback
-in the fs layer, but just move it out of the VM. Because it is hard to
-make a generic fault function that does the right page_mkwrite thing
-for all filesystems.
+Anyone have better clues on these 'hidden' pages?
 
-But at least pushing it down that step will give better efficiency and
-be simpler in the VM. (full page fault today has to lock and unlock the
-page 3 times with page_mkwrite, wheras it should go to 2 after my locking
-change, and then 1 when page_mkwrite gets merged into fault).
-
-It's coming... just a bit slowly.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
