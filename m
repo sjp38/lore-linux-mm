@@ -1,129 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 761686B0088
-	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 12:26:04 -0500 (EST)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; charset=US-ASCII
-Received: from xanadu.home ([66.131.194.97]) by VL-MO-MR005.ip.videotron.ca
- (Sun Java(tm) System Messaging Server 6.3-4.01 (built Aug  3 2007; 32bit))
- with ESMTP id <0KFZ00D1ESDS9O30@VL-MO-MR005.ip.videotron.ca> for
- linux-mm@kvack.org; Wed, 04 Mar 2009 12:25:06 -0500 (EST)
-Date: Wed, 04 Mar 2009 12:26:00 -0500 (EST)
-From: Nicolas Pitre <nico@cam.org>
-Subject: Re: [RFC] atomic highmem kmap page pinning
-In-reply-to: <20090304171429.c013013c.minchan.kim@barrios-desktop>
-Message-id: <alpine.LFD.2.00.0903041101170.5511@xanadu.home>
-References: <alpine.LFD.2.00.0903040014140.5511@xanadu.home>
- <20090304171429.c013013c.minchan.kim@barrios-desktop>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 60B126B00B2
+	for <linux-mm@kvack.org>; Wed,  4 Mar 2009 13:04:33 -0500 (EST)
+Date: Wed, 4 Mar 2009 18:04:26 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+Message-ID: <20090304180426.GB25260@csn.ul.ie>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop> <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr> <20090302112122.GC21145@csn.ul.ie> <1236132307.2567.25.camel@ymzhang>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1236132307.2567.25.camel@ymzhang>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Cc: Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Mar 2009, Minchan Kim wrote:
-
-> On Wed, 04 Mar 2009 00:58:13 -0500 (EST)
-> Nicolas Pitre <nico@cam.org> wrote:
+On Wed, Mar 04, 2009 at 10:05:07AM +0800, Zhang, Yanmin wrote:
+> On Mon, 2009-03-02 at 11:21 +0000, Mel Gorman wrote:
+> > (Added Ingo as a second scheduler guy as there are queries on tg_shares_up)
+> > 
+> > On Fri, Feb 27, 2009 at 04:44:43PM +0800, Lin Ming wrote:
+> > > On Thu, 2009-02-26 at 19:22 +0800, Mel Gorman wrote: 
+> > > > In that case, Lin, could I also get the profiles for UDP-U-4K please so I
+> > > > can see how time is being spent and why it might have gotten worse?
+> > > 
+> > > I have done the profiling (oltp and UDP-U-4K) with and without your v2
+> > > patches applied to 2.6.29-rc6.
+> > > I also enabled CONFIG_DEBUG_INFO so you can translate address to source
+> > > line with addr2line.
+> > > 
+> > > You can download the oprofile data and vmlinux from below link,
+> > > http://www.filefactory.com/file/af2330b/
+> > > 
+> > 
+> > Perfect, thanks a lot for profiling this. It is a big help in figuring out
+> > how the allocator is actually being used for your workloads.
+> > 
+> > The OLTP results had the following things to say about the page allocator.
+>
+> In case we might mislead you guys, I want to clarify that here OLTP is
+> sysbench (oltp)+mysql, not the famous OLTP which needs lots of disks and big
+> memory.
 > 
-> > I've implemented highmem for ARM.  Yes, some ARM machines do have lots 
-> > of memory...
-> > 
-> > The problem is that most ARM machines have a non IO coherent cache, 
-> > meaning that the dma_map_* set of functions must clean and/or invalidate 
-> > the affected memory manually.  And because the majority of those 
-> > machines have a VIVT cache, the cache maintenance operations must be 
-> > performed using virtual addresses.
-> > 
-> > In dma_map_page(), an highmem pages could still be mapped and cached 
-> > even after kunmap() was called on it.  As long as highmem pages are 
-> > mapped, page_address(page) is non null and we can use that to 
-> > synchronize the cache.
-> > It is unlikely but still possible for kmap() to race and recycle the 
-> > obtained virtual address above, and use it for another page though.  In 
-> > that case, the new mapping could end up with dirty cache lines for 
-> > another page, and the unsuspecting cache invalidation loop in 
-> > dma_map_page() won't notice resulting in data loss.  Hence the need for 
-> > some kind of kmap page pinning which can be used in any context, 
-> > including IRQ context.
-> > 
-> > This is a RFC patch implementing the necessary part in the core code, as 
-> > suggested by RMK. Please comment.
+
+Ah good. I'm testing with sysbench+postgres and I've seen similar
+regressions on some machines so I have something to investigate.
+
+> Ma Chinang, another Intel guy, does work on the famous OLTP running.
 > 
-> I am not sure if i understand your concern totally.
-> I can understand it can be recycled. but Why is it racing ?
 
-Suppose this sequence of events:
+Good to know. It's too early to test remotely near there but when this
+is ready for merging a run on that setup would be really nice time was
+available.
 
-	- dma_map_page(..., DMA_FROM_DEVICE) is called on a highmem page.
+> > <SNIP>
+> > Question 1: Would it be possible to increase the sample rate and track cache
+> > misses as well please?
+>
+> I will try to capture cache miss with oprofile.
+> 
 
-	-->	- vaddr = page_address(page) is non null. In this case
-		  it is likely that the page has valid cache lines
-		  associated with vaddr. Remember that the cache is VIVT.
+Great, thanks. I did a cache miss capture for one of the machines and
+noted cache misses increased but it'd still good to know.
 
-		-->	- for (i = vaddr; i < vaddr + PAGE_SIZE; i += 32)
-				invalidate_cache_line(i);
+> > Another interesting fact is that we are spending about 15% of the overall
+> > time is spent in tg_shares_up() for both kernels but the vanilla kernel
+> > recorded 977348 samples and the patched kernel recorded 514576 samples. We
+> > are spending less time in the kernel and it's not obvious why or if that is
+> > a good thing or not. You'd think less time in kernel is good but it might
+> > mean we are doing less work overall.
+> > 
+> > Total aside from the page allocator, I checked what we were doing
+> > in tg_shares_up where the vast amount of time is being spent. This has
+> > something to do with CONFIG_FAIR_GROUP_SCHED. 
+> > 
+> > Question 2: Scheduler guys, can you think of what it means to be spending
+> > less time in tg_shares_up please?
+> > 
+> > I don't know enough of how it works to guess why we are in there. FWIW,
+> > we are appear to be spending the most time in the following lines
+> > 
+> >                 weight = tg->cfs_rq[i]->load.weight;
+> >                 if (!weight)
+> >                         weight = NICE_0_LOAD;
+> > 
+> >                 tg->cfs_rq[i]->rq_weight = weight;
+> >                 rq_weight += weight;
+> >                 shares += tg->cfs_rq[i]->shares;
+> > 
+> > So.... cfs_rq is SMP aligned, but we iterate though it with for_each_cpu()
+> > and we're writing to it. How often is this function run by multiple CPUs? If
+> > the answer is "lots", does that not mean we are cache line bouncing in
+> > here like mad? Another crazy amount of time is spent accessing tg->se when
+> > validating. Basically, any access of the task_group appears to incur huge
+> > costs and cache line bounces would be the obvious explanation.
+>
+> ???FAIR_GROUP_SCHED is a feature to support configurable cpu weight for different users.
+> We did find it takes lots of time to check/update the share weight which might create
+> lots of cache ping-pang. With sysbench(oltp)+mysql, that becomes more severe because
+> mysql runs as user mysql and sysbench runs as another regular user. When starting
+> the testing with 1 thread in command line, there are 2 mysql threads and 1 sysbench
+> thread are proactive.
+> 
 
-	*** preemption occurs in the middle of the loop above ***
+Very interesting, I don't think this will affect the page allocator but
+I'll keep it in mind when worrying about the workload as a whole instead
+of just one corner of it.
 
-	- kmap_high() is called for a different page.
+> > 
+> > 
+> > More stupid poking around. We appear to update these share things on each
+> > fork().
+> > 
+> > Question 3: Scheduler guys, If the database or clients being used for OLTP is
+> > fork-based instead of thread-based, then we are going to be balancing a lot,
+> > right? What does that mean, how can it be avoided?
+> > 
+> > Question 4: Lin, this is unrelated to the page allocator but do you know
+> > what the performance difference between vanilla-with-group-sched and
+> > vanilla-without-group-sched is?
+>
+> When ???FAIR_GROUP_SCHED appeared in kernel at the first time, we did many such testing.
+> There is another thread to discuss it at http://lkml.org/lkml/2008/9/10/214.
+> 
+> set s???ched_shares_ratelimit to a large value could reduce the regression.
+> 
+> Scheduler guys keep improving it. 
+> 
 
-	-->	- last_pkmap_nr wraps to zero and flush_all_zero_pkmaps()
-		  is called.  The pkmap_count value for the page passed
-		  to dma_map_page() above happens to be 1, so it is 
-		  unmapped.  But prior to that, flush_cache_kmaps() 
-		  cleared the cache for it.  So far so good.
+Good to know. I haven't read the thread yet but it's now on my TODO
+list.
 
-		- A fresh pkmap entry is assigned for this kmap request.
-		  The Murphy law says it will eventually happen to use 
-		  the same vaddr as the one which used to belong to the
-		  other page being processed by dma_map_page() in the
-		  preempted thread above.
+> > The UDP results are screwy as the profiles are not matching up to the
+> > images. For example
+> Mostly, it's caused by not cleaning up old oprofile data when starting
+> new sampling.
+> 
+> I will retry.
+> 
 
-	- The caller of kmap_high() start dirtying the cache using the 
-	  new virtual mapping for its page.
+Thanks
+> > 
+> > oltp.oprofile.2.6.29-rc6:           ffffffff802808a0 11022     0.1727  get_page_from_freelist
+> > oltp.oprofile.2.6.29-rc6-mg-v2:     ffffffff80280610 7958      0.2403  get_page_from_freelist
+> > UDP-U-4K.oprofile.2.6.29-rc6:       ffffffff802808a0 29914     1.2866  get_page_from_freelist
+> > UDP-U-4K.oprofile.2.6.29-rc6-mg-v2: ffffffff802808a0 28153     1.1708  get_page_from_freelist
+> > 
+> > Look at the addresses. UDP-U-4K.oprofile.2.6.29-rc6-mg-v2 has the address
+> > for UDP-U-4K.oprofile.2.6.29-rc6 so I have no idea what I'm looking at here
+> > for the patched kernel :(.
+> > 
+> > Question 5: Lin, would it be possible to get whatever script you use for
+> > running netperf so I can try reproducing it?
 
-	*** the first thread is rescheduled ***
+> Below is a simple script. As for formal testing, we add parameter "-i 50,3 -I" 99,5"
+> to get a more stable result.
+> 
+> PROG_DIR=/home/ymzhang/test/netperf/src
+> taskset -c 0 ${PROG_DIR}/netserver
+> sleep 2
+> taskset -c 7 ${PROG_DIR}/netperf -t UDP_STREAM -l 60 -H 127.0.0.1 -- -P 15895 12391 -s 32768 -S 32768 -m 4096
+> killall netserver
+> 
 
-			- The for loop is resumed, but now cached data 
-			  belonging to a different physical page is 
-			  being discarded!
+Thanks, simple is good enough to start with. Just have to get around to
+wrapping the automation around it.
 
-And this is not only a preemption issue.  ARM can be SMP as well where 
-this scenario is just as likely, and disabling preemption in 
-dma_map_page() won't prevent it.
+> Basically, we start 1 client and bind client/server to different physical cpu.
+> 
+> > 
+> > Going by the vanilla kernel, a *large* amount of time is spent doing
+> > high-order allocations. Over 25% of the cost of buffered_rmqueue() is in
+> > the branch dealing with high-order allocations. Does UDP-U-4K mean that 8K
+> > pages are required for the packets? That means high-order allocations and
+> > high contention on the zone-list. That is bad obviously and has implications
+> > for the SLUB-passthru patch because whether 8K allocations are handled by
+> > SL*B or the page allocator has a big impact on locking.
+> > 
+> > Next, a little over 50% of the cost get_page_from_freelist() is being spent
+> > acquiring the zone spinlock. The implication is that the SL*B allocators
+> > passing in order-1 allocations to the page allocator are currently going to
+> > hit scalability problems in a big way. The solution may be to extend the
+> > per-cpu allocator to handle magazines up to PAGE_ALLOC_COSTLY_ORDER. I'll
+> > check it out.
+> > 
+> 
 
-> Now, kmap semantic is that it can't be called in interrupt context.
-
-I know.  And in this case I don't need the full kmap_high() semantics.  
-What I need is a guarantee that, if I start invalidating cache lines 
-from an highmem page, its virtual mapping won't go away.  Meaning that I 
-need to increase pkmap_count whenever it is not zero.  And if it is zero 
-then there is simply no cache invalidation to worry about.  And that 
-pkmap_count increment must be possible from any context as its primary 
-user would be dma_map_page().
-
-> As far as I understand, To make irq_disable to prevent this problem is 
-> rather big cost.
-
-How big?  Could you please elaborate on the significance of this cost?
-
-> I think it would be better to make page_address can return null in that case
-> where pkmap_count is less than one
-
-This is already the case, and when it happens then there is no cache 
-invalidation to perform like I say above.  The race is possible when 
-pkmap_count is 1 or becomes 1.
-
-> or it's not previous page mapping.
-
-Even if the cache invalidation loop checks on every iteration if the 
-page mapping changed which would be terribly inefficient, there is still 
-a race window for the mapping to change between the mapping test 
-and the actual cache line invalidation instruction.
-
-
-Nicolas
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
