@@ -1,98 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 56C4B6B00D1
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 17:32:51 -0500 (EST)
-Date: Thu, 5 Mar 2009 14:31:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] generic debug pagealloc (-v2)
-Message-Id: <20090305143150.136e2708.akpm@linux-foundation.org>
-In-Reply-To: <20090305145926.GA27015@localhost.localdomain>
-References: <20090305145926.GA27015@localhost.localdomain>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BC8286B00D4
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 17:59:40 -0500 (EST)
+Date: Thu, 5 Mar 2009 22:59:21 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC] atomic highmem kmap page pinning
+Message-ID: <20090305225921.GE918@n2100.arm.linux.org.uk>
+References: <alpine.LFD.2.00.0903040014140.5511@xanadu.home> <20090304171429.c013013c.minchan.kim@barrios-desktop> <alpine.LFD.2.00.0903041101170.5511@xanadu.home> <20090305080717.f7832c63.minchan.kim@barrios-desktop> <alpine.LFD.2.00.0903042129140.5511@xanadu.home> <20090305132054.888396da.minchan.kim@barrios-desktop> <alpine.LFD.2.00.0903042350210.5511@xanadu.home> <28c262360903051423g1fbf5067i9835099d4bf324ae@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <28c262360903051423g1fbf5067i9835099d4bf324ae@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, jirislaby@gmail.com, rmk+lkml@arm.linux.org.uk
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Nicolas Pitre <nico@cam.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Mar 2009 23:59:27 +0900
-Akinobu Mita <akinobu.mita@gmail.com> wrote:
-
-> CONFIG_DEBUG_PAGEALLOC is now supported by x86, powerpc, sparc (64bit),
-> and s390. This patch implements it for the rest of the architectures
-> by filling the pages with poison byte patterns after free_pages() and
-> verifying the poison patterns before alloc_pages().
+On Fri, Mar 06, 2009 at 07:23:44AM +0900, Minchan Kim wrote:
+> > +#ifdef ARCH_NEEDS_KMAP_HIGH_GET
+> > +/**
+> > + * kmap_high_get - pin a highmem page into memory
+> > + * @page: &struct page to pin
+> > + *
+> > + * Returns the page's current virtual memory address, or NULL if no mapping
+> > + * exists.  When and only when a non null address is returned then a
+> > + * matching call to kunmap_high() is necessary.
+> > + *
+> > + * This can be called from any context.
+> > + */
+> > +void *kmap_high_get(struct page *page)
+> > +{
+> > +       unsigned long vaddr, flags;
+> > +
+> > +       spin_lock_kmap_any(flags);
+> > +       vaddr = (unsigned long)page_address(page);
+> > +       if (vaddr) {
+> > +               BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 1);
+> > +               pkmap_count[PKMAP_NR(vaddr)]++;
+> > +       }
+> > +       spin_unlock_kmap_any(flags);
+> > +       return (void*) vaddr;
+> > +}
+> > +#endif
 > 
-> This generic one cannot detect invalid read accesses and it can only
-> detect invalid write accesses after a long delay. But it is a feasible way
-> for nommu architectures.
-> 
-> ...
->
-> +#include <linux/kernel.h>
-> +#include <linux/mm.h>
-> +
-> +static void poison_page(struct page *page)
-> +{
-> +	void *addr;
-> +
-> +	if (PageHighMem(page))
-> +		return; /* i goofed */
+> Let's add empty function for architecture of no ARCH_NEEDS_KMAP_HIGH_GET,
 
-heh.  A more complete comment would be needed here.
-
-Also, as this is a kernel bug, perhaps some sort of runtime warning?
-
-> +	page->poison = true;
-> +	addr = page_address(page);
-> +	memset(addr, PAGE_POISON, PAGE_SIZE);
-> +}
-> +
-> +static void poison_pages(struct page *page, int n)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < n; i++)
-> +		poison_page(page + i);
-> +}
-> +
-> +static void check_poison_mem(unsigned char *mem, size_t bytes)
-> +{
-> +	unsigned char *start;
-> +	unsigned char *end;
-> +
-> +	for (start = mem; start < mem + bytes; start++) {
-> +		if (*start != PAGE_POISON)
-> +			break;
-> +	}
-> +	if (start == mem + bytes)
-> +		return;
-> +
-> +	for (end = mem + bytes - 1; end > start; end--) {
-> +		if (*end != PAGE_POISON)
-> +			break;
-> +	}
-> +	printk(KERN_ERR "Page corruption: %p-%p\n", start, end);
-> +	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, start,
-> +			end - start + 1, 1);
-> +}
-> +
-> +static void unpoison_page(struct page *page)
-> +{
-> +	void *addr;
-> +
-
-Shouldn't we check PageHighmem() here also?
-
-> +	if (!page->poison)
-> +		return;
-> +
-> +	addr = page_address(page);
-> +	check_poison_mem(addr, PAGE_SIZE);
-> +	page->poison = false;
-> +}
-> +
+The reasoning being?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
