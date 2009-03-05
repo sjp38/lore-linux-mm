@@ -1,82 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E066B00A9
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 05:34:20 -0500 (EST)
-Date: Thu, 5 Mar 2009 11:34:03 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
-Message-ID: <20090305103403.GB32407@elte.hu>
-References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie> <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie> <1235647139.16552.34.camel@penberg-laptop> <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr> <20090302112122.GC21145@csn.ul.ie> <1236132307.2567.25.camel@ymzhang> <20090304090740.GA27043@wotan.suse.de> <1236218198.2567.119.camel@ymzhang>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 9FCD56B005D
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 06:38:14 -0500 (EST)
+Date: Thu, 5 Mar 2009 19:11:14 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: drop_caches ...
+Message-ID: <20090305111114.GD29617@localhost>
+References: <20090305004850.GA6045@localhost> <20090305090618.GB23266@ics.muni.cz> <20090305181304.6758.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=gb2312
 Content-Disposition: inline
-In-Reply-To: <1236218198.2567.119.camel@ymzhang>
+In-Reply-To: <20090305181304.6758.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
-Cc: Nick Piggin <npiggin@suse.de>, Mel Gorman <mel@csn.ul.ie>, Lin Ming <ming.m.lin@intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Lukas Hejtmanek <xhejtman@ics.muni.cz>, Markus <M4rkusXXL@web.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zdenek Kabelac <zkabelac@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-* Zhang, Yanmin <yanmin_zhang@linux.intel.com> wrote:
-
-> On Wed, 2009-03-04 at 10:07 +0100, Nick Piggin wrote:
-> > On Wed, Mar 04, 2009 at 10:05:07AM +0800, Zhang, Yanmin wrote:
-> > > On Mon, 2009-03-02 at 11:21 +0000, Mel Gorman wrote:
-> > > > (Added Ingo as a second scheduler guy as there are queries on tg_shares_up)
-> > > > 
-> > > > On Fri, Feb 27, 2009 at 04:44:43PM +0800, Lin Ming wrote:
-> > > > > On Thu, 2009-02-26 at 19:22 +0800, Mel Gorman wrote: 
-> > > > > > In that case, Lin, could I also get the profiles for UDP-U-4K please so I
-> > > > > > can see how time is being spent and why it might have gotten worse?
-> > > > > 
-> > > > > I have done the profiling (oltp and UDP-U-4K) with and without your v2
-> > > > > patches applied to 2.6.29-rc6.
-> > > > > I also enabled CONFIG_DEBUG_INFO so you can translate address to source
-> > > > > line with addr2line.
-> > > > > 
-> > > > > You can download the oprofile data and vmlinux from below link,
-> > > > > http://www.filefactory.com/file/af2330b/
-> > > > > 
-> > > > 
-> > > > Perfect, thanks a lot for profiling this. It is a big help in figuring out
-> > > > how the allocator is actually being used for your workloads.
-> > > > 
-> > > > The OLTP results had the following things to say about the page allocator.
-> > > In case we might mislead you guys, I want to clarify that here OLTP is
-> > > sysbench (oltp)+mysql, not the famous OLTP which needs lots of disks and big
-> > > memory.
-> > > 
-> > > Ma Chinang, another Intel guy, does work on the famous OLTP running.
+On Thu, Mar 05, 2009 at 11:14:33AM +0200, KOSAKI Motohiro wrote:
+> > Hello,
 > > 
-> > OK, so my comments WRT cache sensitivity probably don't apply here,
-> > but probably cache hotness of pages coming out of the allocator
-> > might still be important for this one.
-> Yes. We need check it.
-> 
+> > On Thu, Mar 05, 2009 at 08:48:50AM +0800, Wu Fengguang wrote:
+> > > Markus, you may want to try this patch, it will have better chance to figure
+> > > out the hidden file pages.
 > > 
-> > How many runs are you doing of these tests?
-> We start sysbench with different thread number, for example, 8 12 16 32 64 128 for
-> 4*4 tigerton, then get an average value in case there might be a scalability issue.
-> 
-> As for this sysbench oltp testing, we reran it for 7 times on 
-> tigerton this week and found the results have fluctuations. 
-> Now we could only say there is a trend that the result with 
-> the pathces is a little worse than the one without the 
-> patches.
+> > just for curiosity, would it be possible to print process name which caused
+> > the file to be loaded into caches?
+ 
+Yes the code has been there but not included in the patch I sent to you.
 
-Could you try "perfstat -s" perhaps and see whether any other of 
-the metrics outside of tx/sec has less natural noise?
+When enabled by the following option, the kernel will save the short name of
+current process into every _newly_ allocated inode structure, which will then
+be displayed in the filecache.
 
-I think a more invariant number might be the ratio of "LLC 
-cachemisses" divided by "CPU migrations".
++config PROC_FILECACHE_EXTRAS
++       bool "track extra states"
++       default y
++       depends on PROC_FILECACHE
++       help
++         Track extra states that costs a little more time/space.
 
-The fluctuation in tx/sec comes from threads bouncing - but you 
-can normalize that away by using the cachemisses/migrations 
-ration.
+However it adds runtime overhead, and the information is not reliably usable.
+So not everyone will like this idea and I'm not maintaining this feature now.
 
-Perhaps. It's definitely a difficult thing to measure.
+But I do have an interesting old copy that shows the process names:
 
-	Ingo
+#      ino       size   cached cached% refcnt state accessed   uid process         dev          file
+   1221729          1        4     100      0    --       27     0 rc              08:01(sda1)	/etc/default/rcS
+   1058788         32       32     100      0    --       92     0 udevd           08:01(sda1)	/sbin/modprobe
+   1221859          2        4     100      0    --        2     0 rc              08:01(sda1)	/etc/init.d/module-init-tools
+   1400967          2        4     100      0    --       65     0 tput            08:01(sda1)	/lib/terminfo/l/linux
+    195578         90       92     100      0    --       10     0 S03udev         08:01(sda1)	/usr/bin/expr
+    196704         12       12     100      0    --       60     0 S03udev         08:01(sda1)	/usr/bin/tput
+   1221849          1        4     100      0    --        2     0 S18ifupdown-cle 08:01(sda1)	/etc/default/ifupdown
+   1221847          2        4     100      0    --        2     0 rc              08:01(sda1)	/etc/init.d/ifupdown-clean
+   1726534          1        4     100      0    --       56     0 alsa-utils      08:01(sda1)	/bin/which
+   1726549          7        8     100      0    --       25     0 sh              08:01(sda1)	/bin/mountpoint
+   1221998          3        4     100      0    --       30     0 sh              08:01(sda1)	/etc/fstab
+   1727533        100      100     100      0    --      306     0 sh              08:01(sda1)	/bin/grep
+   1221653          3        4     100      0    --        3     0 rc              08:01(sda1)	/etc/init.d/mountdevsubfs.sh
+   1400773          3        4     100      0    --        9     0 sh              08:01(sda1)	/lib/init/mount-functions.sh
+   1400851          8        8     100      0    --       48     0 rc              08:01(sda1)	/lib/lsb/init-functions
+   1727381         19       20     100      0    --       34     0 sh              08:01(sda1)	/bin/uname
+   1221672          1        4     100      0    --        3     0 sh              08:01(sda1)	/etc/default/tmpfs
+   1221669          1        4     100      0    --        3     0 sh              08:01(sda1)	/etc/default/devpts
+   1224261          2        4     100      1    --      975     0 rcS             08:01(sda1)	/etc/passwd
+   1221725          1        4     100      0    --      492     0 rcS             08:01(sda1)	/etc/nsswitch.conf
+   1221659          4        4     100      0    --        1     0 rc              08:01(sda1)	/etc/init.d/mtab.sh
+   1726557         50       52     100      0    --      186     0 rc              08:01(sda1)	/bin/sed
+   1222991          2        4     100      0    --       25     0 mount           08:01(sda1)	/etc/blkid.tab
+   1222681          1        4     100      0    --      207     0 init            08:01(sda1)	/etc/selinux/config
+   1727379         40       40     100      0    --      251     0 sh              08:01(sda1)	/bin/rm
+   1564027         35       36     100      9    --      142     0 touch           08:01(sda1)	/lib/librt-2.6.so
+   1727368         40       40     100      0    --       70     0 sh              08:01(sda1)	/bin/touch
+   1223550         97      100     100      0    --     4479     0 init            08:01(sda1)	/etc/ld.so.cache
+   1400771         10       12     100      0    --        2     0 sh              08:01(sda1)	/lib/init/readlink
+   1065053          8        8     100      0    --        2     0 sh              08:01(sda1)	/sbin/logsave
+   1221665         10       12     100      0    --        1     0 rc              08:01(sda1)	/etc/init.d/checkroot.sh
+     12661          1        4     100      1    d-       10     0 udevd           00:0e(tmpfs)	/.udev/db/block@sr0
+     12320          1        4     100      1    D-       11     0 udevd           00:0e(tmpfs)	/.udev/db/md0
+     12661          1        4     100      1    d-       10     0 udevd           00:0e(tmpfs)	/.udev/db/block@sr0
+     12320          1        4     100      1    D-       11     0 udevd           00:0e(tmpfs)	/.udev/db/md0
+     12316          1        4     100      1    D-       11     0 udevd           00:0e(tmpfs)	/.udev/db/md2
+     12289          1        4     100      1    d-       10     0 udevd           00:0e(tmpfs)	/.udev/db/class@input@input2@event2
+   1726532         19       20     100      0    --       42     0 net.agent       08:01(sda1)	/bin/sleep
+     11918          1        4     100      1    d-       10     0 udevd           00:0e(tmpfs)	/.udev/db/class@input@input0@event0
+     11912          1        4     100      1    d-       10     0 udevd           00:0e(tmpfs)	/.udev/db/class@input@input1@event1
+   1058730         60       60     100      1    --        1     0 S03udev         08:01(sda1)	/sbin/udevd
+   1564011        123      124     100     16    --      220     0 mount           08:01(sda1)	/lib/libpthread-2.6.so
+   1400830         70       72     100      0    --       27     0 mount           08:01(sda1)	/lib/libdevmapper.so.1.02
+   1400847         11       12     100      0    --       27     0 mount           08:01(sda1)	/lib/libuuid.so.1.2
+   1400881         39       40     100      0    --       27     0 mount           08:01(sda1)	/lib/libblkid.so.1.0
+   1726538         87       88     100      0    --       17     0 sh              08:01(sda1)	/bin/mount
+   1221817          8        8     100      0    --        4     0 rcS             08:01(sda1)	/etc/init.d/rc
+   1564018         43       44     100     50    --      492     0 rcS             08:01(sda1)	/lib/libnss_files-2.6.so
+   1564012         43       44     100     43    --      473     0 rcS             08:01(sda1)	/lib/libnss_nis-2.6.so
+   1564010         87       88     100     47    --      513     0 rcS             08:01(sda1)	/lib/libnsl-2.6.so
+   1564020         35       36     100     43    --      473     0 rcS             08:01(sda1)	/lib/libnss_compat-2.6.so
+   1661561        359      360     100     13    --      384     0 rcS             08:01(sda1)	/lib/libncurses.so.5.6
+   1727359        752      752     100      2    --      291     0 init            08:01(sda1)	/bin/bash
+   1564016         15       16     100     52    --      801     0 init            08:01(sda1)	/lib/libdl-2.6.so
+   1564015       1352     1352     100     82    --     3338     0 init            08:01(sda1)	/lib/libc-2.6.so
+   1402884         91       92     100      7    --      206     0 init            08:01(sda1)	/lib/libselinux.so.1
+   1401085        236      236     100      7    --      206     0 init            08:01(sda1)	/lib/libsepol.so.1
+   1564007        121      124     100     82    --     3338     0 run-init        08:01(sda1)	/lib/ld-2.6.so
+   1058733         40       40     100      1    --        1     0 busybox         08:01(sda1)	/sbin/init
+         0  160836480      308       0      0    --        0     0 mdadm           00:02(bdev)	(08:00)
+         0   32226390        4       0      0    --        0     0 mdadm           00:02(bdev)	(08:02)
+         0     128489        4       0      0    --        0     0 mdadm           00:02(bdev)	(08:07)
+         0  160836480      308       0      0    --        0     0 mdadm           00:02(bdev)	(08:10)
+         0   32226390        4       0      0    --        0     0 mdadm           00:02(bdev)	(08:12)
+         0     313236        4       0      0    --        0     0 mdadm           00:02(bdev)	(08:18)
+      7976          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda4
+      7970          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda8
+      7964          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb6
+      7957          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda7
+      7951          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda6
+      7944          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb8
+      7938          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb7
+      7931          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda5
+      7924          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb5
+      7918          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda3
+      7911          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb4
+      7905          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb3
+      7898          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda2
+      7892          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda@sda1
+      7885          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb2
+      7851          1        4     100      1    D-       12     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb@sdb1
+      7823          1        4     100      1    D-       32     0 udevd           00:0e(tmpfs)	/.udev/db/block@sda
+      7769          1        4     100      1    D-       28     0 udevd           00:0e(tmpfs)	/.udev/db/block@sdb
+      7472          1        4     100      1    D-        4     0 udevd           00:0e(tmpfs)	/.udev/db/class@input@input1@mouse0
+      7068          1        4     100      1    D-        4     0 udevd           00:0e(tmpfs)	/.udev/db/class@input@mice
+      2227          1        4     100      1    D-     1790     0 udevd           00:0e(tmpfs)	/.udev/uevent_seqnum
+      2127          1        4     100      1    D-       11     0 init            00:0e(tmpfs)	/.initramfs/progress_state
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
