@@ -1,45 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 92B2F6B00C0
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 08:36:58 -0500 (EST)
-Date: Thu, 5 Mar 2009 21:36:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 02FD36B00C1
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 08:45:19 -0500 (EST)
+Date: Thu, 5 Mar 2009 14:45:28 +0100
+From: Lukas Hejtmanek <xhejtman@ics.muni.cz>
 Subject: Re: drop_caches ...
-Message-ID: <20090305133603.GA22442@localhost>
-References: <200903041057.34072.M4rkusXXL@web.de> <200903041947.41542.M4rkusXXL@web.de> <20090305004850.GA6045@localhost> <200903051255.35407.M4rkusXXL@web.de>
+Message-ID: <20090305134528.GC646@ics.muni.cz>
+References: <200903041057.34072.M4rkusXXL@web.de> <200903041947.41542.M4rkusXXL@web.de> <20090305004850.GA6045@localhost> <200903051255.35407.M4rkusXXL@web.de> <20090305133603.GA22442@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-2
 Content-Disposition: inline
-In-Reply-To: <200903051255.35407.M4rkusXXL@web.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20090305133603.GA22442@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Markus <M4rkusXXL@web.de>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zdenek Kabelac <zkabelac@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Lukas Hejtmanek <xhejtman@ics.muni.cz>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Markus <M4rkusXXL@web.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Zdenek Kabelac <zkabelac@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Markus,
-
-On Thu, Mar 05, 2009 at 01:55:35PM +0200, Markus wrote:
-> > Markus, you may want to try this patch, it will have better chance to figure out
-> > the hidden file pages.
-> > 
-> > 1) apply the patch and recompile kernel with CONFIG_PROC_FILECACHE=m
-> > 2) after booting:
-> >         modprobe filecache
-> >         cp /proc/filecache filecache-`date +'%F'`
-> > 3) send us the copied file, it will list all cached files, including
-> >    the normally hidden ones.
+On Thu, Mar 05, 2009 at 09:36:03PM +0800, Wu Fengguang wrote:
+>           size = file size in bytes
+>         cached = cached pages
 > 
-> The file consists of 674 lines. If I interpret it right, "size" is the 
-> filesize and "cached" the amount of the file being in cache (why can 
-> this be bigger than the file?!).
+> So it's normal that (size > cached).
 
-          size = file size in bytes
-        cached = cached pages
+I guess, the question was how it can happen that (cached > size).
 
-So it's normal that (size > cached).
-
-Thanks,
-Fengguang
+-- 
+Luka1 Hejtmanek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
