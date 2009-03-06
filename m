@@ -1,87 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C0A6A6B00DC
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 22:24:38 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n263OZIa000519
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 6 Mar 2009 12:24:35 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 599CC45DE64
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 12:24:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 385EE45DE63
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 12:24:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E03AE38008
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 12:24:35 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A8D84E38002
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 12:24:34 +0900 (JST)
-Date: Fri, 6 Mar 2009 12:23:14 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v3)
-Message-Id: <20090306122314.5314c8f5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090305152642.GA5482@balbir.in.ibm.com>
-References: <20090302060519.GG11421@balbir.in.ibm.com>
-	<20090302152128.e74f51ef.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090302063649.GJ11421@balbir.in.ibm.com>
-	<20090302160602.521928a5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090302124210.GK11421@balbir.in.ibm.com>
-	<c31ccd23cb41f0f7594b3f56b20f0165.squirrel@webmail-b.css.fujitsu.com>
-	<20090302174156.GM11421@balbir.in.ibm.com>
-	<20090303085914.555089b1.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090303111244.GP11421@balbir.in.ibm.com>
-	<20090305180410.a44035e0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090305152642.GA5482@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 584346B00DD
+	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 22:28:22 -0500 (EST)
+Received: by wa-out-1112.google.com with SMTP id k22so140112waf.22
+        for <linux-mm@kvack.org>; Thu, 05 Mar 2009 19:28:20 -0800 (PST)
+Date: Fri, 6 Mar 2009 12:28:14 +0900
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: Re: [PATCH] generic debug pagealloc (-v2)
+Message-ID: <20090306032814.GA9874@localhost.localdomain>
+References: <20090305145926.GA27015@localhost.localdomain> <20090305143150.136e2708.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090305143150.136e2708.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, jirislaby@gmail.com, rmk+lkml@arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Mar 2009 20:56:42 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-05 18:04:10]:
+On Thu, Mar 05, 2009 at 02:31:50PM -0800, Andrew Morton wrote:
+> > +#include <linux/kernel.h>
+> > +#include <linux/mm.h>
+> > +
+> > +static void poison_page(struct page *page)
+> > +{
+> > +	void *addr;
+> > +
+> > +	if (PageHighMem(page))
+> > +		return; /* i goofed */
 > 
-> > On Tue, 3 Mar 2009 16:42:44 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > > I wrote
-> > > > ==
-> > > >  if (victim is not over soft-limit)
-> > > > ==
-> > > > ....Maybe this discussion style is bad and I should explain my approach in patch.
-> > > > (I can't write code today, sorry.)
-> > > > 
-> > 
-> > This is an example of my direction, " do it lazy" softlimit.
-> > 
-> > Maybe this is not perfect but this addresses almost all my concern.
-> > I hope this will be an input for you.
-> > I didn't divide patch into small pieces intentionally to show a big picture.
-> > Thanks,
-> > -Kame
-> > ==
-> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > 
-> > An example patch. Don't trust me, this patch may have bugs.
-> >
+> heh.  A more complete comment would be needed here.
 > 
-> Well this is not do it lazy, all memcg's are scanned tree is built everytime
-> kswapd invokes soft limit reclaim. With 100 cgroups and 5 nodes, we'll
-> end up scanning cgroups 500 times. There is no ordering of selected
-> victims, so the largest victim might still be running unaffected.
+> Also, as this is a kernel bug, perhaps some sort of runtime warning?
+
+It just skips the poisoning for highmem pages.
+Any page poisoning can be skipped safely if it doesn't set the page->poison
+flag. So I'm going to put
+
+/*
+ * skipping the page poisoning for highmem pages
+ */
+
+> > +	page->poison = true;
+> > +	addr = page_address(page);
+> > +	memset(addr, PAGE_POISON, PAGE_SIZE);
+> > +}
+
+...
+
+> > +static void unpoison_page(struct page *page)
+> > +{
+> > +	void *addr;
+> > +
 > 
-I think of more reasonable one. I'll post today if it goes well.
+> Shouldn't we check PageHighmem() here also?
 
-Thanks,
--Kame
+It should not happen because page->poison flag is not set for highmem pages.
+But it's good for sanity checking. So I'll have a BUG_ON here.
 
+> > +	if (!page->poison)
+> > +		return;
+> > +
 
+	BUG_ON(PageHighMem(page));
+
+> > +	addr = page_address(page);
+> > +	check_poison_mem(addr, PAGE_SIZE);
+> > +	page->poison = false;
+> > +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
