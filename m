@@ -1,73 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 584346B00DD
-	for <linux-mm@kvack.org>; Thu,  5 Mar 2009 22:28:22 -0500 (EST)
-Received: by wa-out-1112.google.com with SMTP id k22so140112waf.22
-        for <linux-mm@kvack.org>; Thu, 05 Mar 2009 19:28:20 -0800 (PST)
-Date: Fri, 6 Mar 2009 12:28:14 +0900
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: Re: [PATCH] generic debug pagealloc (-v2)
-Message-ID: <20090306032814.GA9874@localhost.localdomain>
-References: <20090305145926.GA27015@localhost.localdomain> <20090305143150.136e2708.akpm@linux-foundation.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 8C3586B00DB
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 02:04:08 -0500 (EST)
+Message-ID: <49B0CAEC.80801@cn.fujitsu.com>
+Date: Fri, 06 Mar 2009 15:04:12 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090305143150.136e2708.akpm@linux-foundation.org>
+Subject: [RFC][PATCH] kmemdup_from_user(): introduce
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, jirislaby@gmail.com, rmk+lkml@arm.linux.org.uk
+Cc: LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 05, 2009 at 02:31:50PM -0800, Andrew Morton wrote:
-> > +#include <linux/kernel.h>
-> > +#include <linux/mm.h>
-> > +
-> > +static void poison_page(struct page *page)
-> > +{
-> > +	void *addr;
-> > +
-> > +	if (PageHighMem(page))
-> > +		return; /* i goofed */
-> 
-> heh.  A more complete comment would be needed here.
-> 
-> Also, as this is a kernel bug, perhaps some sort of runtime warning?
+I notice there are many places doing copy_from_user() which follows
+kmalloc():
 
-It just skips the poisoning for highmem pages.
-Any page poisoning can be skipped safely if it doesn't set the page->poison
-flag. So I'm going to put
+        dst = kmalloc(len, GFP_KERNEL);
+        if (!dst)
+                return -ENOMEM;
+        if (copy_from_user(dst, src, len)) {
+		kfree(dst);
+		return -EFAULT
+	}
 
-/*
- * skipping the page poisoning for highmem pages
- */
+kmemdup_from_user() is a wrapper of the above code. With this new
+function, we don't have to write 'len' twice, which can lead to
+typos/mistakes. It also produces smaller code.
 
-> > +	page->poison = true;
-> > +	addr = page_address(page);
-> > +	memset(addr, PAGE_POISON, PAGE_SIZE);
-> > +}
+A qucik grep shows 250+ places where kmemdup_from_user() *may* be
+used. I'll prepare a patchset to do this conversion.
 
-...
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+---
+ include/linux/string.h |    1 +
+ mm/util.c              |   24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 0 deletions(-)
 
-> > +static void unpoison_page(struct page *page)
-> > +{
-> > +	void *addr;
-> > +
-> 
-> Shouldn't we check PageHighmem() here also?
-
-It should not happen because page->poison flag is not set for highmem pages.
-But it's good for sanity checking. So I'll have a BUG_ON here.
-
-> > +	if (!page->poison)
-> > +		return;
-> > +
-
-	BUG_ON(PageHighMem(page));
-
-> > +	addr = page_address(page);
-> > +	check_poison_mem(addr, PAGE_SIZE);
-> > +	page->poison = false;
-> > +}
+diff --git a/include/linux/string.h b/include/linux/string.h
+index 76ec218..397e622 100644
+--- a/include/linux/string.h
++++ b/include/linux/string.h
+@@ -105,6 +105,7 @@ extern void * memchr(const void *,int,__kernel_size_t);
+ extern char *kstrdup(const char *s, gfp_t gfp);
+ extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
+ extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
++extern void *kmemdup_from_user(const void __user *src, size_t len, gfp_t gfp);
+ 
+ extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
+ extern void argv_free(char **argv);
+diff --git a/mm/util.c b/mm/util.c
+index 37eaccd..a608ebb 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -70,6 +70,30 @@ void *kmemdup(const void *src, size_t len, gfp_t gfp)
+ EXPORT_SYMBOL(kmemdup);
+ 
+ /**
++ * kmemdup_from_user - duplicate memory region from user space
++ *
++ * @src: source address in user space
++ * @len: number of bytes to copy
++ * @gfp: GFP mask to use
++ */
++void *kmemdup_from_user(const void __user *src, size_t len, gfp_t gfp)
++{
++	void *p;
++
++	p = kmalloc_track_caller(len, gfp);
++	if (!p)
++		return ERR_PTR(-ENOMEM);
++
++	if (copy_from_user(p, src, len)) {
++		kfree(p);
++		return ERR_PTR(-EFAULT);
++	}
++
++	return p;
++}
++EXPORT_SYMBOL(kmemdup_from_user);
++
++/**
+  * __krealloc - like krealloc() but don't free @p.
+  * @p: object to reallocate memory for.
+  * @new_size: how many bytes of memory are required.
+-- 
+1.5.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
