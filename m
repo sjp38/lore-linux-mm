@@ -1,92 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 822926B010E
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 05:05:42 -0500 (EST)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp09.in.ibm.com (8.13.1/8.13.1) with ESMTP id n269fsK6026037
-	for <linux-mm@kvack.org>; Fri, 6 Mar 2009 15:11:54 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n26A5ipY4202584
-	for <linux-mm@kvack.org>; Fri, 6 Mar 2009 15:35:44 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n26A5ZO5022485
-	for <linux-mm@kvack.org>; Fri, 6 Mar 2009 21:05:36 +1100
-Date: Fri, 6 Mar 2009 15:35:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/4] Memory controller soft limit patches (v4)
-Message-ID: <20090306100534.GD5482@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090306092323.21063.93169.sendpatchset@localhost.localdomain> <20090306185440.66b92ca3.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090306185440.66b92ca3.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 385C26B010F
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 05:16:00 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n26AFunA018549
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 6 Mar 2009 19:15:57 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 82EAE45DE5D
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:15:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5195045DD74
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:15:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 330A31DB8038
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:15:56 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3FA71DB803F
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:15:55 +0900 (JST)
+Date: Fri, 6 Mar 2009 19:14:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
+ (v4)
+Message-Id: <20090306191436.ceeb6e42.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090306100155.GC5482@balbir.in.ibm.com>
+References: <20090306092323.21063.93169.sendpatchset@localhost.localdomain>
+	<20090306092353.21063.11068.sendpatchset@localhost.localdomain>
+	<20090306185124.51a52519.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090306100155.GC5482@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
 Cc: linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-06 18:54:40]:
+On Fri, 6 Mar 2009 15:31:55 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Fri, 06 Mar 2009 14:53:23 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> > > +		if (wait)
+> > > +			wait_for_completion(&mem->wait_on_soft_reclaim);
+> > >  	}
+> > What ???? Why we have to wait here...holding mmap->sem...This is too bad.
+> >
 > 
-> > 
-> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > New Feature: Soft limits for memory resource controller.
-> > 
-> > Changelog v4...v3
-> > 1. Adopted suggestions from Kamezawa to do a per-zone-per-node reclaim
-> >    while doing soft limit reclaim. We don't record priorities while
-> >    doing soft reclaim
-> > 2. Some of the overheads associated with soft limits (like calculating
-> >    excess each time) is eliminated
-> > 3. The time_after(jiffies, 0) bug has been fixed
-> > 4. Tasks are throttled if the mem cgroup they belong to is being soft reclaimed
-> >    and at the same time tasks are increasing the memory footprint and causing
-> >    the mem cgroup to exceed its soft limit.
-> > 
-> I don't think this "4" is necessary.
->
-
-I responded to it and I had asked for review for this. Lets discuss it
-there. I am open to doing this or not.
- 
+> Since mmap_sem is no longer used for pthread_mutex*, I was not sure.
+> That is why I added the comment asking for more review and see what
+> people think about it. We get here only when
 > 
-> > Changelog v3...v2
-> > 1. Implemented several review comments from Kosaki-San and Kamezawa-San
-> >    Please see individual changelogs for changes
-> > 
-> > Changelog v2...v1
-> > 1. Soft limits now support hierarchies
-> > 2. Use spinlocks instead of mutexes for synchronization of the RB tree
-> > 
-> > Here is v4 of the new soft limit implementation. Soft limits is a new feature
-> > for the memory resource controller, something similar has existed in the
-> > group scheduler in the form of shares. The CPU controllers interpretation
-> > of shares is very different though. 
-> > 
-> > Soft limits are the most useful feature to have for environments where
-> > the administrator wants to overcommit the system, such that only on memory
-> > contention do the limits become active. The current soft limits implementation
-> > provides a soft_limit_in_bytes interface for the memory controller and not
-> > for memory+swap controller. The implementation maintains an RB-Tree of groups
-> > that exceed their soft limit and starts reclaiming from the group that
-> > exceeds this limit by the maximum amount.
-> > 
-> > If there are no major objections to the patches, I would like to get them
-> > included in -mm.
-> > 
-> You got Nack from me, again ;) And you know why.
-> I'll post my one later, I hope that one will be good input for you.
->
+> 1. The memcg is over its soft limit
+> 2. Tasks/threads belonging to memcg are faulting in more pages
+> 
+> The idea is to throttle them. If we did reclaim inline, like we do for
+> hard limits, we can still end up holding mmap_sem for a long time.
+> 
+This "throttle" is hard to measuer the effect and IIUC, not implemneted in
+vmscan.c ...for global try_to_free_pages() yet.
+Under memory shortage. before reaching here, the thread already called
+try_to_free_pages() or check some memory shorage conditions because
+it called alloc_pages(). So, waiting here is redundant and gives it
+too much penaly.
 
-Lets discuss the patches and your objections. I suspect it is because
-of 4 above, but I don't want to keep guessing. 
 
--- 
-	Balbir
+> > > +	/*
+> > > +	 * This loop can run a while, specially if mem_cgroup's continuously
+> > > +	 * keep exceeding their soft limit and putting the system under
+> > > +	 * pressure
+> > > +	 */
+> > > +	do {
+> > > +		mem = mem_cgroup_get_largest_soft_limit_exceeding_node();
+> > > +		if (!mem)
+> > > +			break;
+> > > +		usage = mem_cgroup_get_node_zone_usage(mem, zone, nid);
+> > > +		if (!usage)
+> > > +			goto skip_reclaim;
+> > 
+> > Why this works well ? if "mem" is the laragest, it will be inserted again
+> > as the largest. Do I miss any ?
+> >
+> 
+> No that is correct, but when reclaim is initiated from a different
+> zone/node combination, we still want mem to show up. 
+....
+your logic is
+==
+   nr_reclaimd = 0;
+   do {
+      mem = select victim.
+      remvoe victim from the RBtree (the largest usage one is selected)
+      if (victim is not good)
+          goto  skip this.
+      reclaimed += shirnk_zone.
+      
+skip_this:
+      if (mem is still exceeds soft limit)
+           insert RB tree again.
+   } while(!nr_reclaimed)
+==
+When this exits loop ?
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
