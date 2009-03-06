@@ -1,112 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E872F6B0062
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 18:04:15 -0500 (EST)
-Date: Fri, 6 Mar 2009 15:03:35 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -v2] memdup_user(): introduce
-Message-Id: <20090306150335.c512c1b6.akpm@linux-foundation.org>
-In-Reply-To: <49B0F1B9.1080903@cn.fujitsu.com>
-References: <49B0CAEC.80801@cn.fujitsu.com>
-	<20090306082056.GB3450@x200.localdomain>
-	<49B0DE89.9000401@cn.fujitsu.com>
-	<20090306003900.a031a914.akpm@linux-foundation.org>
-	<49B0E67C.2090404@cn.fujitsu.com>
-	<20090306011548.ffdf9cbc.akpm@linux-foundation.org>
-	<49B0F1B9.1080903@cn.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 4CE246B004F
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 18:49:49 -0500 (EST)
+Received: by ti-out-0910.google.com with SMTP id u3so347688tia.8
+        for <linux-mm@kvack.org>; Fri, 06 Mar 2009 15:49:46 -0800 (PST)
+Date: Sat, 7 Mar 2009 08:47:32 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: possible bug in find_get_pages
+Message-Id: <20090307084732.b01bcfee.minchan.kim@barrios-desktop>
+In-Reply-To: <20090306192625.GA3267@linux.intel.com>
+References: <20090306192625.GA3267@linux.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: adobriyan@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mgross@linux.intel.com
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 06 Mar 2009 17:49:45 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+Nick already found and solved this problem .
+It can help you. 
 
-> I notice there are many places doing copy_from_user() which follows
-> kmalloc():
+http://patchwork.kernel.org/patch/860/
+
+
+> On Fri, 6 Mar 2009 11:26:25 -0800
+> mark gross <mgross@linux.intel.com> wrote:
+>
+> I'm looking at a system hang (note: new hardware going under stress
+> tests using a ubuntu 2.6.27-11-generic)
 > 
->         dst = kmalloc(len, GFP_KERNEL);
->         if (!dst)
->                 return -ENOMEM;
->         if (copy_from_user(dst, src, len)) {
-> 		kfree(dst);
-> 		return -EFAULT
+> It seems that page->_count == 0 at some point on some overnight runs
+> with locks the system into a tight loop from the repeat: and a goto
+> repeat in find_get_pages. 
+> 
+> Code inserted for convenience:
+> 
+> unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+> 			    unsigned int nr_pages, struct page **pages)
+> {
+> 	unsigned int i;
+> 	unsigned int ret;
+> 	unsigned int nr_found;
+> 
+> 	rcu_read_lock();
+> restart:
+> 	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
+> 				(void ***)pages, start, nr_pages);
+> 	ret = 0;
+> 	for (i = 0; i < nr_found; i++) {
+> 		struct page *page;
+> repeat:
+> 		page = radix_tree_deref_slot((void **)pages[i]);
+> 		if (unlikely(!page))
+> 			continue;
+> 		/*
+> 		 * this can only trigger if nr_found == 1, making
+> 		 * livelock
+> 		 * a non issue.
+> 		 */
+> 		if (unlikely(page == RADIX_TREE_RETRY))
+> 			goto restart;
+> 
+> 		if (!page_cache_get_speculative(page))
+> 			goto repeat; <---------_always_hits_ 
+> 
+> 		/* Has the page moved? */
+> 		if (unlikely(page != *((void **)pages[i]))) {
+> 			page_cache_release(page);
+> 			goto repeat;
+> 		}
+> 
+> 		pages[ret] = page;
+> 		ret++;
 > 	}
+> 	rcu_read_unlock();
+> 	return ret;
+> }
 > 
-> memdup_user() is a wrapper of the above code. With this new function,
-> we don't have to write 'len' twice, which can lead to typos/mistakes.
-> It also produces smaller code and kernel text.
+> My question is that as I look at this code I don't see any way out of it
+> once I get a page with zero _count from radix_tree_deref_slot, then I
+> will get the same page forever.  The input to radix_tree_deref_slot
+> never changes so I assume the output should be the same crappy page with
+> zero _count that drops me on the goto repeat line.
 > 
-> A quick grep shows 250+ places where memdup_user() *may* be used. I'll
-> prepare a patchset to do this conversion.
+> Is this a bug?
 > 
-> v1 -> v2: change the name from kmemdup_from_user to memdup_user.
+> Also, is having a page->_count == 0 an unexpected or invalid state?
 > 
-> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
-> ---
+> Thanks!
 > 
-> Can this get into 2.6.29, so I can prepare patches based on linux-next?
-> And this won't cause regression, since no one uses it yet. :)
+> --mgross
+> 
+> 
+> 
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I'd be OK with doing that from a patch logistics point of view, but I'd
-prefer to leave a patch like this for a few days to gather more
-feedback from other developers, which might push this into 2.6.30.
 
-
-> diff --git a/include/linux/string.h b/include/linux/string.h
-> index 76ec218..79f30f3 100644
-> --- a/include/linux/string.h
-> +++ b/include/linux/string.h
-> @@ -12,6 +12,7 @@
->  #include <linux/stddef.h>	/* for NULL */
->  
->  extern char *strndup_user(const char __user *, long);
-> +extern void *memdup_user(const void __user *, size_t, gfp_t);
->  
->  /*
->   * Include machine specific inline routines
-> diff --git a/mm/util.c b/mm/util.c
-> index 37eaccd..3d21c21 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -70,6 +70,32 @@ void *kmemdup(const void *src, size_t len, gfp_t gfp)
->  EXPORT_SYMBOL(kmemdup);
->  
->  /**
-> + * memdup_user - duplicate memory region from user space
-> + *
-> + * @src: source address in user space
-> + * @len: number of bytes to copy
-> + * @gfp: GFP mask to use
-> + *
-> + * Returns an ERR_PTR() on failure.
-> + */
-> +void *memdup_user(const void __user *src, size_t len, gfp_t gfp)
-> +{
-> +	void *p;
-> +
-> +	p = kmalloc_track_caller(len, gfp);
-> +	if (!p)
-> +		return ERR_PTR(-ENOMEM);
-> +
-> +	if (copy_from_user(p, src, len)) {
-> +		kfree(p);
-> +		return ERR_PTR(-EFAULT);
-> +	}
-> +
-> +	return p;
-> +}
-> +EXPORT_SYMBOL(memdup_user);
-> +
-> +/**
->   * __krealloc - like krealloc() but don't free @p.
->   * @p: object to reallocate memory for.
->   * @new_size: how many bytes of memory are required.
-> -- 
-> 1.5.4.rc3
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
