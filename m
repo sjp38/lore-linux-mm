@@ -1,154 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C93446B00AF
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 15:46:22 -0500 (EST)
-Date: Fri, 6 Mar 2009 12:45:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] generic debug pagealloc (-v3)
-Message-Id: <20090306124551.beb5b131.akpm@linux-foundation.org>
-In-Reply-To: <20090306153943.GB6915@localhost.localdomain>
-References: <20090305145926.GA27015@localhost.localdomain>
-	<20090305143150.136e2708.akpm@linux-foundation.org>
-	<20090306032814.GA9874@localhost.localdomain>
-	<20090306153943.GB6915@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 32C0A6B0083
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:10:13 -0500 (EST)
+Date: Fri, 6 Mar 2009 13:13:36 -0800
+From: mark gross <mgross@linux.intel.com>
+Subject: Re: possible bug in find_get_pages
+Message-ID: <20090306211336.GA5981@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20090306192625.GA3267@linux.intel.com> <alpine.DEB.1.10.0903061426190.20182@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0903061426190.20182@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, mingo@elte.hu, jirislaby@gmail.com, rmk+lkml@arm.linux.org.uk
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 7 Mar 2009 00:39:45 +0900
-Akinobu Mita <akinobu.mita@gmail.com> wrote:
-
-> CONFIG_DEBUG_PAGEALLOC is now supported by x86, powerpc, sparc64, and s390.
-> This patch implements it for the rest of the architectures by filling the
-> pages with poison byte patterns after free_pages() and verifying the poison
-> patterns before alloc_pages().
+On Fri, Mar 06, 2009 at 02:28:50PM -0500, Christoph Lameter wrote:
+> On Fri, 6 Mar 2009, mark gross wrote:
 > 
-> This generic one cannot detect invalid page accesses immediately but invalid
-> read access may cause invalid dereference by poisoned memory and invalid write
-> access can be detected after a long delay.
+> > It seems that page->_count == 0 at some point on some overnight runs
+> > with locks the system into a tight loop from the repeat: and a goto
+> > repeat in find_get_pages.
 > 
-> ...
->
-> +static void poison_page(struct page *page)
-> +{
-> +	void *addr;
-> +
-> +	if (PageHighMem(page)) {
-> +		/*
-> +		 * Skip poisoning for highmem pages
-> +		 */
+> A page with ref count zero should not be in any mapping. If the page is in
+> a mapping then the page is used. Therefore the refcount should be > 0.
+> 
+> If there is a page with zero refcount and its in a mapping then something
+> erroneously decreased the refcount.
+> 
+> Nick wrote the code so I CCed him.
 
-This isn't a good comment - what it tells us is already utterly obvious
-from the code, and the reader is left with no clue as to _why_ the code
-does this.
+thanks!  This is on early hardware so perhaps there isn't anything to
+see here.  
 
-> +		return;
-> +	}
-> +	page->poison = true;
-> +	addr = page_address(page);
-> +	memset(addr, PAGE_POISON, PAGE_SIZE);
-> +}
-> +
-> +static void poison_pages(struct page *page, int n)
-> +{
-> +	int i;
-> +
-> +	for (i = 0; i < n; i++)
-> +		poison_page(page + i);
-> +}
-> +
-> +static bool single_bit_flip(unsigned char a, unsigned char b)
-> +{
-> +	unsigned char error = a ^ b;
-> +
-> +	return error && !(error & (error - 1));
-> +}
-> +
-> +static void check_poison_mem(unsigned char *mem, size_t bytes)
-> +{
-> +	unsigned char *start;
-> +	unsigned char *end;
-> +
-> +	for (start = mem; start < mem + bytes; start++) {
-> +		if (*start != PAGE_POISON)
-> +			break;
-> +	}
-> +	if (start == mem + bytes)
-> +		return;
-> +
-> +	for (end = mem + bytes - 1; end > start; end--) {
-> +		if (*end != PAGE_POISON)
-> +			break;
-> +	}
-> +	if (start == end && single_bit_flip(*start, PAGE_POISON))
-> +		printk(KERN_ERR "Single bit error: %p\n", start);
-> +	else
-> +		printk(KERN_ERR "Page corruption: %p-%p\n", start, end);
-> +
-> +	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, start,
-> +			end - start + 1, 1);
+Still form a static read of the code that goto repeat raises
+eyebrows as why would anyone expect to get anything different from
+radix_page_deref_slot calling it again with the same arguments?
 
-These messages should be self-identifying in some fashion.  A message
-like "Single bit error" could come from almost any part of the kernel. 
-Something like "pagealloc: single bit error", perhaps?
-
-There's a decent chance that if this warning triggers once, it will
-trigger a thousand times, depending upon the nature of the fault.  So
-it would be sensible to put some constraint upon the reporting.  That
-could be time-based (include/linux/ratelimit.h) or perhaps just stop at
-ten or whatever.
-
-If this message ever comes out, the chances are high that we'll really
-really want to know which kernel subsystem owned that page.  Because if
-it's a software fault, this will help us find the bug.  A suitable way
-of doing this is to run dump_stack().  This will also cause the reports
-to be tracked by kerneloops.org.
-
-> --- 2.6-poison.orig/include/linux/mm_types.h
-> +++ 2.6-poison/include/linux/mm_types.h
-> @@ -94,6 +94,10 @@ struct page {
->  	void *virtual;			/* Kernel virtual address (NULL if
->  					   not kmapped, ie. highmem) */
->  #endif /* WANT_PAGE_VIRTUAL */
-> +
-> +#ifdef CONFIG_PAGE_POISONING
-> +	bool poison;
-> +#endif /* CONFIG_PAGE_POISONING */
->  };
->  
-
-Adding 32 bits to the pageframe for a single feature which needs one
-bit is rather sad.  Sure, this is a super-slow feature and nobody will
-be turning it on in production.  But I wonder if we can do better.
-
-
-#ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
-	unsigned long debug_flags;	/* Use atomic bitops on this */
-#endif
-};
-
-#define PAGE_DEBUG_FLAG_PAGEALLOC	0
-#define PAGE_DEBUG_SOMETHING_ELSE	1
-etc
-
-
-Now, your feature needs to turn on CONFIG_WANT_PAGE_DEBUG_FLAGS.  Other
-debug features can do so as well.
-
-But we do need to ensure that CONFIG_WANT_PAGE_DEBUG_FLAGS reliably
-gets turned off when no debug features are enabling it!  It would be
-sad if a developer were to enable your feature, then disable it, then
-run `oldconfig', then have a pageframe which contains an extra unused
-long.  I don't trust the Kconfig system ;)
-
-
-Maybe this is all a bit overdesigned, dunno.  If someone else later
-comes along wanting to add more debug stuff then they'll need to
-do this, might as well do it now?
+--mgross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
