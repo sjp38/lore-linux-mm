@@ -1,88 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7276B011F
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 11:46:16 -0500 (EST)
-Message-ID: <49B153A3.8090906@oracle.com>
-Date: Fri, 06 Mar 2009 08:47:31 -0800
-From: Randy Dunlap <randy.dunlap@oracle.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id DD1756B011E
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 14:22:46 -0500 (EST)
+Date: Fri, 6 Mar 2009 11:26:25 -0800
+From: mark gross <mgross@linux.intel.com>
+Subject: possible bug in find_get_pages
+Message-ID: <20090306192625.GA3267@linux.intel.com>
+Reply-To: mgross@linux.intel.com
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 3/3] memcg documenation soft limit (Yet Another One)
-References: <20090306092323.21063.93169.sendpatchset@localhost.localdomain>	<20090306185440.66b92ca3.kamezawa.hiroyu@jp.fujitsu.com>	<20090306193438.8084837d.kamezawa.hiroyu@jp.fujitsu.com> <20090306193821.ca2fb628.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090306193821.ca2fb628.kamezawa.hiroyu@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>, linux-mm@kvack.org, Sudhir Kumar <skumar@linux.vnet.ibm.com>, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, Bharata B Rao <bharata@in.ibm.com>, Paul Menage <menage@google.com>, lizf@cn.fujitsu.com, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, Pavel Emelianov <xemul@openvz.org>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki wrote:
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Documentation for softlimit (3/3)
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  Documentation/cgroups/memory.txt |   19 +++++++++++++++++++
->  1 file changed, 19 insertions(+)
-> 
-> Index: mmotm-2.6.29-Mar3/Documentation/cgroups/memory.txt
-> ===================================================================
-> --- mmotm-2.6.29-Mar3.orig/Documentation/cgroups/memory.txt
-> +++ mmotm-2.6.29-Mar3/Documentation/cgroups/memory.txt
-> @@ -322,6 +322,25 @@ will be charged as a new owner of it.
->    - a cgroup which uses hierarchy and it has child cgroup.
->    - a cgroup which uses hierarchy and not the root of hierarchy.
->  
-> +5.4 softlimit
-> +  Memory cgroup supports softlimit and has 2 params for control.
+I'm looking at a system hang (note: new hardware going under stress
+tests using a ubuntu 2.6.27-11-generic)
 
-                                                parameters
+It seems that page->_count == 0 at some point on some overnight runs
+with locks the system into a tight loop from the repeat: and a goto
+repeat in find_get_pages. 
 
-> +    - memory.softlimit_in_bytes
-> +	- softlimit to this cgroup.
-         softlimit for this cgroup
-		(i.e., no beginning '-' and no ending '.')
+Code inserted for convenience:
+
+unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+			    unsigned int nr_pages, struct page **pages)
+{
+	unsigned int i;
+	unsigned int ret;
+	unsigned int nr_found;
+
+	rcu_read_lock();
+restart:
+	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
+				(void ***)pages, start, nr_pages);
+	ret = 0;
+	for (i = 0; i < nr_found; i++) {
+		struct page *page;
+repeat:
+		page = radix_tree_deref_slot((void **)pages[i]);
+		if (unlikely(!page))
+			continue;
+		/*
+		 * this can only trigger if nr_found == 1, making
+		 * livelock
+		 * a non issue.
+		 */
+		if (unlikely(page == RADIX_TREE_RETRY))
+			goto restart;
+
+		if (!page_cache_get_speculative(page))
+			goto repeat; <---------_always_hits_ 
+
+		/* Has the page moved? */
+		if (unlikely(page != *((void **)pages[i]))) {
+			page_cache_release(page);
+			goto repeat;
+		}
+
+		pages[ret] = page;
+		ret++;
+	}
+	rcu_read_unlock();
+	return ret;
+}
+
+My question is that as I look at this code I don't see any way out of it
+once I get a page with zero _count from radix_tree_deref_slot, then I
+will get the same page forever.  The input to radix_tree_deref_slot
+never changes so I assume the output should be the same crappy page with
+zero _count that drops me on the goto repeat line.
+
+Is this a bug?
+
+Also, is having a page->_count == 0 an unexpected or invalid state?
+
+Thanks!
+
+--mgross
 
 
-> +    - memory.softlimit_priority.
-> +	- priority of this cgroup at softlimit reclaim.
-	 priority of this cgroup at softlimit reclaim
-
-> +	  Allowed priority level is 3-0 and 3 is the lowest.
-
-	Not very user friendly...
-
-> +	  If 0, this cgroup will not be target of softlimit.
-> +
-> +  At memory shortage of the system (or local node/zone), softlimit helps
-> +  kswapd(), a global memory recalim kernel thread, and inform victim cgroup
-
-                               reclaim                    informs
-
-> +  to be shrinked to kswapd.
-> +
-> +  Victim selection logic:
-> +  The kernel searches from the lowest priroty(3) up to the highest(1).
-
-                                         priority                     0 ?? (from above)
-
-> +  If it find a cgroup witch has memory larger than softlimit, steal memory
-
-           finds         which
-
-> +  from it.
-> +  If multiple cgroups are on the same priority, each cgroup wil be a
-
-                                                               will
-
-> +  victim in turn.
->  
->  6. Hierarchy support
 
 
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
