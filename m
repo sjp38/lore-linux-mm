@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 801F46B0115
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 05:37:46 -0500 (EST)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n26AbhKc015792
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 296966B0117
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 05:39:04 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n26Ad1JC022816
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 6 Mar 2009 19:37:44 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F06B45DE54
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:37:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 71A9B45DE53
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:37:43 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A77AE08003
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:37:43 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DC6761DB803C
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:37:42 +0900 (JST)
-Date: Fri, 6 Mar 2009 19:36:23 +0900
+	Fri, 6 Mar 2009 19:39:01 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E085B45DD79
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:39:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 939D345DD76
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:39:00 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A8CAE08006
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:39:00 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D317E1DB803F
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 19:38:59 +0900 (JST)
+Date: Fri, 6 Mar 2009 19:37:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 1/3]  soft limit interface (Yet Another One)
-Message-Id: <20090306193623.cc28f37a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/3] memcg sotlimit logic (Yet Another One)
+Message-Id: <20090306193740.168d1001.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090306193438.8084837d.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090306092323.21063.93169.sendpatchset@localhost.localdomain>
 	<20090306185440.66b92ca3.kamezawa.hiroyu@jp.fujitsu.com>
@@ -36,276 +36,290 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This is a part of softlimit patch series for memcg.(1/3)
+Patch for Mem cgroup softlimit (2/3)
 
-An interface for softlimit of memcg
-This adds following params to memcg.
+This patch implements the core logic.
 
-  - softlimit -- local softlimit of the memcg. exported as
-		memory.softlimit file
+Memory cgroups with softlimit are linked to list of there own priority.
+Balance_pgdat() scan it and try to remove pages.
+Scanning status is recorded per node (means per kswapd) and cgroups
+on the same softlimit level is scanned in round-robin manner.
 
-  - softlimit_priority -- local softlimit priority of the memcg. exported as
-	        memory.softlimit_priority
-		high number is low priority...0 means "don't use soft limit"
+If no softlimit hits, returns NULL.
 
-  - min_softlimit_governor -- A memcg which has min softlimit in ancestors.
+balance_pgdat() work as following.
+  1. at start, reset status and start scanning from the lowest priority.
+     (= SOFTLIMIT_MAX_PRIORITY = 3)
+  2. if priority is 0, ignore softlimit.
+  2. Scan list of the priority and get victim.
+  3. If no victim on the list, decrement priority (goto 2.)
 
-By this patch, following customization of memcg tree can be done (by users)
-Example A)
-    groupA softlimit = unlimited,prio=0    governor is group A.
-     |- groupB softlimit = 1G,prio=1   governor is group B.
-	  |- group C softlimit = unlimited,prio=3   governor is group B.
-	  |- group D softlimit = unlimited,prio=2   governor is group B.
-	  |- group E softlimit = unlimited,prio=3   governor is group B.
-
-In above, group C and D,E 's its own softlimit is not set but under hierarchy,
-it's dominated by groupB's one. Because Group C and E's priority is  lower
-than GroupD's, they will be the first victim. (selection between C and E is
-done by round-robin.)
-
-Documentation will be added by following patches.
+the number fo scanning under softlimit is limited by balance_pgdat()
+w.r.t scanning priority and target.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  146 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 143 insertions(+), 3 deletions(-)
-
 Index: mmotm-2.6.29-Mar3/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.29-Mar3.orig/mm/memcontrol.c
 +++ mmotm-2.6.29-Mar3/mm/memcontrol.c
-@@ -175,7 +175,13 @@ struct mem_cgroup {
- 	atomic_t	refcnt;
+@@ -599,6 +599,21 @@ unsigned long mem_cgroup_zone_nr_pages(s
+ 	return MEM_CGROUP_ZSTAT(mz, lru);
+ }
  
- 	unsigned int	swappiness;
--
-+	/*
-+	 * softlimit
-+	 */
-+	u64 softlimit;
-+	struct mem_cgroup *min_softlimit_governor;
-+	int softlimit_priority;
-+	struct list_head softlimit_list;
- 	/*
- 	 * statistics. This must be placed at the end of memcg.
- 	 */
-@@ -210,6 +216,10 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
- #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
- #define MEMFILE_ATTR(val)	((val) & 0xffff)
++unsigned long
++mem_cgroup_evictable_usage(struct mem_cgroup *memcg, int nid, int zid)
++{
++	unsigned long total = 0;
++	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
++
++	if (nr_swap_pages) {
++		total += MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
++		total += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
++	}
++	total +=  MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
++	total +=  MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE);
++	return total;
++}
++
+ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+ 						      struct zone *zone)
+ {
+@@ -1583,6 +1598,134 @@ static void softlimit_del_list(struct me
+ 	up_write(&softlimit_sem);
+ }
  
-+#define MEM_SOFTLIMIT           (0x10)
-+#define MEM_SOFTLIMIT_PRIO      (0x11)
-+
-+
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-@@ -1537,6 +1547,44 @@ void mem_cgroup_uncharge_swap(swp_entry_
- #endif
- 
- /*
-+ * For softlimit handling.
-+ */
-+
-+static DECLARE_RWSEM(softlimit_sem);
-+#define SOFTLIMIT_MAX_PRIO  (4)
-+
-+struct {
-+	struct list_head list[SOFTLIMIT_MAX_PRIO];
-+} softlimit_head;
-+
-+static void __init init_softlimit(void)
++static bool mem_cgroup_hit_softlimit(struct mem_cgroup *mem)
 +{
-+	int i;
-+	for (i = 0; i < SOFTLIMIT_MAX_PRIO; i++)
-+		INIT_LIST_HEAD(&softlimit_head.list[i]);
-+}
++	struct mem_cgroup *governor = mem->min_softlimit_governor;
++	u64 usage;
 +
-+static void softlimit_add_list_locked(struct mem_cgroup *mem)
-+{
-+	int level = mem->softlimit_priority;
-+	list_add(&mem->softlimit_list, &softlimit_head.list[level]);
++	usage = res_counter_read_u64(&governor->res, RES_USAGE);
++	return (usage > governor->softlimit);
 +}
-+
-+static void softlimit_del_list_locked(struct mem_cgroup *mem)
-+{
-+	if (!list_empty(&mem->softlimit_list))
-+		list_del_init(&mem->softlimit_list);
-+}
-+
-+static void softlimit_del_list(struct mem_cgroup *mem)
-+{
-+	down_write(&softlimit_sem);
-+	softlimit_del_list_locked(mem);
-+	up_write(&softlimit_sem);
-+}
-+
 +
 +/*
-  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
-  * page belongs to.
-  */
-@@ -1939,6 +1987,56 @@ static int mem_cgroup_hierarchy_write(st
- 	return retval;
- }
- 
-+static int __memcg_update_softlimit(struct mem_cgroup *mem, void *val)
-+{
-+	struct mem_cgroup *tmp = mem;
-+	struct mem_cgroup *governor = NULL;
-+	u64 min_softlimit = ULLONG_MAX;
-+	struct cgroup *cg;
++ * Softlimit Handler. Softlimit is called by kswapd() and kswapd exists per
++ * node. Then, control structs for softlimit exists per node.
++ * Only user of this struct is kswapd. No lock is necessary.
++ */
++struct softlimit_control {
++	int prio;
++	struct mem_cgroup *iter[SOFTLIMIT_MAX_PRIO];
++};
++struct softlimit_control softlimit_ctrl[MAX_NUMNODES][MAX_NR_ZONES];
 +
-+	do {
-+		if (min_softlimit > tmp->softlimit) {
-+			min_softlimit = tmp->softlimit;
-+			governor = tmp;
++/*
++ * Called when balance_pgdat() enters new turn and reset priority
++ * information recorded.
++ */
++void mem_cgroup_start_softlimit_reclaim(int nid)
++{
++	int zid;
++
++	for (zid = 0; zid < MAX_NR_ZONES; zid++)
++		softlimit_ctrl[nid][zid].prio = SOFTLIMIT_MAX_PRIO - 1;
++}
++/*
++ * Seatch victim in specified priority level. If not found, retruns NULL.
++ * For implemnting round-robin, list_for_each_entry_from() is used.
++ */
++struct mem_cgroup *__mem_cgroup_get_vicitm_prio(int nid, int zid,
++				struct mem_cgroup *start, int prio)
++{
++	struct list_head *list = &softlimit_head.list[prio];
++	struct mem_cgroup *mem, *ret;
++	int loop = 0;
++
++	if (!start && list_empty(list))
++		return NULL;
++
++	if (!start) /* start from the head of list */
++		start = list_entry(list->next,
++				   struct mem_cgroup, softlimit_list);
++	mem = start;
++	ret = NULL;
++retry:  /* round robin */
++	list_for_each_entry_from(mem, list, softlimit_list) {
++		if (loop == 1 && mem == start)
++			break;
++		if (!css_tryget(&mem->css))
++			continue;
++		if (mem_cgroup_hit_softlimit(mem) &&
++		    mem_cgroup_evictable_usage(mem, nid, zid)) {
++			ret = mem;
++			break;
 +		}
-+
-+		cg = tmp->css.cgroup;
-+		if (!cg->parent)
-+			break;
-+		tmp = mem_cgroup_from_cont(cg->parent);
-+	} while (tmp->use_hierarchy);
-+
-+	mem->min_softlimit_governor = governor;
-+	return 0;
++		css_put(&mem->css);
++	}
++	if (!ret && loop++ == 0) {
++		/* restart from the head of list */
++		mem = list_entry(list->next,
++				 struct mem_cgroup, softlimit_list);
++		goto retry;
++	}
++	return ret;
 +}
 +
-+static int mem_cgroup_resize_softlimit(struct mem_cgroup *memcg,
-+				       u64 val)
++struct mem_cgroup *mem_cgroup_get_victim(int nid, int zid)
 +{
++	struct softlimit_control *slc = &softlimit_ctrl[nid][zid];
++	struct mem_cgroup *mem, *ret;
++	int prio;
++	ret = NULL;
 +
-+	down_write(&softlimit_sem);
-+	memcg->softlimit = val;
-+	/* Updates all children's governor information */
-+	mem_cgroup_walk_tree(memcg, NULL, __memcg_update_softlimit);
-+	up_write(&softlimit_sem);
-+	return 0;
++	/* before enter round-robin, check it's worth to try or not. */
++	if (slc->prio == 0)
++		return NULL;
++	prio = slc->prio;
++	/* Try read-lock */
++	if (!down_read_trylock(&softlimit_sem))
++		return NULL;
++new_prio:
++	/* At first check start point marker */
++	mem = slc->iter[prio];
++	if (mem) {
++		if (css_is_removed(&mem->css) ||
++		    mem->softlimit_priority != prio) {
++			mem_cgroup_put(mem);
++		}
++	}
++	slc->iter[prio] = NULL;
++	ret = __mem_cgroup_get_vicitm_prio(nid, zid, mem, prio);
++	if (mem) {
++		mem_cgroup_put(mem);
++		mem = NULL;
++	}
++	if (!ret) {
++		prio--;
++		if (prio > 0)
++			goto new_prio;
++	}
++	if (ret) { /* Remember the "next" position */
++		prio = ret->softlimit_priority;
++		if (ret->softlimit_list.next != &softlimit_head.list[prio]) {
++			mem = list_entry(ret->softlimit_list.next,
++					 struct mem_cgroup, softlimit_list);
++			slc->iter[prio] = mem;
++			mem_cgroup_get(mem);
++		} else
++			slc->iter[prio] = NULL;
++	} else {
++		/* We have no candidates. ignore softlimit in this turn */
++		slc->prio = 0;
++	}
++	up_read(&softlimit_sem);
++	return ret;
 +}
 +
-+static int mem_cgroup_set_softlimit_prio(struct mem_cgroup *memcg,
-+					 int prio)
++void mem_cgroup_put_victim(struct mem_cgroup *mem)
 +{
-+	if ((prio < 0) || (prio >= SOFTLIMIT_MAX_PRIO))
-+		return -EINVAL;
-+
-+	down_write(&softlimit_sem);
-+	softlimit_del_list_locked(memcg);
-+	memcg->softlimit_priority = prio;
-+	if (prio)
-+		softlimit_add_list_locked(memcg);
-+	up_write(&softlimit_sem);
-+	return 0;
++	if (mem)
++		mem_cgroup_put(mem);
 +}
+ 
+ /*
+  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+Index: mmotm-2.6.29-Mar3/include/linux/memcontrol.h
+===================================================================
+--- mmotm-2.6.29-Mar3.orig/include/linux/memcontrol.h
++++ mmotm-2.6.29-Mar3/include/linux/memcontrol.h
+@@ -117,6 +117,10 @@ static inline bool mem_cgroup_disabled(v
+ 
+ extern bool mem_cgroup_oom_called(struct task_struct *task);
+ 
++extern void mem_cgroup_start_softlimit_reclaim(int nid);
++extern struct mem_cgroup *mem_cgroup_get_victim(int nid, int zid);
++extern void mem_cgroup_put_vicitm(struct mem_cgroup *mem);
 +
- static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
+ 
+@@ -264,6 +268,20 @@ mem_cgroup_print_oom_info(struct mem_cgr
  {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-@@ -1949,7 +2047,12 @@ static u64 mem_cgroup_read(struct cgroup
- 	name = MEMFILE_ATTR(cft->private);
- 	switch (type) {
- 	case _MEM:
--		val = res_counter_read_u64(&mem->res, name);
-+		if (name == MEM_SOFTLIMIT)
-+			val = mem->softlimit;
-+		else if (name == MEM_SOFTLIMIT_PRIO)
-+			val = mem->softlimit_priority;
-+		else
-+			val = res_counter_read_u64(&mem->res, name);
- 		break;
- 	case _MEMSWAP:
- 		if (do_swap_account)
-@@ -1986,6 +2089,12 @@ static int mem_cgroup_write(struct cgrou
- 		else
- 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
- 		break;
-+	case MEM_SOFTLIMIT:
-+		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		if (ret)
-+			break;
-+		ret = mem_cgroup_resize_softlimit(memcg, val);
-+		break;
- 	default:
- 		ret = -EINVAL; /* should be BUG() ? */
- 		break;
-@@ -2176,6 +2285,14 @@ static int mem_control_stat_show(struct 
- 	return 0;
  }
  
-+static int mem_cgroup_write_softlimit_priority(struct cgroup *cgrp,
-+					       struct cftype *cft,
-+					       u64 val)
++
++static void mem_cgroup_start_softlimit_reclaim(int nid)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	return mem_cgroup_set_softlimit_prio(memcg, (int)val);
 +}
 +
- static u64 mem_cgroup_swappiness_read(struct cgroup *cgrp, struct cftype *cft)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-@@ -2235,6 +2352,18 @@ static struct cftype mem_cgroup_files[] 
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
-+		.name = "softlimit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEM, MEM_SOFTLIMIT),
-+		.write_string = mem_cgroup_write,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
-+		.name = "softlimit_priority",
-+		.private = MEMFILE_PRIVATE(_MEM, MEM_SOFTLIMIT_PRIO),
-+		.write_u64 = mem_cgroup_write_softlimit_priority,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
- 		.name = "failcnt",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
- 		.trigger = mem_cgroup_reset,
-@@ -2438,12 +2567,16 @@ mem_cgroup_create(struct cgroup_subsys *
- 	/* root ? */
- 	if (cont->parent == NULL) {
- 		enable_swap_cgroup();
-+		init_softlimit();
- 		parent = NULL;
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
- 	}
--
-+	INIT_LIST_HEAD(&mem->softlimit_list);
-+	mem->softlimit = ULLONG_MAX;
-+	/* This mutex is against softlimit */
-+	down_write(&softlimit_sem);
- 	if (parent && parent->use_hierarchy) {
- 		res_counter_init(&mem->res, &parent->res);
- 		res_counter_init(&mem->memsw, &parent->memsw);
-@@ -2454,10 +2587,16 @@ mem_cgroup_create(struct cgroup_subsys *
- 		 * mem_cgroup(see mem_cgroup_put).
- 		 */
- 		mem_cgroup_get(parent);
-+		/* Inherit softlimit governor */
-+		mem->min_softlimit_governor = parent->min_softlimit_governor;
-+		mem->softlimit_priority = parent->softlimit_priority;
-+		softlimit_add_list_locked(mem);
- 	} else {
- 		res_counter_init(&mem->res, NULL);
- 		res_counter_init(&mem->memsw, NULL);
- 	}
-+	up_write(&softlimit_sem);
++static struct mem_cgroup *mem_cgroup_get_vicitm(int nid, int zid)
++{
++	return NULL;
++}
 +
- 	mem->last_scanned_child = 0;
- 	spin_lock_init(&mem->reclaim_param_lock);
++static void mem_cgroup_put_vicitm(struct mem_cgroup *mem)
++{
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
  
-@@ -2483,6 +2622,7 @@ static void mem_cgroup_destroy(struct cg
- {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
- 
-+	softlimit_del_list(mem);
- 	mem_cgroup_put(mem);
+ #endif /* _LINUX_MEMCONTROL_H */
+Index: mmotm-2.6.29-Mar3/mm/vmscan.c
+===================================================================
+--- mmotm-2.6.29-Mar3.orig/mm/vmscan.c
++++ mmotm-2.6.29-Mar3/mm/vmscan.c
+@@ -1733,6 +1733,39 @@ unsigned long try_to_free_mem_cgroup_pag
  }
+ #endif
  
++#define SOFTLIMIT_SCAN_MAX (512)
++void shrink_zone_softlimit(struct scan_control *sc, struct zone *zone,
++			   int order, int priority, int target, int end_zone)
++{
++	struct mem_cgroup *mem;
++	int nid = zone->zone_pgdat->node_id;
++	int zid = zone_idx(zone);
++	int scan = SWAP_CLUSTER_MAX;
++
++	scan <<= (DEF_PRIORITY - priority);
++	if (scan > (target * 2))
++		scan = target * 2;
++retry:
++	mem = mem_cgroup_get_victim(nid, zid);
++	if (!mem)
++		return;
++
++	sc->nr_scanned = 0;
++	sc->mem_cgroup = mem;
++	sc->isolate_pages = mem_cgroup_isolate_pages;
++
++	shrink_zone(priority, zone, sc);
++	sc->mem_cgroup = NULL;
++	sc->isolate_pages = isolate_pages_global;
++	if (zone_watermark_ok(zone, order, target, end_zone, 0))
++		return;
++	scan -= sc->nr_scanned;
++	/* We should avoid too much scanning against this priority level */
++	if (scan > 0)
++		goto retry;
++	return;
++}
++
+ /*
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+@@ -1776,6 +1809,7 @@ static unsigned long balance_pgdat(pg_da
+ 	 */
+ 	int temp_priority[MAX_NR_ZONES];
+ 
++	mem_cgroup_start_softlimit_reclaim(pgdat->node_id);
+ loop_again:
+ 	total_scanned = 0;
+ 	sc.nr_reclaimed = 0;
+@@ -1856,6 +1890,11 @@ loop_again:
+ 					       end_zone, 0))
+ 				all_zones_ok = 0;
+ 			temp_priority[i] = priority;
++
++			/* try soft limit of memory cgroup */
++			shrink_zone_softlimit(&sc, zone, order, priority,
++				      8 * zone->pages_high, end_zone);
++
+ 			sc.nr_scanned = 0;
+ 			note_zone_scanning_priority(zone, priority);
+ 			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
