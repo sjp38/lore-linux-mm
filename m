@@ -1,37 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5471E6B008A
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:42:02 -0500 (EST)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 40C0F82D879
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:47:40 -0500 (EST)
-Received: from smtp.ultrahosting.com ([74.213.175.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 4rKtM1SdHtCl for <linux-mm@kvack.org>;
-	Fri,  6 Mar 2009 16:47:35 -0500 (EST)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 1BB5F82D875
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:45:12 -0500 (EST)
-Date: Fri, 6 Mar 2009 16:29:23 -0500 (EST)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: possible bug in find_get_pages
-In-Reply-To: <20090306211336.GA5981@linux.intel.com>
-Message-ID: <alpine.DEB.1.10.0903061628270.20398@qirst.com>
-References: <20090306192625.GA3267@linux.intel.com> <alpine.DEB.1.10.0903061426190.20182@qirst.com> <20090306211336.GA5981@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E872F6B0062
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 18:04:15 -0500 (EST)
+Date: Fri, 6 Mar 2009 15:03:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -v2] memdup_user(): introduce
+Message-Id: <20090306150335.c512c1b6.akpm@linux-foundation.org>
+In-Reply-To: <49B0F1B9.1080903@cn.fujitsu.com>
+References: <49B0CAEC.80801@cn.fujitsu.com>
+	<20090306082056.GB3450@x200.localdomain>
+	<49B0DE89.9000401@cn.fujitsu.com>
+	<20090306003900.a031a914.akpm@linux-foundation.org>
+	<49B0E67C.2090404@cn.fujitsu.com>
+	<20090306011548.ffdf9cbc.akpm@linux-foundation.org>
+	<49B0F1B9.1080903@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: mark gross <mgross@linux.intel.com>
-Cc: linux-mm@kvack.org, npiggin@suse.de
+To: Li Zefan <lizf@cn.fujitsu.com>
+Cc: adobriyan@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Mar 2009, mark gross wrote:
+On Fri, 06 Mar 2009 17:49:45 +0800
+Li Zefan <lizf@cn.fujitsu.com> wrote:
 
-> Still form a static read of the code that goto repeat raises
-> eyebrows as why would anyone expect to get anything different from
-> radix_page_deref_slot calling it again with the same arguments?
+> I notice there are many places doing copy_from_user() which follows
+> kmalloc():
+> 
+>         dst = kmalloc(len, GFP_KERNEL);
+>         if (!dst)
+>                 return -ENOMEM;
+>         if (copy_from_user(dst, src, len)) {
+> 		kfree(dst);
+> 		return -EFAULT
+> 	}
+> 
+> memdup_user() is a wrapper of the above code. With this new function,
+> we don't have to write 'len' twice, which can lead to typos/mistakes.
+> It also produces smaller code and kernel text.
+> 
+> A quick grep shows 250+ places where memdup_user() *may* be used. I'll
+> prepare a patchset to do this conversion.
+> 
+> v1 -> v2: change the name from kmemdup_from_user to memdup_user.
+> 
+> Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
+> ---
+> 
+> Can this get into 2.6.29, so I can prepare patches based on linux-next?
+> And this won't cause regression, since no one uses it yet. :)
 
-Another processor may be updating the same structure.
+I'd be OK with doing that from a patch logistics point of view, but I'd
+prefer to leave a patch like this for a few days to gather more
+feedback from other developers, which might push this into 2.6.30.
+
+
+> diff --git a/include/linux/string.h b/include/linux/string.h
+> index 76ec218..79f30f3 100644
+> --- a/include/linux/string.h
+> +++ b/include/linux/string.h
+> @@ -12,6 +12,7 @@
+>  #include <linux/stddef.h>	/* for NULL */
+>  
+>  extern char *strndup_user(const char __user *, long);
+> +extern void *memdup_user(const void __user *, size_t, gfp_t);
+>  
+>  /*
+>   * Include machine specific inline routines
+> diff --git a/mm/util.c b/mm/util.c
+> index 37eaccd..3d21c21 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -70,6 +70,32 @@ void *kmemdup(const void *src, size_t len, gfp_t gfp)
+>  EXPORT_SYMBOL(kmemdup);
+>  
+>  /**
+> + * memdup_user - duplicate memory region from user space
+> + *
+> + * @src: source address in user space
+> + * @len: number of bytes to copy
+> + * @gfp: GFP mask to use
+> + *
+> + * Returns an ERR_PTR() on failure.
+> + */
+> +void *memdup_user(const void __user *src, size_t len, gfp_t gfp)
+> +{
+> +	void *p;
+> +
+> +	p = kmalloc_track_caller(len, gfp);
+> +	if (!p)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	if (copy_from_user(p, src, len)) {
+> +		kfree(p);
+> +		return ERR_PTR(-EFAULT);
+> +	}
+> +
+> +	return p;
+> +}
+> +EXPORT_SYMBOL(memdup_user);
+> +
+> +/**
+>   * __krealloc - like krealloc() but don't free @p.
+>   * @p: object to reallocate memory for.
+>   * @new_size: how many bytes of memory are required.
+> -- 
+> 1.5.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
