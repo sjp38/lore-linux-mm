@@ -1,86 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E30126B0083
-	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:16:22 -0500 (EST)
-Date: Fri, 6 Mar 2009 13:16:03 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Patch] mm tracepoints
-Message-Id: <20090306131603.8cf0ab22.akpm@linux-foundation.org>
-In-Reply-To: <1236291400.1476.50.camel@dhcp-100-19-198.bos.redhat.com>
-References: <497DD8E5.1040305@nortel.com>
-	<20090126075957.69b64a2e@infradead.org>
-	<497F5289.404@nortel.com>
-	<m1vds0bj2j.fsf@fess.ebiederm.org>
-	<20090128193813.GD1222@ucw.cz>
-	<1233306324.11332.11.camel@nigel-laptop>
-	<1236291400.1476.50.camel@dhcp-100-19-198.bos.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5471E6B008A
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:42:02 -0500 (EST)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 40C0F82D879
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:47:40 -0500 (EST)
+Received: from smtp.ultrahosting.com ([74.213.175.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 4rKtM1SdHtCl for <linux-mm@kvack.org>;
+	Fri,  6 Mar 2009 16:47:35 -0500 (EST)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 1BB5F82D875
+	for <linux-mm@kvack.org>; Fri,  6 Mar 2009 16:45:12 -0500 (EST)
+Date: Fri, 6 Mar 2009 16:29:23 -0500 (EST)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: possible bug in find_get_pages
+In-Reply-To: <20090306211336.GA5981@linux.intel.com>
+Message-ID: <alpine.DEB.1.10.0903061628270.20398@qirst.com>
+References: <20090306192625.GA3267@linux.intel.com> <alpine.DEB.1.10.0903061426190.20182@qirst.com> <20090306211336.GA5981@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: linux-kernel@vger.kernel.org, mingo@elte.hu, rostedt@goodmis.org, peterz@infradead.org, fweisbec@gmail.com, linux-mm@kvack.org
+To: mark gross <mgross@linux.intel.com>
+Cc: linux-mm@kvack.org, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 05 Mar 2009 17:16:40 -0500
-Larry Woodman <lwoodman@redhat.com> wrote:
+On Fri, 6 Mar 2009, mark gross wrote:
 
-> I've implemented several mm tracepoints to track page allocation and
-> freeing, various types of pagefaults and unmaps, and critical page
-> reclamation routines.  This is useful for debugging memory allocation
-> issues and system performance problems under heavy memory loads:
-> 
-> # tracer: mm
-> #
-> #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> #              | |       |          |         |
->          pdflush-624   [004]   184.293169: wb_kupdate:
-> (mm_pdflush_kupdate) count=3e48
->          pdflush-624   [004]   184.293439: get_page_from_freelist:
-> (mm_page_allocation) pfn=447c27 zone_free=1940910
->         events/6-33    [006]   184.962879: free_hot_cold_page:
-> (mm_page_free) pfn=44bba9
->       irqbalance-8313  [001]   188.042951: unmap_vmas:
-> (mm_anon_userfree) mm=ffff88044a7300c0 address=7f9a2eb70000 pfn=24c29a
->              cat-9122  [005]   191.141173: filemap_fault:
-> (mm_filemap_fault) primary fault: mm=ffff88024c9d8f40 address=3cea2dd000
-> pfn=44d68e
->              cat-9122  [001]   191.143036: handle_mm_fault:
-> (mm_anon_fault) mm=ffff88024c8beb40 address=7fffbde99f94 pfn=24ce22
-> ...
+> Still form a static read of the code that goto repeat raises
+> eyebrows as why would anyone expect to get anything different from
+> radix_page_deref_slot calling it again with the same arguments?
 
-I'm struggling to think of any memory management problems which this
-facility would have helped us solve.  Single-page tracing like this
-isn't very interesting or useful.
-
-What we generally are looking for when resolving MM
-performance/correctness problems is a representation/visualisation of
-aggregated results over a period of time.  That means synchronous or
-downstream processing of large amounts of bulk data.
-
-Now, possibly the above information could be used to generate the
-needed information.  But the above rather random-looking and chaotic
-data output would make it very hard to develop the needed
-aggregation/representation tools.
-
-And unless someone actually develops those tools (which is a lot of
-work), there isn't much point in adding the kernel infrastructure to
-generate the data for the non-existing tool.
-
-I haven't looked at LTT in a while.  What sort of information does it
-extract from the MM system?  Is it useful to MM developers?  If so, can
-this newly-proposed facility do the same thing?
-
-
-How about a test case - how could this patch help us (and our testers)
-make some progress with the infamous
-http://bugzilla.kernel.org/show_bug.cgi?id=12309 ?
-
-
-Then again, maybe I'm wrong!  Maybe MM developers _do_ believe that
-this tool would assist them in their work.  Given that MM develoeprs
-are the target market for this feature, it would be sensible to cc the
-linux-mm list, methinks?
+Another processor may be updating the same structure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
