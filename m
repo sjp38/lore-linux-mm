@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F846B00A9
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2009 15:11:55 -0400 (EDT)
-Date: Sun, 8 Mar 2009 12:11:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 748436B00AA
+	for <linux-mm@kvack.org>; Sun,  8 Mar 2009 15:24:07 -0400 (EDT)
+Date: Sun, 8 Mar 2009 20:23:58 +0100
+From: Pierre Ossman <drzeus@drzeus.cx>
 Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-Id: <20090308121143.0f8da203.akpm@linux-foundation.org>
-In-Reply-To: <20090308165403.4d85da50@mjolnir.ossman.eu>
+Message-ID: <20090308202358.66cec396@mjolnir.ossman.eu>
+In-Reply-To: <20090308121143.0f8da203.akpm@linux-foundation.org>
 References: <bug-12832-27@http.bugzilla.kernel.org/>
 	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
 	<20090307220055.6f79beb8@mjolnir.ossman.eu>
@@ -15,27 +15,68 @@ References: <bug-12832-27@http.bugzilla.kernel.org/>
 	<20090308113619.0b610f31@mjolnir.ossman.eu>
 	<20090308123825.GA25172@localhost>
 	<20090308165403.4d85da50@mjolnir.ossman.eu>
+	<20090308121143.0f8da203.akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-26929-1236540240-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus@drzeus.cx>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 8 Mar 2009 16:54:03 +0100 Pierre Ossman <drzeus@drzeus.cx> wrote:
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-> I've gone through the dumps now, and still no meaningful difference.
-> All the big bootmem allocations are present in both kernels, and the
-> remaining memory in initcall is also the same for both (and doesn't
-> really decrease by any meaningful amount).
-> 
-> I also tried booting with init=/bin/sh, and the lost memory is present
-> even at that point.
-> 
+--=_freyr.drzeus.cx-26929-1236540240-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-So we know that the memory gets consumed after end-of-initcalls and
-before exec-of-init?  
+On Sun, 8 Mar 2009 12:11:43 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Sun, 8 Mar 2009 16:54:03 +0100 Pierre Ossman <drzeus@drzeus.cx> wrote:
+>=20
+> > I've gone through the dumps now, and still no meaningful difference.
+> > All the big bootmem allocations are present in both kernels, and the
+> > remaining memory in initcall is also the same for both (and doesn't
+> > really decrease by any meaningful amount).
+> >=20
+> > I also tried booting with init=3D/bin/sh, and the lost memory is present
+> > even at that point.
+> >=20
+>=20
+> So we know that the memory gets consumed after end-of-initcalls and
+> before exec-of-init? =20
+
+This is a fedora machine, so initrd might be the provoking party here.
+I haven't yet tried the adventure of booting without initrd. It's after
+initcalls at least.
+
+Right now I'm compiling 2.6.27-rc1 in an effort to bisect this, but if
+you have something more worthwhile then shoot. :)
+
+Rgds
+--=20
+     -- Pierre Ossman
+
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
+
+--=_freyr.drzeus.cx-26929-1236540240-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+
+iEYEARECAAYFAkm0G1AACgkQ7b8eESbyJLgHTgCgngSJAfcXxY7wvU47hbPBEzQ5
+co8An2ygQBarKk2aaehUb0I8iwHcrWZW
+=UlW7
+-----END PGP SIGNATURE-----
+
+--=_freyr.drzeus.cx-26929-1236540240-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
