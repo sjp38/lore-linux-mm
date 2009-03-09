@@ -1,84 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EB0F46B003D
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 11:02:33 -0400 (EDT)
-Date: Mon, 9 Mar 2009 16:02:16 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090309160216.2048e898@mjolnir.ossman.eu>
-In-Reply-To: <20090309142241.GA4437@localhost>
-References: <bug-12832-27@http.bugzilla.kernel.org/>
-	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
-	<20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
-	<20090309084045.2c652fbf@mjolnir.ossman.eu>
-	<20090309142241.GA4437@localhost>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-6517-1236610941-0001-2"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 9327B6B003D
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 12:39:35 -0400 (EDT)
+Date: Mon, 9 Mar 2009 09:43:16 -0700
+From: mark gross <mgross@linux.intel.com>
+Subject: Re: possible bug in find_get_pages
+Message-ID: <20090309164316.GB31140@linux.intel.com>
+Reply-To: mgross@linux.intel.com
+References: <20090306192625.GA3267@linux.intel.com> <20090307084732.b01bcfee.minchan.kim@barrios-desktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090307084732.b01bcfee.minchan.kim@barrios-desktop>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Sat, Mar 07, 2009 at 08:47:32AM +0900, Minchan Kim wrote:
+> Nick already found and solved this problem .
+> It can help you. 
+> 
+> http://patchwork.kernel.org/patch/860/
+> 
 
---=_freyr.drzeus.cx-6517-1236610941-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Wow, this reads just like the problem we are seeing.  I'll try the
+patch and let the test run for a few days!
 
-On Mon, 9 Mar 2009 22:22:41 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+We've even see it come out of the live lock once in a while as well.  I
+was thinking cache coherency HW issue until this :)
 
->=20
-> Thanks for the data! Now it seems that some pages are totally missing
-> from bootmem or slabs or page cache or any application consumptions...
->=20
+I'll send an update after running the test.
 
-So it isn't just me that's blind. That's something I guess. :)
+thanks!
 
-> Will searching through /proc/kpageflags for reserved pages help
-> identify the problem?
->=20
-> Oh kpageflags_read() does not include support for PG_reserved:
->=20
+--mgross
 
-I can probably hack together something that outputs the served pages.
-Anything else that is of interest?
 
-> > DirectMap2M:  18446744073709551613
->=20
-> This field looks weird.
->=20
-
-Sorry, red herring. I'm in the middle of a bisect and that particular
-old bug happened to surface. It was not present with the releases
-2.6.27.
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-6517-1236610941-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkm1L3sACgkQ7b8eESbyJLgIUgCdGF4WlRDERf8mB11qWN18Ds6U
-EJQAn0BWyF0xIXJ4+hdLi45GbDYX56w6
-=I2iu
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-6517-1236610941-0001-2--
+> 
+> > On Fri, 6 Mar 2009 11:26:25 -0800
+> > mark gross <mgross@linux.intel.com> wrote:
+> >
+> > I'm looking at a system hang (note: new hardware going under stress
+> > tests using a ubuntu 2.6.27-11-generic)
+> > 
+> > It seems that page->_count == 0 at some point on some overnight runs
+> > with locks the system into a tight loop from the repeat: and a goto
+> > repeat in find_get_pages. 
+> > 
+> > Code inserted for convenience:
+> > 
+> > unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
+> > 			    unsigned int nr_pages, struct page **pages)
+> > {
+> > 	unsigned int i;
+> > 	unsigned int ret;
+> > 	unsigned int nr_found;
+> > 
+> > 	rcu_read_lock();
+> > restart:
+> > 	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
+> > 				(void ***)pages, start, nr_pages);
+> > 	ret = 0;
+> > 	for (i = 0; i < nr_found; i++) {
+> > 		struct page *page;
+> > repeat:
+> > 		page = radix_tree_deref_slot((void **)pages[i]);
+> > 		if (unlikely(!page))
+> > 			continue;
+> > 		/*
+> > 		 * this can only trigger if nr_found == 1, making
+> > 		 * livelock
+> > 		 * a non issue.
+> > 		 */
+> > 		if (unlikely(page == RADIX_TREE_RETRY))
+> > 			goto restart;
+> > 
+> > 		if (!page_cache_get_speculative(page))
+> > 			goto repeat; <---------_always_hits_ 
+> > 
+> > 		/* Has the page moved? */
+> > 		if (unlikely(page != *((void **)pages[i]))) {
+> > 			page_cache_release(page);
+> > 			goto repeat;
+> > 		}
+> > 
+> > 		pages[ret] = page;
+> > 		ret++;
+> > 	}
+> > 	rcu_read_unlock();
+> > 	return ret;
+> > }
+> > 
+> > My question is that as I look at this code I don't see any way out of it
+> > once I get a page with zero _count from radix_tree_deref_slot, then I
+> > will get the same page forever.  The input to radix_tree_deref_slot
+> > never changes so I assume the output should be the same crappy page with
+> > zero _count that drops me on the goto repeat line.
+> > 
+> > Is this a bug?
+> > 
+> > Also, is having a page->_count == 0 an unexpected or invalid state?
+> > 
+> > Thanks!
+> > 
+> > --mgross
+> > 
+> > 
+> > 
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
+> -- 
+> Kinds Regards
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
