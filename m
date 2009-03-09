@@ -1,107 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CB3D6B00BB
-	for <linux-mm@kvack.org>; Sun,  8 Mar 2009 23:46:07 -0400 (EDT)
-Date: Sun, 8 Mar 2009 20:45:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -v2] memdup_user(): introduce
-Message-Id: <20090308204535.8a2af3fa.akpm@linux-foundation.org>
-In-Reply-To: <49B48D4A.6000207@cn.fujitsu.com>
-References: <49B0CAEC.80801@cn.fujitsu.com>
-	<20090306082056.GB3450@x200.localdomain>
-	<49B0DE89.9000401@cn.fujitsu.com>
-	<20090306003900.a031a914.akpm@linux-foundation.org>
-	<49B0E67C.2090404@cn.fujitsu.com>
-	<20090306011548.ffdf9cbc.akpm@linux-foundation.org>
-	<49B0F1B9.1080903@cn.fujitsu.com>
-	<20090306150335.c512c1b6.akpm@linux-foundation.org>
-	<20090307084805.7cf3d574@infradead.org>
-	<49B47D50.5000608@cn.fujitsu.com>
-	<20090308200033.f5282b5b.akpm@linux-foundation.org>
-	<49B48D4A.6000207@cn.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id AE5986B00BC
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 03:09:55 -0400 (EDT)
+Subject: Re: [RFC PATCH 00/19] Cleanup and optimise the page allocator V2
+From: Lin Ming <ming.m.lin@intel.com>
+In-Reply-To: <1236328388.11608.35.camel@minggr.sh.intel.com>
+References: <1235477835-14500-1-git-send-email-mel@csn.ul.ie>
+	 <1235639427.11390.11.camel@minggr> <20090226110336.GC32756@csn.ul.ie>
+	 <1235647139.16552.34.camel@penberg-laptop>
+	 <20090226112232.GE32756@csn.ul.ie> <1235724283.11610.212.camel@minggr>
+	 <20090302112122.GC21145@csn.ul.ie> <1236132307.2567.25.camel@ymzhang>
+	 <20090304090740.GA27043@wotan.suse.de> <1236218198.2567.119.camel@ymzhang>
+	 <20090305103403.GB32407@elte.hu>
+	 <1236328388.11608.35.camel@minggr.sh.intel.com>
+Content-Type: text/plain
+Date: Mon, 09 Mar 2009 15:03:06 +0800
+Message-Id: <1236582186.11608.47.camel@minggr.sh.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Arjan van de Ven <arjan@infradead.org>, adobriyan@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Karsten Keil <kkeil@suse.de>, Samuel Ortiz <samuel@sortiz.org>, Chris Mason <chris.mason@oracle.com>, Steven Whitehouse <swhiteho@redhat.com>, Trond Myklebust <trond.myklebust@fys.uio.no>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Ingo Molnar <mingo@elte.hu>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Nick Piggin <npiggin@suse.de>, Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 09 Mar 2009 11:30:18 +0800 Li Zefan <lizf@cn.fujitsu.com> wrote:
-
-> Andrew Morton wrote:
-> > On Mon, 09 Mar 2009 10:22:08 +0800 Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Fri, 2009-03-06 at 16:33 +0800, Lin Ming wrote:
+> On Thu, 2009-03-05 at 18:34 +0800, Ingo Molnar wrote:
+> > * Zhang, Yanmin <yanmin_zhang@linux.intel.com> wrote:
 > > 
-> >>>>> +EXPORT_SYMBOL(memdup_user);
-> >>> Hi,
-> >>>
-> >>> I like the general idea of this a lot; it will make things much less
-> >>> error prone (and we can add some sanity checks on "len" to catch the
-> >>> standard security holes around copy_from_user usage). I'd even also
-> >>> want a memdup_array() like thing in the style of calloc().
-> >>>
-> >>> However, I have two questions/suggestions for improvement:
-> >>>
-> >>> I would like to question the use of the gfp argument here;
-> >>> copy_from_user sleeps, so you can't use GFP_ATOMIC anyway.
-> >>> You can't use GFP_NOFS etc, because the pagefault path will happily do
-> >>> things that are equivalent, if not identical, to GFP_KERNEL.
-> >>>
-> >>> So the only value you can pass in correctly, as far as I can see, is
-> >>> GFP_KERNEL. Am I wrong?
-> >>>
-> >> Right! I just dug and found a few kmalloc(GFP_ATOMIC/GFP_NOFS)+copy_from_user(),
-> >> so we have one more reason to use this memdup_user().
+> > > On Wed, 2009-03-04 at 10:07 +0100, Nick Piggin wrote:
+> > > > On Wed, Mar 04, 2009 at 10:05:07AM +0800, Zhang, Yanmin wrote:
+> > > > > On Mon, 2009-03-02 at 11:21 +0000, Mel Gorman wrote:
+> > > > > > (Added Ingo as a second scheduler guy as there are queries on tg_shares_up)
+> > > > > > 
+> > > > > > On Fri, Feb 27, 2009 at 04:44:43PM +0800, Lin Ming wrote:
+> > > > > > > On Thu, 2009-02-26 at 19:22 +0800, Mel Gorman wrote: 
+> > > > > > > > In that case, Lin, could I also get the profiles for UDP-U-4K please so I
+> > > > > > > > can see how time is being spent and why it might have gotten worse?
+> > > > > > > 
+> > > > > > > I have done the profiling (oltp and UDP-U-4K) with and without your v2
+> > > > > > > patches applied to 2.6.29-rc6.
+> > > > > > > I also enabled CONFIG_DEBUG_INFO so you can translate address to source
+> > > > > > > line with addr2line.
+> > > > > > > 
+> > > > > > > You can download the oprofile data and vmlinux from below link,
+> > > > > > > http://www.filefactory.com/file/af2330b/
+> > > > > > > 
+> > > > > > 
+> > > > > > Perfect, thanks a lot for profiling this. It is a big help in figuring out
+> > > > > > how the allocator is actually being used for your workloads.
+> > > > > > 
+> > > > > > The OLTP results had the following things to say about the page allocator.
+> > > > > In case we might mislead you guys, I want to clarify that here OLTP is
+> > > > > sysbench (oltp)+mysql, not the famous OLTP which needs lots of disks and big
+> > > > > memory.
+> > > > > 
+> > > > > Ma Chinang, another Intel guy, does work on the famous OLTP running.
+> > > > 
+> > > > OK, so my comments WRT cache sensitivity probably don't apply here,
+> > > > but probably cache hotness of pages coming out of the allocator
+> > > > might still be important for this one.
+> > > Yes. We need check it.
+> > > 
+> > > > 
+> > > > How many runs are you doing of these tests?
+> > > We start sysbench with different thread number, for example, 8 12 16 32 64 128 for
+> > > 4*4 tigerton, then get an average value in case there might be a scalability issue.
+> > > 
+> > > As for this sysbench oltp testing, we reran it for 7 times on 
+> > > tigerton this week and found the results have fluctuations. 
+> > > Now we could only say there is a trend that the result with 
+> > > the pathces is a little worse than the one without the 
+> > > patches.
 > > 
-> > gack, those callsites are probably buggy.  Where are they?
+> > Could you try "perfstat -s" perhaps and see whether any other of 
+> > the metrics outside of tx/sec has less natural noise?
+> 
+> Thanks, I have used "perfstat -s" to collect cache misses data.
+> 
+> 2.6.29-rc7-tip: tip/perfcounters/core (b5e8acf)
+> 2.6.29-rc7-tip-mg2: v2 patches applied to tip/perfcounters/core
+> 
+> I collected 5 times netperf UDP-U-4k data with and without mg-v2 patches
+> applied to tip/perfcounters/core on a 4p quad-core tigerton machine, as
+> below
+> "value" means UDP-U-4k test result.
+
+I forgot to mention that below are the results without client/server
+bind to different cpus.
+
+./netserver
+./netperf -t UDP_STREAM -l 60 -H 127.0.0.1  -- -P 15888,12384 -s 32768 -S 32768 -m 4096
+
+> 
+> 2.6.29-rc7-tip
+> ---------------
+> value           cache misses    CPU migrations  cachemisses/migrations
+> 5329.71          391094656       1710            228710
+> 5641.59          239552767       2138            112045
+> 5580.87          132474745       2172            60992
+> 5547.19          86911457        2099            41406
+> 5626.38          196751217       2050            95976
+> 
+> 2.6.29-rc7-tip-mg2
+> -------------------
+> value           cache misses    CPU migrations  cachemisses/migrations
+> 4749.80          649929463       1132            574142
+> 4327.06          484100170       1252            386661
+> 4649.51          374201508       1489            251310
+> 5655.82          405511551       1848            219432
+> 5571.58          90222256        2159            41788
+> 
+> Lin Ming
+> 
 > > 
-> 
-> Yes, either buggy or should use GFP_KERNEL.
-> 
-> All are in -mm only, except the first one:
-> 
-> drivers/isdn/i4l/isdn_common.c:
-> 	struct sk_buff *skb = alloc_skb(hl + len, GFP_ATOMIC);
-> 	...
-> 	if (copy_from_user(skb_put(skb, len), buf, len)) {
-
-Bug.  Should be GFP_KERNEL, or copy_from_user() is incorrect in this
-context.
-
-> 
-> net/irda/af_irda.c:
-> 	ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-> 	...
-> 	if (copy_from_user(ias_opt, optval, optlen)) {
-
-Bug.  Should be GFP_KERNEL, or copy_from_user() is incorrect in this
-context.
-
-> 
-> fs/btrfs/ioctl.c:
-> 	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
-> 	...
-> 	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
-
-Bug.  Should be GFP_KERNEL, or copy_from_user() is incorrect in this
-context.
-
-> > fs/ocfs2/dlm/dlmfs.c:
-> 	lvb_buf = kmalloc(writelen, GFP_NOFS);
-> 	...
-> 	bytes_left = copy_from_user(lvb_buf, buf, writelen);
-
-Bug.  Should be GFP_KERNEL, or copy_from_user() is incorrect in this
-context.
-
-> 
-> net/sunrpc/auth_gss/auth_gss.c:
-> 	buf = kmalloc(mlen, GFP_NOFS);
-> 	...
-> 	if (copy_from_user(buf, src, mlen))
-
-Bug.  Should be GFP_KERNEL, or copy_from_user() is incorrect in this
-context.
+> > I think a more invariant number might be the ratio of "LLC 
+> > cachemisses" divided by "CPU migrations".
+> > 
+> > The fluctuation in tx/sec comes from threads bouncing - but you 
+> > can normalize that away by using the cachemisses/migrations 
+> > ration.
+> > 
+> > Perhaps. It's definitely a difficult thing to measure.
+> > 
+> > 	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
