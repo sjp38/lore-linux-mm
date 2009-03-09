@@ -1,391 +1,569 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 31B8F6B00C5
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 03:40:57 -0400 (EDT)
-Date: Mon, 9 Mar 2009 08:40:45 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090309084045.2c652fbf@mjolnir.ossman.eu>
-In-Reply-To: <20090309020701.GA381@localhost>
-References: <bug-12832-27@http.bugzilla.kernel.org/>
-	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
-	<20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7F6296B00C6
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 03:42:27 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n297gOek012522
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 9 Mar 2009 16:42:24 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C62F645DD82
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 16:42:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A79B45DD7F
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 16:42:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F696E08003
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 16:42:23 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 13D121DB8043
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 16:42:23 +0900 (JST)
+Date: Mon, 9 Mar 2009 16:41:03 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 2/4] memcg: softlimit priority and victim scheduler
+Message-Id: <20090309164103.73d9b60e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-2410-1236584450-0001-2"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
---=_freyr.drzeus.cx-2410-1236584450-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Per-zone queue/scheduler for memory cgroup softlimit.
 
-On Mon, 9 Mar 2009 10:07:01 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+At handling softlimit, we have to check following 2 points.
+  (A) usage on memcg is bigger than softlimit or not.
+  (B) memcg has evictable memory on specified zone.
 
-> On Mon, Mar 09, 2009 at 09:37:42AM +0800, Wu Fengguang wrote:
-> >=20
-> > The "free" pages in sysrq mem-info report should be equal to "MemFree"
-> > in /proc/meminfo. So I'd expect meminfo numbers to be different in
-> > .26/.27 as well.
-> >=20
-> > Maybe the memory is taken by some user space program, so it would be
-> > helpful to know the numbers in /proc/meminfo, /proc/vmstat and
-> > /proc/zoneinfo.
->=20
-> And maybe piggyback /proc/slabinfo in case it is a kernel bug :-)
->=20
+One of design choice is how to call softlimit code. This patch uses
+uses kswapd() as a thread for reclaiming memory.
+I think this is reasonable. kswapd() is spawned per node.
+(The caller itself will be in the next patch.)
 
-Big dump of relevant /proc files:
+Another design choice is "When there are multiple cgroups over softlimit,
+which one should be selected."
+I added "softlimit_priority" to handle this and implemented static priority
+round-robin logic.
 
-[root@builder ~]# free
-             total       used       free     shared    buffers     cached
-Mem:        509108     236988     272120          0        228      14760
--/+ buffers/cache:     222000     287108
-Swap:       524280        228     524052
+>From above, this uses following design.
 
-[root@builder ~]# cat /proc/meminfo=20
-MemTotal:       509108 kB
-MemFree:        272172 kB
-Buffers:           240 kB
-Cached:          14788 kB
-SwapCached:         64 kB
-Active:          32544 kB
-Inactive:         5900 kB
-SwapTotal:      524280 kB
-SwapFree:       524052 kB
-Dirty:            5980 kB
-Writeback:           0 kB
-AnonPages:       23404 kB
-Mapped:           8648 kB
-Slab:            23148 kB
-SReclaimable:     5420 kB
-SUnreclaim:      17728 kB
-PageTables:       3324 kB
-NFS_Unstable:        0 kB
-Bounce:              0 kB
-WritebackTmp:        0 kB
-CommitLimit:    778832 kB
-Committed_AS:    85196 kB
-VmallocTotal: 34359738367 kB
-VmallocUsed:      1740 kB
-VmallocChunk: 34359736619 kB
-HugePages_Total:     0
-HugePages_Free:      0
-HugePages_Rsvd:      0
-HugePages_Surp:      0
-Hugepagesize:     2048 kB
-DirectMap4k:      2032
-DirectMap2M:  18446744073709551613
-DirectMap1G:         0
+  1. per-zone schedule queue with priority
+  2. scheduling(selection) algorithm is Static Priority Round Robin.
+  3. Fortunately, memcg has mem_cgroup_per_zone objects already, Use it
+     as scheduling unit.
 
-[root@builder ~]# cat /proc/vmstat=20
-nr_free_pages 68035
-nr_inactive 1479
-nr_active 8137
-nr_anon_pages 5851
-nr_mapped 2162
-nr_file_pages 3777
-nr_dirty 132
-nr_writeback 0
-nr_slab_reclaimable 1354
-nr_slab_unreclaimable 4440
-nr_page_table_pages 831
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 324
-nr_writeback_temp 0
-numa_hit 18985527
-numa_miss 0
-numa_foreign 0
-numa_interleave 44220
-numa_local 18985527
-numa_other 0
-pgpgin 379025
-pgpgout 820238
-pswpin 16
-pswpout 57
-pgalloc_dma 295454
-pgalloc_dma32 18721928
-pgalloc_normal 0
-pgalloc_movable 0
-pgfree 19085491
-pgactivate 60797
-pgdeactivate 47199
-pgfault 25624481
-pgmajfault 2490
-pgrefill_dma 8144
-pgrefill_dma32 103508
-pgrefill_normal 0
-pgrefill_movable 0
-pgsteal_dma 4503
-pgsteal_dma32 179395
-pgsteal_normal 0
-pgsteal_movable 0
-pgscan_kswapd_dma 4999
-pgscan_kswapd_dma32 180546
-pgscan_kswapd_normal 0
-pgscan_kswapd_movable 0
-pgscan_direct_dma 0
-pgscan_direct_dma32 384
-pgscan_direct_normal 0
-pgscan_direct_movable 0
-pginodesteal 0
-slabs_scanned 153856
-kswapd_steal 183628
-kswapd_inodesteal 35303
-pageoutrun 3794
-allocstall 3
-pgrotated 72
-htlb_buddy_alloc_success 0
-htlb_buddy_alloc_fail 0
+Initially, memcg has softlimit_priority=SOFTLIMIT_MAXPRIO and it's not queued.
+When it is set to some number, it will be added to softlimit queue per zone.
 
-[root@builder ~]# cat /proc/zoneinfo=20
-Node 0, zone      DMA
-  pages free     2524
-        min      12
-        low      15
-        high     18
-        scanned  0 (a: 27 i: 24)
-        spanned  4096
-        present  2180
-    nr_free_pages 2524
-    nr_inactive  0
-    nr_active    8
-    nr_anon_pages 8
-    nr_mapped    0
-    nr_file_pages 0
-    nr_dirty     0
-    nr_writeback 0
-    nr_slab_reclaimable 16
-    nr_slab_unreclaimable 7
-    nr_page_table_pages 15
-    nr_unstable  0
-    nr_bounce    0
-    nr_vmscan_write 292
-    nr_writeback_temp 0
-    numa_hit     295370
-    numa_miss    0
-    numa_foreign 0
-    numa_interleave 0
-    numa_local   295370
-    numa_other   0
-        protection: (0, 489, 489, 489)
-  pagesets
-    cpu: 0
-              count: 0
-              high:  0
-              batch: 1
-  vm stats threshold: 2
-  all_unreclaimable: 0
-  prev_priority:     12
-  start_pfn:         0
-Node 0, zone    DMA32
-  pages free     65515
-        min      700
-        low      875
-        high     1050
-        scanned  0 (a: 0 i: 0)
-        spanned  126960
-        present  125224
-    nr_free_pages 65515
-    nr_inactive  1482
-    nr_active    8137
-    nr_anon_pages 5843
-    nr_mapped    2162
-    nr_file_pages 3789
-    nr_dirty     128
-    nr_writeback 0
-    nr_slab_reclaimable 1331
-    nr_slab_unreclaimable 4429
-    nr_page_table_pages 816
-    nr_unstable  0
-    nr_bounce    0
-    nr_vmscan_write 32
-    nr_writeback_temp 0
-    numa_hit     18690260
-    numa_miss    0
-    numa_foreign 0
-    numa_interleave 44220
-    numa_local   18690260
-    numa_other   0
-        protection: (0, 0, 0, 0)
-  pagesets
-    cpu: 0
-              count: 69
-              high:  186
-              batch: 31
-  vm stats threshold: 6
-  all_unreclaimable: 0
-  prev_priority:     12
-  start_pfn:         4096
+Kswapd() will select the memcg from the top of per-zone queue and check it
+satisfies above (A) and (B). If satisfies, memory will be reclaimed from 
+selected one and pushed back to tail of CHECK queue. If doesn't, it will be
+moved to IGNORE queue.
 
-[root@builder ~]# cat /proc/slabinfo=20
-slabinfo - version: 2.1
-# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesper=
-slab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_sla=
-bs> <num_slabs> <sharedavail>
-rpc_inode_cache       39     39    832   39    8 : tunables    0    0    0 =
-: slabdata      1      1      0
-nf_conntrack_expect      0      0    240   34    2 : tunables    0    0    =
-0 : slabdata      0      0      0
-UDPv6                 34     34    960   34    8 : tunables    0    0    0 =
-: slabdata      1      1      0
-TCPv6                 18     18   1792   18    8 : tunables    0    0    0 =
-: slabdata      1      1      0
-kmalloc_dma-512       32     32    512   32    4 : tunables    0    0    0 =
-: slabdata      1      1      0
-dm_snap_pending_exception    144    144    112   36    1 : tunables    0   =
- 0    0 : slabdata      4      4      0
-kcopyd_job             0      0    360   45    4 : tunables    0    0    0 =
-: slabdata      0      0      0
-dm_uevent              0      0   2608   12    8 : tunables    0    0    0 =
-: slabdata      0      0      0
-ext3_inode_cache     387   1554    768   42    8 : tunables    0    0    0 =
-: slabdata     37     37      0
-ext3_xattr            46     46     88   46    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-journal_handle       170    170     24  170    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-journal_head          42     42     96   42    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-revoke_table         256    256     16  256    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-revoke_record        128    128     32  128    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-cfq_io_context        44     48    168   24    1 : tunables    0    0    0 =
-: slabdata      2      2      0
-mqueue_inode_cache     36     36    896   36    8 : tunables    0    0    0=
- : slabdata      1      1      0
-isofs_inode_cache      0      0    616   26    4 : tunables    0    0    0 =
-: slabdata      0      0      0
-hugetlbfs_inode_cache     28     28    584   28    4 : tunables    0    0  =
-  0 : slabdata      1      1      0
-dquot                  0      0    256   32    2 : tunables    0    0    0 =
-: slabdata      0      0      0
-inotify_event_cache    612    612     40  102    1 : tunables    0    0    =
-0 : slabdata      6      6      0
-fasync_cache      313798 313820     24  170    1 : tunables    0    0    0 =
-: slabdata   1846   1846      0
-shmem_inode_cache    735    738    792   41    8 : tunables    0    0    0 =
-: slabdata     18     18      0
-pid_namespace          0      0   2104   15    8 : tunables    0    0    0 =
-: slabdata      0      0      0
-nsproxy                0      0     56   73    1 : tunables    0    0    0 =
-: slabdata      0      0      0
-UNIX                  92     92    704   46    8 : tunables    0    0    0 =
-: slabdata      2      2      0
-xfrm_dst_cache         0      0    384   42    4 : tunables    0    0    0 =
-: slabdata      0      0      0
-ip_dst_cache          51     75    320   25    2 : tunables    0    0    0 =
-: slabdata      3      3      0
-TCP                   19     19   1664   19    8 : tunables    0    0    0 =
-: slabdata      1      1      0
-blkdev_integrity       0      0    120   34    1 : tunables    0    0    0 =
-: slabdata      0      0      0
-blkdev_queue          34     34   1824   17    8 : tunables    0    0    0 =
-: slabdata      2      2      0
-blkdev_requests       38     52    304   26    2 : tunables    0    0    0 =
-: slabdata      2      2      0
-sock_inode_cache     138    138    704   46    8 : tunables    0    0    0 =
-: slabdata      3      3      0
-file_lock_cache       42     42    192   42    2 : tunables    0    0    0 =
-: slabdata      1      1      0
-taskstats             26     26    312   26    2 : tunables    0    0    0 =
-: slabdata      1      1      0
-proc_inode_cache      90    162    600   27    4 : tunables    0    0    0 =
-: slabdata      6      6      0
-sigqueue              25     25    160   25    1 : tunables    0    0    0 =
-: slabdata      1      1      0
-radix_tree_node      623   2581    560   29    4 : tunables    0    0    0 =
-: slabdata     89     89      0
-bdev_cache            42     42    768   42    8 : tunables    0    0    0 =
-: slabdata      1      1      0
-sysfs_dir_cache     7084   7089     80   51    1 : tunables    0    0    0 =
-: slabdata    139    139      0
-inode_cache         1505   1708    568   28    4 : tunables    0    0    0 =
-: slabdata     61     61      0
-dentry              2555   4485    208   39    2 : tunables    0    0    0 =
-: slabdata    115    115      0
-avc_node            1735   2128     72   56    1 : tunables    0    0    0 =
-: slabdata     38     38      0
-buffer_head         1583   5472    112   36    1 : tunables    0    0    0 =
-: slabdata    152    152      0
-mm_struct             75     78    832   39    8 : tunables    0    0    0 =
-: slabdata      2      2      0
-vm_area_struct      2223   2438    176   46    2 : tunables    0    0    0 =
-: slabdata     53     53      0
-files_cache           78     84    768   42    8 : tunables    0    0    0 =
-: slabdata      2      2      0
-signal_cache         105    108    896   36    8 : tunables    0    0    0 =
-: slabdata      3      3      0
-sighand_cache         85     90   2112   15    8 : tunables    0    0    0 =
-: slabdata      6      6      0
-task_struct          141    145   5840    5    8 : tunables    0    0    0 =
-: slabdata     29     29      0
-anon_vma             741    768     32  128    1 : tunables    0    0    0 =
-: slabdata      6      6      0
-shared_policy_node     85     85     48   85    1 : tunables    0    0    0=
- : slabdata      1      1      0
-numa_policy           56     60    136   30    1 : tunables    0    0    0 =
-: slabdata      2      2      0
-idr_layer_cache      269    270    536   30    4 : tunables    0    0    0 =
-: slabdata      9      9      0
-kmalloc-4096         247    248   4096    8    8 : tunables    0    0    0 =
-: slabdata     31     31      0
-kmalloc-2048         345    352   2048   16    8 : tunables    0    0    0 =
-: slabdata     22     22      0
-kmalloc-1024         396    416   1024   32    8 : tunables    0    0    0 =
-: slabdata     13     13      0
-kmalloc-512          297    320    512   32    4 : tunables    0    0    0 =
-: slabdata     10     10      0
-kmalloc-256          985    992    256   32    2 : tunables    0    0    0 =
-: slabdata     31     31      0
-kmalloc-128         1899   2016    128   32    1 : tunables    0    0    0 =
-: slabdata     63     63      0
-kmalloc-64          6795   9600     64   64    1 : tunables    0    0    0 =
-: slabdata    150    150      0
-kmalloc-32         20735  20736     32  128    1 : tunables    0    0    0 =
-: slabdata    162    162      0
-kmalloc-16        138778 139264     16  256    1 : tunables    0    0    0 =
-: slabdata    544    544      0
-kmalloc-8           8190   8192      8  512    1 : tunables    0    0    0 =
-: slabdata     16     16      0
-kmalloc-192          972   1050    192   42    2 : tunables    0    0    0 =
-: slabdata     25     25      0
-kmalloc-96          2815   2856     96   42    1 : tunables    0    0    0 =
-: slabdata     68     68      0
-kmem_cache_node        0      0     64   64    1 : tunables    0    0    0 =
-: slabdata      0      0      0
+When kswapd() enters next turn of scanning, IGNORE queue will be merged back
+to CHECK queue. (What "next turn" means is another point for discussion..)
 
---=20
-     -- Pierre Ossman
+(Consideration)
+ I wonder we have a chance to implement dynamic-priority scheduling rather than
+ static-priority, later. So, priority rage 0-8 is too small ?
+ (If no concerns, I'll not increase the range.)
 
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
+TODO:
+ - This patch is more complicated than expected..should be divided...
 
---=_freyr.drzeus.cx-2410-1236584450-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
+Changelog: v1->v2
+ - totally re-designed.
+ - Now, 0 is the lowest, 8 is the highest priority.
+ - per-zone queue.
+ - Allow kswapd() to pass parameter to requeue this or not.
+ - fixed bugs.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ include/linux/memcontrol.h |   19 ++
+ mm/memcontrol.c            |  324 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 342 insertions(+), 1 deletion(-)
 
-iEYEARECAAYFAkm0yAAACgkQ7b8eESbyJLit4gCg4jYSl7BO99wmhFj1O5CigKcX
-NJ0Anj7Pfx0fnZn06SgaY94cFATTBjLg
-=9f7A
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-2410-1236584450-0001-2--
+Index: develop/mm/memcontrol.c
+===================================================================
+--- develop.orig/mm/memcontrol.c
++++ develop/mm/memcontrol.c
+@@ -116,6 +116,11 @@ struct mem_cgroup_per_zone {
+ 	unsigned long		count[NR_LRU_LISTS];
+ 
+ 	struct zone_reclaim_stat reclaim_stat;
++	/* For softlimit per-zone queue. See softlimit handling code. */
++	struct mem_cgroup *mem;
++	struct list_head sl_queue;
++	int              sl_state;
++	long             sl_prev_usage;
+ };
+ /* Macro for accessing counter */
+ #define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
+@@ -179,6 +184,7 @@ struct mem_cgroup {
+ 	 * Softlimit Params.
+ 	 */
+ 	u64		softlimit;
++	int             softlimit_priority;
+ 	/*
+ 	 * statistics. This must be placed at the end of memcg.
+ 	 */
+@@ -214,6 +220,7 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
+ #define MEMFILE_ATTR(val)	((val) & 0xffff)
+ 
+ #define _MEM_SOFTLIMIT		(0x10)
++#define _MEM_SOFTLIMIT_PRIO	(0x11)
+ 
+ static void mem_cgroup_get(struct mem_cgroup *mem);
+ static void mem_cgroup_put(struct mem_cgroup *mem);
+@@ -1908,12 +1915,131 @@ int mem_cgroup_force_empty_write(struct 
+ /*
+  * Softlimit Handling.
+  */
++/*
++ * Priority of softlimit is a scheduling parameter for kswapd(). 0...is the
++ * lowest priority and 8 is the highest. This value is inherited at create()
++ * if hierarchical accounting is used (use_hierarchy==1). If not, prio is
++ * set to MAXPRIO and it will be ignored.
++ */
++#define SOFTLIMIT_MAXPRIO (8)
++#define SOFTLIMIT_DEFPRIO (0)
++
++/* Name of queue in softlimit_queue_zone */
++enum {
++	SLQ_CHECK,     /* schedulig target queue */
++	SLQ_IGNORE,   /* ignored queue until next reschedule */
++	SLQ_NUM
++};
++/*
++ * Per-zone softlimit queue. mem_cgroup_per_zone struct will be queued.
++ */
++struct softlimit_queue_zone {
++	spinlock_t lock;
++	struct list_head queue[SLQ_NUM][SOFTLIMIT_MAXPRIO];
++};
++
++struct softlimit_queue_node {
++	struct softlimit_queue_zone zone[MAX_NR_ZONES];
++};
++
++struct softlimit_queue_node *softlimit_sched[MAX_NUMNODES];
+ 
+ /*
++ * Write-Locked at setting priority by user-land and new group creation.
++ * (for keeping sanity of hierarchy) in other case, read-locked
++ */
++DECLARE_RWSEM(softlimit_sem);
++
++/* For mz->sl_state */
++enum {
++	MZ_NOT_ON_QUEUE,
++	MZ_ON_QUEUE,
++	MZ_SELECTED,
++};
++
++/*
++ * Returns queue for zone.
++ */
++static inline struct softlimit_queue_zone *softlimit_queue(int nid, int zid)
++{
++	if (softlimit_sched[nid] == NULL)
++		return NULL;
++	return &softlimit_sched[nid]->zone[zid];
++}
++
++/*
++ * Returns # of evictable memory. (i.e, don't include ANON on swap-less system)
++ */
++static long mz_evictable_usage(struct mem_cgroup_per_zone *mz)
++{
++	long usage = 0;
++
++	/* Not necessary to be very precise. We don't take lock here */
++	if (nr_swap_pages) {
++		usage += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
++		usage += MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
++	}
++	usage += MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_FILE);
++	usage += MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_FILE);
++	return usage;
++}
++
++/* Now, use static-priority */
++static int mz_softlimit_priority(struct mem_cgroup *mem,
++				struct mem_cgroup_per_zone *mz)
++{
++	return mem->softlimit_priority;
++}
++
++static void memcg_softlimit_dequeue(struct mem_cgroup *mem, int nid, int zid)
++{
++	struct softlimit_queue_zone *sqz = softlimit_queue(nid, zid);
++	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(mem, nid, zid);
++
++	spin_lock(&sqz->lock);
++	list_del_init(&mz->sl_queue);
++	mz->sl_state = MZ_NOT_ON_QUEUE;
++	spin_unlock(&sqz->lock);
++}
++
++static void
++memcg_softlimit_enqueue(struct mem_cgroup *mem, int nid, int zid, bool check)
++{
++	struct softlimit_queue_zone *sqz = softlimit_queue(nid, zid);
++	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(mem, nid, zid);
++	int queue = SLQ_CHECK;
++	int prio;
++
++	if (mem->softlimit_priority == SOFTLIMIT_MAXPRIO)
++		return;
++	if (!check)
++		queue = SLQ_IGNORE;
++	spin_lock(&sqz->lock);
++	prio = mz_softlimit_priority(mem, mz);
++	if (mz->sl_state != MZ_ON_QUEUE) {
++		list_add_tail(&mz->sl_queue, &sqz->queue[queue][prio]);
++		mz->sl_state = MZ_ON_QUEUE;
++	}
++	spin_unlock(&sqz->lock);
++}
++
++/* merge inactive queue to the tail of check queue */
++static void memcg_softlimit_rotate(int nid, int zid)
++{
++	struct softlimit_queue_zone *sqz = softlimit_queue(nid, zid);
++	int i;
++
++	spin_lock(&sqz->lock);
++	for (i = 0; i < SOFTLIMIT_MAXPRIO; i++)
++		list_splice_tail_init(&sqz->queue[SLQ_IGNORE][i],
++				      &sqz->queue[SLQ_CHECK][i]);
++	spin_unlock(&sqz->lock);
++}
++/*
+  * A group under hierarchy has to check all ancestors.
+  * css's refcnt of "mem" should be in caller.
+  */
+-static bool mem_cgroup_hit_softlimit(struct mem_cgroup *mem, void *data)
++static bool mem_cgroup_hit_softlimit(struct mem_cgroup *mem)
+ {
+ 	struct mem_cgroup *tmp = mem;
+ 	struct cgroup *cg;
+@@ -1932,12 +2058,174 @@ static bool mem_cgroup_hit_softlimit(str
+ 	return false;
+ }
+ 
++static int __mem_cgroup_resize_softlimit(struct mem_cgroup *mem, void *data)
++{
++	int nid;
++	int zid;
++
++	/* softlimit_priority will not change under us. */
++	if (mem->softlimit_priority >= SOFTLIMIT_MAXPRIO)
++		goto out;
++	/* Add mz to queue if never enqueued */
++	for_each_node_state(nid, N_POSSIBLE) {
++		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
++			struct mem_cgroup_per_zone *mz;
++			/*
++			 * We are under semaphore and this check before
++			 * taking lock is safe
++			 */
++			mz = mem_cgroup_zoneinfo(mem, nid, zid);
++			if (mz->sl_state == MZ_NOT_ON_QUEUE)
++				memcg_softlimit_enqueue(mem, nid, zid, true);
++		}
++	}
++out:
++	return 0;
++}
++
+ static int mem_cgroup_resize_softlimit(struct mem_cgroup *mem, u64 val)
+ {
++
++	down_read(&softlimit_sem);
+ 	mem->softlimit = val;
++	mem_cgroup_walk_tree(mem, NULL, __mem_cgroup_resize_softlimit);
++	up_read(&softlimit_sem);
+ 	return 0;
+ }
+ 
++static int mem_cgroup_set_softlimit_priority(struct mem_cgroup *mem, int prio)
++{
++	int nid, zid;
++
++	down_write(&softlimit_sem);
++	if (mem->softlimit_priority < SOFTLIMIT_MAXPRIO) {
++		for_each_node_state(nid, N_POSSIBLE)
++			for (zid = 0; zid < MAX_NR_ZONES; zid++)
++				memcg_softlimit_dequeue(mem, nid, zid);
++	}
++	mem->softlimit_priority = prio;
++	if (mem->softlimit_priority < SOFTLIMIT_MAXPRIO) {
++		for_each_node_state(nid, N_POSSIBLE)
++			for (zid = 0; zid < MAX_NR_ZONES; zid++)
++				memcg_softlimit_enqueue(mem, nid, zid, true);
++	}
++
++	up_write(&softlimit_sem);
++	return 0;
++}
++
++/*
++ * Called by kswapd() and returns victim group to be reclaimed. Used algorithm
++ * is Static-Priority Round Robin against cgroups which hits softlimit.
++ * If cgroup is found to be not candidate, it will be linked to INACTIVE queue.
++ */
++struct mem_cgroup *mem_cgroup_schedule(int nid, int zid)
++{
++	struct mem_cgroup *ret = NULL;
++	struct mem_cgroup_per_zone *mz;
++	struct softlimit_queue_zone *sqz = softlimit_queue(nid, zid);
++	long usage;
++	int prio;
++
++	/* avoid balance_pgdat() starvation */
++	if (!down_read_trylock(&softlimit_sem))
++		return NULL;
++	spin_lock(&sqz->lock);
++	for (prio = 0; !ret && (prio < SOFTLIMIT_MAXPRIO); prio++) {
++		while (!list_empty(&sqz->queue[SLQ_CHECK][prio])) {
++			/* Pick up the first entry */
++			mz = list_first_entry(&sqz->queue[SLQ_CHECK][prio],
++					      struct mem_cgroup_per_zone,
++					      sl_queue);
++			list_del_init(&mz->sl_queue);
++			/*
++			 * For avoiding alloc() v.s. free() war, usage below
++			 * threshold is ignored.
++			 */
++			usage = mz_evictable_usage(mz);
++			if (usage) {
++				struct mem_cgroup *mem = mz->mem;
++				if (mem_cgroup_hit_softlimit(mem) &&
++				    css_tryget(&mem->css)) {
++					mz->sl_state = MZ_SELECTED;
++					mz->sl_prev_usage = usage;
++					ret = mem;
++					break;
++				}
++			}
++			/* move to INACTIVE queue */
++			list_add_tail(&mz->sl_queue,
++				      &sqz->queue[SLQ_IGNORE][prio]);
++		}
++	}
++	spin_unlock(&sqz->lock);
++	up_read(&softlimit_sem);
++
++	return ret;
++}
++
++void mem_cgroup_schedule_end(int nid, int zid, struct mem_cgroup *mem,
++			     bool requeue)
++{
++	struct mem_cgroup_per_zone *mz;
++	long usage;
++
++	if (!mem)
++		return;
++	/* mem->softlimit_priority will not change under this */
++	down_read(&softlimit_sem);
++	mz = mem_cgroup_zoneinfo(mem, nid, zid);
++	usage = mz_evictable_usage(mz);
++	/* Worth to be requeued ? */
++	if (requeue && (usage > SWAP_CLUSTER_MAX))
++		/* Move back to the ACTIVE queue of priority */
++		memcg_softlimit_enqueue(mem, nid, zid, true);
++	else /* Not enough page or Recaliming was not good. */
++		memcg_softlimit_enqueue(mem, nid, zid, false);
++	up_read(&softlimit_sem);
++	/* put refcnt from mem_cgroup_schedule() */
++	css_put(&mem->css);
++}
++
++/* Called by kswapd() once per calling balance_pgdat() */
++void mem_cgroup_reschedule(int nid)
++{
++	int zid;
++
++	/* mem->softlimit_priority will not change under this */
++	down_read(&softlimit_sem);
++	for (zid = 0; zid < MAX_NR_ZONES; zid++)
++		memcg_softlimit_rotate(nid, zid);
++	up_read(&softlimit_sem);
++}
++
++/* Called at first call to mem_cgroup_create() */
++static void __init softlimit_init(void)
++{
++	int zid, i, node, tmp;
++
++	for_each_node_state(node, N_POSSIBLE) {
++		struct softlimit_queue_node *sqn;
++
++		tmp = node;
++		if (!node_state(node, N_NORMAL_MEMORY))
++			tmp = -1;
++		sqn = kmalloc_node(sizeof(*sqn), GFP_KERNEL, tmp);
++		BUG_ON(!sqn);
++
++		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
++			struct softlimit_queue_zone *sqz = &sqn->zone[zid];
++
++			spin_lock_init(&sqz->lock);
++			for (i = 0; i < SOFTLIMIT_MAXPRIO; i++) {
++				INIT_LIST_HEAD(&sqz->queue[SLQ_CHECK][i]);
++				INIT_LIST_HEAD(&sqz->queue[SLQ_IGNORE][i]);
++			}
++		}
++		softlimit_sched[node] = sqn;
++	}
++}
++
+ 
+ static u64 mem_cgroup_hierarchy_read(struct cgroup *cont, struct cftype *cft)
+ {
+@@ -1977,6 +2265,16 @@ static int mem_cgroup_hierarchy_write(st
+ 	return retval;
+ }
+ 
++static int mem_cgroup_softlimit_priority_write(struct cgroup *cgrp,
++					       struct cftype *cft,
++					       u64 val)
++{
++	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
++	if (val > SOFTLIMIT_MAXPRIO)
++		return -EINVAL;
++	return mem_cgroup_set_softlimit_priority(mem, val);
++}
++
+ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
+ {
+ 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+@@ -1991,6 +2289,9 @@ static u64 mem_cgroup_read(struct cgroup
+ 		case _MEM_SOFTLIMIT:
+ 			val = mem->softlimit;
+ 			break;
++		case _MEM_SOFTLIMIT_PRIO:
++			val = mem->softlimit_priority;
++			break;
+ 		default:
+ 			val = res_counter_read_u64(&mem->res, name);
+ 			break;
+@@ -2292,6 +2593,12 @@ static struct cftype mem_cgroup_files[] 
+ 		.read_u64 = mem_cgroup_read,
+ 	},
+ 	{
++		.name = "softlimit_priority",
++		.private = MEMFILE_PRIVATE(_MEM, _MEM_SOFTLIMIT_PRIO),
++		.write_u64 = mem_cgroup_softlimit_priority_write,
++		.read_u64 = mem_cgroup_read,
++	},
++	{
+ 		.name = "failcnt",
+ 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
+ 		.trigger = mem_cgroup_reset,
+@@ -2385,12 +2692,19 @@ static int alloc_mem_cgroup_per_zone_inf
+ 		mz = &pn->zoneinfo[zone];
+ 		for_each_lru(l)
+ 			INIT_LIST_HEAD(&mz->lists[l]);
++		mz->mem = mem;
++		INIT_LIST_HEAD(&mz->sl_queue);
++		mz->sl_state = MZ_NOT_ON_QUEUE;
+ 	}
+ 	return 0;
+ }
+ 
+ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *mem, int node)
+ {
++	int zid;
++	for (zid = 0; zid < MAX_NR_ZONES; zid++)
++		memcg_softlimit_dequeue(mem, node, zid);
++
+ 	kfree(mem->info.nodeinfo[node]);
+ }
+ 
+@@ -2495,12 +2809,14 @@ mem_cgroup_create(struct cgroup_subsys *
+ 	/* root ? */
+ 	if (cont->parent == NULL) {
+ 		enable_swap_cgroup();
++		softlimit_init();
+ 		parent = NULL;
+ 	} else {
+ 		parent = mem_cgroup_from_cont(cont->parent);
+ 		mem->use_hierarchy = parent->use_hierarchy;
+ 	}
+ 
++	down_write(&softlimit_sem);
+ 	if (parent && parent->use_hierarchy) {
+ 		res_counter_init(&mem->res, &parent->res);
+ 		res_counter_init(&mem->memsw, &parent->memsw);
+@@ -2511,9 +2827,11 @@ mem_cgroup_create(struct cgroup_subsys *
+ 		 * mem_cgroup(see mem_cgroup_put).
+ 		 */
+ 		mem_cgroup_get(parent);
++		mem->softlimit_priority = parent->softlimit_priority;
+ 	} else {
+ 		res_counter_init(&mem->res, NULL);
+ 		res_counter_init(&mem->memsw, NULL);
++		mem->softlimit_priority = SOFTLIMIT_MAXPRIO;
+ 	}
+ 	mem->last_scanned_child = 0;
+ 	spin_lock_init(&mem->reclaim_param_lock);
+@@ -2521,6 +2839,10 @@ mem_cgroup_create(struct cgroup_subsys *
+ 
+ 	if (parent)
+ 		mem->swappiness = get_swappiness(parent);
++
++	/* add to softlimit queue if necessary */
++	__mem_cgroup_resize_softlimit(mem, NULL);
++	up_write(&softlimit_sem);
+ 	atomic_set(&mem->refcnt, 1);
+ 	return &mem->css;
+ free_out:
+Index: develop/include/linux/memcontrol.h
+===================================================================
+--- develop.orig/include/linux/memcontrol.h
++++ develop/include/linux/memcontrol.h
+@@ -117,6 +117,12 @@ static inline bool mem_cgroup_disabled(v
+ 
+ extern bool mem_cgroup_oom_called(struct task_struct *task);
+ 
++/* For Softlimit Handler */
++extern struct mem_cgroup *mem_cgroup_schedule(int nid, int zid);
++extern void
++mem_cgroup_schedule_end(int nid, int zid, struct mem_cgroup *mem, bool requeue);
++extern void mem_cgroup_reschedule(int nid);
++
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
+ 
+@@ -264,6 +270,19 @@ mem_cgroup_print_oom_info(struct mem_cgr
+ {
+ }
+ 
++/* For Softlimit Handler */
++static inline struct mem_cgroup *mem_cgroup_schedule(int nid, int zid)
++{
++	return NULL;
++}
++static inline void
++mem_cgroup_schedule_end(int nid, int zid, struct mem_cgroup *mem, bool requeue)
++{
++}
++static inline void mem_cgroup_reschedule(int nid)
++{
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
