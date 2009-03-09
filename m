@@ -1,118 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A4B6B003D
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 14:20:45 -0400 (EDT)
-Date: Mon, 9 Mar 2009 18:20:31 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC PATCH 1/2] mm: tlb: Add range to tlb_start_vma() and
- tlb_end_vma()
-In-Reply-To: <49B54B2A.9090408@nokia.com>
-Message-ID: <Pine.LNX.4.64.0903091810400.17134@blonde.anvils>
-References: <49B511E9.8030405@nokia.com> <1236603597-1646-1-git-send-email-Aaro.Koskinen@nokia.com>
- <Pine.LNX.4.64.0903091352430.28665@blonde.anvils> <49B54B2A.9090408@nokia.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F306B0047
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 16:32:19 -0400 (EDT)
+Date: Mon, 9 Mar 2009 13:31:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] atomic highmem kmap page pinning
+Message-Id: <20090309133121.eab3bbd9.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.0903071731120.30483@xanadu.home>
+References: <alpine.LFD.2.00.0903071731120.30483@xanadu.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Aaro Koskinen <aaro.koskinen@nokia.com>
-Cc: "linux-arm-kernel@lists.arm.linux.org.uk" <linux-arm-kernel@lists.arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Nicolas Pitre <nico@cam.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan.kim@gmail.com, linux@arm.linux.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Mar 2009, Aaro Koskinen wrote:
-> Hugh Dickins wrote:
-> 
-> > I don't see that you need to change the interface and other arches
-> > at all.  What prevents ARM from noting the first and last addresses
-> > freed in its struct mmu_gather when tlb_remove_tlb_entry() is called
-> > (see arch/um/include/asm/tlb.h for an example of that), then using
-> > that in its tlb_end_vma() TLB flushing?
-> 
-> This would probably work, thanks for pointing it out. I should have taken a
-> better look of the full API, not just what was implemented in ARM.
-> 
-> So, there's a new ARM-only patch draft below based on this idea, adding also
-> linux-arm-kernel again.
-
-This one is much better, thank you.  I would think it more natural
-to do the initialization of range_start and range_end in your
-tlb_start_vma() - to complement tlb_end_vma() where you deal with
-the final result - rather than in two places you have sited it;
-but that's somewhat a matter of taste, your patch should work as is.
-
-Hugh
+On Sat, 07 Mar 2009 17:42:44 -0500 (EST)
+Nicolas Pitre <nico@cam.org> wrote:
 
 > 
-> ---
+> Discussion about this patch is settling, so I'd like to know if there 
+> are more comments, or if official ACKs could be provided.  If people 
+> agree I'd like to carry this patch in my ARM highmem patch series since 
+> a couple things depend on this.
 > 
-> From: Aaro Koskinen <Aaro.Koskinen@nokia.com>
-> Subject: [RFC PATCH] [ARM] Flush only the needed range when unmapping VMA
+> Andrew: You seemed OK with the original one.  Does this one pass your 
+> grottiness test?
 > 
-> Signed-off-by: Aaro Koskinen <Aaro.Koskinen@nokia.com>
-> ---
->  arch/arm/include/asm/tlb.h |   25 ++++++++++++++++++++++---
->  1 files changed, 22 insertions(+), 3 deletions(-)
+> Anyone else?
 > 
-> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-> index 857f1df..2729fb9 100644
-> --- a/arch/arm/include/asm/tlb.h
-> +++ b/arch/arm/include/asm/tlb.h
-> @@ -36,6 +36,8 @@
->  struct mmu_gather {
->  	struct mm_struct	*mm;
->  	unsigned int		fullmm;
-> +	unsigned long		range_start;
-> +	unsigned long		range_end;
->  };
+> ----- >8
+> From: Nicolas Pitre <nico@cam.org>
+> Date: Wed, 4 Mar 2009 22:49:41 -0500
+> Subject: [PATCH] atomic highmem kmap page pinning
 > 
->  DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
-> @@ -47,6 +49,8 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int
-> full_mm_flush)
+> Most ARM machines have a non IO coherent cache, meaning that the
+> dma_map_*() set of functions must clean and/or invalidate the affected
+> memory manually before DMA occurs.  And because the majority of those
+> machines have a VIVT cache, the cache maintenance operations must be
+> performed using virtual
+> addresses.
 > 
->  	tlb->mm = mm;
->  	tlb->fullmm = full_mm_flush;
-> +	tlb->range_start = TASK_SIZE;
-> +	tlb->range_end = 0;
+> When a highmem page is kunmap'd, its mapping (and cache) remains in place
+> in case it is kmap'd again. However if dma_map_page() is then called with
+> such a page, some cache maintenance on the remaining mapping must be
+> performed. In that case, page_address(page) is non null and we can use
+> that to synchronize the cache.
 > 
->  	return tlb;
->  }
-> @@ -63,7 +67,19 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start,
-> unsigned long end)
->  	put_cpu_var(mmu_gathers);
->  }
+> It is unlikely but still possible for kmap() to race and recycle the
+> virtual address obtained above, and use it for another page before some
+> on-going cache invalidation loop in dma_map_page() is done. In that case,
+> the new mapping could end up with dirty cache lines for another page,
+> and the unsuspecting cache invalidation loop in dma_map_page() might
+> simply discard those dirty cache lines resulting in data loss.
 > 
-> -#define tlb_remove_tlb_entry(tlb,ptep,address)	do { } while (0)
+> For example, let's consider this sequence of events:
+> 
+> 	- dma_map_page(..., DMA_FROM_DEVICE) is called on a highmem page.
+> 
+> 	-->	- vaddr = page_address(page) is non null. In this case
+> 		it is likely that the page has valid cache lines
+> 		associated with vaddr. Remember that the cache is VIVT.
+> 
+> 		-->	for (i = vaddr; i < vaddr + PAGE_SIZE; i += 32)
+> 				invalidate_cache_line(i);
+> 
+> 	*** preemption occurs in the middle of the loop above ***
+> 
+> 	- kmap_high() is called for a different page.
+> 
+> 	-->	- last_pkmap_nr wraps to zero and flush_all_zero_pkmaps()
+> 		  is called.  The pkmap_count value for the page passed
+> 		  to dma_map_page() above happens to be 1, so the page
+> 		  is unmapped.  But prior to that, flush_cache_kmaps()
+> 		  cleared the cache for it.  So far so good.
+> 
+> 		- A fresh pkmap entry is assigned for this kmap request.
+> 		  The Murphy law says this pkmap entry will eventually
+> 		  happen to use the same vaddr as the one which used to
+> 		  belong to the other page being processed by
+> 		  dma_map_page() in the preempted thread above.
+> 
+> 	- The kmap_high() caller start dirtying the cache using the
+> 	  just assigned virtual mapping for its page.
+> 
+> 	*** the first thread is rescheduled ***
+> 
+> 			- The for(...) loop is resumed, but now cached
+> 			  data belonging to a different physical page is
+> 			  being discarded !
+> 
+> And this is not only a preemption issue as ARM can be SMP as well,
+> making the above scenario just as likely. Hence the need for some kind
+> of pkmap page pinning which can be used in any context, primarily for
+> the benefit of dma_map_page() on ARM.
+> 
+> This provides the necessary interface to cope with the above issue if
+> ARCH_NEEDS_KMAP_HIGH_GET is defined, otherwise the resulting code is
+> unchanged.
+
+OK by me.
+
 > +/*
-> + * Memorize the range for the TLB flush.
+> + * Most architectures have no use for kmap_high_get(), so let's abstract
+> + * the disabling of IRQ out of the locking in that case to save on a
+> + * potential useless overhead.
 > + */
-> +static inline void
-> +tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long addr)
-> +{
-> +	if (!tlb->fullmm) {
-> +		if (addr < tlb->range_start)
-> +			tlb->range_start = addr;
-> +		if (addr + PAGE_SIZE > tlb->range_end)
-> +			tlb->range_end = addr + PAGE_SIZE;
-> +	}
-> +}
-> 
->  /*
->   * In the case of tlb vma handling, we can optimise these away in the
-> @@ -80,8 +96,11 @@ tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct
-> *vma)
->  static inline void
->  tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
->  {
-> -	if (!tlb->fullmm)
-> -		flush_tlb_range(vma, vma->vm_start, vma->vm_end);
-> +	if (!tlb->fullmm && tlb->range_end > 0) {
-> +		flush_tlb_range(vma, tlb->range_start, tlb->range_end);
-> +		tlb->range_start = TASK_SIZE;
-> +		tlb->range_end = 0;
-> +	}
->  }
-> 
->  #define tlb_remove_page(tlb,page)	free_page_and_swap_cache(page)
-> -- 
-> 1.5.4.3
+> +#ifdef ARCH_NEEDS_KMAP_HIGH_GET
+> +#define spin_lock_kmap()             spin_lock_irq(&kmap_lock)
+> +#define spin_unlock_kmap()           spin_unlock_irq(&kmap_lock)
+> +#define spin_lock_kmap_any(flags)    spin_lock_irqsave(&kmap_lock, flags)
+> +#define spin_unlock_kmap_any(flags)  spin_unlock_irqrestore(&kmap_lock, flags)
+> +#else
+> +#define spin_lock_kmap()             spin_lock(&kmap_lock)
+> +#define spin_unlock_kmap()           spin_unlock(&kmap_lock)
+> +#define spin_lock_kmap_any(flags)    \
+> +	do { spin_lock(&kmap_lock); (void)(flags); } while (0)
+> +#define spin_unlock_kmap_any(flags)  \
+> +	do { spin_unlock(&kmap_lock); (void)(flags); } while (0)
+> +#endif
+
+It's a little bit misleading to discover that a "function" called
+spin_lock_kmap() secretly does an irq_disable().  Perhaps just remove
+the "spin_" from all these identifiers?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
