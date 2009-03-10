@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5EC6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 06:45:56 -0400 (EDT)
-Date: Tue, 10 Mar 2009 11:45:52 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7062B6B0047
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 06:49:50 -0400 (EDT)
+Date: Tue, 10 Mar 2009 11:49:47 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: possible bug in find_get_pages
-Message-ID: <20090310104552.GA4594@wotan.suse.de>
-References: <20090306192625.GA3267@linux.intel.com> <20090307084732.b01bcfee.minchan.kim@barrios-desktop> <20090309164316.GB31140@linux.intel.com>
+Message-ID: <20090310104947.GB4594@wotan.suse.de>
+References: <20090306192625.GA3267@linux.intel.com> <alpine.DEB.1.10.0903061426190.20182@qirst.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090309164316.GB31140@linux.intel.com>
+In-Reply-To: <alpine.DEB.1.10.0903061426190.20182@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: mark gross <mgross@linux.intel.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: mark gross <mgross@linux.intel.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 09, 2009 at 09:43:16AM -0700, mark gross wrote:
-> On Sat, Mar 07, 2009 at 08:47:32AM +0900, Minchan Kim wrote:
-> > Nick already found and solved this problem .
-> > It can help you. 
-> > 
-> > http://patchwork.kernel.org/patch/860/
-> > 
+On Fri, Mar 06, 2009 at 02:28:50PM -0500, Christoph Lameter wrote:
+> On Fri, 6 Mar 2009, mark gross wrote:
 > 
-> Wow, this reads just like the problem we are seeing.  I'll try the
-> patch and let the test run for a few days!
+> > It seems that page->_count == 0 at some point on some overnight runs
+> > with locks the system into a tight loop from the repeat: and a goto
+> > repeat in find_get_pages.
 > 
-> We've even see it come out of the live lock once in a while as well.  I
-> was thinking cache coherency HW issue until this :)
+> A page with ref count zero should not be in any mapping. If the page is in
+> a mapping then the page is used. Therefore the refcount should be > 0.
 > 
-> I'll send an update after running the test.
+> If there is a page with zero refcount and its in a mapping then something
+> erroneously decreased the refcount.
 
-Note that after some discussion, the accepted fix looks a bit
-different (and might potentially fix another problem if the compiler
-gets very smart, although gcc doesn't seem to).
+Just for posterity, this isn't _quite_ true any more with Hugh's
+variation to the speculative reference method. We now in some
+places set the page's refcount to 0 in order to hold off new
+speculative references from turning into real references (eg. right
+before final checks before page reclaim).
 
-Git commit e8c82c2e23e3527e0c9dc195e432c16784d270fa
+But yes, such a page should not remain both in a mapping and with a
+0 refcount for long periods.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
