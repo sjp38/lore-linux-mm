@@ -1,63 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 5513C6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:11:07 -0400 (EDT)
-Date: Tue, 10 Mar 2009 16:08:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
-Message-Id: <20090310160856.77deb5c3.akpm@linux-foundation.org>
-In-Reply-To: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 04C386B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:28:22 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n2ANO8RA017343
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:24:08 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2ANSLiN207776
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:28:21 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2ANSJuC019508
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:28:20 -0600
+Date: Tue, 10 Mar 2009 18:28:19 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+	do?
+Message-ID: <20090310232819.GA19832@us.ibm.com>
+References: <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain> <20090310215305.GA2078@x200.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090310215305.GA2078@x200.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm@kvack.org, balbir@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, lizf@cn.fujitsu.com, hugh@veritas.com
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, mingo@elte.hu, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Mar 2009 10:07:07 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Quoting Alexey Dobriyan (adobriyan@gmail.com):
+> On Thu, Feb 26, 2009 at 06:57:55PM +0300, Alexey Dobriyan wrote:
+> > On Thu, Feb 12, 2009 at 03:04:05PM -0800, Dave Hansen wrote:
+> > > dave@nimitz:~/kernels/linux-2.6-openvz$ git diff v2.6.27.10... kernel/cpt/ | diffstat 
+> 
+> > >  47 files changed, 20702 insertions(+)
+> > > 
+> > > One important thing that leaves out is the interaction that this code
+> > > has with the rest of the kernel.  That's critically important when
+> > > considering long-term maintenance, and I'd be curious how the OpenVZ
+> > > folks view it. 
+> > 
+> > OpenVZ as-is in some cases wants some functions to be made global
+> > (and if C/R code will be modular, exported). Or probably several
+> > iterators added.
+> > 
+> > But it's negligible amount of changes compared to main code.
+> 
+> Here is what C/R code wants from pid allocator.
 
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -909,13 +909,24 @@ nomem:
->  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
->  {
->  	struct mem_cgroup *mem;
-> +	struct page_cgroup *pc;
->  	swp_entry_t ent;
->  
-> +	VM_BUG_ON(!PageLocked(page));
+Yup.  Agreed.  That is exactly what I would have thought it would look
+like.  We may have found the first bit of helper code we can all agree
+on for c/r?  :)
+
+Eric may disagree as he wanted to play games with
+/proc/sys/kernel/pid_max, but that seems hard to pull off for nested
+pid namespaces.
+
+
+thanks,
+-serge
+
+> With the introduction of hierarchical PID namespaces, struct pid can
+> have not one but many numbers -- tuple (pid_0, pid_1, ..., pid_N),
+> where pid_i is pid number in pid_ns which has level i.
+> 
+> Now root pid_ns of container has level n -- numbers from level n to N
+> inclusively should be dumped and restored.
+> 
+> During struct pid creation first n-1 numbers can be anything, because the're
+> outside of pid_ns, but the rest should be the same.
+> 
+> Code will be ifdeffed and commented, but anyhow, this is an example of
+> change C/R will require from the rest of the kernel.
+> 
+> 
+> 
+> --- a/kernel/pid.c
+> +++ b/kernel/pid.c
+> @@ -182,6 +182,34 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
+>  	return -1;
+>  }
+> 
+> +static int set_pidmap(struct pid_namespace *pid_ns, pid_t pid)
+> +{
+> +	int offset;
+> +	struct pidmap *map;
 > +
->  	if (!PageSwapCache(page))
->  		return NULL;
->  
-> -	ent.val = page_private(page);
-> -	mem = lookup_swap_cgroup(ent);
-> +	pc = lookup_page_cgroup(page);
-> +	/*
-> +	 * Used bit of swapcache is solid under page lock.
-> +	 */
-> +	if (PageCgroupUsed(pc))
-> +		mem = pc->mem_cgroup;
-> +	else {
-> +		ent.val = page_private(page);
-> +		mem = lookup_swap_cgroup(ent);
+> +	offset = pid & BITS_PER_PAGE_MASK;
+> +	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
+> +	if (unlikely(!map->page)) {
+> +		void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
+> +		/*
+> +		 * Free the page if someone raced with us
+> +		 * installing it:
+> +		 */
+> +		spin_lock_irq(&pidmap_lock);
+> +		if (map->page)
+> +			kfree(page);
+> +		else
+> +			map->page = page;
+> +		spin_unlock_irq(&pidmap_lock);
+> +		if (unlikely(!map->page))
+> +			return -ENOMEM;
 > +	}
->  	if (!mem)
->  		return NULL;
->  	if (!css_tryget(&mem->css))
-
-This patch made rather a mess of
-use-css-id-in-swap_cgroup-for-saving-memory-v4.patch.
-
-I temporarily dropped
-use-css-id-in-swap_cgroup-for-saving-memory-v4.patch.  Could I have a
-fixed version please?
-
-Do we think that this patch
-(memcg-charge-swapcache-to-proper-memcg.patch) shouild be in 2.6.29?
+> +	if (test_and_set_bit(offset, map->page))
+> +		return -EBUSY;
+> +	atomic_dec(&map->nr_free);
+> +	return pid;
+> +}
+> +
+>  int next_pidmap(struct pid_namespace *pid_ns, int last)
+>  {
+>  	int offset;
+> @@ -239,7 +267,7 @@ void free_pid(struct pid *pid)
+>  	call_rcu(&pid->rcu, delayed_put_pid);
+>  }
+> 
+> -struct pid *alloc_pid(struct pid_namespace *ns)
+> +struct pid *alloc_pid(struct pid_namespace *ns, int *cr_nr, unsigned int cr_level)
+>  {
+>  	struct pid *pid;
+>  	enum pid_type type;
+> @@ -253,7 +281,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
+> 
+>  	tmp = ns;
+>  	for (i = ns->level; i >= 0; i--) {
+> -		nr = alloc_pidmap(tmp);
+> +		if (cr_nr && ns->level - i <= cr_level)
+> +			nr = set_pidmap(tmp, cr_nr[ns->level - i]);
+> +		else
+> +			nr = alloc_pidmap(tmp);
+>  		if (nr < 0)
+>  			goto out_free;
+> 
+> _______________________________________________
+> Containers mailing list
+> Containers@lists.linux-foundation.org
+> https://lists.linux-foundation.org/mailman/listinfo/containers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
