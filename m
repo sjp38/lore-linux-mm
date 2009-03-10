@@ -1,111 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 927656B003D
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 21:31:12 -0400 (EDT)
-Date: Tue, 10 Mar 2009 10:07:07 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
-Message-Id: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 3F1BF6B004D
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 21:47:17 -0400 (EDT)
+Message-ID: <49B5C69F.3010409@cn.fujitsu.com>
+Date: Tue, 10 Mar 2009 09:47:11 +0800
+From: Li Zefan <lizf@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH] memdup_user: introduce, fix
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Americo Wang <xiyou.wangcong@gmail.com>, Alexey Dobriyan <adobriyan@gmail.com>, Arjan van de Ven <arjan@infradead.org>, Roland Dreier <rdreier@cisco.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Always use GFP_KERNEL in kmalloc(), since copy_from_user() can sleep and
+cause pagefault, thus it's pointless to use GFP_NOFS or GFP_ATOMIC here.
 
-memcg_test.txt says at 4.1:
-
-	This swap-in is one of the most complicated work. In do_swap_page(),
-	following events occur when pte is unchanged.
-
-	(1) the page (SwapCache) is looked up.
-	(2) lock_page()
-	(3) try_charge_swapin()
-	(4) reuse_swap_page() (may call delete_swap_cache())
-	(5) commit_charge_swapin()
-	(6) swap_free().
-
-	Considering following situation for example.
-
-	(A) The page has not been charged before (2) and reuse_swap_page()
-	    doesn't call delete_from_swap_cache().
-	(B) The page has not been charged before (2) and reuse_swap_page()
-	    calls delete_from_swap_cache().
-	(C) The page has been charged before (2) and reuse_swap_page() doesn't
-	    call delete_from_swap_cache().
-	(D) The page has been charged before (2) and reuse_swap_page() calls
-	    delete_from_swap_cache().
-
-	    memory.usage/memsw.usage changes to this page/swp_entry will be
-	 Case          (A)      (B)       (C)     (D)
-         Event
-       Before (2)     0/ 1     0/ 1      1/ 1    1/ 1
-          ===========================================
-          (3)        +1/+1    +1/+1     +1/+1   +1/+1
-          (4)          -       0/ 0       -     -1/ 0
-          (5)         0/-1     0/ 0     -1/-1    0/ 0
-          (6)          -       0/-1       -      0/-1
-          ===========================================
-       Result         1/ 1     1/ 1      1/ 1    1/ 1
-
-       In any cases, charges to this page should be 1/ 1.
-
-In case of (D), mem_cgroup_try_get_from_swapcache() returns NULL
-(because lookup_swap_cgroup() returns NULL), so "+1/+1" at (3) means
-charges to the memcg("foo") to which the "current" belongs.
-OTOH, "-1/0" at (4) and "0/-1" at (6) means uncharges from the memcg("baa")
-to which the page has been charged.
-
-So, if the "foo" and "baa" is different(for example because of task move),
-this charge will be moved from "baa" to "foo".
-
-I think this is an unexpected behavior.
-
-This patch fixes this by modifying mem_cgroup_try_get_from_swapcache()
-to return the memcg to which the swapcache has been charged if PCG_USED bit
-is set.
-IIUC, checking PCG_USED bit of swapcache is safe under page lock.
-
-
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: Li Zefan <lizf@cn.fujitsu.com>
 ---
- mm/memcontrol.c |   15 +++++++++++++--
- 1 files changed, 13 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 73c51c8..f2efbc0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -909,13 +909,24 @@ nomem:
- static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+Against memdup_user-introduce.patch
+
+---
+ include/linux/string.h |    2 +-
+ mm/util.c              |   10 +++++++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/include/linux/string.h b/include/linux/string.h
+index 79f30f3..0863885 100644
+--- a/include/linux/string.h
++++ b/include/linux/string.h
+@@ -12,7 +12,7 @@
+ #include <linux/stddef.h>	/* for NULL */
+ 
+ extern char *strndup_user(const char __user *, long);
+-extern void *memdup_user(const void __user *, size_t, gfp_t);
++extern void *memdup_user(const void __user *, size_t);
+ 
+ /*
+  * Include machine specific inline routines
+diff --git a/mm/util.c b/mm/util.c
+index 3d21c21..7c122e4 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -74,15 +74,19 @@ EXPORT_SYMBOL(kmemdup);
+  *
+  * @src: source address in user space
+  * @len: number of bytes to copy
+- * @gfp: GFP mask to use
+  *
+  * Returns an ERR_PTR() on failure.
+  */
+-void *memdup_user(const void __user *src, size_t len, gfp_t gfp)
++void *memdup_user(const void __user *src, size_t len)
  {
- 	struct mem_cgroup *mem;
-+	struct page_cgroup *pc;
- 	swp_entry_t ent;
+ 	void *p;
  
-+	VM_BUG_ON(!PageLocked(page));
-+
- 	if (!PageSwapCache(page))
- 		return NULL;
- 
--	ent.val = page_private(page);
--	mem = lookup_swap_cgroup(ent);
-+	pc = lookup_page_cgroup(page);
+-	p = kmalloc_track_caller(len, gfp);
 +	/*
-+	 * Used bit of swapcache is solid under page lock.
++	 * Always use GFP_KERNEL, since copy_from_user() can sleep and
++	 * cause pagefault, which makes it pointless to use GFP_NOFS
++	 * or GFP_ATOMIC.
 +	 */
-+	if (PageCgroupUsed(pc))
-+		mem = pc->mem_cgroup;
-+	else {
-+		ent.val = page_private(page);
-+		mem = lookup_swap_cgroup(ent);
-+	}
- 	if (!mem)
- 		return NULL;
- 	if (!css_tryget(&mem->css))
++	p = kmalloc_track_caller(len, GFP_KERNEL);
+ 	if (!p)
+ 		return ERR_PTR(-ENOMEM);
+ 
+-- 
+1.5.4.rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
