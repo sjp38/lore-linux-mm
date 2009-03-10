@@ -1,230 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E8F296B004D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 09:13:02 -0400 (EDT)
-Date: Tue, 10 Mar 2009 21:11:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090310131155.GA9654@localhost>
-References: <20090307220055.6f79beb8@mjolnir.ossman.eu> <20090309013742.GA11416@localhost> <20090309020701.GA381@localhost> <20090309084045.2c652fbf@mjolnir.ossman.eu> <20090309142241.GA4437@localhost> <20090309160216.2048e898@mjolnir.ossman.eu> <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF7F6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 10:50:10 -0400 (EDT)
+Date: Tue, 10 Mar 2009 14:49:55 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] [ARM] Flush only the needed range when unmapping a VMA
+In-Reply-To: <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
+Message-ID: <Pine.LNX.4.64.0903101442450.31010@blonde.anvils>
+References: <49B54B2A.9090408@nokia.com> <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BXVAT5kNtrzKuDFl"
-Content-Disposition: inline
-In-Reply-To: <20090310122210.GA8415@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus@drzeus.cx>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Aaro Koskinen <Aaro.Koskinen@nokia.com>
+Cc: linux-arm-kernel@lists.arm.linux.org.uk, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 10 Mar 2009, Aaro Koskinen wrote:
 
---BXVAT5kNtrzKuDFl
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> When unmapping N pages (e.g. shared memory) the amount of TLB flushes
+> done can be (N*PAGE_SIZE/ZAP_BLOCK_SIZE)*N although it should be N at
+> maximum. With PREEMPT kernel ZAP_BLOCK_SIZE is 8 pages, so there is a
+> noticeable performance penalty when unmapping a large VMA and the system
+> is spending its time in flush_tlb_range().
+> 
+> The problem is that tlb_end_vma() is always flushing the full VMA
+> range. The subrange that needs to be flushed can be calculated by
+> tlb_remove_tlb_entry(). This approach was suggested by Hugh Dickins,
+> and is also used by other arches.
+> 
+> Signed-off-by: Aaro Koskinen <Aaro.Koskinen@nokia.com>
+> Cc: Hugh Dickins <hugh@veritas.com>
+> Cc: linux-mm@kvack.org
+> ---
 
-On Tue, Mar 10, 2009 at 08:22:10PM +0800, Wu Fengguang wrote:
-> On Tue, Mar 10, 2009 at 11:55:23AM +0200, Pierre Ossman wrote:
-> > On Tue, 10 Mar 2009 16:19:17 +0800
-> > Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > 
-> > > Here is the initial patch and tool for finding the missing pages.
-> > > 
-> > > In the following example, the pages with no flags set is kind of too
-> > > many (1816MB), but hopefully your missing pages will have PG_reserved
-> > > or other flags set ;-)
-> > > 
-> > > # ./page-types
-> > > L:locked E:error R:referenced U:uptodate D:dirty L:lru A:active S:slab W:writeback x:reclaim B:buddy r:reserved c:swapcache b:swapbacked
-> > >  
-> > 
-> > Thanks. I'll have a look in a bit. Right now I'm very close to a
-> > complete bisect. It is just ftrace commits left though, so I'm somewhat
-> > sceptical that it is correct. ftrace isn't even turned on in the
-> > kernels I've been testing.
-> > 
-> > The remaining commits are ec1bb60bb..6712e299.
+Looks good to me:
+Acked-by: Hugh Dickins <hugh@veritas.com>
 
-Another tool to show the page locations with specified flags:
-
-# ./page-areas 0x20000 | head
-    offset      len         KB
-        11        1        4KB
-        13        3       12KB
-        17        7       28KB
-        25        1        4KB
-        31        1        4KB
-        33       31      124KB
-        65       63      252KB
-       129       15       60KB
-       145        7       28KB
-
-If we run eatmem or the following commands to take up free memory,
-the missing pages will show up :-)
-
-        dd if=/dev/zero of=/tmp/s bs=1M count=1 seek=1024
-        cp /tmp/s /dev/null
-
-Thanks,
-Fengguang
-
---BXVAT5kNtrzKuDFl
-Content-Type: text/x-csrc; charset=us-ascii
-Content-Disposition: attachment; filename="page-areas.c"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/errno.h>
-#include <sys/fcntl.h>
-
-/* copied from kpageflags_read() */
-enum {
-	KPF_LOCKED,	/*  0 */
-	KPF_ERROR,	/*  1 */
-	KPF_REFERENCED,	/*  2 */
-	KPF_UPTODATE,	/*  3 */
-	KPF_DIRTY,	/*  4 */
-	KPF_LRU,	/*  5 */
-	KPF_ACTIVE,	/*  6 */
-	KPF_SLAB,	/*  7 */
-	KPF_WRITEBACK,	/*  8 */
-	KPF_RECLAIM,	/*  9 */
-	KPF_BUDDY,	/* 10 */
-	KPF_RESERVED,	/* 11 */
-	KPF_SWAPCACHE,	/* 12 */
-	KPF_SWAPBACKED,	/* 13 */
-        KPF_PRIVATE,    /* 14 */
-        KPF_PRIVATE2,   /* 15 */
-        KPF_NOPAGE,     /* 16 */
-        KPF_NOFLAGS,    /* 17 */
-	KPF_NUM
-};
-#define KPF_BYTES	8
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
-static char *page_flag_names[] = {
-	[KPF_LOCKED]		= "L:locked",
-	[KPF_ERROR]		= "E:error",
-	[KPF_REFERENCED]	= "R:referenced",
-	[KPF_UPTODATE]		= "U:uptodate",
-	[KPF_DIRTY]		= "D:dirty",
-	[KPF_LRU]		= "l:lru",
-	[KPF_ACTIVE]		= "A:active",
-	[KPF_SLAB]		= "S:slab",
-	[KPF_WRITEBACK]		= "W:writeback",
-	[KPF_RECLAIM]		= "x:reclaim",
-	[KPF_BUDDY]		= "B:buddy",
-	[KPF_RESERVED]		= "r:reserved",
-	[KPF_SWAPBACKED]	= "b:swapbacked",
-	[KPF_SWAPCACHE]		= "c:swapcache",
-	[KPF_PRIVATE]		= "P:private",
-	[KPF_PRIVATE2]		= "p:private_2",
-	[KPF_NOPAGE]		= "N:nopage",
-	[KPF_NOFLAGS]		= "n:noflags",
-};
-
-static unsigned long page_count[(1 << KPF_NUM)];
-static unsigned long nr_pages;
-static uint64_t kpageflags[KPF_BYTES * (8<<20)];
-
-char *page_flag_name(uint64_t flags)
-{
-	int i;
-	static char buf[64];
-
-	for (i = 0; i < ARRAY_SIZE(page_flag_names); i++)
-		buf[i] = (flags & (1 << i)) ? page_flag_names[i][0] : '_';
-
-	return buf;
-}
-
-char *page_flag_longname(uint64_t flags)
-{
-	int i, n;
-	static char buf[1024];
-
-	for (i = 0, n = 0; i < ARRAY_SIZE(page_flag_names); i++)
-		if (flags & (1<<i))
-		       n += snprintf(buf + n, sizeof(buf) - n, "%s,",
-				       page_flag_names[i] + 2);
-	if (n)
-		n--;
-	buf[n] = '\0';
-
-	return buf;
-}
-
-static unsigned long pages2kb(unsigned long pages)
-{
-	return (pages * getpagesize()) >> 10;
-}
-
-static void add_index(unsigned long index)
-{
-	static unsigned long offset, len;
-
-	if (index == offset + len)
-		len++;
-	else {
-		if (len)
-			printf("%10lu %8lu %8luKB\n", offset, len, pages2kb(len));
-		offset = index;
-		len = 1;
-	}
-}
-
-static void usage(const char *prog)
-{
-	printf("Usage: %s page_flags\n", prog);
-}
-
-int main(int argc, char *argv[])
-{
-	static char kpageflags_name[] = "/proc/kpageflags";
-	unsigned long match_flags;
-	unsigned long i;
-	int fd;
-
-	if (argc < 2) {
-		usage(argv[0]);
-		exit(1);
-	}
-
-	match_flags = strtol(argv[1], 0, 16);
-	/* printf("pages with flags 0x%lx:\n", match_flags); */
-
-	fd = open(kpageflags_name, O_RDONLY);
-	if (fd < 0) {
-		perror(kpageflags_name);
-		exit(1);
-	}
-
-	nr_pages = read(fd, kpageflags, sizeof(kpageflags));
-	if (nr_pages <= 0) {
-		perror(kpageflags_name);
-		exit(2);
-	}
-	if (nr_pages % KPF_BYTES != 0) {
-		fprintf(stderr, "%s: partial read: %lu bytes\n",
-				argv[0], nr_pages);
-		exit(3);
-	}
-	nr_pages = nr_pages / KPF_BYTES;
-
-	printf("    offset      len         KB\n");
-	for (i = 0; i < nr_pages; i++) {
-		if ((kpageflags[i] & match_flags) == match_flags)
-			add_index(i);
-	}
-	add_index(0);
-
-	return 0;
-}
-
---BXVAT5kNtrzKuDFl--
+> 
+> For earlier discussion, see:
+> http://marc.info/?t=123609820900002&r=1&w=2
+> http://marc.info/?t=123660375800003&r=1&w=2
+> 
+>  arch/arm/include/asm/tlb.h |   25 +++++++++++++++++++++----
+>  1 files changed, 21 insertions(+), 4 deletions(-)
+> 
+> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+> index 857f1df..321c83e 100644
+> --- a/arch/arm/include/asm/tlb.h
+> +++ b/arch/arm/include/asm/tlb.h
+> @@ -36,6 +36,8 @@
+>  struct mmu_gather {
+>  	struct mm_struct	*mm;
+>  	unsigned int		fullmm;
+> +	unsigned long		range_start;
+> +	unsigned long		range_end;
+>  };
+>  
+>  DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
+> @@ -63,7 +65,19 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+>  	put_cpu_var(mmu_gathers);
+>  }
+>  
+> -#define tlb_remove_tlb_entry(tlb,ptep,address)	do { } while (0)
+> +/*
+> + * Memorize the range for the TLB flush.
+> + */
+> +static inline void
+> +tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long addr)
+> +{
+> +	if (!tlb->fullmm) {
+> +		if (addr < tlb->range_start)
+> +			tlb->range_start = addr;
+> +		if (addr + PAGE_SIZE > tlb->range_end)
+> +			tlb->range_end = addr + PAGE_SIZE;
+> +	}
+> +}
+>  
+>  /*
+>   * In the case of tlb vma handling, we can optimise these away in the
+> @@ -73,15 +87,18 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
+>  static inline void
+>  tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+>  {
+> -	if (!tlb->fullmm)
+> +	if (!tlb->fullmm) {
+>  		flush_cache_range(vma, vma->vm_start, vma->vm_end);
+> +		tlb->range_start = TASK_SIZE;
+> +		tlb->range_end = 0;
+> +	}
+>  }
+>  
+>  static inline void
+>  tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+>  {
+> -	if (!tlb->fullmm)
+> -		flush_tlb_range(vma, vma->vm_start, vma->vm_end);
+> +	if (!tlb->fullmm && tlb->range_end > 0)
+> +		flush_tlb_range(vma, tlb->range_start, tlb->range_end);
+>  }
+>  
+>  #define tlb_remove_page(tlb,page)	free_page_and_swap_cache(page)
+> -- 
+> 1.5.4.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
