@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id ACE6D6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 02:56:19 -0400 (EDT)
-Date: Tue, 10 Mar 2009 07:56:05 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090310075605.52b22046@mjolnir.ossman.eu>
-In-Reply-To: <20090310024135.GA6832@localhost>
-References: <bug-12832-27@http.bugzilla.kernel.org/>
-	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
-	<20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
-	<20090309084045.2c652fbf@mjolnir.ossman.eu>
-	<20090309142241.GA4437@localhost>
-	<20090309160216.2048e898@mjolnir.ossman.eu>
-	<20090310024135.GA6832@localhost>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-14861-1236668170-0001-2"
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A79ED6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 04:03:39 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp06.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2A83NRU021058
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:03:23 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2A83mD2413782
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:03:50 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2A83ULb018858
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:03:30 +1100
+Date: Tue, 10 Mar 2009 13:33:23 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 1/4] memcg: add softlimit interface and utilitiy
+	function.
+Message-ID: <20090310080323.GA26837@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com> <20090309163907.a3cee183.kamezawa.hiroyu@jp.fujitsu.com> <20090309074449.GH24321@balbir.in.ibm.com> <20090309165507.9f57ad41.kamezawa.hiroyu@jp.fujitsu.com> <20090309084844.GI24321@balbir.in.ibm.com> <20090310145334.0473c3fe.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090310145334.0473c3fe.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-10 14:53:34]:
 
---=_freyr.drzeus.cx-14861-1236668170-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+> On Mon, 9 Mar 2009 14:18:44 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:55:07]:
+> > 
+> > > On Mon, 9 Mar 2009 13:14:49 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:39:07]:
+> > > Hmm, them, moving mem->softlimit to res->softlimit is ok ?
+> > > 
+> > > If no more "branch" to res_counter_charge/uncharge(), moving this to
+> > > res_counter is ok to me.
+> > >
+> > 
+> > There is a branch, but the additional excessive checks are gone.
+> > It should be possible to reduce the overhead to comparisons though. 
+> > 
+> 
+> I'm now rewriting to use res_counter but do you have any good reason to
+> irq-off in res_counter ?
+> It seems there are no callers in irq path.
 
-On Tue, 10 Mar 2009 10:41:35 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+It has been on my TODO list to make resource counter more efficient.
+The reason for irq disabling is because counters routines can get called from
+reclaim with irq's disabled as well.
 
->=20
->         pgfault 25624481
->         pgmajfault 2490
->         pgrefill_dma 8144
->         pgrefill_dma32 103508
->         pgsteal_dma 4503
->         pgsteal_dma32 179395
->         pgscan_kswapd_dma 4999
->         pgscan_kswapd_dma32 180546
->         pgscan_direct_dma32 384
->         slabs_scanned 153856
->=20
-> The above vmstat numbers are a bit large, maybe it's not a fresh booted s=
-ystem?
->=20
-
-Probably not. I just grabbed those stats as it was compiling the next
-kernel. It takes two hours, so I'm trying to do as many things in
-parallel as once. :/
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-14861-1236668170-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkm2DwkACgkQ7b8eESbyJLhKXACeK3wwBiXKpVKTlupM3ndGCPPv
-PDgAoMc7t7qqMS0/3a38Lu2c64l0O2T6
-=CFE/
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-14861-1236668170-0001-2--
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
