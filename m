@@ -1,116 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3939A6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:46:08 -0400 (EDT)
-Received: by fxm26 with SMTP id 26so300393fxm.38
-        for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:46:05 -0700 (PDT)
-Date: Wed, 11 Mar 2009 00:53:05 +0300
-From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090310215305.GA2078@x200.localdomain>
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu> <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 73B7D6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 18:05:27 -0400 (EDT)
+Date: Tue, 10 Mar 2009 22:05:06 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: PROBLEM: kernel BUG at mm/slab.c:3002!
+In-Reply-To: <49B6B72B.7070408@hp.com>
+Message-ID: <Pine.LNX.4.64.0903102148150.31262@blonde.anvils>
+References: <49B68450.9000505@hp.com> <1236705532.3205.14.camel@calx>
+ <49B6A374.6040805@hp.com> <1236707030.3205.21.camel@calx> <49B6B72B.7070408@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090226155755.GA1456@x200.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, mingo@elte.hu, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
+To: "Alan D. Brunelle" <Alan.Brunelle@hp.com>
+Cc: Matt Mackall <mpm@selenic.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cl@linux-foundation.org, penberg@cs.helsinki.fi, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 26, 2009 at 06:57:55PM +0300, Alexey Dobriyan wrote:
-> On Thu, Feb 12, 2009 at 03:04:05PM -0800, Dave Hansen wrote:
-> > dave@nimitz:~/kernels/linux-2.6-openvz$ git diff v2.6.27.10... kernel/cpt/ | diffstat 
-
-> >  47 files changed, 20702 insertions(+)
+On Tue, 10 Mar 2009, Alan D. Brunelle wrote:
+> Matt Mackall wrote:
+> > On Tue, 2009-03-10 at 13:29 -0400, Alan D. Brunelle wrote:
+> >> Matt Mackall wrote:
+> >>> On Tue, 2009-03-10 at 11:16 -0400, Alan D. Brunelle wrote:
+> >>>> Running blktrace & I/O loads cause a kernel BUG at mm/slab.c:3002!.
+> >>> Pid: 11346, comm: blktrace Tainted: G    B      2.6.29-rc7 #3 ProLiant
+> >>> DL585 G5   
+> >>>
+> >>> That 'B' there indicates you've hit 'bad page' before this. That bug
+> >>> seems to be strongly correlated with some form of hardware trouble.
+> >>> Unfortunately, that makes everything after that point a little suspect.
+> >>
+> >> /If/ it were a hardware issue, that might explain the subsequent issue
+> >> when I switched to SLUB instead...
 > > 
-> > One important thing that leaves out is the interaction that this code
-> > has with the rest of the kernel.  That's critically important when
-> > considering long-term maintenance, and I'd be curious how the OpenVZ
-> > folks view it. 
+> > Well it was almost certainly not a bug in SLAB itself (and your SLUB
+> > test is obviously quite conclusive there). We'd have lots of reports.
+> > It's probably too early to conclude it's hardware though.
+> > 
+> >> How does one look for "bad page reports"?
+> > 
+> > It'll look something like this (pasted from Google):
+> > 
+> >>>     kernel: Bad page state at free_hot_cold_page (in process 'beam',
+> >>> page c1a95320)
+> >>>     kernel: flags:0x40020118 mapping:f401adc0 mapped:0 count:0
+> >>> private:0x00000000
+> > 
 > 
-> OpenVZ as-is in some cases wants some functions to be made global
-> (and if C/R code will be modular, exported). Or probably several
-> iterators added.
-> 
-> But it's negligible amount of changes compared to main code.
+> Interestingly enough, I'm not seeing the kernel detect such things - but
+> in going into the hardware server logs, a co-worker found "unrecoverable
+> system errors" being detected at about the same times we're seeing the
+> panics.
 
-Here is what C/R code wants from pid allocator.
+In 2.6.29-rc, the "B" taint should be associated with mm/page_alloc.c's
+bad_page() KERN_ALERT "BUG: Bad page state in process %s  pfn:%05lx\n",
+but it could also now come from mm/memory.c's print_bad_pte()
+KERN_ALERT "BUG: Bad page map in process %s  pte:%08llx pmd:%08llx\n",
+which replaces the old mm/rmap.c Eeeks, and some other cases too.
 
-With the introduction of hierarchical PID namespaces, struct pid can
-have not one but many numbers -- tuple (pid_0, pid_1, ..., pid_N),
-where pid_i is pid number in pid_ns which has level i.
-
-Now root pid_ns of container has level n -- numbers from level n to N
-inclusively should be dumped and restored.
-
-During struct pid creation first n-1 numbers can be anything, because the're
-outside of pid_ns, but the rest should be the same.
-
-Code will be ifdeffed and commented, but anyhow, this is an example of
-change C/R will require from the rest of the kernel.
-
-
-
---- a/kernel/pid.c
-+++ b/kernel/pid.c
-@@ -182,6 +182,34 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
- 	return -1;
- }
- 
-+static int set_pidmap(struct pid_namespace *pid_ns, pid_t pid)
-+{
-+	int offset;
-+	struct pidmap *map;
-+
-+	offset = pid & BITS_PER_PAGE_MASK;
-+	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
-+	if (unlikely(!map->page)) {
-+		void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-+		/*
-+		 * Free the page if someone raced with us
-+		 * installing it:
-+		 */
-+		spin_lock_irq(&pidmap_lock);
-+		if (map->page)
-+			kfree(page);
-+		else
-+			map->page = page;
-+		spin_unlock_irq(&pidmap_lock);
-+		if (unlikely(!map->page))
-+			return -ENOMEM;
-+	}
-+	if (test_and_set_bit(offset, map->page))
-+		return -EBUSY;
-+	atomic_dec(&map->nr_free);
-+	return pid;
-+}
-+
- int next_pidmap(struct pid_namespace *pid_ns, int last)
- {
- 	int offset;
-@@ -239,7 +267,7 @@ void free_pid(struct pid *pid)
- 	call_rcu(&pid->rcu, delayed_put_pid);
- }
- 
--struct pid *alloc_pid(struct pid_namespace *ns)
-+struct pid *alloc_pid(struct pid_namespace *ns, int *cr_nr, unsigned int cr_level)
- {
- 	struct pid *pid;
- 	enum pid_type type;
-@@ -253,7 +281,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
- 
- 	tmp = ns;
- 	for (i = ns->level; i >= 0; i--) {
--		nr = alloc_pidmap(tmp);
-+		if (cr_nr && ns->level - i <= cr_level)
-+			nr = set_pidmap(tmp, cr_nr[ns->level - i]);
-+		else
-+			nr = alloc_pidmap(tmp);
- 		if (nr < 0)
- 			goto out_free;
- 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
