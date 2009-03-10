@@ -1,69 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 711986B003D
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 21:53:39 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A1ra2u024988
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 10 Mar 2009 10:53:36 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 735EC45DE4F
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 10:53:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5165B45DE4E
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 10:53:36 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C0F41DB8013
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 10:53:36 +0900 (JST)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id AC2186B003D
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 22:36:26 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A2aNaw017742
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 10 Mar 2009 11:36:23 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D27945DE52
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 11:36:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E2E345DE51
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 11:36:23 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E93351DB8044
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 11:36:22 +0900 (JST)
 Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id F1C7A1DB8012
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 10:53:35 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] memdup_user: introduce, fix
-In-Reply-To: <49B5C69F.3010409@cn.fujitsu.com>
-References: <49B5C69F.3010409@cn.fujitsu.com>
-Message-Id: <20090310105258.A483.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 946FA1DB803F
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 11:36:22 +0900 (JST)
+Date: Tue, 10 Mar 2009 11:35:02 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
+Message-Id: <20090310113502.d272fc2a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
+References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 10 Mar 2009 10:53:35 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Americo Wang <xiyou.wangcong@gmail.com>, Alexey Dobriyan <adobriyan@gmail.com>, Arjan van de Ven <arjan@infradead.org>, Roland Dreier <rdreier@cisco.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
->   * Include machine specific inline routines
-> diff --git a/mm/util.c b/mm/util.c
-> index 3d21c21..7c122e4 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -74,15 +74,19 @@ EXPORT_SYMBOL(kmemdup);
->   *
->   * @src: source address in user space
->   * @len: number of bytes to copy
-> - * @gfp: GFP mask to use
->   *
->   * Returns an ERR_PTR() on failure.
->   */
-> -void *memdup_user(const void __user *src, size_t len, gfp_t gfp)
-> +void *memdup_user(const void __user *src, size_t len)
->  {
->  	void *p;
->  
-> -	p = kmalloc_track_caller(len, gfp);
-> +	/*
-> +	 * Always use GFP_KERNEL, since copy_from_user() can sleep and
-> +	 * cause pagefault, which makes it pointless to use GFP_NOFS
-> +	 * or GFP_ATOMIC.
-> +	 */
-> +	p = kmalloc_track_caller(len, GFP_KERNEL);
->  	if (!p)
->  		return ERR_PTR(-ENOMEM);
+On Tue, 10 Mar 2009 10:07:07 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-ok. thanks.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> 
+> memcg_test.txt says at 4.1:
+> 
+> 	This swap-in is one of the most complicated work. In do_swap_page(),
+> 	following events occur when pte is unchanged.
+> 
+> 	(1) the page (SwapCache) is looked up.
+> 	(2) lock_page()
+> 	(3) try_charge_swapin()
+> 	(4) reuse_swap_page() (may call delete_swap_cache())
+> 	(5) commit_charge_swapin()
+> 	(6) swap_free().
+> 
+> 	Considering following situation for example.
+> 
+> 	(A) The page has not been charged before (2) and reuse_swap_page()
+> 	    doesn't call delete_from_swap_cache().
+> 	(B) The page has not been charged before (2) and reuse_swap_page()
+> 	    calls delete_from_swap_cache().
+> 	(C) The page has been charged before (2) and reuse_swap_page() doesn't
+> 	    call delete_from_swap_cache().
+> 	(D) The page has been charged before (2) and reuse_swap_page() calls
+> 	    delete_from_swap_cache().
+> 
+> 	    memory.usage/memsw.usage changes to this page/swp_entry will be
+> 	 Case          (A)      (B)       (C)     (D)
+>          Event
+>        Before (2)     0/ 1     0/ 1      1/ 1    1/ 1
+>           ===========================================
+>           (3)        +1/+1    +1/+1     +1/+1   +1/+1
+>           (4)          -       0/ 0       -     -1/ 0
+>           (5)         0/-1     0/ 0     -1/-1    0/ 0
+>           (6)          -       0/-1       -      0/-1
+>           ===========================================
+>        Result         1/ 1     1/ 1      1/ 1    1/ 1
+> 
+>        In any cases, charges to this page should be 1/ 1.
+> 
+> In case of (D), mem_cgroup_try_get_from_swapcache() returns NULL
+> (because lookup_swap_cgroup() returns NULL), so "+1/+1" at (3) means
+> charges to the memcg("foo") to which the "current" belongs.
 
+Hmm...in try_charge_swapin(), if !PageSwapCache(),
+it seems no charges and returns NULL...(means commit will not occur.)
+Could you clarify ?
 
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
