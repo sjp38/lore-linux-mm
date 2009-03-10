@@ -1,183 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C20EA6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 02:58:21 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A6wJrL004720
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 10 Mar 2009 15:58:19 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D53DA45DD79
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 15:58:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id ACAB545DE69
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 15:58:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 215BC1DB803A
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 15:58:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AED0E38005
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 15:58:17 +0900 (JST)
-Date: Tue, 10 Mar 2009 15:56:58 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
-Message-Id: <20090310155658.6d332534.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090310153859.ffe0671b.nishimura@mxp.nes.nec.co.jp>
-References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-	<20090310133316.b56d3319.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090310134757.38e37444.nishimura@mxp.nes.nec.co.jp>
-	<20090310140416.ecf5ba18.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090310153859.ffe0671b.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 2BC946B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 13:14:20 -0400 (EDT)
+Message-ID: <49B69FE5.1080301@hp.com>
+Date: Tue, 10 Mar 2009 13:14:13 -0400
+From: "Alan D. Brunelle" <Alan.Brunelle@hp.com>
+MIME-Version: 1.0
+Subject: Re: PROBLEM: kernel BUG at mm/slab.c:3002!
+References: <49B68450.9000505@hp.com>
+In-Reply-To: <49B68450.9000505@hp.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: cl@linux-foundation.org, penberg@cs.helsinki.fi, mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Mar 2009 15:38:59 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+Alan D. Brunelle wrote:
+> Running blktrace & I/O loads cause a kernel BUG at mm/slab.c:3002!.
+> 
+> I'm running some moderate I/O loads (using 12 devices behind a Smart
+> Array on a 16-way x86_64 box, I'm doing asynchronous direct sequential
+> reads to each disk in parallel), and whilst attempting to get blktrace
+> data I routinely run into this.
+> 
+> I first started seeing this in 2.6.29-rc6, so I bumped to 2.6.29-rc7 and
+>  made a couple of successful runs, then ran into it again. (I've
+> attached the script I was using, but I'm not sure it's very helpful...)
+> 
+> The environment the system under test is in is rather difficult to
+> bisect in, but if need be, I can certainly go through the (painful)
+> motions to do so...
+> 
+> I only ran this a couple of times on 2.6.27.7-4 (SLESS 11 b6 kernel),
+> and both times it worked there - not sure how far back the problem occurs...
+> 
+> I'm open to any SLAB debug tracing options that may help with this...
+> 
+> Alan D.Brunelle
+> Hewlett-Packard
+> 
 
-> On Tue, 10 Mar 2009 14:04:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 10 Mar 2009 13:47:57 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > On Tue, 10 Mar 2009 13:33:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > On Tue, 10 Mar 2009 10:07:07 +0900
-> > > > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > > 
-> > > > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > > 
-> > > > > memcg_test.txt says at 4.1:
-> > > > > 
-> > > > > 	This swap-in is one of the most complicated work. In do_swap_page(),
-> > > > > 	following events occur when pte is unchanged.
-> > > > > 
-> > > > > 	(1) the page (SwapCache) is looked up.
-> > > > > 	(2) lock_page()
-> > > > > 	(3) try_charge_swapin()
-> > > > > 	(4) reuse_swap_page() (may call delete_swap_cache())
-> > > > > 	(5) commit_charge_swapin()
-> > > > > 	(6) swap_free().
-> > > > > 
-> > > > > 	Considering following situation for example.
-> > > > > 
-> > > > > 	(A) The page has not been charged before (2) and reuse_swap_page()
-> > > > > 	    doesn't call delete_from_swap_cache().
-> > > > > 	(B) The page has not been charged before (2) and reuse_swap_page()
-> > > > > 	    calls delete_from_swap_cache().
-> > > > > 	(C) The page has been charged before (2) and reuse_swap_page() doesn't
-> > > > > 	    call delete_from_swap_cache().
-> > > > > 	(D) The page has been charged before (2) and reuse_swap_page() calls
-> > > > > 	    delete_from_swap_cache().
-> > > > > 
-> > > > > 	    memory.usage/memsw.usage changes to this page/swp_entry will be
-> > > > > 	 Case          (A)      (B)       (C)     (D)
-> > > > >          Event
-> > > > >        Before (2)     0/ 1     0/ 1      1/ 1    1/ 1
-> > > > >           ===========================================
-> > > > >           (3)        +1/+1    +1/+1     +1/+1   +1/+1
-> > > > >           (4)          -       0/ 0       -     -1/ 0
-> > > > >           (5)         0/-1     0/ 0     -1/-1    0/ 0
-> > > > >           (6)          -       0/-1       -      0/-1
-> > > > >           ===========================================
-> > > > >        Result         1/ 1     1/ 1      1/ 1    1/ 1
-> > > > > 
-> > > > >        In any cases, charges to this page should be 1/ 1.
-> > > > > 
-> > > > > In case of (D), mem_cgroup_try_get_from_swapcache() returns NULL
-> > > > > (because lookup_swap_cgroup() returns NULL), so "+1/+1" at (3) means
-> > > > > charges to the memcg("foo") to which the "current" belongs.
-> > > > > OTOH, "-1/0" at (4) and "0/-1" at (6) means uncharges from the memcg("baa")
-> > > > > to which the page has been charged.
-> > > > > 
-> > > > > So, if the "foo" and "baa" is different(for example because of task move),
-> > > > > this charge will be moved from "baa" to "foo".
-> > > > > 
-> > > > > I think this is an unexpected behavior.
-> > > > > 
-> > > > > This patch fixes this by modifying mem_cgroup_try_get_from_swapcache()
-> > > > > to return the memcg to which the swapcache has been charged if PCG_USED bit
-> > > > > is set.
-> > > > > IIUC, checking PCG_USED bit of swapcache is safe under page lock.
-> > > > > 
-> > > > > 
-> > > > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > > > ---
-> > > > >  mm/memcontrol.c |   15 +++++++++++++--
-> > > > >  1 files changed, 13 insertions(+), 2 deletions(-)
-> > > > > 
-> > > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > > > index 73c51c8..f2efbc0 100644
-> > > > > --- a/mm/memcontrol.c
-> > > > > +++ b/mm/memcontrol.c
-> > > > > @@ -909,13 +909,24 @@ nomem:
-> > > > >  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
-> > > > >  {
-> > > > >  	struct mem_cgroup *mem;
-> > > > > +	struct page_cgroup *pc;
-> > > > >  	swp_entry_t ent;
-> > > > >  
-> > > > > +	VM_BUG_ON(!PageLocked(page));
-> > > > > +
-> > > > >  	if (!PageSwapCache(page))
-> > > > >  		return NULL;
-> > > > >  
-> > > > > -	ent.val = page_private(page);
-> > > > > -	mem = lookup_swap_cgroup(ent);
-> > > > > +	pc = lookup_page_cgroup(page);
-> > > > > +	/*
-> > > > > +	 * Used bit of swapcache is solid under page lock.
-> > > > > +	 */
-> > > > > +	if (PageCgroupUsed(pc))
-> > > > > +		mem = pc->mem_cgroup;
-> > > > 
-> > > > I've already acked but how about returning NULL here ?
-> > > > 
-> > > Returning NULL here means try_charge_swapin charges "current" memcg("foo"
-> > > in the patch description above).
-> > > So, it doesn't change current behavior at all.
-> > > 
-> > 
-> > ok, maybe try_charge_swapin() should check Used bit...and set ptr=NULL 
-> > before reaching here.
-> > 
-> > Can't we move this 
-> > + pc = lookup_page_cgroup(page);
-> > + if (PageCgroupUsed(pc))
-> > 
-> > check to try_charge_swapin() ? (I think this is safe because the page is locked.)
-> > 
-> > By this, we can avoid more works in commit_charge().
-> > 
-> hmm, I thought the same thing at first, but this means:
-> 
->      Case       (D)
->      Event
->    Before (2)   1/ 1
->       ===============
->       (3)       0/ 0
->       (4)      -1/ 0
->       (5)       0/ 0
->       (6)       0/-1
->       ===============
->    Result       0/ 0
-> 
-> Instead of handling this case properly, I selected
-> the current derection(changed memcg codes only).
-> 
-> 
-Ok, I see. page->mapcount is 0 at reuse_swap_page() and above sequence will happen.
-Then, we have to call commit_charge() anyway.
-Thank you for clarification.
+Hm, it isn't SLAB-related: reconfigured w/ SLUB and got:
 
-Thanks,
--Kame
-
-> Thanks,
-> Daisuke Nishimura.
-> 
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000030g
+IP: [<ffffffff802d0fda>] deactivate_super+0x11/0x8cg
+PGD 1867047067 PUD 1853074067 PMD 0 g
+Oops: 0000 [#1] SMP g
+last sysfs file:
+/sys/devices/pci0000:40/0000:40:10.0/0000:41:02.0/local_cpusg
+CPU 15 g
+Modules linked in: xfs exportfs fuse ext2 loop dm_mod sd_mod crc_t10dif
+qla2xxx sg bnx2 scsi_transport_fc rtc_cmos sr_mod ipmi_si rtc_core
+pcspkr ipmi_msghandler hpwdt hpilo container shpchp serio_raw scsi_tgt
+rtc_lib button cdrom pci_hotplug usbhid hid uhci_hcd ohci_hcd ehci_hcd
+usbcore edd ext3 mbcache jbd fan ide_pci_generic amd74xx ide_core
+pata_amd thermal processor thermal_sys hwmon cciss ata_generic libata
+scsi_modg
+Pid: 12527, comm: blktrace Not tainted 2.6.29-rc7 #4 ProLiant DL585 G5   g
+RIP: 0010:[<ffffffff802d0fda>]  [<ffffffff802d0fda>]
+deactivate_super+0x11/0x8cg
+RSP: 0018:ffff88087a4e1b38  EFLAGS: 00010246g
+RAX: ffff881829debf00 RBX: 0000000000000000 RCX: 00000000fffffffeg
+RDX: 0000000000000d74 RSI: ffffffff80ab4b00 RDI: 0000000000000000g
+RBP: ffff88087a4e1b48 R08: 0000000000000000 R09: 0000000000000000g
+R10: ffff88107cc3d760 R11: ffff88187b84deb8 R12: ffff881829debf00g
+R13: 0000000000000200 R14: ffffffff809a7d00 R15: ffff881829debfd8g
+FS:  00007fab4778f6f0(0000) GS:ffff88207c202380(0000)
+knlGS:0000000000000000g
+CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003bg
+CR2: 0000000000000030 CR3: 0000001801474000 CR4: 00000000000006e0g
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000g
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400g
+Process blktrace (pid: 12527, threadinfo ffff88087a4e0000, task
+ffff880821e70000)g
+Stack:g
+ ffff88189c255d00 ffff881829debf00 ffff88087a4e1b88 ffffffff802e4f22g
+ 0000000000000000 ffffffff80ab82b8 ffffffff80ab82b0 ffff881829debf00g
+ ffff8820798f6148 0000000000000016 ffff88087a4e1bb8 ffffffff802e8faeg
+Call Trace:g
+ [<ffffffff802e4f22>] mntput_no_expire+0x144/0x18fg
+ [<ffffffff802e8fae>] simple_release_fs+0x68/0x70g
+ [<ffffffff8032cd10>] debugfs_remove+0x5b/0x60g
+ [<ffffffff80289c02>] ? relay_remove_buf+0x0/0x2cg
+ [<ffffffff8036c255>] blk_remove_buf_file_callback+0x1a/0x20g
+ [<ffffffff80289c21>] relay_remove_buf+0x1f/0x2cg
+ [<ffffffff8037155d>] kref_put+0x4b/0x57g
+ [<ffffffff80289c85>] relay_close_buf+0x35/0x3ag
+ [<ffffffff8028a08c>] relay_close+0x5e/0xecg
+ [<ffffffff8036ca9f>] blk_trace_remove+0x50/0x1e3g
+ [<ffffffff8036cd0f>] blk_trace_ioctl+0xb3/0xcfg
+ [<ffffffffa03aa4c5>] ? xfs_write+0x6c8/0x6e3 [xfs]g
+ [<ffffffff80363d78>] blkdev_ioctl+0x803/0x853g
+ [<ffffffff804b1100>] ? _spin_lock+0x17/0x1ag
+ [<ffffffff803702ac>] ? kobject_put+0x47/0x4bg
+ [<ffffffff803f6e38>] ? put_device+0x15/0x17g
+ [<ffffffffa000017a>] ? scsi_device_put+0x3d/0x42 [scsi_mod]g
+ [<ffffffffa0312bcb>] ? scsi_disk_put+0x3a/0x3f [sd_mod]g
+ [<ffffffff802f30a3>] block_ioctl+0x38/0x3cg
+ [<ffffffff802db638>] vfs_ioctl+0x2a/0x78g
+ [<ffffffff802dbacc>] do_vfs_ioctl+0x446/0x482g
+ [<ffffffff802cfc80>] ? __fput+0x18c/0x199g
+ [<ffffffff802dbb5d>] sys_ioctl+0x55/0x77g
+ [<ffffffff8020c42a>] system_call_fastpath+0x16/0x1bg
+Code: 48 8b 7f 68 48 85 ff 74 05 e8 45 cb 00 00 48 89 df e8 8d ff ff ff
+5b 5b c9 c3 55 48 c7 c6 00 4b ab 80 48 89 e5 41 54 53 48 89 fb <4c> 8b
+67 30 48 8d bf a8 00 00 00 e8 0a de 09 00 85 c0 74 62 81 g
+RIP  [<ffffffff802d0fda>] deactivate_super+0x11/0x8cg
+ RSP <ffff88087a4e1b38>g
+CR2: 0000000000000030g
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
