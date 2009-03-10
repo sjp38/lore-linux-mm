@@ -1,65 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AD7DD6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 11:52:52 -0400 (EDT)
-Date: Tue, 10 Mar 2009 16:52:41 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090310165241.7d912bfa@mjolnir.ossman.eu>
-In-Reply-To: <20090310131155.GA9654@localhost>
-References: <20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
-	<20090309084045.2c652fbf@mjolnir.ossman.eu>
-	<20090309142241.GA4437@localhost>
-	<20090309160216.2048e898@mjolnir.ossman.eu>
-	<20090310024135.GA6832@localhost>
-	<20090310081917.GA28968@localhost>
-	<20090310105523.3dfd4873@mjolnir.ossman.eu>
-	<20090310122210.GA8415@localhost>
-	<20090310131155.GA9654@localhost>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-18933-1236700366-0001-2"
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A656B004D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 12:14:14 -0400 (EDT)
+Date: Wed, 11 Mar 2009 03:09:48 +1100
+From: Anton Blanchard <anton@samba.org>
+Subject: [PATCH] Enable hashdist by default on 64bit NUMA
+Message-ID: <20090310160948.GB14613@kryten>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, davem@davemloft.net, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
 
---=_freyr.drzeus.cx-18933-1236700366-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On PowerPC we allocate large boot time hashes on node 0. This leads to
+an imbalance in the free memory, for example on a 64GB box (4 x 16GB
+nodes):
 
-My bisect has ran into a wall. I cannot run any of the intermediate
-kernels that are left. I could try reverting the commits one at a time,
-but I'll take a break and test your code here. Now we just have to wait
-for the kernel to compile. :)
+Free memory:
+Node 0: 97.03%
+Node 1: 98.54%
+Node 2: 98.42%
+Node 3: 98.53%
 
-Rgds
---=20
-     -- Pierre Ossman
+If we switch to using vmalloc (like ia64 and x86-64) things are more
+balanced:
 
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
+Free memory:
+Node 0: 97.53%
+Node 1: 98.35%
+Node 2: 98.33%
+Node 3: 98.33%
 
---=_freyr.drzeus.cx-18933-1236700366-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
+For many HPC applications we are limited by the free available memory on
+the smallest node, so even though the same amount of memory is used the
+better balancing helps.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
+Since all 64bit NUMA capable architectures should have sufficient
+vmalloc space, it makes sense to enable it via CONFIG_64BIT.
 
-iEYEARECAAYFAkm2jMsACgkQ7b8eESbyJLiHcQCgvuAH3sATSVj5Yu0CbvBlNAKn
-oYwAniLbZPVagMfUgPLrweEsqu8kzYsW
-=/OR6
------END PGP SIGNATURE-----
+Signed-off-by: Anton Blanchard <anton@samba.org>
+Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+---
 
---=_freyr.drzeus.cx-18933-1236700366-0001-2--
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index 95837bf..0c4d4b7 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -144,10 +144,10 @@ extern void *alloc_large_system_hash(const char *tablename,
+ 
+ #define HASH_EARLY	0x00000001	/* Allocating during early boot? */
+ 
+-/* Only NUMA needs hash distribution.
+- * IA64 and x86_64 have sufficient vmalloc space.
++/* Only NUMA needs hash distribution. 64bit NUMA architectures have
++ * sufficient vmalloc space.
+  */
+-#if defined(CONFIG_NUMA) && (defined(CONFIG_IA64) || defined(CONFIG_X86_64))
++#if defined(CONFIG_NUMA) && defined(CONFIG_64BIT)
+ #define HASHDIST_DEFAULT 1
+ #else
+ #define HASHDIST_DEFAULT 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
