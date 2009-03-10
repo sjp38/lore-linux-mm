@@ -1,81 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E2F26B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 05:55:35 -0400 (EDT)
-Date: Tue, 10 Mar 2009 10:55:23 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090310105523.3dfd4873@mjolnir.ossman.eu>
-In-Reply-To: <20090310081917.GA28968@localhost>
-References: <bug-12832-27@http.bugzilla.kernel.org/>
-	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
-	<20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
-	<20090309084045.2c652fbf@mjolnir.ossman.eu>
-	<20090309142241.GA4437@localhost>
-	<20090309160216.2048e898@mjolnir.ossman.eu>
-	<20090310024135.GA6832@localhost>
-	<20090310081917.GA28968@localhost>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5EC6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 06:45:56 -0400 (EDT)
+Date: Tue, 10 Mar 2009 11:45:52 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: possible bug in find_get_pages
+Message-ID: <20090310104552.GA4594@wotan.suse.de>
+References: <20090306192625.GA3267@linux.intel.com> <20090307084732.b01bcfee.minchan.kim@barrios-desktop> <20090309164316.GB31140@linux.intel.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-16249-1236678927-0001-2"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090309164316.GB31140@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mark gross <mgross@linux.intel.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Mon, Mar 09, 2009 at 09:43:16AM -0700, mark gross wrote:
+> On Sat, Mar 07, 2009 at 08:47:32AM +0900, Minchan Kim wrote:
+> > Nick already found and solved this problem .
+> > It can help you. 
+> > 
+> > http://patchwork.kernel.org/patch/860/
+> > 
+> 
+> Wow, this reads just like the problem we are seeing.  I'll try the
+> patch and let the test run for a few days!
+> 
+> We've even see it come out of the live lock once in a while as well.  I
+> was thinking cache coherency HW issue until this :)
+> 
+> I'll send an update after running the test.
 
---=_freyr.drzeus.cx-16249-1236678927-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Note that after some discussion, the accepted fix looks a bit
+different (and might potentially fix another problem if the compiler
+gets very smart, although gcc doesn't seem to).
 
-On Tue, 10 Mar 2009 16:19:17 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
-
->=20
-> Here is the initial patch and tool for finding the missing pages.
->=20
-> In the following example, the pages with no flags set is kind of too
-> many (1816MB), but hopefully your missing pages will have PG_reserved
-> or other flags set ;-)
->=20
-> # ./page-types
-> L:locked E:error R:referenced U:uptodate D:dirty L:lru A:active S:slab W:=
-writeback x:reclaim B:buddy r:reserved c:swapcache b:swapbacked
-> =20
-
-Thanks. I'll have a look in a bit. Right now I'm very close to a
-complete bisect. It is just ftrace commits left though, so I'm somewhat
-sceptical that it is correct. ftrace isn't even turned on in the
-kernels I've been testing.
-
-The remaining commits are ec1bb60bb..6712e299.
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-16249-1236678927-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkm2OQ0ACgkQ7b8eESbyJLivvgCg1U2UCz338nPNPh0yyHy92VS6
-DUYAoKL7Vp+Y4w1661q6ITEJ8HPI0g9b
-=ywcd
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-16249-1236678927-0001-2--
+Git commit e8c82c2e23e3527e0c9dc195e432c16784d270fa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
