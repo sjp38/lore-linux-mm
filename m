@@ -1,140 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 04C386B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:28:22 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n2ANO8RA017343
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:24:08 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2ANSLiN207776
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:28:21 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2ANSJuC019508
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:28:20 -0600
-Date: Tue, 10 Mar 2009 18:28:19 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090310232819.GA19832@us.ibm.com>
-References: <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain> <20090310215305.GA2078@x200.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090310215305.GA2078@x200.localdomain>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 55BE66B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 19:54:13 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2ANs3me011430
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 11 Mar 2009 08:54:03 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53E1C45DE51
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 08:54:03 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3107045DE50
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 08:54:03 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FAFC1DB803E
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 08:54:03 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CC0121DB8041
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 08:54:02 +0900 (JST)
+Date: Wed, 11 Mar 2009 08:52:41 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 3/4] memcg: softlimit caller via kswapd
+Message-Id: <20090311085241.1b893df0.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090310190242.GG26837@balbir.in.ibm.com>
+References: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090309164218.b64251b7.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090310190242.GG26837@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, mingo@elte.hu, xemul@openvz.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Quoting Alexey Dobriyan (adobriyan@gmail.com):
-> On Thu, Feb 26, 2009 at 06:57:55PM +0300, Alexey Dobriyan wrote:
-> > On Thu, Feb 12, 2009 at 03:04:05PM -0800, Dave Hansen wrote:
-> > > dave@nimitz:~/kernels/linux-2.6-openvz$ git diff v2.6.27.10... kernel/cpt/ | diffstat 
+On Wed, 11 Mar 2009 00:32:42 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:42:18]:
 > 
-> > >  47 files changed, 20702 insertions(+)
-> > > 
-> > > One important thing that leaves out is the interaction that this code
-> > > has with the rest of the kernel.  That's critically important when
-> > > considering long-term maintenance, and I'd be curious how the OpenVZ
-> > > folks view it. 
+> > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Looks like a dirty hack, replacing sc-> fields this way. I've
+> experimented a lot with per zone balancing and soft limits and it does
+> not work well. The reasons
+> 
+> 1. zone watermark balancing has a different goal than soft limit. Soft
+> limits are more of a mem cgroup feature rather than node/zone feature.
+I can't catch what you want to say, here.
+
+> IIRC, you called reclaim as hot-path for soft limit reclaim, my
+> experimentation is beginning to show changed behaviour
+> 
+> On a system with 4 CPUs and 4 Nodes, I find all CPUs spending time
+> doing reclaim, putting the hook in the reclaim path, makes the reclaim
+> dependent on the number of tasks and contention.
+> 
+> What does your test data/experimentation show?
+> 
+
+Not done very pricrse test but I admit that can happen.
+(BTW, 1 cpu per 1 node ?)
+How to call this is the my main concern, now.
+
+BTW, when you don't use softlimit, CPUs won't spend time in reclaim ?
+If 1 cpu per 1 node, 1 kswapd per 1 node. So, it doesn't sound strange.
+
+If it's better to add a softlimitd() for the system (means 1 thread for
+the whole system), modification is not difficult.
+(I think my code doesn't assume the caller is kswapd() other than /* comment */)
+
+Thanks,
+-Kame
+
+> > +		scan -= sc->nr_scanned;
+> > +	}
+> > +	return;
+> > +}
+> >  /*
+> >   * For kswapd, balance_pgdat() will work across all this node's zones until
+> >   * they are all at pages_high.
+> > @@ -1776,6 +1813,8 @@ static unsigned long balance_pgdat(pg_da
+> >  	 */
+> >  	int temp_priority[MAX_NR_ZONES];
 > > 
-> > OpenVZ as-is in some cases wants some functions to be made global
-> > (and if C/R code will be modular, exported). Or probably several
-> > iterators added.
+> > +	/* Refill softlimit queue */
+> > +	mem_cgroup_reschedule(pgdat->node_id);
+> >  loop_again:
+> >  	total_scanned = 0;
+> >  	sc.nr_reclaimed = 0;
+> > @@ -1856,6 +1895,9 @@ loop_again:
+> >  					       end_zone, 0))
+> >  				all_zones_ok = 0;
+> >  			temp_priority[i] = priority;
+> > +			/* Try soft limit at first */
+> > +			shrink_zone_softlimit(&sc, zone, order, priority,
+> > +					       8 * zone->pages_high, end_zone);
+> >  			sc.nr_scanned = 0;
+> >  			note_zone_scanning_priority(zone, priority);
+> >  			/*
 > > 
-> > But it's negligible amount of changes compared to main code.
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > 
 > 
-> Here is what C/R code wants from pid allocator.
-
-Yup.  Agreed.  That is exactly what I would have thought it would look
-like.  We may have found the first bit of helper code we can all agree
-on for c/r?  :)
-
-Eric may disagree as he wanted to play games with
-/proc/sys/kernel/pid_max, but that seems hard to pull off for nested
-pid namespaces.
-
-
-thanks,
--serge
-
-> With the introduction of hierarchical PID namespaces, struct pid can
-> have not one but many numbers -- tuple (pid_0, pid_1, ..., pid_N),
-> where pid_i is pid number in pid_ns which has level i.
+> -- 
+> 	Balbir
 > 
-> Now root pid_ns of container has level n -- numbers from level n to N
-> inclusively should be dumped and restored.
-> 
-> During struct pid creation first n-1 numbers can be anything, because the're
-> outside of pid_ns, but the rest should be the same.
-> 
-> Code will be ifdeffed and commented, but anyhow, this is an example of
-> change C/R will require from the rest of the kernel.
-> 
-> 
-> 
-> --- a/kernel/pid.c
-> +++ b/kernel/pid.c
-> @@ -182,6 +182,34 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
->  	return -1;
->  }
-> 
-> +static int set_pidmap(struct pid_namespace *pid_ns, pid_t pid)
-> +{
-> +	int offset;
-> +	struct pidmap *map;
-> +
-> +	offset = pid & BITS_PER_PAGE_MASK;
-> +	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
-> +	if (unlikely(!map->page)) {
-> +		void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-> +		/*
-> +		 * Free the page if someone raced with us
-> +		 * installing it:
-> +		 */
-> +		spin_lock_irq(&pidmap_lock);
-> +		if (map->page)
-> +			kfree(page);
-> +		else
-> +			map->page = page;
-> +		spin_unlock_irq(&pidmap_lock);
-> +		if (unlikely(!map->page))
-> +			return -ENOMEM;
-> +	}
-> +	if (test_and_set_bit(offset, map->page))
-> +		return -EBUSY;
-> +	atomic_dec(&map->nr_free);
-> +	return pid;
-> +}
-> +
->  int next_pidmap(struct pid_namespace *pid_ns, int last)
->  {
->  	int offset;
-> @@ -239,7 +267,7 @@ void free_pid(struct pid *pid)
->  	call_rcu(&pid->rcu, delayed_put_pid);
->  }
-> 
-> -struct pid *alloc_pid(struct pid_namespace *ns)
-> +struct pid *alloc_pid(struct pid_namespace *ns, int *cr_nr, unsigned int cr_level)
->  {
->  	struct pid *pid;
->  	enum pid_type type;
-> @@ -253,7 +281,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
-> 
->  	tmp = ns;
->  	for (i = ns->level; i >= 0; i--) {
-> -		nr = alloc_pidmap(tmp);
-> +		if (cr_nr && ns->level - i <= cr_level)
-> +			nr = set_pidmap(tmp, cr_nr[ns->level - i]);
-> +		else
-> +			nr = alloc_pidmap(tmp);
->  		if (nr < 0)
->  			goto out_free;
-> 
-> _______________________________________________
-> Containers mailing list
-> Containers@lists.linux-foundation.org
-> https://lists.linux-foundation.org/mailman/listinfo/containers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
