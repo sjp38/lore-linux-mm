@@ -1,168 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id BB0B96B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 01:05:39 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A55aXO017210
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 7367D6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 01:54:57 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A5ssQq006030
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 10 Mar 2009 14:05:36 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6FE7245DD78
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:05:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D0A245DD7F
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:05:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 22E7CE08006
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:05:36 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BF07FE08008
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:05:35 +0900 (JST)
-Date: Tue, 10 Mar 2009 14:04:16 +0900
+	Tue, 10 Mar 2009 14:54:55 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7387445DE50
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4805D45DE51
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BAF31DB803A
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3E4AE08007
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:53 +0900 (JST)
+Date: Tue, 10 Mar 2009 14:53:34 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
-Message-Id: <20090310140416.ecf5ba18.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090310134757.38e37444.nishimura@mxp.nes.nec.co.jp>
-References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-	<20090310133316.b56d3319.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090310134757.38e37444.nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC][PATCH 1/4] memcg: add softlimit interface and utilitiy
+ function.
+Message-Id: <20090310145334.0473c3fe.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090309084844.GI24321@balbir.in.ibm.com>
+References: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090309163907.a3cee183.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090309074449.GH24321@balbir.in.ibm.com>
+	<20090309165507.9f57ad41.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090309084844.GI24321@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Mar 2009 13:47:57 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+On Mon, 9 Mar 2009 14:18:44 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Tue, 10 Mar 2009 13:33:16 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Tue, 10 Mar 2009 10:07:07 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:55:07]:
+> 
+> > On Mon, 9 Mar 2009 13:14:49 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > > 
-> > > From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > 
-> > > memcg_test.txt says at 4.1:
-> > > 
-> > > 	This swap-in is one of the most complicated work. In do_swap_page(),
-> > > 	following events occur when pte is unchanged.
-> > > 
-> > > 	(1) the page (SwapCache) is looked up.
-> > > 	(2) lock_page()
-> > > 	(3) try_charge_swapin()
-> > > 	(4) reuse_swap_page() (may call delete_swap_cache())
-> > > 	(5) commit_charge_swapin()
-> > > 	(6) swap_free().
-> > > 
-> > > 	Considering following situation for example.
-> > > 
-> > > 	(A) The page has not been charged before (2) and reuse_swap_page()
-> > > 	    doesn't call delete_from_swap_cache().
-> > > 	(B) The page has not been charged before (2) and reuse_swap_page()
-> > > 	    calls delete_from_swap_cache().
-> > > 	(C) The page has been charged before (2) and reuse_swap_page() doesn't
-> > > 	    call delete_from_swap_cache().
-> > > 	(D) The page has been charged before (2) and reuse_swap_page() calls
-> > > 	    delete_from_swap_cache().
-> > > 
-> > > 	    memory.usage/memsw.usage changes to this page/swp_entry will be
-> > > 	 Case          (A)      (B)       (C)     (D)
-> > >          Event
-> > >        Before (2)     0/ 1     0/ 1      1/ 1    1/ 1
-> > >           ===========================================
-> > >           (3)        +1/+1    +1/+1     +1/+1   +1/+1
-> > >           (4)          -       0/ 0       -     -1/ 0
-> > >           (5)         0/-1     0/ 0     -1/-1    0/ 0
-> > >           (6)          -       0/-1       -      0/-1
-> > >           ===========================================
-> > >        Result         1/ 1     1/ 1      1/ 1    1/ 1
-> > > 
-> > >        In any cases, charges to this page should be 1/ 1.
-> > > 
-> > > In case of (D), mem_cgroup_try_get_from_swapcache() returns NULL
-> > > (because lookup_swap_cgroup() returns NULL), so "+1/+1" at (3) means
-> > > charges to the memcg("foo") to which the "current" belongs.
-> > > OTOH, "-1/0" at (4) and "0/-1" at (6) means uncharges from the memcg("baa")
-> > > to which the page has been charged.
-> > > 
-> > > So, if the "foo" and "baa" is different(for example because of task move),
-> > > this charge will be moved from "baa" to "foo".
-> > > 
-> > > I think this is an unexpected behavior.
-> > > 
-> > > This patch fixes this by modifying mem_cgroup_try_get_from_swapcache()
-> > > to return the memcg to which the swapcache has been charged if PCG_USED bit
-> > > is set.
-> > > IIUC, checking PCG_USED bit of swapcache is safe under page lock.
-> > > 
-> > > 
-> > > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> > > ---
-> > >  mm/memcontrol.c |   15 +++++++++++++--
-> > >  1 files changed, 13 insertions(+), 2 deletions(-)
-> > > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 73c51c8..f2efbc0 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -909,13 +909,24 @@ nomem:
-> > >  static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
-> > >  {
-> > >  	struct mem_cgroup *mem;
-> > > +	struct page_cgroup *pc;
-> > >  	swp_entry_t ent;
-> > >  
-> > > +	VM_BUG_ON(!PageLocked(page));
-> > > +
-> > >  	if (!PageSwapCache(page))
-> > >  		return NULL;
-> > >  
-> > > -	ent.val = page_private(page);
-> > > -	mem = lookup_swap_cgroup(ent);
-> > > +	pc = lookup_page_cgroup(page);
-> > > +	/*
-> > > +	 * Used bit of swapcache is solid under page lock.
-> > > +	 */
-> > > +	if (PageCgroupUsed(pc))
-> > > +		mem = pc->mem_cgroup;
+> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:39:07]:
+> > Hmm, them, moving mem->softlimit to res->softlimit is ok ?
 > > 
-> > I've already acked but how about returning NULL here ?
-> > 
-> Returning NULL here means try_charge_swapin charges "current" memcg("foo"
-> in the patch description above).
-> So, it doesn't change current behavior at all.
+> > If no more "branch" to res_counter_charge/uncharge(), moving this to
+> > res_counter is ok to me.
+> >
+> 
+> There is a branch, but the additional excessive checks are gone.
+> It should be possible to reduce the overhead to comparisons though. 
 > 
 
-ok, maybe try_charge_swapin() should check Used bit...and set ptr=NULL 
-before reaching here.
+I'm now rewriting to use res_counter but do you have any good reason to
+irq-off in res_counter ?
+It seems there are no callers in irq path.
 
-Can't we move this 
-+ pc = lookup_page_cgroup(page);
-+ if (PageCgroupUsed(pc))
-
-check to try_charge_swapin() ? (I think this is safe because the page is locked.)
-
-By this, we can avoid more works in commit_charge().
-
+Thanks,
 -Kame
-
-> Thanks,
-> Daisuke Nishimura.
-> 
-> > THanks
-> > -Kame
-> > 
-> > > +	else {
-> > > +		ent.val = page_private(page);
-> > > +		mem = lookup_swap_cgroup(ent);
-> > > +	}
-> > >  	if (!mem)
-> > >  		return NULL;
-> > >  	if (!css_tryget(&mem->css))
-> > > 
-> > 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
