@@ -1,73 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 13F116B003D
-	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 21:11:15 -0400 (EDT)
-MIME-version: 1.0
-Content-transfer-encoding: 7BIT
-Content-type: TEXT/PLAIN; charset=US-ASCII
-Received: from xanadu.home ([66.131.194.97]) by VL-MH-MR002.ip.videotron.ca
- (Sun Java(tm) System Messaging Server 6.3-4.01 (built Aug  3 2007; 32bit))
- with ESMTP id <0KG900I66NAO1240@VL-MH-MR002.ip.videotron.ca> for
- linux-mm@kvack.org; Mon, 09 Mar 2009 21:11:14 -0400 (EDT)
-Date: Mon, 09 Mar 2009 21:11:12 -0400 (EDT)
-From: Nicolas Pitre <nico@cam.org>
-Subject: Re: [PATCH] atomic highmem kmap page pinning
-In-reply-to: <20090309133121.eab3bbd9.akpm@linux-foundation.org>
-Message-id: <alpine.LFD.2.00.0903092107240.30483@xanadu.home>
-References: <alpine.LFD.2.00.0903071731120.30483@xanadu.home>
- <20090309133121.eab3bbd9.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 927656B003D
+	for <linux-mm@kvack.org>; Mon,  9 Mar 2009 21:31:12 -0400 (EDT)
+Date: Tue, 10 Mar 2009 10:07:07 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH] memcg: charge swapcache to proper memcg
+Message-Id: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, minchan.kim@gmail.com, linux@arm.linux.org.uk
+Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Mar 2009, Andrew Morton wrote:
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-> On Sat, 07 Mar 2009 17:42:44 -0500 (EST)
-> Nicolas Pitre <nico@cam.org> wrote:
-> 
-> > 
-> > Discussion about this patch is settling, so I'd like to know if there 
-> > are more comments, or if official ACKs could be provided.  If people 
-> > agree I'd like to carry this patch in my ARM highmem patch series since 
-> > a couple things depend on this.
-> > 
-> > Andrew: You seemed OK with the original one.  Does this one pass your 
-> > grottiness test?
-> > 
-> > Anyone else?
-> 
-> OK by me.
+memcg_test.txt says at 4.1:
 
-Thanks.
+	This swap-in is one of the most complicated work. In do_swap_page(),
+	following events occur when pte is unchanged.
 
-> > +/*
-> > + * Most architectures have no use for kmap_high_get(), so let's abstract
-> > + * the disabling of IRQ out of the locking in that case to save on a
-> > + * potential useless overhead.
-> > + */
-> > +#ifdef ARCH_NEEDS_KMAP_HIGH_GET
-> > +#define spin_lock_kmap()             spin_lock_irq(&kmap_lock)
-> > +#define spin_unlock_kmap()           spin_unlock_irq(&kmap_lock)
-> > +#define spin_lock_kmap_any(flags)    spin_lock_irqsave(&kmap_lock, flags)
-> > +#define spin_unlock_kmap_any(flags)  spin_unlock_irqrestore(&kmap_lock, flags)
-> > +#else
-> > +#define spin_lock_kmap()             spin_lock(&kmap_lock)
-> > +#define spin_unlock_kmap()           spin_unlock(&kmap_lock)
-> > +#define spin_lock_kmap_any(flags)    \
-> > +	do { spin_lock(&kmap_lock); (void)(flags); } while (0)
-> > +#define spin_unlock_kmap_any(flags)  \
-> > +	do { spin_unlock(&kmap_lock); (void)(flags); } while (0)
-> > +#endif
-> 
-> It's a little bit misleading to discover that a "function" called
-> spin_lock_kmap() secretly does an irq_disable().  Perhaps just remove
-> the "spin_" from all these identifiers?
+	(1) the page (SwapCache) is looked up.
+	(2) lock_page()
+	(3) try_charge_swapin()
+	(4) reuse_swap_page() (may call delete_swap_cache())
+	(5) commit_charge_swapin()
+	(6) swap_free().
 
-OK, done.
+	Considering following situation for example.
+
+	(A) The page has not been charged before (2) and reuse_swap_page()
+	    doesn't call delete_from_swap_cache().
+	(B) The page has not been charged before (2) and reuse_swap_page()
+	    calls delete_from_swap_cache().
+	(C) The page has been charged before (2) and reuse_swap_page() doesn't
+	    call delete_from_swap_cache().
+	(D) The page has been charged before (2) and reuse_swap_page() calls
+	    delete_from_swap_cache().
+
+	    memory.usage/memsw.usage changes to this page/swp_entry will be
+	 Case          (A)      (B)       (C)     (D)
+         Event
+       Before (2)     0/ 1     0/ 1      1/ 1    1/ 1
+          ===========================================
+          (3)        +1/+1    +1/+1     +1/+1   +1/+1
+          (4)          -       0/ 0       -     -1/ 0
+          (5)         0/-1     0/ 0     -1/-1    0/ 0
+          (6)          -       0/-1       -      0/-1
+          ===========================================
+       Result         1/ 1     1/ 1      1/ 1    1/ 1
+
+       In any cases, charges to this page should be 1/ 1.
+
+In case of (D), mem_cgroup_try_get_from_swapcache() returns NULL
+(because lookup_swap_cgroup() returns NULL), so "+1/+1" at (3) means
+charges to the memcg("foo") to which the "current" belongs.
+OTOH, "-1/0" at (4) and "0/-1" at (6) means uncharges from the memcg("baa")
+to which the page has been charged.
+
+So, if the "foo" and "baa" is different(for example because of task move),
+this charge will be moved from "baa" to "foo".
+
+I think this is an unexpected behavior.
+
+This patch fixes this by modifying mem_cgroup_try_get_from_swapcache()
+to return the memcg to which the swapcache has been charged if PCG_USED bit
+is set.
+IIUC, checking PCG_USED bit of swapcache is safe under page lock.
 
 
-Nicolas
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ mm/memcontrol.c |   15 +++++++++++++--
+ 1 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 73c51c8..f2efbc0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -909,13 +909,24 @@ nomem:
+ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+ {
+ 	struct mem_cgroup *mem;
++	struct page_cgroup *pc;
+ 	swp_entry_t ent;
+ 
++	VM_BUG_ON(!PageLocked(page));
++
+ 	if (!PageSwapCache(page))
+ 		return NULL;
+ 
+-	ent.val = page_private(page);
+-	mem = lookup_swap_cgroup(ent);
++	pc = lookup_page_cgroup(page);
++	/*
++	 * Used bit of swapcache is solid under page lock.
++	 */
++	if (PageCgroupUsed(pc))
++		mem = pc->mem_cgroup;
++	else {
++		ent.val = page_private(page);
++		mem = lookup_swap_cgroup(ent);
++	}
+ 	if (!mem)
+ 		return NULL;
+ 	if (!css_tryget(&mem->css))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
