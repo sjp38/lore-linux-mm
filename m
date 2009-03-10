@@ -1,84 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id F268E6B004D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 16:21:31 -0400 (EDT)
-Date: Tue, 10 Mar 2009 21:21:18 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090310212118.7bf17af6@mjolnir.ossman.eu>
-In-Reply-To: <20090310131155.GA9654@localhost>
-References: <20090307220055.6f79beb8@mjolnir.ossman.eu>
-	<20090309013742.GA11416@localhost>
-	<20090309020701.GA381@localhost>
-	<20090309084045.2c652fbf@mjolnir.ossman.eu>
-	<20090309142241.GA4437@localhost>
-	<20090309160216.2048e898@mjolnir.ossman.eu>
-	<20090310024135.GA6832@localhost>
-	<20090310081917.GA28968@localhost>
-	<20090310105523.3dfd4873@mjolnir.ossman.eu>
-	<20090310122210.GA8415@localhost>
-	<20090310131155.GA9654@localhost>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-20822-1236716485-0001-2"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3939A6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 17:46:08 -0400 (EDT)
+Received: by fxm26 with SMTP id 26so300393fxm.38
+        for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:46:05 -0700 (PDT)
+Date: Wed, 11 Mar 2009 00:53:05 +0300
+From: Alexey Dobriyan <adobriyan@gmail.com>
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+	do?
+Message-ID: <20090310215305.GA2078@x200.localdomain>
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu> <1234285547.30155.6.camel@nimitz> <20090211141434.dfa1d079.akpm@linux-foundation.org> <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090226155755.GA1456@x200.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mpm@selenic.com, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, mingo@elte.hu, torvalds@linux-foundation.org, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Thu, Feb 26, 2009 at 06:57:55PM +0300, Alexey Dobriyan wrote:
+> On Thu, Feb 12, 2009 at 03:04:05PM -0800, Dave Hansen wrote:
+> > dave@nimitz:~/kernels/linux-2.6-openvz$ git diff v2.6.27.10... kernel/cpt/ | diffstat 
 
---=_freyr.drzeus.cx-20822-1236716485-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+> >  47 files changed, 20702 insertions(+)
+> > 
+> > One important thing that leaves out is the interaction that this code
+> > has with the rest of the kernel.  That's critically important when
+> > considering long-term maintenance, and I'd be curious how the OpenVZ
+> > folks view it. 
+> 
+> OpenVZ as-is in some cases wants some functions to be made global
+> (and if C/R code will be modular, exported). Or probably several
+> iterators added.
+> 
+> But it's negligible amount of changes compared to main code.
 
-On Tue, 10 Mar 2009 21:11:55 +0800
-Wu Fengguang <fengguang.wu@intel.com> wrote:
+Here is what C/R code wants from pid allocator.
 
-> If we run eatmem or the following commands to take up free memory,
-> the missing pages will show up :-)
->=20
->         dd if=3D/dev/zero of=3D/tmp/s bs=3D1M count=3D1 seek=3D1024
->         cp /tmp/s /dev/null
->=20
+With the introduction of hierarchical PID namespaces, struct pid can
+have not one but many numbers -- tuple (pid_0, pid_1, ..., pid_N),
+where pid_i is pid number in pid_ns which has level i.
 
-Not here, which now means I've "found" all of my missing 170 MB.
+Now root pid_ns of container has level n -- numbers from level n to N
+inclusively should be dumped and restored.
 
-On 2.6.27, when I fill the page cache I still get over 90 MB left in
-"noflags":
+During struct pid creation first n-1 numbers can be anything, because the're
+outside of pid_ns, but the rest should be the same.
 
-0x20000	     24394       95  _________________n  noflags
+Code will be ifdeffed and commented, but anyhow, this is an example of
+change C/R will require from the rest of the kernel.
 
-The same thing with 2.6.26 almost completely drains it:
 
-0x20000	      3697       14  _________________n  noflags
 
-Another interesting data point is that those 80 MB always seem to be
-the exact same number of pages every boot.
-
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-20822-1236716485-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkm2y8IACgkQ7b8eESbyJLhhMQCfSK1DUFcMTHFEbFsxM9KpYlL/
-dRUAoLLCwcv+g0kn17iTDggkE3eLUGII
-=hyiC
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-20822-1236716485-0001-2--
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -182,6 +182,34 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
+ 	return -1;
+ }
+ 
++static int set_pidmap(struct pid_namespace *pid_ns, pid_t pid)
++{
++	int offset;
++	struct pidmap *map;
++
++	offset = pid & BITS_PER_PAGE_MASK;
++	map = &pid_ns->pidmap[pid/BITS_PER_PAGE];
++	if (unlikely(!map->page)) {
++		void *page = kzalloc(PAGE_SIZE, GFP_KERNEL);
++		/*
++		 * Free the page if someone raced with us
++		 * installing it:
++		 */
++		spin_lock_irq(&pidmap_lock);
++		if (map->page)
++			kfree(page);
++		else
++			map->page = page;
++		spin_unlock_irq(&pidmap_lock);
++		if (unlikely(!map->page))
++			return -ENOMEM;
++	}
++	if (test_and_set_bit(offset, map->page))
++		return -EBUSY;
++	atomic_dec(&map->nr_free);
++	return pid;
++}
++
+ int next_pidmap(struct pid_namespace *pid_ns, int last)
+ {
+ 	int offset;
+@@ -239,7 +267,7 @@ void free_pid(struct pid *pid)
+ 	call_rcu(&pid->rcu, delayed_put_pid);
+ }
+ 
+-struct pid *alloc_pid(struct pid_namespace *ns)
++struct pid *alloc_pid(struct pid_namespace *ns, int *cr_nr, unsigned int cr_level)
+ {
+ 	struct pid *pid;
+ 	enum pid_type type;
+@@ -253,7 +281,10 @@ struct pid *alloc_pid(struct pid_namespace *ns)
+ 
+ 	tmp = ns;
+ 	for (i = ns->level; i >= 0; i--) {
+-		nr = alloc_pidmap(tmp);
++		if (cr_nr && ns->level - i <= cr_level)
++			nr = set_pidmap(tmp, cr_nr[ns->level - i]);
++		else
++			nr = alloc_pidmap(tmp);
+ 		if (nr < 0)
+ 			goto out_free;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
