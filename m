@@ -1,67 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 7367D6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 01:54:57 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2A5ssQq006030
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 10 Mar 2009 14:54:55 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7387445DE50
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4805D45DE51
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BAF31DB803A
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:54 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D3E4AE08007
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 14:54:53 +0900 (JST)
-Date: Tue, 10 Mar 2009 14:53:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 1/4] memcg: add softlimit interface and utilitiy
- function.
-Message-Id: <20090310145334.0473c3fe.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090309084844.GI24321@balbir.in.ibm.com>
-References: <20090309163745.5e3805ba.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090309163907.a3cee183.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090309074449.GH24321@balbir.in.ibm.com>
-	<20090309165507.9f57ad41.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090309084844.GI24321@balbir.in.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE6D6B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 02:56:19 -0400 (EDT)
+Date: Tue, 10 Mar 2009 07:56:05 +0100
+From: Pierre Ossman <drzeus@drzeus.cx>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090310075605.52b22046@mjolnir.ossman.eu>
+In-Reply-To: <20090310024135.GA6832@localhost>
+References: <bug-12832-27@http.bugzilla.kernel.org/>
+	<20090307122452.bf43fbe4.akpm@linux-foundation.org>
+	<20090307220055.6f79beb8@mjolnir.ossman.eu>
+	<20090309013742.GA11416@localhost>
+	<20090309020701.GA381@localhost>
+	<20090309084045.2c652fbf@mjolnir.ossman.eu>
+	<20090309142241.GA4437@localhost>
+	<20090309160216.2048e898@mjolnir.ossman.eu>
+	<20090310024135.GA6832@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-14861-1236668170-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Mar 2009 14:18:44 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:55:07]:
-> 
-> > On Mon, 9 Mar 2009 13:14:49 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-09 16:39:07]:
-> > Hmm, them, moving mem->softlimit to res->softlimit is ok ?
-> > 
-> > If no more "branch" to res_counter_charge/uncharge(), moving this to
-> > res_counter is ok to me.
-> >
-> 
-> There is a branch, but the additional excessive checks are gone.
-> It should be possible to reduce the overhead to comparisons though. 
-> 
+--=_freyr.drzeus.cx-14861-1236668170-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-I'm now rewriting to use res_counter but do you have any good reason to
-irq-off in res_counter ?
-It seems there are no callers in irq path.
+On Tue, 10 Mar 2009 10:41:35 +0800
+Wu Fengguang <fengguang.wu@intel.com> wrote:
 
-Thanks,
--Kame
+>=20
+>         pgfault 25624481
+>         pgmajfault 2490
+>         pgrefill_dma 8144
+>         pgrefill_dma32 103508
+>         pgsteal_dma 4503
+>         pgsteal_dma32 179395
+>         pgscan_kswapd_dma 4999
+>         pgscan_kswapd_dma32 180546
+>         pgscan_direct_dma32 384
+>         slabs_scanned 153856
+>=20
+> The above vmstat numbers are a bit large, maybe it's not a fresh booted s=
+ystem?
+>=20
+
+Probably not. I just grabbed those stats as it was compiling the next
+kernel. It takes two hours, so I'm trying to do as many things in
+parallel as once. :/
+
+Rgds
+--=20
+     -- Pierre Ossman
+
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
+
+--=_freyr.drzeus.cx-14861-1236668170-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+
+iEYEARECAAYFAkm2DwkACgkQ7b8eESbyJLhKXACeK3wwBiXKpVKTlupM3ndGCPPv
+PDgAoMc7t7qqMS0/3a38Lu2c64l0O2T6
+=CFE/
+-----END PGP SIGNATURE-----
+
+--=_freyr.drzeus.cx-14861-1236668170-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
