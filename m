@@ -1,58 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A073F6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:07:22 -0400 (EDT)
-Date: Wed, 11 Mar 2009 20:06:55 +0100
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 805776B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:15:39 -0400 (EDT)
+Date: Wed, 11 Mar 2009 20:15:26 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090311190655.GM27823@random.random>
-References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random> <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+Message-ID: <20090311191526.GN27823@random.random>
+References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311182216.GJ27823@random.random> <20090311190655.GA690@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+In-Reply-To: <20090311190655.GA690@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 11, 2009 at 11:46:17AM -0700, Linus Torvalds wrote:
-> 
-> 
-> On Wed, 11 Mar 2009, Andrea Arcangeli wrote:
-> 
-> > On Wed, Mar 11, 2009 at 10:58:17AM -0700, Linus Torvalds wrote:
-> > > As far as I can tell, it's the same old problem that we've always had: if 
-> > > you fork(), it's unclear who is going to do the first write - parent or 
-> > > child (and "parent" in this case can include any number of threads that 
-> > > share the VM, of course).
-> > 
-> > The child doesn't touch any page. Calling fork just generates O_DIRECT
-> > corruption in the parent regardless of what the child does.
-> 
-> You aren't listening.
-> 
-> It depends on who does the write. If the _parent_ does the write (with 
-> another thread or not), then the _parent_ gets the COW.
-> 
-> That's all I said.
+On Wed, Mar 11, 2009 at 08:06:55PM +0100, Ingo Molnar wrote:
+> Good - i saw the '(fast-)gup fix' qualifier and fast-gup is a 
+> fresh feature. If the problem existed in earlier kernels too 
+> then i guess it isnt urgent.
 
-I only wanted to clarify this doesn't require the child to touch the
-page at all.
-
-> If the idiots who use O_DIRECT don't understand that, then hey, it's their 
-> problem. I have long been of the opinion that we should not support 
-> O_DIRECT at all, and that it's a totally broken premise to start with. 
-
-Well if you don't like it used by databases, O_DIRECT is still ideal for
-KVM. Guest caches runs at cpu core speed unlike host cache. Not that
-KVM can reproduce this bug (all ram where KVM would be doing O_DIRECT
-is mapped MADV_DONTFORK, and besides guest physical ram has to be
-allocated with memalign(4096) ;).
-
-Said that I agree it'd be better off to nuke O_DIRECT than to leave
-this bug as O_DIRECT should not break the usual memory-protection
-semantics provided by read() and fork() syscalls.
+It always existed yes. The reason of the (fast-) qualifier is because
+gup-fast made it harder to fix this in mainline (there is also a patch
+floating around for 2.6.18 based kernels that is simpler thanks to
+gup-fast not being there). The trouble of gup-fast is that doing the
+check of page_count inside PT lock (or mmap_sem write mode like in
+fork(), but ksm only takes mmap_sem in read mode and it relied on PT
+lock only) wasn't enough anymore to be sure the page_count wouldn't
+increase from under us just after we read it, because a gup-fast could
+be running in another CPU without mmap_sem and without PT lock
+taken. So fixing this on mainline has been a bit harder as I had to
+prevent gup-fast to go ahead in the fast path, in a way that didn't
+send IPIs to flush the smp-tlb before reading the page_count (so to
+avoid sending IPIs for every anon page mapped writeable).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
