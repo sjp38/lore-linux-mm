@@ -1,50 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id DB65A6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:26:45 -0400 (EDT)
-Subject: Re: [PATCH] fix/improve generic page table walker
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20090311144951.58c6ab60@skybase>
-References: <20090311144951.58c6ab60@skybase>
-Content-Type: text/plain
-Date: Wed, 11 Mar 2009 12:24:23 -0500
-Message-Id: <1236792263.3205.45.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 0917E6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:28:33 -0400 (EDT)
+Date: Wed, 11 Mar 2009 13:28:31 -0400 (EDT)
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+In-Reply-To: <20090311175556.2a127801@mjolnir.ossman.eu>
+Message-ID: <alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com>
+References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
+ <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
+ <20090311175556.2a127801@mjolnir.ossman.eu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org
+To: Pierre Ossman <drzeus@drzeus.cx>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-03-11 at 14:49 +0100, Martin Schwidefsky wrote:
-> From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+On Wed, 11 Mar 2009, Pierre Ossman wrote:
+
+> On Wed, 11 Mar 2009 10:25:10 -0400 (EDT)
+> Steven Rostedt <rostedt@goodmis.org> wrote:
 > 
-> On s390 the /proc/pid/pagemap interface is currently broken. This is
-> caused by the unconditional loop over all pgd/pud entries as specified
-> by the address range passed to walk_page_range. The tricky bit here
-> is that the pgd++ in the outer loop may only be done if the page table
-> really has 4 levels. For the pud++ in the second loop the page table needs
-> to have at least 3 levels. With the dynamic page tables on s390 we can have
-> page tables with 2, 3 or 4 levels. Which means that the pgd and/or the
-> pud pointer can get out-of-bounds causing all kinds of mayhem.
+> > 
+> > The ring buffer is allocated at start up (although I'm thinking of making 
+> > it allocated when it is first used), and the allocations are done percpu. 
+> > 
+> > It allocates around 3 megs per cpu. How many CPUs were on this box?
+> > 
+> 
+> Is this per actual CPU though? Or per CONFIG_NR_CPUS? 3 MB times 64
+> equals roughly the lost memory. But then again, you said it was 10 MB
+> per CPU for 2.6.27...
 
-Not sure why this should be a problem without delving into the S390
-code. After all, x86 has 2, 3, or 4 levels as well (at compile time) in
-a way that's transparent to the walker.
+It uses the possible_cpu mask. How many possible CPUs are on your box? 
+I've thought about making this handle hot plug CPUs, but that will
+require a little more overhead for everyone, whether or not you hot plug a 
+cpu.
 
-> The proposed solution is to fast-forward over the hole between the start
-> address and the first vma and the hole between the last vma and the end
-> address. The pgd/pud/pmd/pte loops are used only for the address range
-> between the first and last vma. This guarantees that the page table
-> pointers stay in range for s390. For the other architectures this is
-> a small optimization.
-
-I've gone to lengths to keep VMAs out of the equation, so I can't say
-I'm excited about this solution.
-
--- 
-http://selenic.com : development and support for Mercurial and Linux
-
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
