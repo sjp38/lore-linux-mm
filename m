@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 821E36B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 10:25:11 -0400 (EDT)
-Date: Wed, 11 Mar 2009 10:25:10 -0400 (EDT)
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-In-Reply-To: <20090311073619.GA26691@localhost>
-Message-ID: <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
-References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
- <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id A09DB6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 10:28:47 -0400 (EDT)
+Message-ID: <49B7CA96.2040302@hp.com>
+Date: Wed, 11 Mar 2009 10:28:38 -0400
+From: "Alan D. Brunelle" <Alan.Brunelle@hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: PROBLEM: kernel BUG at mm/slab.c:3002!
+References: <49B68450.9000505@hp.com> <alpine.DEB.1.10.0903101339210.9350@qirst.com> <20090311022107.GB16561@wotan.suse.de>
+In-Reply-To: <20090311022107.GB16561@wotan.suse.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Pierre Ossman <drzeus@drzeus.cx>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Christoph Lameter <cl@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@cs.helsinki.fi>, mpm@selenic.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Wed, 11 Mar 2009, Wu Fengguang wrote:
-> > > > > 
-> > > > > This 80MB noflags pages together with the below 80MB lru pages are
-> > > > > very close to the missing page numbers :-) Could you run the following
-> > > > > commands on fresh booted 2.6.27 and post the output files? Thank you!
-> > > > > 
-> > > > >         dd if=/dev/zero of=/tmp/s bs=1M count=1 seek=1024
-> > > > >         cp /tmp/s /dev/null
-> > > > > 
-> > > > >         ./page-flags > flags
-> > > > >         ./page-areas =0x20000 > areas-noflags
-> > > > >         ./page-areas =0x00020 > areas-lru
-> > > > > 
-> > > > 
-> > > > Attached.
-> > > 
-> > > Thank you very much!
-> > > 
-> > > > I have to say, the patterns look very much like some kind of leak.
-> > > 
-> > > Wow it looks really interesting.  The lru pages and noflags pages make
-> > > perfect 1-page interleaved pattern...
-> > > 
-> > 
-> > Another breakthrough. I turned off everything in kernel/trace, and now
-> > the missing memory is back. Here's the relevant diff against the
-> > original .config:
-> > 
-[..]
-> > 
-> > I'll enable them one at a time and see when the bug reappears, but if
-> > you have some ideas on which it could be, that would be helpful. The
-> > machine takes some time to recompile a kernel. :)
+Nick Piggin wrote:
+> On Tue, Mar 10, 2009 at 01:40:02PM -0400, Christoph Lameter wrote:
+>> Oh nice memory corruption. May have something to do with the vmap work by
+>> Nick.
 > 
-> A quick question: are there any possibility of ftrace memory reservation?
+> Hmm, it might but I can't really tell. It happens in the vmap code
+> when kmallocing something, but it isn't obviously causing it AFAIKS.
+> 
+> Could you print out the values of the fields involved in the BUG()?
+> That might give some clues...
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
-The ring buffer is allocated at start up (although I'm thinking of making 
-it allocated when it is first used), and the allocations are done percpu. 
+FYI: The current assumption is that there is a hardware issue here
+resulting in corrupted memory. We are seeing some odd things in the
+hardware logs (but Linux apparently is /not/ detecting anything - no bad
+pages reported, for example). We tried a firmware update for the
+platform, but that did not fix things.
 
-It allocates around 3 megs per cpu. How many CPUs were on this box?
+My next steps are to see what kind of platform diagnostics are
+available, and I'm also trying to acquire another system to try the
+tests on (to see if they reproduce or not).
 
--- Steve
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
