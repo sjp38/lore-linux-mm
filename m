@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A4AC56B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:03:45 -0400 (EDT)
-Date: Wed, 11 Mar 2009 15:03:38 -0400 (EDT)
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-In-Reply-To: <20090311195601.47fe7798@mjolnir.ossman.eu>
-Message-ID: <alpine.DEB.2.00.0903111501070.3062@gandalf.stny.rr.com>
-References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
- <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com> <20090311175556.2a127801@mjolnir.ossman.eu>
- <alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com> <20090311193358.194cf3fb@mjolnir.ossman.eu> <alpine.DEB.2.00.0903111441190.3062@gandalf.stny.rr.com> <20090311195601.47fe7798@mjolnir.ossman.eu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C11BF6B0047
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:07:13 -0400 (EDT)
+Date: Wed, 11 Mar 2009 20:06:55 +0100
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Message-ID: <20090311190655.GA690@elte.hu>
+References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311182216.GJ27823@random.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090311182216.GJ27823@random.random>
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus@drzeus.cx>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 11 Mar 2009, Pierre Ossman wrote:
+* Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-> On Wed, 11 Mar 2009 14:48:02 -0400 (EDT)
-> Steven Rostedt <rostedt@goodmis.org> wrote:
-> 
+> On Wed, Mar 11, 2009 at 10:33:00AM -0700, Linus Torvalds wrote:
 > > 
-> > Hmm, I assumed (but could be wrong) that on boot up, the system checked 
-> > how many CPUs were physically possible, and updated the possible CPU 
-> > mask accordingly (default being NR_CPUS).
-> > 
-> > If this is not the case, then I'll have to implement hot plug allocation. 
-> > :-/
-> > 
+> > On Wed, 11 Mar 2009, Ingo Molnar wrote:
+> > > 
+> > > FYI, in case you missed it. Large MM fix - and it's awfully late 
+> > > in -rc7.
 > 
-> I have no idea, but every system doesn't suffer from this problem so
-> there is something more to this. Modern fedora kernels have NR_CPUS set
-> to 512, and it's not like I'm missing 1.5 GB here. :)
-> 
+> I didn't specify it, but I didn't mean to submit it for 
+> immediate inclusion. I posted it because it's ready and I 
+> wanted feedback from Hugh/Nick/linux-mm so we can get this 
+> fixed when next merge window open.
 
-I'm thinking it is a system dependent feature. I'm working on implementing 
-the ring buffers to only allocate for online CPUS. I just realized that 
-there's a check of a ring buffer cpu mask to see if it is OK to write to 
-that CPU buffer. This works out perfectly, to keep non allocated buffers 
-from being written to.
+Good - i saw the '(fast-)gup fix' qualifier and fast-gup is a 
+fresh feature. If the problem existed in earlier kernels too 
+then i guess it isnt urgent.
 
-Thanks,
-
--- Steve
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
