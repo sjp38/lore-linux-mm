@@ -1,13 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7126B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:46:49 -0400 (EDT)
-Date: Wed, 11 Mar 2009 17:46:38 +0100
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0926B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:56:06 -0400 (EDT)
+Date: Wed, 11 Mar 2009 17:55:56 +0100
 From: Pierre Ossman <drzeus@drzeus.cx>
 Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090311174638.2e964c0b@mjolnir.ossman.eu>
-In-Reply-To: <alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
-References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
+Message-ID: <20090311175556.2a127801@mjolnir.ossman.eu>
+In-Reply-To: <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
+References: <20090310024135.GA6832@localhost>
+	<20090310081917.GA28968@localhost>
+	<20090310105523.3dfd4873@mjolnir.ossman.eu>
 	<20090310122210.GA8415@localhost>
 	<20090310131155.GA9654@localhost>
 	<20090310212118.7bf17af6@mjolnir.ossman.eu>
@@ -16,12 +18,9 @@ References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
 	<20090311071445.GA13584@localhost>
 	<20090311082658.06ff605a@mjolnir.ossman.eu>
 	<20090311073619.GA26691@localhost>
-	<20090311085738.4233df4e@mjolnir.ossman.eu>
-	<20090311130022.GA22453@localhost>
-	<20090311160223.638b4bc9@mjolnir.ossman.eu>
-	<alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
+	<alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-31191-1236790003-0001-2"
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-31232-1236790560-0001-2"
 Sender: owner-linux-mm@kvack.org
 To: Steven Rostedt <rostedt@goodmis.org>
 Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
@@ -30,23 +29,25 @@ List-ID: <linux-mm.kvack.org>
 This is a MIME-formatted message.  If you see this text it means that your
 E-mail software does not support MIME-formatted messages.
 
---=_freyr.drzeus.cx-31191-1236790003-0001-2
+--=_freyr.drzeus.cx-31232-1236790560-0001-2
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 11 Mar 2009 11:47:16 -0400 (EDT)
+On Wed, 11 Mar 2009 10:25:10 -0400 (EDT)
 Steven Rostedt <rostedt@goodmis.org> wrote:
 
 >=20
-> BTW, which kernel are you testing?  2.6.27, ftrace had its own special=20
-> buffering system. It played tricks with the page structs of the pages in=
+> The ring buffer is allocated at start up (although I'm thinking of making=
 =20
-> the buffer. It used the lru parts of the pages to link list itself.
-> I just booted on a straight 2.6.27 with tracing configured.
+> it allocated when it is first used), and the allocations are done percpu.=
+=20
+>=20
+> It allocates around 3 megs per cpu. How many CPUs were on this box?
 >=20
 
-I've been primarily testing 2.6.27, yes. I think I tested 2.6.29-rc7 at
-the beginning of this, but my memory is a bit fuzzy so I better retest.
+Is this per actual CPU though? Or per CONFIG_NR_CPUS? 3 MB times 64
+equals roughly the lost memory. But then again, you said it was 10 MB
+per CPU for 2.6.27...
 
 Rgds
 --=20
@@ -57,7 +58,7 @@ Rgds
   for SMTP traffic and consider using PGP for end-to-end
   encryption.
 
---=_freyr.drzeus.cx-31191-1236790003-0001-2
+--=_freyr.drzeus.cx-31232-1236790560-0001-2
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: attachment; filename=signature.asc
@@ -65,12 +66,12 @@ Content-Disposition: attachment; filename=signature.asc
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2.0.11 (GNU/Linux)
 
-iEYEARECAAYFAkm36vAACgkQ7b8eESbyJLh6vACggHvoj19x7ppJnBcnLSwphdSJ
-sAkAnjP4U1uIoPFGiQD6XkqNHZ6gqjP0
-=euqX
+iEYEARECAAYFAkm37R8ACgkQ7b8eESbyJLiZ1gCcDq+EJwYimHQXQ/I8DL2z0IRB
+ktIAnAjk00R4DSgcpJjyz1jvdfVI3wgV
+=ctsG
 -----END PGP SIGNATURE-----
 
---=_freyr.drzeus.cx-31191-1236790003-0001-2--
+--=_freyr.drzeus.cx-31232-1236790560-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
