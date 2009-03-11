@@ -1,45 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0917E6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:28:33 -0400 (EDT)
-Date: Wed, 11 Mar 2009 13:28:31 -0400 (EDT)
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-In-Reply-To: <20090311175556.2a127801@mjolnir.ossman.eu>
-Message-ID: <alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com>
-References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
- <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
- <20090311175556.2a127801@mjolnir.ossman.eu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C65576B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:35:39 -0400 (EDT)
+Date: Wed, 11 Mar 2009 10:33:00 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+In-Reply-To: <20090311170611.GA2079@elte.hu>
+Message-ID: <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
+References: <20090311170611.GA2079@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus@drzeus.cx>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 11 Mar 2009, Pierre Ossman wrote:
-
-> On Wed, 11 Mar 2009 10:25:10 -0400 (EDT)
-> Steven Rostedt <rostedt@goodmis.org> wrote:
+On Wed, 11 Mar 2009, Ingo Molnar wrote:
 > 
-> > 
-> > The ring buffer is allocated at start up (although I'm thinking of making 
-> > it allocated when it is first used), and the allocations are done percpu. 
-> > 
-> > It allocates around 3 megs per cpu. How many CPUs were on this box?
-> > 
-> 
-> Is this per actual CPU though? Or per CONFIG_NR_CPUS? 3 MB times 64
-> equals roughly the lost memory. But then again, you said it was 10 MB
-> per CPU for 2.6.27...
+> FYI, in case you missed it. Large MM fix - and it's awfully late 
+> in -rc7.
 
-It uses the possible_cpu mask. How many possible CPUs are on your box? 
-I've thought about making this handle hot plug CPUs, but that will
-require a little more overhead for everyone, whether or not you hot plug a 
-cpu.
+Yeah, I'm not taking this at this point. No way, no-how.
 
--- Steve
+If there is no simpler and obvious fix, it needs to go through -stable, 
+after having cooked in 2.6.30-rc for a while. Especially as this is a 
+totally uninteresting usage case that I can't see as being at all relevant 
+to any real world.
+
+Anybody who mixes O_DIRECT and fork() (and threads) is already doing some 
+seriously strange things. Nothing new there.
+
+And quite frankly, the patch is so ugly as-is that I'm not likely to take 
+it even into the 2.6.30 merge window unless it can be cleaned up. That 
+whole fork_pre_cow function is too f*cking ugly to live. We just don't 
+write code like this in the kernel.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
