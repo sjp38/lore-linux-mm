@@ -1,61 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 594AC6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:22:28 -0400 (EDT)
-Date: Wed, 11 Mar 2009 19:22:16 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090311182216.GJ27823@random.random>
-References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BEF6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:34:20 -0400 (EDT)
+Date: Wed, 11 Mar 2009 19:33:58 +0100
+From: Pierre Ossman <drzeus@drzeus.cx>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090311193358.194cf3fb@mjolnir.ossman.eu>
+In-Reply-To: <alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com>
+References: <20090310024135.GA6832@localhost>
+	<20090310081917.GA28968@localhost>
+	<20090310105523.3dfd4873@mjolnir.ossman.eu>
+	<20090310122210.GA8415@localhost>
+	<20090310131155.GA9654@localhost>
+	<20090310212118.7bf17af6@mjolnir.ossman.eu>
+	<20090311013739.GA7078@localhost>
+	<20090311075703.35de2488@mjolnir.ossman.eu>
+	<20090311071445.GA13584@localhost>
+	<20090311082658.06ff605a@mjolnir.ossman.eu>
+	<20090311073619.GA26691@localhost>
+	<alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
+	<20090311175556.2a127801@mjolnir.ossman.eu>
+	<alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-31788-1236796453-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 11, 2009 at 10:33:00AM -0700, Linus Torvalds wrote:
-> 
-> On Wed, 11 Mar 2009, Ingo Molnar wrote:
-> > 
-> > FYI, in case you missed it. Large MM fix - and it's awfully late 
-> > in -rc7.
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-I didn't specify it, but I didn't mean to submit it for immediate
-inclusion. I posted it because it's ready and I wanted feedback from
-Hugh/Nick/linux-mm so we can get this fixed when next merge window
-open.
+--=_freyr.drzeus.cx-31788-1236796453-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-> Yeah, I'm not taking this at this point. No way, no-how.
-> 
-> If there is no simpler and obvious fix, it needs to go through -stable, 
-> after having cooked in 2.6.30-rc for a while. Especially as this is a 
-> totally uninteresting usage case that I can't see as being at all relevant 
-> to any real world.
+On Wed, 11 Mar 2009 13:28:31 -0400 (EDT)
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-Actually AFIK there are mission critical real world applications that
-used 512byte blocksize that were affected by this (I CC'ed relevant
-people who knows). However this is rare thing so it almost never
-triggers because the window is so small.
+>=20
+> On Wed, 11 Mar 2009, Pierre Ossman wrote:
+>=20
+> >=20
+> > Is this per actual CPU though? Or per CONFIG_NR_CPUS? 3 MB times 64
+> > equals roughly the lost memory. But then again, you said it was 10 MB
+> > per CPU for 2.6.27...
+>=20
+> It uses the possible_cpu mask. How many possible CPUs are on your box?=20
+> I've thought about making this handle hot plug CPUs, but that will
+> require a little more overhead for everyone, whether or not you hot plug =
+a=20
+> cpu.
+>=20
 
-> Anybody who mixes O_DIRECT and fork() (and threads) is already doing some 
-> seriously strange things. Nothing new there.
+CONFIG_NR_CPUS is 64 for these compiles.
 
-Most apps aren't affected of course. But almost all apps eventually
-call fork (system/fork/exec/anything). Calling fork currently is
-enough to generate memory corruption in the parent (i.e. lost O_DIRECT
-reads from disk).
+Rgds
+--=20
+     -- Pierre Ossman
 
-> And quite frankly, the patch is so ugly as-is that I'm not likely to take 
-> it even into the 2.6.30 merge window unless it can be cleaned up. That 
-> whole fork_pre_cow function is too f*cking ugly to live. We just don't 
-> write code like this in the kernel.
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
 
-Yes, this is exactly why I posted it now, to get feedback, it wasn't
-meant for submission. Feel free to write it yourself in another way of
-course, I included all relevant testcases to test alternate fixes too.
+--=_freyr.drzeus.cx-31788-1236796453-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+
+iEYEARECAAYFAkm4BB0ACgkQ7b8eESbyJLibBgCgsNDwvOTUfJ/aYynnnXBPbXEQ
+zT4AoNDMbw9qOyx4eipI3LCQo+bI11q0
+=z9Wh
+-----END PGP SIGNATURE-----
+
+--=_freyr.drzeus.cx-31788-1236796453-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
