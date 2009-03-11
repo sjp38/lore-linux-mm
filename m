@@ -1,42 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id C65576B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:35:39 -0400 (EDT)
-Date: Wed, 11 Mar 2009 10:33:00 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 156AD6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:41:11 -0400 (EDT)
+Date: Wed, 11 Mar 2009 18:41:03 +0100
+From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <20090311170611.GA2079@elte.hu>
-Message-ID: <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
-References: <20090311170611.GA2079@elte.hu>
+Message-ID: <20090311174103.GA11979@elte.hu>
+References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, Andrea Arcangeli <aarcange@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 11 Mar 2009, Ingo Molnar wrote:
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Wed, 11 Mar 2009, Ingo Molnar wrote:
+> > 
+> > FYI, in case you missed it. Large MM fix - and it's awfully 
+> > late in -rc7.
 > 
-> FYI, in case you missed it. Large MM fix - and it's awfully late 
-> in -rc7.
+> Yeah, I'm not taking this at this point. No way, no-how.
+> 
+> If there is no simpler and obvious fix, it needs to go through 
+> -stable, after having cooked in 2.6.30-rc for a while. 
+> Especially as this is a totally uninteresting usage case that 
+> I can't see as being at all relevant to any real world.
+> 
+> Anybody who mixes O_DIRECT and fork() (and threads) is already 
+> doing some seriously strange things. Nothing new there.
 
-Yeah, I'm not taking this at this point. No way, no-how.
+Hm, is there any security impact? Andrea is talking about data 
+corruption. I'm wondering whether that's just corruption 
+relative to whatever twisted semantics O_DIRECT has in this case 
+[which would be harmless], or some true pagecache corruption 
+going across COW (or other) protection domains that could be 
+exploited [which would not be harmless].
 
-If there is no simpler and obvious fix, it needs to go through -stable, 
-after having cooked in 2.6.30-rc for a while. Especially as this is a 
-totally uninteresting usage case that I can't see as being at all relevant 
-to any real world.
-
-Anybody who mixes O_DIRECT and fork() (and threads) is already doing some 
-seriously strange things. Nothing new there.
-
-And quite frankly, the patch is so ugly as-is that I'm not likely to take 
-it even into the 2.6.30 merge window unless it can be cleaned up. That 
-whole fork_pre_cow function is too f*cking ugly to live. We just don't 
-write code like this in the kernel.
-
-			Linus
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
