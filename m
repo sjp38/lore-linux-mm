@@ -1,88 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 428F76B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 17:44:19 -0400 (EDT)
-Date: Wed, 11 Mar 2009 22:43:53 +0100
-From: Pierre Ossman <drzeus@drzeus.cx>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090311224353.166887c9@mjolnir.ossman.eu>
-In-Reply-To: <20090311174638.2e964c0b@mjolnir.ossman.eu>
-References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
-	<20090310122210.GA8415@localhost>
-	<20090310131155.GA9654@localhost>
-	<20090310212118.7bf17af6@mjolnir.ossman.eu>
-	<20090311013739.GA7078@localhost>
-	<20090311075703.35de2488@mjolnir.ossman.eu>
-	<20090311071445.GA13584@localhost>
-	<20090311082658.06ff605a@mjolnir.ossman.eu>
-	<20090311073619.GA26691@localhost>
-	<20090311085738.4233df4e@mjolnir.ossman.eu>
-	<20090311130022.GA22453@localhost>
-	<20090311160223.638b4bc9@mjolnir.ossman.eu>
-	<alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
-	<20090311174638.2e964c0b@mjolnir.ossman.eu>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-1057-1236807835-0001-2"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id A8DF86B0047
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 17:57:33 -0400 (EDT)
+Date: Wed, 11 Mar 2009 22:57:21 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Message-ID: <20090311215721.GS27823@random.random>
+References: <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random> <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain> <alpine.LFD.2.00.0903111150120.32478@localhost.localdomain> <20090311195935.GO27823@random.random> <alpine.LFD.2.00.0903111306080.32478@localhost.localdomain> <alpine.LFD.2.00.0903111328180.32478@localhost.localdomain> <20090311205529.GR27823@random.random> <alpine.LFD.2.00.0903111417230.32478@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.0903111417230.32478@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a MIME-formatted message.  If you see this text it means that your
-E-mail software does not support MIME-formatted messages.
+On Wed, Mar 11, 2009 at 02:28:08PM -0700, Linus Torvalds wrote:
+> The fact that the non-fast "get_user_pages()" takes the mmap semaphore for 
+> reading doesn't even protect that. It just means that the pages made sense 
+> at the time the get_user_pages() happened, not necessarily at the time 
+> when the actual use of them did. 
 
---=_freyr.drzeus.cx-1057-1236807835-0001-2
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Indeed this is a generic problem, not specific to
+get_user_pages_fast. get_user_pages_fast just adds a few complications
+to serialize against.
 
-On Wed, 11 Mar 2009 17:46:38 +0100
-Pierre Ossman <drzeus@drzeus.cx> wrote:
+> O_DIRECT is actually the _simple_ case, since we won't be returning until 
+> it is done (ie it's not actually a async interface). So no, O_DIRECT 
+> doesn't need any interrupt handler games. It would just need to hold the 
+> sem over the actual call to the filesystem (ie just over the ->direct_IO() 
+> call).
 
-> On Wed, 11 Mar 2009 11:47:16 -0400 (EDT)
-> Steven Rostedt <rostedt@goodmis.org> wrote:
->=20
-> >=20
-> > BTW, which kernel are you testing?  2.6.27, ftrace had its own special=
-=20
-> > buffering system. It played tricks with the page structs of the pages i=
-n=20
-> > the buffer. It used the lru parts of the pages to link list itself.
-> > I just booted on a straight 2.6.27 with tracing configured.
-> >=20
->=20
-> I've been primarily testing 2.6.27, yes. I think I tested 2.6.29-rc7 at
-> the beginning of this, but my memory is a bit fuzzy so I better retest.
->=20
+I don't see how you can solve the race by only holding the sem only
+over the direct_IO call (and not until the I/O completion handler
+fires). I think to solve the race using mmap_sem only, the bio I/O
+completion handler that eventually calls into direct-io.c from irq
+context would need to up_read(&mmap_sem).
 
-Annoying... 2.6.28 and newer refuses to boot. Has someone broken the
-virtio_blk interface?
+The way my patch avoids to alter the I/O completion path running from
+irq context is by ensuring no I/O is going on at all to the pages that
+are being shared with the child, and by ensuring that any gup or
+gup-fast will trigger cow before it can write to the shared
+page. Pages simply can't be shared before I/O is complete.
 
-I'll reconfigure it to use piix tomorrow and see if I can get it
-running.
+> People want the relaxed synchronization we give them, and that's literally 
+> why get_user_pages_fast exists - because people don't want _more_ 
+> synchronization, they want _less_.
+> 
+> But the thing is, with less synchronization, the behavior really is 
+> surprising in the edge cases. Which is why I think "threaded fork" plus 
+> "get_user_pages_fast" just doesn't make sense to even _worry_ about. If 
+> you use O_DIRECT and mix it with fork, you get what you get, and it's 
+> random - exactly because people who want O_DIRECT don't want any locking. 
+> 
+> It's a user-space issue, not a kernel issue.
 
-Rgds
---=20
-     -- Pierre Ossman
-
-  WARNING: This correspondence is being monitored by the
-  Swedish government. Make sure your server uses encryption
-  for SMTP traffic and consider using PGP for end-to-end
-  encryption.
-
---=_freyr.drzeus.cx-1057-1236807835-0001-2
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.11 (GNU/Linux)
-
-iEYEARECAAYFAkm4MJsACgkQ7b8eESbyJLjvtgCfc/m/8OALovLR8y45FTRofd1I
-ux4AoOx1ZMluBf/cl5h6Fkien+hr8GF+
-=IvRw
------END PGP SIGNATURE-----
-
---=_freyr.drzeus.cx-1057-1236807835-0001-2--
+I think your point of view is clear, I sure can write userland code
+that copes it the currently altered memory protection semantics of
+read vs fork if fd is opened with O_DIRECT or drivers using gup, so
+I'll let the userland folks comment on it, some are in CC.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
