@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2676F6B004D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:48:04 -0400 (EDT)
-Date: Wed, 11 Mar 2009 14:48:02 -0400 (EDT)
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-In-Reply-To: <20090311193358.194cf3fb@mjolnir.ossman.eu>
-Message-ID: <alpine.DEB.2.00.0903111441190.3062@gandalf.stny.rr.com>
-References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
- <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com> <20090311175556.2a127801@mjolnir.ossman.eu>
- <alpine.DEB.2.00.0903111325560.3062@gandalf.stny.rr.com> <20090311193358.194cf3fb@mjolnir.ossman.eu>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E2B026B004D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:49:14 -0400 (EDT)
+Date: Wed, 11 Mar 2009 11:46:17 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+In-Reply-To: <20090311183748.GK27823@random.random>
+Message-ID: <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Pierre Ossman <drzeus@drzeus.cx>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 11 Mar 2009, Pierre Ossman wrote:
 
-> On Wed, 11 Mar 2009 13:28:31 -0400 (EDT)
-> Steven Rostedt <rostedt@goodmis.org> wrote:
+On Wed, 11 Mar 2009, Andrea Arcangeli wrote:
+
+> On Wed, Mar 11, 2009 at 10:58:17AM -0700, Linus Torvalds wrote:
+> > As far as I can tell, it's the same old problem that we've always had: if 
+> > you fork(), it's unclear who is going to do the first write - parent or 
+> > child (and "parent" in this case can include any number of threads that 
+> > share the VM, of course).
 > 
-> > 
-> > On Wed, 11 Mar 2009, Pierre Ossman wrote:
-> > 
-> > > 
-> > > Is this per actual CPU though? Or per CONFIG_NR_CPUS? 3 MB times 64
-> > > equals roughly the lost memory. But then again, you said it was 10 MB
-> > > per CPU for 2.6.27...
-> > 
-> > It uses the possible_cpu mask. How many possible CPUs are on your box? 
-> > I've thought about making this handle hot plug CPUs, but that will
-> > require a little more overhead for everyone, whether or not you hot plug a 
-> > cpu.
-> > 
+> The child doesn't touch any page. Calling fork just generates O_DIRECT
+> corruption in the parent regardless of what the child does.
+
+You aren't listening.
+
+It depends on who does the write. If the _parent_ does the write (with 
+another thread or not), then the _parent_ gets the COW.
+
+That's all I said.
+
+> > The rule has always been: don't mix fork() with page pinning. It doesn't 
+> > work. It never worked. It likely never will.
 > 
-> CONFIG_NR_CPUS is 64 for these compiles.
+> I never heard this rule here
 
-Hmm, I assumed (but could be wrong) that on boot up, the system checked 
-how many CPUs were physically possible, and updated the possible CPU 
-mask accordingly (default being NR_CPUS).
+It's never been written down, but it's obvious to anybody who looks at how 
+COW works for even five seconds. The fact is, the person doing the COW 
+after a fork() is the person who no longer has the same physical page 
+(because he got a new page).
 
-If this is not the case, then I'll have to implement hot plug allocation. 
-:-/
+So _anything- that depends on physical addresses simply _cannot_ work 
+concurrently with a fork. That has always been true.
 
-Thanks,
+If the idiots who use O_DIRECT don't understand that, then hey, it's their 
+problem. I have long been of the opinion that we should not support 
+O_DIRECT at all, and that it's a totally broken premise to start with. 
 
--- Steve
+This is just one of millions of reasons.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
