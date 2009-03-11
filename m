@@ -1,80 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 10ACA6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 08:26:48 -0400 (EDT)
-Date: Wed, 11 Mar 2009 20:26:11 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 83C886B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 09:01:46 -0400 (EDT)
+Date: Wed, 11 Mar 2009 21:00:22 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Memory usage per memory zone
-Message-ID: <20090311122611.GA8804@localhost>
-References: <e2dc2c680903110341g6c9644b8j87ce3b364807e37f@mail.gmail.com> <20090311114353.GA759@localhost> <e2dc2c680903110451m3cfa35d9s7a9fd942bcee39eb@mail.gmail.com> <20090311121123.GA7656@localhost> <e2dc2c680903110516v2c66d4a4h6a422cffceb12e2@mail.gmail.com>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090311130022.GA22453@localhost>
+References: <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost> <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <20090311085738.4233df4e@mjolnir.ossman.eu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e2dc2c680903110516v2c66d4a4h6a422cffceb12e2@mail.gmail.com>
+In-Reply-To: <20090311085738.4233df4e@mjolnir.ossman.eu>
 Sender: owner-linux-mm@kvack.org
-To: jack marrow <jackmarrow2@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pierre Ossman <drzeus@drzeus.cx>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 11, 2009 at 02:16:38PM +0200, jack marrow wrote:
-> 2009/3/11 Wu Fengguang <fengguang.wu@intel.com>:
-> > On Wed, Mar 11, 2009 at 01:51:32PM +0200, jack marrow wrote:
-> >> 2009/3/11 Wu Fengguang <fengguang.wu@intel.com>:
-> >> > Hi jack,
-> >> >
-> >> > On Wed, Mar 11, 2009 at 11:41:43AM +0100, jack marrow wrote:
-> >> >> Hello,
-> >> >>
-> >> >> I have a box where the oom-killer is killing processes due to running
-> >> >> out of memory in zone_normal. I can see using slabtop that the inode
-> >> >
-> >> > How do you know that the memory pressure on zone normal stand out alone?
-> >>
-> >> For the normal zone only, I see "all_unreclaimable: yes" and 3 megs of free ram:
-> >>
-> >> kernel: Normal free:2576kB min:3728kB low:7456kB high:11184kB
-> >> active:1304kB inactive:128kB present:901120kB pages_scanned:168951
-> >> all_unreclaimable? yes
-> >
-> > It's normal behavior. A Linux kernel tries hard to utilize most of
-> > the free memory for caching files :)
+Hi Pierre,
+
+On Wed, Mar 11, 2009 at 09:57:38AM +0200, Pierre Ossman wrote:
+> On Wed, 11 Mar 2009 15:36:19 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> With all_unreclaimable = yes is normal?
-
-Ah, perhaps not.
-
-Can you paste /proc/vmstat, /proc/meminfo, /proc/zoneinfo and
-/proc/slabinfo? Thank you.
-
-> >
-> >> >> caches are using up lots of memory and guess this is the problem, so
-> >> >> have cleared them using an echo to drop_caches.
-> >> >
-> >> > It would better be backed by concrete numbers...
-> >> >
-> >> >>
-> >> >> I would quite like to not guess though - is it possible to use slabtop
-> >> >> (or any other way) to view ram usage per zone so I can pick out the
-> >> >> culprit?
-> >> >
-> >> > /proc/zoneinfo and /proc/vmstat do have some per-zone numbers.
-> >> > Some of them deal with slabs.
-> >>
-> >> Thanks, I'll read up on how to interpret these.
-> >>
-> >> Do you recommend these two files for tracking down memory usage per
-> >> process per zone?
-> >
-> > No, the two interfaces provide system wide counters. A We have the well
-> > known tools "ps" and "top" for per-process numbers, hehe.
+> > 
+> > A quick question: are there any possibility of ftrace memory reservation?
+> > 
 > 
-> ps and top do not have per-zone numbers. How do I get those?
+> You tell me. CONFIG_FTRACE was always disabled, but CONFIG_HAVE_*FTRACE
+> is always on. FTRACE wasn't included in 2.6.26 though, and the bisect
+> showed only ftrace commits. So it would explain things.
 
-Maybe through the pagemap interface: Documentation/vm/pagemap.txt
+I worked up a simple debugging patch. Since the missing pages are
+continuously spanned, several stack dumping shall be enough to catch
+the page consumer.
 
-Thanks,
-Fengguang
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 27b8681..c0df7fd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1087,6 +1087,13 @@ again:
+ 			goto failed;
+ 	}
+ 
++	/* wfg - hunting the 40000 missing pages */
++	{
++		unsigned long pfn = page_to_pfn(page);
++		if (pfn > 0x1000 && (pfn & 0xfff) <= 1)
++			dump_stack();
++	}
++
+ 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+ 	zone_statistics(preferred_zone, zone);
+ 	local_irq_restore(flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
