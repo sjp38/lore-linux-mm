@@ -1,34 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6804F6B0047
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 18:35:33 -0400 (EDT)
-Date: Wed, 11 Mar 2009 15:32:38 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <alpine.DEB.1.10.0903111515320.12933@makko.or.mcafeemobile.com>
-Message-ID: <alpine.LFD.2.00.0903111531220.32478@localhost.localdomain>
-References: <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random> <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain> <alpine.LFD.2.00.0903111150120.32478@localhost.localdomain>
- <20090311195935.GO27823@random.random> <alpine.LFD.2.00.0903111306080.32478@localhost.localdomain> <alpine.LFD.2.00.0903111328180.32478@localhost.localdomain> <20090311205529.GR27823@random.random> <alpine.LFD.2.00.0903111417230.32478@localhost.localdomain>
- <20090311215721.GS27823@random.random> <alpine.LFD.2.00.0903111502350.32478@localhost.localdomain> <alpine.DEB.1.10.0903111515320.12933@makko.or.mcafeemobile.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 882896B004D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 18:37:42 -0400 (EDT)
+Date: Wed, 11 Mar 2009 23:36:15 +0100
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may get wrongly discarded
+Message-ID: <20090311223615.GA3284@cmpxchg.org>
+References: <20090311153034.9389.19938.stgit@warthog.procyon.org.uk> <20090311150302.0ae76cf1.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090311150302.0ae76cf1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Davide Libenzi <davidel@xmailserver.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Howells <dhowells@redhat.com>, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Wed, 11 Mar 2009, Davide Libenzi wrote:
+On Wed, Mar 11, 2009 at 03:03:02PM -0700, Andrew Morton wrote:
+> On Wed, 11 Mar 2009 15:30:35 +0000
+> David Howells <dhowells@redhat.com> wrote:
 > 
-> Didn't follow the lengthy thread, but if we make fork+exec to fail inside 
-> a threaded program, we might end up making a lot of people unhappy.
+> > From: Enrik Berkhan <Enrik.Berkhan@ge.com>
+> > 
+> > The pages attached to a ramfs inode's pagecache by truncation from nothing - as
+> > done by SYSV SHM for example - may get discarded under memory pressure.
+> 
+> Something has gone wrong in core VM.
+> 
+> > The problem is that the pages are not marked dirty.  Anything that creates data
+> > in an MMU-based ramfs will cause the pages holding that data will cause the
+> > set_page_dirty() aop to be called.
+> > 
+> > For the NOMMU-based mmap, set_page_dirty() may be called by write(), but it
+> > won't be called by page-writing faults on writable mmaps, and it isn't called
+> > by ramfs_nommu_expand_for_mapping() when a file is being truncated from nothing
+> > to allocate a contiguous run.
+> > 
+> > The solution is to mark the pages dirty at the point of allocation by
+> > the truncation code.
+> 
+> Page reclaim shouldn't be even attempting to reclaim or write back
+> ramfs pagecache pages - reclaim can't possibly do anything with these
+> pages!
+> 
+> Arguably those pages shouldn't be on the LRU at all, but we haven't
+> done that yet.
+> 
+> Now, my problem is that I can't 100% be sure that we _ever_ implemented
+> this properly.  I _think_ we did, in which case we later broke it.  If
+> we've always been (stupidly) trying to pageout these pages then OK, I
+> guess your patch is a suitable 2.6.29 stopgap.
+> 
+> If, however, we broke it then we've probably broken other filesystems
+> and we should fix the regression instead.
+> 
+> Running bdi_cap_writeback_dirty() in may_write_to_queue() might be the
+> way to fix all this.
 
-Yeah, no, we don't want to fail it, but we could do a one-time warning or 
-something, to at least see who does it and perhaps see if some of them 
-might realize the problems.
-
-			Linus
+The pages are not dirty, so no pageout() which says PAGE_KEEP.  It
+will just go through and reclaim the clean, unmapped pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
