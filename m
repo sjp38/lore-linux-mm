@@ -1,124 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3ED246B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 09:52:52 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2BDqlhS198762
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:52:47 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2BDqk7M3510500
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:52:47 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2BDqiAt002441
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:52:44 +0100
-Date: Wed, 11 Mar 2009 14:49:51 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH] fix/improve generic page table walker
-Message-ID: <20090311144951.58c6ab60@skybase>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 821E36B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 10:25:11 -0400 (EDT)
+Date: Wed, 11 Mar 2009 10:25:10 -0400 (EDT)
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+In-Reply-To: <20090311073619.GA26691@localhost>
+Message-ID: <alpine.DEB.2.00.0903111022480.16494@gandalf.stny.rr.com>
+References: <20090310024135.GA6832@localhost> <20090310081917.GA28968@localhost> <20090310105523.3dfd4873@mjolnir.ossman.eu> <20090310122210.GA8415@localhost> <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost>
+ <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Matt Mackall <mpm@selenic.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Pierre Ossman <drzeus@drzeus.cx>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On s390 the /proc/pid/pagemap interface is currently broken. This is
-caused by the unconditional loop over all pgd/pud entries as specified
-by the address range passed to walk_page_range. The tricky bit here
-is that the pgd++ in the outer loop may only be done if the page table
-really has 4 levels. For the pud++ in the second loop the page table needs
-to have at least 3 levels. With the dynamic page tables on s390 we can have
-page tables with 2, 3 or 4 levels. Which means that the pgd and/or the
-pud pointer can get out-of-bounds causing all kinds of mayhem.
 
-The proposed solution is to fast-forward over the hole between the start
-address and the first vma and the hole between the last vma and the end
-address. The pgd/pud/pmd/pte loops are used only for the address range
-between the first and last vma. This guarantees that the page table
-pointers stay in range for s390. For the other architectures this is
-a small optimization.
+On Wed, 11 Mar 2009, Wu Fengguang wrote:
+> > > > > 
+> > > > > This 80MB noflags pages together with the below 80MB lru pages are
+> > > > > very close to the missing page numbers :-) Could you run the following
+> > > > > commands on fresh booted 2.6.27 and post the output files? Thank you!
+> > > > > 
+> > > > >         dd if=/dev/zero of=/tmp/s bs=1M count=1 seek=1024
+> > > > >         cp /tmp/s /dev/null
+> > > > > 
+> > > > >         ./page-flags > flags
+> > > > >         ./page-areas =0x20000 > areas-noflags
+> > > > >         ./page-areas =0x00020 > areas-lru
+> > > > > 
+> > > > 
+> > > > Attached.
+> > > 
+> > > Thank you very much!
+> > > 
+> > > > I have to say, the patterns look very much like some kind of leak.
+> > > 
+> > > Wow it looks really interesting.  The lru pages and noflags pages make
+> > > perfect 1-page interleaved pattern...
+> > > 
+> > 
+> > Another breakthrough. I turned off everything in kernel/trace, and now
+> > the missing memory is back. Here's the relevant diff against the
+> > original .config:
+> > 
+[..]
+> > 
+> > I'll enable them one at a time and see when the bug reappears, but if
+> > you have some ideas on which it could be, that would be helpful. The
+> > machine takes some time to recompile a kernel. :)
+> 
+> A quick question: are there any possibility of ftrace memory reservation?
 
-As the page walker now accesses the vma list the mmap_sem is required.
-All callers of the walk_page_range function needs to acquire the semaphore.
+The ring buffer is allocated at start up (although I'm thinking of making 
+it allocated when it is first used), and the allocations are done percpu. 
 
-Cc: Matt Mackall <mpm@selenic.com>
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
+It allocates around 3 megs per cpu. How many CPUs were on this box?
 
- fs/proc/task_mmu.c |    2 ++
- mm/pagewalk.c      |   28 ++++++++++++++++++++++++++--
- 2 files changed, 28 insertions(+), 2 deletions(-)
-
-diff -urpN linux-2.6/fs/proc/task_mmu.c linux-2.6-patched/fs/proc/task_mmu.c
---- linux-2.6/fs/proc/task_mmu.c	2009-03-11 13:38:53.000000000 +0100
-+++ linux-2.6-patched/fs/proc/task_mmu.c	2009-03-11 13:39:45.000000000 +0100
-@@ -716,7 +716,9 @@ static ssize_t pagemap_read(struct file 
- 	 * user buffer is tracked in "pm", and the walk
- 	 * will stop when we hit the end of the buffer.
- 	 */
-+	down_read(&mm->mmap_sem);
- 	ret = walk_page_range(start_vaddr, end_vaddr, &pagemap_walk);
-+	up_read(&mm->mmap_sem);
- 	if (ret == PM_END_OF_BUFFER)
- 		ret = 0;
- 	/* don't need mmap_sem for these, but this looks cleaner */
-diff -urpN linux-2.6/mm/pagewalk.c linux-2.6-patched/mm/pagewalk.c
---- linux-2.6/mm/pagewalk.c	2008-12-25 00:26:37.000000000 +0100
-+++ linux-2.6-patched/mm/pagewalk.c	2009-03-11 13:39:45.000000000 +0100
-@@ -104,6 +104,8 @@ static int walk_pud_range(pgd_t *pgd, un
- int walk_page_range(unsigned long addr, unsigned long end,
- 		    struct mm_walk *walk)
- {
-+	struct vm_area_struct *vma, *prev;
-+	unsigned long stop;
- 	pgd_t *pgd;
- 	unsigned long next;
- 	int err = 0;
-@@ -114,9 +116,28 @@ int walk_page_range(unsigned long addr, 
- 	if (!walk->mm)
- 		return -EINVAL;
- 
-+	/* Find first valid address contained in a vma. */
-+	vma = find_vma(walk->mm, addr);
-+	if (!vma)
-+		/* One big hole. */
-+		return walk->pte_hole(addr, end, walk);
-+	if (addr < vma->vm_start) {
-+		/* Skip over all ptes in the area before the first vma. */
-+		err = walk->pte_hole(addr, vma->vm_start, walk);
-+		if (err)
-+			return err;
-+		addr = vma->vm_start;
-+	}
-+
-+	/* Find last valid address contained in a vma. */
-+	stop = end;
-+	vma = find_vma_prev(walk->mm, end, &prev);
-+	if (!vma)
-+		stop = prev->vm_end;
-+
- 	pgd = pgd_offset(walk->mm, addr);
- 	do {
--		next = pgd_addr_end(addr, end);
-+		next = pgd_addr_end(addr, stop);
- 		if (pgd_none_or_clear_bad(pgd)) {
- 			if (walk->pte_hole)
- 				err = walk->pte_hole(addr, next, walk);
-@@ -131,7 +152,10 @@ int walk_page_range(unsigned long addr, 
- 			err = walk_pud_range(pgd, addr, next, walk);
- 		if (err)
- 			break;
--	} while (pgd++, addr = next, addr != end);
-+	} while (pgd++, addr = next, addr != stop);
- 
-+	if (stop < end)
-+		/* Skip over all ptes in the area after the last vma. */
-+		err = walk->pte_hole(stop, end, walk);
- 	return err;
- }
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
