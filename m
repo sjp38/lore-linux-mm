@@ -1,115 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2341B6B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 09:25:08 -0400 (EDT)
-Received: by bwz18 with SMTP id 18so1365bwz.38
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2009 06:25:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <200903112254.56764.nickpiggin@yahoo.com.au>
-References: <8c5a844a0903110255q45b7cdf4u1453ce40d495ee2c@mail.gmail.com>
-	 <200903112254.56764.nickpiggin@yahoo.com.au>
-Date: Wed, 11 Mar 2009 15:25:05 +0200
-Message-ID: <8c5a844a0903110625y416e7a3ft448a44b1bf70c990@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: use list.h for vma list
-From: Daniel Lowengrub <lowdanie@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ED246B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 09:52:52 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate4.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2BDqlhS198762
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 13:52:47 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2BDqk7M3510500
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:52:47 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2BDqiAt002441
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 14:52:44 +0100
+Date: Wed, 11 Mar 2009 14:49:51 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH] fix/improve generic page table walker
+Message-ID: <20090311144951.58c6ab60@skybase>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Matt Mackall <mpm@selenic.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 11, 2009 at 1:54 PM, Nick Piggin <nickpiggin@yahoo.com.au> wrot=
-e:
-> On Wednesday 11 March 2009 20:55:48 Daniel Lowengrub wrote:
->> diff -uNr linux-2.6.28.7.vanilla/arch/arm/mm/mmap.c
->> linux-2.6.28.7/arch/arm/mm/mmap.c
->>.....
->> - =A0 =A0 for (vma =3D find_vma(mm, addr); ; vma =3D vma->vm_next) {
->> + =A0 =A0 for (vma =3D find_vma(mm, addr); ; vma =3D vma->vma_next(vma))=
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+On s390 the /proc/pid/pagemap interface is currently broken. This is
+caused by the unconditional loop over all pgd/pud entries as specified
+by the address range passed to walk_page_range. The tricky bit here
+is that the pgd++ in the outer loop may only be done if the page table
+really has 4 levels. For the pud++ in the second loop the page table needs
+to have at least 3 levels. With the dynamic page tables on s390 we can have
+page tables with 2, 3 or 4 levels. Which means that the pgd and/or the
+pud pointer can get out-of-bounds causing all kinds of mayhem.
+
+The proposed solution is to fast-forward over the hole between the start
+address and the first vma and the hole between the last vma and the end
+address. The pgd/pud/pmd/pte loops are used only for the address range
+between the first and last vma. This guarantees that the page table
+pointers stay in range for s390. For the other architectures this is
+a small optimization.
+
+As the page walker now accesses the vma list the mmap_sem is required.
+All callers of the walk_page_range function needs to acquire the semaphore.
+
+Cc: Matt Mackall <mpm@selenic.com>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
+
+ fs/proc/task_mmu.c |    2 ++
+ mm/pagewalk.c      |   28 ++++++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff -urpN linux-2.6/fs/proc/task_mmu.c linux-2.6-patched/fs/proc/task_mmu.c
+--- linux-2.6/fs/proc/task_mmu.c	2009-03-11 13:38:53.000000000 +0100
++++ linux-2.6-patched/fs/proc/task_mmu.c	2009-03-11 13:39:45.000000000 +0100
+@@ -716,7 +716,9 @@ static ssize_t pagemap_read(struct file 
+ 	 * user buffer is tracked in "pm", and the walk
+ 	 * will stop when we hit the end of the buffer.
+ 	 */
++	down_read(&mm->mmap_sem);
+ 	ret = walk_page_range(start_vaddr, end_vaddr, &pagemap_walk);
++	up_read(&mm->mmap_sem);
+ 	if (ret == PM_END_OF_BUFFER)
+ 		ret = 0;
+ 	/* don't need mmap_sem for these, but this looks cleaner */
+diff -urpN linux-2.6/mm/pagewalk.c linux-2.6-patched/mm/pagewalk.c
+--- linux-2.6/mm/pagewalk.c	2008-12-25 00:26:37.000000000 +0100
++++ linux-2.6-patched/mm/pagewalk.c	2009-03-11 13:39:45.000000000 +0100
+@@ -104,6 +104,8 @@ static int walk_pud_range(pgd_t *pgd, un
+ int walk_page_range(unsigned long addr, unsigned long end,
+ 		    struct mm_walk *walk)
  {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* At this point: =A0(!vma || addr < vma->vm=
-_end). */
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (TASK_SIZE - len < addr) {
->> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*
->
-> Careful with your replacements. I'd suggest a mechanical search &
-> replace might be less error prone.
-
-Thanks for pointing that out.  The code compiled and ran on my x86 machine
-so I'll take an extra look at the other architectures.
-
->> linux-2.6.28.7/include/linux/mm.h
->> --- linux-2.6.28.7.vanilla/include/linux/mm.h 2009-03-06
->>...
->> +/* Interface for the list_head prev and next pointers. =A0They
->> + * don't let you wrap around the vm_list.
->> + */
->
-> Hmm, I don't think these are really appropriate replacements for
-> vma->vm_next. 2 branches and a lot of extra icache.
->
-> A non circular list like hlist might work better, but I suspect if
-> callers are converted properly to have conditions ensuring that it
-> doesn't wrap and doesn't get NULL vmas passed in, then it could
-> avoid both those branches and just be a wrapper around
-> list_entry(vma->vm_list.next)
->
-The main place I can think of where "list_entry(vma->vm_list.next)"
-can be used without the extra conditionals is inside a loop where
-we're going through every vma in the
-list.  This is usually done  with "list_for_each_entry" which uses
-"list_entry(...)" anyway.
-But in all the places that we start from some point inside the list
-(usually with a find_vma)
-a regular "for" list is used with "vma_next" as the last parameter.
-In this case it would
-probably be better to use "list_for_each_entry_continue" which would
-lower the amount of pointless calls to "vma_next".
-The first condition in vma_next also does away with the excessive use
-of the ternary operator in the mmap.c file.  Where else in the code
-would it be faster to use
-"list_entry(...)" together with conditionals?
-I'll look through the code again with all this in mind and see if
-calls to the vma_next function can be minimized to the point of
-removing it like
-you said.
-
->>  struct mm_struct {
->> -     struct vm_area_struct * mmap;           /* list of VMAs */
->> +     struct list_head mm_vmas;               /* list of VMAs */
-
->.... like this nice name change ;)
-This and other parts of the patch are based on a previous attempt by
-Paul Zijlstra.
-
->> @@ -988,7 +989,8 @@
->> =A0 =A0 =A0 lru_add_drain();
->> =A0 =A0 =A0 tlb =3D tlb_gather_mmu(mm, 0);
->> =A0 =A0 =A0 update_hiwater_rss(mm);
->> - =A0 =A0 end =3D unmap_vmas(&tlb, vma, address, end, &nr_accounted, det=
-ails);
->> + =A0 =A0 end =3D unmap_vmas(&tlb, &mm->mm_vmas, vma, address, end,
->> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &nr_accounted, details);
->
-> Why do you change this if the caller knows where the list head is
-> anyway, and extracts it from the mm? I'd prefer to keep changes to
-> calling convention to a minimum (and I hope with the changes to
-> vma_next I suggested then it wouldn't be needed to carry the list
-> head around everywhere anyway).
->
-The unmap_vmas was changed because sometimes (in exit_mmap for example)
-"unmap_vmas" is used right after "detach_vmas_to_be_unmapped" which
-now returns a list of the vmas we want to unmap.  Now that we already
-have this list for free it seems like a good idea to be able to pass
-it to "unmap_vmas".  Do you think that this causes
-more damage than it's worth?
-After reading what you said before, it looks like we could take better
-advantage of this
-if we use "list_entry(...) in unmap_vmas's main loop instead of a
-regular for loop
-with __vma_next.
-Thank you for the helpful suggestions.
++	struct vm_area_struct *vma, *prev;
++	unsigned long stop;
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 	int err = 0;
+@@ -114,9 +116,28 @@ int walk_page_range(unsigned long addr, 
+ 	if (!walk->mm)
+ 		return -EINVAL;
+ 
++	/* Find first valid address contained in a vma. */
++	vma = find_vma(walk->mm, addr);
++	if (!vma)
++		/* One big hole. */
++		return walk->pte_hole(addr, end, walk);
++	if (addr < vma->vm_start) {
++		/* Skip over all ptes in the area before the first vma. */
++		err = walk->pte_hole(addr, vma->vm_start, walk);
++		if (err)
++			return err;
++		addr = vma->vm_start;
++	}
++
++	/* Find last valid address contained in a vma. */
++	stop = end;
++	vma = find_vma_prev(walk->mm, end, &prev);
++	if (!vma)
++		stop = prev->vm_end;
++
+ 	pgd = pgd_offset(walk->mm, addr);
+ 	do {
+-		next = pgd_addr_end(addr, end);
++		next = pgd_addr_end(addr, stop);
+ 		if (pgd_none_or_clear_bad(pgd)) {
+ 			if (walk->pte_hole)
+ 				err = walk->pte_hole(addr, next, walk);
+@@ -131,7 +152,10 @@ int walk_page_range(unsigned long addr, 
+ 			err = walk_pud_range(pgd, addr, next, walk);
+ 		if (err)
+ 			break;
+-	} while (pgd++, addr = next, addr != end);
++	} while (pgd++, addr = next, addr != stop);
+ 
++	if (stop < end)
++		/* Skip over all ptes in the area after the last vma. */
++		err = walk->pte_hole(stop, end, walk);
+ 	return err;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
