@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 805776B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:15:39 -0400 (EDT)
-Date: Wed, 11 Mar 2009 20:15:26 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C7966B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 15:19:03 -0400 (EDT)
+Date: Wed, 11 Mar 2009 12:01:56 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090311191526.GN27823@random.random>
-References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311182216.GJ27823@random.random> <20090311190655.GA690@elte.hu>
+In-Reply-To: <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0903111150120.32478@localhost.localdomain>
+References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random>
+ <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090311190655.GA690@elte.hu>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 11, 2009 at 08:06:55PM +0100, Ingo Molnar wrote:
-> Good - i saw the '(fast-)gup fix' qualifier and fast-gup is a 
-> fresh feature. If the problem existed in earlier kernels too 
-> then i guess it isnt urgent.
 
-It always existed yes. The reason of the (fast-) qualifier is because
-gup-fast made it harder to fix this in mainline (there is also a patch
-floating around for 2.6.18 based kernels that is simpler thanks to
-gup-fast not being there). The trouble of gup-fast is that doing the
-check of page_count inside PT lock (or mmap_sem write mode like in
-fork(), but ksm only takes mmap_sem in read mode and it relied on PT
-lock only) wasn't enough anymore to be sure the page_count wouldn't
-increase from under us just after we read it, because a gup-fast could
-be running in another CPU without mmap_sem and without PT lock
-taken. So fixing this on mainline has been a bit harder as I had to
-prevent gup-fast to go ahead in the fast path, in a way that didn't
-send IPIs to flush the smp-tlb before reading the page_count (so to
-avoid sending IPIs for every anon page mapped writeable).
+
+On Wed, 11 Mar 2009, Linus Torvalds wrote:
+> 
+> It's never been written down, but it's obvious to anybody who looks at how 
+> COW works for even five seconds. The fact is, the person doing the COW 
+> after a fork() is the person who no longer has the same physical page 
+> (because he got a new page).
+
+Btw, I think your patch has a race. Admittedly a really small one.
+
+When you look up the page in gup.c, and then set the GUP flag on the 
+"struct page", in between the lookup and the setting of the flag, another 
+thread can come in and do that same fork+write thing.
+
+	CPU0:			CPU1
+
+	gup:			fork:
+	 - look up page
+	 - it's read-write
+	...
+				set_wr_protect
+				test GUP bit - not set, good
+				done
+
+	- Mark it GUP
+				tlb_flush
+
+				write to it from user space - COW
+
+since there is no lockng on the GUP side (there's the TLB flush that will 
+wait for interrupts being enabled again on CPU0, but that's later in the 
+fork sequence).
+
+Maybe I'm missing something. The race is certainly very unlikely to ever 
+happen in practice, but it looks real.
+
+Also, having to set the PG_GUP bit means that the "fast" gup is likely not 
+much faster than the slow one. It now has two atomics per page it looks 
+up, afaik, which sounds like it would delete any advantage it had over the 
+slow version that needed locking.
+							
+What we _could_ try to do is to always make the COW breaking be a 
+_directed_ event - we'd make sure that we always break COW in the 
+direction of the first owner (going to the rmap chains). That might solve 
+everything, and be purely local to the logic in mm/memory.c (do_wp_page).
+
+I dunno. I have not looked at how horrible that would be.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
