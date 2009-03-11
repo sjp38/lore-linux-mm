@@ -1,357 +1,417 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F289F6B003D
-	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 23:05:56 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2B35rIv018723
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 11 Mar 2009 12:05:53 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A2FEC45DE5E
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:05:52 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F01B945DE53
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:05:51 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AE1C0E38013
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:05:51 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E1D19E38003
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 12:05:49 +0900 (JST)
-Date: Wed, 11 Mar 2009 12:04:27 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] use css id in swap cgroup for saving memory v5
-Message-Id: <20090311120427.2467bd14.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090311094739.3123b05d.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
-	<20090310160856.77deb5c3.akpm@linux-foundation.org>
-	<20090311085326.403a211d.kamezawa.hiroyu@jp.fujitsu.com>
-	<isapiwc.d14e3c29.6b18.49b7092b.9bc73.52@mail.jp.nec.com>
-	<20090311094739.3123b05d.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EBA616B003D
+	for <linux-mm@kvack.org>; Tue, 10 Mar 2009 23:53:23 -0400 (EDT)
+Date: Wed, 11 Mar 2009 04:53:18 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/2] mm: page_mkwrite change prototype to match fault
+Message-ID: <20090311035318.GH16561@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, hugh@veritas.com
+To: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This patch is against mm-of-the-moment snapshot 2009-03-10-16-39.
-rework of use-css-id-in-swap_cgroup-for-saving-memory-v4.patch.
-Tested on my x86-64 box.
 
-Thanks,
--Kame
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Change the page_mkwrite prototype to take a struct vm_fault, and return
+VM_FAULT_xxx flags. There should be no functional change.
 
-Try to use CSS ID for records in swap_cgroup.  By this, on 64bit machine,
-size of swap_cgroup goes down to 2 bytes from 8bytes.
+This makes it possible to return much more detailed error information to
+the VM (and also can provide more information eg. virtual_address to the
+driver, which might be important in some special cases).
 
-This means, when 2GB of swap is equipped, (assume the page size is 4096bytes)
+This is required for a subsequent fix. And will also make it easier to
+merge page_mkwrite() with fault() in future.
 
-	From size of swap_cgroup = 2G/4k * 8 = 4Mbytes.
-	To   size of swap_cgroup = 2G/4k * 2 = 1Mbytes.
-
-Reduction is large.  Of course, there are trade-offs.  This CSS ID will
-add overhead to swap-in/swap-out/swap-free.
-
-But in general,
-  - swap is a resource which the user tend to avoid use.
-  - If swap is never used, swap_cgroup area is not used.
-  - Reading traditional manuals, size of swap should be proportional to
-    size of memory. Memory size of machine is increasing now.
-
-I think reducing size of swap_cgroup makes sense.
-
-Note:
-  - ID->CSS lookup routine has no locks, it's under RCU-Read-Side.
-  - memcg can be obsolete at rmdir() but not freed while refcnt from
-    swap_cgroup is available.
-
-Changelog v4->v5:
- - reworked on to memcg-charge-swapcache-to-proper-memcg.patch
-Changlog ->v4:
- - fixed not configured case.
- - deleted unnecessary comments.
- - fixed NULL pointer bug.
- - fixed message in dmesg.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizf@cn.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Balbir Singh <balbir@in.ibm.com>
-Cc: Paul Menage <menage@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
- include/linux/page_cgroup.h |   13 ++++----
- mm/memcontrol.c             |   64 +++++++++++++++++++++++++++++++++++++++-----
- mm/page_cgroup.c            |   32 +++++++++-------------
- 3 files changed, 78 insertions(+), 31 deletions(-)
+ Documentation/filesystems/Locking |    2 +-
+ drivers/video/fb_defio.c          |    3 ++-
+ fs/btrfs/ctree.h                  |    2 +-
+ fs/btrfs/inode.c                  |    5 ++++-
+ fs/buffer.c                       |    6 +++++-
+ fs/ext4/ext4.h                    |    2 +-
+ fs/ext4/inode.c                   |    5 ++++-
+ fs/fuse/file.c                    |    3 ++-
+ fs/gfs2/ops_file.c                |    5 ++++-
+ fs/nfs/file.c                     |    5 ++++-
+ fs/ocfs2/mmap.c                   |    6 ++++--
+ fs/ubifs/file.c                   |    9 ++++++---
+ fs/xfs/linux-2.6/xfs_file.c       |    4 ++--
+ include/linux/buffer_head.h       |    2 +-
+ include/linux/mm.h                |    3 ++-
+ mm/memory.c                       |   26 ++++++++++++++++++++++----
+ 16 files changed, 65 insertions(+), 23 deletions(-)
 
-Index: mmotm-2.6.29-Mar10/include/linux/page_cgroup.h
+Index: linux-2.6/Documentation/filesystems/Locking
 ===================================================================
---- mmotm-2.6.29-Mar10.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.29-Mar10/include/linux/page_cgroup.h
-@@ -91,24 +91,23 @@ static inline void page_cgroup_init(void
+--- linux-2.6.orig/Documentation/filesystems/Locking
++++ linux-2.6/Documentation/filesystems/Locking
+@@ -502,7 +502,7 @@ prototypes:
+ 	void (*open)(struct vm_area_struct*);
+ 	void (*close)(struct vm_area_struct*);
+ 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
+-	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
++	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
+ 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
  
- #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
- #include <linux/swap.h>
--extern struct mem_cgroup *
--swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem);
--extern struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent);
-+extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
-+extern unsigned short lookup_swap_cgroup(swp_entry_t ent);
- extern int swap_cgroup_swapon(int type, unsigned long max_pages);
- extern void swap_cgroup_swapoff(int type);
- #else
- #include <linux/swap.h>
- 
- static inline
--struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
-+unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
- {
--	return NULL;
-+	return 0;
- }
- 
- static inline
--struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
-+unsigned short lookup_swap_cgroup(swp_entry_t ent)
- {
--	return NULL;
-+	return 0;
- }
- 
- static inline int
-Index: mmotm-2.6.29-Mar10/mm/memcontrol.c
+ locking rules:
+Index: linux-2.6/fs/btrfs/ctree.h
 ===================================================================
---- mmotm-2.6.29-Mar10.orig/mm/memcontrol.c
-+++ mmotm-2.6.29-Mar10/mm/memcontrol.c
-@@ -991,10 +991,31 @@ nomem:
- 	return -ENOMEM;
- }
- 
-+
-+/*
-+ * A helper function to get mem_cgroup from ID. must be called under
-+ * rcu_read_lock(). The caller must check css_is_removed() or some if
-+ * it's concern. (dropping refcnt from swap can be called against removed
-+ * memcg.)
-+ */
-+static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
-+{
-+	struct cgroup_subsys_state *css;
-+
-+	/* ID 0 is unused ID */
-+	if (!id)
-+		return NULL;
-+	css = css_lookup(&mem_cgroup_subsys, id);
-+	if (!css)
-+		return NULL;
-+	return container_of(css, struct mem_cgroup, css);
-+}
-+
- static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
+--- linux-2.6.orig/fs/btrfs/ctree.h
++++ linux-2.6/fs/btrfs/ctree.h
+@@ -2051,7 +2051,7 @@ int btrfs_merge_bio_hook(struct page *pa
+ unsigned long btrfs_force_ra(struct address_space *mapping,
+ 			      struct file_ra_state *ra, struct file *file,
+ 			      pgoff_t offset, pgoff_t last_index);
+-int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page);
++int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
+ int btrfs_readpage(struct file *file, struct page *page);
+ void btrfs_delete_inode(struct inode *inode);
+ void btrfs_put_inode(struct inode *inode);
+Index: linux-2.6/fs/btrfs/inode.c
+===================================================================
+--- linux-2.6.orig/fs/btrfs/inode.c
++++ linux-2.6/fs/btrfs/inode.c
+@@ -4292,8 +4292,9 @@ static void btrfs_invalidatepage(struct
+  * beyond EOF, then the page is guaranteed safe against truncation until we
+  * unlock the page.
+  */
+-int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
- 	struct mem_cgroup *mem;
- 	struct page_cgroup *pc;
-+	unsigned short id;
- 	swp_entry_t ent;
- 
- 	VM_BUG_ON(!PageLocked(page));
-@@ -1010,7 +1031,12 @@ static struct mem_cgroup *try_get_mem_cg
- 		mem = pc->mem_cgroup;
- 	else {
- 		ent.val = page_private(page);
--		mem = lookup_swap_cgroup(ent);
-+		id = lookup_swap_cgroup(ent);
-+		rcu_read_lock();
-+		mem = mem_cgroup_lookup(id);
-+		if (mem && !css_tryget(&mem->css))
-+			mem = NULL;
-+		rcu_read_unlock();
- 	}
- 	if (!mem)
- 		return NULL;
-@@ -1276,12 +1302,22 @@ int mem_cgroup_cache_charge(struct page 
- 
- 	if (do_swap_account && !ret && PageSwapCache(page)) {
- 		swp_entry_t ent = {.val = page_private(page)};
-+		unsigned short id;
- 		/* avoid double counting */
--		mem = swap_cgroup_record(ent, NULL);
-+		id = swap_cgroup_record(ent, 0);
-+		rcu_read_lock();
-+		mem = mem_cgroup_lookup(id);
- 		if (mem) {
-+			/*
-+			 * We did swap-in. Then, this entry is doubly counted
-+			 * both in mem and memsw. We uncharge it, here.
-+			 * Recorded ID can be obsolete. We avoid calling
-+			 * css_tryget()
-+			 */
- 			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
- 			mem_cgroup_put(mem);
- 		}
-+		rcu_read_unlock();
- 	}
++	struct page *page = vmf->page;
+ 	struct inode *inode = fdentry(vma->vm_file)->d_inode;
+ 	struct btrfs_root *root = BTRFS_I(inode)->root;
+ 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+@@ -4362,6 +4363,8 @@ again:
+ out_unlock:
+ 	unlock_page(page);
+ out:
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
  	return ret;
  }
-@@ -1346,13 +1382,21 @@ void mem_cgroup_commit_charge_swapin(str
- 	 */
- 	if (do_swap_account && PageSwapCache(page)) {
- 		swp_entry_t ent = {.val = page_private(page)};
-+		unsigned short id;
- 		struct mem_cgroup *memcg;
--		memcg = swap_cgroup_record(ent, NULL);
-+
-+		id = swap_cgroup_record(ent, 0);
-+		rcu_read_lock();
-+		memcg = mem_cgroup_lookup(id);
- 		if (memcg) {
-+			/*
-+			 * This recorded memcg can be obsolete one. So, avoid
-+			 * calling css_tryget
-+			 */
- 			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
- 			mem_cgroup_put(memcg);
- 		}
--
-+		rcu_read_unlock();
- 	}
- 	/* add this page(page_cgroup) to the LRU we want. */
  
-@@ -1473,7 +1517,7 @@ void mem_cgroup_uncharge_swapcache(struc
- 					MEM_CGROUP_CHARGE_TYPE_SWAPOUT);
- 	/* record memcg information */
- 	if (do_swap_account && memcg) {
--		swap_cgroup_record(ent, memcg);
-+		swap_cgroup_record(ent, css_id(&memcg->css));
- 		mem_cgroup_get(memcg);
- 	}
- 	if (memcg)
-@@ -1488,15 +1532,23 @@ void mem_cgroup_uncharge_swapcache(struc
- void mem_cgroup_uncharge_swap(swp_entry_t ent)
- {
- 	struct mem_cgroup *memcg;
-+	unsigned short id;
- 
- 	if (!do_swap_account)
- 		return;
- 
--	memcg = swap_cgroup_record(ent, NULL);
-+	id = swap_cgroup_record(ent, 0);
-+	rcu_read_lock();
-+	memcg = mem_cgroup_lookup(id);
- 	if (memcg) {
-+		/*
-+		 * We uncharge this because swap is freed.
-+		 * This memcg can be obsolete one. We avoid calling css_tryget
-+		 */
- 		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
- 		mem_cgroup_put(memcg);
- 	}
-+	rcu_read_unlock();
- }
- #endif
- 
-Index: mmotm-2.6.29-Mar10/mm/page_cgroup.c
+Index: linux-2.6/fs/buffer.c
 ===================================================================
---- mmotm-2.6.29-Mar10.orig/mm/page_cgroup.c
-+++ mmotm-2.6.29-Mar10/mm/page_cgroup.c
-@@ -285,12 +285,8 @@ struct swap_cgroup_ctrl {
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -2466,9 +2466,10 @@ int block_commit_write(struct page *page
+  * unlock the page.
+  */
+ int
+-block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
++block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 		   get_block_t get_block)
+ {
++	struct page *page = vmf->page;
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	unsigned long end;
+ 	loff_t size;
+@@ -2493,6 +2494,9 @@ block_page_mkwrite(struct vm_area_struct
+ 		ret = block_commit_write(page, 0, end);
  
- struct swap_cgroup_ctrl swap_cgroup_ctrl[MAX_SWAPFILES];
+ out_unlock:
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
++
+ 	unlock_page(page);
+ 	return ret;
+ }
+Index: linux-2.6/fs/ext4/ext4.h
+===================================================================
+--- linux-2.6.orig/fs/ext4/ext4.h
++++ linux-2.6/fs/ext4/ext4.h
+@@ -1097,7 +1097,7 @@ extern int ext4_meta_trans_blocks(struct
+ extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
+ extern int ext4_block_truncate_page(handle_t *handle,
+ 		struct address_space *mapping, loff_t from);
+-extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page);
++extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
  
--/*
-- * This 8bytes seems big..maybe we can reduce this when we can use "id" for
-- * cgroup rather than pointer.
-- */
- struct swap_cgroup {
--	struct mem_cgroup	*val;
-+	unsigned short		id;
+ /* ioctl.c */
+ extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
+Index: linux-2.6/fs/ext4/inode.c
+===================================================================
+--- linux-2.6.orig/fs/ext4/inode.c
++++ linux-2.6/fs/ext4/inode.c
+@@ -5116,8 +5116,9 @@ static int ext4_bh_unmapped(handle_t *ha
+ 	return !buffer_mapped(bh);
+ }
+ 
+-int ext4_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	loff_t size;
+ 	unsigned long len;
+ 	int ret = -EINVAL;
+@@ -5169,6 +5170,8 @@ int ext4_page_mkwrite(struct vm_area_str
+ 		goto out_unlock;
+ 	ret = 0;
+ out_unlock:
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
+ 	up_read(&inode->i_alloc_sem);
+ 	return ret;
+ }
+Index: linux-2.6/fs/fuse/file.c
+===================================================================
+--- linux-2.6.orig/fs/fuse/file.c
++++ linux-2.6/fs/fuse/file.c
+@@ -1234,8 +1234,9 @@ static void fuse_vma_close(struct vm_are
+  * - sync(2)
+  * - try_to_free_pages() with order > PAGE_ALLOC_COSTLY_ORDER
+  */
+-static int fuse_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	/*
+ 	 * Don't use page->mapping as it may become NULL from a
+ 	 * concurrent truncate.
+Index: linux-2.6/fs/gfs2/ops_file.c
+===================================================================
+--- linux-2.6.orig/fs/gfs2/ops_file.c
++++ linux-2.6/fs/gfs2/ops_file.c
+@@ -336,8 +336,9 @@ static int gfs2_allocate_page_backing(st
+  * blocks allocated on disk to back that page.
+  */
+ 
+-static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	struct gfs2_inode *ip = GFS2_I(inode);
+ 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+@@ -409,6 +410,8 @@ out_unlock:
+ 	gfs2_glock_dq(&gh);
+ out:
+ 	gfs2_holder_uninit(&gh);
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
+ 	return ret;
+ }
+ 
+Index: linux-2.6/fs/nfs/file.c
+===================================================================
+--- linux-2.6.orig/fs/nfs/file.c
++++ linux-2.6/fs/nfs/file.c
+@@ -451,8 +451,9 @@ const struct address_space_operations nf
+ 	.launder_page = nfs_launder_page,
  };
- #define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
- #define SC_POS_MASK	(SC_PER_PAGE - 1)
-@@ -342,10 +338,10 @@ not_enough_page:
-  * @ent: swap entry to be recorded into
-  * @mem: mem_cgroup to be recorded
-  *
-- * Returns old value at success, NULL at failure.
-- * (Of course, old value can be NULL.)
-+ * Returns old value at success, 0 at failure.
-+ * (Of course, old value can be 0.)
-  */
--struct mem_cgroup *swap_cgroup_record(swp_entry_t ent, struct mem_cgroup *mem)
-+unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+ 
+-static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
- 	int type = swp_type(ent);
- 	unsigned long offset = swp_offset(ent);
-@@ -354,18 +350,18 @@ struct mem_cgroup *swap_cgroup_record(sw
- 	struct swap_cgroup_ctrl *ctrl;
- 	struct page *mappage;
- 	struct swap_cgroup *sc;
--	struct mem_cgroup *old;
-+	unsigned short old;
- 
- 	if (!do_swap_account)
--		return NULL;
-+		return 0;
- 
- 	ctrl = &swap_cgroup_ctrl[type];
- 
- 	mappage = ctrl->map[idx];
- 	sc = page_address(mappage);
- 	sc += pos;
--	old = sc->val;
--	sc->val = mem;
-+	old = sc->id;
-+	sc->id = id;
- 
- 	return old;
- }
-@@ -374,9 +370,9 @@ struct mem_cgroup *swap_cgroup_record(sw
-  * lookup_swap_cgroup - lookup mem_cgroup tied to swap entry
-  * @ent: swap entry to be looked up.
-  *
-- * Returns pointer to mem_cgroup at success. NULL at failure.
-+ * Returns CSS ID of mem_cgroup at success. 0 at failure. (0 is invalid ID)
-  */
--struct mem_cgroup *lookup_swap_cgroup(swp_entry_t ent)
-+unsigned short lookup_swap_cgroup(swp_entry_t ent)
- {
- 	int type = swp_type(ent);
- 	unsigned long offset = swp_offset(ent);
-@@ -385,16 +381,16 @@ struct mem_cgroup *lookup_swap_cgroup(sw
- 	struct swap_cgroup_ctrl *ctrl;
- 	struct page *mappage;
- 	struct swap_cgroup *sc;
--	struct mem_cgroup *ret;
-+	unsigned short ret;
- 
- 	if (!do_swap_account)
--		return NULL;
-+		return 0;
- 
- 	ctrl = &swap_cgroup_ctrl[type];
- 	mappage = ctrl->map[idx];
- 	sc = page_address(mappage);
- 	sc += pos;
--	ret = sc->val;
-+	ret = sc->id;
++	struct page *page = vmf->page;
+ 	struct file *filp = vma->vm_file;
+ 	struct dentry *dentry = filp->f_path.dentry;
+ 	unsigned pagelen;
+@@ -483,6 +484,8 @@ static int nfs_vm_page_mkwrite(struct vm
+ 		ret = pagelen;
+ out_unlock:
+ 	unlock_page(page);
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
  	return ret;
  }
  
-@@ -432,7 +428,7 @@ int swap_cgroup_swapon(int type, unsigne
+Index: linux-2.6/fs/ocfs2/mmap.c
+===================================================================
+--- linux-2.6.orig/fs/ocfs2/mmap.c
++++ linux-2.6/fs/ocfs2/mmap.c
+@@ -154,8 +154,9 @@ out:
+ 	return ret;
+ }
  
- 	printk(KERN_INFO
- 		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
--		" and %ld bytes to hold mem_cgroup pointers on swap\n",
-+		" and %ld bytes to hold mem_cgroup information per swap ents\n",
- 		array_size, length * PAGE_SIZE);
- 	printk(KERN_INFO
- 	"swap_cgroup can be disabled by noswapaccount boot option.\n");
+-static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	struct buffer_head *di_bh = NULL;
+ 	sigset_t blocked, oldset;
+@@ -196,7 +197,8 @@ out:
+ 	ret2 = ocfs2_vm_op_unblock_sigs(&oldset);
+ 	if (ret2 < 0)
+ 		mlog_errno(ret2);
+-
++	if (ret)
++		ret = VM_FAULT_SIGBUS;
+ 	return ret;
+ }
+ 
+Index: linux-2.6/fs/ubifs/file.c
+===================================================================
+--- linux-2.6.orig/fs/ubifs/file.c
++++ linux-2.6/fs/ubifs/file.c
+@@ -1434,8 +1434,9 @@ static int ubifs_releasepage(struct page
+  * mmap()d file has taken write protection fault and is being made
+  * writable. UBIFS must ensure page is budgeted for.
+  */
+-static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
++static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+ 	struct ubifs_info *c = inode->i_sb->s_fs_info;
+ 	struct timespec now = ubifs_current_time(inode);
+@@ -1447,7 +1448,7 @@ static int ubifs_vm_page_mkwrite(struct
+ 	ubifs_assert(!(inode->i_sb->s_flags & MS_RDONLY));
+ 
+ 	if (unlikely(c->ro_media))
+-		return -EROFS;
++		return VM_FAULT_SIGBUS; /* -EROFS */
+ 
+ 	/*
+ 	 * We have not locked @page so far so we may budget for changing the
+@@ -1480,7 +1481,7 @@ static int ubifs_vm_page_mkwrite(struct
+ 		if (err == -ENOSPC)
+ 			ubifs_warn("out of space for mmapped file "
+ 				   "(inode number %lu)", inode->i_ino);
+-		return err;
++		return VM_FAULT_SIGBUS;
+ 	}
+ 
+ 	lock_page(page);
+@@ -1520,6 +1521,8 @@ static int ubifs_vm_page_mkwrite(struct
+ out_unlock:
+ 	unlock_page(page);
+ 	ubifs_release_budget(c, &req);
++	if (err)
++		err = VM_FAULT_SIGBUS;
+ 	return err;
+ }
+ 
+Index: linux-2.6/fs/xfs/linux-2.6/xfs_file.c
+===================================================================
+--- linux-2.6.orig/fs/xfs/linux-2.6/xfs_file.c
++++ linux-2.6/fs/xfs/linux-2.6/xfs_file.c
+@@ -234,9 +234,9 @@ xfs_file_mmap(
+ STATIC int
+ xfs_vm_page_mkwrite(
+ 	struct vm_area_struct	*vma,
+-	struct page		*page)
++	struct vm_fault		*vmf)
+ {
+-	return block_page_mkwrite(vma, page, xfs_get_blocks);
++	return block_page_mkwrite(vma, vmf, xfs_get_blocks);
+ }
+ 
+ const struct file_operations xfs_file_operations = {
+Index: linux-2.6/include/linux/buffer_head.h
+===================================================================
+--- linux-2.6.orig/include/linux/buffer_head.h
++++ linux-2.6/include/linux/buffer_head.h
+@@ -223,7 +223,7 @@ int cont_write_begin(struct file *, stru
+ 			get_block_t *, loff_t *);
+ int generic_cont_expand_simple(struct inode *inode, loff_t size);
+ int block_commit_write(struct page *page, unsigned from, unsigned to);
+-int block_page_mkwrite(struct vm_area_struct *vma, struct page *page,
++int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 				get_block_t get_block);
+ void block_sync_page(struct page *);
+ sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
+Index: linux-2.6/include/linux/mm.h
+===================================================================
+--- linux-2.6.orig/include/linux/mm.h
++++ linux-2.6/include/linux/mm.h
+@@ -134,6 +134,7 @@ extern pgprot_t protection_map[16];
+ 
+ #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
+ #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
++#define FAULT_FLAG_MKWRITE	0x04	/* Fault was mkwrite of existing pte */
+ 
+ /*
+  * This interface is used by x86 PAT code to identify a pfn mapping that is
+@@ -186,7 +187,7 @@ struct vm_operations_struct {
+ 
+ 	/* notification that a previously read-only page is about to become
+ 	 * writable, if an error is returned it will cause a SIGBUS */
+-	int (*page_mkwrite)(struct vm_area_struct *vma, struct page *page);
++	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+ 
+ 	/* called by access_process_vm when get_user_pages() fails, typically
+ 	 * for use by special VMAs that can switch between memory and hardware
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -1938,6 +1938,15 @@ static int do_wp_page(struct mm_struct *
+ 		 * get_user_pages(.write=1, .force=1).
+ 		 */
+ 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
++			struct vm_fault vmf;
++			int tmp;
++
++			vmf.virtual_address = (void __user *)(address &
++								PAGE_MASK);
++			vmf.pgoff = old_page->index;
++			vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
++			vmf.page = old_page;
++
+ 			/*
+ 			 * Notify the address space that the page is about to
+ 			 * become writable so that it can prohibit this or wait
+@@ -1949,8 +1958,12 @@ static int do_wp_page(struct mm_struct *
+ 			page_cache_get(old_page);
+ 			pte_unmap_unlock(page_table, ptl);
+ 
+-			if (vma->vm_ops->page_mkwrite(vma, old_page) < 0)
++			tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
++			if (unlikely(tmp &
++					(VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
++				ret = tmp;
+ 				goto unwritable_page;
++			}
+ 
+ 			/*
+ 			 * Since we dropped the lock we need to revalidate
+@@ -2099,7 +2112,7 @@ oom:
+ 
+ unwritable_page:
+ 	page_cache_release(old_page);
+-	return VM_FAULT_SIGBUS;
++	return ret;
+ }
+ 
+ /*
+@@ -2643,9 +2656,14 @@ static int __do_fault(struct mm_struct *
+ 			 * to become writable
+ 			 */
+ 			if (vma->vm_ops->page_mkwrite) {
++				int tmp;
++
+ 				unlock_page(page);
+-				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
+-					ret = VM_FAULT_SIGBUS;
++				vmf.flags |= FAULT_FLAG_MKWRITE;
++				tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
++				if (unlikely(tmp &
++					  (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
++					ret = tmp;
+ 					anon = 1; /* no anon but release vmf.page */
+ 					goto out_unlocked;
+ 				}
+Index: linux-2.6/drivers/video/fb_defio.c
+===================================================================
+--- linux-2.6.orig/drivers/video/fb_defio.c
++++ linux-2.6/drivers/video/fb_defio.c
+@@ -85,8 +85,9 @@ EXPORT_SYMBOL_GPL(fb_deferred_io_fsync);
+ 
+ /* vm_ops->page_mkwrite handler */
+ static int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
+-				  struct page *page)
++				  struct vm_fault *vmf)
+ {
++	struct page *page = vmf->page;
+ 	struct fb_info *info = vma->vm_private_data;
+ 	struct fb_deferred_io *fbdefio = info->fbdefio;
+ 	struct page *cur;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
