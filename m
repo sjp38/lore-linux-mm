@@ -1,92 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 605286B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 17:30:46 -0400 (EDT)
-Date: Wed, 11 Mar 2009 14:28:08 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <20090311205529.GR27823@random.random>
-Message-ID: <alpine.LFD.2.00.0903111417230.32478@localhost.localdomain>
-References: <20090311170611.GA2079@elte.hu> <alpine.LFD.2.00.0903111024320.32478@localhost.localdomain> <20090311174103.GA11979@elte.hu> <alpine.LFD.2.00.0903111053080.32478@localhost.localdomain> <20090311183748.GK27823@random.random>
- <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain> <alpine.LFD.2.00.0903111150120.32478@localhost.localdomain> <20090311195935.GO27823@random.random> <alpine.LFD.2.00.0903111306080.32478@localhost.localdomain> <alpine.LFD.2.00.0903111328180.32478@localhost.localdomain>
- <20090311205529.GR27823@random.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 428F76B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 17:44:19 -0400 (EDT)
+Date: Wed, 11 Mar 2009 22:43:53 +0100
+From: Pierre Ossman <drzeus@drzeus.cx>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090311224353.166887c9@mjolnir.ossman.eu>
+In-Reply-To: <20090311174638.2e964c0b@mjolnir.ossman.eu>
+References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
+	<20090310122210.GA8415@localhost>
+	<20090310131155.GA9654@localhost>
+	<20090310212118.7bf17af6@mjolnir.ossman.eu>
+	<20090311013739.GA7078@localhost>
+	<20090311075703.35de2488@mjolnir.ossman.eu>
+	<20090311071445.GA13584@localhost>
+	<20090311082658.06ff605a@mjolnir.ossman.eu>
+	<20090311073619.GA26691@localhost>
+	<20090311085738.4233df4e@mjolnir.ossman.eu>
+	<20090311130022.GA22453@localhost>
+	<20090311160223.638b4bc9@mjolnir.ossman.eu>
+	<alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
+	<20090311174638.2e964c0b@mjolnir.ossman.eu>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-1057-1236807835-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
+--=_freyr.drzeus.cx-1057-1236807835-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-On Wed, 11 Mar 2009, Andrea Arcangeli wrote:
+On Wed, 11 Mar 2009 17:46:38 +0100
+Pierre Ossman <drzeus@drzeus.cx> wrote:
 
-> On Wed, Mar 11, 2009 at 01:33:17PM -0700, Linus Torvalds wrote:
-> > Btw, if we don't do that, then there are better alternatives. One is:
-> > 
-> >  - fork already always takes the write lock on mmap_sem (and f*ck no, I 
-> >    doubt anybody will ever care one whit how "parallel" you can do forks 
-> >    from threads, so I don't think this is an issue)
-> > 
-> >  - Just make the rule be that people who use get_user_pages() always 
-> >    have to have the read-lock on mmap_sem until they've used the pages.
-> 
-> How do you handle pages where gup already returned and I/O still in
-> flight?
+> On Wed, 11 Mar 2009 11:47:16 -0400 (EDT)
+> Steven Rostedt <rostedt@goodmis.org> wrote:
+>=20
+> >=20
+> > BTW, which kernel are you testing?  2.6.27, ftrace had its own special=
+=20
+> > buffering system. It played tricks with the page structs of the pages i=
+n=20
+> > the buffer. It used the lru parts of the pages to link list itself.
+> > I just booted on a straight 2.6.27 with tracing configured.
+> >=20
+>=20
+> I've been primarily testing 2.6.27, yes. I think I tested 2.6.29-rc7 at
+> the beginning of this, but my memory is a bit fuzzy so I better retest.
+>=20
 
-The rule is:
- - either keep the mmap_sem for reading until the IO is done
- - admit the fact that IO is asynchronous, and has visible async behavior.
+Annoying... 2.6.28 and newer refuses to boot. Has someone broken the
+virtio_blk interface?
 
-> Forcing gup-fast to be called with mmap_sem already hold (like
-> gup used to require) only avoids the need of changes in gup-fast
-> AFAICT. You'll still get pages that are pinned and calling gup-fast
-> under mmap_sem (no matter if read or even write mode) won't make a
-> difference, still those pages will be pinned while fork runs and with
-> dma going to them (by O_DIRECT or some driver using gup, as long as
-> PageReserved isn't set on them).
+I'll reconfigure it to use piix tomorrow and see if I can get it
+running.
 
-The point I'm trying to make is that anybody who thinks that pages are 
-stable over various behavior that runs in another thread - be it a fork, a 
-mmap/munmap, or anything else, is just fooling themselves. The pages are 
-going to show up in "random" places. 
+Rgds
+--=20
+     -- Pierre Ossman
 
-The fact that the non-fast "get_user_pages()" takes the mmap semaphore for 
-reading doesn't even protect that. It just means that the pages made sense 
-at the time the get_user_pages() happened, not necessarily at the time 
-when the actual use of them did. 
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
 
-> Releasing the mmap_sem read mode in the irq-completion handler context
-> should be possible, however fork will end up throttled blocking for
-> I/O which isn't very nice behavior. BTW, direct-io.c is a total mess,
-> I couldn't even figure out where to release those locks in the I/O
-> completion handlers when I tried something like this with PG_lock
-> instead of the mmap_sem...  Eventually I gave it up because this isn't
-> just about O_DIRECT but all gup users have this trouble with fork.
+--=_freyr.drzeus.cx-1057-1236807835-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
 
-O_DIRECT is actually the _simple_ case, since we won't be returning until 
-it is done (ie it's not actually a async interface). So no, O_DIRECT 
-doesn't need any interrupt handler games. It would just need to hold the 
-sem over the actual call to the filesystem (ie just over the ->direct_IO() 
-call).
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
 
-Of course, I suspect that all users of O_DIRECT would be _very_ unhappy if 
-they cannot do mmap/unmap/brk on other areas while O_DIRECT is going on, 
-so it's almost certainly not reasonable.
+iEYEARECAAYFAkm4MJsACgkQ7b8eESbyJLjvtgCfc/m/8OALovLR8y45FTRofd1I
+ux4AoOx1ZMluBf/cl5h6Fkien+hr8GF+
+=IvRw
+-----END PGP SIGNATURE-----
 
-People want the relaxed synchronization we give them, and that's literally 
-why get_user_pages_fast exists - because people don't want _more_ 
-synchronization, they want _less_.
-
-But the thing is, with less synchronization, the behavior really is 
-surprising in the edge cases. Which is why I think "threaded fork" plus 
-"get_user_pages_fast" just doesn't make sense to even _worry_ about. If 
-you use O_DIRECT and mix it with fork, you get what you get, and it's 
-random - exactly because people who want O_DIRECT don't want any locking. 
-
-It's a user-space issue, not a kernel issue.
-
-			Linus
+--=_freyr.drzeus.cx-1057-1236807835-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
