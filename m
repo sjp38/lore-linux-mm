@@ -1,47 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 722A56B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:21:30 -0400 (EDT)
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n2CLHAlD006536
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:17:10 -0600
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2CLLQGo221982
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:21:26 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2CLLPU3016903
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:21:26 -0600
-Date: Thu, 12 Mar 2009 16:21:24 -0500
-From: "Serge E. Hallyn" <serue@us.ibm.com>
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
-	do?
-Message-ID: <20090312212124.GA25019@us.ibm.com>
-References: <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain> <20090310215305.GA2078@x200.localdomain> <49B775B4.1040800@free.fr> <20090312145311.GC12390@us.ibm.com> <1236891719.32630.14.camel@bahia>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B038E6B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:30:22 -0400 (EDT)
+Date: Thu, 12 Mar 2009 21:30:06 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH] [ARM] Flush only the needed range when unmapping a VMA
+Message-ID: <20090312213006.GN7854@n2100.arm.linux.org.uk>
+References: <49B54B2A.9090408@nokia.com> <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1236891719.32630.14.camel@bahia>
+In-Reply-To: <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
 Sender: owner-linux-mm@kvack.org
-To: Greg Kurz <gkurz@fr.ibm.com>
-Cc: Cedric Le Goater <legoater@free.fr>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, Alexey Dobriyan <adobriyan@gmail.com>, xemul@openvz.org
+To: Aaro Koskinen <Aaro.Koskinen@nokia.com>
+Cc: linux-arm-kernel@lists.arm.linux.org.uk, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Quoting Greg Kurz (gkurz@fr.ibm.com):
-> On Thu, 2009-03-12 at 09:53 -0500, Serge E. Hallyn wrote:
-> > Or are you suggesting that you'll do a dummy clone of (5594,2) so that
-> > the next clone(CLONE_NEWPID) will be expected to be (5594,3,1)?
-> > 
-> 
-> Of course not
+On Tue, Mar 10, 2009 at 03:01:33PM +0200, Aaro Koskinen wrote:
+> When unmapping N pages (e.g. shared memory) the amount of TLB flushes
+> done can be (N*PAGE_SIZE/ZAP_BLOCK_SIZE)*N although it should be N at
+> maximum. With PREEMPT kernel ZAP_BLOCK_SIZE is 8 pages, so there is a
+> noticeable performance penalty when unmapping a large VMA and the system
+> is spending its time in flush_tlb_range().
 
-Ok - someone *did* argue that at some point I think...
-
-> but one should be able to tell clone() to pick a specific
-> pid.
-
-Can you explain exactly how?  I must be missing something clever.
-
--serge
+It would be nice to have some figures for the speedup gained by this
+optimisation - is there any chance you could provide a comparison?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
