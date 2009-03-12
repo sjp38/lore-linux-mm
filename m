@@ -1,184 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E32426B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 23:54:56 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9036F6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 23:58:59 -0400 (EDT)
 Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp08.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2C3soU4026661
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:54:50 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2C3t8011179758
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:55:08 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2C3soBP006328
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:54:50 +1100
-Date: Thu, 12 Mar 2009 09:24:44 +0530
+	by e23smtp04.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2C3unFF026886
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:56:49 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2C3x1jq1020024
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:59:01 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2C3whGW029908
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:58:43 +1100
+Date: Thu, 12 Mar 2009 09:28:37 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 2/5] add softlimit to res_counter
-Message-ID: <20090312035444.GC23583@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 5/5] memcg softlimit hooks to kswapd
+Message-ID: <20090312035837.GD23583@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com> <20090312095612.4a7758e1.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com> <20090312100008.aa8379d7.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090312095612.4a7758e1.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090312100008.aa8379d7.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 09:56:12]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 10:00:08]:
 
+> This patch needs MORE investigation...
+> 
+> ==
 > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> Adds an interface for defining sotlimit per memcg. (no handler in this patch.)
-> softlimit paramater itself is added to res_counter and 
->  res_counter_set_softlimit() and
->  res_counter_check_under_softlimit() is provided as an interface.
+> This patch adds hooks for memcg's softlimit to kswapd().
 > 
+> Softlimit handler is called...
+>   - before generic shrink_zone() is called.
+>   - # of pages to be scanned depends on priority.
+>   - If not enough progress, selected memcg will be moved to UNUSED queue.
+>   - at each call for balance_pgdat(), softlimit queue is rebalanced.
 > 
-> Changelog v2->v3:
->  - softlimit is moved to res_counter
-
-Good, this is very similar to the patch I have in my post as well. Please feel
-free to add my signed-off-by on this patch, but please see below for
-comments.
-
-> Changelog v1->v2:
->  - For refactoring, divided a patch into 2 part and this patch just
->    involves memory.softlimit interface.
->  - Removed governor-detect routine, it was buggy in design.
+> Changelog: v3 -> v4
+>  - move "sc" as local variable
 > 
 > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
->  include/linux/res_counter.h |    9 +++++++++
->  kernel/res_counter.c        |   29 +++++++++++++++++++++++++++++
->  mm/memcontrol.c             |   12 ++++++++++++
->  3 files changed, 50 insertions(+)
+>  mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 52 insertions(+)
 > 
-> Index: mmotm-2.6.29-Mar10/mm/memcontrol.c
+> Index: mmotm-2.6.29-Mar10/mm/vmscan.c
 > ===================================================================
-> --- mmotm-2.6.29-Mar10.orig/mm/memcontrol.c
-> +++ mmotm-2.6.29-Mar10/mm/memcontrol.c
-> @@ -2002,6 +2002,12 @@ static int mem_cgroup_write(struct cgrou
->  		else
->  			ret = mem_cgroup_resize_memsw_limit(memcg, val);
->  		break;
-> +	case RES_SOFTLIMIT:
-> +		ret = res_counter_memparse_write_strategy(buffer, &val);
-> +		if (ret)
-> +			break;
-> +		ret = res_counter_set_softlimit(&memcg->res, val);
-> +		break;
->  	default:
->  		ret = -EINVAL; /* should be BUG() ? */
->  		break;
-> @@ -2251,6 +2257,12 @@ static struct cftype mem_cgroup_files[] 
->  		.read_u64 = mem_cgroup_read,
->  	},
->  	{
-> +		.name = "softlimit_in_bytes",
-> +		.private = MEMFILE_PRIVATE(_MEM, RES_SOFTLIMIT),
-> +		.write_string = mem_cgroup_write,
-> +		.read_u64 = mem_cgroup_read,
-> +	},
-> +	{
->  		.name = "failcnt",
->  		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
->  		.trigger = mem_cgroup_reset,
-> Index: mmotm-2.6.29-Mar10/include/linux/res_counter.h
-> ===================================================================
-> --- mmotm-2.6.29-Mar10.orig/include/linux/res_counter.h
-> +++ mmotm-2.6.29-Mar10/include/linux/res_counter.h
-> @@ -39,6 +39,10 @@ struct res_counter {
->  	 */
->  	unsigned long long failcnt;
->  	/*
-> +	 * the softlimit.
-> +	 */
-> +	unsigned long long softlimit;
-> +	/*
->  	 * the lock to protect all of the above.
->  	 * the routines below consider this to be IRQ-safe
->  	 */
-> @@ -85,6 +89,7 @@ enum {
->  	RES_MAX_USAGE,
->  	RES_LIMIT,
->  	RES_FAILCNT,
-> +	RES_SOFTLIMIT,
->  };
-> 
->  /*
-> @@ -178,4 +183,8 @@ static inline int res_counter_set_limit(
->  	return ret;
+> --- mmotm-2.6.29-Mar10.orig/mm/vmscan.c
+> +++ mmotm-2.6.29-Mar10/mm/vmscan.c
+> @@ -1733,6 +1733,49 @@ unsigned long try_to_free_mem_cgroup_pag
 >  }
-> 
-> +/* res_counter's softlimit check can handles hierarchy in proper way */
-> +int res_counter_set_softlimit(struct res_counter *cnt, unsigned long long val);
-> +bool res_counter_check_under_softlimit(struct res_counter *cnt);
-> +
 >  #endif
-> Index: mmotm-2.6.29-Mar10/kernel/res_counter.c
-> ===================================================================
-> --- mmotm-2.6.29-Mar10.orig/kernel/res_counter.c
-> +++ mmotm-2.6.29-Mar10/kernel/res_counter.c
-> @@ -20,6 +20,7 @@ void res_counter_init(struct res_counter
->  	spin_lock_init(&counter->lock);
->  	counter->limit = (unsigned long long)LLONG_MAX;
->  	counter->parent = parent;
-> +	counter->softlimit = (unsigned long long)LLONG_MAX;
->  }
 > 
->  int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
-> @@ -88,6 +89,32 @@ void res_counter_uncharge(struct res_cou
->  	local_irq_restore(flags);
->  }
-> 
-> +int res_counter_set_softlimit(struct res_counter *cnt, unsigned long long val)
+> +static void shrink_zone_softlimit(struct zone *zone, int order, int priority,
+> +			   int target, int end_zone)
 > +{
-> +	unsigned long flags;
+> +	int scan = SWAP_CLUSTER_MAX;
+> +	int nid = zone->zone_pgdat->node_id;
+> +	int zid = zone_idx(zone);
+> +	struct mem_cgroup *mem;
+> +	struct scan_control sc =  {
+> +		.gfp_mask = GFP_KERNEL,
+> +		.may_writepage = !laptop_mode,
+> +		.swap_cluster_max = SWAP_CLUSTER_MAX,
+> +		.may_unmap = 1,
+> +		.swappiness = vm_swappiness,
+> +		.order = order,
+> +		.mem_cgroup = NULL,
+> +		.isolate_pages = mem_cgroup_isolate_pages,
+> +	};
 > +
-> +	spin_lock_irqsave(&cnt->lock, flags);
-> +	cnt->softlimit = val;
-> +	spin_unlock_irqrestore(&cnt->lock, flags);
-> +	return 0;
-> +}
+> +	scan = target * 2;
 > +
-> +bool res_counter_check_under_softlimit(struct res_counter *cnt)
-> +{
-> +	struct res_counter *c;
-> +	unsigned long flags;
-> +	bool ret = true;
+> +	sc.nr_scanned = 0;
+> +	sc.nr_reclaimed = 0;
+> +	while (scan > 0) {
+> +		if (zone_watermark_ok(zone, order, target, end_zone, 0))
+> +			break;
+> +		mem = mem_cgroup_schedule(nid, zid);
+> +		if (!mem)
+> +			return;
+> +		sc.mem_cgroup = mem;
 > +
-> +	local_irq_save(flags);
-> +	for (c = cnt; ret && c != NULL; c = c->parent) {
-> +		spin_lock(&c->lock);
-> +		if (c->softlimit < c->usage)
-> +			ret = false;
-
-So if a child was under the soft limit and the parent is *not*, we
-_override_ ret and return false?
-
-> +		spin_unlock(&c->lock);
+> +		sc.nr_reclaimed = 0;
+> +		shrink_zone(priority, zone, &sc);
+> +
+> +		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX/2)
+> +			mem_cgroup_schedule_end(nid, zid, mem, true);
+> +		else
+> +			mem_cgroup_schedule_end(nid, zid, mem, false);
+> +
+> +		scan -= sc.nr_scanned;
 > +	}
-> +	local_irq_restore(flags);
-> +	return ret;
+> +
+> +	return;
 > +}
 
-Why is the check_under_softlimit hierarchical? BTW, this patch is
-buggy. See above.
+I experimented a *lot* with zone reclaim and found it to be not so
+effective. Here is why
 
+1. We have no control over priority or how much to scan, that is
+controlled by balance_pgdat(). If we find that we are unable to scan
+anything, we continue scanning with the scan > 0 check, but we scan
+the same pages and the same number, because shrink_zone does scan >>
+priority.
+2. If we fail to reclaim pages in shrink_zone_softlimit, shrink_zone()
+will reclaim pages independent of the soft limit for us
+
+I spent a couple of days looking at zone based reclaim, but ran into
+(1) and (2) above.
+
+>  /*
+>   * For kswapd, balance_pgdat() will work across all this node's zones until
+>   * they are all at pages_high.
+> @@ -1776,6 +1819,8 @@ static unsigned long balance_pgdat(pg_da
+>  	 */
+>  	int temp_priority[MAX_NR_ZONES];
 > 
->  static inline unsigned long long *
->  res_counter_member(struct res_counter *counter, int member)
-> @@ -101,6 +128,8 @@ res_counter_member(struct res_counter *c
->  		return &counter->limit;
->  	case RES_FAILCNT:
->  		return &counter->failcnt;
-> +	case RES_SOFTLIMIT:
-> +		return &counter->softlimit;
->  	};
-> 
->  	BUG();
+> +	/* Refill softlimit queue */
+> +	mem_cgroup_reschedule_all(pgdat->node_id);
+>  loop_again:
+>  	total_scanned = 0;
+>  	sc.nr_reclaimed = 0;
+> @@ -1856,6 +1901,13 @@ loop_again:
+>  					       end_zone, 0))
+>  				all_zones_ok = 0;
+>  			temp_priority[i] = priority;
+> +
+> +			/*
+> +			 * Try soft limit at first.  This reclaims page
+> +			 * with regard to user's hint.
+> +			 */
+> +			shrink_zone_softlimit(zone, order, priority,
+> +					       8 * zone->pages_high, end_zone);
+>  			sc.nr_scanned = 0;
+>  			note_zone_scanning_priority(zone, priority);
+>  			/*
 > 
 > 
 
