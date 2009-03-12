@@ -1,58 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id CD0C46B0047
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 01:33:39 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C5Xb6K020953
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 12 Mar 2009 14:33:37 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 061AA45DD7B
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:33:37 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D8DA545DD78
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:33:36 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C14B0E08001
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:33:36 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 81AED1DB8045
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:33:33 +0900 (JST)
-Date: Thu, 12 Mar 2009 14:32:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 0/5] memcg softlimit (Another one) v4
-Message-Id: <20090312143212.50818cd5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090312050423.GI23583@balbir.in.ibm.com>
-References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090312034647.GA23583@balbir.in.ibm.com>
-	<20090312133949.130b20ed.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090312050423.GI23583@balbir.in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 618326B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 01:36:28 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Date: Thu, 12 Mar 2009 16:36:18 +1100
+References: <20090311170611.GA2079@elte.hu> <20090311183748.GK27823@random.random> <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200903121636.18867.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Mar 2009 10:34:23 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thursday 12 March 2009 05:46:17 Linus Torvalds wrote:
+> On Wed, 11 Mar 2009, Andrea Arcangeli wrote:
 
-> Not yet.. you just posted it. I am testing my v5, which I'll post
-> soon. I am seeing very good results with v5. I'll test yours later
-> today.
-> 
+> > > The rule has always been: don't mix fork() with page pinning. It
+> > > doesn't work. It never worked. It likely never will.
+> >
+> > I never heard this rule here
+>
+> It's never been written down, but it's obvious to anybody who looks at how
+> COW works for even five seconds. The fact is, the person doing the COW
+> after a fork() is the person who no longer has the same physical page
+> (because he got a new page).
+>
+> So _anything- that depends on physical addresses simply _cannot_ work
+> concurrently with a fork. That has always been true.
+>
+> If the idiots who use O_DIRECT don't understand that, then hey, it's their
+> problem. I have long been of the opinion that we should not support
+> O_DIRECT at all, and that it's a totally broken premise to start with.
+>
+> This is just one of millions of reasons.
 
-If "hooks" to usual path doesn't exist and there are no global locks,
-I don't have much concern with your version.
-But 'sorting' seems to be overkill to me.
+Well it is a quite well known issue at this stage I think. We've had
+MADV_DONTFORK since 2.6.16 which is basically to solve this issue I
+think with infiniband library. I guess if it would be really helpful
+we *could* add MADV_DONTCOW.
 
-I'm sorry if my responce to your patch is delayed. I may not be in office.
+Assuming we want to try fixing it transparently... what about another
+approach, mark a vma as VM_DONTCOW and uncow all existing pages in it
+if it ever has get_user_pages run on it. Big hammer approach.
 
-Thanks,
--Kame
+fast gup would be a little bit harder because looking up the vma
+defeats the purpose. However if we use another page bit to say the
+page belongs to a VM_DONTCOW vma, then we only need to check that
+once and fall back to slow gup if it is clear. So there would be no
+extra atomics in the repeat case. Yes it would be slower, but apps
+that really care should know what they are doing and set
+MADV_DONTFORK or MADV_DONTCOW on the vma by hand before doing the
+zero copy IO.
 
-
+Would this work? Anyone see any holes? (I imagine someone might argue
+against big hammer, but I would prefer it if it is lighter impact on
+the VM and still allows good applications to avoid the hammer)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
