@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id AAAB36B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 20:35:11 -0400 (EDT)
-Received: by wf-out-1314.google.com with SMTP id 28so280654wfa.11
-        for <linux-mm@kvack.org>; Wed, 11 Mar 2009 17:35:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090311170207.1795cad9.akpm@linux-foundation.org>
-References: <20090311153034.9389.19938.stgit@warthog.procyon.org.uk>
-	 <20090311150302.0ae76cf1.akpm@linux-foundation.org>
-	 <20090311170207.1795cad9.akpm@linux-foundation.org>
-Date: Thu, 12 Mar 2009 09:35:05 +0900
-Message-ID: <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com>
-Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may
-	get wrongly discarded
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+	by kanga.kvack.org (Postfix) with SMTP id E17EE6B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 20:54:12 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C0s90V002987
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 12 Mar 2009 09:54:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C1A045DD79
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:54:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 511E445DE57
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:54:09 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B57A1DB803A
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:54:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id BF3211DB803E
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:54:08 +0900 (JST)
+Date: Thu, 12 Mar 2009 09:52:47 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/5] memcg softlimit (Another one) v4
+Message-Id: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dhowells@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@surriel.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 12, 2009 at 9:02 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 11 Mar 2009 15:03:02 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> > The problem is that the pages are not marked dirty. =C2=A0Anything tha=
-t creates data
->> > in an MMU-based ramfs will cause the pages holding that data will caus=
-e the
->> > set_page_dirty() aop to be called.
->> >
->> > For the NOMMU-based mmap, set_page_dirty() may be called by write(), b=
-ut it
->> > won't be called by page-writing faults on writable mmaps, and it isn't=
- called
->> > by ramfs_nommu_expand_for_mapping() when a file is being truncated fro=
-m nothing
->> > to allocate a contiguous run.
->> >
->> > The solution is to mark the pages dirty at the point of allocation by
->> > the truncation code.
->>
->> Page reclaim shouldn't be even attempting to reclaim or write back
->> ramfs pagecache pages - reclaim can't possibly do anything with these
->> pages!
->>
->> Arguably those pages shouldn't be on the LRU at all, but we haven't
->> done that yet.
->>
->> Now, my problem is that I can't 100% be sure that we _ever_ implemented
->> this properly. =C2=A0I _think_ we did, in which case we later broke it. =
-=C2=A0If
->> we've always been (stupidly) trying to pageout these pages then OK, I
->> guess your patch is a suitable 2.6.29 stopgap.
->
-> OK, I can't find any code anywhere in which we excluded ramfs pages
-> from consideration by page reclaim. =C2=A0How dumb.
+Hi, this is a patch for implemnt softlimit to memcg.
 
+I did some clean up and bug fixes. 
 
-The ramfs  considers it in just CONFIG_UNEVICTABLE_LRU case
-It that case, ramfs_get_inode calls mapping_set_unevictable.
-So,  page reclaim can exclude ramfs pages by page_evictable.
-It's problem .
+Anyway I have to look into details of "LRU scan algorithm" after this.
 
+How this works:
 
-> So I guess that for now the proposed patch is suitable. =C2=A0Longer-term=
- we
-> should bale early in shrink_page_list(), or not add these pages to the
-> LRU at all.
+ (1) Set softlimit threshold to memcg.
+     #echo 400M > /cgroups/my_group/memory.softlimit_in_bytes.
 
-In future, we have to improve this.
+ (2) Define priority as victim.
+     #echo 3 > /cgroups/my_group/memory.softlimit_priority.
+     0 is the lowest, 8 is the highest.
+     If "8", softlimit feature ignore this group.
+     default value is "8".
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
+ (3) Add some memory pressure and make kswapd() work.
+     kswapd will reclaim memory from victims paying regard to priority.
 
+Simple test on my 2cpu 86-64 box with 1.6Gbytes of memory (...vmware)
 
+  While a process malloc 800MB of memory and touch it and sleep in a group,
+  run kernel make -j 16 under a victim cgroup with softlimit=300M, priority=3.
 
---=20
-Kinds regards,
-Minchan Kim
+  Without softlimit => 400MB of malloc'ed memory are swapped out.
+  With softlimit    =>  80MB of malloc'ed memory are swapped out. 
+
+I think 80MB of swap is from direct memory reclaim path. And this
+seems not to be terrible result.
+
+I'll do more test on other hosts. Any comments are welcome.
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
