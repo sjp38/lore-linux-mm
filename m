@@ -1,36 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 105FE6B004F
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 07:23:40 -0400 (EDT)
-Received: by wf-out-1314.google.com with SMTP id 28so529955wfa.11
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2009 04:23:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090312094529.GA4335@balbir.in.ibm.com>
-References: <20090312041414.GG23583@balbir.in.ibm.com>
-	 <20090312131739.296785da.kamezawa.hiroyu@jp.fujitsu.com>
-	 <20090312164204.43B7.A69D9226@jp.fujitsu.com>
-	 <20090312094529.GA4335@balbir.in.ibm.com>
-Date: Thu, 12 Mar 2009 20:23:39 +0900
-Message-ID: <2f11576a0903120423i56958bbbuc88cdd8cec5c9c17@mail.gmail.com>
-Subject: Re: [BUGFIX][PATCH 1/5] memcg use correct scan number at reclaim
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 91B446B004F
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 07:28:48 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate7.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2CBRv1R270488
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 11:27:57 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2CBRvjv3145810
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 12:27:57 +0100
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2CBRuQO000672
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 12:27:57 +0100
+Date: Thu, 12 Mar 2009 12:24:41 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] fix/improve generic page table walker
+Message-ID: <20090312122441.46782f9b@skybase>
+In-Reply-To: <20090312111916.5dbdb1e5@skybase>
+References: <20090311144951.58c6ab60@skybase>
+	<1236792263.3205.45.camel@calx>
+	<20090312093335.6dd67251@skybase>
+	<20090312111916.5dbdb1e5@skybase>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
->> > IIUC, # of pages to be scanned is just determined once, here.
->>
->> In this case, lockless is right behavior.
->> lockless is valuable than precise ZSTAT. end user can't observe this race.
->>
->
-> Lockless works fine provided the data is correctly aligned. I need to
-> check this out more thoroghly.
+On Thu, 12 Mar 2009 11:19:16 +0100
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
 
-Thanks a lot :)
+> On Thu, 12 Mar 2009 09:33:35 +0100
+> Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+> 
+> > > I've gone to lengths to keep VMAs out of the equation, so I can't say
+> > > I'm excited about this solution.  
+> > 
+> > The minimum fix is to add the mmap_sem. If a vma is unmapped while you
+> > walk the page tables, they can get freed. You do have a dependency on
+> > the vma list. All the other page table walkers in mm/ start with the
+> > vma, then do the four loops. It would be consistent if the generic page
+> > table walker would do the same.
+> > 
+> > Having thought about the problem again, I think I found a way how to
+> > deal with the problem in the s390 page table primitives. The fix is not
+> > exactly nice but it will work. With it s390 will be able to walk
+> > addresses outside of the vma address range.
+> 
+> Ok, the patch below fixes the problem without vma operations in the
+> generic page table walker. We still need the mmap_sem part though.
+
+Hmm, thinko on my part. If would need the address of the pgd entry to do
+what I'm trying to achieve but I only have the pgd entry itself. Back
+to the vma operation in walk_page_range I'm afraid.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
