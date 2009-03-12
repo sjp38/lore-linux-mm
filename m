@@ -1,130 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1CF086B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 21:04:48 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C14jsd029177
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 12 Mar 2009 10:04:45 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A835C45DD78
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B84345DD75
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 247B2E08007
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A6C9F1DB8017
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:42 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may  get wrongly discarded
-In-Reply-To: <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com>
-References: <20090311170207.1795cad9.akpm@linux-foundation.org> <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com>
-Message-Id: <20090312100049.43A3.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 004C16B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 21:22:12 -0400 (EDT)
+Date: Thu, 12 Mar 2009 09:08:16 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090312010816.GA6619@localhost>
+References: <20090310131155.GA9654@localhost> <20090310212118.7bf17af6@mjolnir.ossman.eu> <20090311013739.GA7078@localhost> <20090311075703.35de2488@mjolnir.ossman.eu> <20090311071445.GA13584@localhost> <20090311082658.06ff605a@mjolnir.ossman.eu> <20090311073619.GA26691@localhost> <20090311085738.4233df4e@mjolnir.ossman.eu> <20090311130022.GA22453@localhost> <20090311160223.638b4bc9@mjolnir.ossman.eu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 12 Mar 2009 10:04:41 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090311160223.638b4bc9@mjolnir.ossman.eu>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, dhowells@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Pierre Ossman <drzeus@drzeus.cx>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-
-> >> Page reclaim shouldn't be even attempting to reclaim or write back
-> >> ramfs pagecache pages - reclaim can't possibly do anything with these
-> >> pages!
-> >>
-> >> Arguably those pages shouldn't be on the LRU at all, but we haven't
-> >> done that yet.
-> >>
-> >> Now, my problem is that I can't 100% be sure that we _ever_ implemented
-> >> this properly. ?I _think_ we did, in which case we later broke it. ?If
-> >> we've always been (stupidly) trying to pageout these pages then OK, I
-> >> guess your patch is a suitable 2.6.29 stopgap.
-> >
-> > OK, I can't find any code anywhere in which we excluded ramfs pages
-> > from consideration by page reclaim. ?How dumb.
+On Wed, Mar 11, 2009 at 05:02:23PM +0200, Pierre Ossman wrote:
+> On Wed, 11 Mar 2009 21:00:22 +0800
+> Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> The ramfs  considers it in just CONFIG_UNEVICTABLE_LRU case
-> It that case, ramfs_get_inode calls mapping_set_unevictable.
-> So,  page reclaim can exclude ramfs pages by page_evictable.
-> It's problem .
+> > 
+> > I worked up a simple debugging patch. Since the missing pages are
+> > continuously spanned, several stack dumping shall be enough to catch
+> > the page consumer.
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 27b8681..c0df7fd 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1087,6 +1087,13 @@ again:
+> >  			goto failed;
+> >  	}
+> >  
+> > +	/* wfg - hunting the 40000 missing pages */
+> > +	{
+> > +		unsigned long pfn = page_to_pfn(page);
+> > +		if (pfn > 0x1000 && (pfn & 0xfff) <= 1)
+> > +			dump_stack();
+> > +	}
+> > +
+> >  	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+> >  	zone_statistics(preferred_zone, zone);
+> >  	local_irq_restore(flags);
+> 
+> This got very noisy, but here's what was in the ring buffer once it had
+> booted.
 
-Currently, CONFIG_UNEVICTABLE_LRU can't use on nommu machine
-because nobody of vmscan folk havbe nommu machine.
+It's about 20 stack dumps, hehe. Could you please paste some of them?
+Thank you!
 
-Yes, it is very stupid reason. _very_ welcome to tester! :)
+> Note that this is where only the "noflags" pages have been allocated,
+> not "lru".
 
+The lru pages have even numbered pfn, the noflags pages have odd
+numbered pfn. So if it's 1-page allocations, the ((pfn & 0xfff) <= 1)
+will match both lru and noflags pages.
 
-
-David, Could you please try following patch if you have NOMMU machine?
-it is straightforward porting to nommu.
-
-
-==
-Subject: [PATCH] remove to depend on MMU from CONFIG_UNEVICTABLE_LRU
-
-logically, CONFIG_UNEVICTABLE_LRU doesn't depend on MMU.
-but current code does by mistake. fix it.
-
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/Kconfig |    1 -
- mm/nommu.c |   24 ++++++++++++++++++++++++
- 2 files changed, 24 insertions(+), 1 deletion(-)
-
-Index: b/mm/Kconfig
-===================================================================
---- a/mm/Kconfig	2008-12-28 20:55:23.000000000 +0900
-+++ b/mm/Kconfig	2008-12-28 21:24:08.000000000 +0900
-@@ -212,7 +212,6 @@ config VIRT_TO_BUS
- config UNEVICTABLE_LRU
- 	bool "Add LRU list to track non-evictable pages"
- 	default y
--	depends on MMU
- 	help
- 	  Keeps unevictable pages off of the active and inactive pageout
- 	  lists, so kswapd will not waste CPU time or have its balancing
-Index: b/mm/nommu.c
-===================================================================
---- a/mm/nommu.c	2008-12-25 08:26:37.000000000 +0900
-+++ b/mm/nommu.c	2008-12-28 21:29:36.000000000 +0900
-@@ -1521,3 +1521,27 @@ int access_process_vm(struct task_struct
- 	mmput(mm);
- 	return len;
- }
-+
-+/*
-+ *  LRU accounting for clear_page_mlock()
-+ */
-+void __clear_page_mlock(struct page *page)
-+{
-+	VM_BUG_ON(!PageLocked(page));
-+
-+	if (!page->mapping) {	/* truncated ? */
-+		return;
-+	}
-+
-+	dec_zone_page_state(page, NR_MLOCK);
-+	count_vm_event(UNEVICTABLE_PGCLEARED);
-+	if (!isolate_lru_page(page)) {
-+		putback_lru_page(page);
-+	} else {
-+		/*
-+		 * We lost the race. the page already moved to evictable list.
-+		 */
-+		if (PageUnevictable(page))
-+			count_vm_event(UNEVICTABLE_PGSTRANDED);
-+	}
-+}
-
-
-
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
