@@ -1,41 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id EE6CB6B007E
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 07:39:37 -0400 (EDT)
-Received: by bwz18 with SMTP id 18so372719bwz.38
-        for <linux-mm@kvack.org>; Thu, 12 Mar 2009 04:39:36 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 269BE6B007E
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 07:48:53 -0400 (EDT)
+Received: by bwz18 with SMTP id 18so376300bwz.38
+        for <linux-mm@kvack.org>; Thu, 12 Mar 2009 04:48:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090312111443.GA20569@localhost>
-References: <20090311114353.GA759@localhost> <20090311121123.GA7656@localhost>
+In-Reply-To: <e2dc2c680903120438i27e209c2h28c61704299b8b4f@mail.gmail.com>
+References: <20090311114353.GA759@localhost>
 	 <e2dc2c680903110516v2c66d4a4h6a422cffceb12e2@mail.gmail.com>
 	 <20090311122611.GA8804@localhost>
 	 <e2dc2c680903120053w37968c1cy556812cef63f0896@mail.gmail.com>
 	 <20090312075952.GA19331@localhost>
 	 <e2dc2c680903120104h4d19a3f6j57ad045bc06f9a90@mail.gmail.com>
 	 <20090312081113.GA19506@localhost>
-	 <e2dc2c680903120148j1aee0759td49055be059e33ae@mail.gmail.com>
-	 <20090312111443.GA20569@localhost>
-Date: Thu, 12 Mar 2009 12:39:36 +0100
-Message-ID: <e2dc2c680903120439i73aa1db8y8e53285ddbfbb8ba@mail.gmail.com>
+	 <e2dc2c680903120117j7be962b2xd63f3296f8f65a46@mail.gmail.com>
+	 <20090312103847.GA20210@localhost>
+	 <e2dc2c680903120438i27e209c2h28c61704299b8b4f@mail.gmail.com>
+Date: Thu, 12 Mar 2009 12:48:50 +0100
+Message-ID: <e2dc2c680903120448q386f84a4t5667e22751002ae9@mail.gmail.com>
 Subject: Re: Memory usage per memory zone
 From: jack marrow <jackmarrow2@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> btw, how much physical memory do you have?
-> It's weird that meminfo says 1G but Mem-Info says 4G...
+>> Sure, but something is unreclaimable... Maybe some process is taking a
+>> lot of shared memory(shm)? What's the output of `lsof`?
+>
+> I can't paste that, but I expect oracle is using it.
 
-4 gigs.
+Maybe this is helpful:
 
-# free -m
-             total       used       free     shared    buffers     cached
-Mem:          3804       1398       2405          0          1        240
--/+ buffers/cache:       1156       2648
-Swap:         1992        403       1588
+#  ipcs |grep oracle
+0x00000000 2293770    oracle    640        4194304    22
+0x00000000 2326539    oracle    640        536870912  22
+0x880f3334 2359308    oracle    640        266338304  22
+0x0f9b5efc 1933312    oracle    640        44
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
