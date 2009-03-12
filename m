@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 10D966B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 18:08:54 -0400 (EDT)
-Subject: Re: [patch 2/2] fs: fix page_mkwrite error cases in core code and
- btrfs
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20090311035503.GI16561@wotan.suse.de>
-References: <20090311035318.GH16561@wotan.suse.de>
-	 <20090311035503.GI16561@wotan.suse.de>
-Content-Type: text/plain
-Date: Thu, 12 Mar 2009 18:08:44 -0400
-Message-Id: <1236895724.7179.71.camel@heimdal.trondhjem.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B006B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 19:03:53 -0400 (EDT)
+Date: Thu, 12 Mar 2009 15:59:05 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/4] Memory controller soft limit interface (v5)
+Message-Id: <20090312155905.81a3415a.akpm@linux-foundation.org>
+In-Reply-To: <20090312175620.17890.69177.sendpatchset@localhost.localdomain>
+References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain>
+	<20090312175620.17890.69177.sendpatchset@localhost.localdomain>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-03-11 at 04:55 +0100, Nick Piggin wrote:
-> page_mkwrite is called with neither the page lock nor the ptl held. This
-> means a page can be concurrently truncated or invalidated out from underneath
-> it. Callers are supposed to prevent truncate races themselves, however
-> previously the only thing they can do in case they hit one is to raise a
-> SIGBUS. A sigbus is wrong for the case that the page has been invalidated
-> or truncated within i_size (eg. hole punched). Callers may also have to
-> perform memory allocations in this path, where again, SIGBUS would be wrong.
-> 
-> The previous patch made it possible to properly specify errors. Convert
-> the generic buffer.c code and btrfs to return sane error values
-> (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
-> fault handler to exit without doing anything, and the fault will be retried 
-> properly).
-> 
-> This fixes core code, and converts btrfs as a template/example. All other
-> filesystems defining their own page_mkwrite should be fixed in a similar
-> manner.
+On Thu, 12 Mar 2009 23:26:20 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-There appears to be another atomicity problem in the same area of
-code...
+> +/**
+> + * Get the difference between the usage and the soft limit
+> + * @cnt: The counter
+> + *
+> + * Returns 0 if usage is less than or equal to soft limit
+> + * The difference between usage and soft limit, otherwise.
+> + */
+> +static inline unsigned long long
+> +res_counter_soft_limit_excess(struct res_counter *cnt)
+> +{
+> +	unsigned long long excess;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	if (cnt->usage <= cnt->soft_limit)
+> +		excess = 0;
+> +	else
+> +		excess = cnt->usage - cnt->soft_limit;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return excess;
+> +}
+>
+> ...
+>  
+> +static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+> +{
+> +	bool ret;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	ret = res_counter_soft_limit_check_locked(cnt);
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return ret;
+> +}
+>
+> ...
+>
+> +static inline int
+> +res_counter_set_soft_limit(struct res_counter *cnt,
+> +				unsigned long long soft_limit)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	cnt->soft_limit = soft_limit;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return 0;
+> +}
 
-The lack of locking between the call to ->page_mkwrite() and the
-subsequent call to set_page_dirty_balance() means that the filesystem
-may actually already have written out the page by the time you get round
-to calling set_page_dirty_balance().
-
-How then is the filesystem supposed to guarantee that whatever structure
-it allocated in page_mkwrite() is still around when the page gets marked
-as dirty a second time?
-
-Trond
+These functions look too large to be inlined?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
