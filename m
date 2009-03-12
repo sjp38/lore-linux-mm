@@ -1,78 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C82C86B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 21:02:37 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C12Znh023297
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 12 Mar 2009 10:02:35 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 38A1645DD7D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:02:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1069545DD7B
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:02:35 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE9E41DB8042
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:02:34 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 44E491DB8045
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:02:34 +0900 (JST)
-Date: Thu, 12 Mar 2009 10:01:12 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 6/5] softlimit document
-Message-Id: <20090312100112.6f010cae.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1CF086B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 21:04:48 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C14jsd029177
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 12 Mar 2009 10:04:45 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A835C45DD78
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B84345DD75
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 247B2E08007
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:43 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A6C9F1DB8017
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:04:42 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may  get wrongly discarded
+In-Reply-To: <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com>
+References: <20090311170207.1795cad9.akpm@linux-foundation.org> <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com>
+Message-Id: <20090312100049.43A3.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu, 12 Mar 2009 10:04:41 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, dhowells@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Sorry...6th patch.
+Hi
+
+> >> Page reclaim shouldn't be even attempting to reclaim or write back
+> >> ramfs pagecache pages - reclaim can't possibly do anything with these
+> >> pages!
+> >>
+> >> Arguably those pages shouldn't be on the LRU at all, but we haven't
+> >> done that yet.
+> >>
+> >> Now, my problem is that I can't 100% be sure that we _ever_ implemented
+> >> this properly. ?I _think_ we did, in which case we later broke it. ?If
+> >> we've always been (stupidly) trying to pageout these pages then OK, I
+> >> guess your patch is a suitable 2.6.29 stopgap.
+> >
+> > OK, I can't find any code anywhere in which we excluded ramfs pages
+> > from consideration by page reclaim. ?How dumb.
+> 
+> The ramfs  considers it in just CONFIG_UNEVICTABLE_LRU case
+> It that case, ramfs_get_inode calls mapping_set_unevictable.
+> So,  page reclaim can exclude ramfs pages by page_evictable.
+> It's problem .
+
+Currently, CONFIG_UNEVICTABLE_LRU can't use on nommu machine
+because nobody of vmscan folk havbe nommu machine.
+
+Yes, it is very stupid reason. _very_ welcome to tester! :)
+
+
+
+David, Could you please try following patch if you have NOMMU machine?
+it is straightforward porting to nommu.
+
+
 ==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] remove to depend on MMU from CONFIG_UNEVICTABLE_LRU
 
-Documentation for softlimit
+logically, CONFIG_UNEVICTABLE_LRU doesn't depend on MMU.
+but current code does by mistake. fix it.
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |   19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ mm/Kconfig |    1 -
+ mm/nommu.c |   24 ++++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)
 
-Index: mmotm-2.6.29-Mar10/Documentation/cgroups/memory.txt
+Index: b/mm/Kconfig
 ===================================================================
---- mmotm-2.6.29-Mar10.orig/Documentation/cgroups/memory.txt
-+++ mmotm-2.6.29-Mar10/Documentation/cgroups/memory.txt
-@@ -322,6 +322,25 @@ will be charged as a new owner of it.
-   - a cgroup which uses hierarchy and it has child cgroup.
-   - a cgroup which uses hierarchy and not the root of hierarchy.
- 
-+5.4 softlimit
-+  Memory cgroup supports softlimit and has 2 params for control.
-+    - memory.softlimit_in_bytes
-+	- softlimit to this cgroup.
-+    - memory.softlimit_priority.
-+	- priority of this cgroup at softlimit reclaim.
-+	  Allowed priority level is 3-0 and 3 is the lowest.
-+	  If 0, this cgroup will not be target of softlimit.
+--- a/mm/Kconfig	2008-12-28 20:55:23.000000000 +0900
++++ b/mm/Kconfig	2008-12-28 21:24:08.000000000 +0900
+@@ -212,7 +212,6 @@ config VIRT_TO_BUS
+ config UNEVICTABLE_LRU
+ 	bool "Add LRU list to track non-evictable pages"
+ 	default y
+-	depends on MMU
+ 	help
+ 	  Keeps unevictable pages off of the active and inactive pageout
+ 	  lists, so kswapd will not waste CPU time or have its balancing
+Index: b/mm/nommu.c
+===================================================================
+--- a/mm/nommu.c	2008-12-25 08:26:37.000000000 +0900
++++ b/mm/nommu.c	2008-12-28 21:29:36.000000000 +0900
+@@ -1521,3 +1521,27 @@ int access_process_vm(struct task_struct
+ 	mmput(mm);
+ 	return len;
+ }
 +
-+  At memory shortage of the system (or local node/zone), softlimit helps
-+  kswapd(), a global memory recalim kernel thread, and inform victim cgroup
-+  to be shrinked to kswapd.
++/*
++ *  LRU accounting for clear_page_mlock()
++ */
++void __clear_page_mlock(struct page *page)
++{
++	VM_BUG_ON(!PageLocked(page));
 +
-+  Victim selection logic:
-+  The kernel searches from the lowest priroty(3) up to the highest(1).
-+  If it find a cgroup witch has memory larger than softlimit, steal memory
-+  from it.
-+  If multiple cgroups are on the same priority, each cgroup wil be a
-+  victim in turn.
- 
- 6. Hierarchy support
- 
++	if (!page->mapping) {	/* truncated ? */
++		return;
++	}
++
++	dec_zone_page_state(page, NR_MLOCK);
++	count_vm_event(UNEVICTABLE_PGCLEARED);
++	if (!isolate_lru_page(page)) {
++		putback_lru_page(page);
++	} else {
++		/*
++		 * We lost the race. the page already moved to evictable list.
++		 */
++		if (PageUnevictable(page))
++			count_vm_event(UNEVICTABLE_PGSTRANDED);
++	}
++}
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
