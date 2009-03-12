@@ -1,107 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 8626B6B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 05:45:40 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2C9jXAm011045
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:15:33 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2C9je2k4358356
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:15:41 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2C9jWjF022031
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 20:45:32 +1100
-Date: Thu, 12 Mar 2009 15:15:29 +0530
+	by kanga.kvack.org (Postfix) with ESMTP id 3ACA06B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 05:54:09 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2C9Q2ul000451
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:56:02 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2C9op5G4260020
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 15:20:51 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2C9s3Ck006719
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 20:54:03 +1100
+Date: Thu, 12 Mar 2009 15:23:59 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH 1/5] memcg use correct scan number at reclaim
-Message-ID: <20090312094529.GA4335@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 0/5] memcg softlimit (Another one) v4
+Message-ID: <20090312095359.GB4335@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20090312041414.GG23583@balbir.in.ibm.com> <20090312131739.296785da.kamezawa.hiroyu@jp.fujitsu.com> <20090312164204.43B7.A69D9226@jp.fujitsu.com>
+References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com> <20090312034647.GA23583@balbir.in.ibm.com> <20090312133949.130b20ed.kamezawa.hiroyu@jp.fujitsu.com> <20090312050423.GI23583@balbir.in.ibm.com> <20090312143212.50818cd5.kamezawa.hiroyu@jp.fujitsu.com> <20090312082646.GA5828@balbir.in.ibm.com> <20090312174544.536d562c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090312164204.43B7.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090312174544.536d562c.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-12 16:45:59]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 17:45:44]:
 
-> > On Thu, 12 Mar 2009 09:44:14 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 13:05:56]:
-> > > 
-> > > > On Thu, 12 Mar 2009 09:30:54 +0530
-> > > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > > 
-> > > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 12:51:24]:
-> > > > > 
-> > > > > > On Thu, 12 Mar 2009 09:19:18 +0530
-> > > > > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > > > > 
-> > > > > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 09:55:16]:
-> > > > > > > 
-> > > > > > > > Andrew, this [1/5] is a bug fix, others are not.
-> > > > > > > > 
-> > > > > > > > ==
-> > > > > > > > From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > > > > > 
-> > > > > > > > Even when page reclaim is under mem_cgroup, # of scan page is determined by
-> > > > > > > > status of global LRU. Fix that.
-> > > > > > > > 
-> > > > > > > > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > > > > > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > > > > > ---
-> > > > > > > >  mm/vmscan.c |    2 +-
-> > > > > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > > > > > > 
-> > > > > > > > Index: mmotm-2.6.29-Mar10/mm/vmscan.c
-> > > > > > > > ===================================================================
-> > > > > > > > --- mmotm-2.6.29-Mar10.orig/mm/vmscan.c
-> > > > > > > > +++ mmotm-2.6.29-Mar10/mm/vmscan.c
-> > > > > > > > @@ -1470,7 +1470,7 @@ static void shrink_zone(int priority, st
-> > > > > > > >  		int file = is_file_lru(l);
-> > > > > > > >  		int scan;
-> > > > > > > > 
-> > > > > > > > -		scan = zone_page_state(zone, NR_LRU_BASE + l);
-> > > > > > > > +		scan = zone_nr_pages(zone, sc, l);
-> > > > > > > 
-> > > > > > > I have the exact same patch in my patch queue. BTW, mem_cgroup_zone_nr_pages is
-> > > > > > > buggy. We don't hold any sort of lock while extracting
-> > > > > > > MEM_CGROUP_ZSTAT (ideally we need zone->lru_lock). Without that how do
-> > > > > > > we guarantee that MEM_CGRUP_ZSTAT is not changing at the same time as
-> > > > > > > we are reading it?
-> > > > > > > 
-> > > > > > Is it big problem ? We don't need very precise value and ZSTAT just have
-> > > > > > increment/decrement. So, I tend to ignore this small race.
-> > > > > > (and it's unsigned long, not long long.)
-> > > > > >
-> > > > > 
-> > > > > The assumption is that unsigned long read is atomic even on 32 bit
-> > > > > systems? What if we get pre-empted in the middle of reading the data
-> > > > > and don't return back for long? The data can be highly in-accurate.
-> > > > > No? 
-> > > > > 
-> > > > Hmm,  preempt_disable() is appropriate ?
-> > > > 
-> > > > But shrink_zone() itself works on the value which is read at this time and
-> > > > dont' take care of changes in situation by preeemption...so it's not problem
-> > > > of memcg.
-> > > >
-> > > 
-> > > You'll end up reclaiming based on old stale data. shrink_zone itself
-> > > maintains atomic data for zones.
-> > > 
-> > IIUC, # of pages to be scanned is just determined once, here.
+> On Thu, 12 Mar 2009 13:56:46 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> In this case, lockless is right behavior.
-> lockless is valuable than precise ZSTAT. end user can't observe this race.
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 14:32:12]:
+> > 
+> > > On Thu, 12 Mar 2009 10:34:23 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > Not yet.. you just posted it. I am testing my v5, which I'll post
+> > > > soon. I am seeing very good results with v5. I'll test yours later
+> > > > today.
+> > > > 
+> > > 
+> > > If "hooks" to usual path doesn't exist and there are no global locks,
+> > > I don't have much concern with your version.
+> > 
+> > Good to know. I think it is always good to have competing patches and
+> > then collaborating and getting the best in.
+> > 
+> > > But 'sorting' seems to be overkill to me.
+> > > 
+> > 
+> > Sorting is very useful, specially if you have many cgroups. Without
+> > sorting, how do we select what group to select first.
+> > 
+> As I explained, if round-robin works well, ordering has no meaning.
+> That's just a difference of what is the fairness.
+> 
+>   1. In your method, recalaim at first from the user which exceeds the most
+>      is fair.
+>   2. In my method, reclaim from each cgroup in round robin is fair.
+> 
+> No big issue to users if the kernel policy is fixed.
+> Why I take "2" is that the usage of memcg doesn't mean the usage in the zone,
+> so, there are no big difference between 1 and 2 on NUMA.
 >
 
-Lockless works fine provided the data is correctly aligned. I need to
-check this out more thoroghly.
+Round robin can be bad for soft limits. If an application started up
+way ahead of others, but had a small soft limit, we would like
+resources to be properly allocated when the second application comes
+up. As the number of cgroups increase, selecting the correct cgroup to
+reclaim from is going to be a challenge without sorting.
+
+Having said that, I need to do more testing with your patches. 
 
 -- 
 	Balbir
