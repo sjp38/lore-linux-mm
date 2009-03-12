@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 7E6D06B0047
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 20:05:47 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C05j4r002306
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 12 Mar 2009 09:05:45 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C479345DD72
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:05:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A00B845DD76
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:05:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 87E571DB8013
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:05:44 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 135641DB8015
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:05:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 3/4] memcg: softlimit caller via kswapd
-In-Reply-To: <20090310190242.GG26837@balbir.in.ibm.com>
-References: <20090309164218.b64251b7.kamezawa.hiroyu@jp.fujitsu.com> <20090310190242.GG26837@balbir.in.ibm.com>
-Message-Id: <20090312090311.439B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E4B46B004F
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 20:05:56 -0400 (EDT)
+Date: Wed, 11 Mar 2009 17:02:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may
+ get wrongly discarded
+Message-Id: <20090311170207.1795cad9.akpm@linux-foundation.org>
+In-Reply-To: <20090311150302.0ae76cf1.akpm@linux-foundation.org>
+References: <20090311153034.9389.19938.stgit@warthog.procyon.org.uk>
+	<20090311150302.0ae76cf1.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Thu, 12 Mar 2009 09:05:43 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: dhowells@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Balbir-san,
+On Wed, 11 Mar 2009 15:03:02 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> Looks like a dirty hack, replacing sc-> fields this way. I've
-> experimented a lot with per zone balancing and soft limits and it does
-> not work well. The reasons
+> > The problem is that the pages are not marked dirty.  Anything that creates data
+> > in an MMU-based ramfs will cause the pages holding that data will cause the
+> > set_page_dirty() aop to be called.
+> > 
+> > For the NOMMU-based mmap, set_page_dirty() may be called by write(), but it
+> > won't be called by page-writing faults on writable mmaps, and it isn't called
+> > by ramfs_nommu_expand_for_mapping() when a file is being truncated from nothing
+> > to allocate a contiguous run.
+> > 
+> > The solution is to mark the pages dirty at the point of allocation by
+> > the truncation code.
 > 
-> 1. zone watermark balancing has a different goal than soft limit. Soft
-> limits are more of a mem cgroup feature rather than node/zone feature.
-> IIRC, you called reclaim as hot-path for soft limit reclaim, my
-> experimentation is beginning to show changed behaviour
+> Page reclaim shouldn't be even attempting to reclaim or write back
+> ramfs pagecache pages - reclaim can't possibly do anything with these
+> pages!
 > 
-> On a system with 4 CPUs and 4 Nodes, I find all CPUs spending time
-> doing reclaim, putting the hook in the reclaim path, makes the reclaim
-> dependent on the number of tasks and contention.
+> Arguably those pages shouldn't be on the LRU at all, but we haven't
+> done that yet.
 > 
-> What does your test data/experimentation show?
+> Now, my problem is that I can't 100% be sure that we _ever_ implemented
+> this properly.  I _think_ we did, in which case we later broke it.  If
+> we've always been (stupidly) trying to pageout these pages then OK, I
+> guess your patch is a suitable 2.6.29 stopgap.
 
-you pointed out mainline kernel bug, not kamezawa patch's bug ;-)
-Could you please try following patch?
+OK, I can't find any code anywhere in which we excluded ramfs pages
+from consideration by page reclaim.  How dumb.
 
-sorry, this is definitly my fault.
-
-
----
- mm/vmscan.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bfd853b..15f7737 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1470,7 +1470,7 @@ static void shrink_zone(int priority, struct zone *zone,
- 		int file = is_file_lru(l);
- 		int scan;
- 
--		scan = zone_page_state(zone, NR_LRU_BASE + l);
-+		scan = zone_nr_pages(zone, sc, l);
- 		if (priority) {
- 			scan >>= priority;
- 			scan = (scan * percent[file]) / 100;
--- 
-1.6.0.6
-
-
+So I guess that for now the proposed patch is suitable.  Longer-term we
+should bale early in shrink_page_list(), or not add these pages to the
+LRU at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
