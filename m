@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id ED3426B003D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 20:59:57 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C0xsGY005213
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 0E6596B003D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 21:01:32 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C11V8Q006114
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 12 Mar 2009 09:59:54 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0757545DE52
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:59:54 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D45A345DE4F
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:59:53 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id AC8A1E0800B
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:59:53 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D4561DB8012
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:59:53 +0900 (JST)
-Date: Thu, 12 Mar 2009 09:58:31 +0900
+	Thu, 12 Mar 2009 10:01:31 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E179F45DE51
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:01:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8F8D45DE50
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:01:30 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 83D031DB803B
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:01:30 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 199CD1DB803C
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 10:01:30 +0900 (JST)
+Date: Thu, 12 Mar 2009 10:00:08 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 4/5] memcg softlimit_priority
-Message-Id: <20090312095831.e88b4556.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 5/5] memcg softlimit hooks to kswapd
+Message-Id: <20090312100008.aa8379d7.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,90 +32,104 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+This patch needs MORE investigation...
+
+==
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-An iterface to set/read softlimit priority of cgroup.
+This patch adds hooks for memcg's softlimit to kswapd().
 
-Changelog: v2->v3
- - removed complicated handling of hierarchy.
-   i.e. Changes in priority doesn't affect children.
+Softlimit handler is called...
+  - before generic shrink_zone() is called.
+  - # of pages to be scanned depends on priority.
+  - If not enough progress, selected memcg will be moved to UNUSED queue.
+  - at each call for balance_pgdat(), softlimit queue is rebalanced.
+
+Changelog: v3 -> v4
+ - move "sc" as local variable
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |   31 +++++++++++++++++++++++++++++--
- 1 file changed, 29 insertions(+), 2 deletions(-)
+ mm/vmscan.c |   52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
 
-Index: mmotm-2.6.29-Mar10/mm/memcontrol.c
+Index: mmotm-2.6.29-Mar10/mm/vmscan.c
 ===================================================================
---- mmotm-2.6.29-Mar10.orig/mm/memcontrol.c
-+++ mmotm-2.6.29-Mar10/mm/memcontrol.c
-@@ -217,6 +217,8 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
- #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
- #define MEMFILE_ATTR(val)	((val) & 0xffff)
- 
-+#define MEM_SOFTLIMIT_PRIO     (0x10)
-+
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
- static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-@@ -2187,7 +2189,14 @@ static u64 mem_cgroup_read(struct cgroup
- 	name = MEMFILE_ATTR(cft->private);
- 	switch (type) {
- 	case _MEM:
--		val = res_counter_read_u64(&mem->res, name);
-+		switch (name) {
-+		case MEM_SOFTLIMIT_PRIO:
-+			val = mem->softlimit_priority;
-+			break;
-+		default:
-+			val = res_counter_read_u64(&mem->res, name);
-+			break;
-+		}
- 		break;
- 	case _MEMSWAP:
- 		if (do_swap_account)
-@@ -2290,6 +2299,18 @@ static int mem_cgroup_reset(struct cgrou
- 	return 0;
+--- mmotm-2.6.29-Mar10.orig/mm/vmscan.c
++++ mmotm-2.6.29-Mar10/mm/vmscan.c
+@@ -1733,6 +1733,49 @@ unsigned long try_to_free_mem_cgroup_pag
  }
+ #endif
  
-+static int mem_cgroup_write_softlimit_priority(struct cgroup *cgrp,
-+					struct cftype *cft,
-+					u64 val)
++static void shrink_zone_softlimit(struct zone *zone, int order, int priority,
++			   int target, int end_zone)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	int priority = (int)val;
++	int scan = SWAP_CLUSTER_MAX;
++	int nid = zone->zone_pgdat->node_id;
++	int zid = zone_idx(zone);
++	struct mem_cgroup *mem;
++	struct scan_control sc =  {
++		.gfp_mask = GFP_KERNEL,
++		.may_writepage = !laptop_mode,
++		.swap_cluster_max = SWAP_CLUSTER_MAX,
++		.may_unmap = 1,
++		.swappiness = vm_swappiness,
++		.order = order,
++		.mem_cgroup = NULL,
++		.isolate_pages = mem_cgroup_isolate_pages,
++	};
 +
-+	if ((priority < 0) || (priority > SOFTLIMIT_MAXPRI))
-+		return -EINVAL;
-+	memcg_softlimit_requeue(memcg, priority);
-+	return 0;
++	scan = target * 2;
++
++	sc.nr_scanned = 0;
++	sc.nr_reclaimed = 0;
++	while (scan > 0) {
++		if (zone_watermark_ok(zone, order, target, end_zone, 0))
++			break;
++		mem = mem_cgroup_schedule(nid, zid);
++		if (!mem)
++			return;
++		sc.mem_cgroup = mem;
++
++		sc.nr_reclaimed = 0;
++		shrink_zone(priority, zone, &sc);
++
++		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX/2)
++			mem_cgroup_schedule_end(nid, zid, mem, true);
++		else
++			mem_cgroup_schedule_end(nid, zid, mem, false);
++
++		scan -= sc.nr_scanned;
++	}
++
++	return;
 +}
+ /*
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at pages_high.
+@@ -1776,6 +1819,8 @@ static unsigned long balance_pgdat(pg_da
+ 	 */
+ 	int temp_priority[MAX_NR_ZONES];
  
- /* For read statistics */
- enum {
-@@ -2485,6 +2506,12 @@ static struct cftype mem_cgroup_files[] 
- 		.read_u64 = mem_cgroup_read,
- 	},
- 	{
-+		.name = "softlimit_priority",
-+		.private = MEMFILE_PRIVATE(_MEM, MEM_SOFTLIMIT_PRIO),
-+		.write_u64 = mem_cgroup_write_softlimit_priority,
-+		.read_u64 = mem_cgroup_read,
-+	},
-+	{
- 		.name = "failcnt",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
- 		.trigger = mem_cgroup_reset,
-@@ -2711,8 +2738,8 @@ mem_cgroup_create(struct cgroup_subsys *
- 		res_counter_init(&mem->res, NULL);
- 		res_counter_init(&mem->memsw, NULL);
- 	}
--	mem->last_scanned_child = 0;
- 	mem->softlimit_priority = SOFTLIMIT_MAXPRI;
-+	mem->last_scanned_child = 0;
- 	mutex_init(&mem->softlimit_mutex);
- 	spin_lock_init(&mem->reclaim_param_lock);
- 
++	/* Refill softlimit queue */
++	mem_cgroup_reschedule_all(pgdat->node_id);
+ loop_again:
+ 	total_scanned = 0;
+ 	sc.nr_reclaimed = 0;
+@@ -1856,6 +1901,13 @@ loop_again:
+ 					       end_zone, 0))
+ 				all_zones_ok = 0;
+ 			temp_priority[i] = priority;
++
++			/*
++			 * Try soft limit at first.  This reclaims page
++			 * with regard to user's hint.
++			 */
++			shrink_zone_softlimit(zone, order, priority,
++					       8 * zone->pages_high, end_zone);
+ 			sc.nr_scanned = 0;
+ 			note_zone_scanning_priority(zone, priority);
+ 			/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
