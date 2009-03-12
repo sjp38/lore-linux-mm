@@ -1,29 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id BD7696B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 14:59:07 -0400 (EDT)
-Date: Thu, 12 Mar 2009 19:58:41 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090312185841.GA27823@random.random>
-References: <20090311170611.GA2079@elte.hu> <200903130323.41193.nickpiggin@yahoo.com.au> <20090312170010.GT27823@random.random> <200903130420.28772.nickpiggin@yahoo.com.au> <20090312180648.GV27823@random.random>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090312180648.GV27823@random.random>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6946B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:02:07 -0400 (EDT)
+Received: from d06nrmr1407.portsmouth.uk.ibm.com (d06nrmr1407.portsmouth.uk.ibm.com [9.149.38.185])
+	by mtagate7.uk.ibm.com (8.14.3/8.13.8) with ESMTP id n2CL23TU053360
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 21:02:03 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (d06av01.portsmouth.uk.ibm.com [9.149.37.212])
+	by d06nrmr1407.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2CL23gl1888454
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 21:02:03 GMT
+Received: from d06av01.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av01.portsmouth.uk.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2CL22Mf012313
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 21:02:03 GMT
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+ do?
+From: Greg Kurz <gkurz@fr.ibm.com>
+In-Reply-To: <20090312145311.GC12390@us.ibm.com>
+References: <20090211141434.dfa1d079.akpm@linux-foundation.org>
+	 <1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx>
+	 <20090212114207.e1c2de82.akpm@linux-foundation.org>
+	 <1234475483.30155.194.camel@nimitz>
+	 <20090212141014.2cd3d54d.akpm@linux-foundation.org>
+	 <1234479845.30155.220.camel@nimitz>
+	 <20090226155755.GA1456@x200.localdomain>
+	 <20090310215305.GA2078@x200.localdomain> <49B775B4.1040800@free.fr>
+	 <20090312145311.GC12390@us.ibm.com>
+Content-Type: text/plain
+Date: Thu, 12 Mar 2009 22:01:59 +0100
+Message-Id: <1236891719.32630.14.camel@bahia>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: "Serge E. Hallyn" <serue@us.ibm.com>
+Cc: Cedric Le Goater <legoater@free.fr>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, mpm@selenic.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, Alexey Dobriyan <adobriyan@gmail.com>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 12, 2009 at 07:06:48PM +0100, Andrea Arcangeli wrote:
-> again. BTW, I start to think I forgot a tlb flush after setting the
-> pte writable again, that could generate a minor fault that we can
-> avoid by flushing the tlb, right? But this is a minor thing, and it'd
+On Thu, 2009-03-12 at 09:53 -0500, Serge E. Hallyn wrote:
+> Or are you suggesting that you'll do a dummy clone of (5594,2) so that
+> the next clone(CLONE_NEWPID) will be expected to be (5594,3,1)?
+> 
 
-Ah no, that is already taken care of by the fork flush in the parent
-before returning, so no problem (and it would have been a minor thing
-anyway).
+Of course not but one should be able to tell clone() to pick a specific
+pid.
+
+-- 
+Gregory Kurz                                     gkurz@fr.ibm.com
+Software Engineer @ IBM/Meiosys                  http://www.ibm.com
+Tel +33 (0)534 638 479                           Fax +33 (0)561 400 420
+
+"Anarchy is about taking complete responsibility for yourself."
+        Alan Moore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
