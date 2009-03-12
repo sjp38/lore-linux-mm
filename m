@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D8C886B004D
-	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 22:02:32 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C22UN3022743
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 12 Mar 2009 11:02:30 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id F18E145DE50
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 11:02:29 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C39B545DE5F
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 11:02:29 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 902381DB804E
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 11:02:29 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 13DC61DB803E
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 11:02:29 +0900 (JST)
-Date: Thu, 12 Mar 2009 11:01:07 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 6/5] softlimit document
-Message-Id: <20090312110107.c4749a8d.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <49B86B3A.2050506@cn.fujitsu.com>
-References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090312100112.6f010cae.kamezawa.hiroyu@jp.fujitsu.com>
-	<49B86B3A.2050506@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id E3D386B004D
+	for <linux-mm@kvack.org>; Wed, 11 Mar 2009 22:11:55 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so88423gxk.14
+        for <linux-mm@kvack.org>; Wed, 11 Mar 2009 19:11:53 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090312105622.43A6.A69D9226@jp.fujitsu.com>
+References: <20090312100049.43A3.A69D9226@jp.fujitsu.com>
+	 <20090312105226.88df3f63.minchan.kim@barrios-desktop>
+	 <20090312105622.43A6.A69D9226@jp.fujitsu.com>
+Date: Thu, 12 Mar 2009 11:11:53 +0900
+Message-ID: <28c262360903111911l4e14685emb0261fe649bc03fa@mail.gmail.com>
+Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may
+	get wrongly discarded
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Li Zefan <lizf@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, dhowells@redhat.com, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@surriel.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Mar 2009 09:54:02 +0800
-Li Zefan <lizf@cn.fujitsu.com> wrote:
+On Thu, Mar 12, 2009 at 11:00 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>> Hi, Kosaki-san.
+>>
+>> I think ramfs pages's unevictablility should not depend on CONFIG_UNEVICTABLE_LRU.
+>> It would be better to remove dependency of CONFIG_UNEVICTABLE_LRU ?
+>>
+>> How about this ?
+>> It's just RFC. It's not tested.
+>>
+>> That's because we can't reclaim that pages regardless of whether there is unevictable list or not
+>
+> maybe, your patch work.
+>
+> but we can remove CONFIG_UNEVICTABLE_LRU build option itself completely
+> after nommu folks confirmed CONFIG_UNEVICTABLE_LRU works well on their machine
+>
+> it is more cleaner IMHO.
+> What do you think?
+>
+>
 
-> > +    - memory.softlimit_priority.
-> > +	- priority of this cgroup at softlimit reclaim.
-> > +	  Allowed priority level is 3-0 and 3 is the lowest.
-> > +	  If 0, this cgroup will not be target of softlimit.
-> > +
-> 
-> Seems this document is the older one...
-> 
-Ouch..my merge miss...please ignore this 6/5.
+I agree your opinion, totally
+Let us wait nommu folks's comments.
 
-Thanks,
--Kame
 
+-- 
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
