@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 46BA96B0047
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 04:36:44 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate4.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2C8acZp103566
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 08:36:38 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2C8acNi3039392
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:36:38 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2C8acHl014297
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 09:36:38 +0100
-Date: Thu, 12 Mar 2009 09:33:35 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] fix/improve generic page table walker
-Message-ID: <20090312093335.6dd67251@skybase>
-In-Reply-To: <1236792263.3205.45.camel@calx>
-References: <20090311144951.58c6ab60@skybase>
-	<1236792263.3205.45.camel@calx>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id DD3686B0047
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 04:47:10 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2C8l74n023498
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 12 Mar 2009 17:47:07 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F089345DD78
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:47:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A494F45DD76
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:47:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AA403E18001
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:47:06 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E2C6E08008
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:47:06 +0900 (JST)
+Date: Thu, 12 Mar 2009 17:45:44 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH 0/5] memcg softlimit (Another one) v4
+Message-Id: <20090312174544.536d562c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090312082646.GA5828@balbir.in.ibm.com>
+References: <20090312095247.bf338fe8.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090312034647.GA23583@balbir.in.ibm.com>
+	<20090312133949.130b20ed.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090312050423.GI23583@balbir.in.ibm.com>
+	<20090312143212.50818cd5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090312082646.GA5828@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Matt Mackall <mpm@selenic.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Mar 2009 12:24:23 -0500
-Matt Mackall <mpm@selenic.com> wrote:
+On Thu, 12 Mar 2009 13:56:46 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> On Wed, 2009-03-11 at 14:49 +0100, Martin Schwidefsky wrote:
-> > From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-12 14:32:12]:
+> 
+> > On Thu, 12 Mar 2009 10:34:23 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > > 
-> > On s390 the /proc/pid/pagemap interface is currently broken. This is
-> > caused by the unconditional loop over all pgd/pud entries as specified
-> > by the address range passed to walk_page_range. The tricky bit here
-> > is that the pgd++ in the outer loop may only be done if the page table
-> > really has 4 levels. For the pud++ in the second loop the page table needs
-> > to have at least 3 levels. With the dynamic page tables on s390 we can have
-> > page tables with 2, 3 or 4 levels. Which means that the pgd and/or the
-> > pud pointer can get out-of-bounds causing all kinds of mayhem.
+> > > Not yet.. you just posted it. I am testing my v5, which I'll post
+> > > soon. I am seeing very good results with v5. I'll test yours later
+> > > today.
+> > > 
+> > 
+> > If "hooks" to usual path doesn't exist and there are no global locks,
+> > I don't have much concern with your version.
 > 
-> Not sure why this should be a problem without delving into the S390
-> code. After all, x86 has 2, 3, or 4 levels as well (at compile time) in
-> a way that's transparent to the walker.
-
-Its hard to understand without looking at the s390 details. The main
-difference between x86 and s390 in that respect is that on s390 the
-number of page table levels is determined at runtime on a per process
-basis. A compat process uses 2 levels, a 64 bit process starts with 3
-levels and can "upgrade" to 4 levels if something gets mapped above
-4TB. Which means that a *pgd can point to a region-second (2**53 bytes),
-a region-third (2**42 bytes) or a segment table (2**31 bytes), a *pud
-can point to a region-third or a segment table. The page table
-primitives know about this semantic, in particular pud_offset and
-pmd_offset check the type of the page table pointed to by *pgd and *pud
-and do nothing with the pointer if it is a lower level page table.
-The only operation I can not "patch" is the pgd++/pud++ operation.
-The current implementation requires that the address bits of the
-non-existent higher order page tables in the page table walkers are
-zero. This is where the vmas come into play. If there is a vma then is
-it guaranteed that all the levels to cover the addresses in the vma are
-allocated.
-
-> > The proposed solution is to fast-forward over the hole between the start
-> > address and the first vma and the hole between the last vma and the end
-> > address. The pgd/pud/pmd/pte loops are used only for the address range
-> > between the first and last vma. This guarantees that the page table
-> > pointers stay in range for s390. For the other architectures this is
-> > a small optimization.
+> Good to know. I think it is always good to have competing patches and
+> then collaborating and getting the best in.
 > 
-> I've gone to lengths to keep VMAs out of the equation, so I can't say
-> I'm excited about this solution.
+> > But 'sorting' seems to be overkill to me.
+> > 
+> 
+> Sorting is very useful, specially if you have many cgroups. Without
+> sorting, how do we select what group to select first.
+> 
+As I explained, if round-robin works well, ordering has no meaning.
+That's just a difference of what is the fairness.
 
-The minimum fix is to add the mmap_sem. If a vma is unmapped while you
-walk the page tables, they can get freed. You do have a dependency on
-the vma list. All the other page table walkers in mm/ start with the
-vma, then do the four loops. It would be consistent if the generic page
-table walker would do the same.
+  1. In your method, recalaim at first from the user which exceeds the most
+     is fair.
+  2. In my method, reclaim from each cgroup in round robin is fair.
 
-Having thought about the problem again, I think I found a way how to
-deal with the problem in the s390 page table primitives. The fix is not
-exactly nice but it will work. With it s390 will be able to walk
-addresses outside of the vma address range.
+No big issue to users if the kernel policy is fixed.
+Why I take "2" is that the usage of memcg doesn't mean the usage in the zone,
+so, there are no big difference between 1 and 2 on NUMA.
 
--- 
-blue skies,
-   Martin.
 
-"Reality continues to ruin my life." - Calvin.
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
