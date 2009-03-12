@@ -1,70 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 84AB46B004D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 19:04:02 -0400 (EDT)
-Date: Thu, 12 Mar 2009 16:03:57 -0700 (PDT)
-From: Sage Weil <sage@newdream.net>
-Subject: Re: [patch 2/2] fs: fix page_mkwrite error cases in core code and
- btrfs
-In-Reply-To: <1236895724.7179.71.camel@heimdal.trondhjem.org>
-Message-ID: <Pine.LNX.4.64.0903121511300.30231@cobra.newdream.net>
-References: <20090311035318.GH16561@wotan.suse.de> <20090311035503.GI16561@wotan.suse.de>
- <1236895724.7179.71.camel@heimdal.trondhjem.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7079A6B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 19:09:10 -0400 (EDT)
+Date: Thu, 12 Mar 2009 16:04:24 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/4] Memory controller soft limit organize cgroups (v5)
+Message-Id: <20090312160424.7d6f146c.akpm@linux-foundation.org>
+In-Reply-To: <20090312175625.17890.94795.sendpatchset@localhost.localdomain>
+References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain>
+	<20090312175625.17890.94795.sendpatchset@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Mar 2009, Trond Myklebust wrote:
-> On Wed, 2009-03-11 at 04:55 +0100, Nick Piggin wrote:
-> > page_mkwrite is called with neither the page lock nor the ptl held. This
-> > means a page can be concurrently truncated or invalidated out from underneath
-> > it. Callers are supposed to prevent truncate races themselves, however
-> > previously the only thing they can do in case they hit one is to raise a
-> > SIGBUS. A sigbus is wrong for the case that the page has been invalidated
-> > or truncated within i_size (eg. hole punched). Callers may also have to
-> > perform memory allocations in this path, where again, SIGBUS would be wrong.
-> > 
-> > The previous patch made it possible to properly specify errors. Convert
-> > the generic buffer.c code and btrfs to return sane error values
-> > (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
-> > fault handler to exit without doing anything, and the fault will be retried 
-> > properly).
-> > 
-> > This fixes core code, and converts btrfs as a template/example. All other
-> > filesystems defining their own page_mkwrite should be fixed in a similar
-> > manner.
+On Thu, 12 Mar 2009 23:26:25 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+
+> Feature: Organize cgroups over soft limit in a RB-Tree
 > 
-> There appears to be another atomicity problem in the same area of
-> code...
+> From: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-> The lack of locking between the call to ->page_mkwrite() and the
-> subsequent call to set_page_dirty_balance() means that the filesystem
-> may actually already have written out the page by the time you get round
-> to calling set_page_dirty_balance().
+> Changelog v5...v4
+> 1. res_counter_uncharge has an additional parameter to indicate if the
+>    counter was over its soft limit, before uncharge.
+> 
+> Changelog v4...v3
+> 1. Optimizations to ensure we don't uncessarily get res_counter values
+> 2. Fixed a bug in usage of time_after()
+> 
+> Changelog v3...v2
+> 1. Add only the ancestor to the RB-Tree
+> 2. Use css_tryget/css_put instead of mem_cgroup_get/mem_cgroup_put
+> 
+> Changelog v2...v1
+> 1. Add support for hierarchies
+> 2. The res_counter that is highest in the hierarchy is returned on soft
+>    limit being exceeded. Since we do hierarchical reclaim and add all
+>    groups exceeding their soft limits, this approach seems to work well
+>    in practice.
+> 
+> This patch introduces a RB-Tree for storing memory cgroups that are over their
+> soft limit. The overall goal is to
+> 
+> 1. Add a memory cgroup to the RB-Tree when the soft limit is exceeded.
+>    We are careful about updates, updates take place only after a particular
+>    time interval has passed
+> 2. We remove the node from the RB-Tree when the usage goes below the soft
+>    limit
+> 
+> The next set of patches will exploit the RB-Tree to get the group that is
+> over its soft limit by the largest amount and reclaim from it, when we
+> face memory contention.
+> 
+>
+> ...
+>
+> +#define	MEM_CGROUP_TREE_UPDATE_INTERVAL		(HZ/4)
 
-We were just banging our heads against this issue last week.
+Wall-clock time is a quite poor way of tracking system activity. 
+There's little correlation between the two things.
 
-Among other things, if ->set_page_dirty sets up anything in page->private, 
-you can get an ->invalidatepage on a non-dirty page (which confused the 
-hell out of me until I realized do_wp_page() was calling set_page_dirty 
-too).
+>From a general design point of view it would be better to pace this
+polling activity in a manner which correlates with the amount of system
+activity.  For example, "once per 100,000 pages scanned" is much more
+adaptive than "once per 250 milliseconds".
 
-> How then is the filesystem supposed to guarantee that whatever structure
-> it allocated in page_mkwrite() is still around when the page gets marked
-> as dirty a second time?
+>
+> ...
+>> @@ -2459,6 +2561,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	if (cont->parent == NULL) {
+>  		enable_swap_cgroup();
+>  		parent = NULL;
+> +		mem_cgroup_soft_limit_tree = RB_ROOT;
 
-Can page_mkwrite() be made responsible for marking the page dirty, instead 
-of doing it from do_wp_page()?  That would allow the fs to do the dirtying 
-under the protection of the page lock, or whatever other internal locking 
-scheme it has.  That's how the regular write path works, and it would be 
-nice to be able to just call write_{begin,end} from ->page_mkwrite() (as 
-at least ext4 does) without being followed by a second racy call to 
-->set_page_dirty()...
+This can be done at compile time?
 
-sage
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
