@@ -1,30 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B038E6B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 17:30:22 -0400 (EDT)
-Date: Thu, 12 Mar 2009 21:30:06 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] [ARM] Flush only the needed range when unmapping a VMA
-Message-ID: <20090312213006.GN7854@n2100.arm.linux.org.uk>
-References: <49B54B2A.9090408@nokia.com> <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D966B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 18:08:54 -0400 (EDT)
+Subject: Re: [patch 2/2] fs: fix page_mkwrite error cases in core code and
+ btrfs
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <20090311035503.GI16561@wotan.suse.de>
+References: <20090311035318.GH16561@wotan.suse.de>
+	 <20090311035503.GI16561@wotan.suse.de>
+Content-Type: text/plain
+Date: Thu, 12 Mar 2009 18:08:44 -0400
+Message-Id: <1236895724.7179.71.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Aaro Koskinen <Aaro.Koskinen@nokia.com>
-Cc: linux-arm-kernel@lists.arm.linux.org.uk, linux-mm@kvack.org, hugh@veritas.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 10, 2009 at 03:01:33PM +0200, Aaro Koskinen wrote:
-> When unmapping N pages (e.g. shared memory) the amount of TLB flushes
-> done can be (N*PAGE_SIZE/ZAP_BLOCK_SIZE)*N although it should be N at
-> maximum. With PREEMPT kernel ZAP_BLOCK_SIZE is 8 pages, so there is a
-> noticeable performance penalty when unmapping a large VMA and the system
-> is spending its time in flush_tlb_range().
+On Wed, 2009-03-11 at 04:55 +0100, Nick Piggin wrote:
+> page_mkwrite is called with neither the page lock nor the ptl held. This
+> means a page can be concurrently truncated or invalidated out from underneath
+> it. Callers are supposed to prevent truncate races themselves, however
+> previously the only thing they can do in case they hit one is to raise a
+> SIGBUS. A sigbus is wrong for the case that the page has been invalidated
+> or truncated within i_size (eg. hole punched). Callers may also have to
+> perform memory allocations in this path, where again, SIGBUS would be wrong.
+> 
+> The previous patch made it possible to properly specify errors. Convert
+> the generic buffer.c code and btrfs to return sane error values
+> (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
+> fault handler to exit without doing anything, and the fault will be retried 
+> properly).
+> 
+> This fixes core code, and converts btrfs as a template/example. All other
+> filesystems defining their own page_mkwrite should be fixed in a similar
+> manner.
 
-It would be nice to have some figures for the speedup gained by this
-optimisation - is there any chance you could provide a comparison?
+There appears to be another atomicity problem in the same area of
+code...
+
+The lack of locking between the call to ->page_mkwrite() and the
+subsequent call to set_page_dirty_balance() means that the filesystem
+may actually already have written out the page by the time you get round
+to calling set_page_dirty_balance().
+
+How then is the filesystem supposed to guarantee that whatever structure
+it allocated in page_mkwrite() is still around when the page gets marked
+as dirty a second time?
+
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
