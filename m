@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 618326B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 01:36:28 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Date: Thu, 12 Mar 2009 16:36:18 +1100
-References: <20090311170611.GA2079@elte.hu> <20090311183748.GK27823@random.random> <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
-In-Reply-To: <alpine.LFD.2.00.0903111143150.32478@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200903121636.18867.nickpiggin@yahoo.com.au>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D356B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 02:50:23 -0400 (EDT)
+Date: Thu, 12 Mar 2009 07:50:04 +0100
+From: Pierre Ossman <drzeus@drzeus.cx>
+Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
+Message-ID: <20090312075004.059feb5e@mjolnir.ossman.eu>
+In-Reply-To: <20090311224353.166887c9@mjolnir.ossman.eu>
+References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
+	<20090310122210.GA8415@localhost>
+	<20090310131155.GA9654@localhost>
+	<20090310212118.7bf17af6@mjolnir.ossman.eu>
+	<20090311013739.GA7078@localhost>
+	<20090311075703.35de2488@mjolnir.ossman.eu>
+	<20090311071445.GA13584@localhost>
+	<20090311082658.06ff605a@mjolnir.ossman.eu>
+	<20090311073619.GA26691@localhost>
+	<20090311085738.4233df4e@mjolnir.ossman.eu>
+	<20090311130022.GA22453@localhost>
+	<20090311160223.638b4bc9@mjolnir.ossman.eu>
+	<alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
+	<20090311174638.2e964c0b@mjolnir.ossman.eu>
+	<20090311224353.166887c9@mjolnir.ossman.eu>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-6157-1236840609-0001-2"
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: Steven Rostedt <rostedt@goodmis.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 12 March 2009 05:46:17 Linus Torvalds wrote:
-> On Wed, 11 Mar 2009, Andrea Arcangeli wrote:
+This is a MIME-formatted message.  If you see this text it means that your
+E-mail software does not support MIME-formatted messages.
 
-> > > The rule has always been: don't mix fork() with page pinning. It
-> > > doesn't work. It never worked. It likely never will.
-> >
-> > I never heard this rule here
->
-> It's never been written down, but it's obvious to anybody who looks at how
-> COW works for even five seconds. The fact is, the person doing the COW
-> after a fork() is the person who no longer has the same physical page
-> (because he got a new page).
->
-> So _anything- that depends on physical addresses simply _cannot_ work
-> concurrently with a fork. That has always been true.
->
-> If the idiots who use O_DIRECT don't understand that, then hey, it's their
-> problem. I have long been of the opinion that we should not support
-> O_DIRECT at all, and that it's a totally broken premise to start with.
->
-> This is just one of millions of reasons.
+--=_freyr.drzeus.cx-6157-1236840609-0001-2
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Well it is a quite well known issue at this stage I think. We've had
-MADV_DONTFORK since 2.6.16 which is basically to solve this issue I
-think with infiniband library. I guess if it would be really helpful
-we *could* add MADV_DONTCOW.
+On Wed, 11 Mar 2009 22:43:53 +0100
+Pierre Ossman <drzeus@drzeus.cx> wrote:
 
-Assuming we want to try fixing it transparently... what about another
-approach, mark a vma as VM_DONTCOW and uncow all existing pages in it
-if it ever has get_user_pages run on it. Big hammer approach.
+>=20
+> I'll reconfigure it to use piix tomorrow and see if I can get it
+> running.
+>=20
 
-fast gup would be a little bit harder because looking up the vma
-defeats the purpose. However if we use another page bit to say the
-page belongs to a VM_DONTCOW vma, then we only need to check that
-once and fall back to slow gup if it is clear. So there would be no
-extra atomics in the repeat case. Yes it would be slower, but apps
-that really care should know what they are doing and set
-MADV_DONTFORK or MADV_DONTCOW on the vma by hand before doing the
-zero copy IO.
+No dice. In both cases (virtio_blk and piix), it sees the disk and
+reads the partitions, but then fails to find any volume groups. Does
+this ring any bells?
 
-Would this work? Anyone see any holes? (I imagine someone might argue
-against big hammer, but I would prefer it if it is lighter impact on
-the VM and still allows good applications to avoid the hammer)
+Rgds
+--=20
+     -- Pierre Ossman
+
+  WARNING: This correspondence is being monitored by the
+  Swedish government. Make sure your server uses encryption
+  for SMTP traffic and consider using PGP for end-to-end
+  encryption.
+
+--=_freyr.drzeus.cx-6157-1236840609-0001-2
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.11 (GNU/Linux)
+
+iEYEARECAAYFAkm4sJ8ACgkQ7b8eESbyJLh+PQCfQwTDWHDNlSEvjeMUHvRmeuQ9
+FhsAni4hiJwb9mosW6AJ8YSlEbqcmXW8
+=Ln84
+-----END PGP SIGNATURE-----
+
+--=_freyr.drzeus.cx-6157-1236840609-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
