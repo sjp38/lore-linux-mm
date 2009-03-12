@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D356B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 02:50:23 -0400 (EDT)
-Date: Thu, 12 Mar 2009 07:50:04 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F426B0047
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 02:53:15 -0400 (EDT)
+Date: Thu, 12 Mar 2009 07:53:06 +0100
 From: Pierre Ossman <drzeus@drzeus.cx>
 Subject: Re: [Bug 12832] New: kernel leaks a lot of memory
-Message-ID: <20090312075004.059feb5e@mjolnir.ossman.eu>
-In-Reply-To: <20090311224353.166887c9@mjolnir.ossman.eu>
-References: <20090310105523.3dfd4873@mjolnir.ossman.eu>
-	<20090310122210.GA8415@localhost>
-	<20090310131155.GA9654@localhost>
-	<20090310212118.7bf17af6@mjolnir.ossman.eu>
-	<20090311013739.GA7078@localhost>
-	<20090311075703.35de2488@mjolnir.ossman.eu>
-	<20090311071445.GA13584@localhost>
-	<20090311082658.06ff605a@mjolnir.ossman.eu>
-	<20090311073619.GA26691@localhost>
-	<20090311085738.4233df4e@mjolnir.ossman.eu>
-	<20090311130022.GA22453@localhost>
-	<20090311160223.638b4bc9@mjolnir.ossman.eu>
-	<alpine.DEB.2.00.0903111115010.3062@gandalf.stny.rr.com>
-	<20090311174638.2e964c0b@mjolnir.ossman.eu>
-	<20090311224353.166887c9@mjolnir.ossman.eu>
+Message-ID: <20090312075306.41c3f65e@mjolnir.ossman.eu>
+In-Reply-To: <20090312114503.43AB.A69D9226@jp.fujitsu.com>
+References: <20090311195601.47fe7798@mjolnir.ossman.eu>
+	<alpine.DEB.2.00.0903111501070.3062@gandalf.stny.rr.com>
+	<20090312114503.43AB.A69D9226@jp.fujitsu.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-6157-1236840609-0001-2"
+Content-Type: multipart/signed; micalg=PGP-SHA1; protocol="application/pgp-signature"; boundary="=_freyr.drzeus.cx-6187-1236840789-0001-2"
 Sender: owner-linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: Steven Rostedt <rostedt@goodmis.org>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "bugme-daemon@bugzilla.kernel.org" <bugme-daemon@bugzilla.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
 This is a MIME-formatted message.  If you see this text it means that your
 E-mail software does not support MIME-formatted messages.
 
---=_freyr.drzeus.cx-6157-1236840609-0001-2
+--=_freyr.drzeus.cx-6187-1236840789-0001-2
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: quoted-printable
 
-On Wed, 11 Mar 2009 22:43:53 +0100
-Pierre Ossman <drzeus@drzeus.cx> wrote:
+On Thu, 12 Mar 2009 11:46:31 +0900 (JST)
+KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
 >=20
-> I'll reconfigure it to use piix tomorrow and see if I can get it
-> running.
+> Pierre, Could you please operate following command and post result?
+>=20
+> # cat /sys/devices/system/cpu/possible
 >=20
 
-No dice. In both cases (virtio_blk and piix), it sees the disk and
-reads the partitions, but then fails to find any volume groups. Does
-this ring any bells?
+[root@builder ~]# cat /sys/devices/system/cpu/possible
+0-15
+
+16 times 11 MB also is the amount of lost memory, so this seems
+reasonable.
 
 Rgds
 --=20
@@ -56,7 +48,7 @@ Rgds
   for SMTP traffic and consider using PGP for end-to-end
   encryption.
 
---=_freyr.drzeus.cx-6157-1236840609-0001-2
+--=_freyr.drzeus.cx-6187-1236840789-0001-2
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: attachment; filename=signature.asc
@@ -64,12 +56,12 @@ Content-Disposition: attachment; filename=signature.asc
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2.0.11 (GNU/Linux)
 
-iEYEARECAAYFAkm4sJ8ACgkQ7b8eESbyJLh+PQCfQwTDWHDNlSEvjeMUHvRmeuQ9
-FhsAni4hiJwb9mosW6AJ8YSlEbqcmXW8
-=Ln84
+iEYEARECAAYFAkm4sVUACgkQ7b8eESbyJLiIxwCfSHTleByopVL5U3I+yadrRAm0
+gmsAn0R1f/mS6qNknwa/SdMSMIu2cShB
+=NXR7
 -----END PGP SIGNATURE-----
 
---=_freyr.drzeus.cx-6157-1236840609-0001-2--
+--=_freyr.drzeus.cx-6187-1236840789-0001-2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
