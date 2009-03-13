@@ -1,67 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C92206B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 23:21:10 -0400 (EDT)
-Date: Thu, 12 Mar 2009 20:21:08 -0700 (PDT)
-From: Sage Weil <sage@newdream.net>
-Subject: Re: [patch 2/2] fs: fix page_mkwrite error cases in core code and
- btrfs
-In-Reply-To: <20090313022051.GA18279@wotan.suse.de>
-Message-ID: <Pine.LNX.4.64.0903122013190.27353@cobra.newdream.net>
-References: <20090311035318.GH16561@wotan.suse.de> <20090311035503.GI16561@wotan.suse.de>
- <1236895724.7179.71.camel@heimdal.trondhjem.org>
- <Pine.LNX.4.64.0903121511300.30231@cobra.newdream.net> <20090313022051.GA18279@wotan.suse.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A956B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 23:58:04 -0400 (EDT)
+Message-ID: <49B9D9B9.4070508@cs.columbia.edu>
+Date: Thu, 12 Mar 2009 23:57:45 -0400
+From: Oren Laadan <orenl@cs.columbia.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC v13][PATCH 00/14] Kernel based checkpoint/restart
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>	<1234285547.30155.6.camel@nimitz>	<20090211141434.dfa1d079.akpm@linux-foundation.org>	<1234462282.30155.171.camel@nimitz>	<20090213152836.0fbbfa7d.akpm@linux-foundation.org> <49B9C8E0.5080500@cs.columbia.edu>
+In-Reply-To: <49B9C8E0.5080500@cs.columbia.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Mar 2009, Nick Piggin wrote:
-> On Thu, Mar 12, 2009 at 04:03:57PM -0700, Sage Weil wrote:
-> > On Thu, 12 Mar 2009, Trond Myklebust wrote:
-> > > On Wed, 2009-03-11 at 04:55 +0100, Nick Piggin wrote:
-> > > > page_mkwrite is called with neither the page lock nor the ptl held. This
-> > > > means a page can be concurrently truncated or invalidated out from underneath
-> > > > it. Callers are supposed to prevent truncate races themselves, however
-> > > > previously the only thing they can do in case they hit one is to raise a
-> > > > SIGBUS. A sigbus is wrong for the case that the page has been invalidated
-> > > > or truncated within i_size (eg. hole punched). Callers may also have to
-> > > > perform memory allocations in this path, where again, SIGBUS would be wrong.
-> > > > 
-> > > > The previous patch made it possible to properly specify errors. Convert
-> > > > the generic buffer.c code and btrfs to return sane error values
-> > > > (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
-> > > > fault handler to exit without doing anything, and the fault will be retried 
-> > > > properly).
-> > > > 
-> > > > This fixes core code, and converts btrfs as a template/example. All other
-> > > > filesystems defining their own page_mkwrite should be fixed in a similar
-> > > > manner.
-> > > 
-> > > There appears to be another atomicity problem in the same area of
-> > > code...
-> > > 
-> > > The lack of locking between the call to ->page_mkwrite() and the
-> > > subsequent call to set_page_dirty_balance() means that the filesystem
-> > > may actually already have written out the page by the time you get round
-> > > to calling set_page_dirty_balance().
-> > 
-> > We were just banging our heads against this issue last week.
-> 
-> That's coming too:
-> http://marc.info/?l=linux-fsdevel&m=123555461816471&w=2
-> 
-> (we ended up deciding to call with page unlocked and return with locked,
-> as it solves locking problems in some filesystems).
-> 
-> I'll resend that patch soonish. Hopefully it will work for you two?
 
-Yeah, that'll work nicely.
 
-Thanks!
-sage
+Oren Laadan wrote:
+> Hi,
+> 
+> Just got back from 3 weeks with practically no internet, and I see
+> that I missed a big party !
+> 
+> Trying to catch up with what's been said so far --
+
+[...]
+
+>>>>
+>>>> - Will any of this involve non-trivial serialisation of kernel
+>>>>   objects?  If so, that's getting into the
+>>>>   unacceptably-expensive-to-maintain space, I suspect.
+>>> We have some structures that are certainly tied to the kernel-internal
+>>> ones.  However, we are certainly *not* simply writing kernel structures
+>>> to userspace.  We could do that with /dev/mem.  We are carefully pulling
+>>> out the minimal bits of information from the kernel structures that we
+>>> *need* to recreate the function of the structure at restart.  There is a
+>>> maintenance burden here but, so far, that burden is almost entirely in
+>>> checkpoint/*.c.  We intend to test this functionality thoroughly to
+>>> ensure that we don't regress once we have integrated it.
+>> I guess my question can be approximately simplified to: "will it end up
+>> looking like openvz"?  (I don't believe that we know of any other way
+>> of implementing this?)
+>>
+>> Because if it does then that's a concern, because my assessment when I
+>> looked at that code (a number of years ago) was that having code of
+>> that nature in mainline would be pretty costly to us, and rather
+>> unwelcome.
+> 
+> I originally implemented c/r for linux as as kernel module, without
+> requiring any changes from the kernel. (Doing the namespaces as a kernel
+> module was much harder). For more details, see:
+> 	https://www.ncl.cs.columbia.edu/research/migrate
+
+oops... I meant the following link:
+	http://www.ncl.cs.columbia.edu/research/migration/
+
+see, for example, the papers from DejaView (SOSP 07) and Zap (USENIX 07).
+
+Oren.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
