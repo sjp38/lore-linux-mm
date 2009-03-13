@@ -1,70 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 192416B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:34:36 -0400 (EDT)
-Date: Fri, 13 Mar 2009 20:34:16 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090313193416.GG27823@random.random>
-References: <20090311170611.GA2079@elte.hu> <200903130420.28772.nickpiggin@yahoo.com.au> <20090312180648.GV27823@random.random> <200903140309.39777.nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200903140309.39777.nickpiggin@yahoo.com.au>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E457D6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 16:00:58 -0400 (EDT)
+Date: Fri, 13 Mar 2009 12:59:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 12556] pgoff_t type not wide enough (32-bit with LFS
+ and/or LBD)
+Message-Id: <20090313125909.99637b18.akpm@linux-foundation.org>
+In-Reply-To: <20090313141538.3255210803F@picon.linux-foundation.org>
+References: <bug-12556-27@http.bugzilla.kernel.org/>
+	<20090313141538.3255210803F@picon.linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Marc Aurele La France <tsi@ualberta.ca>
+Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 14, 2009 at 03:09:39AM +1100, Nick Piggin wrote:
-> Of course I could have a race in fast-gup, but I don't think I can see
-> one. I'm working on removing the vma stuff and just making it per-page,
-> which might make it easier to review.
 
-If you didn't touch gup-fast and you don't send ipis in fork, you most
-certainly have one, it's the one Linus pointed out and that I've fixed
-(with Izik, then I sorted out the ordering details and how to make it
-safe on frok side).
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-> Well, it would save having to touch the parent's pagetables after
-> doing the atomic copy-on-fork in the child. Just have the parent do
-> a do_wp_page, which will notice it is the only user of the page and
-> reuse it rather than COW it (now that Hugh has fixed the races in
-> the reuse check that should be fine).
+On Fri, 13 Mar 2009 07:15:38 -0700 (PDT)
+bugme-daemon@bugzilla.kernel.org wrote:
 
-If we're into the trouble path, it means parent already owns the
-page. I just leave it owned to the parent, pte remains the same before
-and after fork. No point in changing the pte value if we're in the
-troublesome path as far as I can tell. I only verify that the parent pte
-didn't go away from under fork when I temporarily release the parent
-PT lock to allocate the cow page in the slow path (see the -EAGAIN
-path, I also verified it triggers with swapping and system survives fine ;).
+> http://bugzilla.kernel.org/show_bug.cgi?id=12556
 
-> Now I also see that your patch still hasn't covered the other side of
-> the race, wheras my scheme should do. Hmm, I think that if we want to
+> On 32-bit archs, CONFIG_LBD allows for block devices larger than 2TB (with a
+> 512-byte sector size), while CONFIG_LFS allows for files larger than 16TB (with
+> a 4K block size).  However, reads (through the cache) of such things beyond the
+> first 16TB result in bogus data.  Writes, oddly enough, are OK.  This is
+> because the pgoff_t type is not wide enough.  See read_dev_sector()'s call to
+> read_mapping_page() in fs/partitions/check.c for an example.
+> 
+> A Q&D fix for this is to have that snippet in include/linux/types.h read ...
+> 
+> /*
+>  * The type of an index into the pagecache.  Use a #define so asm/types.h
+>  * can override it.
+>  */
+> #ifndef pgoff_t
+> #if defined(CONFIG_LBD) || defined(CONFIG_LSF)
+> #define pgoff_t u64
+> #else
+> #define pgoff_t unsigned long
+> #endif
+> #endif
+> 
 
-Sorry, but can you elaborate again what the other side of the race is?
+ouch.
 
-If child gets a whole new page, and parent keeps its own page with pte
-marked read-write the whole time that a page fault can run (page fault
-takes mmap_sem, all we have to protect against when temporarily
-releasing parent PT lock is the VM rmap code and that is taken care of
-by the pte_same path), so I don't see any other side of the race...
+We never had any serious intention of implementing 64-bit pagecache
+indexes on 32-bit architectures.  I added pgoff_t mainly for code
+clarity reasons (it was getting nutty in there), with a vague
+expectation that we would need to use a 64-bit type one day.
 
-> go to the extent of adding all this code in and tell userspace apps
-> they can use zerocopy IO and not care about COW, then we really must
-> cover both sides of the race otherwise it is just asking for data
-> corruption.
+And, yes, the need to be able to manipulate block devices via the
+pagecache does mean that this day is upon us.
 
-Surely I agree if there's another side of the race left uncovered by
-my patch we've to address it too if we make any change and we don't
-consider this a 'feature'!
+A full implementation is quite problematic.  Such a change affects each
+filesystem, many of which are old and crufty and which nobody
+maintains.  The cost of bugs in there (and there will be bugs) is
+corrupted data in rare cases for few people, which is bad.
 
-> Conversely, if we leave *any* holes open by design, then we may as well
-> leave *all* holes open and have simpler code -- because apps will have
-> to know about the zerocopy vs COW problem anyway. Don't you agree?
+Perhaps what we should do is to add a per-filesystem flag which says
+"this fs is OK with 64-bit page indexes", and turn that on within each
+filesystem as we convert and test them.  Add checks to the VFS to
+prevent people from extending files to more than 16TB on unverified
+filesystems.  Hopefully all of this infrastructure is already in place
+via super_block.s_maxbytes, and we can just forget about >16TB _files_.
 
-Indeed ;)
+And fix up the core VFS if there are any problems, and get pagecache IO
+reviewed, tested and working for the blockdev address_spaces.
+
+I expect it's all pretty simple, actually.  Mainly a matter of doing a
+few hours code review to clean up those places where we accidentally
+copy a pgoff_t to or from a long type.
+
+The fact that the kernel apparently already works correctly when one simply
+makes pgoff_t a u64 is surprising and encouraging and unexpected.  I
+bet it doesn't work 100% properly!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
