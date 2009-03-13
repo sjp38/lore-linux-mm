@@ -1,99 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 110546B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 04:41:07 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2D8f5fS021076
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 13 Mar 2009 17:41:05 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id BBE6345DE62
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 17:41:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EB7845DE55
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 17:41:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3927CE38004
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 17:41:04 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C857CE18005
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 17:41:03 +0900 (JST)
-Message-ID: <b025ddee3cbbdaadeddd2d32220e5389.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090313071501.GK16897@balbir.in.ibm.com>
-References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain>
-    <20090312175631.17890.30427.sendpatchset@localhost.localdomain>
-    <d6757939628fe7646a00a0b3b69d277f.squirrel@webmail-b.css.fujitsu.com>
-    <20090313071501.GK16897@balbir.in.ibm.com>
-Date: Fri, 13 Mar 2009 17:41:03 +0900 (JST)
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
- (v5)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 463B86B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 07:37:02 -0400 (EDT)
+Message-ID: <49BA4541.6000708@nokia.com>
+Date: Fri, 13 Mar 2009 13:36:33 +0200
+From: Aaro Koskinen <aaro.koskinen@nokia.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] [ARM] Flush only the needed range when unmapping a VMA
+References: <49B54B2A.9090408@nokia.com> <1236690093-3037-1-git-send-email-Aaro.Koskinen@nokia.com> <20090312213006.GN7854@n2100.arm.linux.org.uk>
+In-Reply-To: <20090312213006.GN7854@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: ext Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: "linux-arm-kernel@lists.arm.linux.org.uk" <linux-arm-kernel@lists.arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-13
-> 15:51:25]:
->
->> Balbir Singh wrote:
->> > Feature: Implement reclaim from groups over their soft limit
->> >
->> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
->>
->> > +unsigned long mem_cgroup_soft_limit_reclaim(struct zonelist *zl,
->> gfp_t
->> > gfp_mask)
->> > +{
->> > +	unsigned long nr_reclaimed = 0;
->> > +	struct mem_cgroup *mem;
->> > +	unsigned long flags;
->> > +	unsigned long reclaimed;
->> > +
->> > +	/*
->> > +	 * This loop can run a while, specially if mem_cgroup's continuously
->> > +	 * keep exceeding their soft limit and putting the system under
->> > +	 * pressure
->> > +	 */
->> > +	do {
->> > +		mem = mem_cgroup_largest_soft_limit_node();
->> > +		if (!mem)
->> > +			break;
->> > +
->> > +		reclaimed = mem_cgroup_hierarchical_reclaim(mem, zl,
->> > +						gfp_mask,
->> > +						MEM_CGROUP_RECLAIM_SOFT);
->> > +		nr_reclaimed += reclaimed;
->> > +		spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
->> > +		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
->> > +		__mem_cgroup_remove_exceeded(mem);
->> > +		if (mem->usage_in_excess)
->> > +			__mem_cgroup_insert_exceeded(mem);
->> > +		spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
->> > +		css_put(&mem->css);
->> > +		cond_resched();
->> > +	} while (!nr_reclaimed);
->> > +	return nr_reclaimed;
->> > +}
->> > +
->>  Why do you never consider bad corner case....
->>  As I wrote many times, "order of global usage" doesn't mean the
->>  biggest user of memcg containes memory in zones which we want.
->>  So, please don't pust "mem" back to RB-tree if reclaimed is 0.
->>
->>  This routine seems toooo bad as v4.
->
-> Are you talking about cases where a particular mem cgroup never
-> allocated from a node? Thanks.. let me take a look at it
->
-Using cpuset to test and limiting nodes for memory is an easy way,
+Hello,
 
-Thanks,
--Kame
+ext Russell King - ARM Linux wrote:
+> On Tue, Mar 10, 2009 at 03:01:33PM +0200, Aaro Koskinen wrote:
+>> When unmapping N pages (e.g. shared memory) the amount of TLB flushes
+>> done can be (N*PAGE_SIZE/ZAP_BLOCK_SIZE)*N although it should be N at
+>> maximum. With PREEMPT kernel ZAP_BLOCK_SIZE is 8 pages, so there is a
+>> noticeable performance penalty when unmapping a large VMA and the system
+>> is spending its time in flush_tlb_range().
+> 
+> It would be nice to have some figures for the speedup gained by this
+> optimisation - is there any chance you could provide a comparison?
+
+Here's a test on an OMAP3 board, 2.6.28 with linux-omap fixes and 
+PREEMPT enabled. Without the patch:
+
+~ # for PAGES in 1000 2000 3000 4000 5000 6000 7000 8000; do time 
+./shmtst $PAGES; done
+shm segment size 4096000 bytes
+real    0m 0.12s
+user    0m 0.02s
+sys     0m 0.10s
+shm segment size 8192000 bytes
+real    0m 0.36s
+user    0m 0.00s
+sys     0m 0.35s
+shm segment size 12288000 bytes
+real    0m 0.71s
+user    0m 0.03s
+sys     0m 0.67s
+shm segment size 16384000 bytes
+real    0m 1.17s
+user    0m 0.07s
+sys     0m 1.10s
+shm segment size 20480000 bytes
+real    0m 1.75s
+user    0m 0.03s
+sys     0m 1.71s
+shm segment size 24576000 bytes
+real    0m 2.44s
+user    0m 0.03s
+sys     0m 2.39s
+shm segment size 28672000 bytes
+real    0m 3.24s
+user    0m 0.10s
+sys     0m 3.14s
+shm segment size 32768000 bytes
+real    0m 4.16s
+user    0m 0.11s
+sys     0m 4.04s
+
+With the patch:
+
+~ # for PAGES in 1000 2000 3000 4000 5000 6000 7000 8000; do time 
+./shmtst $PAGES; done
+shm segment size 4096000 bytes
+real    0m 0.07s
+user    0m 0.01s
+sys     0m 0.05s
+shm segment size 8192000 bytes
+real    0m 0.13s
+user    0m 0.02s
+sys     0m 0.10s
+shm segment size 12288000 bytes
+real    0m 0.20s
+user    0m 0.00s
+sys     0m 0.19s
+shm segment size 16384000 bytes
+real    0m 0.27s
+user    0m 0.04s
+sys     0m 0.22s
+shm segment size 20480000 bytes
+real    0m 0.33s
+user    0m 0.02s
+sys     0m 0.31s
+shm segment size 24576000 bytes
+real    0m 0.40s
+user    0m 0.03s
+sys     0m 0.36s
+shm segment size 28672000 bytes
+real    0m 0.47s
+user    0m 0.03s
+sys     0m 0.42s
+shm segment size 32768000 bytes
+real    0m 0.53s
+user    0m 0.09s
+sys     0m 0.43s
+
+The test program:
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+volatile char dummy;
+
+int main (int argc, char *argv[])
+{
+         void *addr;
+         int i;
+         int shmid;
+         int pages = 0;
+
+         if (argc == 2)
+                 pages = atoi(argv[1]);
+
+         if (pages < 0) {
+                 fprintf(stderr, "usage: %s <pages>\n", argv[0]);
+                 return 0;
+         }
+
+         printf("shm segment size %d bytes\n", pages*4096);
+
+         shmid = shmget(IPC_PRIVATE, pages*4096, IPC_CREAT | 0777);
+         addr = shmat(shmid, NULL, 0);
+         memset(addr, 0xBA, pages*4096);
+         shmdt(addr);
+
+         addr = shmat(shmid, NULL, 0);
+         for (i = 0; i < pages*4096; i += 4096)
+                 dummy += *((char *)addr + i);
+         shmdt(addr);
+
+         addr = shmat(shmid, NULL, 0);
+         shmctl(shmid, IPC_RMID, 0);
+         shmdt(addr);
+
+         return 0;
+}
+
+A.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
