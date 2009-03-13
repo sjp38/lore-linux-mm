@@ -1,66 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id C4A956B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 23:58:04 -0400 (EDT)
-Message-ID: <49B9D9B9.4070508@cs.columbia.edu>
-Date: Thu, 12 Mar 2009 23:57:45 -0400
-From: Oren Laadan <orenl@cs.columbia.edu>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 204576B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 00:14:07 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp05.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2D4CDF8011537
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:12:13 +1100
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2D4EDX9327732
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:14:13 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2D4DtNM003842
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:13:55 +1100
+Date: Fri, 13 Mar 2009 09:43:41 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
+	(v5)
+Message-ID: <20090313041341.GA16897@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain> <20090312175631.17890.30427.sendpatchset@localhost.localdomain> <20090313094735.43D9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v13][PATCH 00/14] Kernel based checkpoint/restart
-References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>	<1234285547.30155.6.camel@nimitz>	<20090211141434.dfa1d079.akpm@linux-foundation.org>	<1234462282.30155.171.camel@nimitz>	<20090213152836.0fbbfa7d.akpm@linux-foundation.org> <49B9C8E0.5080500@cs.columbia.edu>
-In-Reply-To: <49B9C8E0.5080500@cs.columbia.edu>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090313094735.43D9.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-api@vger.kernel.org, containers@lists.linux-foundation.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, hpa@zytor.com, mingo@elte.hu, torvalds@linux-foundation.org, tglx@linutronix.de
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-13 10:36:31]:
 
-
-Oren Laadan wrote:
-> Hi,
+> Hi
 > 
-> Just got back from 3 weeks with practically no internet, and I see
-> that I missed a big party !
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 46bd24c..b49c90f 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1583,7 +1583,14 @@ nofail_alloc:
+> >  	reclaim_state.reclaimed_slab = 0;
+> >  	p->reclaim_state = &reclaim_state;
+> >  
+> > -	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
+> > +	/*
+> > +	 * Try to free up some pages from the memory controllers soft
+> > +	 * limit queue.
+> > +	 */
+> > +	did_some_progress = mem_cgroup_soft_limit_reclaim(zonelist, gfp_mask);
+> > +	if (!order || !did_some_progress)
+> > +		did_some_progress += try_to_free_pages(zonelist, order,
+> > +							gfp_mask);
 > 
-> Trying to catch up with what's been said so far --
-
-[...]
-
->>>>
->>>> - Will any of this involve non-trivial serialisation of kernel
->>>>   objects?  If so, that's getting into the
->>>>   unacceptably-expensive-to-maintain space, I suspect.
->>> We have some structures that are certainly tied to the kernel-internal
->>> ones.  However, we are certainly *not* simply writing kernel structures
->>> to userspace.  We could do that with /dev/mem.  We are carefully pulling
->>> out the minimal bits of information from the kernel structures that we
->>> *need* to recreate the function of the structure at restart.  There is a
->>> maintenance burden here but, so far, that burden is almost entirely in
->>> checkpoint/*.c.  We intend to test this functionality thoroughly to
->>> ensure that we don't regress once we have integrated it.
->> I guess my question can be approximately simplified to: "will it end up
->> looking like openvz"?  (I don't believe that we know of any other way
->> of implementing this?)
->>
->> Because if it does then that's a concern, because my assessment when I
->> looked at that code (a number of years ago) was that having code of
->> that nature in mainline would be pretty costly to us, and rather
->> unwelcome.
+> I have two objection to this.
 > 
-> I originally implemented c/r for linux as as kernel module, without
-> requiring any changes from the kernel. (Doing the namespaces as a kernel
-> module was much harder). For more details, see:
-> 	https://www.ncl.cs.columbia.edu/research/migrate
+> - "if (!order || !did_some_progress)" mean no call try_to_free_pages()
+>   in order>0 and did_some_progress>0 case.
+>   but mem_cgroup_soft_limit_reclaim() don't have lumpy reclaim.
+>   then, it break high order reclaim.
 
-oops... I meant the following link:
-	http://www.ncl.cs.columbia.edu/research/migration/
+I am sending a fix for this right away. Thanks, the check should be
+if (order || !did_some_progress)
 
-see, for example, the papers from DejaView (SOSP 07) and Zap (USENIX 07).
+> - in global reclaim view, foreground reclaim and background reclaim's
+>   reclaim rate is about 1:9 typically.
+>   then, kswapd reclaim the pages by global lru order before proceccing
+>   this logic.
+>   IOW, this soft limit is not SOFT.
 
-Oren.
+It depends on what you mean by soft. I call them soft since they are
+imposed only when there is contention. If you mean kswapd runs more
+often than direct reclaim, that is true, but it does not impact this
+code extensively since the high water mark is a very small compared to
+the pages present on the system.
 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
