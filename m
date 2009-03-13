@@ -1,97 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B3EF96B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 00:58:22 -0400 (EDT)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp09.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2D4ivBM028436
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:44:57 +1100
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2D4wZov467252
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:58:35 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2D4wHNj016538
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:58:17 +1100
-Date: Fri, 13 Mar 2009 10:28:11 +0530
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2A86B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 00:59:19 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2D4wwBN020567
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:28:58 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2D4wu4a2867256
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:28:56 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2D4wmvj019443
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:58:48 +1100
+Date: Fri, 13 Mar 2009 10:28:43 +0530
 From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
-	(v5)
-Message-ID: <20090313045811.GB16897@balbir.in.ibm.com>
+Subject: Re: [PATCH 2/4] Memory controller soft limit interface (v5)
+Message-ID: <20090313045843.GC16897@balbir.in.ibm.com>
 Reply-To: balbir@linux.vnet.ibm.com
-References: <20090313094735.43D9.A69D9226@jp.fujitsu.com> <20090313041341.GA16897@balbir.in.ibm.com> <20090313132426.AF4D.A69D9226@jp.fujitsu.com>
+References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain> <20090312175620.17890.69177.sendpatchset@localhost.localdomain> <20090312155905.81a3415a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090313132426.AF4D.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090312155905.81a3415a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, yamamoto@valinux.co.jp, lizf@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-13 13:31:41]:
+* Andrew Morton <akpm@linux-foundation.org> [2009-03-12 15:59:05]:
 
-> > > > -	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-> > > > +	/*
-> > > > +	 * Try to free up some pages from the memory controllers soft
-> > > > +	 * limit queue.
-> > > > +	 */
-> > > > +	did_some_progress = mem_cgroup_soft_limit_reclaim(zonelist, gfp_mask);
-> > > > +	if (!order || !did_some_progress)
-> > > > +		did_some_progress += try_to_free_pages(zonelist, order,
-> > > > +							gfp_mask);
-> > > 
-> > > I have two objection to this.
-> > > 
-> > > - "if (!order || !did_some_progress)" mean no call try_to_free_pages()
-> > >   in order>0 and did_some_progress>0 case.
-> > >   but mem_cgroup_soft_limit_reclaim() don't have lumpy reclaim.
-> > >   then, it break high order reclaim.
-> > 
-> > I am sending a fix for this right away. Thanks, the check should be
-> > if (order || !did_some_progress)
+> On Thu, 12 Mar 2009 23:26:20 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> No.
+> > +/**
+> > + * Get the difference between the usage and the soft limit
+> > + * @cnt: The counter
+> > + *
+> > + * Returns 0 if usage is less than or equal to soft limit
+> > + * The difference between usage and soft limit, otherwise.
+> > + */
+> > +static inline unsigned long long
+> > +res_counter_soft_limit_excess(struct res_counter *cnt)
+> > +{
+> > +	unsigned long long excess;
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&cnt->lock, flags);
+> > +	if (cnt->usage <= cnt->soft_limit)
+> > +		excess = 0;
+> > +	else
+> > +		excess = cnt->usage - cnt->soft_limit;
+> > +	spin_unlock_irqrestore(&cnt->lock, flags);
+> > +	return excess;
+> > +}
+> >
+> > ...
+> >  
+> > +static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
+> > +{
+> > +	bool ret;
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&cnt->lock, flags);
+> > +	ret = res_counter_soft_limit_check_locked(cnt);
+> > +	spin_unlock_irqrestore(&cnt->lock, flags);
+> > +	return ret;
+> > +}
+> >
+> > ...
+> >
+> > +static inline int
+> > +res_counter_set_soft_limit(struct res_counter *cnt,
+> > +				unsigned long long soft_limit)
+> > +{
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&cnt->lock, flags);
+> > +	cnt->soft_limit = soft_limit;
+> > +	spin_unlock_irqrestore(&cnt->lock, flags);
+> > +	return 0;
+> > +}
 > 
-> it isn't enough.
-> after is does, order-1 allocation case twrice reclaim (soft limit shrinking
-> and normal try_to_free_pages()).
-> then, order-1 reclaim makes slower about 2 times.
-
-My benchmarks don't show any degredation...  this slowdown will occur *iff*
-soft limits are enabled and groups are over their soft limit. Even if
-soft limit reclaim were to be initiated through kswapd (which is
-through my experimentation, a bad place to do it), you'd have delays
-incurred since you would have increased contention on zone lru lock.
-
-Anyway, lets boil it down your comment to
-
-The issue you claim occurs when the cgroups are over their soft
-limit and there is memory contention.
-
-> 
-> unfortunately, order-1 allocation is very frequent. it is used for
-> kernel stack.
+> These functions look too large to be inlined?
 >
-> 
-> > > - in global reclaim view, foreground reclaim and background reclaim's
-> > >   reclaim rate is about 1:9 typically.
-> > >   then, kswapd reclaim the pages by global lru order before proceccing
-> > >   this logic.
-> > >   IOW, this soft limit is not SOFT.
-> > 
-> > It depends on what you mean by soft. I call them soft since they are
-> > imposed only when there is contention. If you mean kswapd runs more
-> > often than direct reclaim, that is true, but it does not impact this
-> > code extensively since the high water mark is a very small compared to
-> > the pages present on the system.
-> 
-> No.
-> 
-> My point is, contention case kswapd wakeup. and kswapd reclaim by
-> global lru order before soft limit shrinking.
 
-I've seen the same even if kswapd is used for reclaim, since we have
-no control over priority and the length to scan. shrink_zone() does
-more work than soft limit reclaim.
+I'll send a patch to fix it and move them to res_counter.c 
 
 -- 
 	Balbir
