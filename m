@@ -1,89 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id F1B2B6B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 02:51:29 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2D6pRxj029639
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 13 Mar 2009 15:51:27 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id CD5AB2AEA81
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:51:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id AF4A41EF082
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:51:26 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A33E61DB8048
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:51:26 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 583061DB8041
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:51:26 +0900 (JST)
-Message-ID: <d6757939628fe7646a00a0b3b69d277f.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090312175631.17890.30427.sendpatchset@localhost.localdomain>
-References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain>
-    <20090312175631.17890.30427.sendpatchset@localhost.localdomain>
-Date: Fri, 13 Mar 2009 15:51:25 +0900 (JST)
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
- (v5)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3A73B6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 02:54:14 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2D6sBGk006590
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Fri, 13 Mar 2009 15:54:11 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7821A45DE50
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:54:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 56E6E45DE4F
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:54:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 30B661DB803A
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:54:11 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id DB0AC1DB803C
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 15:54:07 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention (v5)
+In-Reply-To: <20090313050740.GF16897@balbir.in.ibm.com>
+References: <20090313134548.AF50.A69D9226@jp.fujitsu.com> <20090313050740.GF16897@balbir.in.ibm.com>
+Message-Id: <20090313145032.AF4D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 13 Mar 2009 15:54:03 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: balbir@linux.vnet.ibm.com
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Feature: Implement reclaim from groups over their soft limit
->
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > > My point is, contention case kswapd wakeup. and kswapd reclaim by
+> > > global lru order before soft limit shrinking.
+> > > Therefore, In typical usage, mem_cgroup_soft_limit_reclaim() almost
+> > > don't call properly.
+> > > 
+> > > soft limit shrinking should run before processing global reclaim.
+> > 
+> > Do you have the reason of disliking call from kswapd ?
+> >
+> 
+> Yes, I sent that reason out as comments to Kame's patches. kswapd or
+> balance_pgdat controls the zones, priority and in effect how many
+> pages we scan while doing reclaim. I did lots of experiments and found
+> that if soft limit reclaim occurred from kswapd, soft_limit_reclaim
+> would almost always fail and shrink_zone() would succeed, since it
+> looks at the whole zone and is always able to find some pages at all
+> priority levels. It also does not allow for targetted reclaim based on
+> how much we exceed the soft limit by. 
 
-> +unsigned long mem_cgroup_soft_limit_reclaim(struct zonelist *zl, gfp_t
-> gfp_mask)
-> +{
-> +	unsigned long nr_reclaimed = 0;
-> +	struct mem_cgroup *mem;
-> +	unsigned long flags;
-> +	unsigned long reclaimed;
-> +
-> +	/*
-> +	 * This loop can run a while, specially if mem_cgroup's continuously
-> +	 * keep exceeding their soft limit and putting the system under
-> +	 * pressure
-> +	 */
-> +	do {
-> +		mem = mem_cgroup_largest_soft_limit_node();
-> +		if (!mem)
-> +			break;
-> +
-> +		reclaimed = mem_cgroup_hierarchical_reclaim(mem, zl,
-> +						gfp_mask,
-> +						MEM_CGROUP_RECLAIM_SOFT);
-> +		nr_reclaimed += reclaimed;
-> +		spin_lock_irqsave(&memcg_soft_limit_tree_lock, flags);
-> +		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-> +		__mem_cgroup_remove_exceeded(mem);
-> +		if (mem->usage_in_excess)
-> +			__mem_cgroup_insert_exceeded(mem);
-> +		spin_unlock_irqrestore(&memcg_soft_limit_tree_lock, flags);
-> +		css_put(&mem->css);
-> +		cond_resched();
-> +	} while (!nr_reclaimed);
-> +	return nr_reclaimed;
-> +}
-> +
- Why do you never consider bad corner case....
- As I wrote many times, "order of global usage" doesn't mean the
- biggest user of memcg containes memory in zones which we want.
- So, please don't pust "mem" back to RB-tree if reclaimed is 0.
+hm
+I read past discussion. so, I think we discuss many aspect at once.
+So, my current thinking is below, 
 
- This routine seems toooo bad as v4.
- Nack again.
+(1) if the group don't have any soft limit shrinking page, 
+    mem_cgroup_soft_limit_reclaim() spent time unnecessary.
+    -> right.
+      actually, past global reclaim had similar problem.
+      then zone_is_all_unreclaimable() was introduced.
+      maybe we can use similar technique to memcg.
 
-Regards,
--Kame
+(2) mem_cgroup_soft_limit_reclaim() should be called from?
+    -> under discussion.
+       we should solve (1) at first for proper constructive
+       discussion.
 
+(3) What's "fairness" of soft limit?
+    -> perfectly another aspect.
+
+So, I'd like to discuss (1) at first.
+Although we don't kswapd shrinking, (1) is problem.
 
 
 
