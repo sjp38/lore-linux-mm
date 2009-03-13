@@ -1,70 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id A67CF6B003D
-	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 21:36:38 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2D1aX6n029503
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 13 Mar 2009 10:36:36 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FF6B45DE50
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:36:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F05F45DE4F
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:36:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E14E1DB8042
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:36:33 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D35511DB8040
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:36:32 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention (v5)
-In-Reply-To: <20090312175631.17890.30427.sendpatchset@localhost.localdomain>
-References: <20090312175603.17890.52593.sendpatchset@localhost.localdomain> <20090312175631.17890.30427.sendpatchset@localhost.localdomain>
-Message-Id: <20090313094735.43D9.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 13 Mar 2009 10:36:31 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id A21BD6B003D
+	for <linux-mm@kvack.org>; Thu, 12 Mar 2009 22:20:58 -0400 (EDT)
+Date: Fri, 13 Mar 2009 03:20:52 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [patch 2/2] fs: fix page_mkwrite error cases in core code and btrfs
+Message-ID: <20090313022051.GA18279@wotan.suse.de>
+References: <20090311035318.GH16561@wotan.suse.de> <20090311035503.GI16561@wotan.suse.de> <1236895724.7179.71.camel@heimdal.trondhjem.org> <Pine.LNX.4.64.0903121511300.30231@cobra.newdream.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0903121511300.30231@cobra.newdream.net>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Sage Weil <sage@newdream.net>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Chris Mason <chris.mason@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Thu, Mar 12, 2009 at 04:03:57PM -0700, Sage Weil wrote:
+> On Thu, 12 Mar 2009, Trond Myklebust wrote:
+> > On Wed, 2009-03-11 at 04:55 +0100, Nick Piggin wrote:
+> > > page_mkwrite is called with neither the page lock nor the ptl held. This
+> > > means a page can be concurrently truncated or invalidated out from underneath
+> > > it. Callers are supposed to prevent truncate races themselves, however
+> > > previously the only thing they can do in case they hit one is to raise a
+> > > SIGBUS. A sigbus is wrong for the case that the page has been invalidated
+> > > or truncated within i_size (eg. hole punched). Callers may also have to
+> > > perform memory allocations in this path, where again, SIGBUS would be wrong.
+> > > 
+> > > The previous patch made it possible to properly specify errors. Convert
+> > > the generic buffer.c code and btrfs to return sane error values
+> > > (in the case of page removed from pagecache, VM_FAULT_NOPAGE will cause the
+> > > fault handler to exit without doing anything, and the fault will be retried 
+> > > properly).
+> > > 
+> > > This fixes core code, and converts btrfs as a template/example. All other
+> > > filesystems defining their own page_mkwrite should be fixed in a similar
+> > > manner.
+> > 
+> > There appears to be another atomicity problem in the same area of
+> > code...
+> > 
+> > The lack of locking between the call to ->page_mkwrite() and the
+> > subsequent call to set_page_dirty_balance() means that the filesystem
+> > may actually already have written out the page by the time you get round
+> > to calling set_page_dirty_balance().
+> 
+> We were just banging our heads against this issue last week.
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 46bd24c..b49c90f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1583,7 +1583,14 @@ nofail_alloc:
->  	reclaim_state.reclaimed_slab = 0;
->  	p->reclaim_state = &reclaim_state;
->  
-> -	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-> +	/*
-> +	 * Try to free up some pages from the memory controllers soft
-> +	 * limit queue.
-> +	 */
-> +	did_some_progress = mem_cgroup_soft_limit_reclaim(zonelist, gfp_mask);
-> +	if (!order || !did_some_progress)
-> +		did_some_progress += try_to_free_pages(zonelist, order,
-> +							gfp_mask);
+That's coming too:
+http://marc.info/?l=linux-fsdevel&m=123555461816471&w=2
 
-I have two objection to this.
+(we ended up deciding to call with page unlocked and return with locked,
+as it solves locking problems in some filesystems).
 
-- "if (!order || !did_some_progress)" mean no call try_to_free_pages()
-  in order>0 and did_some_progress>0 case.
-  but mem_cgroup_soft_limit_reclaim() don't have lumpy reclaim.
-  then, it break high order reclaim.
-- in global reclaim view, foreground reclaim and background reclaim's
-  reclaim rate is about 1:9 typically.
-  then, kswapd reclaim the pages by global lru order before proceccing
-  this logic.
-  IOW, this soft limit is not SOFT.
+I'll resend that patch soonish. Hopefully it will work for you two?
 
 
+> Among other things, if ->set_page_dirty sets up anything in page->private, 
+> you can get an ->invalidatepage on a non-dirty page (which confused the 
+> hell out of me until I realized do_wp_page() was calling set_page_dirty 
+> too).
+> 
+> > How then is the filesystem supposed to guarantee that whatever structure
+> > it allocated in page_mkwrite() is still around when the page gets marked
+> > as dirty a second time?
+> 
+> Can page_mkwrite() be made responsible for marking the page dirty, instead 
+> of doing it from do_wp_page()?  That would allow the fs to do the dirtying 
+> under the protection of the page lock, or whatever other internal locking 
+> scheme it has.  That's how the regular write path works, and it would be 
+> nice to be able to just call write_{begin,end} from ->page_mkwrite() (as 
+> at least ext4 does) without being followed by a second racy call to 
+> ->set_page_dirty()...
+
+No because the VM also needs to cover races where the page is dirtied
+after the pte is set made writable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
