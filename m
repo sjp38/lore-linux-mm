@@ -1,100 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id C9C656B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 12:09:47 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Date: Sat, 14 Mar 2009 03:09:39 +1100
-References: <20090311170611.GA2079@elte.hu> <200903130420.28772.nickpiggin@yahoo.com.au> <20090312180648.GV27823@random.random>
-In-Reply-To: <20090312180648.GV27823@random.random>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 5539A6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 12:36:05 -0400 (EDT)
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e36.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n2DGYgMI005427
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:34:42 -0600
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2DGZnfU095200
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:35:51 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2DGZbjW014266
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:35:49 -0600
+Date: Fri, 13 Mar 2009 11:35:31 -0500
+From: "Serge E. Hallyn" <serue@us.ibm.com>
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+	do?
+Message-ID: <20090313163531.GA10685@us.ibm.com>
+References: <1234467035.3243.538.camel@calx> <20090212114207.e1c2de82.akpm@linux-foundation.org> <1234475483.30155.194.camel@nimitz> <20090212141014.2cd3d54d.akpm@linux-foundation.org> <1234479845.30155.220.camel@nimitz> <20090226155755.GA1456@x200.localdomain> <20090310215305.GA2078@x200.localdomain> <49B775B4.1040800@free.fr> <20090312145311.GC12390@us.ibm.com> <49BA8013.3030103@free.fr>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200903140309.39777.nickpiggin@yahoo.com.au>
+In-Reply-To: <49BA8013.3030103@free.fr>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Cedric Le Goater <legoater@free.fr>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mingo@elte.hu, mpm@selenic.com, tglx@linutronix.de, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 13 March 2009 05:06:48 Andrea Arcangeli wrote:
-> On Fri, Mar 13, 2009 at 04:20:27AM +1100, Nick Piggin wrote:
-> > Well the main point is to avoid atomics and barriers and stuff like
-> > that especially in the fast gup path. It also seems very much smaller
-> > (the vast majority of the change is the addition of decow function).
->
-> Well if you remove the hugetlb part and you remove the pass of src/dst
-> vma that is needed anyway to fix PAT bugs, my patch will get quite
-> smaller too.
+Quoting Cedric Le Goater (legoater@free.fr):
+> 
+> > No, what you're suggesting does not suffice.
+> 
+> probably. I'm still trying to understand what you mean below :)
+> 
+> Man, I hate these hierarchicals pid_ns. one level would have been enough, 
+> just one vpid attribute in 'struct pid*'
 
-Possibly true. OK, it wasn't a very good argument to compare my incomplete,
-RFC patch based on size alone :)
+Well I don't mind - temporarily - saying that nested pid namespaces
+are not checkpointable.  It's just that if we're going to need a new
+syscall anyway, then why not go ahead and address the whole problem?
+It's not hugely more complicated, and seems worth it.
 
+> > Call
+> > (5591,3,1) the task knows as 5591 in the init_pid_ns, 3 in a child pid
+> > ns, and 1 in grandchild pid_ns created from there.  Now assume we are
+> > checkpointing tasks T1=(5592,1), and T2=(5594,3,1).
+> > 
+> > We don't care about the first number in the tuples, so they will be
+> > random numbers after the recreate. 
+> 
+> yes.
+> 
+> > But we do care about the second numbers.  
+> 
+> yes very much and we need a way set these numbers in alloc_pid()
+> 
+> > But specifying CLONE_NEWPID while recreating the process tree
+> > in userspace does not allow you to specify the 3 in (5594,3,1).
+> 
+> I haven't looked closely at hierarchical pid namespaces but as we're
+> using a an array of pid indexed but the pidns level, i don't see why 
+> it shouldn't be possible. you might be right.
+> 
+> anyway, I think that some CLONE_NEW* should be forbidden. Daniel should
+> send soon a little patch for the ns_cgroup restricting the clone flags
+> being used in a container.
 
-> Agree about the gup-fast path, but frankly I miss how you avoid having
-> to change gup-fast... I wanted to asked about that...
+Uh, that feels a bit over the top.  We want to make this
+uncheckpointable (if it remains so), not prevent the whole action.
+After all I may be running a container which I don't plan on ever
+checkpointing, and inside that container running a job which i do
+want to migrate.
 
-It is more straightforward than your version because it does not try to
-make the page re-cow-able again after the GUP is finished. The main
-conceptual difference between our fixes I think (ignoring my silly
-vma-wide decow), is this issue.
+So depending on if we're doing the Dave or the rest-of-the-world
+way :), we either clear_bit(pidns->may_checkpoint) on the parent
+pid_ns when a child is created, or we walk every task being
+checkpointed and make sure they each are in the same pid_ns.  Doesn't
+that suffice?
 
-Of course I could have a race in fast-gup, but I don't think I can see
-one. I'm working on removing the vma stuff and just making it per-page,
-which might make it easier to review.
-
-
-> > Oh, we need to do that? OK, then just take out that statement, and
-> > change VM_BUG_ON(PageDontCOW()) in do_wp_page to
-> > VM_BUG_ON(PageDontCOW() && !reuse);
->
-> Not sure how do_wp_page is relevant, the problem I pointed out is in
-> the fork_pre_cow/decow_pte only. If do_wp_page runs it means the page
-> was already wrprotected in the parent or it couldn't be shared, no
-> problem in do_wp_page in that respect.
-
-Well, it would save having to touch the parent's pagetables after
-doing the atomic copy-on-fork in the child. Just have the parent do
-a do_wp_page, which will notice it is the only user of the page and
-reuse it rather than COW it (now that Hugh has fixed the races in
-the reuse check that should be fine).
-
-
-> The only thing required is that cow_user_page is copying a page that
-> can't be modified by the parent thread pool during the copy. So
-> marking parent pte wrprotected and flushing tlb is required. Then
-> after the copy like in my fork_pre_cow we set the parent pte writable
-> again.
-
-Yes you could do it this way too, I'm not sure which way is better...
-I'll have to take another look at it after removing the per-vma code
-from mine.
-
-> > I'll see if it can be made per-page. But I still don't know if it
-> > is a big problem. It's hard to know exactly what crazy things apps
-> > require to be fast.
->
-> The thing is quite simple, if an app has a 1G of vma loaded, you'll
-> allocate 1G of ram for no good reason. It can even OOM, it's not just
-> a performance issue. While doing it per-page like I do, won't be
-> noticeable, as the in-flight I/O will be minor.
-
-Yes I agree now it is a silly way to do it.
-
-Now I also see that your patch still hasn't covered the other side of
-the race, wheras my scheme should do. Hmm, I think that if we want to
-go to the extent of adding all this code in and tell userspace apps
-they can use zerocopy IO and not care about COW, then we really must
-cover both sides of the race otherwise it is just asking for data
-corruption.
-
-Conversely, if we leave *any* holes open by design, then we may as well
-leave *all* holes open and have simpler code -- because apps will have
-to know about the zerocopy vs COW problem anyway. Don't you agree?
-
-Thanks,
-Nick
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
