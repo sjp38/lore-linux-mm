@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 014DC6B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:06:33 -0400 (EDT)
-Date: Fri, 13 Mar 2009 23:06:27 +0900
-From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
-Subject: [BUGFIX][PATCH] vmscan: pgmoved should be cleared after updating
- recent_rotated
-Message-Id: <20090313230627.3fa31cef.d-nishimura@mtf.biglobe.ne.jp>
-Reply-To: nishimura@mxp.nes.nec.co.jp
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id DABBC6B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 10:27:44 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 28so401869wfa.11
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2009 07:27:43 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090313230627.3fa31cef.d-nishimura@mtf.biglobe.ne.jp>
+References: <20090313230627.3fa31cef.d-nishimura@mtf.biglobe.ne.jp>
+Date: Fri, 13 Mar 2009 23:27:43 +0900
+Message-ID: <2f11576a0903130727l7812da61i2e352eea455378e8@mail.gmail.com>
+Subject: Re: [BUGFIX][PATCH] vmscan: pgmoved should be cleared after updating
+	recent_rotated
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, d-nishimura@mtf.biglobe.ne.jp
+To: nishimura@mxp.nes.nec.co.jp
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, linux-mm@kvack.org, d-nishimura@mtf.biglobe.ne.jp
 List-ID: <linux-mm.kvack.org>
 
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> @@ -1262,7 +1262,6 @@ static void shrink_active_list(unsigned long nr_pag=
+es, struct zone *zone,
+> =A0 =A0 =A0 =A0 * Move the pages to the [file or anon] inactive list.
+> =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0pagevec_init(&pvec, 1);
+> - =A0 =A0 =A0 pgmoved =3D 0;
+> =A0 =A0 =A0 =A0lru =3D LRU_BASE + file * LRU_FILE;
+>
+> =A0 =A0 =A0 =A0spin_lock_irq(&zone->lru_lock);
+> @@ -1274,6 +1273,7 @@ static void shrink_active_list(unsigned long nr_pag=
+es, struct zone *zone,
+> =A0 =A0 =A0 =A0 */
+> =A0 =A0 =A0 =A0reclaim_stat->recent_rotated[!!file] +=3D pgmoved;
+>
+> + =A0 =A0 =A0 pgmoved =3D 0;
 
-pgmoved should be cleared after updating recent_rotated.
+Thanks!
+    Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/vmscan.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e895171..56ddf41 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1262,7 +1262,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 	 * Move the pages to the [file or anon] inactive list.
- 	 */
- 	pagevec_init(&pvec, 1);
--	pgmoved = 0;
- 	lru = LRU_BASE + file * LRU_FILE;
- 
- 	spin_lock_irq(&zone->lru_lock);
-@@ -1274,6 +1273,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
- 	 */
- 	reclaim_stat->recent_rotated[!!file] += pgmoved;
- 
-+	pgmoved = 0;
- 	while (!list_empty(&l_inactive)) {
- 		page = lru_to_page(&l_inactive);
- 		prefetchw_prev_lru_page(page, &l_inactive, flags);
+Andrew, this problem introduced by
+b555749aac87d7c2637f153e44bd77c7fdf4c65b (Jan 6).
+IOW, it was introduced 2.6.29-rc1. then, I hope this patch merge to
+2.6.29 series.
 
+Is this possible?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
