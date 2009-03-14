@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D1CBD6B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 18:50:17 -0400 (EDT)
-Date: Fri, 13 Mar 2009 23:49:08 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] NOMMU: Pages allocated to a ramfs inode's pagecache may get wrongly discarded
-Message-ID: <20090313224908.GA2271@cmpxchg.org>
-References: <20090312100049.43A3.A69D9226@jp.fujitsu.com> <20090311170207.1795cad9.akpm@linux-foundation.org> <28c262360903111735s2b0c43a3pd48fcf8d55416ae3@mail.gmail.com> <27074.1236945182@redhat.com>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 63AA66B003D
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 20:05:08 -0400 (EDT)
+Subject: Re: What can OpenVZ do?
+References: <1233076092-8660-1-git-send-email-orenl@cs.columbia.edu>
+	<1234285547.30155.6.camel@nimitz>
+	<20090211141434.dfa1d079.akpm@linux-foundation.org>
+	<1234462282.30155.171.camel@nimitz> <1234467035.3243.538.camel@calx>
+	<20090212114207.e1c2de82.akpm@linux-foundation.org>
+	<1234475483.30155.194.camel@nimitz> <20090213102732.GB4608@elte.hu>
+	<20090213113248.GA15275@x200.localdomain>
+	<20090213114503.GG15679@elte.hu>
+	<20090213222818.GA17630@x200.localdomain>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Fri, 13 Mar 2009 17:04:55 -0700
+In-Reply-To: <20090213222818.GA17630@x200.localdomain> (Alexey Dobriyan's message of "Sat\, 14 Feb 2009 01\:28\:18 +0300")
+Message-ID: <m1wsatrmu0.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <27074.1236945182@redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, peterz@infradead.org, Enrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@surriel.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Alexey Dobriyan <adobriyan@gmail.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, torvalds@linux-foundation.org, tglx@linutronix.de, Pavel Emelyanov <xemul@openvz.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 13, 2009 at 11:53:02AM +0000, David Howells wrote:
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > David, Could you please try following patch if you have NOMMU machine?
-> > it is straightforward porting to nommu.
-> 
-> Is this patch actually sufficient, though?  Surely it requires an alteration
-> to ramfs to mark the page as being unevictable?
+Alexey Dobriyan <adobriyan@gmail.com> writes:
 
-ramfs already marks the whole address space of each inode as
-unevictable, see ramfs_get_inode().
+> On Fri, Feb 13, 2009 at 12:45:03PM +0100, Ingo Molnar wrote:
+>> 
+>> * Alexey Dobriyan <adobriyan@gmail.com> wrote:
+>> 
+>> > On Fri, Feb 13, 2009 at 11:27:32AM +0100, Ingo Molnar wrote:
+>> > > Merging checkpoints instead might give them the incentive to get
+>> > > their act together.
+>> > 
+>> > Knowing how much time it takes to beat CPT back into usable shape every time
+>> > big kernel rebase is done, OpenVZ/Virtuozzo have every single damn incentive
+>> > to have CPT mainlined.
+>> 
+>> So where is the bottleneck? I suspect the effort in having forward ported
+>> it across 4 major kernel releases in a single year is already larger than
+>> the technical effort it would  take to upstream it. Any unreasonable upstream 
+>> resistence/passivity you are bumping into?
+>
+> People were busy with netns/containers stuff and OpenVZ/Virtuozzo bugs.
 
-The reclaim code will regard this when the config option is enabled.
+Yes.  Getting the namespaces particularly the network namespace finished
+has consumed a lot of work.
 
-	Hannes
+Then we have a bunch of people helping with ill conceived patches that seem
+to wear out the patience of people upstream.  Al, Greg kh, Linus.
+
+The whole recent ressurection of the question of we should have a clone
+with pid syscall.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
