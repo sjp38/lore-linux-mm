@@ -1,110 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 95D876B003D
-	for <linux-mm@kvack.org>; Sat, 14 Mar 2009 13:09:10 -0400 (EDT)
-Date: Sat, 14 Mar 2009 11:08:37 -0600 (Mountain Daylight Time)
-From: Marc Aurele La France <tsi@ualberta.ca>
-Subject: Re: [Bug 12556] pgoff_t type not wide enough (32-bit with LFS and/or
- LBD)
-In-Reply-To: <20090313125909.99637b18.akpm@linux-foundation.org>
-Message-ID: <alpine.WNT.1.10.0903131524490.1936@cluij.ucs.ualberta.ca>
-References: <bug-12556-27@http.bugzilla.kernel.org/> <20090313141538.3255210803F@picon.linux-foundation.org> <20090313125909.99637b18.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; format=flowed; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 5364F6B003D
+	for <linux-mm@kvack.org>; Sat, 14 Mar 2009 13:30:59 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp07.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2EHUmHg005896
+	for <linux-mm@kvack.org>; Sat, 14 Mar 2009 23:00:48 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2EHRXXu4046854
+	for <linux-mm@kvack.org>; Sat, 14 Mar 2009 22:57:33 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2EHUmfV009458
+	for <linux-mm@kvack.org>; Sun, 15 Mar 2009 04:30:48 +1100
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Sat, 14 Mar 2009 23:00:43 +0530
+Message-Id: <20090314173043.16591.18336.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/4] Memory controller soft limit patches (v6)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugme-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Mar 2009, Andrew Morton wrote:
 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-OK.  Thanks for responding.
+New Feature: Soft limits for memory resource controller.
 
-> We never had any serious intention of implementing 64-bit pagecache
-> indexes on 32-bit architectures.  I added pgoff_t mainly for code
-> clarity reasons (it was getting nutty in there), with a vague
-> expectation that we would need to use a 64-bit type one day.
+Changelog v6...v5
+1. If the number of reclaimed pages are zero, select the next mem cgroup
+   for reclamation
+2. Fixed a bug, where key was being updated after insertion into the tree
+3. Fixed a build issue, when CONFIG_MEM_RES_CTLR is not enabled
 
-> And, yes, the need to be able to manipulate block devices via the
-> pagecache does mean that this day is upon us.
+Changelog v5...v4
+1. Several changes to the reclaim logic, please see the patch 4 (reclaim on
+   contention). I've experimented with several possibilities for reclaim
+   and chose to come back to this due to the excellent behaviour seen while
+   testing the patchset.
+2. Reduced the overhead of soft limits on resource counters very significantly.
+   Reaim benchmark now shows almost no drop in performance.
 
-I'm somewhat surprised this didn't come up back in 2.6.20, when LBD and LSF 
-were first introduced.
+Changelog v4...v3
+1. Adopted suggestions from Kamezawa to do a per-zone-per-node reclaim
+   while doing soft limit reclaim. We don't record priorities while
+   doing soft reclaim
+2. Some of the overheads associated with soft limits (like calculating
+   excess each time) is eliminated
+3. The time_after(jiffies, 0) bug has been fixed
+4. Tasks are throttled if the mem cgroup they belong to is being soft reclaimed
+   and at the same time tasks are increasing the memory footprint and causing
+   the mem cgroup to exceed its soft limit.
 
-> A full implementation is quite problematic.  Such a change affects each
-> filesystem, many of which are old and crufty and which nobody
-> maintains.  The cost of bugs in there (and there will be bugs) is
-> corrupted data in rare cases for few people, which is bad.
+Changelog v3...v2
+1. Implemented several review comments from Kosaki-San and Kamezawa-San
+   Please see individual changelogs for changes
 
-> Perhaps what we should do is to add a per-filesystem flag which says
-> "this fs is OK with 64-bit page indexes", and turn that on within each
-> filesystem as we convert and test them.  Add checks to the VFS to
-> prevent people from extending files to more than 16TB on unverified
-> filesystems.  Hopefully all of this infrastructure is already in place
-> via super_block.s_maxbytes, and we can just forget about >16TB _files_.
+Changelog v2...v1
+1. Soft limits now support hierarchies
+2. Use spinlocks instead of mutexes for synchronization of the RB tree
 
-> And fix up the core VFS if there are any problems, and get pagecache IO
-> reviewed, tested and working for the blockdev address_spaces.
+Here is v6 of the new soft limit implementation. Soft limits is a new feature
+for the memory resource controller, something similar has existed in the
+group scheduler in the form of shares. The CPU controllers interpretation
+of shares is very different though. 
 
-> I expect it's all pretty simple, actually.  Mainly a matter of doing a
-> few hours code review to clean up those places where we accidentally
-> copy a pgoff_t to or from a long type.
+Soft limits are the most useful feature to have for environments where
+the administrator wants to overcommit the system, such that only on memory
+contention do the limits become active. The current soft limits implementation
+provides a soft_limit_in_bytes interface for the memory controller and not
+for memory+swap controller. The implementation maintains an RB-Tree of groups
+that exceed their soft limit and starts reclaiming from the group that
+exceeds this limit by the maximum amount.
 
-> The fact that the kernel apparently already works correctly when one simply
-> makes pgoff_t a u64 is surprising and encouraging and unexpected.  I
-> bet it doesn't work 100% properly!
+Kamezawa-San has another patchset for soft limits, but I don't like the reclaim logic of watermark based balancing of zones for global memory cgroup limits.
+I also don't like the data structures, a list does not scale well. Kamezawa's
+objection to this patch is the cost of sorting, which is really negligible,
+since the updates happen at a fixed interval (curently four times a second).
+I however do like the priority feature in Kamezawa's patchset. The feature
+can be easily adopted to this incrementally.
 
-True enough.  The kernel is rife with nooks and cranies.  So I can't 
-vouch for all of them.  But, this has already undergone some stress.  For a 
-period of three weeks, I had this in production on a cluster's NFS server 
-that also does backups and GFS2.  Even before then, periods of load averages 
-of 50 or more and heavy paging were not unusual.  It was, in part, to address 
-that load that this system has since been replaced with more capable and, 
-unfortunately for this bug report, 64-bit hardware.
+Some reclaim aspects deserve more discussion. Kosaki-San suggested a double
+loop for reclaim. I need to try that logic, although it is not very different
+from what I currently have. I also need to test Kamezawa's approach and report
+and compare results.
 
-I also don't share your "doom and gloom" assessment.  First, unless a 
-filesystem is stupid enough to store a pgoff_t on disc (a definite bug 
-candidate), it doesn't really matter what the kernel's internal 
-representation of one is, as long as it is wide enough.  Secondly, this is an 
-unsigned quantity, so, barring compiler bugs, sign-extension issues cannot 
-occur.
+TODOs
 
-Third, the vast majority of filesystems in the wild are less than 16TB in 
-size.  This whether or not the filesystem type used can handle more.  Here, 
-all pgoff_t values fit in 32 bits and are therefore immune to any, even 
-random, zero-extensions to 64 bits and truncations back to 32 bits that might 
-internally occur.  A similar argument can be made for the bulk of block 
-devices out there that are also no larger than 16TB.
+1. The current implementation maintains the delta from the soft limit
+   and pushes back groups to their soft limits, a ratio of delta/soft_limit
+   might be more useful
 
-This leaves us with the rare >16TB situations.  But, wait.  Isn't that the 
-bug we're talking about?  Of these, I can tell you that a 23TB GFS2 
-filesystem is much more stable with this change than it is without.  And, on 
-a 32-bit system, a swap device that large can't be fully used anyway.
+Tests
+-----
 
-There's also the fact that, as things stand now, a pgoff_t's size doesn't 
-affect interoperability among 32-bit and 64-bit systems.
+I've run two memory intensive workloads with differing soft limits and
+seen that they are pushed back to their soft limit on contention. Their usage
+was their soft limit plus additional memory that they were able to grab
+on the system. Soft limit can take a while before we see the expected
+results.
 
-All in all, I think you're selling yourself short WRT the correctness of your 
-introduction of pgoff_t.
+The other tests I've run are
+1. Deletion of groups while soft limit is in progress in the hierarchy
+2. Setting the soft limit to zero and running other groups with non-zero
+   soft limits.
+3. Setting the soft limit to zero and testing if the mem cgroup is able
+   to use available memory
 
-Thanks again.
+Please review, comment.
 
-Marc.
+Series
+------
 
-+----------------------------------+----------------------------------+
-|  Marc Aurele La France           |  work:   1-780-492-9310          |
-|  Academic Information and        |  fax:    1-780-492-1729          |
-|    Communications Technologies   |  email:  tsi@ualberta.ca         |
-|  352 General Services Building   +----------------------------------+
-|  University of Alberta           |                                  |
-|  Edmonton, Alberta               |    Standard disclaimers apply    |
-|  T6G 2H1                         |                                  |
-|  CANADA                          |                                  |
-+----------------------------------+----------------------------------+
-XFree86 developer and VP.  ATI driver and X server internals.
+memcg-soft-limit-documentation.patch
+memcg-add-soft-limit-interface.patch
+memcg-organize-over-soft-limit-groups.patch
+memcg-soft-limit-reclaim-on-contention.patch
+
+
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
