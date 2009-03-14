@@ -1,85 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id DA7EA6B003D
-	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 20:27:09 -0400 (EDT)
-Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ do?
-References: <1234479845.30155.220.camel@nimitz>
-	<20090226155755.GA1456@x200.localdomain>
-	<20090310215305.GA2078@x200.localdomain> <49B775B4.1040800@free.fr>
-	<20090312145311.GC12390@us.ibm.com> <1236891719.32630.14.camel@bahia>
-	<20090312212124.GA25019@us.ibm.com>
-	<604427e00903122129y37ad791aq5fe7ef2552415da9@mail.gmail.com>
-	<20090313053458.GA28833@us.ibm.com>
-	<alpine.LFD.2.00.0903131018390.3940@localhost.localdomain>
-	<20090313193500.GA2285@x200.localdomain>
-	<alpine.LFD.2.00.0903131401070.3940@localhost.localdomain>
-	<1236981097.30142.251.camel@nimitz> <49BADAE5.8070900@cs.columbia.edu>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Fri, 13 Mar 2009 17:27:02 -0700
-In-Reply-To: <49BADAE5.8070900@cs.columbia.edu> (Oren Laadan's message of "Fri\, 13 Mar 2009 18\:15\:01 -0400")
-Message-ID: <m1hc1xrlt5.fsf@fess.ebiederm.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 2DA446B0047
+	for <linux-mm@kvack.org>; Fri, 13 Mar 2009 20:27:45 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 28so643244wfa.11
+        for <linux-mm@kvack.org>; Fri, 13 Mar 2009 17:27:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20090313173343.10169.58053.stgit@warthog.procyon.org.uk>
+References: <20090312100049.43A3.A69D9226@jp.fujitsu.com>
+	 <20090313173343.10169.58053.stgit@warthog.procyon.org.uk>
+Date: Sat, 14 Mar 2009 09:27:43 +0900
+Message-ID: <28c262360903131727l4ef41db5xf917c7c5eb4825a8@mail.gmail.com>
+Subject: Re: [PATCH 0/2] Make the Unevictable LRU available on NOMMU
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Oren Laadan <orenl@cs.columbia.edu>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mingo@elte.hu, mpm@selenic.com, Andrew Morton <akpm@linux-foundation.org>, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, tglx@linutronix.de, xemul@openvz.org
+To: David Howells <dhowells@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, peterz@infradead.org, nrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@surriel.com, lee.schermerhorn@hp.com, Minchan Kim <minchan.kim@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-Oren Laadan <orenl@cs.columbia.edu> writes:
+Hi, David.
 
-> Dave Hansen wrote:
->> On Fri, 2009-03-13 at 14:01 -0700, Linus Torvalds wrote:
->>> On Fri, 13 Mar 2009, Alexey Dobriyan wrote:
->>>>> Let's face it, we're not going to _ever_ checkpoint any kind of general 
->>>>> case process. Just TCP makes that fundamentally impossible in the general 
->>>>> case, and there are lots and lots of other cases too (just something as 
->>>>> totally _trivial_ as all the files in the filesystem that don't get rolled 
->>>>> back).
->>>> What do you mean here? Unlinked files?
->>> Or modified files, or anything else. "External state" is a pretty damn 
->>> wide net. It's not just TCP sequence numbers and another machine.
->> 
->> This is precisely the reason that we've focused so hard on containers,
->> and *didn't* just jump right into checkpoint/restart; we're trying
->> really hard to constrain the _truly_ external things that a process can
->> interact with.  
->> 
->> The approach so far has largely been to make things are external to a
->> process at least *internal* to a container.  Network, pid, ipc, and uts
->> namespaces, for example.  An ipc/sem.c semaphore may be external to a
->> process, so we'll just pick the whole namespace up and checkpoint it
->> along with the process.
->> 
->> In the OpenVZ case, they've at least demonstrated that the filesystem
->> can be moved largely with rsync.  Unlinked files need some in-kernel TLC
->> (or /proc mangling) but it isn't *that* bad.
+It seems your patch is better than mine.  Thanks. :)
+But my concern is that as Peter pointed out, unevictable lru's
+solution is not fundamental one.
+
+He want to remove ramfs page from lru list to begin with.
+I guess Andrew also thought same thing with Peter.
+
+I think it's a fundamental solution. but it may be long term solution.
+This patch can solve NOMMU problem in current status.
+
+Andrew, What do you think about it ?
+
+On Sat, Mar 14, 2009 at 2:33 AM, David Howells <dhowells@redhat.com> wrote:
 >
-> And in the Zap we have successfully used a log-based filesystem
-> (specifically NILFS) to continuously snapshot the file-system atomically
-> with taking a checkpoint, so it can easily branch off past checkpoints,
-> including the file system.
+> The first patch causes the mlock() bits added by CONFIG_UNEVICTABLE_LRU to be
+> unavailable in NOMMU mode.
 >
-> And unlinked files can be (inefficiently) handled by saving their full
-> contents with the checkpoint image - it's not a big toll on many apps
-> (if you exclude Wine and UML...). At least that's a start.
+> The second patch makes CONFIG_UNEVICTABLE_LRU available in NOMMU mode.
+>
+> David
+>
 
-Oren we might want to do a proof of concept implementation like I did
-with network namespaces.  That is done in the community and goes far
-enough to show we don't have horribly nasty code.  The patches and
-individual changes don't need to be quite perfect but close enough
-that they can be considered for merging.
 
-For the network namespace that seems to have made a big difference.
 
-I'm afraid in our clean start we may have focused a little too much
-on merging something simple and not gone far enough on showing that
-things will work.
-
-After I had that in the network namespace and we had a clear vision of
-the direction.   We started merging the individual patches and things
-went well.
-
-Eric
+-- 
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
