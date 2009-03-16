@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 812B06B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 08:25:13 -0400 (EDT)
-Date: Mon, 16 Mar 2009 13:25:05 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 588076B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 08:28:14 -0400 (EDT)
+Date: Mon, 16 Mar 2009 13:28:06 +0100
 From: Nick Piggin <npiggin@suse.de>
 Subject: Re: [PATCH 00/35] Cleanup and optimise the page allocator V3
-Message-ID: <20090316122505.GD30802@wotan.suse.de>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316104054.GA23046@wotan.suse.de> <20090316111906.GA6382@csn.ul.ie> <20090316113358.GA30802@wotan.suse.de> <20090316120216.GB6382@csn.ul.ie>
+Message-ID: <20090316122806.GE30802@wotan.suse.de>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316114555.GB30802@wotan.suse.de> <20090316121122.GC6382@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090316120216.GB6382@csn.ul.ie>
+In-Reply-To: <20090316121122.GC6382@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 16, 2009 at 12:02:17PM +0000, Mel Gorman wrote:
-> On Mon, Mar 16, 2009 at 12:33:58PM +0100, Nick Piggin wrote:
-> > Wheras if you defer this until the point you need a higher order
-> > page, the only thing you have to work with are the pages that are
-> > free *right now*.
+On Mon, Mar 16, 2009 at 12:11:22PM +0000, Mel Gorman wrote:
+> On Mon, Mar 16, 2009 at 12:45:55PM +0100, Nick Piggin wrote:
+> > On Mon, Mar 16, 2009 at 09:45:55AM +0000, Mel Gorman wrote:
+> > > Here is V3 of an attempt to cleanup and optimise the page allocator and should
+> > > be ready for general testing. The page allocator is now faster (16%
+> > > reduced time overall for kernbench on one machine) and it has a smaller cache
+> > > footprint (16.5% less L1 cache misses and 19.5% less L2 cache misses for
+> > > kernbench on one machine). The text footprint has unfortunately increased,
+> > > largely due to the introduction of a form of lazy buddy merging mechanism
+> > > that avoids cache misses by postponing buddy merging until a high-order
+> > > allocation needs it.
+> > 
+> > BTW. I would feel better about this if it gets merged in stages, with
+> > functional changes split out, and also code optimisations and omore
+> > obvious performace improvements split out and preferably merged first.
 > > 
 > 
-> Well, buddy always uses the smallest available page first. Even with
-> deferred coalescing, it will merge up to order-5 at least. Lets say they
-> could have merged up to order-10 in ordinary circumstances, they are
-> still avoided for as long as possible. Granted, it might mean that an
-> order-5 is split that could have been merged but it's hard to tell how
-> much of a difference that makes.
+> The ordering of the patches was such that least-controversial stuff is
+> at the start of the patchset. The intention was to be able to select a
+> cut-off point and say "that's enough for now"
+> 
+> > At a very quick glance, the first 25 or so patches should go in first,
+> > and that gives a much better base to compare subsequent functional
+> > changes with.
+> 
+> That's reasonable. I've requeued tests for the patchset up to 25 to see what
+> that looks like. There is also a part of a later patch that reduces how much
+> time is spent with interrupts disabled. I should split that out and move it
+> back to within the cut-off point as something that is "obviously good".
 
-But the kinds of pages *you* are interested in are order-10, right?
+OK cool. It also means we can start getting benefit of some of them
+sooner. I hope most of the obvious ones can be merged in 2.6.30.
 
  
-> > Your anti-frag tests probably don't stress this long term fragmentation
-> > problem.
+> > Patch 18 for example is really significant, and should
+> > almost be 2.6.29/-stable material IMO.
 > > 
 > 
-> Probably not, but we have little data on long-term fragmentation other than
-> anecdotal evidence that it's ok these days.
+> My impression was that -stable was only for functional regressions where
+> as this is really a performance thing.
 
-Well, I think before anti-frag there was lots of anecdotal evidence
-that it's "ok", except for loads heavily using large higher order
-allocations. I don't know if we'd have many systems running with
-hundreds of days of uptime on such workloads post-anti-frag? 
-
-Google might? But I don't know how long their uptimes are. I expect
-we'd have a better idea in a couple more years after the next
-enterprise distro release cycles with anti-frag.
-
- 
-> > Still, it's significant enough that I think it should be made
-> > optional (and arguably default to on) even if it does harm higher
-> > order allocations a bit.
-> > 
-> 
-> I could make PAGE_ORDER_MERGE_ORDER a proc tunable? If it's placed as a
-> read-mostly variable beside the gfp_zone table, it might even fit in the
-> same cache line.
-
-Hmm, possibly. OTOH I don't like tunables. If you don't think it will
-be a problem for hugepage allocations, then I would prefer just to
-leave it on and 5 by default (or even less? COSTLY_ORDER?)
+A performance regression like this in the core page allocator is a
+pretty important problem. The fix is obvious. But maybe you're right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
