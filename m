@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 73DF26B0047
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 11:54:56 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 130696B004D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 11:56:54 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 602E330472C
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:01:37 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id F03603046E7
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:03:30 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.174.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id cn7cavkzett3 for <linux-mm@kvack.org>;
-	Mon, 16 Mar 2009 12:01:31 -0400 (EDT)
+	with ESMTP id oXudz8It9Tv2 for <linux-mm@kvack.org>;
+	Mon, 16 Mar 2009 12:03:24 -0400 (EDT)
 Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 4ECD630473B
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:00:54 -0400 (EDT)
-Date: Mon, 16 Mar 2009 11:52:03 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 588BD304746
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:03:07 -0400 (EDT)
+Date: Mon, 16 Mar 2009 11:54:51 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 02/35] Do not sanity check order in the fast path
-In-Reply-To: <1237196790-7268-3-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903161151480.32577@qirst.com>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-3-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 06/35] Move check for disabled anti-fragmentation out of
+ fastpath
+In-Reply-To: <1237196790-7268-7-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903161154370.32577@qirst.com>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-7-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,8 +27,8 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.
 List-ID: <linux-mm.kvack.org>
 
 
-
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
