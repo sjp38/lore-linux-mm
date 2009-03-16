@@ -1,38 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 70E536B006A
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:58:51 -0400 (EDT)
-Date: Mon, 16 Mar 2009 16:58:48 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 23/35] Update NR_FREE_PAGES only as necessary
-Message-ID: <20090316165848.GQ24293@csn.ul.ie>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-24-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161214080.32577@qirst.com> <20090316164238.GK24293@csn.ul.ie> <alpine.DEB.1.10.0903161248130.13534@qirst.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 298E66B005A
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:05:58 -0400 (EDT)
+Date: Mon, 16 Mar 2009 18:05:51 +0100
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 00/35] Cleanup and optimise the page allocator V3
+Message-ID: <20090316170551.GI30802@wotan.suse.de>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316104054.GA23046@wotan.suse.de> <20090316111906.GA6382@csn.ul.ie> <20090316113358.GA30802@wotan.suse.de> <20090316120216.GB6382@csn.ul.ie> <20090316122505.GD30802@wotan.suse.de> <20090316133232.GA24293@csn.ul.ie> <20090316155342.GH30802@wotan.suse.de> <20090316165628.GP24293@csn.ul.ie>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0903161248130.13534@qirst.com>
+In-Reply-To: <20090316165628.GP24293@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 16, 2009 at 12:48:25PM -0400, Christoph Lameter wrote:
-> On Mon, 16 Mar 2009, Mel Gorman wrote:
+On Mon, Mar 16, 2009 at 04:56:28PM +0000, Mel Gorman wrote:
+> On Mon, Mar 16, 2009 at 04:53:42PM +0100, Nick Piggin wrote:
+> > So yes definitely I think there should be a very real impact on
+> > higher order coalescing no matter what you do.
+> > 
 > 
-> > Replaced with
-> >
-> > __mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
-> 
-> A later patch does that also.
-> 
+> Because this is not straight-forward at all, I'll put lazy buddy onto
+> the back-burner and exhaust all other possibilities before revisiting it
+> again.
 
-Silly of me. That later patch is in the "controversial" pile but the
-change is now moved back here where it belongs.
+If it is such a big improvement, I expect *most* people will want
+it and we probably should do it. But just that it will not play
+nicely with fragmentation and so you'd need to look into it and
+devise some way those users can tune it to be nicer.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> > unmovable zone fragmentation is more important point because it
+> > eventually can destroy the movable zone.
+> > 
+> 
+> Which is why rmqueue_fallback() also merges up all buddies before making
+> any decisions but I accept your points.
+
+Right, that merge of buddies will only be able to look at what is
+currently free. Wheras non-lazy buddy can pull out higher orders
+before reallocating them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
