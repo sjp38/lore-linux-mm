@@ -1,69 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C616B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 18:25:31 -0400 (EDT)
-Date: Mon, 16 Mar 2009 22:25:13 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] use css id in swap cgroup for saving memory v5
-In-Reply-To: <20090312084623.e98d80b9.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0903162217030.3560@blonde.anvils>
-References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
- <20090310160856.77deb5c3.akpm@linux-foundation.org>
- <20090311085326.403a211d.kamezawa.hiroyu@jp.fujitsu.com>
- <isapiwc.d14e3c29.6b18.49b7092b.9bc73.52@mail.jp.nec.com>
- <20090311094739.3123b05d.kamezawa.hiroyu@jp.fujitsu.com>
- <20090311120427.2467bd14.kamezawa.hiroyu@jp.fujitsu.com>
- <Pine.LNX.4.64.0903111041260.16964@blonde.anvils>
- <20090312084623.e98d80b9.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF5B6B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 18:35:56 -0400 (EDT)
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+ do?
+From: Kevin Fox <Kevin.Fox@pnl.gov>
+In-Reply-To: <20090314081207.GA16436@elte.hu>
+References: <1236891719.32630.14.camel@bahia>
+	 <20090312212124.GA25019@us.ibm.com>
+	 <604427e00903122129y37ad791aq5fe7ef2552415da9@mail.gmail.com>
+	 <20090313053458.GA28833@us.ibm.com>
+	 <alpine.LFD.2.00.0903131018390.3940@localhost.localdomain>
+	 <20090313193500.GA2285@x200.localdomain>
+	 <alpine.LFD.2.00.0903131401070.3940@localhost.localdomain>
+	 <1236981097.30142.251.camel@nimitz><49BADAE5.8070900@cs.columbia.edu>
+	 <m1hc1xrlt5.fsf@fess.ebiederm.org>  <20090314081207.GA16436@elte.hu>
+Content-Type: text/plain
+Date: Mon, 16 Mar 2009 15:33:28 -0700
+Message-Id: <1237242808.23841.38.camel@sledge.emsl.pnl.gov>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com
+To: Ingo Molnar <mingo@elte.hu>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, mpm@selenic.com, linux-mm@kvack.org, tglx@linutronix.de, viro@zeniv.linux.org.uk, linux-api@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexey Dobriyan <adobriyan@gmail.com>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Mar 2009, KAMEZAWA Hiroyuki wrote:
-> On Wed, 11 Mar 2009 11:05:55 +0000 (GMT)
-> Hugh Dickins <hugh@veritas.com> wrote:
-> > > @@ -432,7 +428,7 @@ int swap_cgroup_swapon(int type, unsigne
-> > >  
-> > >  	printk(KERN_INFO
-> > >  		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
-> > > -		" and %ld bytes to hold mem_cgroup pointers on swap\n",
-> > > +		" and %ld bytes to hold mem_cgroup information per swap ents\n",
-> > >  		array_size, length * PAGE_SIZE);
-> > >  	printk(KERN_INFO
-> > >  	"swap_cgroup can be disabled by noswapaccount boot option.\n");
-> > 
-> > ... I do get very irritated by all the screenspace these messages take
-> > up every time I swapon.  I can see that you're following a page_cgroup
-> > precedent, one which never bothered me because it got buried in dmesg;
-> > and most other people wouldn't be doing swapon very often, and wouldn't
-> > be logging to a visible screen ... but is there any chance of putting an
-> > approximation to this info in the CGROUP_MEM_RES_CTRL_SWAP Kconfig help
-> > text and removing these runtime messages?  How do other people feel?
-> > 
-> Ok, will remove this. (in other patch.)
-
-Thanks!
-
+On Sat, 2009-03-14 at 01:12 -0700, Ingo Molnar wrote:
 > 
-> > I'm also disappointed that we invented such a tortuously generic boot
-> > option as "cgroup_disable=memory", then departed from it when the very
-> > first extension "noswapaccount" was required.  "cgroup_disable=swap"?
-> > Probably too late.
-> > 
-> Hmm, cgroup_disable=memory is option to disable memory cgroup and "memory"
-> is the subsytem name of cgroup. But "swap" isn't.
+> * Eric W. Biederman <ebiederm@xmission.com> wrote:
+> 
+> > >> In the OpenVZ case, they've at least demonstrated that the
+> > >> filesystem can be moved largely with rsync.  Unlinked files
+> > >> need some in-kernel TLC (or /proc mangling) but it isn't
+> > >> *that* bad.
+> > >
+> > > And in the Zap we have successfully used a log-based
+> > > filesystem (specifically NILFS) to continuously snapshot the
+> > > file-system atomically with taking a checkpoint, so it can
+> > > easily branch off past checkpoints, including the file
+> > > system.
+> > >
+> > > And unlinked files can be (inefficiently) handled by saving
+> > > their full contents with the checkpoint image - it's not a
+> > > big toll on many apps (if you exclude Wine and UML...). At
+> > > least that's a start.
+> >
+> > Oren we might want to do a proof of concept implementation
+> > like I did with network namespaces.  That is done in the
+> > community and goes far enough to show we don't have horribly
+> > nasty code.  The patches and individual changes don't need to
+> > be quite perfect but close enough that they can be considered
+> > for merging.
+> >
+> > For the network namespace that seems to have made a big
+> > difference.
+> >
+> > I'm afraid in our clean start we may have focused a little too
+> > much on merging something simple and not gone far enough on
+> > showing that things will work.
+> >
+> > After I had that in the network namespace and we had a clear
+> > vision of the direction.  We started merging the individual
+> > patches and things went well.
+> 
+> I'm curious: what is the actual end result other than good
+> looking code? In terms of tangible benefits to the everyday
+> Linux distro user. [This is not meant to be sarcastic, i'm
+> truly curious.]
 
-Yes, "swap" was always going to be a more awkward case than a cgroup.
+>From an ordinary user perspective, I hate loosing my desktop state every
+time there is a power bump or a new kernel/video driver comes down from
+the distro provider. Some of the stuff I loose:
+*All my terminals
+    *many tabs and windows
+    *each in a different directory
+    *vi
+       *which files I was editing
+       *which function I was coding
+    *screen
+    *scrollback buffer's contents
+         *history for debugging code
+    *command line arguments
+*State of running apps
+    *web browser
+        *Tabs, yes it saves urls on crash, but sometimes the page cant
+come back up (say, because of a form)
+        *where the windows are on the desktop
+    *evolution
+        *what folder is selected
+        *which message within the folder is selected
+    *rhythmbox
+    *misc other apps
 
-> Just removing "noswapaccount" option is ok ? Anyway, there is config.
+Being able to reboot and get back to exactly where I was before the
+reboot would save me a lot of time restarting apps and getting my
+desktop back to where it was before the reboot. I'd also be more
+inclined to reboot to get security updates more frequently if I didn't
+loose track of what I was doing in the session, making machines more
+secure in the process.
 
-Removing "noswapaccount" would be okay by me, but I don't think you
-should remove it without wider agreement of mem_cgroup folks.
+Kevin
 
-Hugh
+PS: Yes, I know both GNOME and KDE have tried to deal with some of this
+with their session manager stuff, but it doesn't restore everything and
+only supported by some apps. It would probably take more work to get all
+apps working with the session management stuff then supporting kernel
+C/R.
+
+>         Ingo
+> _______________________________________________
+> Containers mailing list
+> Containers@lists.linux-foundation.org
+> https://lists.linux-foundation.org/mailman/listinfo/containers
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
