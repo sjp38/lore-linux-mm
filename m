@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 70A106B005D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:53:07 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id D72BD6B005D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:53:38 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 77B5F3049C6
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:59:43 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id F2DE13048C5
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:59:48 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.174.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id UsQ0Pv4BnqPY for <linux-mm@kvack.org>;
-	Mon, 16 Mar 2009 12:59:38 -0400 (EDT)
+	with ESMTP id fH8L4kBfiskh for <linux-mm@kvack.org>;
+	Mon, 16 Mar 2009 12:59:44 -0400 (EDT)
 Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6CD503048BE
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B08FC304941
 	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:56:42 -0400 (EDT)
-Date: Mon, 16 Mar 2009 12:48:25 -0400 (EDT)
+Date: Mon, 16 Mar 2009 12:47:35 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 23/35] Update NR_FREE_PAGES only as necessary
-In-Reply-To: <20090316164238.GK24293@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903161248130.13534@qirst.com>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-24-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161214080.32577@qirst.com> <20090316164238.GK24293@csn.ul.ie>
+Subject: Re: [PATCH 20/35] Use a pre-calculated value for
+ num_online_nodes()
+In-Reply-To: <20090316163626.GJ24293@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903161247170.17730@qirst.com>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-21-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161207500.32577@qirst.com> <20090316163626.GJ24293@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,11 +28,19 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 16 Mar 2009, Mel Gorman wrote:
 
-> Replaced with
+> On Mon, Mar 16, 2009 at 12:08:25PM -0400, Christoph Lameter wrote:
+> > On Mon, 16 Mar 2009, Mel Gorman wrote:
+> >
+> > > +extern int static_num_online_nodes;
+> >
+> > Strange name. Could we name this nr_online_nodes or so?
+> >
 >
-> __mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+> It's to match the function name. Arguably I could also have replaced the
+> implementation of num_online_nodes() with a version that uses the static
+> variable.
 
-A later patch does that also.
+We have nr_node_ids etc. It would be consistant with that naming.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
