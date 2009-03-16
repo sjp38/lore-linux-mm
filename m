@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C5BA16B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 09:01:46 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate5.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2GD0k7M204712
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:00:46 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2GD0k8k3973222
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:00:46 +0100
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2GD0j8w030507
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:00:46 +0100
-Date: Mon, 16 Mar 2009 13:55:44 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] fix/improve generic page table walker
-Message-ID: <20090316135544.52719f04@skybase>
-In-Reply-To: <20090316123654.GF30802@wotan.suse.de>
-References: <20090311144951.58c6ab60@skybase>
-	<1236792263.3205.45.camel@calx>
-	<20090312093335.6dd67251@skybase>
-	<1236867014.3213.16.camel@calx>
-	<20090312154229.3ee463eb@skybase>
-	<1236873494.3213.55.camel@calx>
-	<20090316132717.69f6f4ce@skybase>
-	<20090316123654.GF30802@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 750756B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 09:14:13 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 4so1405714yxp.26
+        for <linux-mm@kvack.org>; Mon, 16 Mar 2009 06:14:11 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <28c262360903160555u402b4c34nf273951a207826a2@mail.gmail.com>
+References: <20090316105945.18131.82359.stgit@warthog.procyon.org.uk>
+	 <20090316120224.GA16506@infradead.org>
+	 <20090316211830.1FE8.A69D9226@jp.fujitsu.com>
+	 <28c262360903160555u402b4c34nf273951a207826a2@mail.gmail.com>
+Date: Mon, 16 Mar 2009 22:14:11 +0900
+Message-ID: <2f11576a0903160614n4908d0fdo25df387dd724ac19@mail.gmail.com>
+Subject: Re: [PATCH] Point the UNEVICTABLE_LRU config option at the
+	documentation
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <npiggin@suse.de>
-Cc: Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gerald Schaefer <gerald.schaefer@de.ibm.com>, akpm@linux-foundation.org, Hugh Dickins <hugh@veritas.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, David Howells <dhowells@redhat.com>, lee.schermerhorn@hp.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Mar 2009 13:36:54 +0100
-Nick Piggin <npiggin@suse.de> wrote:
+2009/3/16 Minchan Kim <minchan.kim@gmail.com>:
+> size vmlinux
+> =A0 text =A0 =A0data =A0 =A0 bss =A0 =A0 dec =A0 =A0 hex filename
+> 6232681 =A0747665 =A0708608 7688954 =A07552fa vmlinux
+>
+> size vmlinux.unevictable
+> =A0 text =A0 =A0data =A0 =A0 bss =A0 =A0 dec =A0 =A0 hex filename
+> 6239404 =A0747985 =A0708608 7695997 =A0756e7d vmlinux.unevictable
+>
+> It almost increases about 7K.
+> Many embedded guys always have a concern about size although it is very s=
+mall.
+> It's important about embedded but may not be about server.
 
-> > With the page table folding "3 levels removed from the bottom" doesn't
-> > tell me much since there is no real representation in hardware AND in
-> > memory for the missing page table levels. So the only valid meaning of
-> > a pgd_t is that you have to use pud_offset, pmd_offset and pte_offset
-> > to get to a pte. If I do the page table folding at runtime or at
-> > compile time is a minor detail.  
-> 
-> I don't know if it would be helpful to you, but I solve a similar
-> kind of problem in the lockless radix tree by encoding node height
-> in the node itself. Maybe you could use some bits in the page table
-> pointers or even in the struct pages for this.
+Thanks good report.
+this is unintetional size to me. I'll digg it later.
 
-That is what I already do: there are two bits in the region and segment
-table entries that tell me at what level I am (well actually it is the
-hardware definition that requires me to do that and I just make use of
-it). The page table primitives (pxd_present, pxd_offset, etc) look at
-these bits and then do the right thing.
-What is killing me is the pgd++/pud++ operation. If there is only a 2
-or 3 level page table the pointer increase may not happen. This is done
-by a correct end address for the walk. 
+Thanks!
 
--- 
-blue skies,
-   Martin.
 
-"Reality continues to ruin my life." - Calvin.
+-- kosaki
+
+
+>
+> In addition, CONFIG_UNEVICTABLE_LRU feature don't have a big impact in
+> embedded machines which have a very small ram.
+> I guess many embedded guys will not use this feature.
+>
+> So, I don't want to remove this configurable option.
+> Lets not add useless size bloat in embedded system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
