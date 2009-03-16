@@ -1,96 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E96846B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 07:58:34 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2GBwW1F003198
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 16 Mar 2009 20:58:32 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0AA8645DE52
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:58:32 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C1E5445DE50
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:58:31 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CE3BD1DB8042
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:58:31 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 69F981DB8038
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:58:31 +0900 (JST)
-Message-ID: <969730ee419be9fbe4aca3ec3249650e.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090316113853.GA16897@balbir.in.ibm.com>
-References: <20090314173043.16591.18336.sendpatchset@localhost.localdomain>
-    <20090314173111.16591.68465.sendpatchset@localhost.localdomain>
-    <20090316095258.94ae559d.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316083512.GV16897@balbir.in.ibm.com>
-    <20090316174943.53ec8196.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316180308.6be6b8a2.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316091024.GX16897@balbir.in.ibm.com>
-    <2217159d612e4e4d3fcbd50354e53f5b.squirrel@webmail-b.css.fujitsu.com>
-    <20090316113853.GA16897@balbir.in.ibm.com>
-Date: Mon, 16 Mar 2009 20:58:30 +0900 (JST)
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
- (v6)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id E6C556B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 08:02:20 -0400 (EDT)
+Date: Mon, 16 Mar 2009 12:02:17 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00/35] Cleanup and optimise the page allocator V3
+Message-ID: <20090316120216.GB6382@csn.ul.ie>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316104054.GA23046@wotan.suse.de> <20090316111906.GA6382@csn.ul.ie> <20090316113358.GA30802@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090316113358.GA30802@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-16
-> 20:10:41]:
->> >> At least, this check will be necessary in v7, I think.
->> >> shrink_slab() should be called.
->> >
->> > Why do you think so? So here is the design
->> >
->> > 1. If a cgroup was using over its soft limit, we believe that this
->> >    cgroup created overall memory contention and caused the page
->> >    reclaimer to get activated.
->> This assumption is wrong, see below.
->>
->> >    If we can solve the situation by
->> >    reclaiming from this cgroup, why do we need to invoke shrink_slab?
->> >
->> No,
->> IIUC, in big server, inode, dentry cache etc....can occupy Gigabytes
->> of memory even if 99% of them are not used.
->>
->> By shrink_slab(), we can reclaim unused but cached slabs and make
->> the kernel more healthy.
->>
->
-> But that is not the job of the soft limit reclaimer.. Yes if no groups
-> are over their soft limit, the regular action will take place.
->
-Oh, yes, it's not job of memcg but it's job of memory management.
+On Mon, Mar 16, 2009 at 12:33:58PM +0100, Nick Piggin wrote:
+> On Mon, Mar 16, 2009 at 11:19:06AM +0000, Mel Gorman wrote:
+> > On Mon, Mar 16, 2009 at 11:40:54AM +0100, Nick Piggin wrote:
+> > > That's wonderful, but it would
+> > > significantly increase the fragmentation problem, wouldn't it?
+> > 
+> > Not necessarily, anti-fragmentation groups movable pages within a
+> > hugepage-aligned block and high-order allocations will trigger a merge of
+> > buddies from PAGE_ALLOC_MERGE_ORDER (defined in the relevant patch) up to
+> > MAX_ORDER-1. Critically, a merge is also triggered when anti-fragmentation
+> > wants to fallback to another migratetype to satisfy an allocation. As
+> > long as the grouping works, it doesn't matter if they were only merged up
+> > to PAGE_ALLOC_MERGE_ORDER as a full merge will still free up hugepages.
+> > So two slow paths are made slower but the fast path should be faster and it
+> > should be causing fewer cache line bounces due to writes to struct page.
+> 
+> Oh, but the anti-fragmentation stuff is orthogonal to this. Movable
+> groups should always be defragmentable (at some cost)... the bane of
+> anti-frag is fragmentation of the non-movable groups.
+> 
 
+True, the reclaimable area has varying degrees of success and the
+non-movable groups are almost unworkable and depend on how much of them
+depend on pagetables.
 
->>
->> > If the concern is that we are not following the traditional reclaim,
->> > soft limit reclaim can be followed by unconditional reclaim, but I
->> > believe this is not necessary. Remember, we wake up kswapd that will
->> > call shrink_slab if needed.
->> kswapd doesn't call shrink_slab() when zone->free is enough.
->> (when direct recail did good jobs.)
->>
->
-> If zone->free is high why do we need shrink_slab()? The other way
-> of asking it is, why does the soft limit reclaimer need to call
-> shrink_slab(), when its job is to reclaim memory from cgroups above
-> their soft limits.
->
-Why do you consider that softlimit is called more than necessary
-if shrink_slab() is never called ?
+> And one reason why buddy is so good at avoiding fragmentation is
+> because it will pick up _any_ pages that go past the allocator if
+> they have any free buddies. And it hands out ones that don't have
+> free buddies. So in that way it is naturally continually filtering
+> out pages which can be merged.
+> 
+> Wheras if you defer this until the point you need a higher order
+> page, the only thing you have to work with are the pages that are
+> free *right now*.
+> 
 
-Thanks,
--Kame
+Well, buddy always uses the smallest available page first. Even with
+deferred coalescing, it will merge up to order-5 at least. Lets say they
+could have merged up to order-10 in ordinary circumstances, they are
+still avoided for as long as possible. Granted, it might mean that an
+order-5 is split that could have been merged but it's hard to tell how
+much of a difference that makes.
 
+> It will almost definitely increase fragmentation of non movable zones,
+> and if you have a workload doing non-trivial, non movable higher order
+> allocations that are likely to cause fragmentation, it will result
+> in these allocations eating movable groups sooner I think.
+> 
+
+I think the effect will be same unless the non-movable high-order
+allocations are order-5 or higher in which case we are likely going to
+hit trouble anyway.
+
+> 
+> > When I last checked (about 10 days) ago, I hadn't damaged anti-fragmentation
+> > but that was a lot of revisions ago. I'm redoing the tests to make sure
+> > anti-fragmentation is still ok.
+> 
+> Your anti-frag tests probably don't stress this long term fragmentation
+> problem.
+> 
+
+Probably not, but we have little data on long-term fragmentation other than
+anecdotal evidence that it's ok these days.
+
+> Still, it's significant enough that I think it should be made
+> optional (and arguably default to on) even if it does harm higher
+> order allocations a bit.
+> 
+
+I could make PAGE_ORDER_MERGE_ORDER a proc tunable? If it's placed as a
+read-mostly variable beside the gfp_zone table, it might even fit in the
+same cache line.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
