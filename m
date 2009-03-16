@@ -1,104 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EEFC6B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:45:54 -0400 (EDT)
-Date: Mon, 16 Mar 2009 16:45:50 +0000
+	by kanga.kvack.org (Postfix) with ESMTP id 3262A6B004D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:47:38 -0400 (EDT)
+Date: Mon, 16 Mar 2009 16:47:36 +0000
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 24/35] Convert gfp_zone() to use a table of
-	precalculated values
-Message-ID: <20090316164550.GL24293@csn.ul.ie>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-25-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161218170.32577@qirst.com>
+Subject: Re: [PATCH 26/35] Use the per-cpu allocator for orders up to
+	PAGE_ALLOC_COSTLY_ORDER
+Message-ID: <20090316164735.GM24293@csn.ul.ie>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-27-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161222070.32577@qirst.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0903161218170.32577@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0903161222070.32577@qirst.com>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux-foundation.org>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 16, 2009 at 12:19:06PM -0400, Christoph Lameter wrote:
+On Mon, Mar 16, 2009 at 12:26:07PM -0400, Christoph Lameter wrote:
 > On Mon, 16 Mar 2009, Mel Gorman wrote:
 > 
-> > diff --git a/init/main.c b/init/main.c
-> > index 8442094..08a5663 100644
-> > --- a/init/main.c
-> > +++ b/init/main.c
-> > @@ -573,6 +573,7 @@ asmlinkage void __init start_kernel(void)
-> >  	 * fragile until we cpu_idle() for the first time.
-> >  	 */
-> >  	preempt_disable();
-> > +	init_gfp_zone_table();
-> >  	build_all_zonelists();
-> >  	page_alloc_init();
-> >  	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index bc491fa..d76f57d 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -70,6 +70,7 @@ EXPORT_SYMBOL(node_states);
-> >  unsigned long totalram_pages __read_mostly;
-> >  unsigned long totalreserve_pages __read_mostly;
-> >  unsigned long highest_memmap_pfn __read_mostly;
-> > +int gfp_zone_table[GFP_ZONEMASK] __read_mostly;
-> >  int static_num_online_nodes __read_mostly;
-> >  int percpu_pagelist_fraction;
-> >
-> > @@ -4569,7 +4570,7 @@ static void setup_per_zone_inactive_ratio(void)
-> >   * 8192MB:	11584k
-> >   * 16384MB:	16384k
-> >   */
-> > -static int __init init_per_zone_pages_min(void)
-> > +static int init_per_zone_pages_min(void)
+> > -static void free_hot_cold_page(struct page *page, int cold)
+> > +static void free_hot_cold_page(struct page *page, int order, int cold)
 > >  {
-> >  	unsigned long lowmem_kbytes;
+> >  	struct zone *zone = page_zone(page);
+> >  	struct per_cpu_pages *pcp;
+> >  	unsigned long flags;
+> >  	int clearMlocked = PageMlocked(page);
 > >
-> > @@ -4587,6 +4588,39 @@ static int __init init_per_zone_pages_min(void)
-> >  }
-> >  module_init(init_per_zone_pages_min)
-> >
-> > +static inline int __init gfp_flags_to_zone(gfp_t flags)
-> > +{
-> > +#ifdef CONFIG_ZONE_DMA
-> > +	if (flags & __GFP_DMA)
-> > +		return ZONE_DMA;
-> > +#endif
-> > +#ifdef CONFIG_ZONE_DMA32
-> > +	if (flags & __GFP_DMA32)
-> > +		return ZONE_DMA32;
-> > +#endif
-> > +	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
-> > +			(__GFP_HIGHMEM | __GFP_MOVABLE))
-> > +		return ZONE_MOVABLE;
-> > +#ifdef CONFIG_HIGHMEM
-> > +	if (flags & __GFP_HIGHMEM)
-> > +		return ZONE_HIGHMEM;
-> > +#endif
-> > +	return ZONE_NORMAL;
-> > +}
-> > +
-> > +/*
-> > + * For each possible combination of zone modifier flags, we calculate
-> > + * what zone it should be using. This consumes a cache line in most
-> > + * cases but avoids a number of branches in the allocator fast path
-> > + */
-> > +void __init init_gfp_zone_table(void)
-> > +{
-> > +	gfp_t gfp_flags;
-> > +
-> > +	for (gfp_flags = 0; gfp_flags < GFP_ZONEMASK; gfp_flags++)
-> > +		gfp_zone_table[gfp_flags] = gfp_flags_to_zone(gfp_flags);
-> > +}
+> > +	/* SLUB can return lowish-order compound pages that need handling */
+> > +	if (order > 0 && unlikely(PageCompound(page)))
+> > +		if (unlikely(destroy_compound_page(page, order)))
+> > +			return;
 > > +
 > 
-> This is all known at compile time. The table can be calculated at compile
-> time with some ifdefs and then we do not need the init_gfp_zone_table().
+> Isnt that also true for stacks and generic network objects ==- 8k?
 > 
 
-The last discussion didn't come up with something that could generate such
-a table and still be correct in all cases. I guess someone could do it all
-by hand but it was going to be an error prone exercise. I left the patch
-as-is as a result.
+I think they are vanilla high-order pages, not compound pages.
+
+> >  again:
+> >  	cpu  = get_cpu();
+> > -	if (likely(order == 0)) {
+> > +	if (likely(order <= PAGE_ALLOC_COSTLY_ORDER)) {
+> >  		struct per_cpu_pages *pcp;
+> > +		int batch;
+> > +		int delta;
+> >
+> >  		pcp = &zone_pcp(zone, cpu)->pcp;
+> > +		batch = max(1, pcp->batch >> order);
+> >  		local_irq_save(flags);
+> >  		if (!pcp->count) {
+> > -			pcp->count = rmqueue_bulk(zone, 0,
+> > -					pcp->batch, &pcp->list, migratetype);
+> > +			delta = rmqueue_bulk(zone, order, batch,
+> > +					&pcp->list, migratetype);
+> > +			bulk_add_pcp_page(pcp, order, delta);
+> >  			if (unlikely(!pcp->count))
+> >  				goto failed;
+> 
+> The pcp adds a series of order N pages if an order N alloc occurs and the
+> queue is empty?
+> 
+
+Nope, that would be bad. The calculation of batch is made above and is
+
+batch = max(1, pcp->batch >> order);
+
+so order is taken into account when deciding how many pages to allocate.
 
 -- 
 Mel Gorman
