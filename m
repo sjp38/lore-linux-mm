@@ -1,90 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 030206B0062
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 05:44:23 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 293966B006A
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 05:44:24 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 00/35] Cleanup and optimise the page allocator V3
-Date: Mon, 16 Mar 2009 09:45:55 +0000
-Message-Id: <1237196790-7268-1-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/35] Check in advance if the zonelist needs additional filtering
+Date: Mon, 16 Mar 2009 09:46:02 +0000
+Message-Id: <1237196790-7268-8-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1237196790-7268-1-git-send-email-mel@csn.ul.ie>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Here is V3 of an attempt to cleanup and optimise the page allocator and should
-be ready for general testing. The page allocator is now faster (16%
-reduced time overall for kernbench on one machine) and it has a smaller cache
-footprint (16.5% less L1 cache misses and 19.5% less L2 cache misses for
-kernbench on one machine). The text footprint has unfortunately increased,
-largely due to the introduction of a form of lazy buddy merging mechanism
-that avoids cache misses by postponing buddy merging until a high-order
-allocation needs it.
+Zonelist are filtered based on nodemasks for memory policies normally.
+It can be additionally filters on cpusets if they exist as well as
+noting when zones are full. These simple checks are expensive enough to
+be noticed in profiles. This patch checks in advance if zonelist
+filtering will ever be needed. If not, then the bulk of the checks are
+skipped.
 
-I tested the patchset with kernbench, hackbench, sysbench-postgres and netperf
-UDP and TCP with a variety of sizes. Many machines and loads showed improved
-performance *however* it was not universal. On some machines, one load would
-be faster and another slower (perversely, sometimes netperf-UDP would be
-faster with netperf-TCP slower). On an different machines, the workloads
-that gained or lost would differ.  I haven't fully pinned down why this is
-yet but I have observed on at least one machine lock contention is higher
-and more time is spent in functions like rb_erase(), both which might imply
-some sort of scheduling artifact. I've also noted that while the allocator
-incurs fewer cache misses, sometimes cache misses overall are increased
-for the workload but the increased lock contention might account for this.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ include/linux/cpuset.h |    2 ++
+ mm/page_alloc.c        |   37 ++++++++++++++++++++++++++-----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)
 
-In some cases, more time is spent in copy_user_generic_string()[1] which
-might imply that strings are getting the same colour with the greater
-effort spent giving back hot pages but theories as to why this is not a
-universal effect are welcome. I've also noted that machines with many CPUs
-with different caches suffer because struct page is not cache-aligned but
-aligning it hurts other machines so I left it alone. Finally, the performance
-characteristics are vary depending on if you use SLAB, SLUB or SLQB.
-
-So, while the page allocator is faster in most cases, making all workloads
-universally go faster needs to now look at other areas like the sl*b
-allocator and the scheduler.
-
-Here is the patchset as it stands and I think it's ready for wider testing
-and to be considered for merging depending on the outcome of testing and
-reviews.
-
-[1] copy_user_generic_unrolled on one machine was slowed down by an extreme
-amount. I did not check if there was a pattern of slowdowns versus which
-version of copy_user_generic() was used
-
-Changes since V2
-  o Remove brances by treating watermark flags as array indices
-  o Remove branch by assuming __GFP_HIGH == ALLOC_HIGH
-  o Do not check for compound on every page free
-  o Remove branch by always ensuring the migratetype is known on free
-  o Simplify buffered_rmqueue further
-  o Reintroduce improved version of batched bulk free of pcp pages
-  o Use allocation flags as an index to zone watermarks
-  o Work out __GFP_COLD only once
-  o Reduce the number of times zone stats are updated
-  o Do not dump reserve pages back into the allocator. Instead treat them
-    as MOVABLE so that MIGRATE_RESERVE gets used on the max-order-overlapped
-    boundaries without causing trouble
-  o Allow pages up to PAGE_ALLOC_COSTLY_ORDER to use the per-cpu allocator.
-    order-1 allocations are frequently enough in particular to justify this
-  o Rearrange inlining such that the hot-path is inlined but not in a way
-    that increases the text size of the page allocator
-  o Make the check for needing additional zonelist filtering due to NUMA
-    or cpusets as light as possible
-  o Do not destroy compound pages going to the PCP lists
-  o Delay the merging of buddies until a high-order allocation needs them
-    or anti-fragmentation is being forced to fallback
-  o Count high-order pages as 1
-
-Changes since V1
-  o Remove the ifdef CONFIG_CPUSETS from inside get_page_from_freelist()
-  o Use non-lock bit operations for clearing the mlock flag
-  o Factor out alloc_flags calculation so it is only done once (Peter)
-  o Make gfp.h a bit prettier and clear-cut (Peter)
-  o Instead of deleting a debugging check, replace page_count() in the
-    free path with a version that does not check for compound pages (Nick)
-  o Drop the alteration for hot/cold page freeing until we know if it
-    helps or not
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 90c6074..6051082 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -83,6 +83,8 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+ 
+ #else /* !CONFIG_CPUSETS */
+ 
++#define number_of_cpusets (0)
++
+ static inline int cpuset_init_early(void) { return 0; }
+ static inline int cpuset_init(void) { return 0; }
+ static inline void cpuset_init_smp(void) {}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d815c8f..fe71147 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1139,7 +1139,11 @@ failed:
+ #define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
++#ifdef CONFIG_CPUSETS
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++#else
++#define ALLOC_CPUSET		0x00
++#endif /* CONFIG_CPUSETS */
+ 
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+@@ -1403,6 +1407,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
++	int zonelist_filter = 0;
+ 
+ 	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+ 							&preferred_zone);
+@@ -1413,6 +1418,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 
+ 	VM_BUG_ON(order >= MAX_ORDER);
+ 
++	/* Determine in advance if the zonelist needs filtering */
++	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
++		zonelist_filter = 1;
++
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -1420,12 +1429,16 @@ zonelist_scan:
+ 	 */
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						high_zoneidx, nodemask) {
+-		if (NUMA_BUILD && zlc_active &&
+-			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+-				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+-				goto try_next_zone;
++
++		/* Ignore the additional zonelist filter checks if possible */
++		if (zonelist_filter) {
++			if (NUMA_BUILD && zlc_active &&
++				!zlc_zone_worth_trying(zonelist, z, allowednodes))
++					continue;
++			if ((alloc_flags & ALLOC_CPUSET) &&
++				!cpuset_zone_allowed_softwall(zone, gfp_mask))
++					goto try_next_zone;
++		}
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+@@ -1447,13 +1460,15 @@ zonelist_scan:
+ 		if (page)
+ 			break;
+ this_zone_full:
+-		if (NUMA_BUILD)
++		if (NUMA_BUILD && zonelist_filter)
+ 			zlc_mark_zone_full(zonelist, z);
+ try_next_zone:
+-		if (NUMA_BUILD && !did_zlc_setup) {
+-			/* we do zlc_setup after the first zone is tried */
+-			allowednodes = zlc_setup(zonelist, alloc_flags);
+-			zlc_active = 1;
++		if (NUMA_BUILD && zonelist_filter) {
++			if (!did_zlc_setup) {
++				/* do zlc_setup after the first zone is tried */
++				allowednodes = zlc_setup(zonelist, alloc_flags);
++				zlc_active = 1;
++			}
+ 			did_zlc_setup = 1;
+ 		}
+ 	}
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
