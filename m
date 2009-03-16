@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id B738C6B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:33:56 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 4A16E6B004D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:38:10 -0400 (EDT)
+Date: Mon, 16 Mar 2009 19:37:50 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Date: Tue, 17 Mar 2009 05:33:47 +1100
-References: <1237007189.25062.91.camel@pasglop> <200903170505.46905.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161115210.3675@localhost.localdomain>
-In-Reply-To: <alpine.LFD.2.00.0903161115210.3675@localhost.localdomain>
+Message-ID: <20090316183750.GB20555@random.random>
+References: <1237007189.25062.91.camel@pasglop> <200903170419.38988.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161034030.3675@localhost.localdomain> <200903170502.57217.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200903170533.48423.nickpiggin@yahoo.com.au>
+In-Reply-To: <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 17 March 2009 05:17:02 Linus Torvalds wrote:
-> On Tue, 17 Mar 2009, Nick Piggin wrote:
-> > If you disregard code motion and extra argument to copy_page_range,
-> > my fix is a couple of dozen lines change to existing code, plus the
-> > "decow" function (which could probably share a fair bit of code
-> > with do_wp_page).
-> >
-> > Do you dislike the added complexity of the code? Or the behaviour
-> > that gets changed?
->
-> The complexity. That decow thing is shit.
+On Mon, Mar 16, 2009 at 11:14:59AM -0700, Linus Torvalds wrote:
+> You may think that the lock isn't particularly "elegant", but I can only 
+> say "f*ck that, look at the number of lines of code, and the simplicity".
 
-copying the page on fork instead of write protecting it? The code or
-the idea? Code can certainly be improved...
+I'm sorry but the number of lines that you're reading in the
+direct_io_worker patch, aren't representative of what it takes to fix
+it with a mm wide lock. It may be conceptually simpler to fix it
+outside GUP, on that I can certainly agree (with the downside of
+leaving splice broken etc..), but I can't see how that small patch can
+fix anything as releasing the semaphore after direct_io_worker returns
+with O_DIRECT mixed with async-io. Before claiming that the outer lock
+results in less number of lines of code, I'd wait to see a fix that
+works with O_DIRECT+async-io too as well as mine and Nick's do.
 
+> Your "elegant" argument is total and utter sh*t, in other words. The lock 
+> approach is tons more elegant, considering that it solves the problem much 
+> more cleanly, and with _much_ less crap.
 
-> So is all the extra flags for no
-> good reason.
-
-Which extra flags are you referring to?
-
-
-> What's your argument against "keep it simple with a single lock, and
-> adding basically a single line to reuse_swap_page() to say "don't reuse
-> the page if the count is elevated"?
-
-I made them in a previous message. It depends on what callers you want
-to convert I guess. I don't think vmsplice takes to the lock approach
-very well though.
+I guess elegant is relative, but the size argument is objective, and
+that should be possible to compare if somebody writes a full fix that
+doesn't fall apart if return value of direct_io_worker is -EIOCBQUEUED.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
