@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B8DDE6B0055
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E8C86B005C
 	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:28 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 06/27] Move check for disabled anti-fragmentation out of fastpath
-Date: Mon, 16 Mar 2009 17:53:20 +0000
-Message-Id: <1237226020-14057-7-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/27] Check in advance if the zonelist needs additional filtering
+Date: Mon, 16 Mar 2009 17:53:21 +0000
+Message-Id: <1237226020-14057-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,49 +13,111 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On low-memory systems, anti-fragmentation gets disabled as there is nothing
-it can do and it would just incur overhead shuffling pages between lists
-constantly. Currently the check is made in the free page fast path for every
-page. This patch moves it to a slow path. On machines with low memory,
-there will be small amount of additional overhead as pages get shuffled
-between lists but it should quickly settle.
+Zonelist are filtered based on nodemasks for memory policies normally.
+It can be additionally filters on cpusets if they exist as well as
+noting when zones are full. These simple checks are expensive enough to
+be noticed in profiles. This patch checks in advance if zonelist
+filtering will ever be needed. If not, then the bulk of the checks are
+skipped.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/mmzone.h |    3 ---
- mm/page_alloc.c        |    4 ++++
- 2 files changed, 4 insertions(+), 3 deletions(-)
+ include/linux/cpuset.h |    2 ++
+ mm/page_alloc.c        |   37 ++++++++++++++++++++++++++-----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 1aca6ce..ca000b8 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -50,9 +50,6 @@ extern int page_group_by_mobility_disabled;
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 90c6074..6051082 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -83,6 +83,8 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
  
- static inline int get_pageblock_migratetype(struct page *page)
- {
--	if (unlikely(page_group_by_mobility_disabled))
--		return MIGRATE_UNMOVABLE;
--
- 	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
- }
+ #else /* !CONFIG_CPUSETS */
  
++#define number_of_cpusets (0)
++
+ static inline int cpuset_init_early(void) { return 0; }
+ static inline int cpuset_init(void) { return 0; }
+ static inline void cpuset_init_smp(void) {}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7ba7705..d815c8f 100644
+index d815c8f..fe71147 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -171,6 +171,10 @@ int page_group_by_mobility_disabled __read_mostly;
+@@ -1139,7 +1139,11 @@ failed:
+ #define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
++#ifdef CONFIG_CPUSETS
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++#else
++#define ALLOC_CPUSET		0x00
++#endif /* CONFIG_CPUSETS */
  
- static void set_pageblock_migratetype(struct page *page, int migratetype)
- {
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
+ 
+@@ -1403,6 +1407,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
++	int zonelist_filter = 0;
+ 
+ 	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+ 							&preferred_zone);
+@@ -1413,6 +1418,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 
+ 	VM_BUG_ON(order >= MAX_ORDER);
+ 
++	/* Determine in advance if the zonelist needs filtering */
++	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
++		zonelist_filter = 1;
 +
-+	if (unlikely(page_group_by_mobility_disabled))
-+		migratetype = MIGRATE_UNMOVABLE;
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -1420,12 +1429,16 @@ zonelist_scan:
+ 	 */
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						high_zoneidx, nodemask) {
+-		if (NUMA_BUILD && zlc_active &&
+-			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+-				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+-				goto try_next_zone;
 +
- 	set_pageblock_flags_group(page, (unsigned long)migratetype,
- 					PB_migrate, PB_migrate_end);
- }
++		/* Ignore the additional zonelist filter checks if possible */
++		if (zonelist_filter) {
++			if (NUMA_BUILD && zlc_active &&
++				!zlc_zone_worth_trying(zonelist, z, allowednodes))
++					continue;
++			if ((alloc_flags & ALLOC_CPUSET) &&
++				!cpuset_zone_allowed_softwall(zone, gfp_mask))
++					goto try_next_zone;
++		}
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+@@ -1447,13 +1460,15 @@ zonelist_scan:
+ 		if (page)
+ 			break;
+ this_zone_full:
+-		if (NUMA_BUILD)
++		if (NUMA_BUILD && zonelist_filter)
+ 			zlc_mark_zone_full(zonelist, z);
+ try_next_zone:
+-		if (NUMA_BUILD && !did_zlc_setup) {
+-			/* we do zlc_setup after the first zone is tried */
+-			allowednodes = zlc_setup(zonelist, alloc_flags);
+-			zlc_active = 1;
++		if (NUMA_BUILD && zonelist_filter) {
++			if (!did_zlc_setup) {
++				/* do zlc_setup after the first zone is tried */
++				allowednodes = zlc_setup(zonelist, alloc_flags);
++				zlc_active = 1;
++			}
+ 			did_zlc_setup = 1;
+ 		}
+ 	}
 -- 
 1.5.6.5
 
