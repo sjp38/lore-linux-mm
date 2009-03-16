@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id BDE986B0062
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:37 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id EF4446B005D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:38 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 20/27] Use a pre-calculated value for num_online_nodes()
-Date: Mon, 16 Mar 2009 17:53:34 +0000
-Message-Id: <1237226020-14057-21-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 22/27] Use allocation flags as an index to the zone watermark
+Date: Mon, 16 Mar 2009 17:53:36 +0000
+Message-Id: <1237226020-14057-23-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,88 +13,76 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-num_online_nodes() is called by the page allocator to decide whether the
-zonelist needs to be filtered based on cpusets or the zonelist cache.
-This is actually a heavy function and touches a number of cache lines.
-This patch stores the number of online nodes at boot time and when
-nodes get onlined and offlined.
+ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
+pages_min, pages_low or pages_high is used as the zone watermark when
+allocating the pages. Two branches in the allocator hotpath determine which
+watermark to use. This patch uses the flags as an array index and places
+the three watermarks in a union with an array so it can be offset. This
+means the flags can be used as an array index and reduces the branches
+taken.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/nodemask.h |   16 ++++++++++++++--
- mm/page_alloc.c          |    6 ++++--
- 2 files changed, 18 insertions(+), 4 deletions(-)
+ include/linux/mmzone.h |    8 +++++++-
+ mm/page_alloc.c        |   18 ++++++++----------
+ 2 files changed, 15 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-index 848025c..4749e30 100644
---- a/include/linux/nodemask.h
-+++ b/include/linux/nodemask.h
-@@ -449,13 +449,25 @@ static inline int num_node_state(enum node_states state)
- 	node;					\
- })
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index ca000b8..c20c662 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -275,7 +275,13 @@ struct zone_reclaim_stat {
  
-+/* Recorded value for num_online_nodes() */
-+extern int static_num_online_nodes;
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+-	unsigned long		pages_min, pages_low, pages_high;
++	union {
++		struct {
++			unsigned long	pages_min, pages_low, pages_high;
++		};
++		unsigned long pages_mark[3];
++	};
 +
- #define num_online_nodes()	num_node_state(N_ONLINE)
- #define num_possible_nodes()	num_node_state(N_POSSIBLE)
- #define node_online(node)	node_state((node), N_ONLINE)
- #define node_possible(node)	node_state((node), N_POSSIBLE)
- 
--#define node_set_online(node)	   node_set_state((node), N_ONLINE)
--#define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
-+static inline void node_set_online(int nid)
-+{
-+	node_set_state(nid, N_ONLINE);
-+	static_num_online_nodes = num_node_state(N_ONLINE);
-+}
-+
-+static inline void node_set_offline(int nid)
-+{
-+	node_clear_state(nid, N_ONLINE);
-+	static_num_online_nodes = num_node_state(N_ONLINE);
-+}
- 
- #define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
- #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
+ 	/*
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 01cd489..799e2bf 100644
+index 18465cd..21affd4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -70,6 +70,7 @@ EXPORT_SYMBOL(node_states);
- unsigned long totalram_pages __read_mostly;
- unsigned long totalreserve_pages __read_mostly;
- unsigned long highest_memmap_pfn __read_mostly;
-+int static_num_online_nodes __read_mostly;
- int percpu_pagelist_fraction;
+@@ -1160,10 +1160,13 @@ failed:
+ 	return NULL;
+ }
  
- #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
-@@ -1442,7 +1443,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 	/* Determine in advance if the zonelist needs filtering */
- 	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
- 		zonelist_filter = 1;
--	if (num_online_nodes() > 1)
-+	if (static_num_online_nodes > 1)
- 		zonelist_filter = 1;
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
++/* The WMARK bits are used as an index zone->pages_mark */
++#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x08 /* don't check watermarks at all */
++#define ALLOC_WMARK_MASK	0x07 /* Mask to get the watermark bits */
++
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #ifdef CONFIG_CPUSETS
+@@ -1466,12 +1469,7 @@ zonelist_scan:
  
- zonelist_scan:
-@@ -1488,7 +1489,7 @@ this_zone_full:
- 			zlc_mark_zone_full(zonelist, z);
- try_next_zone:
- 		if (NUMA_BUILD && zonelist_filter) {
--			if (!did_zlc_setup && num_online_nodes() > 1) {
-+			if (!did_zlc_setup && static_num_online_nodes > 1) {
- 				/*
- 				 * do zlc_setup after the first zone is tried
- 				 * but only if there are multiple nodes to make
-@@ -2645,6 +2646,7 @@ void build_all_zonelists(void)
- 	else
- 		page_group_by_mobility_disabled = 0;
- 
-+	static_num_online_nodes = num_node_state(N_ONLINE);
- 	printk("Built %i zonelists in %s order, mobility grouping %s.  "
- 		"Total pages: %ld\n",
- 			num_online_nodes(),
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+-			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = zone->pages_min;
+-			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = zone->pages_low;
+-			else
+-				mark = zone->pages_high;
++			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
+ 			if (!zone_watermark_ok(zone, order, mark,
+ 				    classzone_idx, alloc_flags)) {
+ 				if (!zone_reclaim_mode ||
 -- 
 1.5.6.5
 
