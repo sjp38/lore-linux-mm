@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id C1BCA6B0047
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:23:45 -0400 (EDT)
-Date: Mon, 16 Mar 2009 12:17:21 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 784366B0047
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:27:49 -0400 (EDT)
+Date: Mon, 16 Mar 2009 12:22:12 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <200903170529.08995.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.LFD.2.00.0903161215150.3675@localhost.localdomain>
-References: <1237007189.25062.91.camel@pasglop> <200903170502.57217.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain> <200903170529.08995.nickpiggin@yahoo.com.au>
+In-Reply-To: <200903170533.48423.nickpiggin@yahoo.com.au>
+Message-ID: <alpine.LFD.2.00.0903161219340.3675@localhost.localdomain>
+References: <1237007189.25062.91.camel@pasglop> <200903170505.46905.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161115210.3675@localhost.localdomain> <200903170533.48423.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,27 +19,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 17 Mar 2009, Nick Piggin wrote:
 > 
-> What's buggy about it? Stupid bugs, or fundamentally broken?
+> > So is all the extra flags for no
+> > good reason.
+> 
+> Which extra flags are you referring to?
 
-The lack of locking.
+Fuck me, didn't you even read your own patch?
 
-> In my opinion it is not, given that you have to convert callers. If you
-> say that you only care about fixing O_DIRECT, then yes I would probably
-> agree the lock is nicer in that case.
+What do you call PG_dontcow? 
 
-F*ck me, I'm not going to bother to argue. I'm not going to merge your 
-patch, it's that easy.
-
-Quite frankly, I don't think that the "bug" is a bug to begin with. 
-O_DIRECT+fork() can damn well continue to be broken. But if we fix it, we 
-fix it the _clean_ way with a simple patch, not with that shit-for-logic 
-horrible decow crap.
-
-It's that simple. I refuse to take putrid industrial waste patches for 
-something like this.
-
-			Linus
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
