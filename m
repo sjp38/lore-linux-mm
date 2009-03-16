@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A9A846B009F
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 05:44:40 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 714F86B0099
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 05:44:41 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 32/35] Inline next_zones_zonelist() of the zonelist scan in the fastpath
-Date: Mon, 16 Mar 2009 09:46:27 +0000
-Message-Id: <1237196790-7268-33-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 33/35] Do not merge buddies until they are needed by a high-order allocation or anti-fragmentation
+Date: Mon, 16 Mar 2009 09:46:28 +0000
+Message-Id: <1237196790-7268-34-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237196790-7268-1-git-send-email-mel@csn.ul.ie>
 References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,133 +13,171 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-The zonelist walkers call next_zones_zonelist() to find the next zone
-that is allowed by the nodemask. It's not inlined because the number of
-call-sites bloats text but it is not free to call a function either.
-This patch inlines next_zones_zonelist() only for the page allocator
-fastpath. All other zonelist walkers use an uninlined version.
+Freeing and allocating pages from the buddy lists can incur a number of
+cache misses as the struct pages are written to. This patch only merges
+buddies up to PAGE_ALLOC_COSTLY_ORDER. High-order allocations are then
+required to do the actual merging. This punishes high-order allocations
+somewhat but they are expected to be relatively rare and should be
+avoided in general.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/mmzone.h |    6 ++++++
- mm/mmzone.c            |   31 -------------------------------
- mm/page_alloc.c        |   40 +++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 45 insertions(+), 32 deletions(-)
+ include/linux/mmzone.h |    7 ++++
+ mm/page_alloc.c        |   91 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 86 insertions(+), 12 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 5be2386..9057bc1 100644
+index 9057bc1..8027163 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -895,6 +895,12 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
- 		zone;							\
- 		z = next_zones_zonelist(++z, highidx, nodemask, &zone))	\
+@@ -35,6 +35,13 @@
+  */
+ #define PAGE_ALLOC_COSTLY_ORDER 3
  
-+/* Only available to the page allocator fast-path */
-+#define fast_foreach_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
-+	for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone);	\
-+		zone;							\
-+		z = __next_zones_zonelist(++z, highidx, nodemask, &zone)) \
++/*
++ * PAGE_ALLOC_MERGE_ORDER is the order at which pages get merged together
++ * but not merged further unless explicitly needed by a high-order allocation.
++ * The value is to merge to larger than the PCP batch refill size
++ */
++#define PAGE_ALLOC_MERGE_ORDER 5
 +
- /**
-  * for_each_zone_zonelist - helper macro to iterate over valid zones in a zonelist at or below a given zone index
-  * @zone - The current zone in the iterator
-diff --git a/mm/mmzone.c b/mm/mmzone.c
-index 16ce8b9..347951c 100644
---- a/mm/mmzone.c
-+++ b/mm/mmzone.c
-@@ -41,34 +41,3 @@ struct zone *next_zone(struct zone *zone)
- 	}
- 	return zone;
- }
--
--static inline int zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
--{
--#ifdef CONFIG_NUMA
--	return node_isset(zonelist_node_idx(zref), *nodes);
--#else
--	return 1;
--#endif /* CONFIG_NUMA */
--}
--
--/* Returns the next zone at or below highest_zoneidx in a zonelist */
--struct zoneref *next_zones_zonelist(struct zoneref *z,
--					enum zone_type highest_zoneidx,
--					nodemask_t *nodes,
--					struct zone **zone)
--{
--	/*
--	 * Find the next suitable zone to use for the allocation.
--	 * Only filter based on nodemask if it's set
--	 */
--	if (likely(nodes == NULL))
--		while (zonelist_zone_idx(z) > highest_zoneidx)
--			z++;
--	else
--		while (zonelist_zone_idx(z) > highest_zoneidx ||
--				(z->zone && !zref_in_nodemask(z, nodes)))
--			z++;
--
--	*zone = zonelist_zone(z);
--	return z;
--}
+ #define MIGRATE_UNMOVABLE     0
+ #define MIGRATE_RECLAIMABLE   1
+ #define MIGRATE_MOVABLE       2
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8568284..33f39cf 100644
+index 33f39cf..f1741a3 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1514,6 +1514,44 @@ static void zlc_mark_zone_full(struct zonelist *zonelist, struct zoneref *z)
- }
- #endif	/* CONFIG_NUMA */
+@@ -456,25 +456,18 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+  * -- wli
+  */
  
-+static inline int
-+zref_in_nodemask(struct zoneref *zref, nodemask_t *nodes)
-+{
-+#ifdef CONFIG_NUMA
-+	return node_isset(zonelist_node_idx(zref), *nodes);
-+#else
-+	return 1;
-+#endif /* CONFIG_NUMA */
+-static inline void __free_one_page(struct page *page,
+-		struct zone *zone, unsigned int order,
+-		int migratetype)
++static inline struct page *__merge_one_page(struct page *page,
++		struct zone *zone, unsigned int order, unsigned int maxorder)
+ {
+ 	unsigned long page_idx;
+ 
+-	if (unlikely(PageCompound(page)))
+-		if (unlikely(destroy_compound_page(page, order)))
+-			return;
+-
+-	VM_BUG_ON(migratetype == -1);
+-
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+ 	page->index = 0;
+ 
+ 	VM_BUG_ON(page_idx & ((1 << order) - 1));
+ 	VM_BUG_ON(bad_range(zone, page));
+ 
+-	while (order < MAX_ORDER-1) {
++	while (order < maxorder) {
+ 		unsigned long combined_idx;
+ 		struct page *buddy;
+ 
+@@ -491,10 +484,77 @@ static inline void __free_one_page(struct page *page,
+ 		page_idx = combined_idx;
+ 		order++;
+ 	}
++
+ 	set_page_order(page, order);
++	return page;
 +}
 +
-+/* Returns the next zone at or below highest_zoneidx in a zonelist */
-+static inline struct zoneref *
-+__next_zones_zonelist(struct zoneref *z, enum zone_type highest_zoneidx,
-+					nodemask_t *nodes, struct zone **zone)
++/* Merge free pages up to MAX_ORDER-1 */
++static noinline void __merge_highorder_pages(struct zone *zone)
 +{
++	struct page *page, *buddy;
++	struct free_area *area;
++	int migratetype;
++	unsigned int order;
++
++	for_each_migratetype_order(order, migratetype) {
++		struct list_head *list;
++		unsigned long page_idx;
++
++		if (order == MAX_ORDER-1)
++			break;
++
++		area = &(zone->free_area[order]);
++		list = &area->free_list[migratetype];
++
++pagemerged:
++		if (list_empty(list))
++			continue;
++		/*
++		 * Each time we merge, we jump back here as even the _safe
++		 * variants of list_for_each() cannot cope with the cursor
++		 * page disappearing
++		 */
++		list_for_each_entry(page, list, lru) {
++
++			page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
++			buddy = __page_find_buddy(page, page_idx, order);
++			if (!page_is_buddy(page, buddy, order))
++				continue;
++
++			/* Ok, remove the page, merge and re-add */
++			list_del(&page->lru);
++			rmv_page_order(page);
++			area->nr_free--;
++			page = __merge_one_page(page, zone,
++							order, MAX_ORDER-1);
++			list_add(&page->lru,
++				&zone->free_area[page_order(page)].free_list[migratetype]);
++			zone->free_area[page_order(page)].nr_free++;
++			goto pagemerged;
++		}
++	}
++}
++
++static inline void __free_one_page(struct page *page,
++		struct zone *zone, unsigned int order,
++		int migratetype)
++{
++	if (unlikely(PageCompound(page)))
++		if (unlikely(destroy_compound_page(page, order)))
++			return;
++
++	VM_BUG_ON(migratetype == -1);
++
 +	/*
-+	 * Find the next suitable zone to use for the allocation.
-+	 * Only filter based on nodemask if it's set
++	 * We only lazily merge up to PAGE_ALLOC_MERGE_ORDER to avoid
++	 * cache line bounces merging buddies. High order allocations
++	 * take the hit of merging the buddies further
 +	 */
-+	if (likely(nodes == NULL))
-+		while (zonelist_zone_idx(z) > highest_zoneidx)
-+			z++;
-+	else
-+		while (zonelist_zone_idx(z) > highest_zoneidx ||
-+				(z->zone && !zref_in_nodemask(z, nodes)))
-+			z++;
-+
-+	*zone = zonelist_zone(z);
-+	return z;
-+}
-+
-+struct zoneref *
-+next_zones_zonelist(struct zoneref *z, enum zone_type highest_zoneidx,
-+					nodemask_t *nodes, struct zone **zone)
-+{
-+	return __next_zones_zonelist(z, highest_zoneidx, nodes, zone);
-+}
-+
- /*
-  * get_page_from_freelist goes through the zonelist trying to allocate
-  * a page.
-@@ -1546,7 +1584,7 @@ zonelist_scan:
- 	 * Scan zonelist, looking for a zone with enough free.
- 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
- 	 */
--	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-+	fast_foreach_zone_zonelist_nodemask(zone, z, zonelist,
- 						high_zoneidx, nodemask) {
++	page = __merge_one_page(page, zone, order, PAGE_ALLOC_MERGE_ORDER);
+ 	list_add(&page->lru,
+-		&zone->free_area[order].free_list[migratetype]);
+-	zone->free_area[order].nr_free++;
++		&zone->free_area[page_order(page)].free_list[migratetype]);
++	zone->free_area[page_order(page)].nr_free++;
+ }
  
- 		/* Ignore the additional zonelist filter checks if possible */
+ static inline int free_pages_check(struct page *page)
+@@ -849,6 +909,9 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ 	struct page *page;
+ 	int migratetype, i;
+ 
++	/* Merge the buddies before stealing */
++	__merge_highorder_pages(zone);
++
+ 	/* Find the largest possible block of pages in the other list */
+ 	for (current_order = MAX_ORDER-1; current_order >= order;
+ 						--current_order) {
+@@ -1608,6 +1671,10 @@ zonelist_scan:
+ 			}
+ 		}
+ 
++		/* Lazy merge buddies for high orders */
++		if (order > PAGE_ALLOC_MERGE_ORDER)
++			__merge_highorder_pages(zone);
++
+ 		page = buffered_rmqueue(preferred_zone, zone, order,
+ 						gfp_mask, migratetype, cold);
+ 		if (page)
 -- 
 1.5.6.5
 
