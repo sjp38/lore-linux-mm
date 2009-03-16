@@ -1,60 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0E1AC6B004F
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:50:08 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 64E81304892
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:56:47 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id bxThe4nozD3B for <linux-mm@kvack.org>;
-	Mon, 16 Mar 2009 12:56:47 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id C86C230488D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:38:34 -0400 (EDT)
-Date: Mon, 16 Mar 2009 12:30:02 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 29/35] Do not store the PCP high and batch watermarks in
- the per-cpu structure
-In-Reply-To: <1237196790-7268-30-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903161228120.32577@qirst.com>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-30-git-send-email-mel@csn.ul.ie>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 8B31E6B005C
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:50:22 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Date: Tue, 17 Mar 2009 03:50:12 +1100
+References: <1237007189.25062.91.camel@pasglop> <200903170323.45917.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903160927240.3675@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.0903160927240.3675@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200903170350.13665.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Mar 2009, Mel Gorman wrote:
-
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -166,8 +166,6 @@ static inline int is_unevictable_lru(enum lru_list l)
+On Tuesday 17 March 2009 03:32:11 Linus Torvalds wrote:
+> On Tue, 17 Mar 2009, Nick Piggin wrote:
+> > > Yes, my patch isn't realy solusion.
+> > > Andrea already pointed out that it's not O_DIRECT issue, it's gup vs
+> > > fork issue. *and* my patch is crazy slow :)
+> >
+> > Well, it's an interesting question. I'd say it probably is more than
+> > just O_DIRECT. vmsplice too, for example (which I think is much harder
+> > to fix this way because the pages are retired by the other end of
+> > the pipe, so I don't think you can hold a lock across it).
 >
->  struct per_cpu_pages {
->  	int count;		/* number of pages in the list */
-> -	int high;		/* high watermark, emptying needed */
-> -	int batch;		/* chunk size for buddy add/remove */
-
-
-There is a hole here on 64 bit systems.
-
+> Well, only the "fork()" has the race problem.
 >
->  	/* Lists of pages, one per migrate type stored on the pcp-lists */
->  	struct list_head lists[MIGRATE_PCPTYPES];
-> @@ -285,6 +283,12 @@ struct zone {
->  		unsigned long pages_mark[3];
->  	};
+> So having a fork-specific lock (but not naming it by directio) actually
+> does make sense. The fork is much less performance-critical than most
+> random mmap_sem users - and doesn't have the same scalability issues
+> either (ie people probably _do_ want to do mmap/munmap/brk concurrently
+> with gup lookup, but there's much less worry about concurrent fork()
+> performance).
 >
-> +	/* high watermark for per-cpu lists, emptying needed */
-> +	u16 pcp_high;
-> +
-> +	/* chunk size for buddy add/remove to per-cpu lists*/
-> +	u16 pcp_batch;
-> +
+> It doesn't necessarily make the general problem go away, but it makes the
+> _particular_ race between get_user_pages() and fork() go away. Then you
+> can do per-page flags or whatever and not have to worry about concurrent
+> lookups.
 
-Move this up to fill the hole?
+Hmm, I see what you mean there; it can be used to solve Andrea's race
+instead of using set_bit/memory barriers. But I think then you would
+still need to put this lock in fork and get_user_pages[_fast], *and*
+still do most of the other stuff required in Andrea's patch.
+
+So I'm not sure if that was KAMEZAWA-san's patch.
+
+It actually should solve one side of the race completely, as is, but
+only for direct-IO. Because it ensures that no get_user_pages for direct
+IO can be outstanding over a fork. However it does a) not solve other
+get_user_pages problems, and b) doesn't solve the case where for
+readonly get_user_pages on an already shared pte will get confused if it
+is subsequently COWed -- it can end up being polluted with wrong data.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
