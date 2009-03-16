@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9E86B0047
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:37:41 -0400 (EDT)
-Date: Mon, 16 Mar 2009 09:32:11 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <200903170323.45917.nickpiggin@yahoo.com.au>
-Message-ID: <alpine.LFD.2.00.0903160927240.3675@localhost.localdomain>
-References: <1237007189.25062.91.camel@pasglop> <200903141620.45052.nickpiggin@yahoo.com.au> <20090316223612.4B2A.A69D9226@jp.fujitsu.com> <200903170323.45917.nickpiggin@yahoo.com.au>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ACAB6B0047
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 12:42:56 -0400 (EDT)
+Date: Mon, 16 Mar 2009 16:42:39 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 23/35] Update NR_FREE_PAGES only as necessary
+Message-ID: <20090316164238.GK24293@csn.ul.ie>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-24-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161214080.32577@qirst.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0903161214080.32577@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Tue, 17 Mar 2009, Nick Piggin wrote:
-> > Yes, my patch isn't realy solusion.
-> > Andrea already pointed out that it's not O_DIRECT issue, it's gup vs fork
-> > issue. *and* my patch is crazy slow :)
+On Mon, Mar 16, 2009 at 12:17:15PM -0400, Christoph Lameter wrote:
+> On Mon, 16 Mar 2009, Mel Gorman wrote:
 > 
-> Well, it's an interesting question. I'd say it probably is more than
-> just O_DIRECT. vmsplice too, for example (which I think is much harder
-> to fix this way because the pages are retired by the other end of
-> the pipe, so I don't think you can hold a lock across it).
+> > When pages are being freed to the buddy allocator, the zone
+> > NR_FREE_PAGES counter must be updated. In the case of bulk per-cpu page
+> > freeing, it's updated once per page. This retouches cache lines more
+> > than necessary. Update the counters one per per-cpu bulk free.
+> 
+> Not sure about the reasoning here since the individual updates are batched
 
-Well, only the "fork()" has the race problem.
+Each update take places between lots of other work with different cache
+lines. With enough buddy merging, I believed the line holding the counters
+could at least get pushed out of L1 although probably not L2 cache.
 
-So having a fork-specific lock (but not naming it by directio) actually 
-does make sense. The fork is much less performance-critical than most 
-random mmap_sem users - and doesn't have the same scalability issues 
-either (ie people probably _do_ want to do mmap/munmap/brk concurrently 
-with gup lookup, but there's much less worry about concurrent fork() 
-performance).
+> and you are touching the same cacheline as the pcp you are operating on
+> and have to touch anyways.
+> 
+> But if its frequent that __rmqueue_smallest() and free_pages_bulk() are
+> called with multiple pages then its always a win.
+> 
 
-It doesn't necessarily make the general problem go away, but it makes the 
-_particular_ race between get_user_pages() and fork() go away. Then you 
-can do per-page flags or whatever and not have to worry about concurrent 
-lookups.
+It's frequent enough that it showed up in profiles
 
-			Linus
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> > +	__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order) * i);
+> 
+> A multiplication? Okay with contemporary cpus I guess.
+> 
+
+Replaced with
+
+__mod_zone_page_state(zone, NR_FREE_PAGES, -(i << order));
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
