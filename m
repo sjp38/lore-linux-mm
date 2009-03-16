@@ -1,59 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4B9586B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:15:53 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id D748C304FFE
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:22:34 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id F8CxWvUItbGS for <linux-mm@kvack.org>;
-	Mon, 16 Mar 2009 15:22:34 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 08B35305045
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:21:27 -0400 (EDT)
-Date: Mon, 16 Mar 2009 15:12:50 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of precalculated
- values
-In-Reply-To: <1237226020-14057-25-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903161500280.20024@qirst.com>
-References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-25-git-send-email-mel@csn.ul.ie>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id C1BCA6B0047
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:23:45 -0400 (EDT)
+Date: Mon, 16 Mar 2009 12:17:21 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+In-Reply-To: <200903170529.08995.nickpiggin@yahoo.com.au>
+Message-ID: <alpine.LFD.2.00.0903161215150.3675@localhost.localdomain>
+References: <1237007189.25062.91.camel@pasglop> <200903170502.57217.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain> <200903170529.08995.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Mar 2009, Mel Gorman wrote:
 
-> +int gfp_zone_table[GFP_ZONEMASK] __read_mostly;
 
-The gfp_zone_table is compile time determinable. There is no need to
-calculate it.
+On Tue, 17 Mar 2009, Nick Piggin wrote:
+> 
+> What's buggy about it? Stupid bugs, or fundamentally broken?
 
-const int gfp_zone_table[GFP_ZONEMASK] = {
-	ZONE_NORMAL,		/* 00 No flags set */
-	ZONE_DMA,		/* 01 Only GFP_DMA set */
-	ZONE_HIGHMEM,		/* 02 Only GFP_HIGHMEM set */
-	ZONE_DMA,		/* 03 GFP_HIGHMEM and GFP_DMA set */
-	ZONE_DMA32,		/* 04 Only GFP_DMA32 set */
-	ZONE_DMA,		/* 05 GFP_DMA and GFP_DMA32 set */
-	ZONE_DMA32,		/* 06 GFP_DMA32 and GFP_HIGHMEM set */
-	ZONE_DMA,		/* 07 GFP_DMA, GFP_DMA32 and GFP_DMA32 set */
-	ZONE_MOVABLE,		/* 08 Only ZONE_MOVABLE set */
-	ZONE_DMA,		/* 09 MOVABLE + DMA */
-	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
-	ZONE_DMA,		/* 0B MOVABLE + DMA + HIGHMEM */
-	ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
-	ZONE_DMA,		/* 0D MOVABLE + DMA + DMA32 */
-	ZONE_DMA32,		/* 0E MOVABLE + DMA32 + HIGHMEM */
-	ZONE_DMA		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA
-};
+The lack of locking.
 
-Hmmmm... Guess one would need to add some #ifdeffery here to setup
-ZONE_NORMAL in cases there is no DMA, DMA32 and HIGHMEM.
+> In my opinion it is not, given that you have to convert callers. If you
+> say that you only care about fixing O_DIRECT, then yes I would probably
+> agree the lock is nicer in that case.
+
+F*ck me, I'm not going to bother to argue. I'm not going to merge your 
+patch, it's that easy.
+
+Quite frankly, I don't think that the "bug" is a bug to begin with. 
+O_DIRECT+fork() can damn well continue to be broken. But if we fix it, we 
+fix it the _clean_ way with a simple patch, not with that shit-for-logic 
+horrible decow crap.
+
+It's that simple. I refuse to take putrid industrial waste patches for 
+something like this.
+
+			Linus
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
