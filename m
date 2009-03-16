@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B276B0093
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:36 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 217BB6B0096
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:37 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 19/27] Do not setup zonelist cache when there is only one node
-Date: Mon, 16 Mar 2009 17:53:33 +0000
-Message-Id: <1237226020-14057-20-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 15/27] Inline __rmqueue_fallback()
+Date: Mon, 16 Mar 2009 17:53:29 +0000
+Message-Id: <1237226020-14057-16-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,46 +13,29 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-There is a zonelist cache which is used to track zones that are not in
-the allowed cpuset or found to be recently full. This is to reduce cache
-footprint on large machines. On smaller machines, it just incurs cost
-for no gain. This patch only uses the zonelist cache when there are NUMA
-nodes.
+__rmqueue_fallback() is in the slow path but has only one call site. It
+actually reduces text if it's inlined.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |   10 ++++++++--
- 1 files changed, 8 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c4eb295..01cd489 100644
+index 9f7631e..0ba9e4f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1442,6 +1442,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 	/* Determine in advance if the zonelist needs filtering */
- 	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
- 		zonelist_filter = 1;
-+	if (num_online_nodes() > 1)
-+		zonelist_filter = 1;
+@@ -774,8 +774,8 @@ static int move_freepages_block(struct zone *zone, struct page *page,
+ }
  
- zonelist_scan:
- 	/*
-@@ -1486,8 +1488,12 @@ this_zone_full:
- 			zlc_mark_zone_full(zonelist, z);
- try_next_zone:
- 		if (NUMA_BUILD && zonelist_filter) {
--			if (!did_zlc_setup) {
--				/* do zlc_setup after the first zone is tried */
-+			if (!did_zlc_setup && num_online_nodes() > 1) {
-+				/*
-+				 * do zlc_setup after the first zone is tried
-+				 * but only if there are multiple nodes to make
-+				 * it worthwhile
-+				 */
- 				allowednodes = zlc_setup(zonelist, alloc_flags);
- 				zlc_active = 1;
- 			}
+ /* Remove an element from the buddy allocator from the fallback list */
+-static struct page *__rmqueue_fallback(struct zone *zone, int order,
+-						int start_migratetype)
++static inline struct page *
++__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ {
+ 	struct free_area * area;
+ 	int current_order;
 -- 
 1.5.6.5
 
