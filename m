@@ -1,103 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F72E6B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 17:44:32 -0400 (EDT)
-Date: Mon, 16 Mar 2009 21:44:11 +0000 (GMT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C616B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 18:25:31 -0400 (EDT)
+Date: Mon, 16 Mar 2009 22:25:13 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: BUG?: PAGE_FLAGS_CHECK_AT_PREP seems to be cleared too early
- (Was Re: I just got got another Oops
-In-Reply-To: <20090316170359.858e7a4e.kamezawa.hiroyu@jp.fujitsu.com>
-Message-ID: <Pine.LNX.4.64.0903162101110.13164@blonde.anvils>
-References: <200903120133.11583.gene.heskett@gmail.com> <49B8C98D.3020309@davidnewall.com>
- <200903121431.49437.gene.heskett@gmail.com> <20090316115509.40ea13da.kamezawa.hiroyu@jp.fujitsu.com>
- <20090316170359.858e7a4e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] use css id in swap cgroup for saving memory v5
+In-Reply-To: <20090312084623.e98d80b9.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.64.0903162217030.3560@blonde.anvils>
+References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
+ <20090310160856.77deb5c3.akpm@linux-foundation.org>
+ <20090311085326.403a211d.kamezawa.hiroyu@jp.fujitsu.com>
+ <isapiwc.d14e3c29.6b18.49b7092b.9bc73.52@mail.jp.nec.com>
+ <20090311094739.3123b05d.kamezawa.hiroyu@jp.fujitsu.com>
+ <20090311120427.2467bd14.kamezawa.hiroyu@jp.fujitsu.com>
+ <Pine.LNX.4.64.0903111041260.16964@blonde.anvils>
+ <20090312084623.e98d80b9.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Gene Heskett <gene.heskett@gmail.com>, David Newall <davidn@davidnewall.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Mar 2009, KAMEZAWA Hiroyuki wrote:
-> Hi,
-> I'm sorry if I miss something..
+On Thu, 12 Mar 2009, KAMEZAWA Hiroyuki wrote:
+> On Wed, 11 Mar 2009 11:05:55 +0000 (GMT)
+> Hugh Dickins <hugh@veritas.com> wrote:
+> > > @@ -432,7 +428,7 @@ int swap_cgroup_swapon(int type, unsigne
+> > >  
+> > >  	printk(KERN_INFO
+> > >  		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
+> > > -		" and %ld bytes to hold mem_cgroup pointers on swap\n",
+> > > +		" and %ld bytes to hold mem_cgroup information per swap ents\n",
+> > >  		array_size, length * PAGE_SIZE);
+> > >  	printk(KERN_INFO
+> > >  	"swap_cgroup can be disabled by noswapaccount boot option.\n");
+> > 
+> > ... I do get very irritated by all the screenspace these messages take
+> > up every time I swapon.  I can see that you're following a page_cgroup
+> > precedent, one which never bothered me because it got buried in dmesg;
+> > and most other people wouldn't be doing swapon very often, and wouldn't
+> > be logging to a visible screen ... but is there any chance of putting an
+> > approximation to this info in the CGROUP_MEM_RES_CTRL_SWAP Kconfig help
+> > text and removing these runtime messages?  How do other people feel?
+> > 
+> Ok, will remove this. (in other patch.)
 
-I think it's me who missed something, and needs to say sorry.
+Thanks!
 
 > 
-> >From this patch
-> ==
-> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commitdiff;h=79f4b7bf393e67bbffec807cc68caaefc72b82ee
-> ==
-> #define PAGE_FLAGS_CHECK_AT_PREP       ((1 << NR_PAGEFLAGS) - 1)
-> ...
-> @@ -468,16 +467,16 @@ static inline int free_pages_check(struct page *page)
->                 (page_count(page) != 0)  |
->                 (page->flags & PAGE_FLAGS_CHECK_AT_FREE)))
-> ....
-> +       if (PageReserved(page))
-> +               return 1;
-> +       if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-> +               page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> +       return 0;
->  }
-> ==
-> 
-> PAGE_FLAGS_CHECK_AT_PREP is cleared by free_pages_check().
-> 
-> This means PG_head/PG_tail(PG_compound) flags are cleared here
+> > I'm also disappointed that we invented such a tortuously generic boot
+> > option as "cgroup_disable=memory", then departed from it when the very
+> > first extension "noswapaccount" was required.  "cgroup_disable=swap"?
+> > Probably too late.
+> > 
+> Hmm, cgroup_disable=memory is option to disable memory cgroup and "memory"
+> is the subsytem name of cgroup. But "swap" isn't.
 
-Yes, well spotted.  How embarrassing.  I must have got confused
-about when the checking occurred when freeing a compound page.
+Yes, "swap" was always going to be a more awkward case than a cgroup.
 
-> and Compound page will never be freed in sane way.
+> Just removing "noswapaccount" option is ok ? Anyway, there is config.
 
-But is that so?  I'll admit I've not tried this out yet, but my
-understanding is that the Compound page actually gets freed fine:
-free_compound_page() should have passed the right order down, and this
-PAGE_FLAGS_CHECK_AT_PREP clearing should remove the Head/Tail/Compound
-flags - doesn't it all work out sanely, without any leaking?
-
-What goes missing is all the destroy_compound_page() checks:
-that's at present just dead code.
-
-There's several things we could do about this.
-
-1.  We could regard destroy_compound_page() as legacy debugging code
-from when compound pages were first introduced, and sanctify my error
-by removing it.  Obviously that's appealing to me, makes me look like
-a prophet rather than idiot!  That's not necessarily the right thing to
-do, but might appeal also to those cutting overhead from page_alloc.c.
-
-2.  We could do the destroy_compound_page() stuff in free_compound_page()
-before calling __free_pages_ok(), and add the Head/Tail/Compound flags
-into PAGE_FLAGS_CHECK_AT_FREE.  That seems a more natural ordering to
-me, and would remove the PageCompound check from a hotter path; but
-I've a suspicion there's a good reason why it was not done that way,
-that I'm overlooking at this moment.
-
-3.  We can define a PAGE_FLAGS_CLEAR_AT_FREE which omits the Head/Tail/
-Compound flags, and lets destroy_compound_page() be called as before
-where it's currently intended.
-
-What do you think?  I suspect I'm going to have to spend tomorrow
-worrying about something else entirely, and won't return here until
-Wednesday.
-
-But as regards the original "I just got got another Oops": my bug
-that you point out here doesn't account for that, does it?  It's
-still a mystery, isn't it, how the PageTail bit came to be set at
-that point?
-
-But that Oops does demonstrate that it's a very bad idea to be using
-the deceptive page_count() in those bad_page() checks: we need to be
-checking page->_count directly.
-
-And in looking at this, I notice something else to worry about:
-that CONFIG_HUGETLBFS prep_compound_gigantic_page(), which seems
-to exist for a more general case than "p = page + i" - what happens
-when such a gigantic page is freed, and arrives at the various
-"p = page + i" assumptions on the freeing path?
+Removing "noswapaccount" would be okay by me, but I don't think you
+should remove it without wider agreement of mem_cgroup folks.
 
 Hugh
 
