@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 075776B008C
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:40 -0400 (EDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B6A86B009F
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 13:51:41 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 25/27] Re-sort GFP flags and fix whitespace alignment for easier reading.
-Date: Mon, 16 Mar 2009 17:53:39 +0000
-Message-Id: <1237226020-14057-26-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 26/27] Get the pageblock migratetype without disabling interrupts
+Date: Mon, 16 Mar 2009 17:53:40 +0000
+Message-Id: <1237226020-14057-27-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,43 +13,39 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Resort the GFP flags after __GFP_MOVABLE got redefined so how the bits
-are used are a bit cleared.
+Local interrupts are disabled when freeing pages to the PCP list. Part
+of that free checks what the migratetype of the pageblock the page is in
+but it checks this with interrupts disabled. This patch checks the
+pagetype with interrupts enabled. The impact is that it is possible a
+page is freed to the wrong list when a pageblock changes type but as
+that block is now already considered mixed from an anti-fragmentation
+perspective, it's not of vital importance.
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- include/linux/gfp.h |    9 +++++----
- 1 files changed, 5 insertions(+), 4 deletions(-)
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 581f8a9..8f7d176 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -25,6 +25,8 @@ struct vm_area_struct;
- #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
- #define __GFP_DMA32	((__force gfp_t)0x04u)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f71091a..ca7bc04 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1039,6 +1039,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 	kernel_map_pages(page, 1, 0);
  
-+#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
-+
- /*
-  * Action modifiers - doesn't change the zoning
-  *
-@@ -50,11 +52,10 @@ struct vm_area_struct;
- #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
- #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
- #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
--#define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
--#define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
--#define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-+#define __GFP_NOMEMALLOC  ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-+#define __GFP_HARDWALL    ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
-+#define __GFP_THISNODE	  ((__force gfp_t)0x40000u) /* No fallback, no policies */
- #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
--#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
- 
- #define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 	pcp = &zone_pcp(zone, get_cpu())->pcp;
++	set_page_private(page, get_pageblock_migratetype(page));
+ 	local_irq_save(flags);
+ 	if (unlikely(clearMlocked))
+ 		free_page_mlock(page);
+@@ -1048,7 +1049,6 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 		list_add_tail(&page->lru, &pcp->list);
+ 	else
+ 		list_add(&page->lru, &pcp->list);
+-	set_page_private(page, get_pageblock_migratetype(page));
+ 	pcp->count++;
+ 	if (pcp->count >= pcp->high) {
+ 		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
 -- 
 1.5.6.5
 
