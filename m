@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id AA6C86B004F
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:57:10 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 86F2E6B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:59:35 -0400 (EDT)
 Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 59497304F80
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:03:52 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3CD65304F7B
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:06:17 -0400 (EDT)
 Received: from smtp.ultrahosting.com ([74.213.174.254])
 	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 416dLk7MaIzY for <linux-mm@kvack.org>;
-	Mon, 16 Mar 2009 15:03:47 -0400 (EDT)
+	with ESMTP id z9kUPpB-WuXZ for <linux-mm@kvack.org>;
+	Mon, 16 Mar 2009 15:06:12 -0400 (EDT)
 Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id B27FA304F6B
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:03:47 -0400 (EDT)
-Date: Mon, 16 Mar 2009 14:55:03 -0400 (EDT)
+	by smtp.ultrahosting.com (Postfix) with ESMTP id E1BC4304F9A
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:06:04 -0400 (EDT)
+Date: Mon, 16 Mar 2009 14:57:48 -0400 (EDT)
 From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 13/27] Inline __rmqueue_smallest()
-In-Reply-To: <1237226020-14057-14-git-send-email-mel@csn.ul.ie>
-Message-ID: <alpine.DEB.1.10.0903161454390.20024@qirst.com>
-References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-14-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 18/27] Do not disable interrupts in free_page_mlock()
+In-Reply-To: <1237226020-14057-19-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903161457290.20024@qirst.com>
+References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-19-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
