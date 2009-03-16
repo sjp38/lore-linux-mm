@@ -1,42 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 4A16E6B004D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:38:10 -0400 (EDT)
-Date: Mon, 16 Mar 2009 19:37:50 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-Message-ID: <20090316183750.GB20555@random.random>
-References: <1237007189.25062.91.camel@pasglop> <200903170419.38988.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161034030.3675@localhost.localdomain> <200903170502.57217.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id AA6C86B004F
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 14:57:10 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 59497304F80
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:03:52 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 416dLk7MaIzY for <linux-mm@kvack.org>;
+	Mon, 16 Mar 2009 15:03:47 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id B27FA304F6B
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 15:03:47 -0400 (EDT)
+Date: Mon, 16 Mar 2009 14:55:03 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 13/27] Inline __rmqueue_smallest()
+In-Reply-To: <1237226020-14057-14-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903161454390.20024@qirst.com>
+References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-14-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.0903161111090.3675@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 16, 2009 at 11:14:59AM -0700, Linus Torvalds wrote:
-> You may think that the lock isn't particularly "elegant", but I can only 
-> say "f*ck that, look at the number of lines of code, and the simplicity".
 
-I'm sorry but the number of lines that you're reading in the
-direct_io_worker patch, aren't representative of what it takes to fix
-it with a mm wide lock. It may be conceptually simpler to fix it
-outside GUP, on that I can certainly agree (with the downside of
-leaving splice broken etc..), but I can't see how that small patch can
-fix anything as releasing the semaphore after direct_io_worker returns
-with O_DIRECT mixed with async-io. Before claiming that the outer lock
-results in less number of lines of code, I'd wait to see a fix that
-works with O_DIRECT+async-io too as well as mine and Nick's do.
-
-> Your "elegant" argument is total and utter sh*t, in other words. The lock 
-> approach is tons more elegant, considering that it solves the problem much 
-> more cleanly, and with _much_ less crap.
-
-I guess elegant is relative, but the size argument is objective, and
-that should be possible to compare if somebody writes a full fix that
-doesn't fall apart if return value of direct_io_worker is -EIOCBQUEUED.
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
