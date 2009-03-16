@@ -1,66 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 113746B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 07:34:06 -0400 (EDT)
-Date: Mon, 16 Mar 2009 12:33:58 +0100
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [PATCH 00/35] Cleanup and optimise the page allocator V3
-Message-ID: <20090316113358.GA30802@wotan.suse.de>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316104054.GA23046@wotan.suse.de> <20090316111906.GA6382@csn.ul.ie>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 97F9A6B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 07:39:09 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp05.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2GBd2oi009126
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 17:09:02 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2GBdAB52867248
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 17:09:10 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2GBd1xZ005172
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 17:09:01 +0530
+Date: Mon, 16 Mar 2009 17:08:53 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
+	(v6)
+Message-ID: <20090316113853.GA16897@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090314173043.16591.18336.sendpatchset@localhost.localdomain> <20090314173111.16591.68465.sendpatchset@localhost.localdomain> <20090316095258.94ae559d.kamezawa.hiroyu@jp.fujitsu.com> <20090316083512.GV16897@balbir.in.ibm.com> <20090316174943.53ec8196.kamezawa.hiroyu@jp.fujitsu.com> <20090316180308.6be6b8a2.kamezawa.hiroyu@jp.fujitsu.com> <20090316091024.GX16897@balbir.in.ibm.com> <2217159d612e4e4d3fcbd50354e53f5b.squirrel@webmail-b.css.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090316111906.GA6382@csn.ul.ie>
+In-Reply-To: <2217159d612e4e4d3fcbd50354e53f5b.squirrel@webmail-b.css.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 16, 2009 at 11:19:06AM +0000, Mel Gorman wrote:
-> On Mon, Mar 16, 2009 at 11:40:54AM +0100, Nick Piggin wrote:
-> > That's wonderful, but it would
-> > significantly increase the fragmentation problem, wouldn't it?
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-16 20:10:41]:
+
+> Balbir Singh wrote:
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-16
+> > 18:03:08]:
+> >
+> >> On Mon, 16 Mar 2009 17:49:43 +0900
+> >> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> >>
+> >> > On Mon, 16 Mar 2009 14:05:12 +0530
+> >> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> >>
+> >> > For example, shrink_slab() is not called. and this must be called.
+> >> >
+> >> > For exmaple, we may have to add
+> >> >  sc->call_shrink_slab
+> >> > flag and set it "true" at soft limit reclaim.
+> >> >
+> >> At least, this check will be necessary in v7, I think.
+> >> shrink_slab() should be called.
+> >
+> > Why do you think so? So here is the design
+> >
+> > 1. If a cgroup was using over its soft limit, we believe that this
+> >    cgroup created overall memory contention and caused the page
+> >    reclaimer to get activated.
+> This assumption is wrong, see below.
 > 
-> Not necessarily, anti-fragmentation groups movable pages within a
-> hugepage-aligned block and high-order allocations will trigger a merge of
-> buddies from PAGE_ALLOC_MERGE_ORDER (defined in the relevant patch) up to
-> MAX_ORDER-1. Critically, a merge is also triggered when anti-fragmentation
-> wants to fallback to another migratetype to satisfy an allocation. As
-> long as the grouping works, it doesn't matter if they were only merged up
-> to PAGE_ALLOC_MERGE_ORDER as a full merge will still free up hugepages.
-> So two slow paths are made slower but the fast path should be faster and it
-> should be causing fewer cache line bounces due to writes to struct page.
+> >    If we can solve the situation by
+> >    reclaiming from this cgroup, why do we need to invoke shrink_slab?
+> >
+> No,
+> IIUC, in big server, inode, dentry cache etc....can occupy Gigabytes
+> of memory even if 99% of them are not used.
+> 
+> By shrink_slab(), we can reclaim unused but cached slabs and make
+> the kernel more healthy.
+> 
 
-Oh, but the anti-fragmentation stuff is orthogonal to this. Movable
-groups should always be defragmentable (at some cost)... the bane of
-anti-frag is fragmentation of the non-movable groups.
+But that is not the job of the soft limit reclaimer.. Yes if no groups
+are over their soft limit, the regular action will take place.
 
-And one reason why buddy is so good at avoiding fragmentation is
-because it will pick up _any_ pages that go past the allocator if
-they have any free buddies. And it hands out ones that don't have
-free buddies. So in that way it is naturally continually filtering
-out pages which can be merged.
+> 
+> > If the concern is that we are not following the traditional reclaim,
+> > soft limit reclaim can be followed by unconditional reclaim, but I
+> > believe this is not necessary. Remember, we wake up kswapd that will
+> > call shrink_slab if needed.
+> kswapd doesn't call shrink_slab() when zone->free is enough.
+> (when direct recail did good jobs.)
+> 
 
-Wheras if you defer this until the point you need a higher order
-page, the only thing you have to work with are the pages that are
-free *right now*.
+If zone->free is high why do we need shrink_slab()? The other way
+of asking it is, why does the soft limit reclaimer need to call
+shrink_slab(), when its job is to reclaim memory from cgroups above
+their soft limits.
 
-It will almost definitely increase fragmentation of non movable zones,
-and if you have a workload doing non-trivial, non movable higher order
-allocations that are likely to cause fragmentation, it will result
-in these allocations eating movable groups sooner I think.
+> Anyway, we'll have to add softlimit hook to kswapd.
+> I think you read Kosaki's e-mail to you.
+> ==
+> in global reclaim view, foreground reclaim and background reclaim's
+>   reclaim rate is about 1:9 typically.
+> ==
+
+I think not. Please don't interpret soft limits as water marks, I
+think that is where the basic disagreement lies. Keeping zones under
+their watermarks is different from soft limits; where a cgroup gets
+pushed it is causing the memory allocator to go into reclaim.
 
 
-> When I last checked (about 10 days) ago, I hadn't damaged anti-fragmentation
-> but that was a lot of revisions ago. I'm redoing the tests to make sure
-> anti-fragmentation is still ok.
-
-Your anti-frag tests probably don't stress this long term fragmentation
-problem.
-
-Still, it's significant enough that I think it should be made
-optional (and arguably default to on) even if it does harm higher
-order allocations a bit.
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
