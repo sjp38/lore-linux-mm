@@ -1,97 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id BC1B36B003D
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 07:10:45 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2GBAgcl017194
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 16 Mar 2009 20:10:42 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9224E45DE51
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:10:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 68AC845DE4F
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:10:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 501331DB803C
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:10:42 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ED8D61DB803A
-	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 20:10:41 +0900 (JST)
-Message-ID: <2217159d612e4e4d3fcbd50354e53f5b.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090316091024.GX16897@balbir.in.ibm.com>
-References: <20090314173043.16591.18336.sendpatchset@localhost.localdomain>
-    <20090314173111.16591.68465.sendpatchset@localhost.localdomain>
-    <20090316095258.94ae559d.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316083512.GV16897@balbir.in.ibm.com>
-    <20090316174943.53ec8196.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316180308.6be6b8a2.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090316091024.GX16897@balbir.in.ibm.com>
-Date: Mon, 16 Mar 2009 20:10:41 +0900 (JST)
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
- (v6)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 65C676B003D
+	for <linux-mm@kvack.org>; Mon, 16 Mar 2009 07:19:11 -0400 (EDT)
+Date: Mon, 16 Mar 2009 11:19:06 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00/35] Cleanup and optimise the page allocator V3
+Message-ID: <20090316111906.GA6382@csn.ul.ie>
+References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <20090316104054.GA23046@wotan.suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090316104054.GA23046@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Nick Piggin <npiggin@suse.de>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-16
-> 18:03:08]:
->
->> On Mon, 16 Mar 2009 17:49:43 +0900
->> KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>
->> > On Mon, 16 Mar 2009 14:05:12 +0530
->> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
->>
->> > For example, shrink_slab() is not called. and this must be called.
->> >
->> > For exmaple, we may have to add
->> >  sc->call_shrink_slab
->> > flag and set it "true" at soft limit reclaim.
->> >
->> At least, this check will be necessary in v7, I think.
->> shrink_slab() should be called.
->
-> Why do you think so? So here is the design
->
-> 1. If a cgroup was using over its soft limit, we believe that this
->    cgroup created overall memory contention and caused the page
->    reclaimer to get activated.
-This assumption is wrong, see below.
+On Mon, Mar 16, 2009 at 11:40:54AM +0100, Nick Piggin wrote:
+> On Mon, Mar 16, 2009 at 09:45:55AM +0000, Mel Gorman wrote:
+> > Here is V3 of an attempt to cleanup and optimise the page allocator and should
+> > be ready for general testing. The page allocator is now faster (16%
+> > reduced time overall for kernbench on one machine) and it has a smaller cache
+> > footprint (16.5% less L1 cache misses and 19.5% less L2 cache misses for
+> > kernbench on one machine). The text footprint has unfortunately increased,
+> > largely due to the introduction of a form of lazy buddy merging mechanism
+> > that avoids cache misses by postponing buddy merging until a high-order
+> > allocation needs it.
+> 
+> You!? You want to do lazy buddy? ;)
 
->    If we can solve the situation by
->    reclaiming from this cgroup, why do we need to invoke shrink_slab?
->
-No,
-IIUC, in big server, inode, dentry cache etc....can occupy Gigabytes
-of memory even if 99% of them are not used.
+I'm either a man of surprises, an idiot or just plain inconsistent :)
 
-By shrink_slab(), we can reclaim unused but cached slabs and make
-the kernel more healthy.
+> That's wonderful, but it would
+> significantly increase the fragmentation problem, wouldn't it?
 
+Not necessarily, anti-fragmentation groups movable pages within a
+hugepage-aligned block and high-order allocations will trigger a merge of
+buddies from PAGE_ALLOC_MERGE_ORDER (defined in the relevant patch) up to
+MAX_ORDER-1. Critically, a merge is also triggered when anti-fragmentation
+wants to fallback to another migratetype to satisfy an allocation. As
+long as the grouping works, it doesn't matter if they were only merged up
+to PAGE_ALLOC_MERGE_ORDER as a full merge will still free up hugepages.
+So two slow paths are made slower but the fast path should be faster and it
+should be causing fewer cache line bounces due to writes to struct page.
 
-> If the concern is that we are not following the traditional reclaim,
-> soft limit reclaim can be followed by unconditional reclaim, but I
-> believe this is not necessary. Remember, we wake up kswapd that will
-> call shrink_slab if needed.
-kswapd doesn't call shrink_slab() when zone->free is enough.
-(when direct recail did good jobs.)
+The success rate of high-order allocations should be roughly the same but
+they will be slower, particularly as I remerge more often than required. This
+slowdown is undesirable but the assumptions are that either a) it's the
+static hugepage pool being resized in which case the delay is irrelevant or
+b) the pool is being dynamically resized but the expected lifetime of the
+page far exceeds the allocation cost of merging.
 
-Anyway, we'll have to add softlimit hook to kswapd.
-I think you read Kosaki's e-mail to you.
-==
-in global reclaim view, foreground reclaim and background reclaim's
-  reclaim rate is about 1:9 typically.
-==
+I fully agree with you that it's more important that order-0 allocations
+are faster than order-9 allocations but I'm not totally off high-order
+allocs either. You'll see the patchset allows higher-order pages (up to
+PAGE_ALLOC_COSTLY_ORDER) onto the PCP lists for order-1 allocations used
+by sig handlers, stacks and the like (important for fork-heavy loads I am
+guessing) and because SLUB uses high-order allocations that are currently
+bypassing the PCP lists altogether. I haven't measured it but SLUB-heavy
+workloads must be contending on the zone->lock to some extent.
 
-Thanks,
--Kame
+When I last checked (about 10 days) ago, I hadn't damaged anti-fragmentation
+but that was a lot of revisions ago. I'm redoing the tests to make sure
+anti-fragmentation is still ok.
+
+> (although pcp lists are conceptually a form of lazy buddy already)
+> 
+
+Indeed.
+
+> No objections from me of course, if it is making significant
+> speedups. I assume you mean overall time on kernbench is overall sys
+> time?
+
+Both, I should be clearer. The amount of oprofile samples measured in the
+page allocator is reduced by a large amount but it does not always translate
+into overall speedups although it did for 8 out of 9 machines I tested. On
+most machines the overall "System Time" for kernbench is reduced but in 2
+out of 9 test machines, the elapsed time increases due to some other caching
+weirdness or due to a change in timing with respect to locking.
+
+Pinning down the exact problem is tricky as profile sometimes reverses the
+performance effects. i.e. without profiling I'll see a slowdown and
+with profiling I see significant speedups so I can't measure what is going
+on.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
