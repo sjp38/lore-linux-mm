@@ -1,286 +1,366 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id AD0076B004D
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 05:40:16 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2H9eEJF017649
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 17 Mar 2009 18:40:14 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A94AF45DE4F
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 18:40:13 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EE0C45DE53
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 18:40:13 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C892E08014
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 18:40:13 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D22071DB8013
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 18:40:12 +0900 (JST)
-Date: Tue, 17 Mar 2009 18:38:50 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memcg: handle swapcache leak
-Message-Id: <20090317183850.67c35b27.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-	<20090317143903.a789cf57.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090317151113.79a3cc9d.nishimura@mxp.nes.nec.co.jp>
-	<20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0C8626B003D
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 05:51:23 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: oom-killer killing even if memory is available?
+Date: Tue, 17 Mar 2009 20:51:13 +1100
+References: <20090317100049.33f67964@osiris.boeblingen.de.ibm.com>
+In-Reply-To: <20090317100049.33f67964@osiris.boeblingen.de.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200903172051.13907.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: Heiko Carstens <heiko.carstens@de.ibm.com>, Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andreas Krebbel <krebbel@linux.vnet.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Mar 2009 16:29:50 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+On Tuesday 17 March 2009 20:00:49 Heiko Carstens wrote:
+> Hi all,
+>
+> the below looks like there is some bug in the memory management code.
+> Even if there seems to be plenty of memory available the oom-killer
+> kills processes.
+>
+> The below happened after 27 days uptime, memory seems to be heavily
+> fragmented,
 
-> Give me time, I'll find a fix.
-> 
-Fowlling is  a result of quick hack, *not* tested.
+What slab allocator are you using?
 
-but how this looks ? (please ignore garbage..)
 
-==
----
- include/linux/page_cgroup.h |   13 ++++
- mm/memcontrol.c             |  140 +++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 146 insertions(+), 7 deletions(-)
+> but there are stills larger portions of memory free that
+> could satisfy an order 2 allocation. Any idea why this fails?
 
-Index: mmotm-2.6.29-Mar13/include/linux/page_cgroup.h
-===================================================================
---- mmotm-2.6.29-Mar13.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.29-Mar13/include/linux/page_cgroup.h
-@@ -26,6 +26,7 @@ enum {
- 	PCG_LOCK,  /* page cgroup is locked */
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
-+	PCG_ORPHAN, /* this is not used from memcg:s view but on global LRU */
- };
- 
- #define TESTPCGFLAG(uname, lname)			\
-@@ -40,12 +41,24 @@ static inline void SetPageCgroup##uname(
- static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ clear_bit(PCG_##lname, &pc->flags);  }
- 
-+#define TESTSETPCGFLAG(uname, lname) \
-+static inline int TestSetPageCgroup##uname(struct page_cgroup *pc) \
-+        { return test_and_set_bit(PCG_##lname, &pc->flags);}
-+
-+#define TESTCLEARPCGFLAG(uname, lname) \
-+static inline int TestClearPageCgroup##uname(struct page_cgroup *pc) \
-+        { return test_and_clear_bit(PCG_##lname, &pc->flags);}
-+
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- 
- TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
- 
-+TESTSETPCGFLAG(Orphan, ORPHAN)
-+TESTCLEARPCGFLAG(Orphan, ORPHAN)
-+
-+
- static inline int page_cgroup_nid(struct page_cgroup *pc)
- {
- 	return page_to_nid(pc->page);
-Index: mmotm-2.6.29-Mar13/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.29-Mar13.orig/mm/memcontrol.c
-+++ mmotm-2.6.29-Mar13/mm/memcontrol.c
-@@ -204,11 +204,29 @@ pcg_default_flags[NR_CHARGE_TYPE] = {
- };
- 
- /* for encoding cft->private value on file */
--#define _MEM			(0)
--#define _MEMSWAP		(1)
--#define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
--#define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
--#define MEMFILE_ATTR(val)	((val) & 0xffff)
-+#define _MEM                   (0)
-+#define _MEMSWAP               (1)
-+#define MEMFILE_PRIVATE(x, val)        (((x) << 16) | (val))
-+#define MEMFILE_TYPE(val)      (((val) >> 16) & 0xffff)
-+#define MEMFILE_ATTR(val)      ((val) & 0xffff)
-+
-+/* for orphan page_cgroups, guarded by zone->lock. */
-+struct orphan_pcg_list {
-+	struct list_head zone[MAX_NR_ZONES];
-+};
-+struct orphan_pcg_list *orphan_list[MAX_NUMNODES];
-+atomic_t num_orphan_pages;
-+
-+static inline struct list_head *orphan_lru(int nid, int zid)
-+{
-+	/*
-+	 * to kick this BUG_ON(), swapcache must be generated while init.
-+	 * or NID should be invalid.
-+	 */
-+	BUG_ON(!orphan_list[nid]);
-+	return  &orphan_list[nid]->zone[zid];
-+}
-+
- 
- static void mem_cgroup_get(struct mem_cgroup *mem);
- static void mem_cgroup_put(struct mem_cgroup *mem);
-@@ -380,6 +398,14 @@ void mem_cgroup_del_lru_list(struct page
- 	if (mem_cgroup_disabled())
- 		return;
- 	pc = lookup_page_cgroup(page);
-+	/*
-+	 * If the page is SwapCache and already on global LRU, it will be on
-+	 * orphan list. remove here
-+	 */
-+	if (unlikely(PageSwapCache(page) && TestClearPageCgroupOrphan(pc))) {
-+		list_del_init(&pc->lru);
-+		atomic_dec(&num_orphan_pages);
-+	}
- 	/* can happen while we handle swapcache. */
- 	if (list_empty(&pc->lru) || !pc->mem_cgroup)
- 		return;
-@@ -414,7 +440,7 @@ void mem_cgroup_rotate_lru_list(struct p
- 	 */
- 	smp_rmb();
- 	/* unused page is not rotated. */
--	if (!PageCgroupUsed(pc))
-+	if (unlikely(!PageCgroupUsed(pc)))
- 		return;
- 	mz = page_cgroup_zoneinfo(pc);
- 	list_move(&pc->lru, &mz->lists[lru]);
-@@ -433,8 +459,15 @@ void mem_cgroup_add_lru_list(struct page
- 	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
- 	 */
- 	smp_rmb();
--	if (!PageCgroupUsed(pc))
-+	if (unlikely(!PageCgroupUsed(pc))) {
-+		if (PageSwapCache(page) && !TestSetPageCgroupOrphan(pc)) {
-+			struct list_head *lru;
-+			lru = orphan_lru(page_to_nid(page), page_zonenum(page));
-+			list_add_tail(&pc->lru, lru);
-+			atomic_inc(&num_orphan_pages);
-+		}
- 		return;
-+	}
- 
- 	mz = page_cgroup_zoneinfo(pc);
- 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
-@@ -784,6 +817,95 @@ static int mem_cgroup_count_children(str
- 	return num;
- }
- 
-+
-+
-+/* Using big number here for avoiding to free swap-cache of readahead. */
-+#define CHECK_ORPHAN_THRESH  (4096)
-+
-+static __init void init_orphan_lru(void)
-+{
-+	struct orphan_pcg_list *opl;
-+	int nid, zid;
-+
-+	for_each_node_state(nid, N_POSSIBLE) {
-+		opl = kmalloc(sizeof(struct orphan_pcg_list),  GFP_KERNEL);
-+		BUG_ON(!opl);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++)
-+			INIT_LIST_HEAD(&opl->zone[zid]);
-+		orphan_list[nid] = opl;
-+	}
-+}
-+/* 
-+ * In usual, *unused* swap cache are reclaimed by global LRU. But, if no one
-+ * kicks global LRU, they will not be reclaimed. When using memcg, it's trouble.
-+ */
-+static int drain_orphan_swapcaches(int nid, int zid)
-+{
-+	struct page_cgroup *pc;
-+	struct zone *zone;
-+	struct page *page;
-+	struct list_head *lru = orphan_lru(nid, zid);
-+	unsigned long flags;
-+	int drain, scan;
-+
-+	zone = &NODE_DATA(nid)->node_zones[zid];
-+	/* check one by one */
-+	scan = 0;
-+	drain = 0;
-+	spin_lock_irqsave(&zone->lru_lock, flags);
-+	while (!list_empty(lru) && (scan < SWAP_CLUSTER_MAX*2)) {
-+		scan++;
-+		pc = list_entry(lru->next, struct page_cgroup, lru);
-+		page = pc->page;
-+		/* Rotate */
-+		list_del(&pc->lru);
-+		list_add_tail(&pc->lru, lru);
-+		/* get page for isolate_lru_page() */
-+		if (get_page_unless_zero(page)) {
-+			spin_unlock_irqrestore(&zone->lru_lock, flags);
-+			if (!isolate_lru_page(page)) {
-+				/* This page is not ON LRU */
-+				if (trylock_page(page)) {
-+					drain += try_to_free_swap(page);
-+					unlock_page(page);
-+				}
-+				putback_lru_page(page);
-+			}
-+			put_page(page);
-+			spin_lock_irqsave(&zone->lru_lock, flags);		
-+		}
-+	}
-+	spin_unlock_irqrestore(&zone->lru_lock, flags);
-+
-+	return drain;
-+}
-+
-+static int last_visit;
-+void check_stale_swapcaches(void)
-+{
-+	int nid, zid, drain;
-+	
-+	nid = last_visit;
-+	drain = 0;
-+	
-+	if (atomic_read(&num_orphan_pages) < CHECK_ORPHAN_THRESH)
-+		return;
-+		
-+again:
-+	nid = next_node(nid, node_states[N_HIGH_MEMORY]);
-+	if (nid == MAX_NUMNODES) {
-+		nid = 0;
-+		if (!node_state(nid, N_HIGH_MEMORY))
-+			goto again;
-+	}
-+	last_visit = nid;
-+
-+	for (zid = 0; !drain && zid < MAX_NR_ZONES; zid++)
-+		drain += drain_orphan_swapcaches(nid, zid);
-+}
-+
-+
-+
- /*
-  * Visit the first child (need not be the first child as per the ordering
-  * of the cgroup list, since we track last_scanned_child) of @mem and use
-@@ -842,6 +964,9 @@ static int mem_cgroup_hierarchical_recla
- 	int ret, total = 0;
- 	int loop = 0;
- 
-+	if (vm_swap_full())
-+		check_stale_swapcaches();
-+
- 	while (loop < 2) {
- 		victim = mem_cgroup_select_victim(root_mem);
- 		if (victim == root_mem)
-@@ -2454,6 +2579,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 	/* root ? */
- 	if (cont->parent == NULL) {
- 		enable_swap_cgroup();
-+		init_orphan_lru();
- 		parent = NULL;
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
+We still keep some watermarks around for higher order pages (for
+GFP_ATOMIC and page reclaim etc purposes).
+
+Possibly it is being a bit aggressive with the higher orders; when I
+added it I just made a guess at a sane function. See
+mm/page_alloc.c:zone_watermark_ok(). In particular, the for loop at the
+end of the function is the slowpath where it is calculating higher
+order watermarks. The min >>= 1 statement, 1 could be replaced with 2.
+Or we could just keep reserves for 0..PAGE_ALLOC_COSTLY_ORDER and then
+give away _any_ free pages for higher orders than that.
+
+Still would seem to just prolong the inevitable? Exploding after 27 days
+of uptime is rather sad :(
+
+
+> [root@t6360003 ~]# uptime
+>  09:33:41 up 27 days, 22:55,  1 user,  load average: 0.00, 0.00, 0.00
+>
+> Mar 16 21:40:40 t6360003 kernel: basename invoked oom-killer:
+> gfp_mask=0xd0, order=2, oomkilladj=0 Mar 16 21:40:40 t6360003 kernel: CPU:
+
+order 2, __GFP_WAIT|__GFP_IO|__GFP_FS.
+
+
+> 0 Not tainted 2.6.28 #1
+> Mar 16 21:40:40 t6360003 kernel: Process basename (pid: 30555, task:
+> 000000007baa6838, ksp: 0000000063867968) Mar 16 21:40:40 t6360003 kernel:
+> 0700000084a8c238 0000000063867a90 0000000000000002 0000000000000000 Mar 16
+> 21:40:40 t6360003 kernel:        0000000063867b30 0000000063867aa8
+> 0000000063867aa8 000000000010534e Mar 16 21:40:40 t6360003 kernel:       
+> 0000000000000000 0000000063867968 0000000000000000 000000000000000a Mar 16
+> 21:40:40 t6360003 kernel:        000000000000000d 0000000000000000
+> 0000000063867a90 0000000063867b08 Mar 16 21:40:40 t6360003 kernel:       
+> 00000000004a5ab0 000000000010534e 0000000063867a90 0000000063867ae0 Mar 16
+> 21:40:40 t6360003 kernel: Call Trace:
+> Mar 16 21:40:40 t6360003 kernel: ([<0000000000105248>]
+> show_trace+0xf4/0x144) Mar 16 21:40:40 t6360003 kernel: 
+> [<0000000000105300>] show_stack+0x68/0xf4 Mar 16 21:40:40 t6360003 kernel: 
+> [<000000000049c84c>] dump_stack+0xb0/0xc0 Mar 16 21:40:40 t6360003 kernel: 
+> [<000000000019235e>] oom_kill_process+0x9e/0x220 Mar 16 21:40:40 t6360003
+> kernel:  [<0000000000192c30>] out_of_memory+0x17c/0x264 Mar 16 21:40:40
+> t6360003 kernel:  [<000000000019714e>] __alloc_pages_internal+0x4f6/0x534
+> Mar 16 21:40:40 t6360003 kernel:  [<0000000000104058>]
+> crst_table_alloc+0x48/0x108 Mar 16 21:40:40 t6360003 kernel: 
+> [<00000000001a3f60>] __pmd_alloc+0x3c/0x1a8 Mar 16 21:40:40 t6360003
+> kernel:  [<00000000001a802e>] handle_mm_fault+0x262/0x9cc Mar 16 21:40:40
+> t6360003 kernel:  [<00000000004a1a7a>] do_dat_exception+0x30a/0x41c Mar 16
+> 21:40:40 t6360003 kernel:  [<0000000000115e5c>] sysc_return+0x0/0x8 Mar 16
+> 21:40:40 t6360003 kernel:  [<0000004d193bfae0>] 0x4d193bfae0 Mar 16
+> 21:40:40 t6360003 kernel: Mem-Info:
+> Mar 16 21:40:40 t6360003 kernel: DMA per-cpu:
+> Mar 16 21:40:40 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: Normal per-cpu:
+> Mar 16 21:40:40 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:  30
+> Mar 16 21:40:40 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 16 21:40:40 t6360003 kernel: Active_anon:372 active_file:45
+> inactive_anon:154 Mar 16 21:40:40 t6360003 kernel:  inactive_file:152
+> unevictable:987 dirty:0 writeback:188 unstable:0 Mar 16 21:40:40 t6360003
+> kernel:  free:146348 slab:875833 mapped:805 pagetables:378 bounce:0 Mar 16
+> 21:40:40 t6360003 kernel: DMA free:467728kB min:4064kB low:5080kB
+> high:6096kB active_anon:0kB inactive_anon:0kB active_file:0kB
+> inactive_file:116kB unevictable:0kB present:2068480kB pages_scanned:0
+> all_unreclaimable? no Mar 16 21:40:40 t6360003 kernel: lowmem_reserve[]: 0
+> 2020 2020
+> Mar 16 21:40:40 t6360003 kernel: Normal free:117664kB min:4064kB low:5080kB
+> high:6096kB active_anon:1488kB inactive_anon:616kB active_file:188kB
+> inactive_file:492kB unevictable:3948kB present:2068480kB pages_scanned:128
+> all_unreclaimable? no Mar 16 21:40:40 t6360003 kernel: lowmem_reserve[]: 0
+> 0 0
+> Mar 16 21:40:40 t6360003 kernel: DMA: 101853*4kB 7419*8kB 2*16kB 2*32kB
+> 1*64kB 0*128kB 1*256kB 1*512kB 0*1024kB = 467692kB Mar 16 21:40:40 t6360003
+> kernel: Normal: 28880*4kB 121*8kB 1*16kB 1*32kB 0*64kB 1*128kB 1*256kB
+> 0*512kB 1*1024kB = 117944kB Mar 16 21:40:40 t6360003 kernel: 1688 total
+> pagecache pages
+> Mar 16 21:40:40 t6360003 kernel: 564 pages in swap cache
+> Mar 16 21:40:40 t6360003 kernel: Swap cache stats: add 1106206, delete
+> 1105642, find 599107/618721 Mar 16 21:40:40 t6360003 kernel: Free swap  =
+> 1959300kB
+> Mar 16 21:40:40 t6360003 kernel: Total swap = 1999992kB
+> Mar 16 21:40:40 t6360003 kernel: 1048576 pages RAM
+> Mar 16 21:40:40 t6360003 kernel: 20255 pages reserved
+> Mar 16 21:40:40 t6360003 kernel: 10560 pages shared
+> Mar 16 21:40:40 t6360003 kernel: 878998 pages non-shared
+> Mar 16 21:40:40 t6360003 kernel: Out of memory: kill process 30502 (cc1)
+> score 3672 or a child Mar 16 21:40:40 t6360003 kernel: Killed process 30502
+> (cc1)
+> Mar 17 01:33:12 t6360003 kernel: sh invoked oom-killer: gfp_mask=0xd0,
+> order=2, oomkilladj=0 Mar 17 01:33:12 t6360003 kernel: CPU: 5 Not tainted
+> 2.6.28 #1
+> Mar 17 01:33:12 t6360003 kernel: Process sh (pid: 16756, task:
+> 0000000004852738, ksp: 0000000050b7d738) Mar 17 01:33:12 t6360003 kernel:
+> 07000000fbb28238 0000000050b7d860 0000000000000002 0000000000000000 Mar 17
+> 01:33:12 t6360003 kernel:        0000000050b7d900 0000000050b7d878
+> 0000000050b7d878 000000000010534e Mar 17 01:33:12 t6360003 kernel:       
+> 0000000000000000 0000000050b7d738 0000000000000000 000000000000000a Mar 17
+> 01:33:12 t6360003 kernel:        000000000000000d 0000000000000000
+> 0000000050b7d860 0000000050b7d8d8 Mar 17 01:33:12 t6360003 kernel:       
+> 00000000004a5ab0 000000000010534e 0000000050b7d860 0000000050b7d8b0 Mar 17
+> 01:33:12 t6360003 kernel: Call Trace:
+> Mar 17 01:33:12 t6360003 kernel: ([<0000000000105248>]
+> show_trace+0xf4/0x144) Mar 17 01:33:12 t6360003 kernel: 
+> [<0000000000105300>] show_stack+0x68/0xf4 Mar 17 01:33:12 t6360003 kernel: 
+> [<000000000049c84c>] dump_stack+0xb0/0xc0 Mar 17 01:33:12 t6360003 kernel: 
+> [<000000000019235e>] oom_kill_process+0x9e/0x220 Mar 17 01:33:12 t6360003
+> kernel:  [<0000000000192c30>] out_of_memory+0x17c/0x264 Mar 17 01:33:12
+> t6360003 kernel:  [<000000000019714e>] __alloc_pages_internal+0x4f6/0x534
+> Mar 17 01:33:12 t6360003 kernel:  [<0000000000104058>]
+> crst_table_alloc+0x48/0x108 Mar 17 01:33:12 t6360003 kernel: 
+> [<00000000001a3f60>] __pmd_alloc+0x3c/0x1a8 Mar 17 01:33:12 t6360003
+> kernel:  [<00000000001aa8ac>] copy_page_range+0x9ac/0xadc Mar 17 01:33:12
+> t6360003 kernel:  [<000000000013db32>] dup_mm+0x342/0x604 Mar 17 01:33:12
+> t6360003 kernel:  [<000000000013ef70>] copy_process+0x1118/0x1158 Mar 17
+> 01:33:12 t6360003 kernel:  [<000000000013f046>] do_fork+0x96/0x2dc Mar 17
+> 01:33:12 t6360003 kernel:  [<000000000010a402>] sys_clone+0x6a/0x78 Mar 17
+> 01:33:12 t6360003 kernel:  [<0000000000115e56>] sysc_noemu+0x10/0x16 Mar 17
+> 01:33:12 t6360003 kernel:  [<0000004d1949a152>] 0x4d1949a152 Mar 17
+> 01:33:12 t6360003 kernel: Mem-Info:
+> Mar 17 01:33:12 t6360003 kernel: DMA per-cpu:
+> Mar 17 01:33:12 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: Normal per-cpu:
+> Mar 17 01:33:12 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:  30
+> Mar 17 01:33:12 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:12 t6360003 kernel: Active_anon:1057 active_file:85
+> inactive_anon:457 Mar 17 01:33:12 t6360003 kernel:  inactive_file:163
+> unevictable:987 dirty:6 writeback:414 unstable:0 Mar 17 01:33:12 t6360003
+> kernel:  free:136683 slab:884736 mapped:832 pagetables:375 bounce:0 Mar 17
+> 01:33:12 t6360003 kernel: DMA free:445420kB min:4064kB low:5080kB
+> high:6096kB active_anon:0kB inactive_anon:8kB active_file:32kB
+> inactive_file:4kB unevictable:0kB present:2068480kB pages_scanned:0
+> all_unreclaimable? no Mar 17 01:33:12 t6360003 kernel: lowmem_reserve[]: 0
+> 2020 2020
+> Mar 17 01:33:12 t6360003 kernel: Normal free:101312kB min:4064kB low:5080kB
+> high:6096kB active_anon:4228kB inactive_anon:1820kB active_file:308kB
+> inactive_file:648kB unevictable:3948kB present:2068480kB pages_scanned:0
+> all_unreclaimable? no Mar 17 01:33:12 t6360003 kernel: lowmem_reserve[]: 0
+> 0 0
+> Mar 17 01:33:12 t6360003 kernel: DMA: 100796*4kB 5166*8kB 5*16kB 1*32kB
+> 0*64kB 0*128kB 0*256kB 0*512kB 1*1024kB = 445648kB Mar 17 01:33:12 t6360003
+> kernel: Normal: 24811*4kB 56*8kB 1*16kB 4*32kB 0*64kB 1*128kB 0*256kB
+> 1*512kB 1*1024kB = 101500kB Mar 17 01:33:12 t6360003 kernel: 2265 total
+> pagecache pages
+> Mar 17 01:33:12 t6360003 kernel: 1197 pages in swap cache
+> Mar 17 01:33:12 t6360003 kernel: Swap cache stats: add 3336530, delete
+> 3335333, find 2045244/2201205 Mar 17 01:33:12 t6360003 kernel: Free swap  =
+> 1971336kB
+> Mar 17 01:33:12 t6360003 kernel: Total swap = 1999992kB
+> Mar 17 01:33:12 t6360003 kernel: 1048576 pages RAM
+> Mar 17 01:33:12 t6360003 kernel: 20255 pages reserved
+> Mar 17 01:33:12 t6360003 kernel: 9350 pages shared
+> Mar 17 01:33:12 t6360003 kernel: 888261 pages non-shared
+> Mar 17 01:33:12 t6360003 kernel: Out of memory: kill process 27449
+> (rpmbuild) score 3460 or a child Mar 17 01:33:12 t6360003 kernel: Killed
+> process 27519 (sh)
+> Mar 17 01:33:13 t6360003 kernel: as invoked oom-killer: gfp_mask=0xd0,
+> order=2, oomkilladj=0 Mar 17 01:33:13 t6360003 kernel: CPU: 2 Not tainted
+> 2.6.28 #1
+> Mar 17 01:33:13 t6360003 kernel: Process as (pid: 16914, task:
+> 0000000084aba338, ksp: 000000000e3c76d8) Mar 17 01:33:13 t6360003 kernel:
+> 0700000035e74138 000000000e3c7800 0000000000000002 0000000000000000 Mar 17
+> 01:33:13 t6360003 kernel:        000000000e3c78a0 000000000e3c7818
+> 000000000e3c7818 000000000010534e Mar 17 01:33:13 t6360003 kernel:       
+> 0000000000000000 000000000e3c76d8 0000000000000000 000000000000000a Mar 17
+> 01:33:13 t6360003 kernel:        000000000000000d 0000000000000000
+> 000000000e3c7800 000000000e3c7878 Mar 17 01:33:13 t6360003 kernel:       
+> 00000000004a5ab0 000000000010534e 000000000e3c7800 000000000e3c7850 Mar 17
+> 01:33:13 t6360003 kernel: Call Trace:
+> Mar 17 01:33:13 t6360003 kernel: ([<0000000000105248>]
+> show_trace+0xf4/0x144) Mar 17 01:33:13 t6360003 kernel: 
+> [<0000000000105300>] show_stack+0x68/0xf4 Mar 17 01:33:13 t6360003 kernel: 
+> [<000000000049c84c>] dump_stack+0xb0/0xc0 Mar 17 01:33:13 t6360003 kernel: 
+> [<000000000019235e>] oom_kill_process+0x9e/0x220 Mar 17 01:33:13 t6360003
+> kernel:  [<0000000000192c30>] out_of_memory+0x17c/0x264 Mar 17 01:33:13
+> t6360003 kernel:  [<000000000019714e>] __alloc_pages_internal+0x4f6/0x534
+> Mar 17 01:33:13 t6360003 kernel:  [<0000000000104058>]
+> crst_table_alloc+0x48/0x108 Mar 17 01:33:13 t6360003 kernel: 
+> [<00000000001a3f60>] __pmd_alloc+0x3c/0x1a8 Mar 17 01:33:13 t6360003
+> kernel:  [<00000000001a802e>] handle_mm_fault+0x262/0x9cc Mar 17 01:33:13
+> t6360003 kernel:  [<00000000001a894e>] __get_user_pages+0x1b6/0x574 Mar 17
+> 01:33:13 t6360003 kernel:  [<00000000001a8d5a>] get_user_pages+0x4e/0x60
+> Mar 17 01:33:13 t6360003 kernel:  [<00000000001d58c4>]
+> get_arg_page+0x6c/0xe8 Mar 17 01:33:13 t6360003 kernel: 
+> [<00000000001d5c3a>] copy_strings+0x1aa/0x290 Mar 17 01:33:13 t6360003
+> kernel:  [<00000000001d5d7e>] copy_strings_kernel+0x5e/0xb0 Mar 17 01:33:13
+> t6360003 kernel:  [<00000000001d78b0>] do_execve+0x1c8/0x254 Mar 17
+> 01:33:13 t6360003 kernel:  [<000000000010a2f8>] sys_execve+0x80/0xb8 Mar 17
+> 01:33:13 t6360003 kernel:  [<0000000000115e56>] sysc_noemu+0x10/0x16 Mar 17
+> 01:33:13 t6360003 kernel:  [<0000004d1949a40c>] 0x4d1949a40c Mar 17
+> 01:33:13 t6360003 kernel: Mem-Info:
+> Mar 17 01:33:13 t6360003 kernel: DMA per-cpu:
+> Mar 17 01:33:13 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: Normal per-cpu:
+> Mar 17 01:33:13 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:13 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:  12
+> Mar 17 01:33:13 t6360003 kernel: Active_anon:274 active_file:126
+> inactive_anon:92 Mar 17 01:33:13 t6360003 kernel:  inactive_file:110
+> unevictable:987 dirty:20 writeback:222 unstable:0 Mar 17 01:33:13 t6360003
+> kernel:  free:137753 slab:884727 mapped:901 pagetables:318 bounce:0 Mar 17
+> 01:33:13 t6360003 kernel: DMA free:445604kB min:4064kB low:5080kB
+> high:6096kB active_anon:8kB inactive_anon:0kB active_file:0kB
+> inactive_file:104kB unevictable:0kB present:2068480kB pages_scanned:0
+> all_unreclaimable? no Mar 17 01:33:13 t6360003 kernel: lowmem_reserve[]: 0
+> 2020 2020
+> Mar 17 01:33:13 t6360003 kernel: Normal free:105408kB min:4064kB low:5080kB
+> high:6096kB active_anon:1088kB inactive_anon:368kB active_file:504kB
+> inactive_file:336kB unevictable:3948kB present:2068480kB pages_scanned:450
+> all_unreclaimable? no Mar 17 01:33:13 t6360003 kernel: lowmem_reserve[]: 0
+> 0 0
+> Mar 17 01:33:13 t6360003 kernel: DMA: 100811*4kB 5173*8kB 6*16kB 0*32kB
+> 1*64kB 0*128kB 0*256kB 0*512kB 1*1024kB = 445812kB Mar 17 01:33:13 t6360003
+> kernel: Normal: 25877*4kB 62*8kB 1*16kB 1*32kB 1*64kB 0*128kB 0*256kB
+> 1*512kB 1*1024kB = 105652kB Mar 17 01:33:13 t6360003 kernel: 1477 total
+> pagecache pages
+> Mar 17 01:33:13 t6360003 kernel: 398 pages in swap cache
+> Mar 17 01:33:13 t6360003 kernel: Swap cache stats: add 3343439, delete
+> 3343041, find 2048863/2205415 Mar 17 01:33:13 t6360003 kernel: Free swap  =
+> 1960020kB
+> Mar 17 01:33:13 t6360003 kernel: Total swap = 1999992kB
+> Mar 17 01:33:13 t6360003 kernel: 1048576 pages RAM
+> Mar 17 01:33:13 t6360003 kernel: 20255 pages reserved
+> Mar 17 01:33:13 t6360003 kernel: 9549 pages shared
+> Mar 17 01:33:13 t6360003 kernel: 887159 pages non-shared
+> Mar 17 01:33:13 t6360003 kernel: Out of memory: kill process 29305 (make)
+> score 3403 or a child Mar 17 01:33:13 t6360003 kernel: Killed process 29320
+> (sh)
+> Mar 17 01:33:14 t6360003 kernel: sh invoked oom-killer: gfp_mask=0xd0,
+> order=2, oomkilladj=0 Mar 17 01:33:14 t6360003 kernel: CPU: 4 Not tainted
+> 2.6.28 #1
+> Mar 17 01:33:14 t6360003 kernel: Process sh (pid: 16922, task:
+> 0000000084ab6138, ksp: 0000000060781738) Mar 17 01:33:14 t6360003 kernel:
+> 070000003d7a0438 0000000060781860 0000000000000002 0000000000000000 Mar 17
+> 01:33:14 t6360003 kernel:        0000000060781900 0000000060781878
+> 0000000060781878 000000000010534e Mar 17 01:33:14 t6360003 kernel:       
+> 0000000000000000 0000000060781738 0000000000000000 000000000000000a Mar 17
+> 01:33:14 t6360003 kernel:        000000000000000d 0000000000000000
+> 0000000060781860 00000000607818d8 Mar 17 01:33:14 t6360003 kernel:       
+> 00000000004a5ab0 000000000010534e 0000000060781860 00000000607818b0 Mar 17
+> 01:33:14 t6360003 kernel: Call Trace:
+> Mar 17 01:33:14 t6360003 kernel: ([<0000000000105248>]
+> show_trace+0xf4/0x144) Mar 17 01:33:14 t6360003 kernel: 
+> [<0000000000105300>] show_stack+0x68/0xf4 Mar 17 01:33:14 t6360003 kernel: 
+> [<000000000049c84c>] dump_stack+0xb0/0xc0 Mar 17 01:33:14 t6360003 kernel: 
+> [<000000000019235e>] oom_kill_process+0x9e/0x220 Mar 17 01:33:14 t6360003
+> kernel:  [<0000000000192c30>] out_of_memory+0x17c/0x264 Mar 17 01:33:14
+> t6360003 kernel:  [<000000000019714e>] __alloc_pages_internal+0x4f6/0x534
+> Mar 17 01:33:14 t6360003 kernel:  [<0000000000104058>]
+> crst_table_alloc+0x48/0x108 Mar 17 01:33:14 t6360003 kernel: 
+> [<00000000001a3f60>] __pmd_alloc+0x3c/0x1a8 Mar 17 01:33:14 t6360003
+> kernel:  [<00000000001aa8ac>] copy_page_range+0x9ac/0xadc Mar 17 01:33:14
+> t6360003 kernel:  [<000000000013db32>] dup_mm+0x342/0x604 Mar 17 01:33:14
+> t6360003 kernel:  [<000000000013ef70>] copy_process+0x1118/0x1158 Mar 17
+> 01:33:14 t6360003 kernel:  [<000000000013f046>] do_fork+0x96/0x2dc Mar 17
+> 01:33:14 t6360003 kernel:  [<000000000010a402>] sys_clone+0x6a/0x78 Mar 17
+> 01:33:14 t6360003 kernel:  [<0000000000115e56>] sysc_noemu+0x10/0x16 Mar 17
+> 01:33:14 t6360003 kernel:  [<0000004d1949a152>] 0x4d1949a152 Mar 17
+> 01:33:14 t6360003 kernel: Mem-Info:
+> Mar 17 01:33:14 t6360003 kernel: DMA per-cpu:
+> Mar 17 01:33:14 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: Normal per-cpu:
+> Mar 17 01:33:14 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:  42
+> Mar 17 01:33:14 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:  50
+> Mar 17 01:33:14 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
+> Mar 17 01:33:14 t6360003 kernel: Active_anon:171 active_file:100
+> inactive_anon:74 Mar 17 01:33:14 t6360003 kernel:  inactive_file:78
+> unevictable:987 dirty:0 writeback:146 unstable:0 Mar 17 01:33:14 t6360003
+> kernel:  free:137942 slab:884626 mapped:858 pagetables:357 bounce:0 Mar 17
+> 01:33:14 t6360003 kernel: DMA free:445612kB min:4064kB low:5080kB
+> high:6096kB active_anon:0kB inactive_anon:8kB active_file:104kB
+> inactive_file:0kB unevictable:0kB present:2068480kB pages_scanned:0
+> all_unreclaimable? no Mar 17 01:33:14 t6360003 kernel: lowmem_reserve[]: 0
+> 2020 2020
+> Mar 17 01:33:14 t6360003 kernel: Normal free:106156kB min:4064kB low:5080kB
+> high:6096kB active_anon:684kB inactive_anon:288kB active_file:296kB
+> inactive_file:312kB unevictable:3948kB present:2068480kB pages_scanned:544
+> all_unreclaimable? no Mar 17 01:33:14 t6360003 kernel: lowmem_reserve[]: 0
+> 0 0
+> Mar 17 01:33:14 t6360003 kernel: DMA: 100818*4kB 5175*8kB 2*16kB 3*32kB
+> 1*64kB 0*128kB 0*256kB 0*512kB 1*1024kB = 445888kB Mar 17 01:33:14 t6360003
+> kernel: Normal: 25978*4kB 76*8kB 2*16kB 1*32kB 1*64kB 0*128kB 0*256kB
+> 1*512kB 1*1024kB = 106184kB Mar 17 01:33:14 t6360003 kernel: 1315 total
+> pagecache pages
+> Mar 17 01:33:14 t6360003 kernel: 321 pages in swap cache
+> Mar 17 01:33:14 t6360003 kernel: Swap cache stats: add 3349005, delete
+> 3348684, find 2049544/2206461 Mar 17 01:33:14 t6360003 kernel: Free swap  =
+> 1947096kB
+> Mar 17 01:33:14 t6360003 kernel: Total swap = 1999992kB
+> Mar 17 01:33:14 t6360003 kernel: 1048576 pages RAM
+> Mar 17 01:33:14 t6360003 kernel: 20255 pages reserved
+> Mar 17 01:33:14 t6360003 kernel: 9878 pages shared
+> Mar 17 01:33:14 t6360003 kernel: 887456 pages non-shared
+> Mar 17 01:33:14 t6360003 kernel: Out of memory: kill process 16782 (cc1)
+> score 3375 or a child Mar 17 01:33:14 t6360003 kernel: Killed process 16782
+> (cc1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
