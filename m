@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D6AE06B003D
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 12:49:27 -0400 (EDT)
-Date: Tue, 17 Mar 2009 09:43:41 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 500546B003D
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 13:06:26 -0400 (EDT)
+Date: Tue, 17 Mar 2009 10:01:06 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <20090317121900.GD20555@random.random>
-Message-ID: <alpine.LFD.2.00.0903170929180.3082@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.0903170929180.3082@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0903170950410.3082@localhost.localdomain>
 References: <1237007189.25062.91.camel@pasglop> <200903141620.45052.nickpiggin@yahoo.com.au> <20090316223612.4B2A.A69D9226@jp.fujitsu.com> <alpine.LFD.2.00.0903161739310.3082@localhost.localdomain> <20090317121900.GD20555@random.random>
+ <alpine.LFD.2.00.0903170929180.3082@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,29 +18,33 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Tue, 17 Mar 2009, Andrea Arcangeli wrote:
+On Tue, 17 Mar 2009, Linus Torvalds wrote:
 > 
-> Think if the anon page is added to swapcache and the pte is unmapped
-> by the VM and set non present after GUP taken the page for a O_DIRECT
-> read (write to memory). If a thread writes to the page while the
-> O_DIRECT read is running in another thread (or aio), then do_wp_page
-> will make a copy of the swapcache under O_DIRECT read, and part of the
-> read operation will get lost.
+> So yes - I had expected our VM to be sane, and have a writable private 
+> page _stay_ writable (in the absense of fork() it should never turn into a 
+> COW page), but the swapout+swapin code can result in a rw page that turns 
+> read-only in order to catch a swap cache invalidation.
+> 
+> Good catch. Let me think about it.
 
-In that case, you aren't getting to the "do_wp_page()" case at all, you're 
-getting the "do_swap_page()" case. Which does its own reuse_swap_page() 
-thing (and that one I didn't touch - on purpose).
+Btw, I think this is actually a pre-existing bug regardless of my patch.
 
-But you're right - it only does that for writes. If we _first_ do a read 
-(to swap it back in), it will mark it read-only and _then_ we can get a 
-"do_wp_page()" that splits it.
+That same swapout+swapin problem seems to lose the dirty bit on a O_DIRECT 
+write - exactly for the same reason. When swapin turns the page into a 
+read-only page in order to keep the physical page in the swap cache, the 
+write to the physical page (that was gotten by get_user_pages() earlier) 
+will bypass all that.
 
-So yes - I had expected our VM to be sane, and have a writable private 
-page _stay_ writable (in the absense of fork() it should never turn into a 
-COW page), but the swapout+swapin code can result in a rw page that turns 
-read-only in order to catch a swap cache invalidation.
+So the get_user_pages() users will then write to the page, but the next 
+time we swap things out, if nobody _else_ wrote to it, that write will be 
+lost because we'll just drop the page (it was in the swap cache!) even 
+though it had changed data on it.
 
-Good catch. Let me think about it.
+My patch changed the schenario a bit (split page rather than dropped 
+page), but the fundamental cause seems to be the same - the swap cache 
+code very much depends on writes to the _virtual_ address.
+
+Or am I missing something?
 
 			Linus
 
