@@ -1,152 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 6547E6B0055
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 01:45:36 -0400 (EDT)
-Received: from mt3.gw.fujitsu.co.jp ([10.75.179.173])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2H5jXOD015966
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 17 Mar 2009 14:45:34 +0900
-Received: from smail (mt3 [127.0.0.1])
-	by outgoing.mt3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9AF8545DD86
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 14:45:30 +0900 (JST)
-Received: from st3.gw.fujitsu.co.jp (st3.gw.fujitsu.co.jp [10.75.179.163])
-	by mt3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E12C1EF084
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 14:45:30 +0900 (JST)
-Received: from st3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by st3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3953AE08006
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 14:45:30 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by st3.gw.fujitsu.co.jp (Postfix) with ESMTP id B9DE01DB804C
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 14:45:26 +0900 (JST)
-Date: Tue, 17 Mar 2009 14:39:03 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memcg: handle swapcache leak
-Message-Id: <20090317143903.a789cf57.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 013336B0047
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 01:55:23 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2H5Q710020325
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 10:56:07 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2H5tNjG1302588
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 11:25:23 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2H5tETP019722
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 16:55:15 +1100
+Date: Tue, 17 Mar 2009 11:25:06 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
+	(v6)
+Message-ID: <20090317055506.GM16897@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090316091024.GX16897@balbir.in.ibm.com> <2217159d612e4e4d3fcbd50354e53f5b.squirrel@webmail-b.css.fujitsu.com> <20090316113853.GA16897@balbir.in.ibm.com> <969730ee419be9fbe4aca3ec3249650e.squirrel@webmail-b.css.fujitsu.com> <20090316121915.GB16897@balbir.in.ibm.com> <20090317124740.d8356d01.kamezawa.hiroyu@jp.fujitsu.com> <20090317044016.GG16897@balbir.in.ibm.com> <20090317134727.62efc14e.kamezawa.hiroyu@jp.fujitsu.com> <20090317045850.GJ16897@balbir.in.ibm.com> <20090317141714.0899baec.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090317141714.0899baec.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Mar 2009 13:57:02 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-17 14:17:14]:
 
-> Hi.
+> On Tue, 17 Mar 2009 10:28:50 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> There are (at least) 2 types(described later) of swapcache leak in current memcg.
-> 
-> I mean by "swapcache leak" a swapcache which:
->   a. the process that used the page has already exited(or
->      unmapped the page).
->   b. is not linked to memcg's LRU because the page is !PageCgroupUsed.
-> 
-> So, only the global page reclaim or swapoff can free these leaked swapcaches.
-> This means memcg's memory pressure can use up all swap entries if
-> the memory size of the system is greater than that of swap.
-> 
-> 1. race between exit and swap-in
->   Assume processA is exitting and processB is doing swap-in.
-> 
->   If some pages of processA has been swapped out, it calls free_swap_and_cache().
->   And if at the same time, processB is calling read_swap_cache_async() about
->   a swap entry *that is used by processA*, a race like below can happen.
-> 
->             processA                   |           processB
->   -------------------------------------+-------------------------------------
->     (free_swap_and_cache())            |  (read_swap_cache_async())
->                                        |    swap_duplicate()
->                                        |    __set_page_locked()
->                                        |    add_to_swap_cache()
->       swap_entry_free() == 0           |
-                          == 1?
->       find_get_page() -> found         |
->       try_lock_page() -> fail & return |
->                                        |    lru_cache_add_anon()
->                                        |      doesn't link this page to memcg's
->                                        |      LRU, because of !PageCgroupUsed.
-> 
->   This type of leak can be avoided by setting /proc/sys/vm/page-cluster to 0.
-> 
->   And this type of leaked swapcaches have been charged as swap,
->   so swap entries of them have reference to the associated memcg
->   and the refcnt of the memcg has been incremented.
->   As a result this memcg cannot be free'ed until global page reclaim
->   frees this swapcache or swapoff is executed.
-> 
-Okay. can happen.
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-17 13:47:27]:
+> > 
+> > > On Tue, 17 Mar 2009 10:10:16 +0530
+> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > 
+> > > > >   - vm.softlimit_ratio
+> > > > > 
+> > > > > If vm.softlimit_ratio = 99%, 
+> > > > >   when sum of all usage of memcg is over 99% of system memory,
+> > > > >   softlimit runs and reclaim memory until the whole usage will be below 99%.
+> > > > >    (or some other trigger can be considered.)
+> > > > > 
+> > > > > Then,
+> > > > >  - We don't have to take care of misc. complicated aspects of memory reclaiming
+> > > > >    We reclaim memory based on our own logic, then, no influence to global LRU.
+> > > > > 
+> > > > > I think this approach will hide the all corner case and make merging softlimit 
+> > > > > to mainline much easier. If you use this approach, RB-tree is the best one
+> > > > > to go with (and we don't have to care zone's status.)
+> > > > 
+> > > > I like the idea in general, but I have concerns about
+> > > > 
+> > > > 1. Tracking all cgroup memory, it can quickly get expensive (tracking
+> > > > to check for vm.soft_limit_ratio and for usage)
+> > > 
+> > > Not so expensive because we already tracks them all by default cgroup.
+> > > Then, what we need is "fast" counter.
+> > > Maybe percpu coutner (lib/percpu_counter.c) gives us enough codes for counting.
+> > >
+> > > Checking value ratio is ...how about "once per 1000 increment per cpu" or some ?
+> > 
+> > That is not true..we don't track them to default cgroup unless
+> > memory.use_hiearchy is enabled in the root cgroup. 
+> What I want to say is "the task which is not attached to user's cgroup is
+> also under defaut cgroup, so we don't need additional hook"
+> Not talking about hierarchy.
+>
 
->   Actually, I saw "struct mem_cgroup leak"(checked by "grep kmalloc-1024 /proc/slabinfo")
->   in my test, where I create a new directory, move all tasks to the new
->   directory, and remove the old directory under memcg's memory pressure.
->   And, this "struct mem_cgroup leak" didn't happen with setting
->   /proc/sys/vm/page-cluster to 0.
+Since all the user pages are tracked in one or the other cgroup, the
+total accounting is equal to total_lru_pages across all zones/nodes.
+Your suggestion boils down to if total_lru_pages reaches a threshold,
+do soft limit reclaim, instead of doing reclaim when there is
+contention.. right?
+ 
+> > To do what you
+> > suggest, we have to iterate through all mem cgroups, which is not
+> > desirable at all.
 > 
-
-Hmm, but IHMO, this is not "leak". "leak" means the object will not be freed forever.
-This is a "delay".
-
-And I tend to allow this. (stale SwapCache will be on LRU until global LRU found it,
-but it's not called leak.)
-
-
-
-> 2. race between exit and swap-out
->   If page_remove_rmap() is called by the owner process about an anonymous
->   page(not on swapchache, so uncharged here) before shrink_page_list() adds
->   the page to swapcache, this page becomes a swapcache with !PageCgroupUsed.
+> I don't say percpu counter should be within struct mem_cgroup.
+> DEFINE_PERCPU(overall_usage);
+> is enough, for example. (just an example.)
 > 
->   And if this swapcache is not free'ed by shrink_page_list(), it goes back
->   to global LRU, but doesn't go back to memcg's LRU because the page is
->   !PageCgroupUsed.
+> Or we already have vmstat (see vmstat.h:: global_page_state())
 > 
->   This type of leak can be avoided by modifying shrink_page_list() like:
+> == si_meminfo()==
+>  val->freeram = global_page_state(NR_FREE_PAGES);
+> ==
 > 
-> ===
-> @@ -775,6 +776,21 @@ activate_locked:
->  		SetPageActive(page);
->  		pgactivate++;
->  keep_locked:
-> +		if (!scanning_global_lru(sc) && PageSwapCache(page)) {
-> +			struct page_cgroup *pc;
-> +
-> +			pc = lookup_page_cgroup(page);
-> +			/*
-> +			 * Used bit of swapcache is solid under page lock.
-> +			 */
-> +			if (unlikely(!PageCgroupUsed(pc)))
-> +				/*
-> +				 * This can happen if the page is unmapped by
-> +				 * the owner process before it is added to
-> +				 * swapcache.
-> +				 */
-> +				try_to_free_swap(page);
-> +		}
->  		unlock_page(page);
->  keep:
->  		list_add(&page->lru, &ret_pages);
-> ===
+> It seems we have what we need already. (but usage from this includes usage comes
+> from slab, page table, etc...)
 > 
 > 
-> I've confirmed that no leak happens with this patch for shrink_page_list() applied
-> and setting /proc/sys/vm/page-cluster to 0 in a simple swap in/out test.
-> (I think I should check page migration and rmdir too.)
+> > > 
+> > > > 2. Finding a good default for the sysctl (might not be so hard)
+> > > > 
+> > > I think some parameter like high-low watermark is good and we can find
+> > > good value as
+> > >   - low watermak .... max_memory - (sum of all zone->high) * 16 of memory.
+> > >   - high watermark .... max_memory - (sum_of all zone->high) * 8
+> > > (just an example but not so bad.)
+> > >
+> > 
+> > OK..
+> > 
+> > [offtopic] I liked the per-mem cgroup watermark patches as well. I
+> > think we should look at them later on, after soft limits and some other items.
+> >  
+> I'm glad if we can reuse logics added by softlimit by per memcg watermarks.
 > 
+> > > > Even today our influence on global LRU is very limited, only when we
+> > > > come under reclaim, we do an additional step of seeing if we can get
+> > > > memory from soft limit groups first.
+> > > > 
+> > > > (1) is a real concern.
+> > > 
+> > > Maybe yes. But all memcg will call "charge" "uncharge" codes so, problem is
+> > > just "counter". I think percpu coutner works enough.
+> > >
+> > 
+> > This scheme adds more overhead due to (1), we'll need a global counter
+> > and need to protect it, which will serialize all res_counters. 
+> > 
+> It's not necessary. for example, reading vmstat doesn't need global lock.
+>
 
-But this is also "delay", isn't it ?
+It uses atomic values for accounting. 
 
-I think both "delay" comes from nature of current LRU desgin which allows small window
-of this kinds. But there is no "leak". 
-
-IMHO, I tend to allow this kinds of "delay" considering trade-off.
-
-I have no troubles if rmdir() can success.
-
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
