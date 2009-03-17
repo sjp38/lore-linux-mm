@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id D95846B003D
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 13:48:43 -0400 (EDT)
-Date: Tue, 17 Mar 2009 10:43:08 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id C60086B003D
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 14:14:53 -0400 (EDT)
+Date: Tue, 17 Mar 2009 11:09:02 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <20090317171049.GA28447@random.random>
-Message-ID: <alpine.LFD.2.00.0903171023390.3082@localhost.localdomain>
+In-Reply-To: <alpine.LFD.2.00.0903171023390.3082@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0903171048100.3082@localhost.localdomain>
 References: <1237007189.25062.91.camel@pasglop> <200903141620.45052.nickpiggin@yahoo.com.au> <20090316223612.4B2A.A69D9226@jp.fujitsu.com> <alpine.LFD.2.00.0903161739310.3082@localhost.localdomain> <20090317121900.GD20555@random.random>
- <alpine.LFD.2.00.0903170929180.3082@localhost.localdomain> <alpine.LFD.2.00.0903170950410.3082@localhost.localdomain> <20090317171049.GA28447@random.random>
+ <alpine.LFD.2.00.0903170929180.3082@localhost.localdomain> <alpine.LFD.2.00.0903170950410.3082@localhost.localdomain> <20090317171049.GA28447@random.random> <alpine.LFD.2.00.0903171023390.3082@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,23 +18,54 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Tue, 17 Mar 2009, Andrea Arcangeli wrote:
-
-> On Tue, Mar 17, 2009 at 10:01:06AM -0700, Linus Torvalds wrote:
-> > That same swapout+swapin problem seems to lose the dirty bit on a O_DIRECT 
+On Tue, 17 Mar 2009, Linus Torvalds wrote:
 > 
-> I think the dirty bit is set in dio_bio_complete (or
-> bio_check_pages_dirty for the aio case) so forcing the swapcache to be
-> written out again before the page can be freed.
+> Do all the other get_user_pages() users do that, though?
+> 
+> [ Looks around - at least access_process_vm(), IB and the NFS direct code 
+>   do. So we seem to be mostly ok, at least for the main users ]
+> 
+> Ok, no worries.
 
-Do all the other get_user_pages() users do that, though?
+This problem is actually pretty easy to fix for anonymous pages: since the 
+act of pinning (for writes) should have done all the COW stuff and made 
+sure the page is not in the swap cache, we only need to avoid adding it 
+back.
 
-[ Looks around - at least access_process_vm(), IB and the NFS direct code 
-  do. So we seem to be mostly ok, at least for the main users ]
+IOW, something like the following makes sense on all levels regardless 
+(note: I didn't check if there is some off-by-one issue where we've raised 
+the page count for other reasons when scanning it, so this is not meant to 
+be a serious patch, just a "something along these lines" thing).
 
-Ok, no worries.
+This does not obviate the need to mark pages dirty afterwards, though, 
+since true shared mappings always cause that (and we cannot keep them 
+dirty, since somebody may be doing fsync() on them or something like 
+that).
 
-		Linus
+But since the COW issue is only a matter of private pages, this handles 
+that trivially.
+
+			Linus
+
+---
+ mm/swap_state.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 3ecea98..83137fe 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -140,6 +140,10 @@ int add_to_swap(struct page *page)
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(!PageUptodate(page));
+ 
++	/* Refuse to add pinned pages to the swap cache */
++	if (page_count(page) > page_mapped(page))
++		return 0;
++
+ 	for (;;) {
+ 		entry = get_swap_page();
+ 		if (!entry.val)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
