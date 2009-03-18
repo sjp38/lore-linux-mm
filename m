@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 3A5C26B004D
-	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 20:09:15 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2I09Cdb022395
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 18 Mar 2009 09:09:12 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6512E45DE51
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:09:12 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 46D7C45DD79
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:09:12 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C6871DB803A
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:09:12 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D8C261DB803E
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:09:11 +0900 (JST)
-Date: Wed, 18 Mar 2009 09:07:47 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
- (v6)
-Message-Id: <20090318090747.61f09554.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090316083512.GV16897@balbir.in.ibm.com>
-References: <20090314173043.16591.18336.sendpatchset@localhost.localdomain>
-	<20090314173111.16591.68465.sendpatchset@localhost.localdomain>
-	<20090316095258.94ae559d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090316083512.GV16897@balbir.in.ibm.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id EA9146B004F
+	for <linux-mm@kvack.org>; Tue, 17 Mar 2009 20:09:31 -0400 (EDT)
+Date: Wed, 18 Mar 2009 09:08:18 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [RFC] memcg: handle swapcache leak
+Message-Id: <20090318090818.bdb5ca0e.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
+	<20090317143903.a789cf57.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090317151113.79a3cc9d.nishimura@mxp.nes.nec.co.jp>
+	<20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Mar 2009 14:05:12 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > +				next_mem =
-> > > +					__mem_cgroup_largest_soft_limit_node();
-> > > +			} while (next_mem == mem);
-> > > +		}
-> > > +		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
-> > > +		__mem_cgroup_remove_exceeded(mem);
-> > > +		if (mem->usage_in_excess)
-> > > +			__mem_cgroup_insert_exceeded(mem);
+On Tue, 17 Mar 2009 16:29:50 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Tue, 17 Mar 2009 15:11:13 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> 
+> > > Hmm, but IHMO, this is not "leak". "leak" means the object will not be freed forever.
+> > > This is a "delay".
+> > > 
+> > > And I tend to allow this. (stale SwapCache will be on LRU until global LRU found it,
+> > > but it's not called leak.)
+> > > 
+> > You're right, but memcg's reclaim doesn't scan global LRU,
+> > so these swapcaches cannot be free'ed by memcg's reclaim.
 > > 
-> > If next_mem == NULL here, (means "mem" is an only mem_cgroup which excess softlimit.)
-> > mem will be found again even if !reclaimed.
-> > plz check.
+> right.
 > 
-> Yes, We need to add a if (!next_mem) break; Thanks!
+> > This means that a system with memcg's memory pressure but without
+> > global memory pressure can use up swap space as swapcaches, doesn't it ?
+> > That's what I'm worrying about.
+> > 
+> This kind of behavior (don't add to LRU if !PageCgroupUsed()) is for swapin-readahead.
+> We need this hebavior.
 > 
-Plz be sure that there can be following case.
+> We never see the swap is exhausted by this issue .....but yes, not 0%.
+> 
+Just FYI.
+I run 5 programs last night, which uses 8MB each, with mem.limit=32M
+and 30MB swap on system.
+All swap space are used up by swapcache and some programs are oom'ed.
 
-  1. several memcg is over softlimit.
-  2. almost all memory usage comes from ANON or tmpfile/shmem.
-  3. Swapless system
-     or
-     Most of memory are mlocked.
 
 Thanks,
--Kame
+Daisuke Nishimura.
+
+> Without memcg, when the page is added to swap, global LRU runs, anyway.
+> With memcg, when the page is added to swap, global LRU will not runs.
+> 
+> Give me time, I'll find a fix.
+> 
+> Thanks,
+> -Kame
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
