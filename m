@@ -1,55 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B19726B003D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 15:17:10 -0400 (EDT)
-Message-ID: <49C148AF.5050601@goop.org>
-Date: Wed, 18 Mar 2009 12:17:03 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 2908E6B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 15:44:14 -0400 (EDT)
+Received: from spaceape7.eur.corp.google.com (spaceape7.eur.corp.google.com [172.28.16.141])
+	by smtp-out.google.com with ESMTP id n2IJiAOt025849
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 12:44:11 -0700
+Received: from gxk9 (gxk9.prod.google.com [10.202.11.9])
+	by spaceape7.eur.corp.google.com with ESMTP id n2IJhsW4032494
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 12:44:09 -0700
+Received: by gxk9 with SMTP id 9so416549gxk.23
+        for <linux-mm@kvack.org>; Wed, 18 Mar 2009 12:44:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Question about x86/mm/gup.c's use of disabled interrupts
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Date: Wed, 18 Mar 2009 12:44:08 -0700
+Message-ID: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
+Subject: ftruncate-mmap: pages are lost after writing to mmaped file.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Nick,
+We triggered the failure during some internal experiment with
+ftruncate/mmap/write/read sequence. And we found that some pages are
+"lost" after writing to the mmaped file. which in the following test
+cases (count >= 0).
 
-The comment in arch/x86/mm/gup.c:gup_get_pte() says:
+First we deployed the test cases into group of machines and see about
+>20% failure rate on average. Then, I did couple of experiment to try
+to reproduce it on a single machine. what i found is that:
+1. add a fsync after write the file, i can not reproduce this issue.
+2. add memory pressure(mmap/mlock) while run the test in infinite
+loop, the failure is reproduced quickly. ( background flushing ? )
 
-	[...] What
-	 * we do have is the guarantee that a pte will only either go from not
-	 * present to present, or present to not present or both -- it will not
-	 * switch to a completely different present page without a TLB flush in
-	 * between; something that we are blocking by holding interrupts off.
+The "bad pages" count differs each time from one digit to 4,5 digit
+for 128M ftruncated file. and what i also found that the bad page
+number are contiguous for each segment which total bad pages container
+several segments. ext "1-4, 9-20, 48-50" (  batch flushing ? )
 
+(The failure is reproduced based on 2.6.29-rc8, also happened on
+2.6.18 kernel. . Here is the simple test case to reproduce it with
+memory pressure. )
 
-Disabling the interrupt will prevent the tlb flush IPI from coming in 
-and flushing this cpu's tlb, but I don't see how it will prevent some 
-other cpu from actually updating the pte in the pagetable, which is what 
-we're concerned about here.  Is this the only reason to disable 
-interrupts?  Would we need to do it for the !PAE cases?
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-Also, assuming that disabling the interrupt is enough to get the 
-guarantees we need here, there's a Xen problem because we don't use IPIs 
-for cross-cpu tlb flushes (well, it happens within Xen).  I'll have to 
-think a bit about how to deal with that, but I'm thinking that we could 
-add a per-cpu "tlb flushes blocked" flag, and maintain some kind of 
-per-cpu deferred tlb flush count so we can get around to doing the flush 
-eventually.
+long kMemSize  = 128 << 20;
+int kPageSize = 4096;
 
-But I want to make sure I understand the exact algorithm here.
+int main(int argc, char **argv) {
+	int status;
+	int count = 0;
+	int i;
+	char *fname = "/root/test.mmap";
+	char *mem;
 
-(I couldn't find an instance of a pte update going from present->present 
-anyway; the only caller of set_pte_present is set_pte_vaddr which only 
-operates on kernel mappings, so perhaps this is moot.  Oh, look, 
-native_set_pte_present thinks its only called on user mappings...  In 
-fact set_pte_present seems to have completely lost its rationale for 
-existing.)
+	unlink(fname);
+	int fd = open(fname, O_CREAT | O_EXCL | O_RDWR, 0600);
+	status = ftruncate(fd, kMemSize);
 
-Thanks,
-    J
+	mem = mmap(0, kMemSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	// Fill the memory with 1s.
+	memset(mem, 1, kMemSize);
+
+	for (i = 0; i < kMemSize; i++) {
+		int byte_good = mem[i] != 0;
+
+		if (!byte_good && ((i % kPageSize) == 0)) {
+			//printf("%d ", i / kPageSize);
+			count++;
+		}
+	}
+
+	munmap(mem, kMemSize);
+	close(fd);
+	unlink(fname);
+
+	if (count > 0) {
+		printf("Running %d bad page\n", count);
+		return 1;
+	}
+	return 0;
+}
+
+--Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
