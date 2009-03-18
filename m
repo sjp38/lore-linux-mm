@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0FF9B6B004F
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 00:06:36 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2I46YHt026691
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 18 Mar 2009 13:06:34 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5C5F745DD78
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 13:06:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 30B4645DD7F
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 13:06:34 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 05709E08003
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 13:06:34 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A3135E08001
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 13:06:33 +0900 (JST)
-Date: Wed, 18 Mar 2009 13:05:09 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC] memcg: handle swapcache leak
-Message-Id: <20090318130509.c666dcf5.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-	<20090317143903.a789cf57.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090317151113.79a3cc9d.nishimura@mxp.nes.nec.co.jp>
-	<20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090317183850.67c35b27.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090318101727.f00dfc2f.nishimura@mxp.nes.nec.co.jp>
-	<20090318103418.7d38dce0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C1C6B005C
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 00:14:50 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2I3jO6e005882
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:15:24 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2I4ErG93661864
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:44:53 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2I4Ei0W015220
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 15:14:44 +1100
+Date: Wed, 18 Mar 2009 09:44:33 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] Memory controller soft limit reclaim on contention
+	(v6)
+Message-ID: <20090318041433.GX16897@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090314173043.16591.18336.sendpatchset@localhost.localdomain> <20090314173111.16591.68465.sendpatchset@localhost.localdomain> <20090316095258.94ae559d.kamezawa.hiroyu@jp.fujitsu.com> <20090316083512.GV16897@balbir.in.ibm.com> <20090318090747.61f09554.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090318090747.61f09554.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Mar 2009 12:51:54 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-18 09:07:47]:
 
-> > I'm sorry if I miss your point.
+> On Mon, 16 Mar 2009 14:05:12 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > > > +				next_mem =
+> > > > +					__mem_cgroup_largest_soft_limit_node();
+> > > > +			} while (next_mem == mem);
+> > > > +		}
+> > > > +		mem->usage_in_excess = res_counter_soft_limit_excess(&mem->res);
+> > > > +		__mem_cgroup_remove_exceeded(mem);
+> > > > +		if (mem->usage_in_excess)
+> > > > +			__mem_cgroup_insert_exceeded(mem);
+> > > 
+> > > If next_mem == NULL here, (means "mem" is an only mem_cgroup which excess softlimit.)
+> > > mem will be found again even if !reclaimed.
+> > > plz check.
 > > 
+> > Yes, We need to add a if (!next_mem) break; Thanks!
 > > 
-> Yes, there would be no problem of swp_entry leak, but these pages, which have
-> been removed from swapcache and are being free'ed by free_swap_and_cache,
-> cannot be removed from orphan_lru, although they are removed from global LRU, right ?
+> Plz be sure that there can be following case.
 > 
-Ah, I see. thank you. SwapCache flags is deleted before deleting from LRU.
-OK, will fix.
+>   1. several memcg is over softlimit.
+>   2. almost all memory usage comes from ANON or tmpfile/shmem.
+>   3. Swapless system
+>      or
+>      Most of memory are mlocked.
+>
 
-> > 
-> It may work for type-1 of swapcaches that I described in first mail,
-> because memsw charges of them are not uncharged while they are on swapcache.
-> 
-> But it doesn't work for type-2 of swapcaches because they are uncharged
-> from both mem and memsw.
-> 
-> Hmm, should I send a patch for shrink_page_list() attached in first mail
-> as another patch ?
-> 
-Ok, just check the number of pages on orphan list.
+Good point, will test with those as well. 
 
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
