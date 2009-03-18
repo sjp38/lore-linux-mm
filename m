@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 96A056B003D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 17:23:45 -0400 (EDT)
-Message-ID: <49C1665A.4080707@goop.org>
-Date: Wed, 18 Mar 2009 14:23:38 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 62D416B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 17:40:04 -0400 (EDT)
+Message-ID: <49C16A48.4090303@redhat.com>
+Date: Wed, 18 Mar 2009 23:40:24 +0200
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
 Subject: Re: Question about x86/mm/gup.c's use of disabled interrupts
-References: <49C148AF.5050601@goop.org> <49C16411.2040705@redhat.com>
-In-Reply-To: <49C16411.2040705@redhat.com>
+References: <49C148AF.5050601@goop.org> <49C16411.2040705@redhat.com> <49C1665A.4080707@goop.org>
+In-Reply-To: <49C1665A.4080707@goop.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
 Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity wrote:
-> Jeremy Fitzhardinge wrote:
->> Disabling the interrupt will prevent the tlb flush IPI from coming in 
->> and flushing this cpu's tlb, but I don't see how it will prevent some 
->> other cpu from actually updating the pte in the pagetable, which is 
->> what we're concerned about here.  
+Jeremy Fitzhardinge wrote:
+>>> Disabling the interrupt will prevent the tlb flush IPI from coming 
+>>> in and flushing this cpu's tlb, but I don't see how it will prevent 
+>>> some other cpu from actually updating the pte in the pagetable, 
+>>> which is what we're concerned about here.  
+>>
+>> The thread that cleared the pte holds the pte lock and is now waiting 
+>> for the IPI.  The thread that wants to update the pte will wait for 
+>> the pte lock, thus also waits on the IPI and gup_fast()'s 
+>> local_irq_enable().  I think.
 >
-> The thread that cleared the pte holds the pte lock and is now waiting 
-> for the IPI.  The thread that wants to update the pte will wait for 
-> the pte lock, thus also waits on the IPI and gup_fast()'s 
-> local_irq_enable().  I think.
-
-But hasn't it already done the pte update at that point?
-
-(I think this conversation really is moot because the kernel never does 
-P->P pte updates any more; its always P->N->P.)
-
->> Is this the only reason to disable interrupts?  
+> But hasn't it already done the pte update at that point?
 >
-> Another comment says it also prevents pagetable teardown.
+> (I think this conversation really is moot because the kernel never 
+> does P->P pte updates any more; its always P->N->P.)
 
-We could take a reference to the mm to get the same effect, no?
+I thought you were concerned about cpu 0 doing a gup_fast(), cpu 1 doing 
+P->N, and cpu 2 doing N->P.  In this case cpu 2 is waiting on the pte lock.
 
->> Also, assuming that disabling the interrupt is enough to get the 
->> guarantees we need here, there's a Xen problem because we don't use 
->> IPIs for cross-cpu tlb flushes (well, it happens within Xen).  I'll 
->> have to think a bit about how to deal with that, but I'm thinking 
->> that we could add a per-cpu "tlb flushes blocked" flag, and maintain 
->> some kind of per-cpu deferred tlb flush count so we can get around to 
->> doing the flush eventually.
+>>> Is this the only reason to disable interrupts?  
+>>
+>> Another comment says it also prevents pagetable teardown.
 >
-> I was thinking about adding a hypercall for cross-vcpu tlb flushes.  
-> Guess I'll wait for you to clear up all the issues first.
+> We could take a reference to the mm to get the same effect, no?
+>
 
-Typical...
+Won't stop munmap().
 
-    J
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
