@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id C6EC36B004D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 08:37:56 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: fput under mmap_sem
-Date: Wed, 18 Mar 2009 23:37:48 +1100
-References: <200903151459.01320.denys@visp.net.lb> <20090315221921.GY26138@disturbed> <20090318071313.GA30011@infradead.org>
-In-Reply-To: <20090318071313.GA30011@infradead.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC006B004D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 09:52:27 -0400 (EDT)
+Date: Wed, 18 Mar 2009 13:52:23 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of
+	precalculated values
+Message-ID: <20090318135222.GA4629@csn.ul.ie>
+References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-25-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161500280.20024@qirst.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-Message-Id: <200903182337.48789.nickpiggin@yahoo.com.au>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.DEB.1.10.0903161500280.20024@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 18 March 2009 18:13:13 Christoph Hellwig wrote:
-> On Mon, Mar 16, 2009 at 09:19:21AM +1100, Dave Chinner wrote:
-> > This is a VM problem where it calls fput() with the mmap_sem() held
-> > in remove_vma(). It makes the incorrect assumption that filesystems
-> > will never use the same lock in the IO path and the inode release path.
-> >
-> > This can deadlock if you are really unlucky.
->
-> I really wonder why other filesystems haven't hit this yet.  Any chance
-> we can get the fput moved out of mmap_sem to get rid of this class of
-> problems?
+On Mon, Mar 16, 2009 at 03:12:50PM -0400, Christoph Lameter wrote:
+> On Mon, 16 Mar 2009, Mel Gorman wrote:
+> 
+> > +int gfp_zone_table[GFP_ZONEMASK] __read_mostly;
+> 
+> The gfp_zone_table is compile time determinable. There is no need to
+> calculate it.
+> 
 
-Yes I don't think there is any reason against holding the file refcount
-a little longer, but it can be pretty nasty to do in practice because
-of deep call chains and sometimes multiple fputs within a given lock
-section.
+The cost of calculating it is negligible and the code is then freed later
+in boot. Does having a const table make any difference?
 
-Possibly the easiest and quickest way will be to move aio's deferred
-__fput into a usable API and try that. If there are any performance
-problems, then we can try to move those fputs out from the mmap_sem
-one at a time (eg. I don't expect fput for vma replacement/merging to
-often cause the refcount to reach 0, and this is one of the harder
-places; wheras fput for a simple munmap might be more often causing
-refcount to reach 0 but it should be simpler to move out of mmap_sem
-if it is a problem).
+> const int gfp_zone_table[GFP_ZONEMASK] = {
+> 	ZONE_NORMAL,		/* 00 No flags set */
+> 	ZONE_DMA,		/* 01 Only GFP_DMA set */
+> 	ZONE_HIGHMEM,		/* 02 Only GFP_HIGHMEM set */
+> 	ZONE_DMA,		/* 03 GFP_HIGHMEM and GFP_DMA set */
+> 	ZONE_DMA32,		/* 04 Only GFP_DMA32 set */
+> 	ZONE_DMA,		/* 05 GFP_DMA and GFP_DMA32 set */
+> 	ZONE_DMA32,		/* 06 GFP_DMA32 and GFP_HIGHMEM set */
+> 	ZONE_DMA,		/* 07 GFP_DMA, GFP_DMA32 and GFP_DMA32 set */
+> 	ZONE_MOVABLE,		/* 08 Only ZONE_MOVABLE set */
+> 	ZONE_DMA,		/* 09 MOVABLE + DMA */
+> 	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
+> 	ZONE_DMA,		/* 0B MOVABLE + DMA + HIGHMEM */
+> 	ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
+> 	ZONE_DMA,		/* 0D MOVABLE + DMA + DMA32 */
+> 	ZONE_DMA32,		/* 0E MOVABLE + DMA32 + HIGHMEM */
+> 	ZONE_DMA		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA
+> };
+> 
+> Hmmmm... Guess one would need to add some #ifdeffery here to setup
+> ZONE_NORMAL in cases there is no DMA, DMA32 and HIGHMEM.
+> 
+
+Indeed, as I said, this is somewhat error prone which is why the patch
+calculates the table at run-time instead of compile-time trickery.
+
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
