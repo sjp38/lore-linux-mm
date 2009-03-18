@@ -1,134 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C6826B0047
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 14:17:21 -0400 (EDT)
-Date: Wed, 18 Mar 2009 18:17:17 +0000
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of
-	precalculated values
-Message-ID: <20090318181717.GC24462@csn.ul.ie>
-References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-25-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161500280.20024@qirst.com> <20090318135222.GA4629@csn.ul.ie> <alpine.DEB.1.10.0903181011210.7901@qirst.com> <20090318153508.GA24462@csn.ul.ie> <alpine.DEB.1.10.0903181300540.15570@qirst.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5F36B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 14:54:42 -0400 (EDT)
+Message-ID: <49C1435B.1090809@google.com>
+Date: Wed, 18 Mar 2009 11:54:19 -0700
+From: Mike Waychison <mikew@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0903181300540.15570@qirst.com>
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ
+ do?
+References: <1234475483.30155.194.camel@nimitz>	<20090212141014.2cd3d54d.akpm@linux-foundation.org>	<1234479845.30155.220.camel@nimitz>	<20090226155755.GA1456@x200.localdomain>	<20090310215305.GA2078@x200.localdomain>	<49B775B4.1040800@free.fr>	<20090312145311.GC12390@us.ibm.com>	<1236891719.32630.14.camel@bahia>	<20090312212124.GA25019@us.ibm.com>	<604427e00903122129y37ad791aq5fe7ef2552415da9@mail.gmail.com>	<20090313053458.GA28833@us.ibm.com>	<alpine.LFD.2.00.0903131018390.3940@localhost.localdomain> <49BAC6AF.9090607@google.com> <49BADFCE.8020207@cs.columbia.edu>
+In-Reply-To: <49BADFCE.8020207@cs.columbia.edu>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Oren Laadan <orenl@cs.columbia.edu>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mingo@elte.hu, mpm@selenic.com, tglx@linutronix.de, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>, Alexey Dobriyan <adobriyan@gmail.com>, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 18, 2009 at 01:21:30PM -0400, Christoph Lameter wrote:
+Oren Laadan wrote:
 > 
+> Mike Waychison wrote:
+>> Linus Torvalds wrote:
+>>> On Thu, 12 Mar 2009, Sukadev Bhattiprolu wrote:
+>>>
+>>>> Ying Han [yinghan@google.com] wrote:
+>>>> | Hi Serge:
+>>>> | I made a patch based on Oren's tree recently which implement a new
+>>>> | syscall clone_with_pid. I tested with checkpoint/restart process tree
+>>>> | and it works as expected.
+>>>>
+>>>> Yes, I think we had a version of clone() with pid a while ago.
+>>> Are people _at_all_ thinking about security?
+>>>
+>>> Obviously not.
+>>>
+>>> There's no way we can do anything like this. Sure, it's trivial to do 
+>>> inside the kernel. But it also sounds like a _wonderful_ attack vector 
+>>> against badly written user-land software that sends signals and has small 
+>>> races.
+>> I'm not really sure how this is different than a malicious app going off 
+>> and spawning thousands of threads in an attempt to hit a target pid from 
+>> a security pov.  Sure, it makes it easier, but it's not like there is 
+>> anything in place to close the attack vector.
+>>
+>>> Quite frankly, from having followed the discussion(s) over the last few 
+>>> weeks about checkpoint/restart in various forms, my reaction to just about 
+>>> _all_ of this is that people pushing this are pretty damn borderline. 
+>>>
+>>> I think you guys are working on all the wrong problems. 
+>>>
+>>> Let's face it, we're not going to _ever_ checkpoint any kind of general 
+>>> case process. Just TCP makes that fundamentally impossible in the general 
+>>> case, and there are lots and lots of other cases too (just something as 
+>>> totally _trivial_ as all the files in the filesystem that don't get rolled 
+>>> back).
+>> In some instances such as ours, TCP is probably the easiest thing to 
+>> migrate.  In an rpc-based cluster application, TCP is nothing more than 
+>> an RPC channel and applications already have to handle RPC channel 
+>> failure and re-establishment.
+>>
+>> I agree that this is not the 'general case' as you mention above 
+>> however.  This is the bit that sorta bothers me with the way the 
+>> implementation has been going so far on this list.  The implementation 
+>> that folks are building on top of Oren's patchset tries to be everything 
+>> to everybody.  For our purposes, we need to have the flexibility of 
+>> choosing *how* we checkpoint.  The line seems to be arbitrarily drawn at 
+>> the kernel being responsible for checkpointing and restoring all 
+>> resources associated with a task, and leaving userland with nothing more 
+>> than transporting filesystem bits.  This approach isn't flexible enough: 
+>>   Consider the case where we want to stub out most of the TCP file 
+>> descriptors with ECONNRESETed sockets because we know that they are RPC 
+>> sockets and can re-establish themselves, but we want to use some other 
+>> mechanism for TCP sockets we don't know much about.  The current 
+>> monolithic approach has zero flexibility for doing anything like this, 
+>> and I figure out how we could even fit anything like this in.
 > 
-> > time.
-> >
-> > > > > const int gfp_zone_table[GFP_ZONEMASK] = {
-> > > > > 	ZONE_NORMAL,		/* 00 No flags set */
-> > > > > 	ZONE_DMA,		/* 01 Only GFP_DMA set */
-> > > > > 	ZONE_HIGHMEM,		/* 02 Only GFP_HIGHMEM set */
-> > > > > 	ZONE_DMA,		/* 03 GFP_HIGHMEM and GFP_DMA set */
-> > > > > 	ZONE_DMA32,		/* 04 Only GFP_DMA32 set */
-> > > > > 	ZONE_DMA,		/* 05 GFP_DMA and GFP_DMA32 set */
-> > > > > 	ZONE_DMA32,		/* 06 GFP_DMA32 and GFP_HIGHMEM set */
-> > > > > 	ZONE_DMA,		/* 07 GFP_DMA, GFP_DMA32 and GFP_DMA32 set */
-> > > > > 	ZONE_MOVABLE,		/* 08 Only ZONE_MOVABLE set */
-> > > > > 	ZONE_DMA,		/* 09 MOVABLE + DMA */
-> > > > > 	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
-> > > > > 	ZONE_DMA,		/* 0B MOVABLE + DMA + HIGHMEM */
-> > > > > 	ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
-> > > > > 	ZONE_DMA,		/* 0D MOVABLE + DMA + DMA32 */
-> > > > > 	ZONE_DMA32,		/* 0E MOVABLE + DMA32 + HIGHMEM */
-> > > > > 	ZONE_DMA		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA
-> > > > > };
-> > > > >
-> > > > > Hmmmm... Guess one would need to add some #ifdeffery here to setup
-> > > > > ZONE_NORMAL in cases there is no DMA, DMA32 and HIGHMEM.
-> > > > >
-> > > >
-> > > > Indeed, as I said, this is somewhat error prone which is why the patch
-> > > > calculates the table at run-time instead of compile-time trickery.
-> > >
-> > > One would need to define some macros to make it simpler I guess
-> > >
-> > > Write something like
-> > >
-> > > #ifdef CONFIG_ZONE_DMA
-> > > #define TZONE_DMA ZONE_DMA
-> > > #else
-> > > #define TZONE_DMA ZONE_NORMAL
-> > > #endif
-> > >
-> > > for each configurable item. Then just add the T to the above table.
-> > >
-> >
-> > If you don't mind, I'd like to postpone writing such a patch until a second
-> > or third pass at improving the allocator. I don't think I'll have the time
-> > in the short-term to put together a const-initialised-table patch that will
-> > definitily be correct.
-> >
-> > Alternatively, I can drop this patch entirely from the set.
-> >
-> >
+> The flexibility exists, but wasn't spelled out, so here it is:
 > 
-> Let me give it a shot:
+> 1) Similar to madvice(), I envision a cradvice() that could tell the c/r
+> something about specific resources, e.g.:
+>  * cradvice(CR_ADV_MEM, ptr, len)  -> don't save that memory, it's scratch
+>  * cradvice(CR_ADV_SOCK, fd, CR_ADV_SOCK_RESET)  -> reset connection on restart
+> etc .. (nevermind the exact interface right now)
 > 
-> Note that there is a slight buggyness in the current implementation of
-> gfp_zone. If you set both GFP_DMA32 and GFP_HIGHMEM and the arch does not
-> support GFP_DMA32 then gfp_zone returns GFP_HIGHMEM which may result in
-> memory being allocated that cannot be used for I/O.
+> 2) Tasks can ask to be notified (e.g. register a signal) when a checkpoint
+> or a restart complete successfully. At that time they can do their private
+> house-keeping if they know better.
 > 
-> This version here returns GFP_NORMAL which is more correct.
-> 
-> 
-> #ifdef CONFIG_ZONE_HIGHMEM
-> #define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
-> #else
-> #define OPT_ZONE_HIGHMEM ZONE_NORMAL
-> #endif
-> 
-> #ifdef CONFIG_ZONE_DMA
-> #define OPT_ZONE_DMA ZONE_DMA
-> #else
-> #define OPT_ZONE_DMA ZONE_NORMAL
-> #endif
-> 
-> #ifdef CONFIG_ZONE_DMA32
-> #define OPT_ZONE_DMA32 ZONE_DMA32
-> #else
-> #define OPT_ZONE_DMA32 OPT_ZONE_DMA
-> #endif
-> 
-> 
-> const int gfp_zone_table[GFP_ZONEMASK] = {
-> 	ZONE_NORMAL,            /* 00 No flags set */
-> 	OPT_ZONE_DMA,           /* 01 GFP_DMA */
-> 	OPT_ZONE_HIGHMEM,       /* 02 GFP_HIGHMEM */
->         OPT_ZONE_DMA,           /* 03 GFP_HIGHMEM GFP_DMA */
->         OPT_ZONE_DMA32,         /* 04 GFP_DMA32 */
->         OPT_ZONE_DMA,           /* 05 GFP_DMA32 GFP_DMA */
->         OPT_ZONE_DMA32,         /* 06 GFP_DMA32 GFP_HIGHMEM */
->         OPT_ZONE_DMA,           /* 07 GFP_DMA32 GFP_HIGHMEM GFP_DMA */
->         ZONE_NORMAL,            /* 08 ZONE_MOVABLE */
->         OPT_ZONE_DMA,           /* 09 MOVABLE + DMA */
->         ZONE_MOVABLE,           /* 0A MOVABLE + HIGHMEM */
->         OPT_ZONE_DMA,           /* 0B MOVABLE + HIGHMEM + DMA */
->         OPT_ZONE_DMA32,         /* 0C MOVABLE + DMA32 */
->         OPT_ZONE_DMA,           /* 0D MOVABLE + DMA32 + DMA */
->         OPT_ZONE_DMA32,         /* 0E MOVABLE + DMA32 + HIGHMEM */
->         OPT_ZONE_DMA            /* 0F MOVABLE + DMA32 + HIGHMEM + DMA */
-> };
-> 
+> 3) If restoring some resource is significantly easier in user space (e.g. a
+> file-descriptor of some special device which user space knows how to
+> re-initialize), then the restarting task can prepare it ahead of time,
+> and, call:
+>   * cradvice(CR_ADV_USERFD, fd, 0)  -> use the fd in place instead of trying
+> 				       to restore it yourself.
 
-Thanks.At a quick glance, it looks ok but I haven't tested it. As the intention
-was to get one pass of patches that are not controversial and are "obvious",
-I have dropped my version of the gfp_zone patch and the subsequent flag
-cleanup and will revisit it after the first lot of patches has been dealt
-with. I'm testing again with the remaining patches.
+This would be called by the embryo process (mktree.c?) before calling 
+sys_restart?
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+> 
+> Method #3 is what I used in Zap to implement distributed checkpoints, where
+> it is so much easier to recreate all network connections in user space then
+> putting that logic into the kernel.
+> 
+> Now, on the other hand, doing the c/r from userland is much less flexible
+> than in the kernel (e.g. epollfd, futex state and much more) and requires
+> exposing tremendous amount of in-kernel data to user space. And we all know
+> than exposing internals is always a one-way ticket :(
+> 
+> [...]
+> 
+> Oren.
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
