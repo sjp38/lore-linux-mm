@@ -1,106 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A3076B004D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 18:21:25 -0400 (EDT)
-Date: Wed, 18 Mar 2009 15:11:57 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Message-Id: <20090318151157.85109100.akpm@linux-foundation.org>
-In-Reply-To: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id E483F6B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 18:41:04 -0400 (EDT)
+Message-ID: <49C17880.7080109@redhat.com>
+Date: Thu, 19 Mar 2009 00:41:04 +0200
+From: Avi Kivity <avi@redhat.com>
+MIME-Version: 1.0
+Subject: Re: Question about x86/mm/gup.c's use of disabled interrupts
+References: <49C148AF.5050601@goop.org> <49C16411.2040705@redhat.com> <49C1665A.4080707@goop.org> <49C16A48.4090303@redhat.com> <49C17230.20109@goop.org>
+In-Reply-To: <49C17230.20109@goop.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Mar 2009 12:44:08 -0700 Ying Han <yinghan@google.com> wrote:
+Jeremy Fitzhardinge wrote:
+>> I thought you were concerned about cpu 0 doing a gup_fast(), cpu 1 
+>> doing P->N, and cpu 2 doing N->P.  In this case cpu 2 is waiting on 
+>> the pte lock.
+>
+> The issue is that if cpu 0 is doing a gup_fast() and other cpus are 
+> doing P->P updates, then gup_fast() can potentially get a mix of old 
+> and new pte values - where P->P is any aggregate set of unsynchronized 
+> P->N and N->P operations on any number of other cpus.  Ah, but if 
+> every P->N is followed by a tlb flush, then disabling interrupts will 
+> hold off any following N->P, allowing gup_fast to get a consistent pte 
+> snapshot.
+>
 
-> We triggered the failure during some internal experiment with
-> ftruncate/mmap/write/read sequence. And we found that some pages are
-> "lost" after writing to the mmaped file. which in the following test
-> cases (count >= 0).
-> 
-> First we deployed the test cases into group of machines and see about
-> >20% failure rate on average. Then, I did couple of experiment to try
-> to reproduce it on a single machine. what i found is that:
-> 1. add a fsync after write the file, i can not reproduce this issue.
-> 2. add memory pressure(mmap/mlock) while run the test in infinite
-> loop, the failure is reproduced quickly. ( background flushing ? )
-> 
-> The "bad pages" count differs each time from one digit to 4,5 digit
-> for 128M ftruncated file. and what i also found that the bad page
-> number are contiguous for each segment which total bad pages container
-> several segments. ext "1-4, 9-20, 48-50" (  batch flushing ? )
-> 
-> (The failure is reproduced based on 2.6.29-rc8, also happened on
-> 2.6.18 kernel. . Here is the simple test case to reproduce it with
-> memory pressure. )
+Right.
 
-Thanks.  This will be a regression - the testing I did back in the days
-when I actually wrote stuff would have picked this up.
+> Hm, awkward if flush_tlb_others doesn't IPI...
+>
 
-Perhaps it is a 2.6.17 thing.  Which, IIRC, is when we made the changes to
-redirty pages on each write fault.  Or maybe it was something else.
+How can it avoid flushing the tlb on cpu [01]?  It's it's gup_fast()ing 
+a pte, it may as well load it into the tlb.
 
-Nick, Peter: I'm in .au at preset, not able to build and run kernels - is
-this something you'd have time to look into please?
+>
+> Simplest fix is to make gup_get_pte() a pvop, but that does seem like 
+> putting a red flag in front of an inner-loop hotspot, or something...
+>
+> The per-cpu tlb-flush exclusion flag might really be the way to go.
 
-Given the amount of time for which this bug has existed, I guess it isn't a
-2.6.29 blocker, but once we've found out the cause we should have a little
-post-mortem to work out how a bug of this nature has gone undetected for so
-long.
+I don't see how it will work, without changing Xen to look at the flag?
 
+local_irq_disable() is used here to lock out a remote cpu, I don't see 
+why deferring the flush helps.
 
-> #include <sys/mman.h>
-> #include <sys/types.h>
-> #include <fcntl.h>
-> #include <unistd.h>
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <string.h>
-> 
-> long kMemSize  = 128 << 20;
-> int kPageSize = 4096;
-> 
-> int main(int argc, char **argv) {
-> 	int status;
-> 	int count = 0;
-> 	int i;
-> 	char *fname = "/root/test.mmap";
-> 	char *mem;
-> 
-> 	unlink(fname);
-> 	int fd = open(fname, O_CREAT | O_EXCL | O_RDWR, 0600);
-> 	status = ftruncate(fd, kMemSize);
-> 
-> 	mem = mmap(0, kMemSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-> 	// Fill the memory with 1s.
-> 	memset(mem, 1, kMemSize);
-> 
-> 	for (i = 0; i < kMemSize; i++) {
-> 		int byte_good = mem[i] != 0;
-> 
-> 		if (!byte_good && ((i % kPageSize) == 0)) {
-> 			//printf("%d ", i / kPageSize);
-> 			count++;
-> 		}
-> 	}
-> 
-> 	munmap(mem, kMemSize);
-> 	close(fd);
-> 	unlink(fname);
-> 
-> 	if (count > 0) {
-> 		printf("Running %d bad page\n", count);
-> 		return 1;
-> 	}
-> 	return 0;
-> }
-> 
-> --Ying
+-- 
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
