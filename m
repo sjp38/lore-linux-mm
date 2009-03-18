@@ -1,111 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 96FCC6B003D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 19:18:23 -0400 (EDT)
-Received: from spaceape8.eur.corp.google.com (spaceape8.eur.corp.google.com [172.28.16.142])
-	by smtp-out.google.com with ESMTP id n2INIK4h026316
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 23:18:20 GMT
-Received: from wf-out-1314.google.com (wfc25.prod.google.com [10.142.3.25])
-	by spaceape8.eur.corp.google.com with ESMTP id n2INIHtC003625
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 16:18:18 -0700
-Received: by wf-out-1314.google.com with SMTP id 25so434505wfc.22
-        for <linux-mm@kvack.org>; Wed, 18 Mar 2009 16:18:17 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B806B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 19:32:30 -0400 (EDT)
+Message-ID: <49C18487.1020703@goop.org>
+Date: Wed, 18 Mar 2009 16:32:23 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.00.0903181522570.3082@localhost.localdomain>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-	 <20090318151157.85109100.akpm@linux-foundation.org>
-	 <alpine.LFD.2.00.0903181522570.3082@localhost.localdomain>
-Date: Wed, 18 Mar 2009 16:18:17 -0700
-Message-ID: <604427e00903181618t66020557kda533d37f51d7e7d@mail.gmail.com>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: Question about x86/mm/gup.c's use of disabled interrupts
+References: <49C148AF.5050601@goop.org> <49C16411.2040705@redhat.com> <49C1665A.4080707@goop.org> <49C16A48.4090303@redhat.com> <49C17230.20109@goop.org> <49C17880.7080109@redhat.com> <49C17BD8.6050609@goop.org> <49C17E22.9040807@redhat.com>
+In-Reply-To: <49C17E22.9040807@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Avi Kivity <avi@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 18, 2009 at 3:40 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
->
-> On Wed, 18 Mar 2009, Andrew Morton wrote:
->
->> On Wed, 18 Mar 2009 12:44:08 -0700 Ying Han <yinghan@google.com> wrote:
->> >
->> > The "bad pages" count differs each time from one digit to 4,5 digit
->> > for 128M ftruncated file. and what i also found that the bad page
->> > number are contiguous for each segment which total bad pages container
->> > several segments. ext "1-4, 9-20, 48-50" ( =A0batch flushing ? )
->
-> Yeah, probably the batched write-out.
->
-> Can you say what filesystem, and what mount-flags you use? Iirc, last tim=
-e
-> we had MAP_SHARED lost writes it was at least partly triggered by the
-> filesystem doing its own flushing independently of the VM (ie ext3 with
-> "data=3Djournal", I think), so that kind of thing does tend to matter.
-
-/etc/fstab
-"/dev/hda1 / ext2 defaults 1 0"
-
->
-> See for example commit ecdfc9787fe527491baefc22dce8b2dbd5b2908d.
->
->> > (The failure is reproduced based on 2.6.29-rc8, also happened on
->> > 2.6.18 kernel. . Here is the simple test case to reproduce it with
->> > memory pressure. )
+Avi Kivity wrote:
+> Jeremy Fitzhardinge wrote:
+>> Avi Kivity wrote:
+>>>> Hm, awkward if flush_tlb_others doesn't IPI...
+>>>>
+>>>
+>>> How can it avoid flushing the tlb on cpu [01]?  It's it's 
+>>> gup_fast()ing a pte, it may as well load it into the tlb.
 >>
->> Thanks. =A0This will be a regression - the testing I did back in the day=
-s
->> when I actually wrote stuff would have picked this up.
+>> xen_flush_tlb_others uses a hypercall rather than an IPI, so none of 
+>> the logic which depends on there being an IPI will work.
+>
+> Right, of course, that's what we were talking about.  I thought 
+> optimizations to avoid IPIs if an mm never visited a cpu.
+>
 >>
->> Perhaps it is a 2.6.17 thing. =A0Which, IIRC, is when we made the change=
-s to
->> redirty pages on each write fault. =A0Or maybe it was something else.
+>>>> Simplest fix is to make gup_get_pte() a pvop, but that does seem 
+>>>> like putting a red flag in front of an inner-loop hotspot, or 
+>>>> something...
+>>>>
+>>>> The per-cpu tlb-flush exclusion flag might really be the way to go.
+>>>
+>>> I don't see how it will work, without changing Xen to look at the flag?
+>>>
+>>> local_irq_disable() is used here to lock out a remote cpu, I don't 
+>>> see why deferring the flush helps.
+>>
+>> Well, no, not deferring.  Making xen_flush_tlb_others() spin waiting 
+>> for "doing_gup" to clear on the target cpu.  Or add an explicit 
+>> notion of a "pte update barrier" rather than implicitly relying on 
+>> the tlb IPI (which is extremely convenient when available...).
 >
-> Hmm. I _think_ that changes went in _after_ 2.6.18, if you're talking
-> about Peter's exact dirty page tracking. If I recall correctly, that
-> became then 2.6.19, and then had the horrible mm dirty bit loss that
-> triggered in librtorrent downloads, which got fixed sometime after 2.6.20
-> (and back-ported).
->
-> So if 2.6.18 shows the same problem, then it's a _really_ old bug, and no=
-t
-> related to the exact dirty tracking.
->
-> The exact dirty accounting patch I'm talking about is d08b3851da41 ("mm:
-> tracking shared dirty pages"), but maybe you had something else in mind?
->
->> Given the amount of time for which this bug has existed, I guess it isn'=
-t a
->> 2.6.29 blocker, but once we've found out the cause we should have a litt=
-le
->> post-mortem to work out how a bug of this nature has gone undetected for=
- so
->> long.
->
-> I'm somewhat surprised, because this test-program looks like a very simpl=
-e
-> version of the exact one that I used to track down the 2.6.20 mmap
-> corruption problems. And that one got pretty heavily tested back then,
-> when people were looking at it (December 2006) and then when trying out m=
-y
-> fix for it.
->
-> Ying Han - since you're all set up for testing this and have reproduced i=
-t
-> on multiple kernels, can you try it on a few more kernel versions? It
-> would be interesting to both go further back in time (say 2.6.15-ish),
-> _and_ check something like 2.6.21 which had the exact dirty accounting
-> fix. Maybe it's not really an old bug - maybe we re-introduced a bug that
-> was fixed for a while.
+> Pick up a percpu flag from all cpus and spin on each?  Nasty.
 
-I will give a try.
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Linus
->
+Yeah, not great.  Each of those flag fetches is likely to be cold, so a 
+bunch of cache misses.  The only mitigating factor is that cross-cpu tlb 
+flushes are expected to be expensive, but some workloads are apparently 
+very sensitive to extra latency in that path.  And the hypercall could 
+result in no Xen-level IPIs at all, so it could be very quick by 
+comparison to an IPI-based Linux implementation, in which case the flag 
+polling would be particularly harsh.
+
+Also, the straightforward implementation of "poll until all target cpu's 
+flags are clear" may never make progress, so you'd have to "scan flags, 
+remove busy cpus from set, repeat until all cpus done".
+
+All annoying because this race is pretty unlikely, and it seems a shame 
+to slow down all tlb flushes to deal with it.  Some kind of global 
+"doing gup_fast" counter would get flush_tlb_others bypass the check, at 
+the cost of putting a couple of atomic ops around the outside of gup_fast.
+
+> You could use the irq enabled flag; it's available and what native 
+> spins on (but also means I'll need to add one if I implement this).
+
+Yes, but then we'd end up spuriously polling on cpus which happened to 
+disable interrupts for any reason.  And if the vcpu is not running then 
+we could end up polling for a long time.  (Same applies for things in 
+gup_fast, but I'm assuming that's a lot less common than disabling 
+interrupts in general).
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
