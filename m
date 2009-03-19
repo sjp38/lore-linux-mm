@@ -1,44 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7CE6B0055
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 13:06:35 -0400 (EDT)
-Date: Thu, 19 Mar 2009 18:06:30 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Message-ID: <20090319170630.GA9119@duck.suse.cz>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200903200248.22623.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903190902000.17240@localhost.localdomain> <200903200334.55710.nickpiggin@yahoo.com.au> <alpine.LFD.2.00.0903190948510.17240@localhost.localdomain> <20090319170340.GC3899@duck.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 85A146B003D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 13:17:04 -0400 (EDT)
+Message-ID: <49C27E09.5070307@goop.org>
+Date: Thu, 19 Mar 2009 10:16:57 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090319170340.GC3899@duck.suse.cz>
+Subject: Re: Question about x86/mm/gup.c's use of disabled interrupts
+References: <49C148AF.5050601@goop.org> <49C16411.2040705@redhat.com> <49C1665A.4080707@goop.org> <49C16A48.4090303@redhat.com> <49C17230.20109@goop.org> <49C17880.7080109@redhat.com> <49C17BD8.6050609@goop.org> <49C17E22.9040807@redhat.com> <49C18487.1020703@goop.org> <49C21473.2000702@redhat.com>
+In-Reply-To: <49C21473.2000702@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Ying Han <yinghan@google.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Avi Kivity <avi@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>, Keir Fraser <keir.fraser@eu.citrix.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 19-03-09 18:03:40, Jan Kara wrote:
-> On Thu 19-03-09 09:51:59, Linus Torvalds wrote:
-> > 
-> > 
-> > On Fri, 20 Mar 2009, Nick Piggin wrote:
-> > > 
-> > > Yeah, probably no need to hold private_lock while tagging the radix
-> > > tree (which is what my version did). So maybe this one is a little
-> > > better. I did test mine, it worked, but it didn't solve the problem.
-> > 
-> > Ahh, so you re-created it? On ext2 only, or is it visible on ext3 as well? 
-> > I've not even tested - I assumed that I would have to boot into less 
-> > memory and downgrade my filesystem to ext2, which made me hope somebody 
-> > else would pick it up first ;)
->   In thread http://lkml.org/lkml/2009/3/4/179 I've reported similar problem
-> - write lost. I'm able to reproduce under UML linux at will. ext3 takes
-> with 1KB blocksize about 20 minutes to hit the corruption, ext2 with 1 KB
-> blocksize about an hour, ext2 with 4KB blocksize several hours...
-  And BTW HP is reporting to us a similarly looking problem on reiserfs on
-ia64 with SLE11 (2.6.27 based). But that takes several days to reproduce
-with their proprietary test suite.
+Avi Kivity wrote:
+>> And the hypercall could result in no Xen-level IPIs at all, so it 
+>> could be very quick by comparison to an IPI-based Linux 
+>> implementation, in which case the flag polling would be particularly 
+>> harsh.
+>
+> Maybe we could bring these optimizations into Linux as well.  The only 
+> thing Xen knows that Linux doesn't is if a vcpu is not scheduled; all 
+> other information is shared.
 
-									Honza
+I don't think there's a guarantee that just because a vcpu isn't running 
+now, it won't need a tlb flush.  If a pcpu does runs vcpu 1 -> idle -> 
+vcpu 1, then there's no need for it to do a tlb flush, but the hypercall 
+can make force a flush when it reschedules vcpu 1 (if the tlb hasn't 
+already been flushed by some other means).
+
+(I'm not sure to what extent Xen implements this now, but I wouldn't 
+want to over-constrain it.)
+
+>> Also, the straightforward implementation of "poll until all target 
+>> cpu's flags are clear" may never make progress, so you'd have to 
+>> "scan flags, remove busy cpus from set, repeat until all cpus done".
+>>
+>> All annoying because this race is pretty unlikely, and it seems a 
+>> shame to slow down all tlb flushes to deal with it.  Some kind of 
+>> global "doing gup_fast" counter would get flush_tlb_others bypass the 
+>> check, at the cost of putting a couple of atomic ops around the 
+>> outside of gup_fast.
+>
+> The nice thing about local_irq_disable() is that it scales so well.
+
+Right.  But it effectively puts the burden on the tlb-flusher to check 
+the state (implicitly, by trying to send an interrupt).  Putting an 
+explicit poll in gets the same effect, but its pure overhead just to 
+deal with the gup race.
+
+I'll put a patch together and see how it looks.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
