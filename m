@@ -1,164 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 839C66B0047
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 12:56:54 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id B9F1482C7CC
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 13:03:53 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 04w2JcP+Xn1p for <linux-mm@kvack.org>;
-	Thu, 19 Mar 2009 13:03:47 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id A275C82C5F0
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 13:03:47 -0400 (EDT)
-Date: Thu, 19 Mar 2009 12:53:34 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of precalculated
- values
-In-Reply-To: <alpine.DEB.1.10.0903191105090.8100@qirst.com>
-Message-ID: <alpine.DEB.1.10.0903191251310.24152@qirst.com>
-References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-25-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161500280.20024@qirst.com> <20090318135222.GA4629@csn.ul.ie> <alpine.DEB.1.10.0903181011210.7901@qirst.com>
- <20090318153508.GA24462@csn.ul.ie> <alpine.DEB.1.10.0903181300540.15570@qirst.com> <20090318181717.GC24462@csn.ul.ie> <alpine.DEB.1.10.0903181507120.10154@qirst.com> <20090318194604.GD24462@csn.ul.ie> <20090319090456.fb11e23c.kamezawa.hiroyu@jp.fujitsu.com>
- <alpine.DEB.1.10.0903191105090.8100@qirst.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 54C616B0055
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 12:57:35 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2JGRhuD030236
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 21:57:43 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2JGs2e44305032
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 22:24:02 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2JGvO5E011539
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 22:27:25 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Date: Thu, 19 Mar 2009 22:27:13 +0530
+Message-Id: <20090319165713.27274.94129.sendpatchset@localhost.localdomain>
+Subject: [PATCH 0/5] Memory controller soft limit patches (v7)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: linux-mm@kvack.org
+Cc: YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Mar 2009, Christoph Lameter wrote:
 
-> It would work if we could check for BAD_ZONE with a VM_BUG_ON or a
-> BUILD_BUG_ON. If I get some time I will look into this.
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-Here is such a patch. Boots on my machine and working with that kernel
-now. There is a slight gcc problem in that the table is likely repeated
-for each compilation unit. Anyone know how to fix that?
+New Feature: Soft limits for memory resource controller.
+
+Changelog v7...v6
+1. Added checks in reclaim path to make sure we don't infinitely loop
+2. Refactored reclaim options into a new patch
+3. Tested several scenarios, see tests below
+
+Changelog v6...v5
+1. If the number of reclaimed pages are zero, select the next mem cgroup
+   for reclamation
+2. Fixed a bug, where key was being updated after insertion into the tree
+3. Fixed a build issue, when CONFIG_MEM_RES_CTLR is not enabled
+
+Changelog v5...v4
+1. Several changes to the reclaim logic, please see the patch 4 (reclaim on
+   contention). I've experimented with several possibilities for reclaim
+   and chose to come back to this due to the excellent behaviour seen while
+   testing the patchset.
+2. Reduced the overhead of soft limits on resource counters very significantly.
+   Reaim benchmark now shows almost no drop in performance.
+
+Changelog v4...v3
+1. Adopted suggestions from Kamezawa to do a per-zone-per-node reclaim
+   while doing soft limit reclaim. We don't record priorities while
+   doing soft reclaim
+2. Some of the overheads associated with soft limits (like calculating
+   excess each time) is eliminated
+3. The time_after(jiffies, 0) bug has been fixed
+4. Tasks are throttled if the mem cgroup they belong to is being soft reclaimed
+   and at the same time tasks are increasing the memory footprint and causing
+   the mem cgroup to exceed its soft limit.
+
+Changelog v3...v2
+1. Implemented several review comments from Kosaki-San and Kamezawa-San
+   Please see individual changelogs for changes
+
+Changelog v2...v1
+1. Soft limits now support hierarchies
+2. Use spinlocks instead of mutexes for synchronization of the RB tree
+
+Here is v7 of the new soft limit implementation. Soft limits is a new feature
+for the memory resource controller, something similar has existed in the
+group scheduler in the form of shares. The CPU controllers interpretation
+of shares is very different though. 
+
+Soft limits are the most useful feature to have for environments where
+the administrator wants to overcommit the system, such that only on memory
+contention do the limits become active. The current soft limits implementation
+provides a soft_limit_in_bytes interface for the memory controller and not
+for memory+swap controller. The implementation maintains an RB-Tree of groups
+that exceed their soft limit and starts reclaiming from the group that
+exceeds this limit by the maximum amount.
+
+So far I have the best test results with this patchset. I've experimented with
+several approaches and methods. I might be a little delayed in responding,
+I might have intermittent access to the internet for the next few days.
+
+TODOs
+
+1. The current implementation maintains the delta from the soft limit
+   and pushes back groups to their soft limits, a ratio of delta/soft_limit
+   might be more useful
 
 
-Subject: Use a table lookup for gfp_zone and check for errors in flags passed to the page allocator
+Tests
+-----
 
-Use a table to lookup the zone to use given gfp_flags using gfp_zone().
+I've run two memory intensive workloads with differing soft limits and
+seen that they are pushed back to their soft limit on contention. Their usage
+was their soft limit plus additional memory that they were able to grab
+on the system. Soft limit can take a while before we see the expected
+results.
 
-This simplifies the code in gfp_zone() and also keeps the ability of the compiler to
-use constant folding to get rid of gfp_zone processing.
+The other tests I've run are
+1. Deletion of groups while soft limit is in progress in the hierarchy
+2. Setting the soft limit to zero and running other groups with non-zero
+   soft limits.
+3. Setting the soft limit to zero and testing if the mem cgroup is able
+   to use available memory
+4. Tested the patches with hierarchy enabled
+5. Tested with swapoff -a, to make sure we don't go into an infinite loop
 
-One problem with this patch is that we define a static const array in gfp.h. This results
-in every compilation unit to reserve its own space for the array. There must be some
-trick to get the compiler to allocate this only once. The contents of the array
-must be described in the header file otherwise the compiler will not be able to
-determine the value of a lookup in the table.
+Please review, comment.
 
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+Series
+------
 
-Index: linux-2.6/include/linux/gfp.h
-===================================================================
---- linux-2.6.orig/include/linux/gfp.h	2009-03-19 11:43:32.000000000 -0500
-+++ linux-2.6/include/linux/gfp.h	2009-03-19 11:48:38.000000000 -0500
-@@ -19,7 +19,8 @@
- #define __GFP_DMA	((__force gfp_t)0x01u)
- #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
- #define __GFP_DMA32	((__force gfp_t)0x04u)
--
-+#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
-+#define GFP_ZONEMASK	((__force gfp_t)0x0fu)
- /*
-  * Action modifiers - doesn't change the zoning
-  *
-@@ -49,7 +50,6 @@
- #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
- #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
- #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
--#define __GFP_MOVABLE	((__force gfp_t)0x100000u)  /* Page is movable */
 
- #define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-@@ -111,24 +111,56 @@
- 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
- }
+memcg-soft-limits-documentation.patch
+memcg-soft-limits-interface.patch
+memcg-soft-limits-organize.patch
+memcg-soft-limits-refactor-reclaim-bits
+memcg-soft-limits-reclaim-on-contention.patch
 
--static inline enum zone_type gfp_zone(gfp_t flags)
--{
-+#ifdef CONFIG_ZONE_HIGHMEM
-+#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
-+#else
-+#define OPT_ZONE_HIGHMEM ZONE_NORMAL
-+#endif
-+
- #ifdef CONFIG_ZONE_DMA
--	if (flags & __GFP_DMA)
--		return ZONE_DMA;
-+#define OPT_ZONE_DMA ZONE_DMA
-+#else
-+#define OPT_ZONE_DMA ZONE_NORMAL
- #endif
-+
- #ifdef CONFIG_ZONE_DMA32
--	if (flags & __GFP_DMA32)
--		return ZONE_DMA32;
-+#define OPT_ZONE_DMA32 ZONE_DMA32
-+#else
-+#define OPT_ZONE_DMA32 OPT_ZONE_DMA
- #endif
--	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
--			(__GFP_HIGHMEM | __GFP_MOVABLE))
--		return ZONE_MOVABLE;
--#ifdef CONFIG_HIGHMEM
--	if (flags & __GFP_HIGHMEM)
--		return ZONE_HIGHMEM;
-+
-+#define BAD_ZONE MAX_NR_ZONES
-+
-+static const enum zone_type gfp_zone_table[GFP_ZONEMASK + 1] = {
-+	ZONE_NORMAL,		/* 00 No flags set */
-+	OPT_ZONE_DMA,		/* 01 GFP_DMA */
-+	OPT_ZONE_HIGHMEM,	/* 02 GFP_HIGHMEM */
-+	BAD_ZONE,		/* 03 GFP_HIGHMEM GFP_DMA */
-+	OPT_ZONE_DMA32,		/* 04 GFP_DMA32 */
-+	BAD_ZONE,		/* 05 GFP_DMA32 GFP_DMA */
-+	BAD_ZONE,		/* 06 GFP_DMA32 GFP_HIGHMEM */
-+	BAD_ZONE,		/* 07 GFP_DMA32 GFP_HIGHMEM GFP_DMA */
-+	ZONE_NORMAL,		/* 08 ZONE_MOVABLE */
-+	OPT_ZONE_DMA,		/* 09 MOVABLE + DMA */
-+	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
-+	BAD_ZONE,		/* 0B MOVABLE + HIGHMEM + DMA */
-+	OPT_ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
-+	BAD_ZONE,		/* 0D MOVABLE + DMA32 + DMA */
-+	BAD_ZONE,		/* 0E MOVABLE + DMA32 + HIGHMEM */
-+	BAD_ZONE		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA */
-+};
-+
-+static inline enum zone_type gfp_zone(gfp_t flags)
-+{
-+	enum zone_type zone = gfp_zone_table[flags & 0xf];
-+
-+	if (__builtin_constant_p(zone))
-+		BUILD_BUG_ON(zone == BAD_ZONE);
-+#ifdef CONFIG_DEBUG_VM
-+	else
-+		BUG_ON(zone == BAD_ZONE);
- #endif
--	return ZONE_NORMAL;
-+	return zone;
- }
 
- /*
-Index: linux-2.6/include/linux/mmzone.h
-===================================================================
---- linux-2.6.orig/include/linux/mmzone.h	2009-03-19 11:47:00.000000000 -0500
-+++ linux-2.6/include/linux/mmzone.h	2009-03-19 11:47:54.000000000 -0500
-@@ -240,7 +240,8 @@
- 	ZONE_HIGHMEM,
- #endif
- 	ZONE_MOVABLE,
--	__MAX_NR_ZONES
-+	__MAX_NR_ZONES,
-+	BAD_ZONE
- };
-
- #ifndef __GENERATING_BOUNDS_H
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
