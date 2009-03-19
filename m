@@ -1,193 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 5AC4F6B003D
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 16:46:54 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 8E73C82C68C
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 16:53:45 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id aGdIYc-q72pQ for <linux-mm@kvack.org>;
-	Thu, 19 Mar 2009 16:53:39 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 6D4AD82C3BD
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 16:53:39 -0400 (EDT)
-Date: Thu, 19 Mar 2009 16:43:55 -0400 (EDT)
-From: Christoph Lameter <cl@linux-foundation.org>
-Subject: Re: [PATCH 20/35] Use a pre-calculated value for
- num_online_nodes()
-In-Reply-To: <alpine.DEB.1.10.0903181508030.10154@qirst.com>
-Message-ID: <alpine.DEB.1.10.0903191642160.22425@qirst.com>
-References: <1237196790-7268-1-git-send-email-mel@csn.ul.ie> <1237196790-7268-21-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161207500.32577@qirst.com> <20090316163626.GJ24293@csn.ul.ie> <alpine.DEB.1.10.0903161247170.17730@qirst.com>
- <20090318150833.GC4629@csn.ul.ie> <alpine.DEB.1.10.0903181256440.15570@qirst.com> <20090318180152.GB24462@csn.ul.ie> <alpine.DEB.1.10.0903181508030.10154@qirst.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 86EC86B003D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 17:18:02 -0400 (EDT)
+Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
+	by smtp-out.google.com with ESMTP id n2JLHxJ1002745
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 21:17:59 GMT
+Received: from rv-out-0708.google.com (rvbl33.prod.google.com [10.140.88.33])
+	by wpaz21.hot.corp.google.com with ESMTP id n2JLHYgR005610
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:17:58 -0700
+Received: by rv-out-0708.google.com with SMTP id l33so776585rvb.56
+        for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:17:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <alpine.LFD.2.00.0903191317220.3030@localhost.localdomain>
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
+	 <200903200248.22623.nickpiggin@yahoo.com.au>
+	 <alpine.LFD.2.00.0903190902000.17240@localhost.localdomain>
+	 <200903200334.55710.nickpiggin@yahoo.com.au>
+	 <alpine.LFD.2.00.0903190948510.17240@localhost.localdomain>
+	 <alpine.LFD.2.00.0903191317220.3030@localhost.localdomain>
+Date: Thu, 19 Mar 2009 14:17:57 -0700
+Message-ID: <604427e00903191417m2512f0dbl94163093cffce703@mail.gmail.com>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Trying to the same in the style of nr_node_ids etc.
+On Thu, Mar 19, 2009 at 1:21 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+>
+> On Thu, 19 Mar 2009, Linus Torvalds wrote:
+>>
+>> Ahh, so you re-created it? On ext2 only, or is it visible on ext3 as wel=
+l?
+>> I've not even tested - I assumed that I would have to boot into less
+>> memory and downgrade my filesystem to ext2, which made me hope somebody
+>> else would pick it up first ;)
+>
+> Oh, btw, can people who see this (Ying Han, Nick and apparently Jan)
+> detail their configurations, please? In particular
+>
+> =A0- SMP? (CONFIG_SMP and how many cores do you have if so?)
+"CONFIG_SMP=3Dy"
+the testing machine i was using has 16 cores.
 
+>
+> =A0- PREEMPT (NONE/VOLUNTARY or full preempt?)
+CONFIG_PREEMPT_NONE=3Dy
+# CONFIG_PREEMPT_VOLUNTARY is not set
+# CONFIG_PREEMPT is not set
+CONFIG_PREEMPT_BKL=3Dy
 
-Subject: Provide nr_online_nodes and nr_possible_nodes
-
-It seems that its beneficial to have a less expensive way to check for the
-number of currently active and possible nodes in a NUMA system. This will
-simplify further kernel optimizations for the cases in which only a single
-node is online or possible.
-
-Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
-
-Index: linux-2.6/include/linux/nodemask.h
-===================================================================
---- linux-2.6.orig/include/linux/nodemask.h	2009-03-19 15:04:28.000000000 -0500
-+++ linux-2.6/include/linux/nodemask.h	2009-03-19 15:33:18.000000000 -0500
-@@ -408,6 +408,20 @@
- #define next_online_node(nid)	next_node((nid), node_states[N_ONLINE])
-
- extern int nr_node_ids;
-+extern int nr_online_nodes;
-+extern int nr_possible_nodes;
-+
-+static inline void node_set_online(int nid)
-+{
-+	node_set_state(nid, N_ONLINE);
-+	nr_online_nodes = num_node_state(N_ONLINE);
-+}
-+
-+static inline void node_set_offline(int nid)
-+{
-+	node_clear_state(nid, N_ONLINE);
-+	nr_online_nodes = num_node_state(N_ONLINE);
-+}
- #else
-
- static inline int node_state(int node, enum node_states state)
-@@ -434,7 +448,8 @@
- #define first_online_node	0
- #define next_online_node(nid)	(MAX_NUMNODES)
- #define nr_node_ids		1
--
-+#define nr_online_nodes		1
-+#define nr_possible_nodes	1
- #endif
-
- #define node_online_map 	node_states[N_ONLINE]
-@@ -454,8 +469,7 @@
- #define node_online(node)	node_state((node), N_ONLINE)
- #define node_possible(node)	node_state((node), N_POSSIBLE)
-
--#define node_set_online(node)	   node_set_state((node), N_ONLINE)
--#define node_set_offline(node)	   node_clear_state((node), N_ONLINE)
-+
-
- #define for_each_node(node)	   for_each_node_state(node, N_POSSIBLE)
- #define for_each_online_node(node) for_each_node_state(node, N_ONLINE)
-Index: linux-2.6/mm/hugetlb.c
-===================================================================
---- linux-2.6.orig/mm/hugetlb.c	2009-03-19 15:11:49.000000000 -0500
-+++ linux-2.6/mm/hugetlb.c	2009-03-19 15:12:13.000000000 -0500
-@@ -875,7 +875,7 @@
- 	 * can no longer free unreserved surplus pages. This occurs when
- 	 * the nodes with surplus pages have no free pages.
- 	 */
--	unsigned long remaining_iterations = num_online_nodes();
-+	unsigned long remaining_iterations = nr_online_nodes;
-
- 	/* Uncommit the reservation */
- 	h->resv_huge_pages -= unused_resv_pages;
-@@ -904,7 +904,7 @@
- 			h->surplus_huge_pages--;
- 			h->surplus_huge_pages_node[nid]--;
- 			nr_pages--;
--			remaining_iterations = num_online_nodes();
-+			remaining_iterations = nr_online_nodes;
- 		}
- 	}
- }
-Index: linux-2.6/mm/page_alloc.c
-===================================================================
---- linux-2.6.orig/mm/page_alloc.c	2009-03-19 15:12:19.000000000 -0500
-+++ linux-2.6/mm/page_alloc.c	2009-03-19 15:30:21.000000000 -0500
-@@ -168,6 +168,10 @@
- #if MAX_NUMNODES > 1
- int nr_node_ids __read_mostly = MAX_NUMNODES;
- EXPORT_SYMBOL(nr_node_ids);
-+int nr_online_nodes __read_mostly = 1;
-+EXPORT_SYMBOL(nr_online_nodes);
-+int nr_possible_nodes __read_mostly = MAX_NUMNODES;
-+EXPORT_SYMBOL(nr_possible_nodes);
- #endif
-
- int page_group_by_mobility_disabled __read_mostly;
-@@ -2115,7 +2119,7 @@
- }
-
-
--#define MAX_NODE_LOAD (num_online_nodes())
-+#define MAX_NODE_LOAD nr_online_nodes
- static int node_load[MAX_NUMNODES];
-
- /**
-Index: linux-2.6/mm/slab.c
-===================================================================
---- linux-2.6.orig/mm/slab.c	2009-03-19 15:13:45.000000000 -0500
-+++ linux-2.6/mm/slab.c	2009-03-19 15:15:28.000000000 -0500
-@@ -881,7 +881,6 @@
-   */
-
- static int use_alien_caches __read_mostly = 1;
--static int numa_platform __read_mostly = 1;
- static int __init noaliencache_setup(char *s)
- {
- 	use_alien_caches = 0;
-@@ -1434,9 +1433,8 @@
- 	int order;
- 	int node;
-
--	if (num_possible_nodes() == 1) {
-+	if (nr_possible_nodes == 1) {
- 		use_alien_caches = 0;
--		numa_platform = 0;
- 	}
-
- 	for (i = 0; i < NUM_INIT_LISTS; i++) {
-@@ -3526,7 +3524,7 @@
- 	 * variable to skip the call, which is mostly likely to be present in
- 	 * the cache.
- 	 */
--	if (numa_platform && cache_free_alien(cachep, objp))
-+	if (nr_possible_nodes > 1 && cache_free_alien(cachep, objp))
- 		return;
-
- 	if (likely(ac->avail < ac->limit)) {
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c	2009-03-19 15:13:15.000000000 -0500
-+++ linux-2.6/mm/slub.c	2009-03-19 15:13:38.000000000 -0500
-@@ -3648,7 +3648,7 @@
- 						 to_cpumask(l->cpus));
- 		}
-
--		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
-+		if (nr_online_nodes > 1 && !nodes_empty(l->nodes) &&
- 				len < PAGE_SIZE - 60) {
- 			len += sprintf(buf + len, " nodes=");
- 			len += nodelist_scnprintf(buf + len, PAGE_SIZE - len - 50,
-Index: linux-2.6/net/sunrpc/svc.c
-===================================================================
---- linux-2.6.orig/net/sunrpc/svc.c	2009-03-19 15:16:21.000000000 -0500
-+++ linux-2.6/net/sunrpc/svc.c	2009-03-19 15:16:51.000000000 -0500
-@@ -124,7 +124,7 @@
- {
- 	unsigned int node;
-
--	if (num_online_nodes() > 1) {
-+	if (nr_online_nodes > 1) {
- 		/*
- 		 * Actually have multiple NUMA nodes,
- 		 * so split pools on NUMA node boundaries
+>
+> =A0- RCU (CLASSIC/TREE/PREEMPT?)
+Not in my .config file.
+>
+> since those affect the kinds of races we can see a lot.
+>
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Linus
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
