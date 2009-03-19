@@ -1,380 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id ED1D16B003D
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:05:33 -0400 (EDT)
-Date: Thu, 19 Mar 2009 15:05:23 -0300
-From: "Luiz Fernando N. Capitulino" <lcapitulino@mandriva.com.br>
-Subject: RFC: Introduce struct vma_link_info
-Message-ID: <20090319150523.73640591@doriath.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0966B003D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:11:20 -0400 (EDT)
+Date: Thu, 19 Mar 2009 18:11:16 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of
+	precalculated values
+Message-ID: <20090319181116.GA24586@csn.ul.ie>
+References: <20090318135222.GA4629@csn.ul.ie> <alpine.DEB.1.10.0903181011210.7901@qirst.com> <20090318153508.GA24462@csn.ul.ie> <alpine.DEB.1.10.0903181300540.15570@qirst.com> <20090318181717.GC24462@csn.ul.ie> <alpine.DEB.1.10.0903181507120.10154@qirst.com> <20090318194604.GD24462@csn.ul.ie> <20090319090456.fb11e23c.kamezawa.hiroyu@jp.fujitsu.com> <alpine.DEB.1.10.0903191105090.8100@qirst.com> <alpine.DEB.1.10.0903191251310.24152@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0903191251310.24152@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: riel@redhat.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Mar 19, 2009 at 12:53:34PM -0400, Christoph Lameter wrote:
+> On Thu, 19 Mar 2009, Christoph Lameter wrote:
+> 
+> > It would work if we could check for BAD_ZONE with a VM_BUG_ON or a
+> > BUILD_BUG_ON. If I get some time I will look into this.
+> 
+> Here is such a patch. Boots on my machine and working with that kernel
+> now. There is a slight gcc problem in that the table is likely repeated
+> for each compilation unit. Anyone know how to fix that?
+> 
 
- Hi there,
+I ran into exactly that problem and ended up shoving the table into
+page_alloc.c but then there is no benefits from having the table statically
+declared because there is no constant folding.
 
- Currently find_vma_prepare() and low-level VMA functions (eg. __vma_link())
-require callers to provide three parameters to return/pass link information
-(pprev, rb_link and rb_parent):
+Just to confirm: With your patch, gfp_zone_table() does end up in different
+complation units
 
-static struct vm_area_struct *
-find_vma_prepare(struct mm_struct *mm, unsigned long addr,
-                struct vm_area_struct **pprev, struct rb_node ***rb_link,
-                struct rb_node ** rb_parent);
+$ readelf -s vmlinux | grep gfp_zone_table
+  5479: c03a9ea0    64 OBJECT  LOCAL  DEFAULT    5 gfp_zone_table
+  5537: c03a9f20    64 OBJECT  LOCAL  DEFAULT    5 gfp_zone_table
+  5753: c03a9fe0    64 OBJECT  LOCAL  DEFAULT    5 gfp_zone_table
 
- With this patch callers can pass a struct vma_link_info instead:
+> Subject: Use a table lookup for gfp_zone and check for errors in flags passed to the page allocator
+> 
+> Use a table to lookup the zone to use given gfp_flags using gfp_zone().
+> 
+> This simplifies the code in gfp_zone() and also keeps the ability of the compiler to
+> use constant folding to get rid of gfp_zone processing.
+> 
+> One problem with this patch is that we define a static const array in gfp.h. This results
+> in every compilation unit to reserve its own space for the array. There must be some
+> trick to get the compiler to allocate this only once. The contents of the array
+> must be described in the header file otherwise the compiler will not be able to
+> determine the value of a lookup in the table.
+> 
 
-static struct vm_area_struct *
-find_vma_prepare(struct mm_struct *mm, unsigned long addr,
-                struct vma_link_info *link_info);
+Yep, that is exactly the problem I hit but I didn't find a suitable answer.
 
- The code gets simpler IMO and it _should_ be better because less
-variables are pushed into the stack/registers... BUT, for some reason
-I can't understand hackbench is saying exactly the opposite on my
-test machine:
+> Signed-off-by: Christoph Lameter <cl@linux-foundation.org>
+> 
+> Index: linux-2.6/include/linux/gfp.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/gfp.h	2009-03-19 11:43:32.000000000 -0500
+> +++ linux-2.6/include/linux/gfp.h	2009-03-19 11:48:38.000000000 -0500
+> @@ -19,7 +19,8 @@
+>  #define __GFP_DMA	((__force gfp_t)0x01u)
+>  #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
+>  #define __GFP_DMA32	((__force gfp_t)0x04u)
+> -
+> +#define __GFP_MOVABLE	((__force gfp_t)0x08u)  /* Page is movable */
+> +#define GFP_ZONEMASK	((__force gfp_t)0x0fu)
 
-kernel                 Avarage of three runs (25 processes groups)
+To avoid magic number syndrome, you could define GFP_ZONEMASK as
 
-2.6.29.rc8-vanilla                2.03
-2.6.29.rc8-vma-info               2.12
+	(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32 | __GFP_MOVABLE)
 
- I have tested with more processes and the delta is almost the same,
-the machine is UP, processor AMD Sempron with 512MB RAM.
+>  /*
+>   * Action modifiers - doesn't change the zoning
+>   *
+> @@ -49,7 +50,6 @@
+>  #define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
+>  #define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
+>  #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
+> -#define __GFP_MOVABLE	((__force gfp_t)0x100000u)  /* Page is movable */
+> 
+>  #define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
+>  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+> @@ -111,24 +111,56 @@
+>  		((gfp_flags & __GFP_RECLAIMABLE) != 0);
+>  }
+> 
+> -static inline enum zone_type gfp_zone(gfp_t flags)
+> -{
+> +#ifdef CONFIG_ZONE_HIGHMEM
+> +#define OPT_ZONE_HIGHMEM ZONE_HIGHMEM
+> +#else
+> +#define OPT_ZONE_HIGHMEM ZONE_NORMAL
+> +#endif
+> +
+>  #ifdef CONFIG_ZONE_DMA
+> -	if (flags & __GFP_DMA)
+> -		return ZONE_DMA;
+> +#define OPT_ZONE_DMA ZONE_DMA
+> +#else
+> +#define OPT_ZONE_DMA ZONE_NORMAL
+>  #endif
+> +
+>  #ifdef CONFIG_ZONE_DMA32
+> -	if (flags & __GFP_DMA32)
+> -		return ZONE_DMA32;
+> +#define OPT_ZONE_DMA32 ZONE_DMA32
+> +#else
+> +#define OPT_ZONE_DMA32 OPT_ZONE_DMA
+>  #endif
+> -	if ((flags & (__GFP_HIGHMEM | __GFP_MOVABLE)) ==
+> -			(__GFP_HIGHMEM | __GFP_MOVABLE))
+> -		return ZONE_MOVABLE;
+> -#ifdef CONFIG_HIGHMEM
+> -	if (flags & __GFP_HIGHMEM)
+> -		return ZONE_HIGHMEM;
+> +
+> +#define BAD_ZONE MAX_NR_ZONES
+> +
+> +static const enum zone_type gfp_zone_table[GFP_ZONEMASK + 1] = {
+> +	ZONE_NORMAL,		/* 00 No flags set */
+> +	OPT_ZONE_DMA,		/* 01 GFP_DMA */
+> +	OPT_ZONE_HIGHMEM,	/* 02 GFP_HIGHMEM */
+> +	BAD_ZONE,		/* 03 GFP_HIGHMEM GFP_DMA */
+> +	OPT_ZONE_DMA32,		/* 04 GFP_DMA32 */
+> +	BAD_ZONE,		/* 05 GFP_DMA32 GFP_DMA */
+> +	BAD_ZONE,		/* 06 GFP_DMA32 GFP_HIGHMEM */
+> +	BAD_ZONE,		/* 07 GFP_DMA32 GFP_HIGHMEM GFP_DMA */
+> +	ZONE_NORMAL,		/* 08 ZONE_MOVABLE */
+> +	OPT_ZONE_DMA,		/* 09 MOVABLE + DMA */
+> +	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
+> +	BAD_ZONE,		/* 0B MOVABLE + HIGHMEM + DMA */
+> +	OPT_ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
+> +	BAD_ZONE,		/* 0D MOVABLE + DMA32 + DMA */
+> +	BAD_ZONE,		/* 0E MOVABLE + DMA32 + HIGHMEM */
+> +	BAD_ZONE		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA */
+> +};
+> +
+> +static inline enum zone_type gfp_zone(gfp_t flags)
+> +{
+> +	enum zone_type zone = gfp_zone_table[flags & 0xf];
+> +
 
- Does anyone have any idea on why this could happen?
+flags & GFP_ZONEMASK here
 
----
- include/linux/mm.h |    8 ++++-
- kernel/fork.c      |   12 +++---
- mm/mmap.c          |   91 +++++++++++++++++++++++++--------------------------
- 3 files changed, 58 insertions(+), 53 deletions(-)
+> +	if (__builtin_constant_p(zone))
+> +		BUILD_BUG_ON(zone == BAD_ZONE);
+> +#ifdef CONFIG_DEBUG_VM
+> +	else
+> +		BUG_ON(zone == BAD_ZONE);
+>  #endif
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 065cdf8..be73b86 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1097,6 +1097,12 @@ static inline void vma_nonlinear_insert(struct vm_area_struct *vma,
- }
- 
- /* mmap.c */
-+struct vma_link_info {
-+	struct rb_node *rb_parent;
-+	struct rb_node **rb_link;
-+	struct vm_area_struct *prev;
-+};
-+
- extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
- extern void vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
-@@ -1109,7 +1115,7 @@ extern int split_vma(struct mm_struct *,
- 	struct vm_area_struct *, unsigned long addr, int new_below);
- extern int insert_vm_struct(struct mm_struct *, struct vm_area_struct *);
- extern void __vma_link_rb(struct mm_struct *, struct vm_area_struct *,
--	struct rb_node **, struct rb_node *);
-+		struct vma_link_info *link_info);
- extern void unlink_file_vma(struct vm_area_struct *);
- extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
- 	unsigned long addr, unsigned long len, pgoff_t pgoff);
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 4854c2c..a300bf6 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -261,7 +261,7 @@ out:
- static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- {
- 	struct vm_area_struct *mpnt, *tmp, **pprev;
--	struct rb_node **rb_link, *rb_parent;
-+	struct vma_link_info link_info;
- 	int retval;
- 	unsigned long charge;
- 	struct mempolicy *pol;
-@@ -281,8 +281,8 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	mm->map_count = 0;
- 	cpus_clear(mm->cpu_vm_mask);
- 	mm->mm_rb = RB_ROOT;
--	rb_link = &mm->mm_rb.rb_node;
--	rb_parent = NULL;
-+	link_info.rb_link = &mm->mm_rb.rb_node;
-+	link_info.rb_parent = NULL;
- 	pprev = &mm->mmap;
- 
- 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
-@@ -348,9 +348,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 		*pprev = tmp;
- 		pprev = &tmp->vm_next;
- 
--		__vma_link_rb(mm, tmp, rb_link, rb_parent);
--		rb_link = &tmp->vm_rb.rb_right;
--		rb_parent = &tmp->vm_rb;
-+		__vma_link_rb(mm, tmp, &link_info);
-+		link_info.rb_link = &tmp->vm_rb.rb_right;
-+		link_info.rb_parent = &tmp->vm_rb;
- 
- 		mm->map_count++;
- 		retval = copy_page_range(mm, oldmm, mpnt);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 00ced3e..db0852d 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -352,8 +352,7 @@ void validate_mm(struct mm_struct *mm)
- 
- static struct vm_area_struct *
- find_vma_prepare(struct mm_struct *mm, unsigned long addr,
--		struct vm_area_struct **pprev, struct rb_node ***rb_link,
--		struct rb_node ** rb_parent)
-+		struct vma_link_info *link_info)
- {
- 	struct vm_area_struct * vma;
- 	struct rb_node ** __rb_link, * __rb_parent, * rb_prev;
-@@ -379,25 +378,25 @@ find_vma_prepare(struct mm_struct *mm, unsigned long addr,
- 		}
- 	}
- 
--	*pprev = NULL;
-+	link_info->prev = NULL;
- 	if (rb_prev)
--		*pprev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
--	*rb_link = __rb_link;
--	*rb_parent = __rb_parent;
-+		link_info->prev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
-+	link_info->rb_link = __rb_link;
-+	link_info->rb_parent = __rb_parent;
- 	return vma;
- }
- 
- static inline void
- __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
--		struct vm_area_struct *prev, struct rb_node *rb_parent)
-+		struct vma_link_info *link_info)
- {
--	if (prev) {
--		vma->vm_next = prev->vm_next;
--		prev->vm_next = vma;
-+	if (link_info->prev) {
-+		vma->vm_next = link_info->prev->vm_next;
-+		link_info->prev->vm_next = vma;
- 	} else {
- 		mm->mmap = vma;
--		if (rb_parent)
--			vma->vm_next = rb_entry(rb_parent,
-+		if (link_info->rb_parent)
-+			vma->vm_next = rb_entry(link_info->rb_parent,
- 					struct vm_area_struct, vm_rb);
- 		else
- 			vma->vm_next = NULL;
-@@ -405,9 +404,9 @@ __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
- }
- 
- void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
--		struct rb_node **rb_link, struct rb_node *rb_parent)
-+		struct vma_link_info *link_info)
- {
--	rb_link_node(&vma->vm_rb, rb_parent, rb_link);
-+	rb_link_node(&vma->vm_rb, link_info->rb_parent, link_info->rb_link);
- 	rb_insert_color(&vma->vm_rb, &mm->mm_rb);
- }
- 
-@@ -435,17 +434,15 @@ static void __vma_link_file(struct vm_area_struct *vma)
- 
- static void
- __vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
--	struct vm_area_struct *prev, struct rb_node **rb_link,
--	struct rb_node *rb_parent)
-+	struct vma_link_info *link_info)
- {
--	__vma_link_list(mm, vma, prev, rb_parent);
--	__vma_link_rb(mm, vma, rb_link, rb_parent);
-+	__vma_link_list(mm, vma, link_info);
-+	__vma_link_rb(mm, vma, link_info);
- 	__anon_vma_link(vma);
- }
- 
- static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
--			struct vm_area_struct *prev, struct rb_node **rb_link,
--			struct rb_node *rb_parent)
-+		struct vma_link_info *link_info)
- {
- 	struct address_space *mapping = NULL;
- 
-@@ -458,7 +455,7 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 	anon_vma_lock(vma);
- 
--	__vma_link(mm, vma, prev, rb_link, rb_parent);
-+	__vma_link(mm, vma, link_info);
- 	__vma_link_file(vma);
- 
- 	anon_vma_unlock(vma);
-@@ -476,12 +473,12 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
-  */
- static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
- {
--	struct vm_area_struct *__vma, *prev;
--	struct rb_node **rb_link, *rb_parent;
-+	struct vm_area_struct *__vma;
-+	struct vma_link_info link_info;
- 
--	__vma = find_vma_prepare(mm, vma->vm_start,&prev, &rb_link, &rb_parent);
-+	__vma = find_vma_prepare(mm, vma->vm_start, &link_info);
- 	BUG_ON(__vma && __vma->vm_start < vma->vm_end);
--	__vma_link(mm, vma, prev, rb_link, rb_parent);
-+	__vma_link(mm, vma, &link_info);
- 	mm->map_count++;
- }
- 
-@@ -1107,17 +1104,17 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 			  unsigned int vm_flags, unsigned long pgoff)
- {
- 	struct mm_struct *mm = current->mm;
--	struct vm_area_struct *vma, *prev;
-+	struct vm_area_struct *vma;
- 	int correct_wcount = 0;
- 	int error;
--	struct rb_node **rb_link, *rb_parent;
-+	struct vma_link_info link_info;
- 	unsigned long charged = 0;
- 	struct inode *inode =  file ? file->f_path.dentry->d_inode : NULL;
- 
- 	/* Clear old maps */
- 	error = -ENOMEM;
- munmap_back:
--	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
-+	vma = find_vma_prepare(mm, addr, &link_info);
- 	if (vma && vma->vm_start < addr + len) {
- 		if (do_munmap(mm, addr, len))
- 			return -ENOMEM;
-@@ -1155,7 +1152,8 @@ munmap_back:
- 	/*
- 	 * Can we just expand an old mapping?
- 	 */
--	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
-+	vma = vma_merge(mm, link_info.prev, addr, addr + len, vm_flags,
-+			NULL, file, pgoff, NULL);
- 	if (vma)
- 		goto out;
- 
-@@ -1212,7 +1210,7 @@ munmap_back:
- 	if (vma_wants_writenotify(vma))
- 		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
- 
--	vma_link(mm, vma, prev, rb_link, rb_parent);
-+	vma_link(mm, vma, &link_info);
- 	file = vma->vm_file;
- 
- 	/* Once vma denies write, undo our temporary denial count */
-@@ -1240,7 +1238,7 @@ unmap_and_free_vma:
- 	fput(file);
- 
- 	/* Undo any partial mapping done by a device driver. */
--	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
-+	unmap_region(mm, vma, link_info.prev, vma->vm_start, vma->vm_end);
- 	charged = 0;
- free_vma:
- 	kmem_cache_free(vm_area_cachep, vma);
-@@ -1976,9 +1974,9 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
- unsigned long do_brk(unsigned long addr, unsigned long len)
- {
- 	struct mm_struct * mm = current->mm;
--	struct vm_area_struct * vma, * prev;
-+	struct vm_area_struct * vma;
- 	unsigned long flags;
--	struct rb_node ** rb_link, * rb_parent;
-+	struct vma_link_info link_info;
- 	pgoff_t pgoff = addr >> PAGE_SHIFT;
- 	int error;
- 
-@@ -2025,7 +2023,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 	 * Clear old maps.  this also does some error checking for us
- 	 */
-  munmap_back:
--	vma = find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
-+	vma = find_vma_prepare(mm, addr, &link_info);
- 	if (vma && vma->vm_start < addr + len) {
- 		if (do_munmap(mm, addr, len))
- 			return -ENOMEM;
-@@ -2043,7 +2041,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 		return -ENOMEM;
- 
- 	/* Can we just expand an old private anonymous mapping? */
--	vma = vma_merge(mm, prev, addr, addr + len, flags,
-+	vma = vma_merge(mm, link_info.prev, addr, addr + len, flags,
- 					NULL, NULL, pgoff, NULL);
- 	if (vma)
- 		goto out;
-@@ -2063,7 +2061,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
- 	vma->vm_pgoff = pgoff;
- 	vma->vm_flags = flags;
- 	vma->vm_page_prot = vm_get_page_prot(flags);
--	vma_link(mm, vma, prev, rb_link, rb_parent);
-+	vma_link(mm, vma, &link_info);
- out:
- 	mm->total_vm += len >> PAGE_SHIFT;
- 	if (flags & VM_LOCKED) {
-@@ -2127,8 +2125,8 @@ void exit_mmap(struct mm_struct *mm)
-  */
- int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
- {
--	struct vm_area_struct * __vma, * prev;
--	struct rb_node ** rb_link, * rb_parent;
-+	struct vm_area_struct * __vma;
-+	struct vma_link_info link_info;
- 
- 	/*
- 	 * The vm_pgoff of a purely anonymous vma should be irrelevant
-@@ -2146,13 +2144,13 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
- 		BUG_ON(vma->anon_vma);
- 		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
- 	}
--	__vma = find_vma_prepare(mm,vma->vm_start,&prev,&rb_link,&rb_parent);
-+	__vma = find_vma_prepare(mm,vma->vm_start, &link_info);
- 	if (__vma && __vma->vm_start < vma->vm_end)
- 		return -ENOMEM;
- 	if ((vma->vm_flags & VM_ACCOUNT) &&
- 	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
- 		return -ENOMEM;
--	vma_link(mm, vma, prev, rb_link, rb_parent);
-+	vma_link(mm, vma, &link_info);
- 	return 0;
- }
- 
-@@ -2166,8 +2164,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	struct vm_area_struct *vma = *vmap;
- 	unsigned long vma_start = vma->vm_start;
- 	struct mm_struct *mm = vma->vm_mm;
--	struct vm_area_struct *new_vma, *prev;
--	struct rb_node **rb_link, *rb_parent;
-+	struct vm_area_struct *new_vma;
-+	struct vma_link_info link_info;
- 	struct mempolicy *pol;
- 
- 	/*
-@@ -2177,9 +2175,10 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	if (!vma->vm_file && !vma->anon_vma)
- 		pgoff = addr >> PAGE_SHIFT;
- 
--	find_vma_prepare(mm, addr, &prev, &rb_link, &rb_parent);
--	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
--			vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma));
-+	find_vma_prepare(mm, addr, &link_info);
-+	new_vma = vma_merge(mm, link_info.prev, addr, addr + len,
-+			vma->vm_flags, vma->anon_vma, vma->vm_file,
-+			pgoff, vma_policy(vma));
- 	if (new_vma) {
- 		/*
- 		 * Source vma may have been merged into new_vma
-@@ -2207,7 +2206,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 			}
- 			if (new_vma->vm_ops && new_vma->vm_ops->open)
- 				new_vma->vm_ops->open(new_vma);
--			vma_link(mm, new_vma, prev, rb_link, rb_parent);
-+			vma_link(mm, new_vma, &link_info);
- 		}
- 	}
- 	return new_vma;
+That could be made a bit prettier with
+
+	if (__builtin_constant_p(zone))
+		BUILD_BUG_ON(zone == BAD_ZONE);
+	VM_BUG_ON(zone == BAD_ZONE);
+
+> -	return ZONE_NORMAL;
+> +	return zone;
+>  }
+> 
+>  /*
+> Index: linux-2.6/include/linux/mmzone.h
+> ===================================================================
+> --- linux-2.6.orig/include/linux/mmzone.h	2009-03-19 11:47:00.000000000 -0500
+> +++ linux-2.6/include/linux/mmzone.h	2009-03-19 11:47:54.000000000 -0500
+> @@ -240,7 +240,8 @@
+>  	ZONE_HIGHMEM,
+>  #endif
+>  	ZONE_MOVABLE,
+> -	__MAX_NR_ZONES
+> +	__MAX_NR_ZONES,
+> +	BAD_ZONE
+>  };
+> 
+>  #ifndef __GENERATING_BOUNDS_H
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
