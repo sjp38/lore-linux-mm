@@ -1,83 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 907796B003D
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 07:37:00 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2JBaw7p021941
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 19 Mar 2009 20:36:58 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 11C3D45DE52
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 20:36:58 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E286245DD72
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 20:36:57 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CF90BE18002
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 20:36:57 +0900 (JST)
-Received: from ml10.s.css.fujitsu.com (ml10.s.css.fujitsu.com [10.249.87.100])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 833D31DB803A
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 20:36:57 +0900 (JST)
-Message-ID: <432ace3655a26d2d492a56303369a88a.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: 
-     <100477cfc6c3c775abc7aecd4ce8c46e.squirrel@webmail-b.css.fujitsu.com>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-    <20090317143903.a789cf57.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090317151113.79a3cc9d.nishimura@mxp.nes.nec.co.jp>
-    <20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090317183850.67c35b27.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090318101727.f00dfc2f.nishimura@mxp.nes.nec.co.jp>
-    <20090318103418.7d38dce0.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
-    <20090318175734.f5a8a446.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090318231738.4e042cbd.d-nishimura@mtf.biglobe.ne.jp>
-    <20090319084523.1fbcc3cb.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090319111629.dcc9fe43.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090319180631.44b0130f.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090319190118.db8a1dd7.nishimura@mxp.nes.nec.co.jp>
-    <20090319191321.6be9b5e8.nishimura@mxp.nes.nec.co.jp>
-    <100477cfc6c3c775abc7aecd4ce8c46e.squirrel@webmail-b.css.fujitsu.com>
-Date: Thu, 19 Mar 2009 20:36:56 +0900 (JST)
-Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v2
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id CBA596B003D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 11:09:17 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3555082C76D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 11:16:14 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id BwEf5GWHm3Z8 for <linux-mm@kvack.org>;
+	Thu, 19 Mar 2009 11:16:08 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 1EE3182C764
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 11:16:08 -0400 (EDT)
+Date: Thu, 19 Mar 2009 11:05:48 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of precalculated
+ values
+In-Reply-To: <20090319090456.fb11e23c.kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0903191105090.8100@qirst.com>
+References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie> <1237226020-14057-25-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903161500280.20024@qirst.com> <20090318135222.GA4629@csn.ul.ie> <alpine.DEB.1.10.0903181011210.7901@qirst.com>
+ <20090318153508.GA24462@csn.ul.ie> <alpine.DEB.1.10.0903181300540.15570@qirst.com> <20090318181717.GC24462@csn.ul.ie> <alpine.DEB.1.10.0903181507120.10154@qirst.com> <20090318194604.GD24462@csn.ul.ie>
+ <20090319090456.fb11e23c.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-KAMEZAWA Hiroyuki さんは書きました：
-> Daisuke Nishimura さんは書きました：
->> On Thu, 19 Mar 2009 19:01:18 +0900, Daisuke Nishimura
->> <nishimura@mxp.nes.nec.co.jp> wrote:
->>> On Thu, 19 Mar 2009 18:06:31 +0900, KAMEZAWA Hiroyuki
->>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->>> > Core logic are much improved and I confirmed this logic can reduce
->>> > orphan swap-caches. (But the patch size is bigger than expected.)
->>> > Long term test is required and we have to verify paramaters are
->>> reasonable
->>> > and whether this doesn't make swapped-out applications slow..
->>> >
->>> Thank you for your patch.
->>> I'll test this version and check what happens about swapcache usage.
->>>
->> hmm... underflow of inactive_anon seems to happen after a while.
->> I've not done anything but causing memory pressure yet.
->>
-> Hmm..maybe I miss something. maybe mem_cgroup_commit_charge() removes
-> Orphan flag implicitly.
->
-I couldn't repoduce, hmm..but yes there would be something racy.
+On Thu, 19 Mar 2009, KAMEZAWA Hiroyuki wrote:
 
-> I'll dig but may not be able to post a patch in this week.
->
-The more I consider, the more the code is complicated.
-Sigh...I'd like to find another way, if I can.
+> I wonder why you have to make the bad caller work insane way ?
+> Is this bad ?
+> ==
+> const int gfp_zone_table[GFP_ZONEMASK] = {
+> 	ZONE_NORMAL,		/* 00 No flags set */
+> 	ZONE_DMA,		/* 01 Only GFP_DMA set */
+> 	ZONE_HIGHMEM,		/* 02 Only GFP_HIGHMEM set */
+> 	BAD_ZONE,		/* 03 GFP_HIGHMEM and GFP_DMA set */
+> 	ZONE_DMA32,		/* 04 Only GFP_DMA32 set */
+> 	BAD_ZONE,		/* 05 GFP_DMA and GFP_DMA32 set */
+> 	BAD_ZONE,		/* 06 GFP_DMA32 and GFP_HIGHMEM set */
+> 	BAD_ZONE,		/* 07 GFP_DMA, GFP_DMA32 and GFP_DMA32 set */
+> 	ZONE_MOVABLE,		/* 08 Only ZONE_MOVABLE set */
+> 	ZONE_DMA,		/* 09 MOVABLE + DMA */
+> 	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
+> 	BAD_ZONE,		/* 0B MOVABLE + DMA + HIGHMEM */
+> 	ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
+> 	BAD_ZONE,		/* 0D MOVABLE + DMA + DMA32 */
+> 	BAD_ZONE,		/* 0E MOVABLE + DMA32 + HIGHMEM */
+> 	BAD_ZONE		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA
+> };
+> ==
 
-Thanks,
--Kame
+It would work if we could check for BAD_ZONE with a VM_BUG_ON or a
+BUILD_BUG_ON. If I get some time I will look into this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
