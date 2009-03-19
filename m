@@ -1,68 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 86EC86B003D
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 17:18:02 -0400 (EDT)
-Received: from wpaz21.hot.corp.google.com (wpaz21.hot.corp.google.com [172.24.198.85])
-	by smtp-out.google.com with ESMTP id n2JLHxJ1002745
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 21:17:59 GMT
-Received: from rv-out-0708.google.com (rvbl33.prod.google.com [10.140.88.33])
-	by wpaz21.hot.corp.google.com with ESMTP id n2JLHYgR005610
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:17:58 -0700
-Received: by rv-out-0708.google.com with SMTP id l33so776585rvb.56
-        for <linux-mm@kvack.org>; Thu, 19 Mar 2009 14:17:57 -0700 (PDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0A7C26B0047
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 17:19:34 -0400 (EDT)
+References: <1236891719.32630.14.camel@bahia>
+	<20090312212124.GA25019@us.ibm.com>
+	<604427e00903122129y37ad791aq5fe7ef2552415da9@mail.gmail.com>
+	<20090313053458.GA28833@us.ibm.com>
+	<alpine.LFD.2.00.0903131018390.3940@localhost.localdomain>
+	<20090313193500.GA2285@x200.localdomain>
+	<alpine.LFD.2.00.0903131401070.3940@localhost.localdomain>
+	<1236981097.30142.251.camel@nimitz> <49BADAE5.8070900@cs.columbia.edu>
+	<m1hc1xrlt5.fsf@fess.ebiederm.org> <20090314081207.GA16436@elte.hu>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Thu, 19 Mar 2009 14:19:15 -0700
+In-Reply-To: <20090314081207.GA16436@elte.hu> (Ingo Molnar's message of "Sat\, 14 Mar 2009 09\:12\:07 +0100")
+Message-ID: <m1hc1p9pnw.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.00.0903191317220.3030@localhost.localdomain>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-	 <200903200248.22623.nickpiggin@yahoo.com.au>
-	 <alpine.LFD.2.00.0903190902000.17240@localhost.localdomain>
-	 <200903200334.55710.nickpiggin@yahoo.com.au>
-	 <alpine.LFD.2.00.0903190948510.17240@localhost.localdomain>
-	 <alpine.LFD.2.00.0903191317220.3030@localhost.localdomain>
-Date: Thu, 19 Mar 2009 14:17:57 -0700
-Message-ID: <604427e00903191417m2512f0dbl94163093cffce703@mail.gmail.com>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Subject: Re: How much of a mess does OpenVZ make? ;) Was: What can OpenVZ do?
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Oren Laadan <orenl@cs.columbia.edu>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-api@vger.kernel.org, containers@lists.linux-foundation.org, hpa@zytor.com, linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>, linux-mm@kvack.org, viro@zeniv.linux.org.uk, mpm@selenic.com, Andrew Morton <akpm@linux-foundation.org>, Sukadev Bhattiprolu <sukadev@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, tglx@linutronix.de, xemul@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 19, 2009 at 1:21 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
->
-> On Thu, 19 Mar 2009, Linus Torvalds wrote:
->>
->> Ahh, so you re-created it? On ext2 only, or is it visible on ext3 as wel=
-l?
->> I've not even tested - I assumed that I would have to boot into less
->> memory and downgrade my filesystem to ext2, which made me hope somebody
->> else would pick it up first ;)
->
-> Oh, btw, can people who see this (Ying Han, Nick and apparently Jan)
-> detail their configurations, please? In particular
->
-> =A0- SMP? (CONFIG_SMP and how many cores do you have if so?)
-"CONFIG_SMP=3Dy"
-the testing machine i was using has 16 cores.
+Ingo Molnar <mingo@elte.hu> writes:
 
+> * Eric W. Biederman <ebiederm@xmission.com> wrote:
 >
-> =A0- PREEMPT (NONE/VOLUNTARY or full preempt?)
-CONFIG_PREEMPT_NONE=3Dy
-# CONFIG_PREEMPT_VOLUNTARY is not set
-# CONFIG_PREEMPT is not set
-CONFIG_PREEMPT_BKL=3Dy
+>> >> In the OpenVZ case, they've at least demonstrated that the 
+>> >> filesystem can be moved largely with rsync.  Unlinked files 
+>> >> need some in-kernel TLC (or /proc mangling) but it isn't 
+>> >> *that* bad.
+>> >
+>> > And in the Zap we have successfully used a log-based 
+>> > filesystem (specifically NILFS) to continuously snapshot the 
+>> > file-system atomically with taking a checkpoint, so it can 
+>> > easily branch off past checkpoints, including the file 
+>> > system.
+>> >
+>> > And unlinked files can be (inefficiently) handled by saving 
+>> > their full contents with the checkpoint image - it's not a 
+>> > big toll on many apps (if you exclude Wine and UML...). At 
+>> > least that's a start.
+>> 
+>> Oren we might want to do a proof of concept implementation 
+>> like I did with network namespaces.  That is done in the 
+>> community and goes far enough to show we don't have horribly 
+>> nasty code.  The patches and individual changes don't need to 
+>> be quite perfect but close enough that they can be considered 
+>> for merging.
+>> 
+>> For the network namespace that seems to have made a big 
+>> difference.
+>> 
+>> I'm afraid in our clean start we may have focused a little too 
+>> much on merging something simple and not gone far enough on 
+>> showing that things will work.
+>> 
+>> After I had that in the network namespace and we had a clear 
+>> vision of the direction.  We started merging the individual 
+>> patches and things went well.
+>
+> I'm curious: what is the actual end result other than good 
+> looking code? In terms of tangible benefits to the everyday 
+> Linux distro user. [This is not meant to be sarcastic, i'm
+> truly curious.]
 
->
-> =A0- RCU (CLASSIC/TREE/PREEMPT?)
-Not in my .config file.
->
-> since those affect the kinds of races we can see a lot.
->
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Linus
->
+Of the network namespace?  Sorry I'm not certain what you are asking.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
