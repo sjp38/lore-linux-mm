@@ -1,110 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id B950E6B003D
-	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 20:06:24 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 34D0E6B003D
+	for <linux-mm@kvack.org>; Wed, 18 Mar 2009 20:46:01 -0400 (EDT)
 Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2J06MHK028796
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2J0jwxd012467
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 19 Mar 2009 09:06:22 +0900
+	Thu, 19 Mar 2009 09:45:58 +0900
 Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id AD05245DD83
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:06:21 +0900 (JST)
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FC3D45DD80
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:45:58 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 686DB45DD7B
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:06:21 +0900 (JST)
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5555845DD7D
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:45:58 +0900 (JST)
 Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 44D821DB8041
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:06:21 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E26EF1DB8045
-	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:06:20 +0900 (JST)
-Date: Thu, 19 Mar 2009 09:04:56 +0900
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 397A81DB803B
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:45:58 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E4E821DB8037
+	for <linux-mm@kvack.org>; Thu, 19 Mar 2009 09:45:57 +0900 (JST)
+Date: Thu, 19 Mar 2009 09:44:33 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 24/27] Convert gfp_zone() to use a table of
- precalculated values
-Message-Id: <20090319090456.fb11e23c.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090318194604.GD24462@csn.ul.ie>
-References: <1237226020-14057-1-git-send-email-mel@csn.ul.ie>
-	<1237226020-14057-25-git-send-email-mel@csn.ul.ie>
-	<alpine.DEB.1.10.0903161500280.20024@qirst.com>
-	<20090318135222.GA4629@csn.ul.ie>
-	<alpine.DEB.1.10.0903181011210.7901@qirst.com>
-	<20090318153508.GA24462@csn.ul.ie>
-	<alpine.DEB.1.10.0903181300540.15570@qirst.com>
-	<20090318181717.GC24462@csn.ul.ie>
-	<alpine.DEB.1.10.0903181507120.10154@qirst.com>
-	<20090318194604.GD24462@csn.ul.ie>
+Subject: [PATCH] memcg remvoe redundant message at swapon
+Message-Id: <20090319094433.709edb9e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <Pine.LNX.4.64.0903162217030.3560@blonde.anvils>
+References: <20090310100707.e0640b0b.nishimura@mxp.nes.nec.co.jp>
+	<20090310160856.77deb5c3.akpm@linux-foundation.org>
+	<20090311085326.403a211d.kamezawa.hiroyu@jp.fujitsu.com>
+	<isapiwc.d14e3c29.6b18.49b7092b.9bc73.52@mail.jp.nec.com>
+	<20090311094739.3123b05d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090311120427.2467bd14.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0903111041260.16964@blonde.anvils>
+	<20090312084623.e98d80b9.kamezawa.hiroyu@jp.fujitsu.com>
+	<Pine.LNX.4.64.0903162217030.3560@blonde.anvils>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: nishimura@mxp.nes.nec.co.jp, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, balbir@linux.vnet.ibm.com, lizf@cn.fujitsu.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Mar 2009 19:46:04 +0000
-Mel Gorman <mel@csn.ul.ie> wrote:
+This is based on this thread http://marc.info/?l=linux-mm&m=123724233418715&w=2
+against the mmotm.
+=
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Wed, Mar 18, 2009 at 03:07:48PM -0400, Christoph Lameter wrote:
-> > On Wed, 18 Mar 2009, Mel Gorman wrote:
-> > 
-> > > Thanks.At a quick glance, it looks ok but I haven't tested it. As the intention
-> > > was to get one pass of patches that are not controversial and are "obvious",
-> > > I have dropped my version of the gfp_zone patch and the subsequent flag
-> > > cleanup and will revisit it after the first lot of patches has been dealt
-> > > with. I'm testing again with the remaining patches.
-> > 
-> > This fixes buggy behavior of gfp_zone so it would deserve a higher
-> > priority.
-> > 
-> 
-> It is buggy behaviour in response to a flag combination that makes no sense
-> which arguably is a buggy caller. Now that I get to think about it a bit more,
-> you can't define a const table in a header. If it's declared extern, then
-> the compiler doesn't know what the constant value is so it can't generate
-> better code.  At best, you end up with equivalent code to what my patch did
-> in the first place except __GFP_DMA32|__GFP_HIGHMEM will return ZONE_NORMAL.
-> 
+It's pointed out that swap_cgroup's message at swapon() is nonsense.
+Because
+  * It can be calculated very easily if all necessary information is
+    written in Kconfig.
+  * It's not necessary to annoying people at every swapon().
 
-I wonder why you have to make the bad caller work insane way ?
-Is this bad ?
-==
-const int gfp_zone_table[GFP_ZONEMASK] = {
-	ZONE_NORMAL,		/* 00 No flags set */
-	ZONE_DMA,		/* 01 Only GFP_DMA set */
-	ZONE_HIGHMEM,		/* 02 Only GFP_HIGHMEM set */
-	BAD_ZONE,		/* 03 GFP_HIGHMEM and GFP_DMA set */
-	ZONE_DMA32,		/* 04 Only GFP_DMA32 set */
-	BAD_ZONE,		/* 05 GFP_DMA and GFP_DMA32 set */
-	BAD_ZONE,		/* 06 GFP_DMA32 and GFP_HIGHMEM set */
-	BAD_ZONE,		/* 07 GFP_DMA, GFP_DMA32 and GFP_DMA32 set */
-	ZONE_MOVABLE,		/* 08 Only ZONE_MOVABLE set */
-	ZONE_DMA,		/* 09 MOVABLE + DMA */
-	ZONE_MOVABLE,		/* 0A MOVABLE + HIGHMEM */
-	BAD_ZONE,		/* 0B MOVABLE + DMA + HIGHMEM */
-	ZONE_DMA32,		/* 0C MOVABLE + DMA32 */
-	BAD_ZONE,		/* 0D MOVABLE + DMA + DMA32 */
-	BAD_ZONE,		/* 0E MOVABLE + DMA32 + HIGHMEM */
-	BAD_ZONE		/* 0F MOVABLE + DMA32 + HIGHMEM + DMA
-};
-==
+In other view, now, memory usage per swp_entry is reduced to 2bytes
+from 8bytes(64bit) and I think it's reasonably small.
 
-Thanks,
--Kame
-
-
-
-> -- 
-> Mel Gorman
-> Part-time Phd Student                          Linux Technology Center
-> University of Limerick                         IBM Dublin Software Lab
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Reported-by: Hugh Dickins <hugh@veritas.com>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+Index: mmotm-2.6.29-Mar11/mm/page_cgroup.c
+===================================================================
+--- mmotm-2.6.29-Mar11.orig/mm/page_cgroup.c
++++ mmotm-2.6.29-Mar11/mm/page_cgroup.c
+@@ -426,13 +426,6 @@ int swap_cgroup_swapon(int type, unsigne
+ 	}
+ 	mutex_unlock(&swap_cgroup_mutex);
+ 
+-	printk(KERN_INFO
+-		"swap_cgroup: uses %ld bytes of vmalloc for pointer array space"
+-		" and %ld bytes to hold mem_cgroup information per swap ents\n",
+-		array_size, length * PAGE_SIZE);
+-	printk(KERN_INFO
+-	"swap_cgroup can be disabled by noswapaccount boot option.\n");
+-
+ 	return 0;
+ nomem:
+ 	printk(KERN_INFO "couldn't allocate enough memory for swap_cgroup.\n");
+Index: mmotm-2.6.29-Mar11/init/Kconfig
+===================================================================
+--- mmotm-2.6.29-Mar11.orig/init/Kconfig
++++ mmotm-2.6.29-Mar11/init/Kconfig
+@@ -603,6 +603,8 @@ config CGROUP_MEM_RES_CTLR_SWAP
+ 	  is disabled by boot option, this will be automatically disabled and
+ 	  there will be no overhead from this. Even when you set this config=y,
+ 	  if boot option "noswapaccount" is set, swap will not be accounted.
++	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
++	  size is 4096bytes, 512k per 1Gbytes of swap.
+ 
+ endif # CGROUPS
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
