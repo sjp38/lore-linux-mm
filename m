@@ -1,110 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 961BA6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:26:54 -0400 (EDT)
-Date: Fri, 20 Mar 2009 15:27:00 +0000
+	by kanga.kvack.org (Postfix) with ESMTP id 0A23F6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:04 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: oom-killer killing even if memory is available?
-Message-ID: <20090320152700.GM24586@csn.ul.ie>
-References: <20090317100049.33f67964@osiris.boeblingen.de.ibm.com> <20090317024605.846420e1.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20090317024605.846420e1.akpm@linux-foundation.org>
+Subject: [PATCH 01/25] Replace __alloc_pages_internal() with __alloc_pages_nodemask()
+Date: Fri, 20 Mar 2009 10:02:48 +0000
+Message-Id: <1237543392-11797-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
+References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andreas Krebbel <krebbel@linux.vnet.ibm.com>
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 17, 2009 at 02:46:05AM -0700, Andrew Morton wrote:
-> On Tue, 17 Mar 2009 10:00:49 +0100 Heiko Carstens <heiko.carstens@de.ibm.com> wrote:
-> 
-> > Hi all,
-> > 
-> > the below looks like there is some bug in the memory management code.
-> > Even if there seems to be plenty of memory available the oom-killer
-> > kills processes.
-> > 
-> > The below happened after 27 days uptime, memory seems to be heavily
-> > fragmented, but there are stills larger portions of memory free that
-> > could satisfy an order 2 allocation. Any idea why this fails?
-> > 
+__alloc_pages_internal is the core page allocator function but
+essentially it is an alias of __alloc_pages_nodemask. Naming a publicly
+available and exported function "internal" is also a big ugly. This
+patch renames __alloc_pages_internal() to __alloc_pages_nodemask() and
+deletes the old nodemask function.
 
-You are hitting the watermark code for the order-2 allocation in all
-liklihood. This looks like a GFP_KERNEL allocation so ordinarily it's a
-bit surprising.
+Warning - This patch renames an exported symbol. No kernel driver is
+affected by external drivers calling __alloc_pages_internal() should
+change the call to __alloc_pages_nodemask() without any alteration of
+parameters.
 
-> > [root@t6360003 ~]# uptime
-> >  09:33:41 up 27 days, 22:55,  1 user,  load average: 0.00, 0.00, 0.00
-> > 
-> > Mar 16 21:40:40 t6360003 kernel: basename invoked oom-killer: gfp_mask=0xd0, order=2, oomkilladj=0
-> > Mar 16 21:40:40 t6360003 kernel: CPU: 0 Not tainted 2.6.28 #1
-> > Mar 16 21:40:40 t6360003 kernel: Process basename (pid: 30555, task: 000000007baa6838, ksp: 0000000063867968)
-> > Mar 16 21:40:40 t6360003 kernel: 0700000084a8c238 0000000063867a90 0000000000000002 0000000000000000 
-> > Mar 16 21:40:40 t6360003 kernel:        0000000063867b30 0000000063867aa8 0000000063867aa8 000000000010534e 
-> > Mar 16 21:40:40 t6360003 kernel:        0000000000000000 0000000063867968 0000000000000000 000000000000000a 
-> > Mar 16 21:40:40 t6360003 kernel:        000000000000000d 0000000000000000 0000000063867a90 0000000063867b08 
-> > Mar 16 21:40:40 t6360003 kernel:        00000000004a5ab0 000000000010534e 0000000063867a90 0000000063867ae0 
-> > Mar 16 21:40:40 t6360003 kernel: Call Trace:
-> > Mar 16 21:40:40 t6360003 kernel: ([<0000000000105248>] show_trace+0xf4/0x144)
-> > Mar 16 21:40:40 t6360003 kernel:  [<0000000000105300>] show_stack+0x68/0xf4
-> > Mar 16 21:40:40 t6360003 kernel:  [<000000000049c84c>] dump_stack+0xb0/0xc0
-> > Mar 16 21:40:40 t6360003 kernel:  [<000000000019235e>] oom_kill_process+0x9e/0x220
-> > Mar 16 21:40:40 t6360003 kernel:  [<0000000000192c30>] out_of_memory+0x17c/0x264
-> > Mar 16 21:40:40 t6360003 kernel:  [<000000000019714e>] __alloc_pages_internal+0x4f6/0x534
-> > Mar 16 21:40:40 t6360003 kernel:  [<0000000000104058>] crst_table_alloc+0x48/0x108
-> > Mar 16 21:40:40 t6360003 kernel:  [<00000000001a3f60>] __pmd_alloc+0x3c/0x1a8
-> > Mar 16 21:40:40 t6360003 kernel:  [<00000000001a802e>] handle_mm_fault+0x262/0x9cc
-> > Mar 16 21:40:40 t6360003 kernel:  [<00000000004a1a7a>] do_dat_exception+0x30a/0x41c
-> > Mar 16 21:40:40 t6360003 kernel:  [<0000000000115e5c>] sysc_return+0x0/0x8
-> > Mar 16 21:40:40 t6360003 kernel:  [<0000004d193bfae0>] 0x4d193bfae0
-> > Mar 16 21:40:40 t6360003 kernel: Mem-Info:
-> > Mar 16 21:40:40 t6360003 kernel: DMA per-cpu:
-> > Mar 16 21:40:40 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: Normal per-cpu:
-> > Mar 16 21:40:40 t6360003 kernel: CPU    0: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    1: hi:  186, btch:  31 usd:  30
-> > Mar 16 21:40:40 t6360003 kernel: CPU    2: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    3: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    4: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: CPU    5: hi:  186, btch:  31 usd:   0
-> > Mar 16 21:40:40 t6360003 kernel: Active_anon:372 active_file:45 inactive_anon:154
-> > Mar 16 21:40:40 t6360003 kernel:  inactive_file:152 unevictable:987 dirty:0 writeback:188 unstable:0
-> > Mar 16 21:40:40 t6360003 kernel:  free:146348 slab:875833 mapped:805 pagetables:378 bounce:0
-> > Mar 16 21:40:40 t6360003 kernel: DMA free:467728kB min:4064kB low:5080kB high:6096kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:116kB unevictable:0kB present:2068480kB pages_scanned:0 all_unreclaimable? no
-> > Mar 16 21:40:40 t6360003 kernel: lowmem_reserve[]: 0 2020 2020
-> > Mar 16 21:40:40 t6360003 kernel: Normal free:117664kB min:4064kB low:5080kB high:6096kB active_anon:1488kB inactive_anon:616kB active_file:188kB inactive_file:492kB unevictable:3948kB present:2068480kB pages_scanned:128 all_unreclaimable? no
-> > Mar 16 21:40:40 t6360003 kernel: lowmem_reserve[]: 0 0 0
-> 
-> The scanner has wrung pretty much all it can out of the reclaimable pages -
-> the LRUs are nearly empty.  There's a few hundred MB free and apparently we
-> don't have four physically contiguous free pages anywhere.  It's
-> believeable.
-> 
-> The question is: where the heck did all your memory go?  You have 2GB of
-> ZONE_NORMAL memory in that machine, but only a tenth of it is visible to
-> the page reclaim code.
-> 
-> Something must have allocated (and possibly leaked) it.
-> 
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+---
+ include/linux/gfp.h |   12 ++----------
+ mm/page_alloc.c     |    4 ++--
+ 2 files changed, 4 insertions(+), 12 deletions(-)
 
-This looks like a memory leak all right. There used to be a patch that
-recorded a stack trace for every page allocation but it was dropped from
--mm ages ago because of a merge conflict. I didn't revive it at the time
-because it wasn't of immediate concern.
-
-Should I revive the patch or do we have preferred ways of tracking down
-memory leaks these days?
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index dd20cd7..dcf0ab8 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -168,24 +168,16 @@ static inline void arch_alloc_page(struct page *page, int order) { }
+ #endif
+ 
+ struct page *
+-__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
++__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		       struct zonelist *zonelist, nodemask_t *nodemask);
+ 
+ static inline struct page *
+ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 		struct zonelist *zonelist)
+ {
+-	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
++	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+ }
+ 
+-static inline struct page *
+-__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+-		struct zonelist *zonelist, nodemask_t *nodemask)
+-{
+-	return __alloc_pages_internal(gfp_mask, order, zonelist, nodemask);
+-}
+-
+-
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5c44ed4..0671b3f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1464,7 +1464,7 @@ try_next_zone:
+  * This is the 'heart' of the zoned buddy allocator.
+  */
+ struct page *
+-__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
++__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 			struct zonelist *zonelist, nodemask_t *nodemask)
+ {
+ 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+@@ -1670,7 +1670,7 @@ nopage:
+ got_pg:
+ 	return page;
+ }
+-EXPORT_SYMBOL(__alloc_pages_internal);
++EXPORT_SYMBOL(__alloc_pages_nodemask);
+ 
+ /*
+  * Common helper functions.
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
