@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6BF6B0085
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:11 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 621536B0062
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:12 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 14/25] Inline buffered_rmqueue()
-Date: Fri, 20 Mar 2009 10:03:01 +0000
-Message-Id: <1237543392-11797-15-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 15/25] Inline __rmqueue_fallback()
+Date: Fri, 20 Mar 2009 10:03:02 +0000
+Message-Id: <1237543392-11797-16-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,29 +13,29 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-buffered_rmqueue() is in the fast path so inline it. Because it only has
-one call site, this actually should reduce text bloat instead of
-increase it.
+__rmqueue_fallback() is in the slow path but has only one call site. It
+actually reduces text if it's inlined.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/page_alloc.c |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ mm/page_alloc.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a3ca80d..9f7631e 100644
+index 9f7631e..0ba9e4f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1079,7 +1079,8 @@ void split_page(struct page *page, unsigned int order)
-  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-  * or two.
-  */
--static struct page *buffered_rmqueue(struct zone *preferred_zone,
-+static inline
-+struct page *buffered_rmqueue(struct zone *preferred_zone,
- 			struct zone *zone, int order, gfp_t gfp_flags,
- 			int migratetype, int cold)
+@@ -774,8 +774,8 @@ static int move_freepages_block(struct zone *zone, struct page *page,
+ }
+ 
+ /* Remove an element from the buddy allocator from the fallback list */
+-static struct page *__rmqueue_fallback(struct zone *zone, int order,
+-						int start_migratetype)
++static inline struct page *
++__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
  {
+ 	struct free_area * area;
+ 	int current_order;
 -- 
 1.5.6.5
 
