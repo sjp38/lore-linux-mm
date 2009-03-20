@@ -1,27 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 415916B0055
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 12:23:55 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-In-Reply-To: <1237565305.27431.48.camel@lts-notebook>
-References: <1237565305.27431.48.camel@lts-notebook> <20090312100049.43A3.A69D9226@jp.fujitsu.com> <20090313173343.10169.58053.stgit@warthog.procyon.org.uk> <28c262360903131727l4ef41db5xf917c7c5eb4825a8@mail.gmail.com>
-Subject: Re: [PATCH 0/2] Make the Unevictable LRU available on NOMMU
-Date: Fri, 20 Mar 2009 16:24:32 +0000
-Message-ID: <12759.1237566272@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 15E036B0055
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 12:26:14 -0400 (EDT)
+Date: Fri, 20 Mar 2009 16:27:16 +0000
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 00/25] Cleanup and optimise the page allocator V5
+Message-ID: <20090320162716.GP24586@csn.ul.ie>
+References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903201059240.3740@qirst.com> <20090320153723.GO24586@csn.ul.ie> <alpine.DEB.1.10.0903201205260.18010@qirst.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0903201205260.18010@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: dhowells@redhat.com, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, peterz@infradead.org, nrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@surriel.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
+On Fri, Mar 20, 2009 at 12:07:22PM -0400, Christoph Lameter wrote:
+> On Fri, 20 Mar 2009, Mel Gorman wrote:
+> 
+> > good idea one way or the other. Course, this meant a search of the PCP
+> > lists or increasing the size of the PCP structure - swings and
+> > roundabouts :/
+> 
+> The PCP list structure irks me a bit. Manipulating doubly linked lists
+> means touching at least 3 cachelines.
 
-> I just want to point out [again :)] that removing the ramfs pages from
-> the lru will prevent them from being migrated
+Yeah, and bloats the structure quite a bit. It's what hits the
+one-list-per-migratetype the hardest.
 
-This is less of an issue for NOMMU kernels, since you can't migrate pages that
-are mapped.
+> Is it possible to go to a simple
+> linked list (one cacheline to be touched)?
 
-David
+I considered it but it breaks the hot/cold allocation/freeing logic and
+the search code became weird enough looking fast enough that I dropped
+it.
+
+> Or an array of pointers to
+> pages instead (one cacheline may contian multiple pointers to pcp pages
+> which means multiple pages could be handled with a single cacheline)?
+> 
+
+An array of pointers is promising but it would bloat the structure quiet a
+bit too.
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
