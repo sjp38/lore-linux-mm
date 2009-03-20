@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 692856B009D
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6431B6B009B
 	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:16 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 21/25] Use allocation flags as an index to the zone watermark
-Date: Fri, 20 Mar 2009 10:03:08 +0000
-Message-Id: <1237543392-11797-22-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 18/25] Do not disable interrupts in free_page_mlock()
+Date: Fri, 20 Mar 2009 10:03:05 +0000
+Message-Id: <1237543392-11797-19-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,76 +13,95 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
-pages_min, pages_low or pages_high is used as the zone watermark when
-allocating the pages. Two branches in the allocator hotpath determine which
-watermark to use. This patch uses the flags as an array index and places
-the three watermarks in a union with an array so it can be offset. This
-means the flags can be used as an array index and reduces the branches
-taken.
+free_page_mlock() tests and clears PG_mlocked using locked versions of the
+bit operations. If set, it disables interrupts to update counters and this
+happens on every page free even though interrupts are disabled very shortly
+afterwards a second time.  This is wasteful.
+
+This patch splits what free_page_mlock() does. The bit check is still
+made. However, the update of counters is delayed until the interrupts are
+disabled and the non-lock version for clearing the bit is used. One potential
+weirdness with this split is that the counters do not get updated if the
+bad_page() check is triggered but a system showing bad pages is getting
+screwed already.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/mmzone.h |    8 +++++++-
- mm/page_alloc.c        |   18 ++++++++----------
- 2 files changed, 15 insertions(+), 11 deletions(-)
+ mm/internal.h   |   11 +++--------
+ mm/page_alloc.c |    8 +++++++-
+ 2 files changed, 10 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ca000b8..c20c662 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -275,7 +275,13 @@ struct zone_reclaim_stat {
- 
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
--	unsigned long		pages_min, pages_low, pages_high;
-+	union {
-+		struct {
-+			unsigned long	pages_min, pages_low, pages_high;
-+		};
-+		unsigned long pages_mark[3];
-+	};
-+
- 	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fb5c4da..3117209 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1159,10 +1159,13 @@ failed:
- 	return NULL;
+diff --git a/mm/internal.h b/mm/internal.h
+index 478223b..7f775a1 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -155,14 +155,9 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
+  */
+ static inline void free_page_mlock(struct page *page)
+ {
+-	if (unlikely(TestClearPageMlocked(page))) {
+-		unsigned long flags;
+-
+-		local_irq_save(flags);
+-		__dec_zone_page_state(page, NR_MLOCK);
+-		__count_vm_event(UNEVICTABLE_MLOCKFREED);
+-		local_irq_restore(flags);
+-	}
++	__ClearPageMlocked(page);
++	__dec_zone_page_state(page, NR_MLOCK);
++	__count_vm_event(UNEVICTABLE_MLOCKFREED);
  }
  
--#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
--#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
--#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
--#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
-+/* The WMARK bits are used as an index zone->pages_mark */
-+#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
-+#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
-+#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
-+#define ALLOC_NO_WATERMARKS	0x08 /* don't check watermarks at all */
-+#define ALLOC_WMARK_MASK	0x07 /* Mask to get the watermark bits */
-+
- #define ALLOC_HARDER		0x10 /* try to alloc harder */
- #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
- #ifdef CONFIG_CPUSETS
-@@ -1465,12 +1468,7 @@ zonelist_scan:
+ #else /* CONFIG_UNEVICTABLE_LRU */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 349c64d..c4eb295 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -498,7 +498,6 @@ static inline void __free_one_page(struct page *page,
  
- 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
- 			unsigned long mark;
--			if (alloc_flags & ALLOC_WMARK_MIN)
--				mark = zone->pages_min;
--			else if (alloc_flags & ALLOC_WMARK_LOW)
--				mark = zone->pages_low;
--			else
--				mark = zone->pages_high;
-+			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (!zone_watermark_ok(zone, order, mark,
- 				    classzone_idx, alloc_flags)) {
- 				if (!zone_reclaim_mode ||
+ static inline int free_pages_check(struct page *page)
+ {
+-	free_page_mlock(page);
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+ 		(page_count(page) != 0)  |
+@@ -555,6 +554,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	unsigned long flags;
+ 	int i;
+ 	int bad = 0;
++	int clearMlocked = PageMlocked(page);
+ 
+ 	for (i = 0 ; i < (1 << order) ; ++i)
+ 		bad += free_pages_check(page + i);
+@@ -570,6 +570,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	kernel_map_pages(page, 1 << order, 0);
+ 
+ 	local_irq_save(flags);
++	if (unlikely(clearMlocked))
++		free_page_mlock(page);
+ 	__count_vm_events(PGFREE, 1 << order);
+ 	free_one_page(page_zone(page), page, order,
+ 					get_pageblock_migratetype(page));
+@@ -1020,6 +1022,7 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 	struct zone *zone = page_zone(page);
+ 	struct per_cpu_pages *pcp;
+ 	unsigned long flags;
++	int clearMlocked = PageMlocked(page);
+ 
+ 	if (PageAnon(page))
+ 		page->mapping = NULL;
+@@ -1035,7 +1038,10 @@ static void free_hot_cold_page(struct page *page, int cold)
+ 
+ 	pcp = &zone_pcp(zone, get_cpu())->pcp;
+ 	local_irq_save(flags);
++	if (unlikely(clearMlocked))
++		free_page_mlock(page);
+ 	__count_vm_event(PGFREE);
++
+ 	if (cold)
+ 		list_add_tail(&page->lru, &pcp->list);
+ 	else
 -- 
 1.5.6.5
 
