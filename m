@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2831D6B004D
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 14:27:21 -0400 (EDT)
-Subject: Re: [PATCH 0/2] Make the Unevictable LRU available on NOMMU
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <12759.1237566272@redhat.com>
-References: <1237565305.27431.48.camel@lts-notebook>
-	 <20090312100049.43A3.A69D9226@jp.fujitsu.com>
-	 <20090313173343.10169.58053.stgit@warthog.procyon.org.uk>
-	 <28c262360903131727l4ef41db5xf917c7c5eb4825a8@mail.gmail.com>
-	 <12759.1237566272@redhat.com>
-Content-Type: text/plain
-Date: Fri, 20 Mar 2009 14:30:15 -0400
-Message-Id: <1237573815.27431.122.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id B5B0A6B004D
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 15:42:19 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8E8D582C916
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 15:53:38 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id ULoxs9Xpa7PQ for <linux-mm@kvack.org>;
+	Fri, 20 Mar 2009 15:53:32 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 72DF882C922
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 15:53:32 -0400 (EDT)
+Date: Fri, 20 Mar 2009 15:43:23 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00/25] Cleanup and optimise the page allocator V5
+In-Reply-To: <20090320162716.GP24586@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903201503040.11746@qirst.com>
+References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903201059240.3740@qirst.com> <20090320153723.GO24586@csn.ul.ie> <alpine.DEB.1.10.0903201205260.18010@qirst.com> <20090320162716.GP24586@csn.ul.ie>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: David Howells <dhowells@redhat.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, kosaki.motohiro@jp.fujitsu.com, torvalds@linux-foundation.org, peterz@infradead.org, nrik.Berkhan@ge.com, uclinux-dev@uclinux.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@surriel.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-03-20 at 16:24 +0000, David Howells wrote:
-> Lee Schermerhorn <Lee.Schermerhorn@hp.com> wrote:
-> 
-> > I just want to point out [again :)] that removing the ramfs pages from
-> > the lru will prevent them from being migrated
-> 
-> This is less of an issue for NOMMU kernels, since you can't migrate pages that
-> are mapped.
+On Fri, 20 Mar 2009, Mel Gorman wrote:
 
+> > Is it possible to go to a simple
+> > linked list (one cacheline to be touched)?
+>
+> I considered it but it breaks the hot/cold allocation/freeing logic and
+> the search code became weird enough looking fast enough that I dropped
+> it.
 
-Agreed.  So, you could eliminate them [ramfs pages] from the lru for
-just the nommu kernels, if you wanted to go that route.
-
-Lee
+Maybe it would be workable if we drop the cold queue stuff (dubious
+anyways)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
