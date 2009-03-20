@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CB9F6B0092
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DE07B6B0096
 	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:15 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 19/25] Do not setup zonelist cache when there is only one node
-Date: Fri, 20 Mar 2009 10:03:06 +0000
-Message-Id: <1237543392-11797-20-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 20/25] Do not check for compound pages during the page allocator sanity checks
+Date: Fri, 20 Mar 2009 10:03:07 +0000
+Message-Id: <1237543392-11797-21-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,46 +13,55 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-There is a zonelist cache which is used to track zones that are not in
-the allowed cpuset or found to be recently full. This is to reduce cache
-footprint on large machines. On smaller machines, it just incurs cost
-for no gain. This patch only uses the zonelist cache when there are NUMA
-nodes.
+A number of sanity checks are made on each page allocation and free
+including that the page count is zero. page_count() checks for
+compound pages and checks the count of the head page if true. However,
+in these paths, we do not care if the page is compound or not as the
+count of each tail page should also be zero.
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+This patch makes two changes to the use of page_count() in the free path. It
+converts one check of page_count() to a VM_BUG_ON() as the count should
+have been unconditionally checked earlier in the free path. It also avoids
+checking for compound pages.
+
+[mel@csn.ul.ie: Wrote changelog]
+Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |   10 ++++++++--
- 1 files changed, 8 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c4eb295..01cd489 100644
+index 01cd489..fb5c4da 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1442,6 +1442,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 	/* Determine in advance if the zonelist needs filtering */
- 	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
- 		zonelist_filter = 1;
-+	if (num_online_nodes() > 1)
-+		zonelist_filter = 1;
+@@ -424,7 +424,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+ 		return 0;
  
- zonelist_scan:
- 	/*
-@@ -1486,8 +1488,12 @@ this_zone_full:
- 			zlc_mark_zone_full(zonelist, z);
- try_next_zone:
- 		if (NUMA_BUILD && zonelist_filter) {
--			if (!did_zlc_setup) {
--				/* do zlc_setup after the first zone is tried */
-+			if (!did_zlc_setup && num_online_nodes() > 1) {
-+				/*
-+				 * do zlc_setup after the first zone is tried
-+				 * but only if there are multiple nodes to make
-+				 * it worthwhile
-+				 */
- 				allowednodes = zlc_setup(zonelist, alloc_flags);
- 				zlc_active = 1;
- 			}
+ 	if (PageBuddy(buddy) && page_order(buddy) == order) {
+-		BUG_ON(page_count(buddy) != 0);
++		VM_BUG_ON(page_count(buddy) != 0);
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -500,7 +500,7 @@ static inline int free_pages_check(struct page *page)
+ {
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+-		(page_count(page) != 0)  |
++		(atomic_read(&page->_count) != 0) |
+ 		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
+ 		bad_page(page);
+ 		return 1;
+@@ -645,7 +645,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+ {
+ 	if (unlikely(page_mapcount(page) |
+ 		(page->mapping != NULL)  |
+-		(page_count(page) != 0)  |
++		(atomic_read(&page->_count) != 0)  |
+ 		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
+ 		bad_page(page);
+ 		return 1;
 -- 
 1.5.6.5
 
