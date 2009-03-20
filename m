@@ -1,85 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id AD1976B003D
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 00:07:58 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2K47uFk009936
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 20 Mar 2009 13:07:56 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0183B45DD76
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 13:07:56 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CB7BF45DD72
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 13:07:55 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B556FE08004
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 13:07:55 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 659F1E18003
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 13:07:55 +0900 (JST)
-Date: Fri, 20 Mar 2009 13:06:30 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH 5/5] Memory controller soft limit reclaim on contention
- (v7)
-Message-Id: <20090320130630.8b9ac3c7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090319165752.27274.36030.sendpatchset@localhost.localdomain>
-References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain>
-	<20090319165752.27274.36030.sendpatchset@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0896B003D
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 01:07:36 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e9.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n2K4wZOt008522
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 00:58:35 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2K57Y6Q151364
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 01:07:34 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2K52BLv001889
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 01:07:34 -0400
+Date: Thu, 19 Mar 2009 21:40:29 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Question about x86/mm/gup.c's use of disabled interrupts
+Message-ID: <20090320044029.GD6807@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <49C148AF.5050601@goop.org> <200903191232.05459.nickpiggin@yahoo.com.au> <49C2818B.9060201@goop.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <49C2818B.9060201@goop.org>
 Sender: owner-linux-mm@kvack.org
-To: Balbir Singh <balbir@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Avi Kivity <avi@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Xen-devel <xen-devel@lists.xensource.com>, Jan Beulich <jbeulich@novell.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Mar 2009 22:27:52 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+On Thu, Mar 19, 2009 at 10:31:55AM -0700, Jeremy Fitzhardinge wrote:
+> Nick Piggin wrote:
+>>> Also, assuming that disabling the interrupt is enough to get the
+>>> guarantees we need here, there's a Xen problem because we don't use IPIs
+>>> for cross-cpu tlb flushes (well, it happens within Xen).  I'll have to
+>>> think a bit about how to deal with that, but I'm thinking that we could
+>>> add a per-cpu "tlb flushes blocked" flag, and maintain some kind of
+>>> per-cpu deferred tlb flush count so we can get around to doing the flush
+>>> eventually.
+>>>
+>>> But I want to make sure I understand the exact algorithm here.
+>>
+>> FWIW, powerpc actually can flush tlbs without IPIs, and it also has
+>> a gup_fast. powerpc RCU frees its page _tables_ so we can walk them,
+>> and then I use speculative page references in order to be able to
+>> take a reference on the page without having it pinned.
+>
+> Ah, interesting.  So disabling interrupts prevents the RCU free from 
+> happening, and non-atomic pte fetching is a non-issue.  So it doesn't 
+> address the PAE side of the problem.
 
-> Feature: Implement reclaim from groups over their soft limit
-> 
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> 
-> Changelog v7...v6
-> 1. Refactored out reclaim_options patch into a separate patch
-> 2. Added additional checks for all swap off condition in
->    mem_cgroup_hierarchical_reclaim()
+This would be rcu_sched, correct?
 
-> -	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-> +	/*
-> +	 * Try to free up some pages from the memory controllers soft
-> +	 * limit queue.
-> +	 */
-> +	did_some_progress = mem_cgroup_soft_limit_reclaim(zonelist, gfp_mask);
-> +	if (order || !did_some_progress)
-> +		did_some_progress += try_to_free_pages(zonelist, order,
-> +							gfp_mask);
->  
+							Thanx, Paul
 
-Anyway, my biggest concern is here, always.
-
-        By this.
-          if (order > 1), try_to_free_pages() is called twice.
-        Hmm...how about
-
-        if (!pages_reclaimed && !(gfp_mask & __GFP_NORETRY)) { # this is the first loop or noretry
-               did_some_progress = mem_cgroup_soft_limit_reclaim(zonelist, gfp_mask);
-               if (!did_some_progress)
-                    did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-        }else
-                    did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
-        
-
-        maybe a bit more concervative.
-
-
-        And I wonder "nodemask" should be checked or not..
-        softlimit reclaim doesn't seem to work well with nodemask...
-Thanks,
--Kame
-
-                
+>> Turning gup_get_pte into a pvop would be a bit nasty because on !PAE
+>> it is just a single load, and even on PAE it is pretty cheap.
+>>   
+>
+> Well, it wouldn't be too bad; for !PAE it would turn into something we 
+> could inline, so there'd be little to no cost.  For PAE it would be out of 
+> line, but a direct function call, which would be nicely cached and very 
+> predictable once we've gone through the the loop once (and for Xen I think 
+> I'd just make it a cmpxchg8b-based implementation, assuming that the tlb 
+> flush hypercall would offset the cost of making gup_fast a bit slower).
+>
+> But it would be better if we can address it at a higher level.
+>
+>    J
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
