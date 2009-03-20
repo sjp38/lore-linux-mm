@@ -1,83 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6879D6B0047
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:59:44 -0400 (EDT)
-Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
-	by smtp-out.google.com with ESMTP id n2K70JU1009243
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 07:00:19 GMT
-Received: from wf-out-1314.google.com (wfc25.prod.google.com [10.142.3.25])
-	by zps36.corp.google.com with ESMTP id n2K70H4m014917
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 00:00:17 -0700
-Received: by wf-out-1314.google.com with SMTP id 25so999399wfc.14
-        for <linux-mm@kvack.org>; Fri, 20 Mar 2009 00:00:17 -0700 (PDT)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 999666B0047
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 12:07:00 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 50EE782C9FB
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 12:14:53 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 1sHo3FCS1r+H for <linux-mm@kvack.org>;
+	Fri, 20 Mar 2009 12:14:47 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0B81582C9FF
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 12:14:42 -0400 (EDT)
+Date: Fri, 20 Mar 2009 12:04:42 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: [PATCH 00/25] Cleanup and optimise the page allocator V5
+In-Reply-To: <20090320153723.GO24586@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0903201203340.28571@qirst.com>
+References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903201059240.3740@qirst.com> <20090320153723.GO24586@csn.ul.ie>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.00.0903191741280.3030@localhost.localdomain>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-	 <20090318151157.85109100.akpm@linux-foundation.org>
-	 <alpine.LFD.2.00.0903181522570.3082@localhost.localdomain>
-	 <604427e00903191734l42376eebsee018e8243b4d6f5@mail.gmail.com>
-	 <alpine.LFD.2.00.0903191741280.3030@localhost.localdomain>
-Date: Fri, 20 Mar 2009 00:00:17 -0700
-Message-ID: <604427e00903200000n157a59a0od47b12975232d4cf@mail.gmail.com>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 19, 2009 at 5:49 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
->
-> On Thu, 19 Mar 2009, Ying Han wrote:
->> >
->> > Ying Han - since you're all set up for testing this and have reproduce=
-d it
->> > on multiple kernels, can you try it on a few more kernel versions? It
->> > would be interesting to both go further back in time (say 2.6.15-ish),
->> > _and_ check something like 2.6.21 which had the exact dirty accounting
->> > fix. Maybe it's not really an old bug - maybe we re-introduced a bug t=
-hat
->> > was fixed for a while.
->>
->> I tried 2.6.24 for couple of hours and the problem not happening yet. Wh=
-ile
->> the same test on 2.6.25, the problem happen right away.
->
-> Ok, so 2.6.25 is known bad. Can you test 2.6.24 a lot more, because we
-> should not decide that it's bug-free without a _lot_ of testing.
->
-> But if it's a bug that has gone away and then re-appeared, it at least
-> explains how 2.6.21 (which got a fair amount of mmap testing) didn't have
-> lots of reports of mmap corruption.
->
-> That said, I can think of nothing obvious in between 2.6.24 and .25 that
-> would have re-introduced it. But if some heavy testing really does confir=
-m
-> that 2.6.24 doesn't have the problem, that is a good first step to trying
-> to narrow down where things started going wrong.
->
-> That said, it could _easily_ be some timing-related pattern. One of the
-> things in between 2.6.24 and .25 is
->
-> =A0- 8bc3be2751b4f74ab90a446da1912fd8204d53f7: "writeback: speed up
-> =A0 writeback of big dirty files"
->
-> which is that exact kind of "change the timing patterns, but don't change
-> anything fundamental" thing.
->
-> Which is why I'd like you to continue testing 2.6.24 just to be _really_
-> sure that it really doesn't happen there.
+On Fri, 20 Mar 2009, Mel Gorman wrote:
 
-Unfortunately, 2.6.24 is not immune. After running several hours, i trigger=
-ed
-the problem.
+> hmm, I'm missing something in your reasoning. The contention I saw for
+> zone->lru_lock
 >
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Linus
+> &zone->lru_lock          37350 [<ffffffff8029d6fe>] ____pagevec_lru_add+0x9c/0x172
+> &zone->lru_lock          55423 [<ffffffff8029d377>] release_pages+0x10a/0x21b
+> &zone->lru_lock            402 [<ffffffff8029d9d9>] activate_page+0x4f/0x147
+> &zone->lru_lock              6 [<ffffffff8029dbbd>] put_page+0x94/0x122
 >
+> So I just assumed it was LRU pages being taken off and freed that was
+> causing the contention. Can SLUB affect that?
+
+No. But it can affect the taking of the zone lock.
+
+> Maybe you meant zone->lock and SLUB could tune buffers more to avoid
+> that if that lock was hot. That is one alternative but the later patches
+> proposed an alternative whereby high-order and compound pages could be
+> stored on the PCP lists. Compound only really helps SLUB but high-order
+> also helped stacks, signal handlers and the like so it seemed like a
+> good idea one way or the other. Course, this meant a search of the PCP
+> lists or increasing the size of the PCP structure - swings and
+> roundabouts :/
+
+Maybe include those as well? Its good stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
