@@ -1,40 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6E26B008A
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:12 -0400 (EDT)
-Date: Fri, 20 Mar 2009 15:29:21 +0000
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0306B004F
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:13 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 08/25] Calculate the preferred zone for allocation only
-	once
-Message-ID: <20090320152921.GN24586@csn.ul.ie>
-References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie> <1237543392-11797-9-git-send-email-mel@csn.ul.ie> <alpine.DEB.1.10.0903201105530.3740@qirst.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0903201105530.3740@qirst.com>
+Subject: [PATCH 17/25] Do not call get_pageblock_migratetype() more than necessary
+Date: Fri, 20 Mar 2009 10:03:04 +0000
+Message-Id: <1237543392-11797-18-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
+References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 20, 2009 at 11:06:46AM -0400, Christoph Lameter wrote:
-> On Fri, 20 Mar 2009, Mel Gorman wrote:
-> 
-> > get_page_from_freelist() can be called multiple times for an allocation.
-> > Part of this calculates the preferred_zone which is the first usable
-> > zone in the zonelist. This patch calculates preferred_zone once.
-> 
-> Isnt this adding an additional pass over the zonelist? Maybe mitigaged by
-> the first zone usually being the preferred zone.
-> 
+get_pageblock_migratetype() is potentially called twice for every page
+free. Once, when being freed to the pcp lists and once when being freed
+back to buddy. When freeing from the pcp lists, it is known what the
+pageblock type was at the time of free so use it rather than rechecking.
+In low memory situations under memory pressure, this might skew
+anti-fragmentation slightly but the interference is minimal and
+decisions that are fragmenting memory are being made anyway.
 
-The alternative is uglifing the iterator quite a bit and making the code a
-bit impeneratable. The walk to the first preferred zone should be very short.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+---
+ mm/page_alloc.c |   16 ++++++++++------
+ 1 files changed, 10 insertions(+), 6 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 795cfc5..349c64d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -455,16 +455,18 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+  */
+ 
+ static inline void __free_one_page(struct page *page,
+-		struct zone *zone, unsigned int order)
++		struct zone *zone, unsigned int order,
++		int migratetype)
+ {
+ 	unsigned long page_idx;
+ 	int order_size = 1 << order;
+-	int migratetype = get_pageblock_migratetype(page);
+ 
+ 	if (unlikely(PageCompound(page)))
+ 		if (unlikely(destroy_compound_page(page, order)))
+ 			return;
+ 
++	VM_BUG_ON(migratetype == -1);
++
+ 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
+ 
+ 	VM_BUG_ON(page_idx & (order_size - 1));
+@@ -533,17 +535,18 @@ static void free_pages_bulk(struct zone *zone, int count,
+ 		page = list_entry(list->prev, struct page, lru);
+ 		/* have to delete it as __free_one_page list manipulates */
+ 		list_del(&page->lru);
+-		__free_one_page(page, zone, order);
++		__free_one_page(page, zone, order, page_private(page));
+ 	}
+ 	spin_unlock(&zone->lock);
+ }
+ 
+-static void free_one_page(struct zone *zone, struct page *page, int order)
++static void free_one_page(struct zone *zone, struct page *page, int order,
++				int migratetype)
+ {
+ 	spin_lock(&zone->lock);
+ 	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+ 	zone->pages_scanned = 0;
+-	__free_one_page(page, zone, order);
++	__free_one_page(page, zone, order, migratetype);
+ 	spin_unlock(&zone->lock);
+ }
+ 
+@@ -568,7 +571,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 
+ 	local_irq_save(flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+-	free_one_page(page_zone(page), page, order);
++	free_one_page(page_zone(page), page, order,
++					get_pageblock_migratetype(page));
+ 	local_irq_restore(flags);
+ }
+ 
 -- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
