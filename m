@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id E3AFC6B0062
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:09 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 586286B0083
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:10 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 10/25] Calculate the alloc_flags for allocation only once
-Date: Fri, 20 Mar 2009 10:02:57 +0000
-Message-Id: <1237543392-11797-11-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 07/25] Check in advance if the zonelist needs additional filtering
+Date: Fri, 20 Mar 2009 10:02:54 +0000
+Message-Id: <1237543392-11797-8-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,156 +13,111 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Factor out the mapping between GFP and alloc_flags only once. Once factored
-out, it only needs to be calculated once but some care must be taken.
+Zonelist are filtered based on nodemasks for memory policies normally.
+It can be additionally filters on cpusets if they exist as well as
+noting when zones are full. These simple checks are expensive enough to
+be noticed in profiles. This patch checks in advance if zonelist
+filtering will ever be needed. If not, then the bulk of the checks are
+skipped.
 
-[neilb@suse.de says]
-As the test:
-
--       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
--                       && !in_interrupt()) {
--               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-
-has been replaced with a slightly weaker one:
-
-+       if (alloc_flags & ALLOC_NO_WATERMARKS) {
-
-we need to ensure we don't recurse when PF_MEMALLOC is set.
-
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Acked-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 ---
- mm/page_alloc.c |   88 +++++++++++++++++++++++++++++++-----------------------
- 1 files changed, 50 insertions(+), 38 deletions(-)
+ include/linux/cpuset.h |    2 ++
+ mm/page_alloc.c        |   37 ++++++++++++++++++++++++++-----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)
 
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 90c6074..6051082 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -83,6 +83,8 @@ extern void cpuset_print_task_mems_allowed(struct task_struct *p);
+ 
+ #else /* !CONFIG_CPUSETS */
+ 
++#define number_of_cpusets (0)
++
+ static inline int cpuset_init_early(void) { return 0; }
+ static inline int cpuset_init(void) { return 0; }
+ static inline void cpuset_init_smp(void) {}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8771de3..0558eb4 100644
+index d815c8f..fe71147 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1593,16 +1593,6 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
- 	return page;
- }
+@@ -1139,7 +1139,11 @@ failed:
+ #define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
++#ifdef CONFIG_CPUSETS
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
++#else
++#define ALLOC_CPUSET		0x00
++#endif /* CONFIG_CPUSETS */
  
--static inline int
--is_allocation_high_priority(struct task_struct *p, gfp_t gfp_mask)
--{
--	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
--			&& !in_interrupt())
--		if (!(gfp_mask & __GFP_NOMEMALLOC))
--			return 1;
--	return 0;
--}
--
- /*
-  * This is called in the allocator slow-path if the allocation request is of
-  * sufficient urgency to ignore watermarks and take other desperate measures
-@@ -1638,6 +1628,42 @@ void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
- 		wakeup_kswapd(zone, order);
- }
+ #ifdef CONFIG_FAIL_PAGE_ALLOC
  
-+static inline int
-+gfp_to_alloc_flags(gfp_t gfp_mask)
-+{
-+	struct task_struct *p = current;
-+	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-+	const gfp_t wait = gfp_mask & __GFP_WAIT;
+@@ -1403,6 +1407,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
++	int zonelist_filter = 0;
+ 
+ 	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+ 							&preferred_zone);
+@@ -1413,6 +1418,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 
+ 	VM_BUG_ON(order >= MAX_ORDER);
+ 
++	/* Determine in advance if the zonelist needs filtering */
++	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
++		zonelist_filter = 1;
 +
-+	/*
-+	 * The caller may dip into page reserves a bit more if the caller
-+	 * cannot run direct reclaim, or if the caller has realtime scheduling
-+	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-+	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-+	 */
-+	if (gfp_mask & __GFP_HIGH)
-+		alloc_flags |= ALLOC_HIGH;
-+
-+	if (!wait) {
-+		alloc_flags |= ALLOC_HARDER;
-+		/*
-+		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-+		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-+		 */
-+		alloc_flags &= ~ALLOC_CPUSET;
-+	} else if (unlikely(rt_task(p)) && !in_interrupt())
-+		alloc_flags |= ALLOC_HARDER;
-+
-+	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-+		if (!in_interrupt() &&
-+		    ((p->flags & PF_MEMALLOC) ||
-+		     unlikely(test_thread_flag(TIF_MEMDIE))))
-+			alloc_flags |= ALLOC_NO_WATERMARKS;
-+	}
-+
-+	return alloc_flags;
-+}
-+
- static inline struct page *
- __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
-@@ -1668,48 +1694,34 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 * OK, we're below the kswapd watermark and have kicked background
- 	 * reclaim. Now things get more complex, so set up alloc_flags according
- 	 * to how we want to proceed.
--	 *
--	 * The caller may dip into page reserves a bit more if the caller
--	 * cannot run direct reclaim, or if the caller has realtime scheduling
--	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
--	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -1420,12 +1429,16 @@ zonelist_scan:
  	 */
--	alloc_flags = ALLOC_WMARK_MIN;
--	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
--		alloc_flags |= ALLOC_HARDER;
--	if (gfp_mask & __GFP_HIGH)
--		alloc_flags |= ALLOC_HIGH;
--	if (wait)
--		alloc_flags |= ALLOC_CPUSET;
-+	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
- restart:
--	/*
--	 * Go through the zonelist again. Let __GFP_HIGH and allocations
--	 * coming from realtime tasks go deeper into reserves.
--	 *
--	 * This is the last chance, in general, before the goto nopage.
--	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
--	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
--	 */
-+	/* This is the last chance, in general, before the goto nopage. */
- 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
--						high_zoneidx, alloc_flags,
--						preferred_zone,
--						migratetype);
-+			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
-+			preferred_zone, migratetype);
- 	if (page)
- 		goto got_pg;
- 
- 	/* Allocate without watermarks if the context allows */
--	if (is_allocation_high_priority(p, gfp_mask))
-+	if (alloc_flags & ALLOC_NO_WATERMARKS) {
- 		page = __alloc_pages_high_priority(gfp_mask, order,
--			zonelist, high_zoneidx, nodemask, preferred_zone,
--			migratetype);
--	if (page)
--		goto got_pg;
-+				zonelist, high_zoneidx, nodemask,
-+				preferred_zone, migratetype);
-+		if (page)
-+			goto got_pg;
-+	}
- 
- 	/* Atomic allocations - we can't balance anything */
- 	if (!wait)
- 		goto nopage;
- 
-+	/* Avoid recursion of direct reclaim */
-+	if (p->flags & PF_MEMALLOC)
-+		goto nopage;
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+ 						high_zoneidx, nodemask) {
+-		if (NUMA_BUILD && zlc_active &&
+-			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+-				continue;
+-		if ((alloc_flags & ALLOC_CPUSET) &&
+-			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+-				goto try_next_zone;
 +
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
- 					zonelist, high_zoneidx,
++		/* Ignore the additional zonelist filter checks if possible */
++		if (zonelist_filter) {
++			if (NUMA_BUILD && zlc_active &&
++				!zlc_zone_worth_trying(zonelist, z, allowednodes))
++					continue;
++			if ((alloc_flags & ALLOC_CPUSET) &&
++				!cpuset_zone_allowed_softwall(zone, gfp_mask))
++					goto try_next_zone;
++		}
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+@@ -1447,13 +1460,15 @@ zonelist_scan:
+ 		if (page)
+ 			break;
+ this_zone_full:
+-		if (NUMA_BUILD)
++		if (NUMA_BUILD && zonelist_filter)
+ 			zlc_mark_zone_full(zonelist, z);
+ try_next_zone:
+-		if (NUMA_BUILD && !did_zlc_setup) {
+-			/* we do zlc_setup after the first zone is tried */
+-			allowednodes = zlc_setup(zonelist, alloc_flags);
+-			zlc_active = 1;
++		if (NUMA_BUILD && zonelist_filter) {
++			if (!did_zlc_setup) {
++				/* do zlc_setup after the first zone is tried */
++				allowednodes = zlc_setup(zonelist, alloc_flags);
++				zlc_active = 1;
++			}
+ 			did_zlc_setup = 1;
+ 		}
+ 	}
 -- 
 1.5.6.5
 
