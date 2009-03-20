@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ED236B0083
-	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:13 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CB9F6B0092
+	for <linux-mm@kvack.org>; Fri, 20 Mar 2009 11:29:15 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 16/25] Save text by reducing call sites of __rmqueue()
-Date: Fri, 20 Mar 2009 10:03:03 +0000
-Message-Id: <1237543392-11797-17-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 19/25] Do not setup zonelist cache when there is only one node
+Date: Fri, 20 Mar 2009 10:03:06 +0000
+Message-Id: <1237543392-11797-20-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 References: <1237543392-11797-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,46 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-__rmqueue is inlined in the fast path but it has two call sites, the low
-order and high order paths. However, a slight modification to the
-high-order path reduces the call sites of __rmqueue. This reduces text
-at the slight increase of complexity of the high-order allocation path.
+There is a zonelist cache which is used to track zones that are not in
+the allowed cpuset or found to be recently full. This is to reduce cache
+footprint on large machines. On smaller machines, it just incurs cost
+for no gain. This patch only uses the zonelist cache when there are NUMA
+nodes.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |   11 +++++++----
- 1 files changed, 7 insertions(+), 4 deletions(-)
+ mm/page_alloc.c |   10 ++++++++--
+ 1 files changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0ba9e4f..795cfc5 100644
+index c4eb295..01cd489 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1123,11 +1123,14 @@ again:
- 		list_del(&page->lru);
- 		pcp->count--;
- 	} else {
--		spin_lock_irqsave(&zone->lock, flags);
--		page = __rmqueue(zone, order, migratetype);
--		spin_unlock(&zone->lock);
--		if (!page)
-+		LIST_HEAD(list);
-+		local_irq_save(flags);
-+
-+		/* Calling __rmqueue would bloat text, hence this */
-+		if (!rmqueue_bulk(zone, order, 1, &list, migratetype))
- 			goto failed;
-+		page = list_entry(list.next, struct page, lru);
-+		list_del(&page->lru);
- 	}
+@@ -1442,6 +1442,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	/* Determine in advance if the zonelist needs filtering */
+ 	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
+ 		zonelist_filter = 1;
++	if (num_online_nodes() > 1)
++		zonelist_filter = 1;
  
- 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+ zonelist_scan:
+ 	/*
+@@ -1486,8 +1488,12 @@ this_zone_full:
+ 			zlc_mark_zone_full(zonelist, z);
+ try_next_zone:
+ 		if (NUMA_BUILD && zonelist_filter) {
+-			if (!did_zlc_setup) {
+-				/* do zlc_setup after the first zone is tried */
++			if (!did_zlc_setup && num_online_nodes() > 1) {
++				/*
++				 * do zlc_setup after the first zone is tried
++				 * but only if there are multiple nodes to make
++				 * it worthwhile
++				 */
+ 				allowednodes = zlc_setup(zonelist, alloc_flags);
+ 				zlc_active = 1;
+ 			}
 -- 
 1.5.6.5
 
