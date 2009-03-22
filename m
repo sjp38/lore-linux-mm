@@ -1,354 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 6AC446B003D
-	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 07:42:05 -0400 (EDT)
-Date: Sun, 22 Mar 2009 21:23:56 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <20090318105735.BD17.A69D9226@jp.fujitsu.com>
-References: <200903170323.45917.nickpiggin@yahoo.com.au> <20090318105735.BD17.A69D9226@jp.fujitsu.com>
-Message-Id: <20090322205249.6801.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 23D666B003D
+	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 09:37:24 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2MEJZMT024170
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 01:19:35 +1100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2MELZjL184738
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 01:21:38 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2MELHTD004322
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 01:21:18 +1100
+Date: Sun, 22 Mar 2009 19:51:05 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/5] Memory controller soft limit organize cgroups (v7)
+Message-ID: <20090322142105.GA24227@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain> <20090319165735.27274.96091.sendpatchset@localhost.localdomain> <20090320124639.83d22726.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090320124639.83d22726.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-20 12:46:39]:
 
-following patch is my v2 approach.
-it survive Andrea's three dio test-case.
+> On Thu, 19 Mar 2009 22:27:35 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > Feature: Organize cgroups over soft limit in a RB-Tree
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> > Changelog v7...v6
+> > 1. Refactor the check and update logic. The goal is to allow the
+> >    check logic to be modular, so that it can be revisited in the future
+> >    if something more appropriate is found to be useful.
+> > 
+> One of my motivation to this was "reducing if" in res_counter charege...
+> But ..plz see comment.
+> 
+> > Changelog v6...v5
+> > 1. Update the key before inserting into RB tree. Without the current change
+> >    it could take an additional iteration to get the key correct.
+> > 
+> > Changelog v5...v4
+> > 1. res_counter_uncharge has an additional parameter to indicate if the
+> >    counter was over its soft limit, before uncharge.
+> > 
+> > Changelog v4...v3
+> > 1. Optimizations to ensure we don't uncessarily get res_counter values
+> > 2. Fixed a bug in usage of time_after()
+> > 
+> > Changelog v3...v2
+> > 1. Add only the ancestor to the RB-Tree
+> > 2. Use css_tryget/css_put instead of mem_cgroup_get/mem_cgroup_put
+> > 
+> > Changelog v2...v1
+> > 1. Add support for hierarchies
+> > 2. The res_counter that is highest in the hierarchy is returned on soft
+> >    limit being exceeded. Since we do hierarchical reclaim and add all
+> >    groups exceeding their soft limits, this approach seems to work well
+> >    in practice.
+> > 
+> > This patch introduces a RB-Tree for storing memory cgroups that are over their
+> > soft limit. The overall goal is to
+> > 
+> > 1. Add a memory cgroup to the RB-Tree when the soft limit is exceeded.
+> >    We are careful about updates, updates take place only after a particular
+> >    time interval has passed
+> > 2. We remove the node from the RB-Tree when the usage goes below the soft
+> >    limit
+> > 
+> > The next set of patches will exploit the RB-Tree to get the group that is
+> > over its soft limit by the largest amount and reclaim from it, when we
+> > face memory contention.
+> > 
+> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > ---
+> > 
+> >  include/linux/res_counter.h |    6 +-
+> >  kernel/res_counter.c        |   18 +++++
+> >  mm/memcontrol.c             |  149 ++++++++++++++++++++++++++++++++++++++-----
+> >  3 files changed, 151 insertions(+), 22 deletions(-)
+> > 
+> > 
+> > diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+> > index 5c821fd..5bbf8b1 100644
+> > --- a/include/linux/res_counter.h
+> > +++ b/include/linux/res_counter.h
+> > @@ -112,7 +112,8 @@ void res_counter_init(struct res_counter *counter, struct res_counter *parent);
+> >  int __must_check res_counter_charge_locked(struct res_counter *counter,
+> >  		unsigned long val);
+> >  int __must_check res_counter_charge(struct res_counter *counter,
+> > -		unsigned long val, struct res_counter **limit_fail_at);
+> > +		unsigned long val, struct res_counter **limit_fail_at,
+> > +		struct res_counter **soft_limit_at);
+> >  
+> >  /*
+> >   * uncharge - tell that some portion of the resource is released
+> > @@ -125,7 +126,8 @@ int __must_check res_counter_charge(struct res_counter *counter,
+> >   */
+> >  
+> >  void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+> > -void res_counter_uncharge(struct res_counter *counter, unsigned long val);
+> > +void res_counter_uncharge(struct res_counter *counter, unsigned long val,
+> > +				bool *was_soft_limit_excess);
+> >  
+> >  static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
+> >  {
+> > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> > index 4e6dafe..51ec438 100644
+> > --- a/kernel/res_counter.c
+> > +++ b/kernel/res_counter.c
+> > @@ -37,17 +37,27 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val)
+> >  }
+> >  
+> >  int res_counter_charge(struct res_counter *counter, unsigned long val,
+> > -			struct res_counter **limit_fail_at)
+> > +			struct res_counter **limit_fail_at,
+> > +			struct res_counter **soft_limit_fail_at)
+> >  {
+> >  	int ret;
+> >  	unsigned long flags;
+> >  	struct res_counter *c, *u;
+> >  
+> >  	*limit_fail_at = NULL;
+> > +	if (soft_limit_fail_at)
+> > +		*soft_limit_fail_at = NULL;
+> >  	local_irq_save(flags);
+> >  	for (c = counter; c != NULL; c = c->parent) {
+> >  		spin_lock(&c->lock);
+> >  		ret = res_counter_charge_locked(c, val);
+> > +		/*
+> > +		 * With soft limits, we return the highest ancestor
+> > +		 * that exceeds its soft limit
+> > +		 */
+> > +		if (soft_limit_fail_at &&
+> > +			!res_counter_soft_limit_check_locked(c))
+> > +			*soft_limit_fail_at = c;
+> 
+> Is this correct way to go ? In following situation,
+> 
+>      A/       softlimit=1G usage=1.2G
+>        B1/     sfotlimit=400M usage=1G
+>          C/
+>        B2/    softlimit=400M usage=200M
+> 
+> "A" will be victim and both of B1 and B2 will be reclaim target, right ?
+> 
 
-Linus suggested to change add_to_swap() and shrink_page_list() stuff
-for avoid false cow in do_wp_page() when page become to swapcache.
+Yes, you remember we discussed adding the oldest ancestor in an older
+version. It was your suggestion to add the highest ancestor, have you
+changed your mind?
 
-I think it's good idea. but it's a bit radical. so I think it's for development
-tree tackle.
+> and I wonder we don't need *softlimit_failed_at*... here.
+> 
 
-Then, I decide to use Nick's early decow in 
-get_user_pages() and RO mapped page don't use gup_fast.
+Not sure I get your point, could you please clarify this?
 
-yeah, my approach is extream brutal way and big hammer. but I think 
-it don't have performance issue in real world.
+> <snip>
+> 
+> 
+> > +static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem,
+> > +					bool over_soft_limit)
+> > +{
+> > +	unsigned long next_update;
+> > +
+> > +	if (!over_soft_limit)
+> > +		return false;
+> > +
+> > +	next_update = mem->last_tree_update + MEM_CGROUP_TREE_UPDATE_INTERVAL;
+> > +	if (time_after(jiffies, next_update))
+> > +		return true;
+> > +
+> > +	return false;
+> > +}
+> 
+> If I write, this function will be
+> 
+> static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem, struct res_counter *failed_at)
+> {
+> 	next_update = mem->last_tree_update + MEM_CGROUP_TREE_UPDATE_INTERVAL;
+> 	if (!time_after(jiffies, next_update))
+> 		return true;
+> 	/* check softlimit */
+>         for (c = &mem->res; !c; c= c->parent) {
+> 		if (!res_counter_check_under_soft_limit(c)) {
+> 			failed_at =c;
+> 		}
+> 	}
+> 	return false;
+> }
+>
+> 
+> 	/*
+> 	 * Insert just the ancestor, we should trickle down to the correct
+> 	 * cgroup for reclaim, since the other nodes will be below their
+> 	 * soft limit
+> 	 */
+>         if (mem_cgroup_soft_limit_check(mem, &soft_fail_res)) {
+> 		mem_over_soft_limit =
+> 			mem_cgroup_from_res_counter(soft_fail_res, res);
+> 		mem_cgroup_update_tree(mem_over_soft_limit);
+> 	}
+> 
+> Then, we really do softlimit check once in interval.
 
-why?
+OK, so the trade-off is - every once per interval,
+I need to walk up res_counters all over again, hold all locks and
+check. Like I mentioned earlier, with the current approach I've
+reduced the overhead significantly for non-users. Earlier I was seeing
+a small loss in output with reaim, but since I changed
+res_counter_uncharge to track soft limits, that difference is negligible
+now.
 
-Practically, we can assume following two thing.
-
-(1) the buffer of passed write(2) syscall argument is RW mapped
-    page or COWed RO page.
-
-if anybody write following code, my path cause performance degression.
-
-   buf = mmap()
-   memset(buf, 0x11, len);
-   mprotect(buf, len, PROT_READ)
-   fd = open(O_DIRECT)
-   write(fd, buf, len)
-
-but it's very artifactical code. nobody want this.
-ok, we can ignore this.
-
-(2) DirectIO user process isn't short lived process.
-
-early decow only decrease short lived process performaqnce. 
-because long lived process do decowing anyway before exec(2).
-
-and, All DB application is definitely long lived process.
-then early decow don't cause degression.
-
-
-TODO
-  - implement down_write_killable().
-    (but it isn't important thing because this is rare case issue.)
-  - implement non x86 portion.
-
-
-Am I missing any thing?
-
-
-Note: this is still RFC. not intent submission.
-
---
- arch/x86/mm/gup.c         |   22 ++++++++++++++--------
- fs/direct-io.c            |   11 +++++++++++
- include/linux/init_task.h |    1 +
- include/linux/mm.h        |    9 +++++++++
- include/linux/mm_types.h  |    6 ++++++
- kernel/fork.c             |    3 +++
- mm/internal.h             |   10 ----------
- mm/memory.c               |   17 ++++++++++++++++-
- mm/util.c                 |    8 ++++++--
- 9 files changed, 66 insertions(+), 21 deletions(-)
-
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index be54176..02e479b 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -74,8 +74,10 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
- 	pte_t *ptep;
- 
- 	mask = _PAGE_PRESENT|_PAGE_USER;
--	if (write)
--		mask |= _PAGE_RW;
-+
-+	/* Maybe the read only pte is cow mapped page. (or not maybe)
-+	   So, falling back to get_user_pages() is better */
-+	mask |= _PAGE_RW;
- 
- 	ptep = pte_offset_map(&pmd, addr);
- 	do {
-@@ -114,8 +116,7 @@ static noinline int gup_huge_pmd(pmd_t pmd, unsigned long addr,
- 	int refs;
- 
- 	mask = _PAGE_PRESENT|_PAGE_USER;
--	if (write)
--		mask |= _PAGE_RW;
-+	mask |= _PAGE_RW;
- 	if ((pte_flags(pte) & mask) != mask)
- 		return 0;
- 	/* hugepages are never "special" */
-@@ -171,8 +172,7 @@ static noinline int gup_huge_pud(pud_t pud, unsigned long addr,
- 	int refs;
- 
- 	mask = _PAGE_PRESENT|_PAGE_USER;
--	if (write)
--		mask |= _PAGE_RW;
-+	mask |= _PAGE_RW;
- 	if ((pte_flags(pte) & mask) != mask)
- 		return 0;
- 	/* hugepages are never "special" */
-@@ -272,6 +272,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 
- 	{
- 		int ret;
-+		int gup_flags;
- 
- slow:
- 		local_irq_enable();
-@@ -280,9 +281,14 @@ slow_irqon:
- 		start += nr << PAGE_SHIFT;
- 		pages += nr;
- 
-+		gup_flags = GUP_FLAGS_PINNING_PAGE;
-+		if (write)
-+			gup_flags |= GUP_FLAGS_WRITE;
-+
- 		down_read(&mm->mmap_sem);
--		ret = get_user_pages(current, mm, start,
--			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
-+		ret = __get_user_pages(current, mm, start,
-+				       (end - start) >> PAGE_SHIFT, gup_flags,
-+				       pages, NULL);
- 		up_read(&mm->mmap_sem);
- 
- 		/* Have to be a bit careful with return values */
-diff --git a/fs/direct-io.c b/fs/direct-io.c
-index b6d4390..4f46720 100644
---- a/fs/direct-io.c
-+++ b/fs/direct-io.c
-@@ -131,6 +131,9 @@ struct dio {
- 	int is_async;			/* is IO async ? */
- 	int io_error;			/* IO error in completion path */
- 	ssize_t result;                 /* IO result */
-+
-+	/* fork exclusive stuff */
-+	struct mm_struct *mm;
- };
- 
- /*
-@@ -243,6 +246,9 @@ static int dio_complete(struct dio *dio, loff_t offset, int ret)
- 	if (dio->lock_type == DIO_LOCKING)
- 		/* lockdep: non-owner release */
- 		up_read_non_owner(&dio->inode->i_alloc_sem);
-+	up_read_non_owner(&dio->mm->mm_pinned_sem);
-+	mmdrop(dio->mm);
-+	dio->mm = NULL;
- 
- 	if (ret == 0)
- 		ret = dio->page_errors;
-@@ -942,6 +948,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
- 	ssize_t ret = 0;
- 	ssize_t ret2;
- 	size_t bytes;
-+	struct mm_struct *mm;
- 
- 	dio->inode = inode;
- 	dio->rw = rw;
-@@ -960,6 +967,10 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
- 	spin_lock_init(&dio->bio_lock);
- 	dio->refcount = 1;
- 
-+	mm = dio->mm = current->mm;
-+	atomic_inc(&mm->mm_count);
-+	down_read_non_owner(&mm->mm_pinned_sem);
-+
- 	/*
- 	 * In case of non-aligned buffers, we may need 2 more
- 	 * pages since we need to zero out first and last block.
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index e752d97..3bc134a 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -37,6 +37,7 @@ extern struct fs_struct init_fs;
- 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(name.page_table_lock),	\
- 	.mmlist		= LIST_HEAD_INIT(name.mmlist),		\
- 	.cpu_vm_mask	= CPU_MASK_ALL,				\
-+	.mm_pinned_sem	= __RWSEM_INITIALIZER(name.mm_pinned_sem), \
- }
- 
- #define INIT_SIGNALS(sig) {						\
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 065cdf8..dcc6ccc 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -823,6 +823,15 @@ static inline int handle_mm_fault(struct mm_struct *mm,
- extern int make_pages_present(unsigned long addr, unsigned long end);
- extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
- 
-+#define GUP_FLAGS_WRITE				0x01
-+#define GUP_FLAGS_FORCE				0x02
-+#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS	0x04
-+#define GUP_FLAGS_IGNORE_SIGKILL		0x08
-+#define GUP_FLAGS_PINNING_PAGE			0x10
-+
-+int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-+		     unsigned long start, int len, int flags,
-+		     struct page **pages, struct vm_area_struct **vmas);
- int get_user_pages(struct task_struct *tsk, struct mm_struct *mm, unsigned long start,
- 		int len, int write, int force, struct page **pages, struct vm_area_struct **vmas);
- 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index d84feb7..27089d9 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -274,6 +274,12 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+
-+	/*
-+	 * if there are on-flight directio or similar pinning action,
-+	 * COW cause memory corruption. the sem protect it by preventing fork.
-+	 */
-+	struct rw_semaphore mm_pinned_sem;
- };
- 
- /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 4854c2c..ded7caf 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -266,6 +266,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	unsigned long charge;
- 	struct mempolicy *pol;
- 
-+	down_write(&oldmm->mm_pinned_sem);
- 	down_write(&oldmm->mmap_sem);
- 	flush_cache_dup_mm(oldmm);
- 	/*
-@@ -368,6 +369,7 @@ out:
- 	up_write(&mm->mmap_sem);
- 	flush_tlb_mm(oldmm);
- 	up_write(&oldmm->mmap_sem);
-+	up_write(&oldmm->mm_pinned_sem);
- 	return retval;
- fail_nomem_policy:
- 	kmem_cache_free(vm_area_cachep, tmp);
-@@ -431,6 +433,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->cached_hole_size = ~0UL;
- 	mm_init_owner(mm, p);
-+	init_rwsem(&mm->mm_pinned_sem);
- 
- 	if (likely(!mm_alloc_pgd(mm))) {
- 		mm->def_flags = 0;
-diff --git a/mm/internal.h b/mm/internal.h
-index 478223b..04f25d2 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -272,14 +272,4 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
- {
- }
- #endif /* CONFIG_SPARSEMEM */
--
--#define GUP_FLAGS_WRITE                  0x1
--#define GUP_FLAGS_FORCE                  0x2
--#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
--#define GUP_FLAGS_IGNORE_SIGKILL         0x8
--
--int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
--		     unsigned long start, int len, int flags,
--		     struct page **pages, struct vm_area_struct **vmas);
--
- #endif
-diff --git a/mm/memory.c b/mm/memory.c
-index baa999e..b00e3e9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1211,6 +1211,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 	int force = !!(flags & GUP_FLAGS_FORCE);
- 	int ignore = !!(flags & GUP_FLAGS_IGNORE_VMA_PERMISSIONS);
- 	int ignore_sigkill = !!(flags & GUP_FLAGS_IGNORE_SIGKILL);
-+	int decow = 0;
- 
- 	if (len <= 0)
- 		return 0;
-@@ -1279,6 +1280,20 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			continue;
- 		}
- 
-+		/*
-+		 * Except in special cases where the caller will not read to or
-+		 * write from these pages, we must break COW for any pages
-+		 * returned from get_user_pages, so that our caller does not
-+		 * subsequently end up with the pages of a parent or child
-+		 * process after a COW takes place.
-+		 */
-+		if (flags & GUP_FLAGS_PINNING_PAGE) {
-+			if (!pages)
-+				return -EINVAL;
-+			if (is_cow_mapping(vma->vm_flags))
-+				decow = 1;
-+		}
-+
- 		foll_flags = FOLL_TOUCH;
- 		if (pages)
- 			foll_flags |= FOLL_GET;
-@@ -1299,7 +1314,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 					fatal_signal_pending(current)))
- 				return i ? i : -ERESTARTSYS;
- 
--			if (write)
-+			if (write || decow)
- 				foll_flags |= FOLL_WRITE;
- 
- 			cond_resched();
-diff --git a/mm/util.c b/mm/util.c
-index 37eaccd..a80d5d3 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -197,10 +197,14 @@ int __attribute__((weak)) get_user_pages_fast(unsigned long start,
- {
- 	struct mm_struct *mm = current->mm;
- 	int ret;
-+	int gup_flags = GUP_FLAGS_PINNING_PAGE;
-+
-+	if (write)
-+		gup_flags |= GUP_FLAGS_WRITE;
- 
- 	down_read(&mm->mmap_sem);
--	ret = get_user_pages(current, mm, start, nr_pages,
--					write, 0, pages, NULL);
-+	ret = __get_user_pages(current, mm, start, nr_pages,
-+			       gup_flags, pages, NULL);
- 	up_read(&mm->mmap_sem);
- 
- 	return ret;
+The issue I see with this approach is that if soft-limits were
+not enabled, even then we would need to walk up the hierarchy and do
+tests, where as embedding it in res_counter_charge, one simple check
+tells us we don't have more to do.
 
 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
