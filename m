@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 573B86B003D
-	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 13:52:35 -0400 (EDT)
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
-	by e23smtp09.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2MIP3Q0008428
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 05:25:03 +1100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2MIeknr491750
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 05:40:49 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2MIeSKi010716
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 05:40:29 +1100
-Date: Mon, 23 Mar 2009 00:10:15 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [BUGFIX][PATCH mmotm] memcg: try_get_mem_cgroup_from_swapcache
-	fix
-Message-ID: <20090322184015.GE24227@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090323000238.e650c65e.d-nishimura@mtf.biglobe.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090323000238.e650c65e.d-nishimura@mtf.biglobe.ne.jp>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 666496B003D
+	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 15:24:43 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 2/3] ramfs-nommu: use generic lru cache
+Date: Sun, 22 Mar 2009 21:13:03 +0100
+Message-Id: <1237752784-1989-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20090321102044.GA3427@cmpxchg.org>
+References: <20090321102044.GA3427@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: nishimura@mxp.nes.nec.co.jp
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.com>, MinChan Kim <minchan.kim@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-* Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> [2009-03-23 00:02:38]:
+Instead of open-coding the lru-list-add pagevec batching when
+expanding a file mapping from zero, defer to the appropriate page
+cache function that also takes care of adding the page to the lru
+list.
 
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> css_tryget can be called twice in !PageCgroupUsed case.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
-> This is a fix for cgroups-use-css-id-in-swap-cgroup-for-saving-memory-v5.patch
-> 
->  mm/memcontrol.c |   10 ++++------
->  1 files changed, 4 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 5de6be9..55dea59 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1027,9 +1027,11 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
->  	/*
->  	 * Used bit of swapcache is solid under page lock.
->  	 */
-> -	if (PageCgroupUsed(pc))
-> +	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
-> -	else {
-> +		if (mem && !css_tryget(&mem->css))
-> +			mem = NULL;
-> +	} else {
->  		ent.val = page_private(page);
->  		id = lookup_swap_cgroup(ent);
->  		rcu_read_lock();
-> @@ -1038,10 +1040,6 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
->  			mem = NULL;
->  		rcu_read_unlock();
->  	}
-> -	if (!mem)
-> -		return NULL;
-> -	if (!css_tryget(&mem->css))
-> -		return NULL;
->  	return mem;
->  }
+This is cleaner, saves code and reduces the stack footprint by 16
+words worth of pagevec.
 
-How did you detect the problem? Any test case/steps to reproduce the issue?
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Howells <dhowells@redhat.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.com>
+Cc: MinChan Kim <minchan.kim@gmail.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+---
+ fs/ramfs/file-nommu.c |   15 ++++-----------
+ 1 files changed, 4 insertions(+), 11 deletions(-)
 
-
+diff --git a/fs/ramfs/file-nommu.c b/fs/ramfs/file-nommu.c
+index 5d7c7ec..351192a 100644
+--- a/fs/ramfs/file-nommu.c
++++ b/fs/ramfs/file-nommu.c
+@@ -60,7 +60,6 @@ const struct inode_operations ramfs_file_inode_operations = {
+  */
+ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ {
+-	struct pagevec lru_pvec;
+ 	unsigned long npages, xpages, loop, limit;
+ 	struct page *pages;
+ 	unsigned order;
+@@ -103,24 +102,20 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ 	memset(data, 0, newsize);
+ 
+ 	/* attach all the pages to the inode's address space */
+-	pagevec_init(&lru_pvec, 0);
+ 	for (loop = 0; loop < npages; loop++) {
+ 		struct page *page = pages + loop;
+ 
+-		ret = add_to_page_cache(page, inode->i_mapping, loop, GFP_KERNEL);
++		ret = add_to_page_cache_lru(page, inode->i_mapping, loop,
++					GFP_KERNEL);
+ 		if (ret < 0)
+ 			goto add_error;
+ 
+-		if (!pagevec_add(&lru_pvec, page))
+-			__pagevec_lru_add_file(&lru_pvec);
+-
+ 		/* prevent the page from being discarded on memory pressure */
+ 		SetPageDirty(page);
+ 
+ 		unlock_page(page);
+ 	}
+ 
+-	pagevec_lru_add_file(&lru_pvec);
+ 	return 0;
+ 
+  fsize_exceeded:
+@@ -129,10 +124,8 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+ 	return -EFBIG;
+ 
+  add_error:
+-	pagevec_lru_add_file(&lru_pvec);
+-	page_cache_release(pages + loop);
+-	for (loop++; loop < npages; loop++)
+-		__free_page(pages + loop);
++	while (loop < npages)
++		__free_page(pages + loop++);
+ 	return ret;
+ }
+ 
 -- 
-	Balbir
+1.6.2.1.135.gde769
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
