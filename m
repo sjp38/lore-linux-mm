@@ -1,409 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id A6EC96B003D
-	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 21:01:48 -0400 (EDT)
-Date: Mon, 23 Mar 2009 10:45:55 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v3
-Message-Id: <20090323104555.cb7cd059.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090320164520.f969907a.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-	<20090317162950.70c1245c.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090317183850.67c35b27.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090318101727.f00dfc2f.nishimura@mxp.nes.nec.co.jp>
-	<20090318103418.7d38dce0.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
-	<20090318175734.f5a8a446.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090318231738.4e042cbd.d-nishimura@mtf.biglobe.ne.jp>
-	<20090319084523.1fbcc3cb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090319111629.dcc9fe43.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090319180631.44b0130f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090319190118.db8a1dd7.nishimura@mxp.nes.nec.co.jp>
-	<20090319191321.6be9b5e8.nishimura@mxp.nes.nec.co.jp>
-	<100477cfc6c3c775abc7aecd4ce8c46e.squirrel@webmail-b.css.fujitsu.com>
-	<432ace3655a26d2d492a56303369a88a.squirrel@webmail-b.css.fujitsu.com>
-	<20090320164520.f969907a.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id D4B896B004D
+	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 21:06:29 -0400 (EDT)
+Date: Mon, 23 Mar 2009 01:57:26 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: [PATCH] shmem: writepage directly to swap
+Message-ID: <Pine.LNX.4.64.0903230151140.11883@blonde.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Nick Piggin <npiggin@suse.de>, Lin Ming <ming.m.lin@intel.com>, Christoph Lameter <cl@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Rohland <hans-christoph.rohland@sap.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-It might be a nitpick, but I think this patch cannot handle the case:
+Synopsis: if shmem_writepage calls swap_writepage directly, most shmem swap
+loads benefit, and a catastrophic interaction between SLUB and some flash
+storage is avoided.
 
-            processA                   |           processB
-  -------------------------------------+-------------------------------------
-    (free_swap_and_cache())            |  (read_swap_cache_async())
-                                       |    swap_duplicate()
-      swap_entry_free() == 1           |
-      find_get_page() -> cannot find   |
-                                       |    __set_page_locked()
-                                       |    add_to_swap_cache()
-                                       |    lru_cache_add_anon()
-                                       |      doesn't link this page to memcg's
-                                       |      LRU, because of !PageCgroupUsed.
+shmem_writepage() has always been peculiar in making no attempt to write:
+it has just transferred a shmem page from file cache to swap cache, then let
+that page make its way around the LRU again before being written and freed.
 
-And I think we should avoid changing non-memcg code as long as possible,
-so I prefer orphan list approach.
+The idea was that people use tmpfs because they want those pages to stay in
+RAM; so although we give it an overflow to swap, we should resist writing
+too soon, giving those pages a second chance before they can be reclaimed.
 
-The cause of an odd behavior of the previous orphan list patch is 
-the race between commit_charge_swapin and lru_add.
-PCG_ORPHAN flags is set by lru_add, so it cannot be seen while the
-page is on pvec(on another cpu). So, lru_del_before_commit_swapcache
-cannot remove the pc from orphan list.
+That was always questionable, and I've toyed with this patch for years;
+but never had a clear justification to depart from the original design.
 
-How about this patch ?
-It(rebased on mmotm) worked well(applied -rc8+some patches) during last night
-on my note-pc(i386, 2CPU, 2GB).
+It became more questionable in 2.6.28, when the split LRU patches classed
+shmem and tmpfs pages as SwapBacked rather than as file_cache: that in
+itself gives them more resistance to reclaim than normal file pages.
+I prepared this patch for 2.6.29, but the merge window arrived before
+I'd completed gathering statistics to justify sending it in.
 
-- change cache_charge to use try_charge_swapin() and commit_charge_swapin()
-  when PageSwapCache.
-- keep zone->lru_lock while commit_charge if needed to protect PCG_ORPHAN.
+Then while comparing SLQB against SLUB, running SLUB on a laptop I'd
+habitually used with SLAB, I found SLUB to run my tmpfs kbuild swapping
+tests five times slower than SLAB or SLQB - other machines slower too,
+but nowhere near so bad.  Simpler "cp -a" swapping tests showed the same.
 
-It only introduces orphan list and doesn't implement the reclaim part.
+slub_max_order=0 brings sanity to all, but heavy swapping is too far from
+normal to justify such a tuning.  The crucial factor on that laptop turns
+out to be that I'm using an SD card for swap.  What happens is this:
 
-I can post a patch only for changing cache_charge if you want.
+By default, SLUB uses order-2 pages for shmem_inode_cache (and many other
+fs inodes), so creating tmpfs files under memory pressure brings lumpy
+reclaim into play.  One subpage of the order is chosen from the bottom
+of the LRU as usual, then the other three picked out from their random
+positions on the LRUs.
 
+In a tmpfs load, many of these pages will be ones which already passed
+through shmem_writepage, so already have swap allocated.  And though
+their offsets on swap were probably allocated sequentially, now that
+the pages are picked off at random, their swap offsets are scattered.
 
-Thanks,
-Daisuke Nishimura.
-===
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+But the flash storage on the SD card is very sensitive to having its
+writes merged: once swap is written at scattered offsets, performance
+falls apart.  Rotating disk seeks increase too, but less disastrously.
+
+So: stop giving shmem/tmpfs pages a second pass around the LRU,
+write them out to swap as soon as their swap has been allocated.
+
+It's surely possible to devise an artificial load which runs faster
+the old way, one whose sizing is such that the tmpfs pages on their
+second pass are the ones that are wanted again, and other pages not.
+
+But I've not yet found such a load: on all machines, under the loads
+I've tried, immediate swap_writepage speeds up shmem swapping: especially
+when using the SLUB allocator (and more effectively than slub_max_order=0),
+but also with the others; and it also reduces the variance between runs.
+How much faster varies widely: a factor of five is rare, 5% is common.
+
+One load which might have suffered: imagine a swapping shmem load in a
+limited mem_cgroup on a machine with plenty of memory.  Before 2.6.29
+the swapcache was not charged, and such a load would have run quickest
+with the shmem swapcache never written to swap.  But now swapcache is
+charged, so even this load benefits from shmem_writepage directly to swap.
+
+Apologies for the #ifndef CONFIG_SWAP swap_writepage() stub in swap.h:
+it's silly because that will never get called; but refactoring shmem.c
+sensibly according to CONFIG_SWAP will be a separate task.
+
+Signed-off-by: Hugh Dickins <hugh@veritas.com>
 ---
- include/linux/page_cgroup.h |   13 +++
- mm/memcontrol.c             |  203 ++++++++++++++++++++++++++-----------------
- 2 files changed, 135 insertions(+), 81 deletions(-)
 
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 7339c7b..47ad25c 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -26,6 +26,7 @@ enum {
- 	PCG_LOCK,  /* page cgroup is locked */
- 	PCG_CACHE, /* charged as cache */
- 	PCG_USED, /* this object is in use. */
-+	PCG_ORPHAN, /* this is not used from memcg:s view but on global LRU */
- };
+ include/linux/swap.h |    5 +++++
+ mm/shmem.c           |    3 +--
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+--- 2.6.29-rc8/include/linux/swap.h	2009-01-11 01:33:38.000000000 +0000
++++ linux/include/linux/swap.h	2009-03-22 20:52:03.000000000 +0000
+@@ -382,6 +382,11 @@ static inline struct page *swapin_readah
+ 	return NULL;
+ }
  
- #define TESTPCGFLAG(uname, lname)			\
-@@ -40,12 +41,24 @@ static inline void SetPageCgroup##uname(struct page_cgroup *pc)\
- static inline void ClearPageCgroup##uname(struct page_cgroup *pc)	\
- 	{ clear_bit(PCG_##lname, &pc->flags);  }
- 
-+#define TESTSETPCGFLAG(uname, lname) \
-+static inline int TestSetPageCgroup##uname(struct page_cgroup *pc) \
-+	{ return test_and_set_bit(PCG_##lname, &pc->flags); }
-+
-+#define TESTCLEARPCGFLAG(uname, lname) \
-+static inline int TestClearPageCgroup##uname(struct page_cgroup *pc) \
-+	{ return test_and_clear_bit(PCG_##lname, &pc->flags); }
-+
- /* Cache flag is set only once (at allocation) */
- TESTPCGFLAG(Cache, CACHE)
- 
- TESTPCGFLAG(Used, USED)
- CLEARPCGFLAG(Used, USED)
- 
-+TESTPCGFLAG(Orphan, ORPHAN)
-+TESTSETPCGFLAG(Orphan, ORPHAN)
-+TESTCLEARPCGFLAG(Orphan, ORPHAN)
-+
- static inline int page_cgroup_nid(struct page_cgroup *pc)
- {
- 	return page_to_nid(pc->page);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 55dea59..39cf11f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -371,6 +371,50 @@ static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
-  * When moving account, the page is not on LRU. It's isolated.
-  */
- 
-+/*
-+ * Orphan List is a list for page_cgroup which is not free but not under
-+ * any cgroup. SwapCache which is prefetched by readahead() is typical type but
-+ * there are other corner cases.
-+ *
-+ * Usually, updates to this list happens when swap cache is readaheaded and
-+ * finally used by process.
-+ */
-+
-+/* for orphan page_cgroups, updated under zone->lru_lock. */
-+
-+struct orphan_list_node {
-+	struct orphan_list_zone {
-+		struct list_head list;
-+	} zone[MAX_NR_ZONES];
-+};
-+struct orphan_list_node *orphan_list[MAX_NUMNODES] __read_mostly;
-+
-+static inline struct orphan_list_zone *orphan_lru(int nid, int zid)
++static inline int swap_writepage(struct page *p, struct writeback_control *wbc)
 +{
-+	/*
-+	 * 2 cases for this BUG_ON(), swapcache is generated while init.
-+	 * or NID should be invalid.
-+	 */
-+	BUG_ON(!orphan_list[nid]);
-+	return  &orphan_list[nid]->zone[zid];
++	return 0;
 +}
 +
-+static inline void remove_orphan_list(struct page_cgroup *pc)
-+{
-+	if (TestClearPageCgroupOrphan(pc))
-+		list_del_init(&pc->lru);
-+}
-+
-+static void add_orphan_list(struct page *page, struct page_cgroup *pc)
-+{
-+	if (!TestSetPageCgroupOrphan(pc)) {
-+		struct orphan_list_zone *opl;
-+		opl = orphan_lru(page_to_nid(page), page_zonenum(page));
-+		list_add_tail(&pc->lru, &opl->list);
-+	}
-+}
-+
-+
- void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+ static inline struct page *lookup_swap_cache(swp_entry_t swp)
  {
- 	struct page_cgroup *pc;
-@@ -380,6 +424,14 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
- 	if (mem_cgroup_disabled())
- 		return;
- 	pc = lookup_page_cgroup(page);
-+	/*
-+	 * If the page is SwapCache and already on global LRU, it will be on
-+	 * orphan list. remove here
-+	 */
-+	if (unlikely(PageCgroupOrphan(pc))) {
-+		remove_orphan_list(pc);
-+		return;
-+	}
- 	/* can happen while we handle swapcache. */
- 	if (list_empty(&pc->lru) || !pc->mem_cgroup)
- 		return;
-@@ -433,51 +485,17 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
- 	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
- 	 */
- 	smp_rmb();
--	if (!PageCgroupUsed(pc))
--		return;
-+	if (!PageCgroupUsed(pc)) {
-+		/* handle swap cache here */
-+		add_orphan_list(page, pc);
-+ 		return;
-+	}
- 
- 	mz = page_cgroup_zoneinfo(pc);
- 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
- 	list_add(&pc->lru, &mz->lists[lru]);
- }
- 
--/*
-- * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
-- * lru because the page may.be reused after it's fully uncharged (because of
-- * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
-- * it again. This function is only used to charge SwapCache. It's done under
-- * lock_page and expected that zone->lru_lock is never held.
-- */
--static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
--{
--	unsigned long flags;
--	struct zone *zone = page_zone(page);
--	struct page_cgroup *pc = lookup_page_cgroup(page);
--
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	/*
--	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
--	 * is guarded by lock_page() because the page is SwapCache.
--	 */
--	if (!PageCgroupUsed(pc))
--		mem_cgroup_del_lru_list(page, page_lru(page));
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
--}
--
--static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
--{
--	unsigned long flags;
--	struct zone *zone = page_zone(page);
--	struct page_cgroup *pc = lookup_page_cgroup(page);
--
--	spin_lock_irqsave(&zone->lru_lock, flags);
--	/* link when the page is linked to LRU but page_cgroup isn't */
--	if (PageLRU(page) && list_empty(&pc->lru))
--		mem_cgroup_add_lru_list(page, page_lru(page));
--	spin_unlock_irqrestore(&zone->lru_lock, flags);
--}
--
--
- void mem_cgroup_move_lists(struct page *page,
- 			   enum lru_list from, enum lru_list to)
- {
-@@ -784,6 +802,24 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
- 	return num;
- }
- 
-+static __init void init_orphan_lru(void)
-+{
-+	struct orphan_list_node *opl;
-+	int nid, zid;
-+	int size = sizeof(struct orphan_list_node);
-+
-+	for_each_node_state(nid, N_POSSIBLE) {
-+		if (node_state(nid, N_NORMAL_MEMORY))
-+			opl = kmalloc_node(size,  GFP_KERNEL, nid);
-+		else
-+			opl = kmalloc(size, GFP_KERNEL);
-+		BUG_ON(!opl);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++)
-+			INIT_LIST_HEAD(&opl->zone[zid].list);
-+		orphan_list[nid] = opl;
-+	}
-+}
-+
- /*
-  * Visit the first child (need not be the first child as per the ordering
-  * of the cgroup list, since we track last_scanned_child) of @mem and use
-@@ -1238,6 +1274,10 @@ int mem_cgroup_newpage_charge(struct page *page,
- 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
- }
- 
-+static void
-+__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
-+					enum charge_type ctype);
-+
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
-@@ -1274,16 +1314,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		unlock_page_cgroup(pc);
- 	}
- 
--	if (do_swap_account && PageSwapCache(page)) {
--		mem = try_get_mem_cgroup_from_swapcache(page);
--		if (mem)
--			mm = NULL;
--		  else
--			mem = NULL;
--		/* SwapCache may be still linked to LRU now. */
--		mem_cgroup_lru_del_before_commit_swapcache(page);
--	}
--
- 	if (unlikely(!mm && !mem))
- 		mm = &init_mm;
- 
-@@ -1291,32 +1321,16 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		return mem_cgroup_charge_common(page, mm, gfp_mask,
- 				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
- 
--	ret = mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
--	if (mem)
--		css_put(&mem->css);
--	if (PageSwapCache(page))
--		mem_cgroup_lru_add_after_commit_swapcache(page);
-+	/* shmem */
-+	if (PageSwapCache(page)) {
-+		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
-+		if (!ret)
-+			__mem_cgroup_commit_charge_swapin(page, mem,
-+					MEM_CGROUP_CHARGE_TYPE_SHMEM);
-+	} else
-+		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
-+					MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
- 
--	if (do_swap_account && !ret && PageSwapCache(page)) {
--		swp_entry_t ent = {.val = page_private(page)};
--		unsigned short id;
--		/* avoid double counting */
--		id = swap_cgroup_record(ent, 0);
--		rcu_read_lock();
--		mem = mem_cgroup_lookup(id);
--		if (mem) {
--			/*
--			 * We did swap-in. Then, this entry is doubly counted
--			 * both in mem and memsw. We uncharge it, here.
--			 * Recorded ID can be obsolete. We avoid calling
--			 * css_tryget()
--			 */
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
--			mem_cgroup_put(mem);
--		}
--		rcu_read_unlock();
--	}
- 	return ret;
- }
- 
-@@ -1359,18 +1373,40 @@ charge_cur_mm:
- 	return __mem_cgroup_try_charge(mm, mask, ptr, true);
- }
- 
--void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-+static void
-+__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
-+					enum charge_type ctype)
- {
--	struct page_cgroup *pc;
-+	unsigned long flags;
-+	struct zone *zone = page_zone(page);
-+	struct page_cgroup *pc = lookup_page_cgroup(page);
-+	int locked = 0;
- 
- 	if (mem_cgroup_disabled())
- 		return;
- 	if (!ptr)
- 		return;
--	pc = lookup_page_cgroup(page);
--	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
--	mem_cgroup_lru_add_after_commit_swapcache(page);
-+
-+	/*
-+	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
-+	 * is guarded by lock_page() because the page is SwapCache.
-+	 * If this pc is on orphan LRU, it is also removed from orphan LRU here.
-+	 */
-+	if (!PageCgroupUsed(pc)) {
-+		locked = 1;
-+		spin_lock_irqsave(&zone->lru_lock, flags);
-+		mem_cgroup_del_lru_list(page, page_lru(page));
-+	}
-+
-+	__mem_cgroup_commit_charge(ptr, pc, ctype);
-+
-+	if (locked) {
-+		/* link when the page is linked to LRU but page_cgroup isn't */
-+		if (PageLRU(page) && list_empty(&pc->lru))
-+			mem_cgroup_add_lru_list(page, page_lru(page));
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	}
-+
- 	/*
- 	 * Now swap is on-memory. This means this page may be
- 	 * counted both as mem and swap....double count.
-@@ -1396,8 +1432,12 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
- 		}
- 		rcu_read_unlock();
- 	}
--	/* add this page(page_cgroup) to the LRU we want. */
-+}
- 
-+void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-+{
-+	__mem_cgroup_commit_charge_swapin(page, ptr,
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED);
- }
- 
- void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
-@@ -2452,6 +2492,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
- 	/* root ? */
- 	if (cont->parent == NULL) {
- 		enable_swap_cgroup();
-+		init_orphan_lru();
- 		parent = NULL;
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
+ 	return NULL;
+--- 2.6.29-rc8/mm/shmem.c	2009-03-04 10:04:43.000000000 +0000
++++ linux/mm/shmem.c	2009-03-22 20:52:03.000000000 +0000
+@@ -1067,8 +1067,7 @@ static int shmem_writepage(struct page *
+ 		swap_duplicate(swap);
+ 		BUG_ON(page_mapped(page));
+ 		page_cache_release(page);	/* pagecache ref */
+-		set_page_dirty(page);
+-		unlock_page(page);
++		swap_writepage(page, wbc);
+ 		if (inode) {
+ 			mutex_lock(&shmem_swaplist_mutex);
+ 			/* move instead of add in case we're racing */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
