@@ -1,99 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E82036B0047
-	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 19:51:00 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id f25so1365008rvb.26
-        for <linux-mm@kvack.org>; Sun, 22 Mar 2009 17:44:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1237752784-1989-3-git-send-email-hannes@cmpxchg.org>
-References: <20090321102044.GA3427@cmpxchg.org>
-	 <1237752784-1989-3-git-send-email-hannes@cmpxchg.org>
-Date: Mon, 23 Mar 2009 09:44:42 +0900
-Message-ID: <28c262360903221744r6d275294gdc8ad3a12b8c5361@mail.gmail.com>
-Subject: Re: [patch 3/3] mm: keep pages from unevictable mappings off the LRU
-	lists
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 3AFD86B0047
+	for <linux-mm@kvack.org>; Sun, 22 Mar 2009 20:11:20 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2N15NAZ004275
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 23 Mar 2009 10:05:23 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E967E45DE55
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:05:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C19FE45DE51
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:05:22 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A417EE38005
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:05:22 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4921A1DB803C
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:05:22 +0900 (JST)
+Date: Mon, 23 Mar 2009 10:03:56 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] fix vmscan to take care of nodemask
+Message-Id: <20090323100356.e980d266.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, mel@csn.ul.ie, riel@redhat.com"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hmm,,
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-This patch is another thing unlike previous series patches.
-Firstly, It looked good to me.
+try_to_free_pages() scans zonelist but doesn't take care of nodemask which is
+passed to alloc_pages_nodemask(). This makes try_to_free_pages() less effective.
 
-I think add_to_page_cache_lru have to become a fast path.
-But, how often would ramfs and shmem function be called ?
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+---
+ fs/buffer.c          |    2 +-
+ include/linux/swap.h |    2 +-
+ mm/page_alloc.c      |    3 ++-
+ mm/vmscan.c          |   14 ++++++++++++--
+ 4 files changed, 16 insertions(+), 5 deletions(-)
 
-I have a concern for this patch to add another burden.
-so, we need any numbers for getting pros and cons.
-
-Any thoughts ?
-
-On Mon, Mar 23, 2009 at 5:13 AM, Johannes Weiner <hannes@cmpxchg.org> wrote=
-:
-> Check if the mapping is evictable when initially adding page cache
-> pages to the LRU lists. =C2=A0If that is not the case, add them to the
-> unevictable list immediately instead of leaving it up to the reclaim
-> code to move them there.
->
-> This is useful for ramfs and locked shmem which mark whole mappings as
-> unevictable and we know at fault time already that it is useless to
-> try reclaiming these pages.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: David Howells <dhowells@redhat.com>
-> Cc: Nick Piggin <npiggin@suse.de>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Peter Zijlstra <peterz@infradead.com>
-> Cc: MinChan Kim <minchan.kim@gmail.com>
-> Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> ---
-> =C2=A0mm/filemap.c | =C2=A0 =C2=A04 +++-
-> =C2=A01 files changed, 3 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 23acefe..8574530 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -506,7 +506,9 @@ int add_to_page_cache_lru(struct page *page, struct a=
-ddress_space *mapping,
->
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0ret =3D add_to_page_cache(page, mapping, offse=
-t, gfp_mask);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (ret =3D=3D 0) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (page_is_file_cache=
-(page))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (mapping_unevictabl=
-e(mapping))
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 add_page_to_unevictable_list(page);
-> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 else if (page_is_file_=
-cache(page))
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0lru_cache_add_file(page);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0else
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0lru_cache_add_active_anon(page);
-> --
-> 1.6.2.1.135.gde769
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->
-
-
-
---=20
-Kinds regards,
-Minchan Kim
+Index: mmotm-2.6.29-Mar21/mm/vmscan.c
+===================================================================
+--- mmotm-2.6.29-Mar21.orig/mm/vmscan.c
++++ mmotm-2.6.29-Mar21/mm/vmscan.c
+@@ -79,6 +79,9 @@ struct scan_control {
+ 	/* Which cgroup do we reclaim from */
+ 	struct mem_cgroup *mem_cgroup;
+ 
++	/* Nodemask */
++	nodemask_t	*nodemask;
++
+ 	/* Pluggable isolate pages callback */
+ 	unsigned long (*isolate_pages)(unsigned long nr, struct list_head *dst,
+ 			unsigned long *scanned, int order, int mode,
+@@ -1544,7 +1547,9 @@ static void shrink_zones(int priority, s
+ 	struct zone *zone;
+ 
+ 	sc->all_unreclaimable = 1;
+-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
++	/* Note: sc->nodemask==NULL means scan all node */
++	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
++					sc->nodemask) {
+ 		if (!populated_zone(zone))
+ 			continue;
+ 		/*
+@@ -1689,7 +1694,7 @@ out:
+ }
+ 
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+-								gfp_t gfp_mask)
++				gfp_t gfp_mask, nodemask_t *nodemask)
+ {
+ 	struct scan_control sc = {
+ 		.gfp_mask = gfp_mask,
+@@ -1700,6 +1705,7 @@ unsigned long try_to_free_pages(struct z
+ 		.order = order,
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
++		.nodemask = nodemask,
+ 	};
+ 
+ 	return do_try_to_free_pages(zonelist, &sc);
+@@ -1720,6 +1726,7 @@ unsigned long try_to_free_mem_cgroup_pag
+ 		.order = 0,
+ 		.mem_cgroup = mem_cont,
+ 		.isolate_pages = mem_cgroup_isolate_pages,
++		.nodemask = NULL,
+ 	};
+ 	struct zonelist *zonelist;
+ 
+@@ -1769,6 +1776,7 @@ static unsigned long balance_pgdat(pg_da
+ 		.order = order,
+ 		.mem_cgroup = NULL,
+ 		.isolate_pages = isolate_pages_global,
++		.nodemask = NULL,
+ 	};
+ 	/*
+ 	 * temp_priority is used to remember the scanning priority at which
+@@ -2112,6 +2120,7 @@ unsigned long shrink_all_memory(unsigned
+ 		.may_unmap = 0,
+ 		.may_writepage = 1,
+ 		.isolate_pages = isolate_pages_global,
++		.nodemask = NULL,
+ 	};
+ 
+ 	current->reclaim_state = &reclaim_state;
+@@ -2298,6 +2307,7 @@ static int __zone_reclaim(struct zone *z
+ 		.swappiness = vm_swappiness,
+ 		.order = order,
+ 		.isolate_pages = isolate_pages_global,
++		.nodemask = NULL,
+ 	};
+ 	unsigned long slab_reclaimable;
+ 
+Index: mmotm-2.6.29-Mar21/include/linux/swap.h
+===================================================================
+--- mmotm-2.6.29-Mar21.orig/include/linux/swap.h
++++ mmotm-2.6.29-Mar21/include/linux/swap.h
+@@ -213,7 +213,7 @@ static inline void lru_cache_add_active_
+ 
+ /* linux/mm/vmscan.c */
+ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+-					gfp_t gfp_mask);
++					gfp_t gfp_mask, nodemask_t *mask);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ 						  gfp_t gfp_mask, bool noswap,
+ 						  unsigned int swappiness);
+Index: mmotm-2.6.29-Mar21/mm/page_alloc.c
+===================================================================
+--- mmotm-2.6.29-Mar21.orig/mm/page_alloc.c
++++ mmotm-2.6.29-Mar21/mm/page_alloc.c
+@@ -1598,7 +1598,8 @@ nofail_alloc:
+ 	reclaim_state.reclaimed_slab = 0;
+ 	p->reclaim_state = &reclaim_state;
+ 
+-	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
++	did_some_progress = try_to_free_pages(zonelist, order,
++						gfp_mask, nodemask);
+ 
+ 	p->reclaim_state = NULL;
+ 	lockdep_clear_current_reclaim_state();
+Index: mmotm-2.6.29-Mar21/fs/buffer.c
+===================================================================
+--- mmotm-2.6.29-Mar21.orig/fs/buffer.c
++++ mmotm-2.6.29-Mar21/fs/buffer.c
+@@ -476,7 +476,7 @@ static void free_more_memory(void)
+ 						&zone);
+ 		if (zone)
+ 			try_to_free_pages(node_zonelist(nid, GFP_NOFS), 0,
+-						GFP_NOFS);
++						GFP_NOFS, NULL);
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
