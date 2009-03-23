@@ -1,138 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B1C6B009C
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 00:17:44 -0400 (EDT)
-Date: Mon, 23 Mar 2009 14:12:26 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: [cleanup][PATCH mmotm] memcg: cleanup cache_charge
-Message-Id: <20090323141226.68be59ec.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E68F46B009F
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 00:25:23 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2N5NFtf013632
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:53:15 +0530
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2N5N8T4319678
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:53:08 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2N5MxWG006936
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 16:22:59 +1100
+Date: Mon, 23 Mar 2009 10:52:47 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/5] Memory controller soft limit patches (v7)
+Message-ID: <20090323052247.GJ24227@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain> <20090323125005.0d8a7219.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090323125005.0d8a7219.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@linux.vnet.ibm.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-mm <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-23 12:50:05]:
 
-Current mem_cgroup_cache_charge is a bit complicated especially
-in the case of shmem's swap-in.
+> On Thu, 19 Mar 2009 22:27:13 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> > New Feature: Soft limits for memory resource controller.
+> > 
+> > Changelog v7...v6
+> > 1. Added checks in reclaim path to make sure we don't infinitely loop
+> > 2. Refactored reclaim options into a new patch
+> > 3. Tested several scenarios, see tests below
+> > 
+> > Changelog v6...v5
+> > 1. If the number of reclaimed pages are zero, select the next mem cgroup
+> >    for reclamation
+> > 2. Fixed a bug, where key was being updated after insertion into the tree
+> > 3. Fixed a build issue, when CONFIG_MEM_RES_CTLR is not enabled
+> > 
+> > Changelog v5...v4
+> > 1. Several changes to the reclaim logic, please see the patch 4 (reclaim on
+> >    contention). I've experimented with several possibilities for reclaim
+> >    and chose to come back to this due to the excellent behaviour seen while
+> >    testing the patchset.
+> > 2. Reduced the overhead of soft limits on resource counters very significantly.
+> >    Reaim benchmark now shows almost no drop in performance.
+> > 
+> > Changelog v4...v3
+> > 1. Adopted suggestions from Kamezawa to do a per-zone-per-node reclaim
+> >    while doing soft limit reclaim. We don't record priorities while
+> >    doing soft reclaim
+> > 2. Some of the overheads associated with soft limits (like calculating
+> >    excess each time) is eliminated
+> > 3. The time_after(jiffies, 0) bug has been fixed
+> > 4. Tasks are throttled if the mem cgroup they belong to is being soft reclaimed
+> >    and at the same time tasks are increasing the memory footprint and causing
+> >    the mem cgroup to exceed its soft limit.
+> > 
+> > Changelog v3...v2
+> > 1. Implemented several review comments from Kosaki-San and Kamezawa-San
+> >    Please see individual changelogs for changes
+> > 
+> > Changelog v2...v1
+> > 1. Soft limits now support hierarchies
+> > 2. Use spinlocks instead of mutexes for synchronization of the RB tree
+> > 
+> > Here is v7 of the new soft limit implementation. Soft limits is a new feature
+> > for the memory resource controller, something similar has existed in the
+> > group scheduler in the form of shares. The CPU controllers interpretation
+> > of shares is very different though. 
+> > 
+> > Soft limits are the most useful feature to have for environments where
+> > the administrator wants to overcommit the system, such that only on memory
+> > contention do the limits become active. The current soft limits implementation
+> > provides a soft_limit_in_bytes interface for the memory controller and not
+> > for memory+swap controller. The implementation maintains an RB-Tree of groups
+> > that exceed their soft limit and starts reclaiming from the group that
+> > exceeds this limit by the maximum amount.
+> > 
+> > So far I have the best test results with this patchset. I've experimented with
+> > several approaches and methods. I might be a little delayed in responding,
+> > I might have intermittent access to the internet for the next few days.
+> > 
+> > TODOs
+> > 
+> > 1. The current implementation maintains the delta from the soft limit
+> >    and pushes back groups to their soft limits, a ratio of delta/soft_limit
+> >    might be more useful
+> > 
+> > 
+> > Tests
+> > -----
+> > 
+> > I've run two memory intensive workloads with differing soft limits and
+> > seen that they are pushed back to their soft limit on contention. Their usage
+> > was their soft limit plus additional memory that they were able to grab
+> > on the system. Soft limit can take a while before we see the expected
+> > results.
+> > 
+> > The other tests I've run are
+> > 1. Deletion of groups while soft limit is in progress in the hierarchy
+> > 2. Setting the soft limit to zero and running other groups with non-zero
+> >    soft limits.
+> > 3. Setting the soft limit to zero and testing if the mem cgroup is able
+> >    to use available memory
+> > 4. Tested the patches with hierarchy enabled
+> > 5. Tested with swapoff -a, to make sure we don't go into an infinite loop
+> > 
+> > Please review, comment.
+> > 
+> 
+> please add text to explain the behaior, what happens in the following situation.
+> 
+> 
+>    /group_A .....softlimit=100M usage=ANON=1G,FILE=1M
+>    /group_B .....softlimit=200M usage=ANON=1G,FILE=1M
+>    /group_C .....softlimit=300M
+>    on swap-available/swap-less/swap-full system.
+> 
+>   And Run run "dd" or "cp" of big files under group_C.
 
-This patch cleans it up by using try_charge_swapin and commit_charge_swapin.
+That depends on the memory on the system, on my system with 4G, things
+run just fine.
 
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
----
- mm/memcontrol.c |   60 +++++++++++++++++++++---------------------------------
- 1 files changed, 23 insertions(+), 37 deletions(-)
+I tried the following
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 55dea59..2fc6d6c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1238,6 +1238,10 @@ int mem_cgroup_newpage_charge(struct page *page,
- 				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
- }
- 
-+static void
-+__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
-+					enum charge_type ctype);
-+
- int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
-@@ -1274,16 +1278,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		unlock_page_cgroup(pc);
- 	}
- 
--	if (do_swap_account && PageSwapCache(page)) {
--		mem = try_get_mem_cgroup_from_swapcache(page);
--		if (mem)
--			mm = NULL;
--		  else
--			mem = NULL;
--		/* SwapCache may be still linked to LRU now. */
--		mem_cgroup_lru_del_before_commit_swapcache(page);
--	}
--
- 	if (unlikely(!mm && !mem))
- 		mm = &init_mm;
- 
-@@ -1291,32 +1285,16 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		return mem_cgroup_charge_common(page, mm, gfp_mask,
- 				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
- 
--	ret = mem_cgroup_charge_common(page, mm, gfp_mask,
--				MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
--	if (mem)
--		css_put(&mem->css);
--	if (PageSwapCache(page))
--		mem_cgroup_lru_add_after_commit_swapcache(page);
-+	/* shmem */
-+	if (PageSwapCache(page)) {
-+		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
-+		if (!ret)
-+			__mem_cgroup_commit_charge_swapin(page, mem,
-+					MEM_CGROUP_CHARGE_TYPE_SHMEM);
-+	} else
-+		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
-+					MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
- 
--	if (do_swap_account && !ret && PageSwapCache(page)) {
--		swp_entry_t ent = {.val = page_private(page)};
--		unsigned short id;
--		/* avoid double counting */
--		id = swap_cgroup_record(ent, 0);
--		rcu_read_lock();
--		mem = mem_cgroup_lookup(id);
--		if (mem) {
--			/*
--			 * We did swap-in. Then, this entry is doubly counted
--			 * both in mem and memsw. We uncharge it, here.
--			 * Recorded ID can be obsolete. We avoid calling
--			 * css_tryget()
--			 */
--			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
--			mem_cgroup_put(mem);
--		}
--		rcu_read_unlock();
--	}
- 	return ret;
- }
- 
-@@ -1359,7 +1337,9 @@ charge_cur_mm:
- 	return __mem_cgroup_try_charge(mm, mask, ptr, true);
- }
- 
--void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-+static void
-+__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
-+					enum charge_type ctype)
- {
- 	struct page_cgroup *pc;
- 
-@@ -1369,7 +1349,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
- 		return;
- 	pc = lookup_page_cgroup(page);
- 	mem_cgroup_lru_del_before_commit_swapcache(page);
--	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
-+	__mem_cgroup_commit_charge(ptr, pc, ctype);
- 	mem_cgroup_lru_add_after_commit_swapcache(page);
- 	/*
- 	 * Now swap is on-memory. This means this page may be
-@@ -1400,6 +1380,12 @@ void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
- 
- }
- 
-+void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
-+{
-+	__mem_cgroup_commit_charge_swapin(page, ptr,
-+					MEM_CGROUP_CHARGE_TYPE_MAPPED);
-+}
-+
- void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *mem)
- {
- 	if (mem_cgroup_disabled())
+        /group_A soft_limit=100M, needed memory=3200M (allocate and touch)
+        /group_B soft_limit=200M, needed memory=3200M
+        /group_C soft_limit=300M, needed memory=1024M (dd in a while loop)
+
+group_B and group_A had a difference of 200M in their allocations on
+average. group_C touched 800M as maximum usage in bytes and around
+500M on the average.
+
+With swap turned off
+
+group_C was hit the most with a lot of reclaim taking place on it.
+group_A was OOM killed and immediately after group_B got all the
+memory it needed and completed successfully.
+
+I have one large swap partition, so I could not test the partial-swap
+scenario.
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
