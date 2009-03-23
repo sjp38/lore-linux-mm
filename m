@@ -1,158 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E68F46B009F
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 00:25:23 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2N5NFtf013632
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:53:15 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2N5N8T4319678
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 10:53:08 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2N5MxWG006936
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 16:22:59 +1100
-Date: Mon, 23 Mar 2009 10:52:47 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/5] Memory controller soft limit patches (v7)
-Message-ID: <20090323052247.GJ24227@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain> <20090323125005.0d8a7219.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090323125005.0d8a7219.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id A2D4E6B00A0
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 00:26:09 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2N5OFW1021000
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 23 Mar 2009 14:24:15 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B9FB645DD7B
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:24:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8741745DD78
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:24:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 261DA1DB803C
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:24:14 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 226F31DB8044
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:24:08 +0900 (JST)
+Date: Mon, 23 Mar 2009 14:22:42 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v3
+Message-Id: <20090323142242.f6659457.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090323140419.40235ce3.nishimura@mxp.nes.nec.co.jp>
+References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
+	<20090318103418.7d38dce0.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
+	<20090318175734.f5a8a446.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090318231738.4e042cbd.d-nishimura@mtf.biglobe.ne.jp>
+	<20090319084523.1fbcc3cb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319111629.dcc9fe43.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319180631.44b0130f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319190118.db8a1dd7.nishimura@mxp.nes.nec.co.jp>
+	<20090319191321.6be9b5e8.nishimura@mxp.nes.nec.co.jp>
+	<100477cfc6c3c775abc7aecd4ce8c46e.squirrel@webmail-b.css.fujitsu.com>
+	<432ace3655a26d2d492a56303369a88a.squirrel@webmail-b.css.fujitsu.com>
+	<20090320164520.f969907a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323104555.cb7cd059.nishimura@mxp.nes.nec.co.jp>
+	<20090323114118.8b45105f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323140419.40235ce3.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-23 12:50:05]:
+On Mon, 23 Mar 2009 14:04:19 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> On Thu, 19 Mar 2009 22:27:13 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > Nice clean-up here :)
+> > 
+> Thanks, I'll send a cleanup patch for this part later.
 > 
+Thank you, I'll look into.
+
+> > > @@ -1359,18 +1373,40 @@ charge_cur_mm:
+> > >  	return __mem_cgroup_try_charge(mm, mask, ptr, true);
+> > >  }
+> > >  
+> > > -void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+> > > +static void
+> > > +__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+> > > +					enum charge_type ctype)
+> > >  {
+> > > -	struct page_cgroup *pc;
+> > > +	unsigned long flags;
+> > > +	struct zone *zone = page_zone(page);
+> > > +	struct page_cgroup *pc = lookup_page_cgroup(page);
+> > > +	int locked = 0;
+> > >  
+> > >  	if (mem_cgroup_disabled())
+> > >  		return;
+> > >  	if (!ptr)
+> > >  		return;
+> > > -	pc = lookup_page_cgroup(page);
+> > > -	mem_cgroup_lru_del_before_commit_swapcache(page);
+> > > -	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+> > > -	mem_cgroup_lru_add_after_commit_swapcache(page);
+> > > +
+> > > +	/*
+> > > +	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+> > > +	 * is guarded by lock_page() because the page is SwapCache.
+> > > +	 * If this pc is on orphan LRU, it is also removed from orphan LRU here.
+> > > +	 */
+> > > +	if (!PageCgroupUsed(pc)) {
+> > > +		locked = 1;
+> > > +		spin_lock_irqsave(&zone->lru_lock, flags);
+> > > +		mem_cgroup_del_lru_list(page, page_lru(page));
+> > > +	}
+> > Maybe nice. I tried to use lock_page_cgroup() in add_list but I can't ;(
+> > I think this works well. But I wonder...why you have to check PageCgroupUsed() ?
+> > And is it correct ? Removing PageCgroupUsed() bit check is nice.
+> > (This will be "usually returns true" check, anyway)
 > > 
-> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
-> > 
-> > New Feature: Soft limits for memory resource controller.
-> > 
-> > Changelog v7...v6
-> > 1. Added checks in reclaim path to make sure we don't infinitely loop
-> > 2. Refactored reclaim options into a new patch
-> > 3. Tested several scenarios, see tests below
-> > 
-> > Changelog v6...v5
-> > 1. If the number of reclaimed pages are zero, select the next mem cgroup
-> >    for reclamation
-> > 2. Fixed a bug, where key was being updated after insertion into the tree
-> > 3. Fixed a build issue, when CONFIG_MEM_RES_CTLR is not enabled
-> > 
-> > Changelog v5...v4
-> > 1. Several changes to the reclaim logic, please see the patch 4 (reclaim on
-> >    contention). I've experimented with several possibilities for reclaim
-> >    and chose to come back to this due to the excellent behaviour seen while
-> >    testing the patchset.
-> > 2. Reduced the overhead of soft limits on resource counters very significantly.
-> >    Reaim benchmark now shows almost no drop in performance.
-> > 
-> > Changelog v4...v3
-> > 1. Adopted suggestions from Kamezawa to do a per-zone-per-node reclaim
-> >    while doing soft limit reclaim. We don't record priorities while
-> >    doing soft reclaim
-> > 2. Some of the overheads associated with soft limits (like calculating
-> >    excess each time) is eliminated
-> > 3. The time_after(jiffies, 0) bug has been fixed
-> > 4. Tasks are throttled if the mem cgroup they belong to is being soft reclaimed
-> >    and at the same time tasks are increasing the memory footprint and causing
-> >    the mem cgroup to exceed its soft limit.
-> > 
-> > Changelog v3...v2
-> > 1. Implemented several review comments from Kosaki-San and Kamezawa-San
-> >    Please see individual changelogs for changes
-> > 
-> > Changelog v2...v1
-> > 1. Soft limits now support hierarchies
-> > 2. Use spinlocks instead of mutexes for synchronization of the RB tree
-> > 
-> > Here is v7 of the new soft limit implementation. Soft limits is a new feature
-> > for the memory resource controller, something similar has existed in the
-> > group scheduler in the form of shares. The CPU controllers interpretation
-> > of shares is very different though. 
-> > 
-> > Soft limits are the most useful feature to have for environments where
-> > the administrator wants to overcommit the system, such that only on memory
-> > contention do the limits become active. The current soft limits implementation
-> > provides a soft_limit_in_bytes interface for the memory controller and not
-> > for memory+swap controller. The implementation maintains an RB-Tree of groups
-> > that exceed their soft limit and starts reclaiming from the group that
-> > exceeds this limit by the maximum amount.
-> > 
-> > So far I have the best test results with this patchset. I've experimented with
-> > several approaches and methods. I might be a little delayed in responding,
-> > I might have intermittent access to the internet for the next few days.
-> > 
-> > TODOs
-> > 
-> > 1. The current implementation maintains the delta from the soft limit
-> >    and pushes back groups to their soft limits, a ratio of delta/soft_limit
-> >    might be more useful
-> > 
-> > 
-> > Tests
-> > -----
-> > 
-> > I've run two memory intensive workloads with differing soft limits and
-> > seen that they are pushed back to their soft limit on contention. Their usage
-> > was their soft limit plus additional memory that they were able to grab
-> > on the system. Soft limit can take a while before we see the expected
-> > results.
-> > 
-> > The other tests I've run are
-> > 1. Deletion of groups while soft limit is in progress in the hierarchy
-> > 2. Setting the soft limit to zero and running other groups with non-zero
-> >    soft limits.
-> > 3. Setting the soft limit to zero and testing if the mem cgroup is able
-> >    to use available memory
-> > 4. Tested the patches with hierarchy enabled
-> > 5. Tested with swapoff -a, to make sure we don't go into an infinite loop
-> > 
-> > Please review, comment.
-> > 
+> I've just copied lru_del_before_commit_swapcache.
 > 
-> please add text to explain the behaior, what happens in the following situation.
+ya, considering now, it seems to be silly quick-hack.
+
+> As you say, this check will return false only in (C) case in memcg_test.txt,
+> and even in (C) case calling mem_cgroup_del_lru_list(and mem_cgroup_add_lru_list later)
+> would be no problem.
 > 
+> OK, I'll remove this check.
 > 
->    /group_A .....softlimit=100M usage=ANON=1G,FILE=1M
->    /group_B .....softlimit=200M usage=ANON=1G,FILE=1M
->    /group_C .....softlimit=300M
->    on swap-available/swap-less/swap-full system.
+Thanks,
+
+> This is the updated version(w/o cache_charge cleanup).
 > 
->   And Run run "dd" or "cp" of big files under group_C.
+> BTW, Should I merge reclaim part based on your patch and post it ?
+> 
+I think not necessary. keeping changes minimum is important as BUGFIX.
+We can visit here again when new -RC stage starts.
 
-That depends on the memory on the system, on my system with 4G, things
-run just fine.
+no problem from my review.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-I tried the following
+Thank you very much!
+-Kame
 
-        /group_A soft_limit=100M, needed memory=3200M (allocate and touch)
-        /group_B soft_limit=200M, needed memory=3200M
-        /group_C soft_limit=300M, needed memory=1024M (dd in a while loop)
 
-group_B and group_A had a difference of 200M in their allocations on
-average. group_C touched 800M as maximum usage in bytes and around
-500M on the average.
-
-With swap turned off
-
-group_C was hit the most with a lot of reclaim taking place on it.
-group_A was OOM killed and immediately after group_B got all the
-memory it needed and completed successfully.
-
-I have one large swap partition, so I could not test the partial-swap
-scenario.
-
--- 
-	Balbir
+> 
+> Thanks,
+> Daisuke Nishimura.
+> ===
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> ---
+>  include/linux/page_cgroup.h |    5 ++
+>  mm/memcontrol.c             |  137 +++++++++++++++++++++++++++++--------------
+>  2 files changed, 97 insertions(+), 45 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 7339c7b..e65e61e 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -26,6 +26,7 @@ enum {
+>  	PCG_LOCK,  /* page cgroup is locked */
+>  	PCG_CACHE, /* charged as cache */
+>  	PCG_USED, /* this object is in use. */
+> +	PCG_ORPHAN, /* this is not used from memcg:s view but on global LRU */
+>  };
+>  
+>  #define TESTPCGFLAG(uname, lname)			\
+> @@ -46,6 +47,10 @@ TESTPCGFLAG(Cache, CACHE)
+>  TESTPCGFLAG(Used, USED)
+>  CLEARPCGFLAG(Used, USED)
+>  
+> +TESTPCGFLAG(Orphan, ORPHAN)
+> +SETPCGFLAG(Orphan, ORPHAN)
+> +CLEARPCGFLAG(Orphan, ORPHAN)
+> +
+>  static inline int page_cgroup_nid(struct page_cgroup *pc)
+>  {
+>  	return page_to_nid(pc->page);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2fc6d6c..3492286 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -371,6 +371,50 @@ static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
+>   * When moving account, the page is not on LRU. It's isolated.
+>   */
+>  
+> +/*
+> + * Orphan List is a list for page_cgroup which is not free but not under
+> + * any cgroup. SwapCache which is prefetched by readahead() is typical type but
+> + * there are other corner cases.
+> + *
+> + * Usually, updates to this list happens when swap cache is readaheaded and
+> + * finally used by process.
+> + */
+> +
+> +/* for orphan page_cgroups, updated under zone->lru_lock. */
+> +
+> +struct orphan_list_node {
+> +	struct orphan_list_zone {
+> +		struct list_head list;
+> +	} zone[MAX_NR_ZONES];
+> +};
+> +struct orphan_list_node *orphan_list[MAX_NUMNODES] __read_mostly;
+> +
+> +static inline struct orphan_list_zone *orphan_lru(int nid, int zid)
+> +{
+> +	/*
+> +	 * 2 cases for this BUG_ON(), swapcache is generated while init.
+> +	 * or NID should be invalid.
+> +	 */
+> +	BUG_ON(!orphan_list[nid]);
+> +	return  &orphan_list[nid]->zone[zid];
+> +}
+> +
+> +static inline void remove_orphan_list(struct page_cgroup *pc)
+> +{
+> +	ClearPageCgroupOrphan(pc);
+> +	list_del_init(&pc->lru);
+> +}
+> +
+> +static void add_orphan_list(struct page *page, struct page_cgroup *pc)
+> +{
+> +	struct orphan_list_zone *opl;
+> +
+> +	SetPageCgroupOrphan(pc);
+> +	opl = orphan_lru(page_to_nid(page), page_zonenum(page));
+> +	list_add_tail(&pc->lru, &opl->list);
+> +}
+> +
+> +
+>  void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+>  {
+>  	struct page_cgroup *pc;
+> @@ -380,6 +424,14 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	pc = lookup_page_cgroup(page);
+> +	/*
+> +	 * If the page is SwapCache and already on global LRU, it will be on
+> +	 * orphan list. remove here
+> +	 */
+> +	if (unlikely(PageCgroupOrphan(pc))) {
+> +		remove_orphan_list(pc);
+> +		return;
+> +	}
+>  	/* can happen while we handle swapcache. */
+>  	if (list_empty(&pc->lru) || !pc->mem_cgroup)
+>  		return;
+> @@ -433,51 +485,17 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
+>  	 * For making pc->mem_cgroup visible, insert smp_rmb() here.
+>  	 */
+>  	smp_rmb();
+> -	if (!PageCgroupUsed(pc))
+> -		return;
+> +	if (!PageCgroupUsed(pc) && !PageCgroupOrphan(pc)) {
+> +		/* handle swap cache here */
+> +		add_orphan_list(page, pc);
+> + 		return;
+> +	}
+>  
+>  	mz = page_cgroup_zoneinfo(pc);
+>  	MEM_CGROUP_ZSTAT(mz, lru) += 1;
+>  	list_add(&pc->lru, &mz->lists[lru]);
+>  }
+>  
+> -/*
+> - * At handling SwapCache, pc->mem_cgroup may be changed while it's linked to
+> - * lru because the page may.be reused after it's fully uncharged (because of
+> - * SwapCache behavior).To handle that, unlink page_cgroup from LRU when charge
+> - * it again. This function is only used to charge SwapCache. It's done under
+> - * lock_page and expected that zone->lru_lock is never held.
+> - */
+> -static void mem_cgroup_lru_del_before_commit_swapcache(struct page *page)
+> -{
+> -	unsigned long flags;
+> -	struct zone *zone = page_zone(page);
+> -	struct page_cgroup *pc = lookup_page_cgroup(page);
+> -
+> -	spin_lock_irqsave(&zone->lru_lock, flags);
+> -	/*
+> -	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+> -	 * is guarded by lock_page() because the page is SwapCache.
+> -	 */
+> -	if (!PageCgroupUsed(pc))
+> -		mem_cgroup_del_lru_list(page, page_lru(page));
+> -	spin_unlock_irqrestore(&zone->lru_lock, flags);
+> -}
+> -
+> -static void mem_cgroup_lru_add_after_commit_swapcache(struct page *page)
+> -{
+> -	unsigned long flags;
+> -	struct zone *zone = page_zone(page);
+> -	struct page_cgroup *pc = lookup_page_cgroup(page);
+> -
+> -	spin_lock_irqsave(&zone->lru_lock, flags);
+> -	/* link when the page is linked to LRU but page_cgroup isn't */
+> -	if (PageLRU(page) && list_empty(&pc->lru))
+> -		mem_cgroup_add_lru_list(page, page_lru(page));
+> -	spin_unlock_irqrestore(&zone->lru_lock, flags);
+> -}
+> -
+> -
+>  void mem_cgroup_move_lists(struct page *page,
+>  			   enum lru_list from, enum lru_list to)
+>  {
+> @@ -784,6 +802,24 @@ static int mem_cgroup_count_children(struct mem_cgroup *mem)
+>  	return num;
+>  }
+>  
+> +static __init void init_orphan_lru(void)
+> +{
+> +	struct orphan_list_node *opl;
+> +	int nid, zid;
+> +	int size = sizeof(struct orphan_list_node);
+> +
+> +	for_each_node_state(nid, N_POSSIBLE) {
+> +		if (node_state(nid, N_NORMAL_MEMORY))
+> +			opl = kmalloc_node(size,  GFP_KERNEL, nid);
+> +		else
+> +			opl = kmalloc(size, GFP_KERNEL);
+> +		BUG_ON(!opl);
+> +		for (zid = 0; zid < MAX_NR_ZONES; zid++)
+> +			INIT_LIST_HEAD(&opl->zone[zid].list);
+> +		orphan_list[nid] = opl;
+> +	}
+> +}
+> +
+>  /*
+>   * Visit the first child (need not be the first child as per the ordering
+>   * of the cgroup list, since we track last_scanned_child) of @mem and use
+> @@ -1341,16 +1377,28 @@ static void
+>  __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+>  					enum charge_type ctype)
+>  {
+> -	struct page_cgroup *pc;
+> +	unsigned long flags;
+> +	struct zone *zone = page_zone(page);
+> +	struct page_cgroup *pc = lookup_page_cgroup(page);
+>  
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  	if (!ptr)
+>  		return;
+> -	pc = lookup_page_cgroup(page);
+> -	mem_cgroup_lru_del_before_commit_swapcache(page);
+> +
+> +	/* If this pc is on orphan LRU, it is removed from orphan list here. */
+> +	spin_lock_irqsave(&zone->lru_lock, flags);
+> +	mem_cgroup_del_lru_list(page, page_lru(page));
+> +
+> +	/* We should hold zone->lru_lock to protect PCG_ORPHAN. */
+> +	VM_BUG_ON(PageCgroupOrphan(pc));
+>  	__mem_cgroup_commit_charge(ptr, pc, ctype);
+> -	mem_cgroup_lru_add_after_commit_swapcache(page);
+> +
+> +	/* link when the page is linked to LRU but page_cgroup isn't */
+> +	if (PageLRU(page) && list_empty(&pc->lru))
+> +		mem_cgroup_add_lru_list(page, page_lru(page));
+> +	spin_unlock_irqrestore(&zone->lru_lock, flags);
+> +
+>  	/*
+>  	 * Now swap is on-memory. This means this page may be
+>  	 * counted both as mem and swap....double count.
+> @@ -1376,8 +1424,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+>  		}
+>  		rcu_read_unlock();
+>  	}
+> -	/* add this page(page_cgroup) to the LRU we want. */
+> -
+>  }
+>  
+>  void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+> @@ -2438,6 +2484,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+>  	/* root ? */
+>  	if (cont->parent == NULL) {
+>  		enable_swap_cgroup();
+> +		init_orphan_lru();
+>  		parent = NULL;
+>  	} else {
+>  		parent = mem_cgroup_from_cont(cont->parent);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
