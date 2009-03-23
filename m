@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 21A986B00C2
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 04:21:48 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2N9NcPx030173
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 23 Mar 2009 18:23:38 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0A3E12AEA81
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 18:23:38 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C5AE1EF081
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 18:23:37 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 53795E08006
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 18:23:37 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 033AE1DB8043
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 18:23:37 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 3/3] mm: keep pages from unevictable mappings off the LRU  lists
-In-Reply-To: <20090323175507.6A18.A69D9226@jp.fujitsu.com>
-References: <20090323084254.GA1685@cmpxchg.org> <20090323175507.6A18.A69D9226@jp.fujitsu.com>
-Message-Id: <20090323182039.6A1B.A69D9226@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id EAB0F6B00C5
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 04:21:54 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp01.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2N9NWL5014969
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:53:32 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2N9JlXk4444398
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:49:48 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2N9NFdv024454
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 20:23:15 +1100
+Date: Mon, 23 Mar 2009 14:53:02 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/5] Memory controller soft limit patches (v7)
+Message-ID: <20090323092302.GO24227@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090323153241.6A0F.A69D9226@jp.fujitsu.com> <20090323082441.GL24227@balbir.in.ibm.com> <20090323175127.6A15.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 23 Mar 2009 18:23:36 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090323175127.6A15.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> > > this is the just reason why current code don't call add_page_to_unevictable_list().
-> > > add_page_to_unevictable_list() don't use pagevec. it is needed for avoiding race.
-> > > 
-> > > then, if readahead path (i.e. add_to_page_cache_lru()) use add_page_to_unevictable_list(),
-> > > it can cause zone->lru_lock contention storm.
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> [2009-03-23 18:12:54]:
+
+> > > Kamezawa-san, This implementation is suck. but I think softlimit concept 
+> > > itself isn't suck.
 > > 
-> > How is it different then shrink_page_list()?  If readahead put a
-> > contiguous chunk of unevictable pages to the file lru, then
-> > shrink_page_list() will as well call add_page_to_unevictable_list() in
-> > a loop.
+> > Just because of the reclaim factor? Feel free to improve it
+> > iteratively. Like I said to Kamezawa, don't over optimize in the first
+> > iteration. Pre-mature optimization is the root of all evil.
 > 
-> it's probability issue.
+> Agreed.
+> Then, I nacked premature optimization code everytime.
 > 
-> readahead: we need to concern
-> 	(1) readahead vs readahead
-> 	(2) readahead vs reclaim
 > 
-> vmscan: we need to concern
-> 	(3) background reclaim vs foreground reclaim
+> > > So, I would suggested discuss this feature based on your 
+> > > "memcg softlimit (Another one) v4" patch. I exept I can ack it after few spin.
+> > 
+> > Kame's implementation sucked quite badly, please see my posted test
+> > results. Basic, bare minimum functionality did not work.
 > 
-> So, (3) is rarely event than (1) and (2).
-> Am I missing anything?
+> Yes. I see.
+> but I think it can be fixed. the basic design of the patch is sane IMHO.
+>
 
-my last mail explanation is too poor. sorry.
-I don't dislike this patch concept. but it seems a bit naive against contention.
-if we can decrease contention risk, I can ack with presure.
+I have the following major objections to design
 
+1. The use of lists as a data-structure, it will not scale well.
+2. Using zone watermarks to implement global soft limits 
 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
