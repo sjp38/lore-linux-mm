@@ -1,29 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id DA2C36B00CD
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 05:37:51 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 907A66B00CE
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 05:45:22 -0400 (EDT)
 From: David Howells <dhowells@redhat.com>
-In-Reply-To: <1237752784-1989-2-git-send-email-hannes@cmpxchg.org>
-References: <1237752784-1989-2-git-send-email-hannes@cmpxchg.org> <20090321102044.GA3427@cmpxchg.org>
-Subject: Re: [patch 2/3] ramfs-nommu: use generic lru cache
-Date: Mon, 23 Mar 2009 10:40:42 +0000
-Message-ID: <11989.1237804842@redhat.com>
+In-Reply-To: <20090323001418.GA32758@cmpxchg.org>
+References: <20090323001418.GA32758@cmpxchg.org> <20090321102044.GA3427@cmpxchg.org> <1237752784-1989-1-git-send-email-hannes@cmpxchg.org> <20090323084423.490C.A69D9226@jp.fujitsu.com>
+Subject: Re: [patch 1/3] mm: decouple unevictable lru from mmu
+Date: Mon, 23 Mar 2009 10:48:25 +0000
+Message-ID: <12087.1237805305@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: dhowells@redhat.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.com>, MinChan Kim <minchan.kim@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: dhowells@redhat.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.com>, MinChan Kim <minchan.kim@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> Instead of open-coding the lru-list-add pagevec batching when
-> expanding a file mapping from zero, defer to the appropriate page
-> cache function that also takes care of adding the page to the lru
-> list.
-> 
-> This is cleaner, saves code and reduces the stack footprint by 16
-> words worth of pagevec.
+> David, why do we need two Kconfig symbols for mlock and the mlock page
+> bit?  Don't we always provide mlock on mmu and never on nommu?
 
-Acked-by: David Howells <dhowells@redhat.com>
+Because whilst the PG_mlocked doesn't exist if we don't have mlock() because
+we're in NOMMU mode, that does not imply that it _does_ exist if we _do_ have
+mlock() as it's also contingent on having the unevictable LRU.
+
+Not only that, CONFIG_HAVE_MLOCK used in mm/internal.h to switch some stuff
+out based on whether we have mlock() available or not - which is not the same
+as whether we have PG_mlocked or not.
+
+Mainly I thought it made the train of logic easier.
+
+Note that neither symbol is actually manually adjustable.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
