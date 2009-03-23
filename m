@@ -1,52 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 644826B003D
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 13:39:25 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 113856B003D
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:28:40 -0400 (EDT)
 Received: from int-mx2.corp.redhat.com (int-mx2.corp.redhat.com [172.16.27.26])
-	by mx2.redhat.com (8.13.8/8.13.8) with ESMTP id n2NIo6oX022423
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 14:50:06 -0400
-Subject: Re: [Patch] mm tracepoints
+	by mx2.redhat.com (8.13.8/8.13.8) with ESMTP id n2NJe8nQ001638
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 15:40:08 -0400
+Received: from ns3.rdu.redhat.com (ns3.rdu.redhat.com [10.11.255.199])
+	by int-mx2.corp.redhat.com (8.13.1/8.13.1) with ESMTP id n2NJe26s005213
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 15:40:02 -0400
+Received: from [10.16.19.198] (dhcp-100-19-198.bos.redhat.com [10.16.19.198])
+	by ns3.rdu.redhat.com (8.13.8/8.13.8) with ESMTP id n2NJe6Jm011198
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 15:40:07 -0400
+Subject: [Patch] mm tracepoints - repost after addressing Rik van Riel's
+	comments
 From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <49C2692B.20006@redhat.com>
-References: <1237233134.1476.119.camel@dhcp-100-19-198.bos.redhat.com>
-	 <49C2692B.20006@redhat.com>
-Content-Type: multipart/mixed; boundary="=-M6Z0oHuLl//eh31AzK4T"
-Date: Mon, 23 Mar 2009 14:54:13 -0400
-Message-Id: <1237834453.1476.145.camel@dhcp-100-19-198.bos.redhat.com>
+Content-Type: multipart/mixed; boundary="=-UrwdP+WtcJQ721Jfm63V"
+Date: Mon, 23 Mar 2009 15:44:15 -0400
+Message-Id: <1237837455.1476.150.camel@dhcp-100-19-198.bos.redhat.com>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
---=-M6Z0oHuLl//eh31AzK4T
+--=-UrwdP+WtcJQ721Jfm63V
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
 
-On Thu, 2009-03-19 at 11:47 -0400, Rik van Riel wrote:
-> Larry Woodman wrote:
-> > I've implemented several mm tracepoints to track page allocation and
-> > freeing, various types of pagefaults and unmaps, and critical page
-> > reclamation routines.  This is useful for debugging memory allocation
-> > issues and system performance problems under heavy memory loads.
-> > Thoughts?:
-> 
-> It looks mostly good.
-> 
-> I believe that the vmscan.c tracepoints could be a little
-> more verbose though, it would be useful to know whether we
-> are scanning anon or file pages and whether or not we're
-> doing lumpy reclaim.  Possibly the priority level, too.
-> 
+I've implemented several mm tracepoints to track page allocation and
+freeing, various types of pagefaults and unmaps, and critical page
+reclamation routines.  This is useful for debugging memory allocation
+issues and system performance problems under heavy memory loads.
 
-The attached patch addresses your concerns.  Can you have a look:
+I have also addressed Rik van Riel's comments:
+
+>It looks mostly good.
+>
+>I believe that the vmscan.c tracepoints could be a little
+>more verbose though, it would be useful to know whether we
+>are scanning anon or file pages and whether or not we're
+>doing lumpy reclaim.  Possibly the priority level, too.
+
+----------------------------------------------------------------------
 
 
+# tracer: mm
+#
+#           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+#              | |       |          |         |
+         pdflush-624   [004]   184.293169: wb_kupdate:
+(mm_pdflush_kupdate) count=3e48
+         pdflush-624   [004]   184.293439: get_page_from_freelist:
+(mm_page_allocation) pfn=447c27 zone_free=1940910
+        events/6-33    [006]   184.962879: free_hot_cold_page:
+(mm_page_free) pfn=44bba9
+      irqbalance-8313  [001]   188.042951: unmap_vmas:
+(mm_anon_userfree) mm=ffff88044a7300c0 address=7f9a2eb70000 pfn=24c29a
+             cat-9122  [005]   191.141173: filemap_fault:
+(mm_filemap_fault) primary fault: mm=ffff88024c9d8f40 address=3cea2dd000
+pfn=44d68e
+             cat-9122  [001]   191.143036: handle_mm_fault:
+(mm_anon_fault) mm=ffff88024c8beb40 address=7fffbde99f94 pfn=24ce22
+...
 
---=-M6Z0oHuLl//eh31AzK4T
+
+
+Signed-off-by: Larry Woodman <lwoodman@redhat.com>
+
+--=-UrwdP+WtcJQ721Jfm63V
 Content-Disposition: attachment; filename=upstream-mm_tracepoints.patch
-Content-Type: text/x-patch; name=upstream-mm_tracepoints.patch; charset=utf-8
+Content-Type: text/x-patch; name=upstream-mm_tracepoints.patch; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 
 diff --git a/include/trace/mm.h b/include/trace/mm.h
@@ -826,7 +849,7 @@ index ae6f4c1..626b91f 100644
  }
  
 
---=-M6Z0oHuLl//eh31AzK4T--
+--=-UrwdP+WtcJQ721Jfm63V--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
