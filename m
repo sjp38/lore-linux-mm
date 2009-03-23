@@ -1,45 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 363B86B00B9
-	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 03:42:59 -0400 (EDT)
-Date: Mon, 23 Mar 2009 09:42:54 +0100
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3] mm: keep pages from unevictable mappings off the LRU  lists
-Message-ID: <20090323084254.GA1685@cmpxchg.org>
-References: <1237752784-1989-3-git-send-email-hannes@cmpxchg.org> <28c262360903221744r6d275294gdc8ad3a12b8c5361@mail.gmail.com> <20090323111615.69F3.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 722D16B00BB
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 03:47:51 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2N8n9Le005754
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Mon, 23 Mar 2009 17:49:09 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1090945DE4F
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 17:49:09 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E60B745DD72
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 17:49:08 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E70751DB8040
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 17:49:08 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 817401DB804E
+	for <linux-mm@kvack.org>; Mon, 23 Mar 2009 17:49:08 +0900 (JST)
+Date: Mon, 23 Mar 2009 17:47:43 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 3/5] Memory controller soft limit organize cgroups (v7)
+Message-Id: <20090323174743.87959966.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090323082244.GK24227@balbir.in.ibm.com>
+References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain>
+	<20090319165735.27274.96091.sendpatchset@localhost.localdomain>
+	<20090320124639.83d22726.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090322142105.GA24227@balbir.in.ibm.com>
+	<20090323085314.7cce6c50.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323033404.GG24227@balbir.in.ibm.com>
+	<20090323123841.caa91874.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323041559.GI24227@balbir.in.ibm.com>
+	<20090323132308.941b617d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323082244.GK24227@balbir.in.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090323111615.69F3.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Howells <dhowells@redhat.com>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: balbir@linux.vnet.ibm.com
+Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 23, 2009 at 11:21:36AM +0900, KOSAKI Motohiro wrote:
-> > Hmm,,
-> > 
-> > This patch is another thing unlike previous series patches.
-> > Firstly, It looked good to me.
-> > 
-> > I think add_to_page_cache_lru have to become a fast path.
-> > But, how often would ramfs and shmem function be called ?
-> > 
-> > I have a concern for this patch to add another burden.
-> > so, we need any numbers for getting pros and cons.
-> > 
-> > Any thoughts ?
+On Mon, 23 Mar 2009 13:52:44 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> I don't see why you are harping about something that you might think
+> is a problem and want to over-optimize even without tests. Fix
+> something when you can see the problem, on my system I don't see it. I
+> am willing to consider alternatives or moving away from the current
+> coding style *iff* it needs to be redone for better performance.
 > 
-> this is the just reason why current code don't call add_page_to_unevictable_list().
-> add_page_to_unevictable_list() don't use pagevec. it is needed for avoiding race.
-> 
-> then, if readahead path (i.e. add_to_page_cache_lru()) use add_page_to_unevictable_list(),
-> it can cause zone->lru_lock contention storm.
 
-How is it different then shrink_page_list()?  If readahead put a
-contiguous chunk of unevictable pages to the file lru, then
-shrink_page_list() will as well call add_page_to_unevictable_list() in
-a loop.
+It's usually true that "For optimize system, don't do anything unnecessary".
+And the patch increase size of res_counter_charge from 236bytes to 295bytes.
+on my compliler.
+
+And this is called at every charge if the check is unnecessary.
+(i.e. the _real_ check itself is done once in a HZ/?)
+
+Thanks
+-Kame
+
+
+> What I am proposing is that we do iterative development, get the
+> functionality right and then if needed tune for performance.
+> 
+> 
+> 
+> -- 
+> 	Balbir
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
