@@ -1,97 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 144B46B0055
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 14:36:24 -0400 (EDT)
-Date: Tue, 24 Mar 2009 19:51:28 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [patch 9/9] LTTng instrumentation - swap
-Message-ID: <20090324185128.GJ31117@elte.hu>
-References: <20090324155625.420966314@polymtl.ca> <20090324160149.188175023@polymtl.ca>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 06E956B005C
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 15:57:58 -0400 (EDT)
+From: OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
+	<20090324125510.GA9434@duck.suse.cz>
+	<20090324132637.GA14607@duck.suse.cz>
+	<200903250130.02485.nickpiggin@yahoo.com.au>
+	<20090324144709.GF23439@duck.suse.cz>
+	<1237906563.24918.184.camel@twins>
+	<20090324152959.GG23439@duck.suse.cz>
+Date: Wed, 25 Mar 2009 05:14:34 +0900
+In-Reply-To: <20090324152959.GG23439@duck.suse.cz> (Jan Kara's message of
+	"Tue, 24 Mar 2009 16:29:59 +0100")
+Message-ID: <873ad2znit.fsf@devron.myhome.or.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090324160149.188175023@polymtl.ca>
 Sender: owner-linux-mm@kvack.org
-To: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, ltt-dev@lists.casi.polymtl.ca, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, Masami Hiramatsu <mhiramat@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Frank Ch. Eigler" <fche@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Jan Kara <jack@suse.cz>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
+Jan Kara <jack@suse.cz> writes:
 
-* Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca> wrote:
+>   BTW: Note that there's a plenty of filesystems that don't implement
+> mkwrite() (e.g. ext2, UDF, VFAT...) and thus have the same problem with
+> ENOSPC. So I'd not speak too much about consistency ;).
 
-> +DECLARE_TRACE(swap_in,
-> +	TPPROTO(struct page *page, swp_entry_t entry),
-> +		TPARGS(page, entry));
-> +DECLARE_TRACE(swap_out,
-> +	TPPROTO(struct page *page),
-> +		TPARGS(page));
-> +DECLARE_TRACE(swap_file_open,
-> +	TPPROTO(struct file *file, char *filename),
-> +		TPARGS(file, filename));
-> +DECLARE_TRACE(swap_file_close,
-> +	TPPROTO(struct file *file),
-> +		TPARGS(file));
-
-These are more complete than the pagecache tracepoints, but still 
-incomplete to make a comprehensive picture about swap activities.
-
-Firstly, the swap_file_open/close events seem quite pointless. Most 
-systems enable swap during bootup and never close it. These 
-tracepoints just wont be excercised in practice.
-
-Also, to _really_ help with debugging VM pressure problems, the 
-whole LRU state-machine should be instrumented, and linked up with 
-pagecache instrumentation via page frame numbers and (inode,offset) 
-[file] and (pgd,addr) [anon] pairs.
-
-Not just the fact that something got swapped out is interesting, but 
-also the whole decision chain that leads up to it. The lifetime of a 
-page how it jumps between the various stages of eviction and LRU 
-scores.
-
-a minor nit:
-
-> +DECLARE_TRACE(swap_file_open,
-> +	TPPROTO(struct file *file, char *filename),
-> +		TPARGS(file, filename));
-
-there's no need to pass in the filename - it can be deducted in the 
-probe from struct file.
-
-a small inconsistency:
-
-> +DECLARE_TRACE(swap_in,
-> +	TPPROTO(struct page *page, swp_entry_t entry),
-> +		TPARGS(page, entry));
-> +DECLARE_TRACE(swap_out,
-> +	TPPROTO(struct page *page),
-> +		TPARGS(page));
-
-you pass in swp_entry to trace_swap_in(), which encodes the offset - 
-but that parameter is not needed, the page already represents the 
-offset at that stage in do_swap_page(). (the actual data is not read 
-in yet from swap, but the page is already linked up in the 
-swap-cache and has the offset available - which a probe can 
-recover.)
-
-So this suffices:
-
- DECLARE_TRACE(swap_in,
-	TPPROTO(struct page *page),
-		TPARGS(page));
-
- DECLARE_TRACE(swap_out,
-	TPPROTO(struct page *page),
-		TPARGS(page));
-
-And here again i'd like to see actual meaningful probe contents via 
-a TRACE_EVENT() construct. That shows and proves that it's all part 
-of a comprehensive framework, and the data that is recovered is 
-understood and put into a coherent whole - upstream. That makes it 
-immediately useful to the built-in tracers, and will also cause 
-fewer surprises downstream.
-
-	Ingo
+FWIW, fatfs doesn't allow sparse file (mmap the non-allocated region),
+so I guess there is no problem.
+-- 
+OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
