@@ -1,78 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 092C86B003D
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 01:05:34 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2O58Djh018363
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 24 Mar 2009 14:08:13 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F36D545DD76
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 14:08:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D072E45DD75
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 14:08:12 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B2FBDE08004
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 14:08:12 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6EB9CE08002
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 14:08:12 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
-In-Reply-To: <alpine.LFD.2.00.0903230940580.3030@localhost.localdomain>
-References: <20090323162954.GB4192@elte.hu> <alpine.LFD.2.00.0903230940580.3030@localhost.localdomain>
-Message-Id: <20090324140304.902C.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 19C4D6B003D
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 03:39:29 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+Date: Tue, 24 Mar 2009 18:44:21 +1100
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200903200248.22623.nickpiggin@yahoo.com.au> <20090319164638.GB3899@duck.suse.cz>
+In-Reply-To: <20090319164638.GB3899@duck.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 24 Mar 2009 14:08:11 +0900 (JST)
+Content-Disposition: inline
+Message-Id: <200903241844.22851.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org
+Cc: Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Friday 20 March 2009 03:46:39 Jan Kara wrote:
+> On Fri 20-03-09 02:48:21, Nick Piggin wrote:
 
-> > And your v2 is now:
-> > 
-> >     9 files changed, 66 insertions(+), 21 deletions(-)
-> > 
-> > ... and it is also speeding up fast-gup. Which is a marked 
-> > improvement IMO.
-> 
-> Yeah, I have no problems with that patch. I'd just suggest a final 
-> simplification, and getting rid of the
-> 
->         mask = _PAGE_PRESENT|_PAGE_USER;
->         /* Maybe the read only pte is cow mapped page. (or not maybe)
->            So, falling back to get_user_pages() is better */
->         mask |= _PAGE_RW;
-> 
-> and just doing something like
-> 
-> 	/*
-> 	 * fast-GUP only handles the simple cases where we have
-> 	 * full access to the page (ie private pages are copied
-> 	 * etc).
-> 	 */
-> 	#define GUP_MASK (_PAGE_PRESENT|_PAGE_USER|_PAGE_RW)
-
-OK! I'll do that.
-Thanks good reviewing!
+> > Holding mapping->private_lock over the __set_page_dirty should
+> > fix it, although I guess you'd want to release it before calling
+> > __mark_inode_dirty so as not to put inode_lock under there. I
+> > have a patch for this if it sounds reasonable.
+>
+>   Yes, that seems to be a bug - the function actually looked suspitious to
+> me yesterday but I somehow convinced myself that it's fine. Probably
+> because fsx-linux is single-threaded.
 
 
-> and leaving it at that.
-> 
-> Of course, maybe somebody does O_DIRECT writes on a fork'ed image in order 
-> to create a snapshot image or something, and now the v2 thing breaks COW 
-> on all the pages in order to be safe and performance sucks.
-> 
-> But I can't really say that _I_ could possibly care. I really seriously 
-> think that O_DIRECT and its ilk were braindamaged to begin with.
+After a whole lot of chasing my own tail in the VM and buffer layers,
+I think it is a problem in ext2 (and I haven't been able to reproduce
+with ext3 yet, which might lend weight to that, although as we have
+seen, it is very timing dependent).
 
-Yes. I have to totally agreed ;)
+That would be slightly unfortunate because we still have Jan's ext3
+problem, and also another reported problem of corruption on ext3 (on
+brd driver).
 
+Anyway, when I have reproduced the problem with the test case, the
+"lost" writes are all reported to be holes. Unfortunately, that doesn't
+point straight to the filesystem, because ext2 allocates blocks in this
+case at writeout time, so if dirty bits are getting lost, then it would
+be normal to see holes.
+
+I then put in a whole lot of extra infrastructure to track metadata about
+each struct page (when it was last written out, when it last had the number
+of writable ptes reach 0, when the dirty bits were last cleared etc). And
+none of the normal asertions were triggering: eg. when any page is removed
+from pagecache (except truncates), it has always had all its buffers
+written out *after* all ptes were made readonly or unmapped. Lots of other
+tests and crap like that.
+
+So I tried what I should have done to start with and did an e2fsck after
+seeing corruption. Yes, it comes up with errors. Now that is unusual
+because that should be largely insulated from the vm: if a dirty bit gets
+lost, then the filesystem image should be quite happy and error-free with
+a hole or unwritten data there.
+
+I don't know ext? locking very well, except that it looks pretty overly
+complex and crufty.
+
+Usually, blocks are instantiated by write(2), under i_mutex, serialising
+the allocator somewhat. mmap-write blocks are instantiated at writeout
+time, unserialised. I moved truncate_mutex to cover the entire get_blocks
+function, and can no longer trigger the problem. Might be a timing issue
+though -- Ying, can you try this and see if you can still reproduce?
+
+I close my eyes and pick something out of a hat. a686cd89. Search for XXX.
+Nice. Whether or not this cased the problem, can someone please tell me
+why it got merged in that state?
+
+I'm leaving ext3 running for now. It looks like a nasty task to bisect
+ext2 down to that commit :( and I would be more interested in trying to
+reproduce Jan's ext3 problem, however, because I'm not too interested in
+diving into ext2 locking to work out exactly what is racing and how to
+fix it properly. I suspect it would be most productive to wire up some
+ioctls right into the block allocator/lookup and code up a userspace
+tester for it that could probably stress it a lot harder than kernel
+writeout can.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
