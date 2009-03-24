@@ -1,167 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BA3E6B004D
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 12:09:44 -0400 (EDT)
-Message-Id: <20090324160149.188175023@polymtl.ca>
-References: <20090324155625.420966314@polymtl.ca>
-Date: Tue, 24 Mar 2009 11:56:34 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-Subject: [patch 9/9] LTTng instrumentation - swap
-Content-Disposition: inline; filename=lttng-instrumentation-swap.patch
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id F09BC6B0055
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 12:16:02 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id D92AE82D0C9
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 12:35:34 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id MKbkwMKw7pZS for <linux-mm@kvack.org>;
+	Tue, 24 Mar 2009 12:35:34 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2F55382D0EB
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 12:35:30 -0400 (EDT)
+Date: Tue, 24 Mar 2009 12:24:58 -0400 (EDT)
+From: Christoph Lameter <cl@linux-foundation.org>
+Subject: Re: why my systems never cache more than ~900 MB?
+In-Reply-To: <49C903B5.8020504@wpkg.org>
+Message-ID: <alpine.DEB.1.10.0903241217150.30551@qirst.com>
+References: <49C89CE0.2090103@wpkg.org> <200903250220.45575.nickpiggin@yahoo.com.au> <49C8FDD4.7070900@wpkg.org> <alpine.DEB.1.10.0903241142510.13587@qirst.com> <49C903B5.8020504@wpkg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, ltt-dev@lists.casi.polymtl.ca
-Cc: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, Masami Hiramatsu <mhiramat@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Frank Ch. Eigler" <fche@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Hideo AOKI <haoki@redhat.com>, Takashi Nishiie <t-nishiie@np.css.fujitsu.com>, Steven Rostedt <rostedt@goodmis.org>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
+To: Tomasz Chmielewski <mangoo@wpkg.org>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Instrumentation of waits caused by swap activity. Also instrumentation
-swapon/swapoff events to keep track of active swap partitions.
+On Tue, 24 Mar 2009, Tomasz Chmielewski wrote:
 
-Those tracepoints are used by LTTng.
+> Christoph Lameter schrieb:
+> > On Tue, 24 Mar 2009, Tomasz Chmielewski wrote:
+> >
+> > > Nick Piggin schrieb:
+> > > Does not help me, as what interests me here on these machines is mainly
+> > > caching block device data; they are iSCSI targets and access block devices
+> > > directly.
+> >
+> > You can run a 64 bit kernel on those machines. 64 bit kernels can use
+> > 32 bit userspace without a problem. Just install an additional kernel and
+> > try booting your existing setup with it.
+> >
+> > > What split should I choose to enable blockdev mapping on the whole memory
+> > > on
+> > > 32 bit system with 3 or 4 GB RAM? Is it possible with 4 GB RAM at all?
+> >
+> > A 64 bit kernel will do the trick.
+>
+> This hardware has problems booting 64 bit kernels (read: CPUs come from the
+> 32-bit land).
 
-About the performance impact of tracepoints (which is comparable to markers),
-even without immediate values optimizations, tests done by Hideo Aoki on ia64
-show no regression. His test case was using hackbench on a kernel where
-scheduler instrumentation (about 5 events in code scheduler code) was added.
-See the "Tracepoints" patch header for performance result detail.
+Then the 1G/3G separation (VMSPLIT_1G) is the best you can do. Will use up
+to 3G for low mem. Be aware that your I/O device must support DMA to full
+32 bit addresses. If this is an old 32 bit machine with limitations on the
+use of bit 31 then the box may have issues.
 
-Signed-off-by: Mathieu Desnoyers <mathieu.desnoyers@polymtl.ca>
-CC: linux-mm@kvack.org
-CC: Dave Hansen <haveblue@us.ibm.com>
-CC: Masami Hiramatsu <mhiramat@redhat.com>
-CC: 'Peter Zijlstra' <peterz@infradead.org>
-CC: "Frank Ch. Eigler" <fche@redhat.com>
-CC: 'Ingo Molnar' <mingo@elte.hu>
-CC: Frederic Weisbecker <fweisbec@gmail.com>
-CC: 'Hideo AOKI' <haoki@redhat.com>
-CC: Takashi Nishiie <t-nishiie@np.css.fujitsu.com>
-CC: 'Steven Rostedt' <rostedt@goodmis.org>
-CC: Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
----
- include/trace/swap.h |   20 ++++++++++++++++++++
- mm/memory.c          |    4 ++++
- mm/page_io.c         |    4 ++++
- mm/swapfile.c        |    6 ++++++
- 4 files changed, 34 insertions(+)
-
-Index: linux-2.6-lttng/mm/memory.c
-===================================================================
---- linux-2.6-lttng.orig/mm/memory.c	2009-03-24 09:09:55.000000000 -0400
-+++ linux-2.6-lttng/mm/memory.c	2009-03-24 09:32:15.000000000 -0400
-@@ -55,6 +55,7 @@
- #include <linux/kallsyms.h>
- #include <linux/swapops.h>
- #include <linux/elf.h>
-+#include <trace/swap.h>
- 
- #include <asm/pgalloc.h>
- #include <asm/uaccess.h>
-@@ -64,6 +65,8 @@
- 
- #include "internal.h"
- 
-+DEFINE_TRACE(swap_in);
-+
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- /* use the per-pgdat data instead for discontigmem - mbligh */
- unsigned long max_mapnr;
-@@ -2431,6 +2434,7 @@ static int do_swap_page(struct mm_struct
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
-+		trace_swap_in(page, entry);
- 	}
- 
- 	mark_page_accessed(page);
-Index: linux-2.6-lttng/mm/page_io.c
-===================================================================
---- linux-2.6-lttng.orig/mm/page_io.c	2009-03-24 09:09:52.000000000 -0400
-+++ linux-2.6-lttng/mm/page_io.c	2009-03-24 09:32:15.000000000 -0400
-@@ -17,8 +17,11 @@
- #include <linux/bio.h>
- #include <linux/swapops.h>
- #include <linux/writeback.h>
-+#include <trace/swap.h>
- #include <asm/pgtable.h>
- 
-+DEFINE_TRACE(swap_out);
-+
- static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
- 				struct page *page, bio_end_io_t end_io)
- {
-@@ -114,6 +117,7 @@ int swap_writepage(struct page *page, st
- 		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
- 	count_vm_event(PSWPOUT);
- 	set_page_writeback(page);
-+	trace_swap_out(page);
- 	unlock_page(page);
- 	submit_bio(rw, bio);
- out:
-Index: linux-2.6-lttng/mm/swapfile.c
-===================================================================
---- linux-2.6-lttng.orig/mm/swapfile.c	2009-03-24 09:09:52.000000000 -0400
-+++ linux-2.6-lttng/mm/swapfile.c	2009-03-24 09:32:15.000000000 -0400
-@@ -29,12 +29,16 @@
- #include <linux/capability.h>
- #include <linux/syscalls.h>
- #include <linux/memcontrol.h>
-+#include <trace/swap.h>
- 
- #include <asm/pgtable.h>
- #include <asm/tlbflush.h>
- #include <linux/swapops.h>
- #include <linux/page_cgroup.h>
- 
-+DEFINE_TRACE(swap_file_open);
-+DEFINE_TRACE(swap_file_close);
-+
- static DEFINE_SPINLOCK(swap_lock);
- static unsigned int nr_swapfiles;
- long nr_swap_pages;
-@@ -1497,6 +1501,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
- 	swap_map = p->swap_map;
- 	p->swap_map = NULL;
- 	p->flags = 0;
-+	trace_swap_file_close(swap_file);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	vfree(swap_map);
-@@ -1886,6 +1891,7 @@ SYSCALL_DEFINE2(swapon, const char __use
- 	} else {
- 		swap_info[prev].next = p - swap_info;
- 	}
-+	trace_swap_file_open(swap_file, name);
- 	spin_unlock(&swap_lock);
- 	mutex_unlock(&swapon_mutex);
- 	error = 0;
-Index: linux-2.6-lttng/include/trace/swap.h
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6-lttng/include/trace/swap.h	2009-03-24 09:32:26.000000000 -0400
-@@ -0,0 +1,20 @@
-+#ifndef _TRACE_SWAP_H
-+#define _TRACE_SWAP_H
-+
-+#include <linux/swap.h>
-+#include <linux/tracepoint.h>
-+
-+DECLARE_TRACE(swap_in,
-+	TPPROTO(struct page *page, swp_entry_t entry),
-+		TPARGS(page, entry));
-+DECLARE_TRACE(swap_out,
-+	TPPROTO(struct page *page),
-+		TPARGS(page));
-+DECLARE_TRACE(swap_file_open,
-+	TPPROTO(struct file *file, char *filename),
-+		TPARGS(file, filename));
-+DECLARE_TRACE(swap_file_close,
-+	TPPROTO(struct file *file),
-+		TPARGS(file));
-+
-+#endif
-
--- 
-Mathieu Desnoyers
-OpenPGP key fingerprint: 8CD5 52C3 8E3C 4140 715F  BA06 3F25 A8FE 3BAE 9A68
+Put as much as you can into Highmem. Set HIGHMEM4G, HIGHPTE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
