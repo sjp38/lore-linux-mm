@@ -1,53 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BEAD6B0055
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 13:20:58 -0400 (EDT)
-Date: Tue, 24 Mar 2009 18:35:11 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Message-ID: <20090324173511.GJ23439@duck.suse.cz>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200903250130.02485.nickpiggin@yahoo.com.au> <20090324144709.GF23439@duck.suse.cz> <200903250203.55520.nickpiggin@yahoo.com.au> <20090324154813.GH23439@duck.suse.cz>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 02EDA6B003D
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 13:47:56 -0400 (EDT)
+Date: Tue, 24 Mar 2009 10:56:24 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+In-Reply-To: <200903250043.18069.nickpiggin@yahoo.com.au>
+Message-ID: <alpine.LFD.2.00.0903241056100.3032@localhost.localdomain>
+References: <200903170323.45917.nickpiggin@yahoo.com.au> <20090318105735.BD17.A69D9226@jp.fujitsu.com> <20090322205249.6801.A69D9226@jp.fujitsu.com> <200903250043.18069.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090324154813.GH23439@duck.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Jan Kara <jack@suse.cz>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 24-03-09 16:48:14, Jan Kara wrote:
-> On Wed 25-03-09 02:03:54, Nick Piggin wrote:
-> > On Wednesday 25 March 2009 01:47:09 Jan Kara wrote:
-> > > On Wed 25-03-09 01:30:00, Nick Piggin wrote:
-> > 
-> > > > I don't think it is a very good idea for block_write_full_page recovery
-> > > > to do clear_buffer_dirty for !mapped buffers. I think that should rather
-> > > > be a redirty_page_for_writepage in the case that the buffer is dirty.
-> > > >
-> > > > Perhaps not the cleanest way to solve the problem if it is just due to
-> > > > transient shortage of space in ext3, but generic code shouldn't be
-> > > > allowed to throw away dirty data even if it can't be written back due
-> > > > to some software or hardware error.
-> > >
-> > >   Well, that would be one possibility. But then we'd be left with dirty
-> > > pages we cannot ever release since they are constantly dirty (when the
-> > > filesystem really becomes out of space). So what I
-> > 
-> > If the filesystem becomes out of space and we have over-committed these
-> > dirty mmapped blocks, then we most definitely want to keep them around.
-> > An error of the system losing a few pages (or if it happens an insanely
-> > large number of times, then slowly dying due to memory leak) is better
-> > than an app suddenly seeing the contents of the page change to nulls
-> > under it when the kernel decides to do some page reclaim.
->   Hmm, probably you're right. Definitely it would be much easier to track
-> the problem down than it is now... Thinking a bit more... But couldn't a
-> malicious user bring the machine easily to OOM this way? That would be
-> unfortunate.
-  OK, below is the patch which makes things work for me (i.e. no data
-lost). What do you think?
 
-									Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+
+On Wed, 25 Mar 2009, Nick Piggin wrote:
+> 
+> I still don't understand why this way is so much better than
+> my last proposal.
+
+Take a look at the diffstat.
+
+		Linus
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
