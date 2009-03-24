@@ -1,86 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 19C4D6B003D
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 03:39:29 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Date: Tue, 24 Mar 2009 18:44:21 +1100
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200903200248.22623.nickpiggin@yahoo.com.au> <20090319164638.GB3899@duck.suse.cz>
-In-Reply-To: <20090319164638.GB3899@duck.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 573EB6B003D
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 04:28:25 -0400 (EDT)
+Date: Tue, 24 Mar 2009 17:32:18 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v3
+Message-Id: <20090324173218.4de33b90.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090323142242.f6659457.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
+	<20090318125154.f8ffe652.nishimura@mxp.nes.nec.co.jp>
+	<20090318175734.f5a8a446.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090318231738.4e042cbd.d-nishimura@mtf.biglobe.ne.jp>
+	<20090319084523.1fbcc3cb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319111629.dcc9fe43.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319180631.44b0130f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090319190118.db8a1dd7.nishimura@mxp.nes.nec.co.jp>
+	<20090319191321.6be9b5e8.nishimura@mxp.nes.nec.co.jp>
+	<100477cfc6c3c775abc7aecd4ce8c46e.squirrel@webmail-b.css.fujitsu.com>
+	<432ace3655a26d2d492a56303369a88a.squirrel@webmail-b.css.fujitsu.com>
+	<20090320164520.f969907a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323104555.cb7cd059.nishimura@mxp.nes.nec.co.jp>
+	<20090323114118.8b45105f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090323140419.40235ce3.nishimura@mxp.nes.nec.co.jp>
+	<20090323142242.f6659457.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200903241844.22851.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org
-Cc: Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 20 March 2009 03:46:39 Jan Kara wrote:
-> On Fri 20-03-09 02:48:21, Nick Piggin wrote:
+On Mon, 23 Mar 2009 14:22:42 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Mon, 23 Mar 2009 14:04:19 +0900
+> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+> 
+> > > Nice clean-up here :)
+> > > 
+> > Thanks, I'll send a cleanup patch for this part later.
+> > 
+> Thank you, I'll look into.
+> 
+> > > > @@ -1359,18 +1373,40 @@ charge_cur_mm:
+> > > >  	return __mem_cgroup_try_charge(mm, mask, ptr, true);
+> > > >  }
+> > > >  
+> > > > -void mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr)
+> > > > +static void
+> > > > +__mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
+> > > > +					enum charge_type ctype)
+> > > >  {
+> > > > -	struct page_cgroup *pc;
+> > > > +	unsigned long flags;
+> > > > +	struct zone *zone = page_zone(page);
+> > > > +	struct page_cgroup *pc = lookup_page_cgroup(page);
+> > > > +	int locked = 0;
+> > > >  
+> > > >  	if (mem_cgroup_disabled())
+> > > >  		return;
+> > > >  	if (!ptr)
+> > > >  		return;
+> > > > -	pc = lookup_page_cgroup(page);
+> > > > -	mem_cgroup_lru_del_before_commit_swapcache(page);
+> > > > -	__mem_cgroup_commit_charge(ptr, pc, MEM_CGROUP_CHARGE_TYPE_MAPPED);
+> > > > -	mem_cgroup_lru_add_after_commit_swapcache(page);
+> > > > +
+> > > > +	/*
+> > > > +	 * Forget old LRU when this page_cgroup is *not* used. This Used bit
+> > > > +	 * is guarded by lock_page() because the page is SwapCache.
+> > > > +	 * If this pc is on orphan LRU, it is also removed from orphan LRU here.
+> > > > +	 */
+> > > > +	if (!PageCgroupUsed(pc)) {
+> > > > +		locked = 1;
+> > > > +		spin_lock_irqsave(&zone->lru_lock, flags);
+> > > > +		mem_cgroup_del_lru_list(page, page_lru(page));
+> > > > +	}
+> > > Maybe nice. I tried to use lock_page_cgroup() in add_list but I can't ;(
+> > > I think this works well. But I wonder...why you have to check PageCgroupUsed() ?
+> > > And is it correct ? Removing PageCgroupUsed() bit check is nice.
+> > > (This will be "usually returns true" check, anyway)
+> > > 
+> > I've just copied lru_del_before_commit_swapcache.
+> > 
+> ya, considering now, it seems to be silly quick-hack.
+> 
+> > As you say, this check will return false only in (C) case in memcg_test.txt,
+> > and even in (C) case calling mem_cgroup_del_lru_list(and mem_cgroup_add_lru_list later)
+> > would be no problem.
+> > 
+> > OK, I'll remove this check.
+> > 
+> Thanks,
+> 
+> > This is the updated version(w/o cache_charge cleanup).
+> > 
+> > BTW, Should I merge reclaim part based on your patch and post it ?
+> > 
+> I think not necessary. keeping changes minimum is important as BUGFIX.
+> We can visit here again when new -RC stage starts.
+> 
+> no problem from my review.
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+Just FYI, this version of orphan list framework works fine
+w/o causing BUG more than 24h.
 
-> > Holding mapping->private_lock over the __set_page_dirty should
-> > fix it, although I guess you'd want to release it before calling
-> > __mark_inode_dirty so as not to put inode_lock under there. I
-> > have a patch for this if it sounds reasonable.
->
->   Yes, that seems to be a bug - the function actually looked suspitious to
-> me yesterday but I somehow convinced myself that it's fine. Probably
-> because fsx-linux is single-threaded.
+So, I believe we can implement reclaim part based on this
+to fix the original problem.
 
 
-After a whole lot of chasing my own tail in the VM and buffer layers,
-I think it is a problem in ext2 (and I haven't been able to reproduce
-with ext3 yet, which might lend weight to that, although as we have
-seen, it is very timing dependent).
-
-That would be slightly unfortunate because we still have Jan's ext3
-problem, and also another reported problem of corruption on ext3 (on
-brd driver).
-
-Anyway, when I have reproduced the problem with the test case, the
-"lost" writes are all reported to be holes. Unfortunately, that doesn't
-point straight to the filesystem, because ext2 allocates blocks in this
-case at writeout time, so if dirty bits are getting lost, then it would
-be normal to see holes.
-
-I then put in a whole lot of extra infrastructure to track metadata about
-each struct page (when it was last written out, when it last had the number
-of writable ptes reach 0, when the dirty bits were last cleared etc). And
-none of the normal asertions were triggering: eg. when any page is removed
-from pagecache (except truncates), it has always had all its buffers
-written out *after* all ptes were made readonly or unmapped. Lots of other
-tests and crap like that.
-
-So I tried what I should have done to start with and did an e2fsck after
-seeing corruption. Yes, it comes up with errors. Now that is unusual
-because that should be largely insulated from the vm: if a dirty bit gets
-lost, then the filesystem image should be quite happy and error-free with
-a hole or unwritten data there.
-
-I don't know ext? locking very well, except that it looks pretty overly
-complex and crufty.
-
-Usually, blocks are instantiated by write(2), under i_mutex, serialising
-the allocator somewhat. mmap-write blocks are instantiated at writeout
-time, unserialised. I moved truncate_mutex to cover the entire get_blocks
-function, and can no longer trigger the problem. Might be a timing issue
-though -- Ying, can you try this and see if you can still reproduce?
-
-I close my eyes and pick something out of a hat. a686cd89. Search for XXX.
-Nice. Whether or not this cased the problem, can someone please tell me
-why it got merged in that state?
-
-I'm leaving ext3 running for now. It looks like a nasty task to bisect
-ext2 down to that commit :( and I would be more interested in trying to
-reproduce Jan's ext3 problem, however, because I'm not too interested in
-diving into ext2 locking to work out exactly what is racing and how to
-fix it properly. I suspect it would be most productive to wire up some
-ioctls right into the block allocator/lookup and code up a userspace
-tester for it that could probably stress it a lot harder than kernel
-writeout can.
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
