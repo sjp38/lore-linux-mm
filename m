@@ -1,114 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A54C6B003D
-	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 09:16:24 -0400 (EDT)
-Date: Tue, 24 Mar 2009 14:26:37 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Message-ID: <20090324132637.GA14607@duck.suse.cz>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200903200248.22623.nickpiggin@yahoo.com.au> <20090319164638.GB3899@duck.suse.cz> <200903241844.22851.nickpiggin@yahoo.com.au> <20090324123935.GD23439@duck.suse.cz> <20090324125510.GA9434@duck.suse.cz>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D9D966B003D
+	for <linux-mm@kvack.org>; Tue, 24 Mar 2009 09:32:45 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Date: Wed, 25 Mar 2009 00:43:16 +1100
+References: <200903170323.45917.nickpiggin@yahoo.com.au> <20090318105735.BD17.A69D9226@jp.fujitsu.com> <20090322205249.6801.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090322205249.6801.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20090324125510.GA9434@duck.suse.cz>
+Message-Id: <200903250043.18069.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 24-03-09 13:55:10, Jan Kara wrote:
-> On Tue 24-03-09 13:39:36, Jan Kara wrote:
-> >   Hi,
-> > 
-> > On Tue 24-03-09 18:44:21, Nick Piggin wrote:
-> > > On Friday 20 March 2009 03:46:39 Jan Kara wrote:
-> > > > On Fri 20-03-09 02:48:21, Nick Piggin wrote:
-> > > 
-> > > > > Holding mapping->private_lock over the __set_page_dirty should
-> > > > > fix it, although I guess you'd want to release it before calling
-> > > > > __mark_inode_dirty so as not to put inode_lock under there. I
-> > > > > have a patch for this if it sounds reasonable.
-> > > >
-> > > >   Yes, that seems to be a bug - the function actually looked suspitious to
-> > > > me yesterday but I somehow convinced myself that it's fine. Probably
-> > > > because fsx-linux is single-threaded.
-> > > 
-> > > 
-> > > After a whole lot of chasing my own tail in the VM and buffer layers,
-> > > I think it is a problem in ext2 (and I haven't been able to reproduce
-> > > with ext3 yet, which might lend weight to that, although as we have
-> > > seen, it is very timing dependent).
-> > > 
-> > > That would be slightly unfortunate because we still have Jan's ext3
-> > > problem, and also another reported problem of corruption on ext3 (on
-> > > brd driver).
-> > > 
-> > > Anyway, when I have reproduced the problem with the test case, the
-> > > "lost" writes are all reported to be holes. Unfortunately, that doesn't
-> > > point straight to the filesystem, because ext2 allocates blocks in this
-> > > case at writeout time, so if dirty bits are getting lost, then it would
-> > > be normal to see holes.
-> > > 
-> > > I then put in a whole lot of extra infrastructure to track metadata about
-> > > each struct page (when it was last written out, when it last had the number
-> > > of writable ptes reach 0, when the dirty bits were last cleared etc). And
-> > > none of the normal asertions were triggering: eg. when any page is removed
-> > > from pagecache (except truncates), it has always had all its buffers
-> > > written out *after* all ptes were made readonly or unmapped. Lots of other
-> > > tests and crap like that.
-> >   I see we're going the same way ;)
-> > 
-> > > So I tried what I should have done to start with and did an e2fsck after
-> > > seeing corruption. Yes, it comes up with errors. Now that is unusual
-> > > because that should be largely insulated from the vm: if a dirty bit gets
-> > > lost, then the filesystem image should be quite happy and error-free with
-> > > a hole or unwritten data there.
-> >   This is different for me. I see no corruption on the filesystem with
-> > ext3. Anyway, errors from fsck would be useful to see what kind of
-> > corruption you saw.
-> > 
-> > > I don't know ext? locking very well, except that it looks pretty overly
-> > > complex and crufty.
-> > > 
-> > > Usually, blocks are instantiated by write(2), under i_mutex, serialising
-> > > the allocator somewhat. mmap-write blocks are instantiated at writeout
-> > > time, unserialised. I moved truncate_mutex to cover the entire get_blocks
-> > > function, and can no longer trigger the problem. Might be a timing issue
-> > > though -- Ying, can you try this and see if you can still reproduce?
-> > > 
-> > > I close my eyes and pick something out of a hat. a686cd89. Search for XXX.
-> > > Nice. Whether or not this cased the problem, can someone please tell me
-> > > why it got merged in that state?
-> >   Maybe, I see it did some changes to ext2_get_blocks() which could be
-> > where the problem was introduced...
-> > 
-> > > I'm leaving ext3 running for now. It looks like a nasty task to bisect
-> > > ext2 down to that commit :( and I would be more interested in trying to
-> > > reproduce Jan's ext3 problem, however, because I'm not too interested in
-> > > diving into ext2 locking to work out exactly what is racing and how to
-> > > fix it properly. I suspect it would be most productive to wire up some
-> > > ioctls right into the block allocator/lookup and code up a userspace
-> > > tester for it that could probably stress it a lot harder than kernel
-> > > writeout can.
-> >   Yes, what I observed with ext3 so far is that data is properly copied and
-> > page marked dirty when the data is copied in. But then at some point dirty
-> > bit is cleared via block_write_full_page() but we don't get to submitting
-> > at least one buffer in that page. I'm now debugging which path we take so
-> > that this happens...
->   And one more interesting thing I don't yet fully understand - I see pages
-> having PageError() set when they are removed from page cache (and they have
-> been faulted in before). It's probably some interaction with pagecache
-> readahead...
-  Argh... So the problem seems to be that get_block() occasionally returns
-ENOSPC and we then discard the dirty data (hmm, we could give at least a
-warning for that). I'm not yet sure why getblock behaves like this because
-the filesystem seems to have enough space but anyway this seems to be some
-strange fs trouble as well.
+On Sunday 22 March 2009 23:23:56 KOSAKI Motohiro wrote:
+> Hi
+>
+> following patch is my v2 approach.
+> it survive Andrea's three dio test-case.
+>
+> Linus suggested to change add_to_swap() and shrink_page_list() stuff
+> for avoid false cow in do_wp_page() when page become to swapcache.
+>
+> I think it's good idea. but it's a bit radical. so I think it's for
+> development tree tackle.
+>
+> Then, I decide to use Nick's early decow in
+> get_user_pages() and RO mapped page don't use gup_fast.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+You probably should be testing for PageAnon pages in gup_fast.
+Also, using a bit in page->flags you could potentially get
+anonymous, readonly mappings working again (I thought I had
+them working in my patch, but on second thoughts perhaps I
+had a bug in tagging them, I'll try to fix that).
+
+
+> yeah, my approach is extream brutal way and big hammer. but I think
+> it don't have performance issue in real world.
+>
+> why?
+>
+> Practically, we can assume following two thing.
+>
+> (1) the buffer of passed write(2) syscall argument is RW mapped
+>     page or COWed RO page.
+>
+> if anybody write following code, my path cause performance degression.
+>
+>    buf = mmap()
+>    memset(buf, 0x11, len);
+>    mprotect(buf, len, PROT_READ)
+>    fd = open(O_DIRECT)
+>    write(fd, buf, len)
+>
+> but it's very artifactical code. nobody want this.
+> ok, we can ignore this.
+
+The more interesting uses of gup (and perhaps somewhat
+improved or enabled with fast-gup) I think are things like
+vmsplice, and syslets/threadlets/aio kind of things. And I
+don't exactly know what the users are going to look like.
+
+
+> (2) DirectIO user process isn't short lived process.
+>
+> early decow only decrease short lived process performaqnce.
+> because long lived process do decowing anyway before exec(2).
+>
+> and, All DB application is definitely long lived process.
+> then early decow don't cause degression.
+
+Right, most databases won't care *at all* because they won't
+do any decowing. But if there are cases that do care, then we
+can perhaps take the policy of having them use MADV_DONTFORK
+or somesuch.
+
+
+> TODO
+>   - implement down_write_killable().
+>     (but it isn't important thing because this is rare case issue.)
+>   - implement non x86 portion.
+>
+>
+> Am I missing any thing?
+
+I still don't understand why this way is so much better than
+my last proposal. I just wanted to let that simmer down for a 
+few days :) But I'm honestly really just interested in a good
+discussion and I don't mind being sworn at if I'm being stupid,
+but I really want to hear opinions of why I'm wrong too.
+
+Yes my patch has downsides I'm quite happy to admit. But I just
+don't see that copy-on-fork rather than wrprotect-on-fork is
+the showstopper. To me it seemed nice because it is practically
+just reusing code straight from do_wp_page, and pretty well
+isolated out of the fastpath.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
