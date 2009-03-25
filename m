@@ -1,78 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B1836B00A4
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 02:13:13 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2P6dTab016912
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 12:09:29 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2P6dL004259934
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 12:09:21 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2P6dCxg003280
-	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 12:09:12 +0530
-Date: Wed, 25 Mar 2009 12:08:57 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/5] Memory controller soft limit organize cgroups (v7)
-Message-ID: <20090325063857.GO24227@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090319165713.27274.94129.sendpatchset@localhost.localdomain> <20090319165735.27274.96091.sendpatchset@localhost.localdomain> <20090325135900.dc82f133.kamezawa.hiroyu@jp.fujitsu.com> <20090325052945.GI24227@balbir.in.ibm.com> <20090325143953.beba2e02.kamezawa.hiroyu@jp.fujitsu.com> <20090325055354.GK24227@balbir.in.ibm.com> <20090325150109.b127a7af.kamezawa.hiroyu@jp.fujitsu.com> <20090325062140.GM24227@balbir.in.ibm.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D1CA6B003D
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 18:33:03 -0400 (EDT)
+Received: from zps36.corp.google.com (zps36.corp.google.com [172.25.146.36])
+	by smtp-out.google.com with ESMTP id n2PNF5IU013372
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 16:15:05 -0700
+Received: from wf-out-1314.google.com (wfc25.prod.google.com [10.142.3.25])
+	by zps36.corp.google.com with ESMTP id n2PNEIuV018001
+	for <linux-mm@kvack.org>; Wed, 25 Mar 2009 16:15:04 -0700
+Received: by wf-out-1314.google.com with SMTP id 25so282354wfc.5
+        for <linux-mm@kvack.org>; Wed, 25 Mar 2009 16:15:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090325062140.GM24227@balbir.in.ibm.com>
+In-Reply-To: <alpine.LFD.2.00.0903181522570.3082@localhost.localdomain>
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
+	 <20090318151157.85109100.akpm@linux-foundation.org>
+	 <alpine.LFD.2.00.0903181522570.3082@localhost.localdomain>
+Date: Wed, 25 Mar 2009 16:15:03 -0700
+Message-ID: <604427e00903251615y278ba9d9p58924ab24060cf0e@mail.gmail.com>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, YAMAMOTO Takashi <yamamoto@valinux.co.jp>, lizf@cn.fujitsu.com, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-* Balbir Singh <balbir@linux.vnet.ibm.com> [2009-03-25 11:51:40]:
+On Wed, Mar 18, 2009 at 3:40 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+>
+> On Wed, 18 Mar 2009, Andrew Morton wrote:
+>
+>> On Wed, 18 Mar 2009 12:44:08 -0700 Ying Han <yinghan@google.com> wrote:
+>> >
+>> > The "bad pages" count differs each time from one digit to 4,5 digit
+>> > for 128M ftruncated file. and what i also found that the bad page
+>> > number are contiguous for each segment which total bad pages container
+>> > several segments. ext "1-4, 9-20, 48-50" (  batch flushing ? )
+>
+> Yeah, probably the batched write-out.
+>
+> Can you say what filesystem, and what mount-flags you use? Iirc, last time
+> we had MAP_SHARED lost writes it was at least partly triggered by the
+> filesystem doing its own flushing independently of the VM (ie ext3 with
+> "data=journal", I think), so that kind of thing does tend to matter.
+>
+> See for example commit ecdfc9787fe527491baefc22dce8b2dbd5b2908d.
+>
+>> > (The failure is reproduced based on 2.6.29-rc8, also happened on
+>> > 2.6.18 kernel. . Here is the simple test case to reproduce it with
+>> > memory pressure. )
+>>
+>> Thanks.  This will be a regression - the testing I did back in the days
+>> when I actually wrote stuff would have picked this up.
+>>
+>> Perhaps it is a 2.6.17 thing.  Which, IIRC, is when we made the changes to
+>> redirty pages on each write fault.  Or maybe it was something else.
+>
+> Hmm. I _think_ that changes went in _after_ 2.6.18, if you're talking
+> about Peter's exact dirty page tracking. If I recall correctly, that
+> became then 2.6.19, and then had the horrible mm dirty bit loss that
+> triggered in librtorrent downloads, which got fixed sometime after 2.6.20
+> (and back-ported).
+>
+> So if 2.6.18 shows the same problem, then it's a _really_ old bug, and not
+> related to the exact dirty tracking.
+>
+> The exact dirty accounting patch I'm talking about is d08b3851da41 ("mm:
+> tracking shared dirty pages"), but maybe you had something else in mind?
+>
+>> Given the amount of time for which this bug has existed, I guess it isn't a
+>> 2.6.29 blocker, but once we've found out the cause we should have a little
+>> post-mortem to work out how a bug of this nature has gone undetected for so
+>> long.
+>
+> I'm somewhat surprised, because this test-program looks like a very simple
+> version of the exact one that I used to track down the 2.6.20 mmap
+> corruption problems. And that one got pretty heavily tested back then,
+> when people were looking at it (December 2006) and then when trying out my
+> fix for it.
+>
+> Ying Han - since you're all set up for testing this and have reproduced it
+> on multiple kernels, can you try it on a few more kernel versions? It
+> would be interesting to both go further back in time (say 2.6.15-ish),
+> _and_ check something like 2.6.21 which had the exact dirty accounting
+> fix. Maybe it's not really an old bug - maybe we re-introduced a bug that
+> was fixed for a while.
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-25 15:01:09]:
-> 
-> > On Wed, 25 Mar 2009 11:23:54 +0530
-> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > > ==
-> > > > +void res_counter_uncharge(struct res_counter *counter, unsigned long val,
-> > > > +				bool *was_soft_limit_excess)
-> > > >  {
-> > > >  	unsigned long flags;
-> > > >  	struct res_counter *c;
-> > > > @@ -83,6 +94,9 @@ void res_counter_uncharge(struct res_counter *counter, unsigned long val)
-> > > >  	local_irq_save(flags);
-> > > >  	for (c = counter; c != NULL; c = c->parent) {
-> > > >  		spin_lock(&c->lock);
-> > > > +		if (c == counter && was_soft_limit_excess)
-> > > > +			*was_soft_limit_excess =
-> > > > +				!res_counter_soft_limit_check_locked(c);
-> > > >  		res_counter_uncharge_locked(c, val);
-> > > >  		spin_unlock(&c->lock);
-> > > >  	}
-> > > > ==
-> > > > Why just check "c == coutner" case is enough ?
-> > > > 
-> > > 
-> > > This is a very good question, I think this check might not be
-> > > necessary and can also be potentially buggy.
-> > > 
-> > I feel so, but can't think of good clean up.
-> > 
-> > Don't we remove this check at uncharge ? Anyway status can be updated at
-> >   - charge().
-> >   - reclaim
-> > 
-> > I'll seek this way in mine...
-> 
-> The check can be removed, let me do that and re-run the overhead
-> tests.
-
-OK, no impact since I don't have soft limits or hierarchy enabled in
-the tests for overhead (I am testing overhead for non-users of the
-feature).
-
--- 
-	Balbir
+Just answer your question, i got chance try 2.6.15 and 2.6.21 and they
+both report the "bad pages"
+failure. I am using the same system as well as the config
+>                                Linus
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
