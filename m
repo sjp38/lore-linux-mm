@@ -1,102 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2DE6B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 06:44:01 -0400 (EDT)
-Date: Thu, 26 Mar 2009 12:37:34 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Message-ID: <20090326113733.GA23044@duck.suse.cz>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <20090324125510.GA9434@duck.suse.cz> <20090324132637.GA14607@duck.suse.cz> <200903250130.02485.nickpiggin@yahoo.com.au> <20090324144709.GF23439@duck.suse.cz> <1237906563.24918.184.camel@twins> <20090324152959.GG23439@duck.suse.cz> <20090326084723.GB8207@skywalker>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CCBF6B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 09:11:02 -0400 (EDT)
+Date: Thu, 26 Mar 2009 14:08:17 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: tlb_gather_mmu() and semantics of "fullmm"
+In-Reply-To: <1238043674.25062.823.camel@pasglop>
+Message-ID: <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
+References: <1238043674.25062.823.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090326084723.GB8207@skywalker>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "David S. Miller" <davem@davemloft.net>, Zach Amsden <zach@vmware.com>, Jeremy Fitzhardinge <jeremy@goop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu 26-03-09 14:17:23, Aneesh Kumar K.V wrote:
-> On Tue, Mar 24, 2009 at 04:29:59PM +0100, Jan Kara wrote:
-> > On Tue 24-03-09 15:56:03, Peter Zijlstra wrote:
-> > > On Tue, 2009-03-24 at 15:47 +0100, Jan Kara wrote:
-> > > > 
-> > > > Or we could implement ext3_mkwrite() to allocate buffers already when we
-> > > > make page writeable. But it costs some performace (we have to write page
-> > > > full of zeros when allocating those buffers, where previously we didn't
-> > > > have to do anything) and it's not trivial to make it work if pagesize >
-> > > > blocksize (we should not allocate buffers outside of i_size so if i_size
-> > > > = 1024, we create just one block in ext3_mkwrite() but then we need to
-> > > > allocate more when we extend the file).
-> > > 
-> > > I think this is the best option, failing with SIGBUS when we fail to
-> > > allocate blocks seems consistent with other filesystems as well.
-> >   I agree this looks attractive at the first sight. But there are drawbacks
-> > as I wrote - the problem with blocksize < pagesize, slight performance
-> > decrease due to additional write,
+On Thu, 26 Mar 2009, Benjamin Herrenschmidt wrote:
 > 
-> It should not cause an additional write. Can you let me why it would
-> result in additional write ?
-  Because if you have a new page, at the time mkwrite() or set_page_dirty()
-is called, it is just full of zeros. So we attach buffers full of zeros to
-the running transaction to stand to data=ordered mode requirements. Then
-these get written out on transaction commit (or they can already contain some
-data user has written via mmap) but we're going to write them again when
-writepage() is called on the page.
-  Umm, but yes, thinking more about the details, we clear buffer dirty bits
-at commit time so if by that time user has copied in all the data,
-subsequent writepage will find out all the buffers are clean and will not
-send them to disk. So in this case overhead is going to be just
-journal_start() + journal_stop(). OTOH mm usually decides to write the page
-only after some time so if user writes to the page often then we really do
-one more write. But in this case one additional write is going to be
-probably lost in the number of total writes of the page. So yes, this is
-not such a big issue as I though originally.
+> I'd like to clarify something about the semantics of the "full_mm_flush"
+> argument of tlb_gather_mmu().
+> 
+> The reason is that it can either mean:
+> 
+>  - All the mappings for that mm are being flushed
+> 
+> or
+> 
+>  - The above +plus+ the mm is dead and has no remaining user. IE, we
+> can relax some of the rules because we know the mappings cannot be
+> accessed concurrently, and thus the PTEs cannot be reloaded into the
+> TLB.
 
-> >page faults doing allocation can take a
-> > *long* time 
-> 
-> That is true
-> 
-> >and overall fragmentation is going to be higher (previously
-> > writepage wrote pages for us in the right order, now we are going to
-> > allocate in the first-accessed order). So I'm not sure we really want to
-> > go this way.
-> 
-> 
-> block allocator should be improved to fix that. For example ext4
-> mballoc also look at the logical file block number when doing block
-> allocation. So if we does enough reservation it should handle the 
-> the first-accessed order and sequential order allocation properly.
-  Well, we could definitely improve ext3 allocator. But do we really want
-to backport mballoc to ext3? IMO It is easier to essentialy perform delayed
-allocation at the time of mkwrite() and the do the real allocation at the
-time of writepage(). So I'd rather vote for a mechanism I write about
-below.
+No remaining user in the sense of no longer connected to any user task,
+but may still be active_mm on some cpus.
 
-> Another reason why I think we would need ext3_page_mkwrite is, if we
-> really are out of space how do we handle it ? Currently the patch you
-> posted does redirty_page_for_writepage, which would imply we can't
-> reclaim the page and since get_block get ENOSPC we can't allocate
-> blocks.
-  I definitely agree we should somehow solve this problem but the mechanism
-below seems to be an easier way to me.
+> 
+> If it means the later (which it does in practice today, since we only
+> call it from exit_mmap(), unless I missed an important detail), then I
+> could implement some optimisations in my own arch code, but more
 
-> >   Hmm, maybe we could play a trick ala delayed allocation - i.e., reserve
-> > some space in mkwrite() but don't actually allocate it. That would be done
-> > in writepage(). This would solve all the problems I describe above. We could
-> > use PG_Checked flag to track that the page has a reservation and behave
-> > accordingly in writepage() / invalidatepage(). ext3 in data=journal mode
-> > already uses the flag but the use seems to be compatible with what I want
-> > to do now... So it may actually work.
-> >   BTW: Note that there's a plenty of filesystems that don't implement
-> > mkwrite() (e.g. ext2, UDF, VFAT...) and thus have the same problem with
-> > ENOSPC. So I'd not speak too much about consistency ;).
+Yes, I'm pretty sure you can assume the latter.  The whole point
+of the "full mm" stuff (would have better been named "exit mm") is
+to allow optimizations, and I don't see what optimization there is to
+be made from knowing you're going the whole length of the mm; whereas
+optimizations can be made if you know nothing can happen in parallel.
 
-									Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Cc'ed DaveM who introduced it for sparc64, and Zach and Jeremy
+who have delved there, in case they wish to disagree.
+
+> importantly, I believe we might also be able to optimize the generic
+> (and x86) code to avoid flushing the TLB when the batch of pages fills
+> up, before freeing the pages.
+
+I'd be surprised if there are still such optimizations to be made:
+maybe a whole different strategy could be more efficient, but I'd be
+surprised if there's really a superfluous TLB flush to be tweaked away.
+
+Although it looks as if there's a TLB flush at the end of every batch,
+isn't that deceptive (on x86 anyway)?  I'm thinking that the first
+flush_tlb_mm() will end up calling leave_mm(), and the subsequent
+ones do nothing because the cpu_vm_mask is then empty.
+
+Hmm, but the cpu which is actually doing the flush_tlb_mm() calls
+leave_mm() without considering cpu_vm_mask: won't we get repeated
+unnecessary load_cr3(swapper_pg_dir)s from that?
+
+> 
+> That would have the side effect of speeding up exit of large processes
+> by limiting the number of tlb flushes they do. Since the TLB would need
+> to be flushed only once at the end for archs that may carry more than
+> one context in their TLB, and possibly not at all on x86 since it
+> doesn't and the context isn't active any more.
+
+It's tempting to think that even that one TLB flush is one too many,
+given that the next user task to run on any cpu will have to load %cr3
+for its own address space.
+
+But I think that leaves a danger from speculative TLB loads by kernel
+threads, after the pagetables of the original mm have got freed and
+reused for something else: I think they would at least need to remain
+good pagetables until the last cpu's TLB has been flushed.
+
+> 
+> Or am I missing something ?
+
+I suspect so, but please don't take my word for it: you've
+probably put more thought into asking than I have in answering.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
