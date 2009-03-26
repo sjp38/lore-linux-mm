@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 275106B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 23:17:00 -0400 (EDT)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 475586B0047
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 23:17:24 -0400 (EDT)
 Subject: Re: tlb_gather_mmu() and semantics of "fullmm"
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
+In-Reply-To: <alpine.LFD.2.00.0903260927320.3032@localhost.localdomain>
 References: <1238043674.25062.823.camel@pasglop>
 	 <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
+	 <alpine.LFD.2.00.0903260927320.3032@localhost.localdomain>
 Content-Type: text/plain
-Date: Fri, 27 Mar 2009 09:33:44 +1100
-Message-Id: <1238106824.16498.7.camel@pasglop>
+Date: Fri, 27 Mar 2009 10:13:02 +1100
+Message-Id: <1238109182.16498.47.camel@pasglop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "David S. Miller" <davem@davemloft.net>, Zach Amsden <zach@vmware.com>, Jeremy Fitzhardinge <jeremy@goop.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "David S. Miller" <davem@davemloft.net>, Zach Amsden <zach@vmware.com>, Jeremy Fitzhardinge <jeremy@goop.org>
 List-ID: <linux-mm.kvack.org>
 
 
-> No remaining user in the sense of no longer connected to any user task,
-> but may still be active_mm on some cpus.
+> Side note: this means that CPU's that do speculative TLB fills may still 
+> touch the user entries.
 
-Right, I see, an Linus point about speculative TLB activity stands here,
-though I suspect that is a non issue on SW loaded TLB processors for
-example... 
+Ok. That's what I wasn't sure of. It's fortunately not the case on SW
+loaded TLBs so I may still do some optimisations on these guys.
 
-I wonder how often we are in this situation and whether we could
-optimize for the case when fullmm && mm_count == 1...
- 
-> I'd be surprised if there are still such optimizations to be made:
-> maybe a whole different strategy could be more efficient, but I'd be
-> surprised if there's really a superfluous TLB flush to be tweaked away.
+>  They won't _care_ about what they get, though. So 
+> you should be able to do any optimizations you want, as long as it doesn't 
+> cause machine checks or similar (ie another CPU doing a speculative access 
+> and then being really unhappy about a totally invalid page table entry).
+
+Right.
+
+> > Although it looks as if there's a TLB flush at the end of every batch,
+> > isn't that deceptive (on x86 anyway)?
 > 
-> Although it looks as if there's a TLB flush at the end of every batch,
-> isn't that deceptive (on x86 anyway)?  I'm thinking that the first
-> flush_tlb_mm() will end up calling leave_mm(), and the subsequent
-> ones do nothing because the cpu_vm_mask is then empty.
+> You need to. Again. Even on that CPU the TLB may have gotten re-loaded 
+> speculatively, even if nothing _meant_ to touch user pages.
+> 
+> So you can't just flush the TLB once, and then expect that since you 
+> flushed it, and nothing else accessed those user addresses, you don't need 
+> to flush it again.
+>
+> And doing things the other way around - only flushing once at the end - is 
+> incorrect because the whole point is that we can only free the page 
+> directory once we've flushed all the translations that used it. So we need 
+> to flush before the real release, and we need to flush after we've 
+> unmapped everything. Thus the repeated flushes.
+> 
+> It shouldn't be that costly, since kernel mappings should be marked 
+> global.
 
-Ok, well, that's a bit different on other archs like powerpc where we virtually
-never remove bits from cpu_vm_mask... (though we probably could... to be looked
-at).
+I was talking about the freeing of the individual pages, not the page
+tables per-se, but yes, I see that the problem is there too.
 
-> Hmm, but the cpu which is actually doing the flush_tlb_mm() calls
-> leave_mm() without considering cpu_vm_mask: won't we get repeated
-> unnecessary load_cr3(swapper_pg_dir)s from that?
-
-That's x86 voodoo that I'll leave to you guys :-)
-
-> It's tempting to think that even that one TLB flush is one too many,
-> given that the next user task to run on any cpu will have to load %cr3
-> for its own address space.
-
-But we can't free the pages until we have flushed the TLB.
-
-> But I think that leaves a danger from speculative TLB loads by kernel
-> threads, after the pagetables of the original mm have got freed and
-> reused for something else: I think they would at least need to remain
-> good pagetables until the last cpu's TLB has been flushed.
-
-Page tables being good is a separate problem. Pages themselves can't be
-freed while a TLB potentially points to them, we agree on that.
-
-> I suspect so, but please don't take my word for it: you've
-> probably put more thought into asking than I have in answering.
-
-Well, I'm thinking there may be ways to improve things a little bit but
-that's no big deal right now.
-
-Mostly the deal with SW loaded TLBs is that once it's been flushed once,
-there should be no speculative access to worry about anymore and we can
-switch the batch to 'fast mode' if fullmm is set, because those CPUs (at
-least the ones I'm working with) can't take TLB miss interrupts as a
-result of a speculative access.
+I'll do some experiments on embedded stuffs here and see if it's worth
+doing things differently. I'm trying to avoid too many IPIs typically.
+The problem with our TLBs is that they cache multiple contexts, and so
+they may still hold translations for contexts not currently active,
+-but- we really don't need to do heavy synchronisation to flush those.
 
 Cheers,
 Ben.
