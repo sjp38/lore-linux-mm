@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CCBF6B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 09:11:02 -0400 (EDT)
-Date: Thu, 26 Mar 2009 14:08:17 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D7D16B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 11:44:37 -0400 (EDT)
+Date: Thu, 26 Mar 2009 09:38:18 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: tlb_gather_mmu() and semantics of "fullmm"
-In-Reply-To: <1238043674.25062.823.camel@pasglop>
-Message-ID: <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
-References: <1238043674.25062.823.camel@pasglop>
+In-Reply-To: <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
+Message-ID: <alpine.LFD.2.00.0903260927320.3032@localhost.localdomain>
+References: <1238043674.25062.823.camel@pasglop> <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "David S. Miller" <davem@davemloft.net>, Zach Amsden <zach@vmware.com>, Jeremy Fitzhardinge <jeremy@goop.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, "David S. Miller" <davem@davemloft.net>, Zach Amsden <zach@vmware.com>, Jeremy Fitzhardinge <jeremy@goop.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Mar 2009, Benjamin Herrenschmidt wrote:
+
+
+On Thu, 26 Mar 2009, Hugh Dickins wrote:
+
+> On Thu, 26 Mar 2009, Benjamin Herrenschmidt wrote:
+> > 
+> > I'd like to clarify something about the semantics of the "full_mm_flush"
+> > argument of tlb_gather_mmu().
+> > 
+> > The reason is that it can either mean:
+> > 
+> >  - All the mappings for that mm are being flushed
+> > 
+> > or
+> > 
+> >  - The above +plus+ the mm is dead and has no remaining user. IE, we
+> > can relax some of the rules because we know the mappings cannot be
+> > accessed concurrently, and thus the PTEs cannot be reloaded into the
+> > TLB.
 > 
-> I'd like to clarify something about the semantics of the "full_mm_flush"
-> argument of tlb_gather_mmu().
-> 
-> The reason is that it can either mean:
-> 
->  - All the mappings for that mm are being flushed
-> 
-> or
-> 
->  - The above +plus+ the mm is dead and has no remaining user. IE, we
-> can relax some of the rules because we know the mappings cannot be
-> accessed concurrently, and thus the PTEs cannot be reloaded into the
-> TLB.
+> No remaining user in the sense of no longer connected to any user task,
+> but may still be active_mm on some cpus.
 
-No remaining user in the sense of no longer connected to any user task,
-but may still be active_mm on some cpus.
+Side note: this means that CPU's that do speculative TLB fills may still 
+touch the user entries. They won't _care_ about what they get, though. So 
+you should be able to do any optimizations you want, as long as it doesn't 
+cause machine checks or similar (ie another CPU doing a speculative access 
+and then being really unhappy about a totally invalid page table entry).
 
-> 
-> If it means the later (which it does in practice today, since we only
-> call it from exit_mmap(), unless I missed an important detail), then I
-> could implement some optimisations in my own arch code, but more
+> Although it looks as if there's a TLB flush at the end of every batch,
+> isn't that deceptive (on x86 anyway)?
 
-Yes, I'm pretty sure you can assume the latter.  The whole point
-of the "full mm" stuff (would have better been named "exit mm") is
-to allow optimizations, and I don't see what optimization there is to
-be made from knowing you're going the whole length of the mm; whereas
-optimizations can be made if you know nothing can happen in parallel.
+You need to. Again. Even on that CPU the TLB may have gotten re-loaded 
+speculatively, even if nothing _meant_ to touch user pages.
 
-Cc'ed DaveM who introduced it for sparc64, and Zach and Jeremy
-who have delved there, in case they wish to disagree.
+So you can't just flush the TLB once, and then expect that since you 
+flushed it, and nothing else accessed those user addresses, you don't need 
+to flush it again.
 
-> importantly, I believe we might also be able to optimize the generic
-> (and x86) code to avoid flushing the TLB when the batch of pages fills
-> up, before freeing the pages.
+And doing things the other way around - only flushing once at the end - is 
+incorrect because the whole point is that we can only free the page 
+directory once we've flushed all the translations that used it. So we need 
+to flush before the real release, and we need to flush after we've 
+unmapped everything. Thus the repeated flushes.
 
-I'd be surprised if there are still such optimizations to be made:
-maybe a whole different strategy could be more efficient, but I'd be
-surprised if there's really a superfluous TLB flush to be tweaked away.
+It shouldn't be that costly, since kernel mappings should be marked 
+global.
 
-Although it looks as if there's a TLB flush at the end of every batch,
-isn't that deceptive (on x86 anyway)?  I'm thinking that the first
-flush_tlb_mm() will end up calling leave_mm(), and the subsequent
-ones do nothing because the cpu_vm_mask is then empty.
+> I'm thinking that the first flush_tlb_mm() will end up calling 
+> leave_mm(), and the subsequent ones do nothing because the cpu_vm_mask 
+> is then empty.
 
-Hmm, but the cpu which is actually doing the flush_tlb_mm() calls
-leave_mm() without considering cpu_vm_mask: won't we get repeated
-unnecessary load_cr3(swapper_pg_dir)s from that?
+The subsequent ones shouldn't need to do anything on _other_ CPU's, 
+because the other CPU's will have changed their active_vm to NULL, and no 
+longer use that VM at all. The unmapping process still uses the old VM in 
+the general case.
 
-> 
-> That would have the side effect of speeding up exit of large processes
-> by limiting the number of tlb flushes they do. Since the TLB would need
-> to be flushed only once at the end for archs that may carry more than
-> one context in their TLB, and possibly not at all on x86 since it
-> doesn't and the context isn't active any more.
+(The "do_exit()" case is special, and in that case we should not need to 
+do any of this at all, but on x86 doing different paths depending on the 
+"full" bit is unlikely to be worth it - it shouldn't be all that 
+noticeable. You could _try_, though).
 
-It's tempting to think that even that one TLB flush is one too many,
-given that the next user task to run on any cpu will have to load %cr3
-for its own address space.
+> Hmm, but the cpu which is actually doing the flush_tlb_mm() calls
+> leave_mm() without considering cpu_vm_mask: won't we get repeated
+> unnecessary load_cr3(swapper_pg_dir)s from that?
 
-But I think that leaves a danger from speculative TLB loads by kernel
-threads, after the pagetables of the original mm have got freed and
-reused for something else: I think they would at least need to remain
-good pagetables until the last cpu's TLB has been flushed.
+Yes, but see above: it's necessary for the non-full case, and I doubt it 
+matters much for the full case.
 
-> 
-> Or am I missing something ?
+But nobody has done timings as far as I know.
 
-I suspect so, but please don't take my word for it: you've
-probably put more thought into asking than I have in answering.
-
-Hugh
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
