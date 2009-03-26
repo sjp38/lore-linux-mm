@@ -1,45 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id A53B06B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 15:37:33 -0400 (EDT)
-Date: Thu, 26 Mar 2009 13:39:29 -0700 (PDT)
-Message-Id: <20090326.133929.157003101.davem@davemloft.net>
-Subject: Re: tlb_gather_mmu() and semantics of "fullmm"
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
-References: <1238043674.25062.823.camel@pasglop>
-	<Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 0AED36B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 16:46:11 -0400 (EDT)
+Message-ID: <49CBE945.3060304@tensilica.com>
+Date: Thu, 26 Mar 2009 13:44:53 -0700
+From: Piet Delaney <piet.delaney@tensilica.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH} - There appears  to be a minor race condition in	sched.c
+References: <49CAFA83.1000005@tensilica.com> <20090326075101.GE24227@balbir.in.ibm.com>
+In-Reply-To: <20090326075101.GE24227@balbir.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: hugh@veritas.com
-Cc: benh@kernel.crashing.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, npiggin@suse.de, zach@vmware.com, jeremy@goop.org
+To: balbir@linux.vnet.ibm.com
+Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Johannes Weiner <jw@emlix.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-From: Hugh Dickins <hugh@veritas.com>
-Date: Thu, 26 Mar 2009 14:08:17 +0000 (GMT)
-
-> On Thu, 26 Mar 2009, Benjamin Herrenschmidt wrote:
-> > If it means the later (which it does in practice today, since we only
-> > call it from exit_mmap(), unless I missed an important detail), then I
-> > could implement some optimisations in my own arch code, but more
+Balbir Singh wrote:
+> * Piet Delaney <piet.delaney@tensilica.com> [2009-03-25 20:46:11]:
 > 
-> Yes, I'm pretty sure you can assume the latter.  The whole point
-> of the "full mm" stuff (would have better been named "exit mm") is
-> to allow optimizations, and I don't see what optimization there is to
-> be made from knowing you're going the whole length of the mm; whereas
-> optimizations can be made if you know nothing can happen in parallel.
+>> Ingo, Peter:
+>>
+>> There appears to be a minor race condition in sched.c where
+>> you can get a division by zero. I suspect that it only shows
+>> up when the kernel is compiled without optimization and the code
+>> loads rq->nr_running from memory twice.
+>>
+>> It's part of our SMP stabilization changes that I just posted to:
+>>
+>>     git://git.kernel.org/pub/scm/linux/kernel/git/piet/xtensa-2.6.27-smp.git
+>>
+>> I mentioned it to Johannes the other day and he suggested passing it on to you ASAP.
+>>
 > 
-> Cc'ed DaveM who introduced it for sparc64, and Zach and Jeremy
-> who have delved there, in case they wish to disagree.
+> The latest version uses ACCESS_ONCE to get rq->nr_running and then
+> uses that value. I am not sure what version you are talking about, if
+> it is older, you should consider backporting from the current version.
 
-The TLBs on sparc64 have a "context flush" which removes every entry
-matching the current MMU context.  This is what flush_tlb_mm() does.
+Hi Balbir:
 
-So we use tlb->fullmm so that the individual page and range TLB
-flushes do nothing, and instead we do a flush_tlb_mm() before we walk
-through the address space to tear it down.
+It appears that Steven Rostedt changed cpu_ave_load_per_task() to use a local
+variable nr_running, just as I suggested, apparently back in 2.6.28-rc5
+last Nov; well after the 2.6.27 that I mentioned above.
+
+A few days later Ingo added the ACCESS_ONCE() after Linus pointed out
+that nothing prevented the compiler from reloading rg->rn_running.
+Linus was right, adding the volatile is necessary to prevent gcc
+from doing forward substitution.
+
+I'll check Linus's current repo next time before suggesting bug fixes.
+
+-piet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
