@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 4BCBB6B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 02:02:50 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2Q6q1TO017404
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Thu, 26 Mar 2009 15:52:01 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id ACA6D45DD72
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 15:52:00 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 91BB245DE4F
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 15:52:00 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 851571DB803E
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 15:52:00 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 343641DB8040
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 15:52:00 +0900 (JST)
-Date: Thu, 26 Mar 2009 15:50:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][BUGFIX][PATCH] memcg: fix shrink_usage
-Message-Id: <20090326155035.826cb2ba.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090326153803.23689561.nishimura@mxp.nes.nec.co.jp>
-References: <20090326130821.40c26cf1.nishimura@mxp.nes.nec.co.jp>
-	<20090326141246.32305fe5.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090326145148.ba722e1e.nishimura@mxp.nes.nec.co.jp>
-	<20090326150613.09aacf0d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090326151733.1e36bf43.nishimura@mxp.nes.nec.co.jp>
-	<20090326152734.365b8689.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090326153803.23689561.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7D36B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 03:01:18 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2Q7pLe3032125
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 13:21:21 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2Q7lmqf4222982
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 13:17:49 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2Q7pKPB005693
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 18:51:20 +1100
+Date: Thu, 26 Mar 2009 13:21:01 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH} - There appears  to be a minor race condition in
+	sched.c
+Message-ID: <20090326075101.GE24227@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <49CAFA83.1000005@tensilica.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <49CAFA83.1000005@tensilica.com>
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@in.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>
+To: Piet Delaney <piet.delaney@tensilica.com>
+Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Johannes Weiner <jw@emlix.com>, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Mar 2009 15:38:03 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+* Piet Delaney <piet.delaney@tensilica.com> [2009-03-25 20:46:11]:
+
+> Ingo, Peter:
+>
+> There appears to be a minor race condition in sched.c where
+> you can get a division by zero. I suspect that it only shows
+> up when the kernel is compiled without optimization and the code
+> loads rq->nr_running from memory twice.
+>
+> It's part of our SMP stabilization changes that I just posted to:
+>
+>     git://git.kernel.org/pub/scm/linux/kernel/git/piet/xtensa-2.6.27-smp.git
+>
+> I mentioned it to Johannes the other day and he suggested passing it on to you ASAP.
+>
+
+The latest version uses ACCESS_ONCE to get rq->nr_running and then
+uses that value. I am not sure what version you are talking about, if
+it is older, you should consider backporting from the current version.
 
 
-> > Seems very simple. hmm, I'm thinking of following.
-> > ==
-> > int mem_cgroup_shmem_charge_fallback(struct page *page, struct mm_struct *mm, gfp_t mask)
-> > {
-> > 	return mem_cgroup_cache_charge(mm, page, mask);
-> > }
-> > ==
-> > 
-> > But I'm afraid that this adds another corner case to account the page not under
-> > radix-tree. (But this is SwapCache...then...this will work.)
-> > 
-> > Could you write a patch in this direction ? (or I'll write by myself.)
-> > It's obvious that you do better test.
-> > 
-> Okey.
-> 
-> I'll make a patch and repost it after doing some tests for review.
-> 
-> BTW, do you have any good idea about the new name of shrink_usage ?
-> 
-See above ;) mem_cgroup_shmem_charge_fallback() seems to be straightforward.
-I'm glad if you rewrite the comment to function at the same time :)
-
-Thanks,
--Kame
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
