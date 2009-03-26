@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 0AED36B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 16:46:11 -0400 (EDT)
-Message-ID: <49CBE945.3060304@tensilica.com>
-Date: Thu, 26 Mar 2009 13:44:53 -0700
-From: Piet Delaney <piet.delaney@tensilica.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 002F86B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 19:08:20 -0400 (EDT)
+Date: Thu, 26 Mar 2009 16:02:03 -0700 (PDT)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+In-Reply-To: <20090326084723.GB8207@skywalker>
+Message-ID: <alpine.LFD.2.00.0903261559200.3032@localhost.localdomain>
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <20090324125510.GA9434@duck.suse.cz> <20090324132637.GA14607@duck.suse.cz> <200903250130.02485.nickpiggin@yahoo.com.au> <20090324144709.GF23439@duck.suse.cz> <1237906563.24918.184.camel@twins>
+ <20090324152959.GG23439@duck.suse.cz> <20090326084723.GB8207@skywalker>
 MIME-Version: 1.0
-Subject: Re: [PATCH} - There appears  to be a minor race condition in	sched.c
-References: <49CAFA83.1000005@tensilica.com> <20090326075101.GE24227@balbir.in.ibm.com>
-In-Reply-To: <20090326075101.GE24227@balbir.in.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org, Johannes Weiner <jw@emlix.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * Piet Delaney <piet.delaney@tensilica.com> [2009-03-25 20:46:11]:
+
+
+On Thu, 26 Mar 2009, Aneesh Kumar K.V wrote:
 > 
->> Ingo, Peter:
->>
->> There appears to be a minor race condition in sched.c where
->> you can get a division by zero. I suspect that it only shows
->> up when the kernel is compiled without optimization and the code
->> loads rq->nr_running from memory twice.
->>
->> It's part of our SMP stabilization changes that I just posted to:
->>
->>     git://git.kernel.org/pub/scm/linux/kernel/git/piet/xtensa-2.6.27-smp.git
->>
->> I mentioned it to Johannes the other day and he suggested passing it on to you ASAP.
->>
+> >page faults doing allocation can take a
+> > *long* time 
 > 
-> The latest version uses ACCESS_ONCE to get rq->nr_running and then
-> uses that value. I am not sure what version you are talking about, if
-> it is older, you should consider backporting from the current version.
+> That is true
 
-Hi Balbir:
+Btw, this is actually a feature rather than a bug.
 
-It appears that Steven Rostedt changed cpu_ave_load_per_task() to use a local
-variable nr_running, just as I suggested, apparently back in 2.6.28-rc5
-last Nov; well after the 2.6.27 that I mentioned above.
+We want to slow down the writer, which is why we also do dirty page 
+balancing when marking a page dirty. 
 
-A few days later Ingo added the ACCESS_ONCE() after Linus pointed out
-that nothing prevented the compiler from reloading rg->rn_running.
-Linus was right, adding the volatile is necessary to prevent gcc
-from doing forward substitution.
+Basically, if block allocation is a performance problem, then it should be 
+a performance problem that is attributed to the process that _causes_ it, 
+rather than to some random poor unrelated process that then later ends up 
+writing the page out because it wants to use some memory.
 
-I'll check Linus's current repo next time before suggesting bug fixes.
+This is why tracking dirty pages is so important. Yes, it also avoids 
+various nasty overcommit situations, but the whole "make it hurt for the 
+person responsible, rather than a random innocent bystander" is the more 
+important part of it. 
 
--piet
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
