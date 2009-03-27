@@ -1,47 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 324ED6B0047
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 01:09:07 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2R5GHeH009209
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 27 Mar 2009 14:16:17 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id D2FBF45DE52
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:16:16 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id B3AA145DE51
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:16:16 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A9361DB803C
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:16:16 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5AC00E08005
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:16:13 +0900 (JST)
-Date: Fri, 27 Mar 2009 14:14:46 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 5/8] memcg soft limit (yet another new design) v1
-Message-Id: <20090327141446.ca77a921.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090327140923.7dbbf677.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090327140923.7dbbf677.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C5226B003D
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 01:31:52 -0400 (EDT)
+Subject: Re: tlb_gather_mmu() and semantics of "fullmm"
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <20090326.220409.72126250.davem@davemloft.net>
+References: <1238043674.25062.823.camel@pasglop>
+	 <Pine.LNX.4.64.0903261232060.27412@blonde.anvils>
+	 <1238106824.16498.7.camel@pasglop>
+	 <20090326.220409.72126250.davem@davemloft.net>
+Content-Type: text/plain
+Date: Fri, 27 Mar 2009 16:38:07 +1100
+Message-Id: <1238132287.20197.47.camel@pasglop>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: David Miller <davem@davemloft.net>
+Cc: hugh@veritas.com, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, npiggin@suse.de, zach@vmware.com, jeremy@goop.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Mar 2009 14:09:23 +0900
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-
-> memcg's reclaim routine is designed to ignore locality andplacements and
-> then, inactive_anon_is_low() function doesn't take "zone" as its argument.
+On Thu, 2009-03-26 at 22:04 -0700, David Miller wrote:
+> From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Date: Fri, 27 Mar 2009 09:33:44 +1100
 > 
-The subject should be "modify inactive_anon_is_low"...
+> > > I'd be surprised if there are still such optimizations to be made:
+> > > maybe a whole different strategy could be more efficient, but I'd be
+> > > surprised if there's really a superfluous TLB flush to be tweaked away.
+> > > 
+> > > Although it looks as if there's a TLB flush at the end of every batch,
+> > > isn't that deceptive (on x86 anyway)?  I'm thinking that the first
+> > > flush_tlb_mm() will end up calling leave_mm(), and the subsequent
+> > > ones do nothing because the cpu_vm_mask is then empty.
+> > 
+> > Ok, well, that's a bit different on other archs like powerpc where we virtually
+> > never remove bits from cpu_vm_mask... (though we probably could... to be looked
+> > at).
+> 
+> We do this on sparc64 when the mm->mm_users == 1 and 'mm' is the
+> current->active_mm
 
--Kame
+That doesn't sound right ... mm_user seems to represent how many tasks
+have task->mm set to this mm, but now how many processors have it as
+the "active_mm" due to lazy switching.
+
+If you look at context_switch() in kernel/sched.c, it increments
+mm_count when using the pevious guy's mm as the "active_mm" of a kernel
+thread, not mm_user.
+
+So effectively, mm_user can be any value, that doesn't represent how
+many processors can have the mm currently active on them.
+
+You could have mm_user be 1 due to the mm being active and in userspace
+on another CPU, and have it locally be the active_mm because your local
+CPU is in keventd or similar, flushing the other guy's mm as a result
+of some unmap_mapping_range() call due to a network filesystem doing
+coherency stuff for example.
+
+Cheers,
+Ben.
+
+> See arch/sparc/kernel/smp_64.c:smp_flush_tlb_pending() where we go:
+> 
+> 	if (mm == current->active_mm && atomic_read(&mm->mm_users) == 1)
+> 		mm->cpu_vm_mask = cpumask_of_cpu(cpu);
+> 	else
+> 		smp_cross_call_masked(&xcall_flush_tlb_pending,
+> 				      ctx, nr, (unsigned long) vaddrs,
+> 				      &mm->cpu_vm_mask);
+> 
+> 	__flush_tlb_pending(ctx, nr, vaddrs);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
