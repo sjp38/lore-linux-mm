@@ -1,46 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 002F86B003D
-	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 19:08:20 -0400 (EDT)
-Date: Thu, 26 Mar 2009 16:02:03 -0700 (PDT)
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-In-Reply-To: <20090326084723.GB8207@skywalker>
-Message-ID: <alpine.LFD.2.00.0903261559200.3032@localhost.localdomain>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <20090324125510.GA9434@duck.suse.cz> <20090324132637.GA14607@duck.suse.cz> <200903250130.02485.nickpiggin@yahoo.com.au> <20090324144709.GF23439@duck.suse.cz> <1237906563.24918.184.camel@twins>
- <20090324152959.GG23439@duck.suse.cz> <20090326084723.GB8207@skywalker>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id BBFAB6B003D
+	for <linux-mm@kvack.org>; Thu, 26 Mar 2009 21:40:03 -0400 (EDT)
+Date: Fri, 27 Mar 2009 10:39:11 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: [BUGFIX][PATCH] memcg: fix shrink_usage
+Message-Id: <20090327103911.4fd1b61f.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <20090326153803.23689561.nishimura@mxp.nes.nec.co.jp>
+References: <20090326130821.40c26cf1.nishimura@mxp.nes.nec.co.jp>
+	<20090326141246.32305fe5.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090326145148.ba722e1e.nishimura@mxp.nes.nec.co.jp>
+	<20090326150613.09aacf0d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090326151733.1e36bf43.nishimura@mxp.nes.nec.co.jp>
+	<20090326152734.365b8689.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090326153803.23689561.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <balbir@in.ibm.com>, Li Zefan <lizf@cn.fujitsu.com>, Hugh Dickins <hugh@veritas.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Thu, 26 Mar 2009, Aneesh Kumar K.V wrote:
+> > Could you write a patch in this direction ? (or I'll write by myself.)
+> > It's obvious that you do better test.
+> > 
+> Okey.
 > 
-> >page faults doing allocation can take a
-> > *long* time 
+> I'll make a patch and repost it after doing some tests for review.
 > 
-> That is true
+This is the updated one.
+I've confirmed that this can prevent an invalid OOM.
 
-Btw, this is actually a feature rather than a bug.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-We want to slow down the writer, which is why we also do dirty page 
-balancing when marking a page dirty. 
+Current mem_cgroup_shrink_usage has two problems.
 
-Basically, if block allocation is a performance problem, then it should be 
-a performance problem that is attributed to the process that _causes_ it, 
-rather than to some random poor unrelated process that then later ends up 
-writing the page out because it wants to use some memory.
+1. It doesn't call mem_cgroup_out_of_memory and doesn't update last_oom_jiffies,
+   so pagefault_out_of_memory invokes global OOM.
+2. Considering hierarchy, shrinking has to be done from the mem_over_limit,
+   not from the memcg which the page would be charged to.
 
-This is why tracking dirty pages is so important. Yes, it also avoids 
-various nasty overcommit situations, but the whole "make it hurt for the 
-person responsible, rather than a random innocent bystander" is the more 
-important part of it. 
+mem_cgroup_try_charge_swapin does all of these works properly,
+so we use it and call cancel_charge_swapin when it succeeded.
 
-			Linus
+The name of "shrink_usage" is not appropriate for this purpose,
+so we change it too.
+
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+ include/linux/memcontrol.h |    4 ++--
+ mm/memcontrol.c            |   33 ++++++++++++---------------------
+ mm/shmem.c                 |    8 ++++++--
+ 3 files changed, 20 insertions(+), 25 deletions(-)
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 18146c9..928b714 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -56,7 +56,7 @@ extern void mem_cgroup_move_lists(struct page *page,
+ 				  enum lru_list from, enum lru_list to);
+ extern void mem_cgroup_uncharge_page(struct page *page);
+ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+-extern int mem_cgroup_shrink_usage(struct page *page,
++extern int mem_cgroup_shmem_charge_fallback(struct page *page,
+ 			struct mm_struct *mm, gfp_t gfp_mask);
+ 
+ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
+@@ -155,7 +155,7 @@ static inline void mem_cgroup_uncharge_cache_page(struct page *page)
+ {
+ }
+ 
+-static inline int mem_cgroup_shrink_usage(struct page *page,
++static inline int mem_cgroup_shmem_charge_fallback(struct page *page,
+ 			struct mm_struct *mm, gfp_t gfp_mask)
+ {
+ 	return 0;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3492286..3b88e7f 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1664,37 +1664,28 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
+ }
+ 
+ /*
+- * A call to try to shrink memory usage under specified resource controller.
+- * This is typically used for page reclaiming for shmem for reducing side
+- * effect of page allocation from shmem, which is used by some mem_cgroup.
++ * A call to try to shrink memory usage on charge failure at shmem's swapin.
++ * Calling hierarchical_reclaim is not enough because we should update
++ * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
++ * Moreover considering hierarchy, we should reclaim from the mem_over_limit,
++ * not from the memcg which this page would be charged to.
++ * try_charge_swapin does all of these works properly.
+  */
+-int mem_cgroup_shrink_usage(struct page *page,
++int mem_cgroup_shmem_charge_fallback(struct page *page,
+ 			    struct mm_struct *mm,
+ 			    gfp_t gfp_mask)
+ {
+ 	struct mem_cgroup *mem = NULL;
+-	int progress = 0;
+-	int retry = MEM_CGROUP_RECLAIM_RETRIES;
++	int ret;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+-	if (page)
+-		mem = try_get_mem_cgroup_from_swapcache(page);
+-	if (!mem && mm)
+-		mem = try_get_mem_cgroup_from_mm(mm);
+-	if (unlikely(!mem))
+-		return 0;
+ 
+-	do {
+-		progress = mem_cgroup_hierarchical_reclaim(mem,
+-					gfp_mask, true, false);
+-		progress += mem_cgroup_check_under_limit(mem);
+-	} while (!progress && --retry);
++	ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
++	if (!ret)
++		mem_cgroup_cancel_charge_swapin(mem); /* it does !mem check */
+ 
+-	css_put(&mem->css);
+-	if (!retry)
+-		return -ENOMEM;
+-	return 0;
++	return ret;
+ }
+ 
+ static DEFINE_MUTEX(set_limit_mutex);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index a5a30fd..ce99098 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1326,8 +1326,12 @@ repeat:
+ 			shmem_swp_unmap(entry);
+ 			spin_unlock(&info->lock);
+ 			if (error == -ENOMEM) {
+-				/* allow reclaim from this memory cgroup */
+-				error = mem_cgroup_shrink_usage(swappage,
++				/*
++				 * reclaim from proper memory cgroup and
++				 * call memcg's OOM if needed.
++				 */
++				error = mem_cgroup_shmem_charge_fallback(
++								swappage,
+ 								current->mm,
+ 								gfp);
+ 				if (error) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
