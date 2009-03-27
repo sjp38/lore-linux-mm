@@ -1,131 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 7352B6B003D
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 16:13:50 -0400 (EDT)
-Received: from wpaz17.hot.corp.google.com (wpaz17.hot.corp.google.com [172.24.198.81])
-	by smtp-out.google.com with ESMTP id n2RKZI4J002862
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 20:35:19 GMT
-Received: from wf-out-1314.google.com (wff29.prod.google.com [10.142.6.29])
-	by wpaz17.hot.corp.google.com with ESMTP id n2RKZGxe017816
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 13:35:17 -0700
-Received: by wf-out-1314.google.com with SMTP id 29so1377434wff.12
-        for <linux-mm@kvack.org>; Fri, 27 Mar 2009 13:35:16 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AD3086B003D
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 18:56:57 -0400 (EDT)
+Message-ID: <49CD59DB.3070906@redhat.com>
+Date: Fri, 27 Mar 2009 18:57:31 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <200903241844.22851.nickpiggin@yahoo.com.au>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-	 <200903200248.22623.nickpiggin@yahoo.com.au>
-	 <20090319164638.GB3899@duck.suse.cz>
-	 <200903241844.22851.nickpiggin@yahoo.com.au>
-Date: Fri, 27 Mar 2009 13:35:16 -0700
-Message-ID: <604427e00903271335p14f96910y912ccd349faf154c@mail.gmail.com>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [patch 1/6] Guest page hinting: core + volatile page cache.
+References: <20090327150905.819861420@de.ibm.com> <20090327151011.534224968@de.ibm.com>
+In-Reply-To: <20090327151011.534224968@de.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Jan Kara <jack@suse.cz>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 24, 2009 at 12:44 AM, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> On Friday 20 March 2009 03:46:39 Jan Kara wrote:
->> On Fri 20-03-09 02:48:21, Nick Piggin wrote:
->
->> > Holding mapping->private_lock over the __set_page_dirty should
->> > fix it, although I guess you'd want to release it before calling
->> > __mark_inode_dirty so as not to put inode_lock under there. I
->> > have a patch for this if it sounds reasonable.
->>
->>   Yes, that seems to be a bug - the function actually looked suspitious to
->> me yesterday but I somehow convinced myself that it's fine. Probably
->> because fsx-linux is single-threaded.
->
->
-> After a whole lot of chasing my own tail in the VM and buffer layers,
-> I think it is a problem in ext2 (and I haven't been able to reproduce
-> with ext3 yet, which might lend weight to that, although as we have
-> seen, it is very timing dependent).
->
-> That would be slightly unfortunate because we still have Jan's ext3
-> problem, and also another reported problem of corruption on ext3 (on
-> brd driver).
-I believe i see the same issue on ext2 as well as ext4.
->
-> Anyway, when I have reproduced the problem with the test case, the
-> "lost" writes are all reported to be holes. Unfortunately, that doesn't
-> point straight to the filesystem, because ext2 allocates blocks in this
-> case at writeout time, so if dirty bits are getting lost, then it would
-> be normal to see holes.
->
-> I then put in a whole lot of extra infrastructure to track metadata about
-> each struct page (when it was last written out, when it last had the number
-> of writable ptes reach 0, when the dirty bits were last cleared etc). And
-> none of the normal asertions were triggering: eg. when any page is removed
-> from pagecache (except truncates), it has always had all its buffers
-> written out *after* all ptes were made readonly or unmapped. Lots of other
-> tests and crap like that.
+Martin Schwidefsky wrote:
 
-Do you think there might be a race in the page reclaim path? I did a
-hack which commeted out
-wakeup_pdflush in try_to_free_pages ( based on 2.6.21, just randomly
-picked on has the problem)
-It runs for couple of hours and the problem not happened yet. I am not
-sure if that is the problem or not,
-and i will leave it running.
-The reason i tried the hack since i reproduce the "bad pages" easily
-everytime i put more memory pressure
-on the system.
+> The major obstacles that need to get addressed:
+> * Concurrent page state changes:
+>   To guard against concurrent page state updates some kind of lock
+>   is needed. If page_make_volatile() has already done the 11 checks it
+>   will issue the state change primitive. If in the meantime one of
+>   the conditions has changed the user that requires that page in
+>   stable state will have to wait in the page_make_stable() function
+>   until the make volatile operation has finished. It is up to the
+>   architecture to define how this is done with the three primitives
+>   page_test_set_state_change, page_clear_state_change and
+>   page_state_change.
+>   There are some alternatives how this can be done, e.g. a global
+>   lock, or lock per segment in the kernel page table, or the per page
+>   bit PG_arch_1 if it is still free.
 
+Can this be taken care of by memory barriers and
+careful ordering of operations?
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index db023e2..b4b7e1f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1067,11 +1067,13 @@ unsigned long try_to_free_pages(struct zone **zones, g
- 		 * that's undesirable in laptop mode, where we *want* lumpy
- 		 * writeout.  So in laptop mode, write out the whole world.
- 		 */
-+/*
- 		if (total_scanned > sc.swap_cluster_max +
- 					sc.swap_cluster_max / 2) {
- 			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
- 			sc.may_writepage = 1;
- 		}
-+*/
+If we consider the states unused -> volatile -> stable
+as progressively higher, "upgrades" can be done before
+any kernel operation that requires the page to be in
+that state (but after setting up the things that allow
+it to be found), while downgrades can be done after the
+kernel is done with needing the page at a higher level.
 
- 		/* Take a nap, wait for some writeback to complete */
- 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
+Since the downgrade checks for users that need the page
+in a higher state, no lock should be required.
 
->
-> So I tried what I should have done to start with and did an e2fsck after
-> seeing corruption. Yes, it comes up with errors. Now that is unusual
-> because that should be largely insulated from the vm: if a dirty bit gets
-> lost, then the filesystem image should be quite happy and error-free with
-> a hole or unwritten data there.
->
-> I don't know ext? locking very well, except that it looks pretty overly
-> complex and crufty.
->
-> Usually, blocks are instantiated by write(2), under i_mutex, serialising
-> the allocator somewhat. mmap-write blocks are instantiated at writeout
-> time, unserialised. I moved truncate_mutex to cover the entire get_blocks
-> function, and can no longer trigger the problem. Might be a timing issue
-> though -- Ying, can you try this and see if you can still reproduce?
->
-> I close my eyes and pick something out of a hat. a686cd89. Search for XXX.
-> Nice. Whether or not this cased the problem, can someone please tell me
-> why it got merged in that state?
->
-> I'm leaving ext3 running for now. It looks like a nasty task to bisect
-> ext2 down to that commit :( and I would be more interested in trying to
-> reproduce Jan's ext3 problem, however, because I'm not too interested in
-> diving into ext2 locking to work out exactly what is racing and how to
-> fix it properly. I suspect it would be most productive to wire up some
-> ioctls right into the block allocator/lookup and code up a userspace
-> tester for it that could probably stress it a lot harder than kernel
-> writeout can.
->
->
+In fact, it may be possible to manage the page state
+bitmap with compare-and-swap, without needing a call
+to the hypervisor.
+
+> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+Some comments and questions in line.
+
+> @@ -601,6 +604,21 @@ copy_one_pte(struct mm_struct *dst_mm, s
+>  
+>  out_set_pte:
+>  	set_pte_at(dst_mm, addr, dst_pte, pte);
+> +	return;
+> +
+> +out_discard_pte:
+> +	/*
+> +	 * If the page referred by the pte has the PG_discarded bit set,
+> +	 * copy_one_pte is racing with page_discard. The pte may not be
+> +	 * copied or we can end up with a pte pointing to a page not
+> +	 * in the page cache anymore. Do what try_to_unmap_one would do
+> +	 * if the copy_one_pte had taken place before page_discard.
+> +	 */
+> +	if (page->index != linear_page_index(vma, addr))
+> +		/* If nonlinear, store the file page offset in the pte. */
+> +		set_pte_at(dst_mm, addr, dst_pte, pgoff_to_pte(page->index));
+> +	else
+> +		pte_clear(dst_mm, addr, dst_pte);
+>  }
+
+It would be good to document that PG_discarded can only happen for
+file pages and NOT for eg. clean swap cache pages.
+
+> @@ -1390,6 +1391,7 @@ int test_clear_page_writeback(struct pag
+>  			radix_tree_tag_clear(&mapping->page_tree,
+>  						page_index(page),
+>  						PAGECACHE_TAG_WRITEBACK);
+> +			page_make_volatile(page, 1);
+>  			if (bdi_cap_account_writeback(bdi)) {
+>  				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+>  				__bdi_writeout_inc(bdi);
+
+Does this mark the page volatile before the IO writing the
+dirty data back to disk has even started?  Is that OK?
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
