@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D47216B003D
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 01:01:20 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2R58LjI005341
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 603606B003D
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 01:03:48 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2R5ArUo006414
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 27 Mar 2009 14:08:21 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 53D5345DD72
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:08:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 1540845DE50
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:08:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EAFC5E18007
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:08:20 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 984F4E18002
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:08:20 +0900 (JST)
-Date: Fri, 27 Mar 2009 14:06:53 +0900
+	Fri, 27 Mar 2009 14:10:53 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D913F45DE4E
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:10:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C1C445DE4F
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:10:52 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id EE26D1DB803F
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:10:51 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 552921DB804A
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 14:10:51 +0900 (JST)
+Date: Fri, 27 Mar 2009 14:09:23 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 4/8] memcg soft limit priority array queue.
-Message-Id: <20090327140653.a12c6b1e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 5/8] memcg soft limit (yet another new design) v1
+Message-Id: <20090327140923.7dbbf677.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -32,209 +32,109 @@ To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-I'm now search a way to reduce lock contention without complex...
--Kame
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+memcg's reclaim routine is designed to ignore locality andplacements and
+then, inactive_anon_is_low() function doesn't take "zone" as its argument.
 
-Softlimitq. for memcg.
-
-Implements an array of queue to list memcgs, array index is determined by
-the amount of memory usage excess the soft limit.
-
-While Balbir's one uses RB-tree and my old one used a per-zone queue
-(with round-robin), this is one of mixture of them.
-(I'd like to use rotation of queue in later patches)
-
-Priority is determined by following.
-   unit = total pages/1024.
-   if excess is...
-      < unit,          priority = 0
-      < unit*2,        priority = 1,
-      < unit*2*2,      priority = 2,
-      ...
-      < unit*2^9,      priority = 9,
-      < unit*2^10,      priority = 10,
-
-This patch just includes queue management part and not includes 
-selection logic from queue. Some trick will be used for selecting victims at
-soft limit in efficient way.
-
-And this equips 2 queues, for anon and file. Inset/Delete of both list is
-done at once but scan will be independent. (These 2 queues are used later.)
-
-Major difference from Balbir's one other than RB-tree is bahavior under
-hierarchy. This one adds all children to queue by checking hierarchical
-priority. This is for helping per-zone usage check on victim-selection logic.
+In later soft limit patch, we use "zone" as an arguments.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  121 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 120 insertions(+), 1 deletion(-)
-
 Index: mmotm-2.6.29-Mar23/mm/memcontrol.c
 ===================================================================
 --- mmotm-2.6.29-Mar23.orig/mm/memcontrol.c
 +++ mmotm-2.6.29-Mar23/mm/memcontrol.c
-@@ -192,7 +192,13 @@ struct mem_cgroup {
- 	atomic_t	refcnt;
- 
- 	unsigned int	swappiness;
--
-+	/*
-+	 * For soft limit.
-+	 */
-+	int soft_limit_priority;
-+	struct list_head soft_limit_anon;
-+	struct list_head soft_limit_file;
-+	spinlock_t soft_limit_lock;
- 	/*
- 	 * statistics. This must be placed at the end of memcg.
- 	 */
-@@ -938,11 +944,116 @@ static bool mem_cgroup_soft_limit_check(
- 	return ret;
+@@ -561,15 +561,28 @@ void mem_cgroup_record_reclaim_priority(
+ 	spin_unlock(&mem->reclaim_param_lock);
  }
  
-+/*
-+ * Assume "base_amount", and excess = usage - soft limit.
-+ *
-+ * 0...... if excess < base_amount
-+ * 1...... if excess < base_amount * 2
-+ * 2...... if excess < base_amount * 2^2
-+ * 3.......if excess < base_amount * 2^3
-+ * ....
-+ * 9.......if excess < base_amount * 2^9
-+ * 10 .....if excess < base_amount * 2^10
-+ */
-+
-+#define SLQ_MAXPRIO (11)
-+static struct {
-+	spinlock_t lock;
-+	struct list_head queue[SLQ_MAXPRIO][2]; /* 0:anon 1:file */
-+#define SL_ANON (0)
-+#define SL_FILE (1)
-+} softlimitq;
-+
-+#define SLQ_PRIO_FACTOR (1024) /* 2^10 */
-+static unsigned long memcg_softlimit_base __read_mostly;
-+
-+static int __calc_soft_limit_prio(unsigned long long excess)
-+{
-+	unsigned long val;
-+
-+	val = excess / PAGE_SIZE;
-+	val = val /memcg_softlimit_base;
-+	return fls(val);
-+}
-+
-+static int mem_cgroup_soft_limit_prio(struct mem_cgroup *mem)
-+{
-+	unsigned long long excess, max_excess;
-+	struct res_counter *c;
-+
-+	max_excess = 0;
-+	for (c = &mem->res; c; c = c->parent) {
-+		excess = res_counter_soft_limit_excess(c);
-+		if (max_excess < excess)
-+			max_excess = excess;
-+	}
-+	return __calc_soft_limit_prio(max_excess);
-+}
-+
-+static void __mem_cgroup_requeue(struct mem_cgroup *mem)
-+{
-+	/* enqueue to softlimit queue */
-+	int prio = mem->soft_limit_priority;
-+
-+	spin_lock(&softlimitq.lock);
-+	list_del_init(&mem->soft_limit_anon);
-+	list_add_tail(&mem->soft_limit_anon, &softlimitq.queue[prio][SL_ANON]);
-+	list_del_init(&mem->soft_limit_file,ist[SL_FILE]);
-+	list_add_tail(&mem->soft_limit_file, &softlimitq.queue[prio][SL_FILE]);
-+	spin_unlock(&softlimitq.lock);
-+}
-+
-+static void __mem_cgroup_dequeue(struct mem_cgroup *mem)
-+{
-+	spin_lock(&softlimitq.lock);
-+	list_del_init(&mem->soft_limit_anon);
-+	list_del_init(&mem->soft_limit_file);
-+	spin_unlock(&softlimitq.lock);
-+}
-+
-+static int
-+__mem_cgroup_update_soft_limit_cb(struct mem_cgroup *mem, void *data)
-+{
-+	int priority;
-+	/* If someone updates, we don't need more */
-+	if (!spin_trylock(&mem->soft_limit_lock))
-+		return 0;
-+
-+	priority = mem_cgroup_soft_limit_prio(mem);
-+
-+	if (priority != mem->soft_limit_priority) {
-+		mem->soft_limit_priority = priority;
-+		__mem_cgroup_requeue(mem);
-+	}
-+	spin_unlock(&mem->soft_limit_lock);
-+	return 0;
-+}
-+
- static void mem_cgroup_update_soft_limit(struct mem_cgroup *mem)
+-static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
++static int calc_inactive_ratio(struct mem_cgroup *memcg,
++			       unsigned long *present_pages,
++			       struct zone *z)
  {
-+	int priority;
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 	unsigned long gb;
+ 	unsigned long inactive_ratio;
+ 
+-	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_ANON);
+-	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
++	if (!z) {
++		inactive = mem_cgroup_get_local_zonestat(memcg,
++							 LRU_INACTIVE_ANON);
++		active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
++	} else {
++		int nid = z->zone_pgdat->node_id;
++		int zid = zone_idx(z);
++		struct mem_cgroup_per_zone *mz;
 +
-+	/* check status change */
-+	priority = mem_cgroup_soft_limit_prio(mem);
-+	if (priority != mem->soft_limit_priority) {
-+		mem_cgroup_walk_tree(mem, NULL,
-+				     __mem_cgroup_update_soft_limit_cb);
++		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
++		inactive = MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
++		active = MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
 +	}
- 	return;
+ 
+ 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+ 	if (gb)
+@@ -585,14 +598,14 @@ static int calc_inactive_ratio(struct me
+ 	return inactive_ratio;
  }
  
-+static void softlimitq_init(void)
-+{
-+	int i;
-+
-+	spin_lock_init(&softlimitq.lock);
-+	for (i = 0; i < SLQ_MAXPRIO; i++) {
-+		INIT_LIST_HEAD(&softlimitq.queue[i][SL_ANON]);
-+		INIT_LIST_HEAD(&softlimitq.queue[i][SL_FILE]);
-+	}
-+	memcg_softlimit_base = totalram_pages / SLQ_PRIO_FACTOR;
-+}
-+
- /*
-  * Unlike exported interface, "oom" parameter is added. if oom==true,
-  * oom-killer can be invoked.
-@@ -2527,6 +2638,7 @@ mem_cgroup_create(struct cgroup_subsys *
- 	if (cont->parent == NULL) {
- 		enable_swap_cgroup();
- 		parent = NULL;
-+		softlimitq_init();
- 	} else {
- 		parent = mem_cgroup_from_cont(cont->parent);
- 		mem->use_hierarchy = parent->use_hierarchy;
-@@ -2547,6 +2659,10 @@ mem_cgroup_create(struct cgroup_subsys *
- 		res_counter_init(&mem->memsw, NULL);
- 	}
- 	mem->last_scanned_child = 0;
-+	mem->soft_limit_priority = 0;
-+	INIT_LIST_HEAD(&mem->soft_limit_anon);
-+	INIT_LIST_HEAD(&mem->soft_limit_file);
-+	spin_lock_init(&mem->soft_limit_lock);
- 	spin_lock_init(&mem->reclaim_param_lock);
- 
- 	if (parent)
-@@ -2571,6 +2687,9 @@ static void mem_cgroup_destroy(struct cg
+-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
++int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *z)
  {
- 	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 	unsigned long present_pages[2];
+ 	unsigned long inactive_ratio;
  
-+	spin_lock(&mem->soft_limit_lock);
-+	__mem_cgroup_dequeue(mem);
-+	spin_unlock(&mem->soft_limit_lock);
- 	mem_cgroup_put(mem);
+-	inactive_ratio = calc_inactive_ratio(memcg, present_pages);
++	inactive_ratio = calc_inactive_ratio(memcg, present_pages, NULL);
+ 
+ 	inactive = present_pages[0];
+ 	active = present_pages[1];
+@@ -2337,7 +2350,8 @@ static int mem_control_stat_show(struct 
+ 
+ 
+ #ifdef CONFIG_DEBUG_VM
+-	cb->fill(cb, "inactive_ratio", calc_inactive_ratio(mem_cont, NULL));
++	cb->fill(cb, "inactive_ratio",
++			calc_inactive_ratio(mem_cont, NULL, NULL));
+ 
+ 	{
+ 		int nid, zid;
+Index: mmotm-2.6.29-Mar23/include/linux/memcontrol.h
+===================================================================
+--- mmotm-2.6.29-Mar23.orig/include/linux/memcontrol.h
++++ mmotm-2.6.29-Mar23/include/linux/memcontrol.h
+@@ -93,7 +93,7 @@ extern void mem_cgroup_note_reclaim_prio
+ 							int priority);
+ extern void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem,
+ 							int priority);
+-int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
++int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *z);
+ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
+ 				       struct zone *zone,
+ 				       enum lru_list lru);
+@@ -234,7 +234,7 @@ static inline bool mem_cgroup_oom_called
+ }
+ 
+ static inline int
+-mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
++mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *z)
+ {
+ 	return 1;
+ }
+Index: mmotm-2.6.29-Mar23/mm/vmscan.c
+===================================================================
+--- mmotm-2.6.29-Mar23.orig/mm/vmscan.c
++++ mmotm-2.6.29-Mar23/mm/vmscan.c
+@@ -1341,7 +1341,7 @@ static int inactive_anon_is_low(struct z
+ 	if (scanning_global_lru(sc))
+ 		low = inactive_anon_is_low_global(zone);
+ 	else
+-		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup);
++		low = mem_cgroup_inactive_anon_is_low(sc->mem_cgroup, NULL);
+ 	return low;
  }
  
 
