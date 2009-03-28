@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 76CF16B003D
-	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 20:06:04 -0400 (EDT)
-Message-ID: <49CD69EB.6000000@redhat.com>
-Date: Fri, 27 Mar 2009 20:06:03 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 5CD706B003D
+	for <linux-mm@kvack.org>; Fri, 27 Mar 2009 23:55:24 -0400 (EDT)
+Message-ID: <49CD9E25.2090407@redhat.com>
+Date: Sat, 28 Mar 2009 06:48:53 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-References: <20090327150905.819861420@de.ibm.com> <1238195024.8286.562.camel@nimitz>
-In-Reply-To: <1238195024.8286.562.camel@nimitz>
+Subject: Re: [PATCH 1/2] x86/mm: maintain a percpu "in get_user_pages_fast"
+ flag
+References: <49CD37B8.4070109@goop.org>
+In-Reply-To: <49CD37B8.4070109@goop.org>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Fri, 2009-03-27 at 16:09 +0100, Martin Schwidefsky wrote:
->> If the host picks one of the
->> pages the guest can recreate, the host can throw it away instead of writing
->> it to the paging device. Simple and elegant.
-> 
-> Heh, simple and elegant for the hypervisor.  But I'm not sure I'm going
-> to call *anything* that requires a new CPU instruction elegant. ;)
+Jeremy Fitzhardinge wrote:
+> get_user_pages_fast() relies on cross-cpu tlb flushes being a barrier
+> between clearing and setting a pte, and before freeing a pagetable page.
+> It usually does this by disabling interrupts to hold off IPIs, but
+> some tlb flush implementations don't use IPIs for tlb flushes, and
+> must use another mechanism.
+>
+> In this change, add in_gup_cpumask, which is a cpumask of cpus currently
+> performing a get_user_pages_fast traversal of a pagetable.  A cross-cpu
+> tlb flush function can use this to determine whether it should hold-off
+> on the flush until the gup_fast has finished.
+>
+> @@ -255,6 +260,10 @@ int get_user_pages_fast(unsigned long start, int 
+> nr_pages, int write,
+>      * address down to the the page and take a ref on it.
+>      */
+>     local_irq_disable();
+> +
+> +    cpu = smp_processor_id();
+> +    cpumask_set_cpu(cpu, in_gup_cpumask);
+> +
 
-I am convinced that it could be done with a guest-writable
-"bitmap", with 2 bits per page.  That would make this scheme
-useful for KVM, too.
+This will bounce a cacheline, every time.  Please wrap in CONFIG_XEN and 
+skip at runtime if Xen is not enabled.
 
-> I don't see any description of it in there any more, but I thought this
-> entire patch set was to get rid of the idiotic triple I/Os in the
-> following scenario:
-
-> I don't see that mentioned at all in the current description.
-> Simplifying the hypervisor is hard to get behind, but cutting system I/O
-> by 2/3 is a much nicer benefit for 1200 lines of invasive code. ;)
-
-Cutting down on a fair bit of IO is absolutely worth
-1200 lines of fairly well isolated code.
-
-> Can we persuade the hypervisor to tell us which pages it decided to page
-> out and just skip those when we're scanning the LRU?
-
-The easiest "notification" points are in the page fault
-handler and the page cache lookup code.
 
 -- 
-All rights reversed.
+I have a truly marvellous patch that fixes the bug which this
+signature is too narrow to contain.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
