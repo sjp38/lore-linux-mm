@@ -1,78 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 40C4E6B003D
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 04:09:17 -0400 (EDT)
-Message-ID: <49CDD7B4.4020701@cosmosbay.com>
-Date: Sat, 28 Mar 2009 08:54:28 +0100
-From: Eric Dumazet <dada1@cosmosbay.com>
+	by kanga.kvack.org (Postfix) with ESMTP id AAD8C6B003D
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 04:23:52 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp08.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2S7qTu6031672
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 13:22:29 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2S8KXt42072780
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 13:50:33 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2S8O898010602
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 19:24:08 +1100
+Date: Sat, 28 Mar 2009 13:53:50 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
+Message-ID: <20090328082350.GS24227@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] x86/mm: maintain a percpu "in get_user_pages_fast"
- flag
-References: <49CD37B8.4070109@goop.org> <49CD9E25.2090407@redhat.com> <49CDAF17.5060207@goop.org>
-In-Reply-To: <49CDAF17.5060207@goop.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge a =C3=A9crit :
-> Avi Kivity wrote:
->> Jeremy Fitzhardinge wrote:
->>> get_user_pages_fast() relies on cross-cpu tlb flushes being a barrier=
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27 13:59:33]:
 
->>> between clearing and setting a pte, and before freeing a pagetable pa=
-ge.
->>> It usually does this by disabling interrupts to hold off IPIs, but
->>> some tlb flush implementations don't use IPIs for tlb flushes, and
->>> must use another mechanism.
->>>
->>> In this change, add in_gup_cpumask, which is a cpumask of cpus curren=
-tly
->>> performing a get_user_pages_fast traversal of a pagetable.  A cross-c=
-pu
->>> tlb flush function can use this to determine whether it should hold-o=
-ff
->>> on the flush until the gup_fast has finished.
->>>
->>> @@ -255,6 +260,10 @@ int get_user_pages_fast(unsigned long start, int=
+> Hi,
+> 
+> Memory cgroup's soft limit feature is a feature to tell global LRU 
+> "please reclaim from this memcg at memory shortage".
+> 
+> And Balbir's one and my one was proposed.
+> This is new one. (so restart from v1), this is very new-born.
+> 
+> While testing soft limit, my dilemma was following.
+> 
+>  - needs additional cost of can if implementation is naive (unavoidable?)
+> 
+>  - Inactive/Active rotation scheme of global LRU will be broken.
+> 
+>  - File/Anon reclaim ratio scheme of global LRU will be broken.
+>     - vm.swappiness will be ignored.
+> 
+>  - If using memcg's memory reclaim routine, 
+>     - shrink_slab() will be never called.
+>     - stale SwapCache has no chance to be reclaimed (stale SwapCache means
+>       readed but not used one.)
+>     - memcg can have no memory in a zone.
+>     - memcg can have no Anon memory
+>     - lumpty_reclaim() is not called.
+> 
+> 
+> This patch tries to avoid to use existing memcg's reclaim routine and
+> just tell "Hints" to global LRU. This patch is briefly tested and shows
+> good result to me. (But may not to you. plz brame me.)
+> 
+> Major characteristic is.
+>  - memcg will be inserted to softlimit-queue at charge() if usage excess
+>    soft limit.
+>  - softlimit-queue is a queue with priority. priority is detemined by size
+>    of excessing usage.
+>  - memcg's soft limit hooks is called by shrink_xxx_list() to show hints.
+>  - Behavior is affected by vm.swappiness and LRU scan rate is determined by
+>    global LRU's status.
+> 
+> I'm sorry that I'm tend not to tell enough explanation.  plz ask me.
+> There will be much discussion points, anyway. As usual, I'm not in hurry.
+> 
+> 
+> ==brief test result==
+> On 2CPU/1.6GB bytes machine. create group A and B
+>   A.  soft limit=300M
+>   B.  no soft limit
+> 
+>   Run a malloc() program on B and allcoate 1G of memory. The program just
+>   sleeps after allocating memory and no memory refernce after it.
+>   Run make -j 6 and compile the kernel.
+> 
+>   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
+>   When vm.swappiness = 10  => 1MB of memory are swapped out from B    
+> 
+>   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
+> 
 
->>> nr_pages, int write,
->>>      * address down to the the page and take a ref on it.
->>>      */
->>>     local_irq_disable();
->>> +
->>> +    cpu =3D smp_processor_id();
->>> +    cpumask_set_cpu(cpu, in_gup_cpumask);
->>> +
->>
->> This will bounce a cacheline, every time.  Please wrap in CONFIG_XEN
->> and skip at runtime if Xen is not enabled.
->=20
-> Every time?  Only when running successive gup_fasts on different cpus,
-> and only twice per gup_fast. (What's the typical page count?  I see tha=
-t
-> kvm and lguest are page-at-a-time users, but presumably direct IO has
-> larger batches.)
+How did you calculate the swap usage of group B?
 
-If I am not mistaken, shared futexes where hitting hard mm semaphore.
-Then gup_fast was introduced in kernel/futex.c to remove this contention =
-point.
-Yet, this contention point was process specific, not a global one :)
+> I'll try much more complexed ones in the weekend.
 
-And now, you want to add a global hot point, that would slow
-down unrelated processes, only because they use shared futexes, thousand
-times per second...
+You might want to try experiments where the group with the higher soft
+limit starts much later than the group with lower soft limit and both
+have a high demand for memory. Also try corner cases such as soft
+limits being 0, or groups where soft limits are equal, etc.
 
->=20
-> Alternatively, it could have per-cpu flags and the other side could
-> construct the mask (I originally had that, but this was simpler).
+We have a long weekend, so I've been unable to test/review your
+patches. I'll do so soon if possible.
 
-Simpler but would be a regression for legacy applications still using sha=
-red
-futexes (because statically linked with old libc)
-
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
