@@ -1,75 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D66A6B0047
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 08:36:50 -0400 (EDT)
-Subject: Re: [PATCH 1/2] x86/mm: maintain a percpu "in get_user_pages_fast"
- flag
-From: Peter Zijlstra <peterz@infradead.org>
-In-Reply-To: <49CDD7B4.4020701@cosmosbay.com>
-References: <49CD37B8.4070109@goop.org> <49CD9E25.2090407@redhat.com>
-	 <49CDAF17.5060207@goop.org>  <49CDD7B4.4020701@cosmosbay.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Sat, 28 Mar 2009 13:31:58 +0100
-Message-Id: <1238243518.4039.725.camel@laptop>
-Mime-Version: 1.0
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id C36EF6B003D
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 12:10:31 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2SGAcEN011015
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Sun, 29 Mar 2009 01:10:38 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4C245DD76
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4979245DD72
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 477261DB8018
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
+Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0053D1DB8012
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
+Message-ID: <cb947346323dc0c602b6aad8eec13263.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090328082350.GS24227@balbir.in.ibm.com>
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090328082350.GS24227@balbir.in.ibm.com>
+Date: Sun, 29 Mar 2009 01:10:37 +0900 (JST)
+Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain;charset=iso-2022-jp
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2009-03-28 at 08:54 +0100, Eric Dumazet wrote:
-> Jeremy Fitzhardinge a A(C)crit :
-> > Avi Kivity wrote:
-> >> Jeremy Fitzhardinge wrote:
-> >>> get_user_pages_fast() relies on cross-cpu tlb flushes being a barrier
-> >>> between clearing and setting a pte, and before freeing a pagetable page.
-> >>> It usually does this by disabling interrupts to hold off IPIs, but
-> >>> some tlb flush implementations don't use IPIs for tlb flushes, and
-> >>> must use another mechanism.
-> >>>
-> >>> In this change, add in_gup_cpumask, which is a cpumask of cpus currently
-> >>> performing a get_user_pages_fast traversal of a pagetable.  A cross-cpu
-> >>> tlb flush function can use this to determine whether it should hold-off
-> >>> on the flush until the gup_fast has finished.
-> >>>
-> >>> @@ -255,6 +260,10 @@ int get_user_pages_fast(unsigned long start, int
-> >>> nr_pages, int write,
-> >>>      * address down to the the page and take a ref on it.
-> >>>      */
-> >>>     local_irq_disable();
-> >>> +
-> >>> +    cpu = smp_processor_id();
-> >>> +    cpumask_set_cpu(cpu, in_gup_cpumask);
-> >>> +
-> >>
-> >> This will bounce a cacheline, every time.  Please wrap in CONFIG_XEN
-> >> and skip at runtime if Xen is not enabled.
-> > 
-> > Every time?  Only when running successive gup_fasts on different cpus,
-> > and only twice per gup_fast. (What's the typical page count?  I see that
-> > kvm and lguest are page-at-a-time users, but presumably direct IO has
-> > larger batches.)
-> 
-> If I am not mistaken, shared futexes where hitting hard mm semaphore.
-> Then gup_fast was introduced in kernel/futex.c to remove this contention point.
-> Yet, this contention point was process specific, not a global one :)
-> 
-> And now, you want to add a global hot point, that would slow
-> down unrelated processes, only because they use shared futexes, thousand
-> times per second...
+Balbir Singh wrote:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27
+> 13:59:33]:
 
-Yet another reason to turn all this virt muck off :-) I just wish I
-could turn off the paravirt code impact, it makes finding functions in
-the x86 code a terrible pain.
+>>   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
+>>   When vm.swappiness = 10  => 1MB of memory are swapped out from B
+>>
+>>   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
+>>
+>
+> How did you calculate the swap usage of group B?
+>
+ memsory.memsw.usage_in_bytes - memory.usage_in_bytes.
 
-> > Alternatively, it could have per-cpu flags and the other side could
-> > construct the mask (I originally had that, but this was simpler).
-> 
-> Simpler but would be a regression for legacy applications still using shared
-> futexes (because statically linked with old libc)
+>> I'll try much more complexed ones in the weekend.
+>
+> You might want to try experiments where the group with the higher soft
+> limit starts much later than the group with lower soft limit and both
+> have a high demand for memory. Also try corner cases such as soft
+> limits being 0, or groups where soft limits are equal, etc.
+>
+thx, good input. maybe I need some hook in "set soft limit" path.
 
-Still doesn't help those apps that really use shared futexes.
+> We have a long weekend, so I've been unable to test/review your
+> patches. I'll do so soon if possible.
+>
+thank you.
+-Kame
+
+> --
+> 	Balbir
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
