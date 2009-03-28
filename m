@@ -1,42 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E81F6B003D
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 02:35:04 -0400 (EDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-Date: Sat, 28 Mar 2009 17:05:28 +1030
-References: <20090327150905.819861420@de.ibm.com>
-In-Reply-To: <20090327150905.819861420@de.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 40C4E6B003D
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 04:09:17 -0400 (EDT)
+Message-ID: <49CDD7B4.4020701@cosmosbay.com>
+Date: Sat, 28 Mar 2009 08:54:28 +0100
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200903281705.29798.rusty@rustcorp.com.au>
+Subject: Re: [PATCH 1/2] x86/mm: maintain a percpu "in get_user_pages_fast"
+ flag
+References: <49CD37B8.4070109@goop.org> <49CD9E25.2090407@redhat.com> <49CDAF17.5060207@goop.org>
+In-Reply-To: <49CDAF17.5060207@goop.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: virtualization@lists.linux-foundation.org
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, nickpiggin@yahoo.com.au, frankeh@watson.ibm.com, riel@redhat.com, hugh@veritas.com
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Avi Kivity <avi@redhat.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, the arch/x86 maintainers <x86@kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 28 March 2009 01:39:05 Martin Schwidefsky wrote:
-> Greetings,
-> the circus is back in town -- another version of the guest page hinting
-> patches. The patches differ from version 6 only in the kernel version,
-> they apply against 2.6.29. My short sniff test showed that the code
-> is still working as expected.
-> 
-> To recap (you can skip this if you read the boiler plate of the last
-> version of the patches):
-> The main benefit for guest page hinting vs. the ballooner is that there
-> is no need for a monitor that keeps track of the memory usage of all the
-> guests, a complex algorithm that calculates the working set sizes and for
-> the calls into the guest kernel to control the size of the balloons.
+Jeremy Fitzhardinge a =C3=A9crit :
+> Avi Kivity wrote:
+>> Jeremy Fitzhardinge wrote:
+>>> get_user_pages_fast() relies on cross-cpu tlb flushes being a barrier=
 
-I thought you weren't convinced of the concrete benefits over ballooning,
-or am I misremembering?
+>>> between clearing and setting a pte, and before freeing a pagetable pa=
+ge.
+>>> It usually does this by disabling interrupts to hold off IPIs, but
+>>> some tlb flush implementations don't use IPIs for tlb flushes, and
+>>> must use another mechanism.
+>>>
+>>> In this change, add in_gup_cpumask, which is a cpumask of cpus curren=
+tly
+>>> performing a get_user_pages_fast traversal of a pagetable.  A cross-c=
+pu
+>>> tlb flush function can use this to determine whether it should hold-o=
+ff
+>>> on the flush until the gup_fast has finished.
+>>>
+>>> @@ -255,6 +260,10 @@ int get_user_pages_fast(unsigned long start, int=
 
-Thanks,
-Rusty.
+>>> nr_pages, int write,
+>>>      * address down to the the page and take a ref on it.
+>>>      */
+>>>     local_irq_disable();
+>>> +
+>>> +    cpu =3D smp_processor_id();
+>>> +    cpumask_set_cpu(cpu, in_gup_cpumask);
+>>> +
+>>
+>> This will bounce a cacheline, every time.  Please wrap in CONFIG_XEN
+>> and skip at runtime if Xen is not enabled.
+>=20
+> Every time?  Only when running successive gup_fasts on different cpus,
+> and only twice per gup_fast. (What's the typical page count?  I see tha=
+t
+> kvm and lguest are page-at-a-time users, but presumably direct IO has
+> larger batches.)
+
+If I am not mistaken, shared futexes where hitting hard mm semaphore.
+Then gup_fast was introduced in kernel/futex.c to remove this contention =
+point.
+Yet, this contention point was process specific, not a global one :)
+
+And now, you want to add a global hot point, that would slow
+down unrelated processes, only because they use shared futexes, thousand
+times per second...
+
+>=20
+> Alternatively, it could have per-cpu flags and the other side could
+> construct the mask (I originally had that, but this was simpler).
+
+Simpler but would be a regression for legacy applications still using sha=
+red
+futexes (because statically linked with old libc)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
