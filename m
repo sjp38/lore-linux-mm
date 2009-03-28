@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C36EF6B003D
-	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 12:10:31 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2SGAcEN011015
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sun, 29 Mar 2009 01:10:38 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6F4C245DD76
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4979245DD72
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 477261DB8018
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
-Received: from ml11.s.css.fujitsu.com (ml11.s.css.fujitsu.com [10.249.87.101])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0053D1DB8012
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 01:10:38 +0900 (JST)
-Message-ID: <cb947346323dc0c602b6aad8eec13263.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090328082350.GS24227@balbir.in.ibm.com>
-References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090328082350.GS24227@balbir.in.ibm.com>
-Date: Sun, 29 Mar 2009 01:10:37 +0900 (JST)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C17656B003D
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 14:11:14 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2SIBJkj001182
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 23:41:19 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2SIBRPS4096190
+	for <linux-mm@kvack.org>; Sat, 28 Mar 2009 23:41:28 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2SIBICP006960
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 05:11:18 +1100
+Date: Sat, 28 Mar 2009 23:41:00 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
 Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <20090328181100.GB26686@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27
-> 13:59:33]:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27 13:59:33]:
 
->>   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
->>   When vm.swappiness = 10  => 1MB of memory are swapped out from B
->>
->>   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
->>
->
-> How did you calculate the swap usage of group B?
->
- memsory.memsw.usage_in_bytes - memory.usage_in_bytes.
-
->> I'll try much more complexed ones in the weekend.
->
-> You might want to try experiments where the group with the higher soft
-> limit starts much later than the group with lower soft limit and both
-> have a high demand for memory. Also try corner cases such as soft
-> limits being 0, or groups where soft limits are equal, etc.
->
-thx, good input. maybe I need some hook in "set soft limit" path.
-
-> We have a long weekend, so I've been unable to test/review your
-> patches. I'll do so soon if possible.
->
-thank you.
--Kame
-
-> --
-> 	Balbir
+> ==brief test result==
+> On 2CPU/1.6GB bytes machine. create group A and B
+>   A.  soft limit=300M
+>   B.  no soft limit
+> 
+>   Run a malloc() program on B and allcoate 1G of memory. The program just
+>   sleeps after allocating memory and no memory refernce after it.
+>   Run make -j 6 and compile the kernel.
+> 
+>   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
+>   When vm.swappiness = 10  => 1MB of memory are swapped out from B    
+> 
+>   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
 >
 
+I ran the same tests, booted the machine with mem=1700M and maxcpus=2
+
+Here is what I see with
+
+A has a swapout of 344M and B has not swapout at all, since B is
+always under its soft limit. vm.swappiness is set to 60
+
+I think the above is more along the lines of the expected functional behaviour. 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
