@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id CA2606B003D
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 10:38:25 -0400 (EDT)
-Message-ID: <49CF87FB.4030608@redhat.com>
-Date: Sun, 29 Mar 2009 10:38:51 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A10A6B003D
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 12:55:56 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp09.au.ibm.com (8.13.1/8.13.1) with ESMTP id n2TGdfjh030545
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 03:39:41 +1100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2TGuxHg790738
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 03:56:59 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2TGufQp007450
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 03:56:41 +1100
+Date: Sun, 29 Mar 2009 22:26:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 4/8] memcg soft limit priority array queue.
+Message-ID: <20090329165620.GB15608@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com> <20090327140653.a12c6b1e.kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-References: <20090327150905.819861420@de.ibm.com>	<1238195024.8286.562.camel@nimitz>	<49CD69EB.6000000@redhat.com> <20090329162024.687196ab@skybase>
-In-Reply-To: <20090329162024.687196ab@skybase>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090327140653.a12c6b1e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky wrote:
-> On Fri, 27 Mar 2009 20:06:03 -0400
-> Rik van Riel <riel@redhat.com> wrote:
-> 
->> Dave Hansen wrote:
->>> On Fri, 2009-03-27 at 16:09 +0100, Martin Schwidefsky wrote:
->>>> If the host picks one of the
->>>> pages the guest can recreate, the host can throw it away instead of writing
->>>> it to the paging device. Simple and elegant.
->>> Heh, simple and elegant for the hypervisor.  But I'm not sure I'm going
->>> to call *anything* that requires a new CPU instruction elegant. ;)
->> I am convinced that it could be done with a guest-writable
->> "bitmap", with 2 bits per page.  That would make this scheme
->> useful for KVM, too.
-> 
-> This was our initial approach before we came up with the milli-code
-> instruction. The reason we did not use a bitmap was to prevent the
-> guest to change the host state (4 guest states U/S/V/P and 3 host
-> states r/p/z). With the full set of states you'd need 4 bits. And the
-> hosts need to have a "master" copy of the host bits, one the guest
-> cannot change, otherwise you get into trouble.
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27 14:06:53]:
 
-KVM already has the info from the host bits somewhere else,
-which is needed to be able to actually find the physical
-pages used by a guest.
+> I'm now search a way to reduce lock contention without complex...
+> -Kame
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> +static void __mem_cgroup_requeue(struct mem_cgroup *mem)
+> +{
+> +	/* enqueue to softlimit queue */
+> +	int prio = mem->soft_limit_priority;
+> +
+> +	spin_lock(&softlimitq.lock);
+> +	list_del_init(&mem->soft_limit_anon);
+> +	list_add_tail(&mem->soft_limit_anon, &softlimitq.queue[prio][SL_ANON]);
+> +	list_del_init(&mem->soft_limit_file,ist[SL_FILE]);
 
-That leaves just the guest states, so a compare-and-swap may
-work for non-s390.
+Patch fails to build here, what is ist?
+
+> +	list_add_tail(&mem->soft_limit_file, &softlimitq.queue[prio][SL_FILE]);
+> +	spin_unlock(&softlimitq.lock);
+> +}
+> 
 
 -- 
-All rights reversed.
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
