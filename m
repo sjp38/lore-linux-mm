@@ -1,117 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7066B003D
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 09:02:04 -0400 (EDT)
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by e28smtp03.in.ibm.com (8.13.1/8.13.1) with ESMTP id n2TD1wPT006147
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 18:31:58 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2TCwLGL4378698
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 18:28:22 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.13.1/8.13.3) with ESMTP id n2TD1w7L019298
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 00:01:58 +1100
-Date: Sun, 29 Mar 2009 18:31:38 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
-Message-ID: <20090329130138.GA15608@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CE716B003D
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 09:55:55 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.1/8.13.1) with ESMTP id n2TDujSL027135
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 13:56:45 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2TDuicT3395804
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 15:56:44 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2TDuiRO009661
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 15:56:44 +0200
+Date: Sun, 29 Mar 2009 15:56:40 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [patch 1/6] Guest page hinting: core + volatile page cache.
+Message-ID: <20090329155640.31472c61@skybase>
+In-Reply-To: <49CD59DB.3070906@redhat.com>
+References: <20090327150905.819861420@de.ibm.com>
+	<20090327151011.534224968@de.ibm.com>
+	<49CD59DB.3070906@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27 13:59:33]:
+On Fri, 27 Mar 2009 18:57:31 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-> Hi,
+> Martin Schwidefsky wrote:
 > 
-> Memory cgroup's soft limit feature is a feature to tell global LRU 
-> "please reclaim from this memcg at memory shortage".
+> > The major obstacles that need to get addressed:
+> > * Concurrent page state changes:
+> >   To guard against concurrent page state updates some kind of lock
+> >   is needed. If page_make_volatile() has already done the 11 checks it
+> >   will issue the state change primitive. If in the meantime one of
+> >   the conditions has changed the user that requires that page in
+> >   stable state will have to wait in the page_make_stable() function
+> >   until the make volatile operation has finished. It is up to the
+> >   architecture to define how this is done with the three primitives
+> >   page_test_set_state_change, page_clear_state_change and
+> >   page_state_change.
+> >   There are some alternatives how this can be done, e.g. a global
+> >   lock, or lock per segment in the kernel page table, or the per page
+> >   bit PG_arch_1 if it is still free.
 > 
-> And Balbir's one and my one was proposed.
-> This is new one. (so restart from v1), this is very new-born.
-> 
-> While testing soft limit, my dilemma was following.
-> 
->  - needs additional cost of can if implementation is naive (unavoidable?)
+> Can this be taken care of by memory barriers and
+> careful ordering of operations?
 
-I think and I speak for my patches, you should look at soft limit
-reclaim as helping global reclaim and not working against it. It
-provides an opportunity to reclaim from groups that might not be
-important to the system.
+I don't see how this could be done with memory barries, the sequence is
+1) check conditions
+2) do state change to volatile
 
-> 
->  - Inactive/Active rotation scheme of global LRU will be broken.
-> 
->  - File/Anon reclaim ratio scheme of global LRU will be broken.
->     - vm.swappiness will be ignored.
-> 
+another cpus can do
+i) change one of the conditions
 
-Not true, with my patches none of these are affected since the reclaim
-for soft limits is limited to mem cgroup LRU lists only. Zone reclaim
-that happens in parallel can of-course change the global LRU.
+The operation i) needs to be postponed while the first cpu has done 1)
+but not done 2) yet. 1+2 needs to be atomic but consists of several
+instructions. Ergo we need a lock, no ?
 
->  - If using memcg's memory reclaim routine, 
->     - shrink_slab() will be never called.
->     - stale SwapCache has no chance to be reclaimed (stale SwapCache means
->       readed but not used one.)
->     - memcg can have no memory in a zone.
->     - memcg can have no Anon memory
->     - lumpty_reclaim() is not called.
+> If we consider the states unused -> volatile -> stable
+> as progressively higher, "upgrades" can be done before
+> any kernel operation that requires the page to be in
+> that state (but after setting up the things that allow
+> it to be found), while downgrades can be done after the
+> kernel is done with needing the page at a higher level.
 > 
+> Since the downgrade checks for users that need the page
+> in a higher state, no lock should be required.
 > 
-> This patch tries to avoid to use existing memcg's reclaim routine and
-> just tell "Hints" to global LRU. This patch is briefly tested and shows
-> good result to me. (But may not to you. plz brame me.)
+> In fact, it may be possible to manage the page state
+> bitmap with compare-and-swap, without needing a call
+> to the hypervisor.
 > 
-
-I don't like the results, they are functionaly broken (see my other
-email). Why should "B" get reclaimed from if it is not above its soft
-limit? Why is there a swapout from "B"?
-
-
-> Major characteristic is.
->  - memcg will be inserted to softlimit-queue at charge() if usage excess
->    soft limit.
->  - softlimit-queue is a queue with priority. priority is detemined by size
->    of excessing usage.
->  - memcg's soft limit hooks is called by shrink_xxx_list() to show hints.
->  - Behavior is affected by vm.swappiness and LRU scan rate is determined by
->    global LRU's status.
+> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 > 
-> I'm sorry that I'm tend not to tell enough explanation.  plz ask me.
-> There will be much discussion points, anyway. As usual, I'm not in hurry.
->
+> Some comments and questions in line.
+> 
+> > @@ -601,6 +604,21 @@ copy_one_pte(struct mm_struct *dst_mm, s
+> >  
+> >  out_set_pte:
+> >  	set_pte_at(dst_mm, addr, dst_pte, pte);
+> > +	return;
+> > +
+> > +out_discard_pte:
+> > +	/*
+> > +	 * If the page referred by the pte has the PG_discarded bit set,
+> > +	 * copy_one_pte is racing with page_discard. The pte may not be
+> > +	 * copied or we can end up with a pte pointing to a page not
+> > +	 * in the page cache anymore. Do what try_to_unmap_one would do
+> > +	 * if the copy_one_pte had taken place before page_discard.
+> > +	 */
+> > +	if (page->index != linear_page_index(vma, addr))
+> > +		/* If nonlinear, store the file page offset in the pte. */
+> > +		set_pte_at(dst_mm, addr, dst_pte, pgoff_to_pte(page->index));
+> > +	else
+> > +		pte_clear(dst_mm, addr, dst_pte);
+> >  }
+> 
+> It would be good to document that PG_discarded can only happen for
+> file pages and NOT for eg. clean swap cache pages.
 
-The code seems to add a lot of complexity and does not achieve expected
-functionality. I am going to start testing this series soon
+PG_discarded can happen for swap cache pages as well. If a clean swap
+cache page gets remove and subsequently access again the discard fault
+handler will set the bit (see __page_discard). The code necessary for
+volatile swap cache is introduced with patch #2. So I would rather not
+add a comment in patch #1 only to remove it again with patch #2 ..
+
+> > @@ -1390,6 +1391,7 @@ int test_clear_page_writeback(struct pag
+> >  			radix_tree_tag_clear(&mapping->page_tree,
+> >  						page_index(page),
+> >  						PAGECACHE_TAG_WRITEBACK);
+> > +			page_make_volatile(page, 1);
+> >  			if (bdi_cap_account_writeback(bdi)) {
+> >  				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+> >  				__bdi_writeout_inc(bdi);
+> 
+> Does this mark the page volatile before the IO writing the
+> dirty data back to disk has even started?  Is that OK?
  
-> 
-> ==brief test result==
-> On 2CPU/1.6GB bytes machine. create group A and B
->   A.  soft limit=300M
->   B.  no soft limit
-> 
->   Run a malloc() program on B and allcoate 1G of memory. The program just
->   sleeps after allocating memory and no memory refernce after it.
->   Run make -j 6 and compile the kernel.
-> 
->   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
->   When vm.swappiness = 10  => 1MB of memory are swapped out from B    
-> 
->   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
-> 
-> I'll try much more complexed ones in the weekend.
-
-Please see my response to this test result in a previous email.
+Hmm, it could be that the page_make_volatile is just superflouos here.
+The logic here is that whenever one of the conditions that prevent a
+page from becoming volatile is cleared a try with page_make_volatile
+is done. The condition in question here is PageWriteback(page). If we
+can prove that one of the other conditions is true this particular call
+is a waste of effort.
 
 -- 
-	Balbir
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
