@@ -1,63 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 95A376B003D
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 10:23:21 -0400 (EDT)
-Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
-	by mtagate1.de.ibm.com (8.13.1/8.13.1) with ESMTP id n2TENen0010140
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 14:23:40 GMT
-Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
-	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2TENe9s3702892
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 16:23:40 +0200
-Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
-	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2TENej5020970
-	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 16:23:40 +0200
-Date: Sun, 29 Mar 2009 16:23:36 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-Message-ID: <20090329162336.7c0700e9@skybase>
-In-Reply-To: <200903281705.29798.rusty@rustcorp.com.au>
-References: <20090327150905.819861420@de.ibm.com>
-	<200903281705.29798.rusty@rustcorp.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id E27736B003D
+	for <linux-mm@kvack.org>; Sun, 29 Mar 2009 10:35:05 -0400 (EDT)
+Message-ID: <49CF8733.7060309@redhat.com>
+Date: Sun, 29 Mar 2009 10:35:31 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 1/6] Guest page hinting: core + volatile page cache.
+References: <20090327150905.819861420@de.ibm.com>	<20090327151011.534224968@de.ibm.com>	<49CD59DB.3070906@redhat.com> <20090329155640.31472c61@skybase>
+In-Reply-To: <20090329155640.31472c61@skybase>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, nickpiggin@yahoo.com.au, frankeh@watson.ibm.com, riel@redhat.com, hugh@veritas.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Mar 2009 17:05:28 +1030
-Rusty Russell <rusty@rustcorp.com.au> wrote:
+Martin Schwidefsky wrote:
+> On Fri, 27 Mar 2009 18:57:31 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+>> Martin Schwidefsky wrote:
 
-> On Saturday 28 March 2009 01:39:05 Martin Schwidefsky wrote:
-> > Greetings,
-> > the circus is back in town -- another version of the guest page hinting
-> > patches. The patches differ from version 6 only in the kernel version,
-> > they apply against 2.6.29. My short sniff test showed that the code
-> > is still working as expected.
-> > 
-> > To recap (you can skip this if you read the boiler plate of the last
-> > version of the patches):
-> > The main benefit for guest page hinting vs. the ballooner is that there
-> > is no need for a monitor that keeps track of the memory usage of all the
-> > guests, a complex algorithm that calculates the working set sizes and for
-> > the calls into the guest kernel to control the size of the balloons.
+>>>   There are some alternatives how this can be done, e.g. a global
+>>>   lock, or lock per segment in the kernel page table, or the per page
+>>>   bit PG_arch_1 if it is still free.
+>> Can this be taken care of by memory barriers and
+>> careful ordering of operations?
 > 
-> I thought you weren't convinced of the concrete benefits over ballooning,
-> or am I misremembering?
+> I don't see how this could be done with memory barries, the sequence is
+> 1) check conditions
+> 2) do state change to volatile
+> 
+> another cpus can do
+> i) change one of the conditions
+> 
+> The operation i) needs to be postponed while the first cpu has done 1)
+> but not done 2) yet. 1+2 needs to be atomic but consists of several
+> instructions. Ergo we need a lock, no ?
 
-The performance test I have seen so far show that the benefits of
-ballooning vs. guest page hinting are about the same. I am still
-convinced that the guest page hinting is the way to go because you do
-not need an external monitor. Calculating the working set size for a
-guest is a challenge. With guest page hinting there is no need for a
-working set size calculation.
+You are right.
+
+Hashed locks may be a space saving option, with a
+set of (cache line aligned?) locks in each zone
+and the page state lock chosen by taking a hash
+of the page number or address.
+
+Not ideal, but at least we can get some NUMA
+locality.
+
+>>> +	if (page->index != linear_page_index(vma, addr))
+>>> +		/* If nonlinear, store the file page offset in the pte. */
+>>> +		set_pte_at(dst_mm, addr, dst_pte, pgoff_to_pte(page->index));
+>>> +	else
+>>> +		pte_clear(dst_mm, addr, dst_pte);
+>>>  }
+>> It would be good to document that PG_discarded can only happen for
+>> file pages and NOT for eg. clean swap cache pages.
+> 
+> PG_discarded can happen for swap cache pages as well. If a clean swap
+> cache page gets remove and subsequently access again the discard fault
+> handler will set the bit (see __page_discard). The code necessary for
+> volatile swap cache is introduced with patch #2. So I would rather not
+> add a comment in patch #1 only to remove it again with patch #2 ..
+
+I discovered that once I opened the next email :)
+
+>>> @@ -1390,6 +1391,7 @@ int test_clear_page_writeback(struct pag
+>>>  			radix_tree_tag_clear(&mapping->page_tree,
+>>>  						page_index(page),
+>>>  						PAGECACHE_TAG_WRITEBACK);
+>>> +			page_make_volatile(page, 1);
+>>>  			if (bdi_cap_account_writeback(bdi)) {
+>>>  				__dec_bdi_stat(bdi, BDI_WRITEBACK);
+>>>  				__bdi_writeout_inc(bdi);
+>> Does this mark the page volatile before the IO writing the
+>> dirty data back to disk has even started?  Is that OK?
+>  
+> Hmm, it could be that the page_make_volatile is just superflouos here.
+> The logic here is that whenever one of the conditions that prevent a
+> page from becoming volatile is cleared a try with page_make_volatile
+> is done. The condition in question here is PageWriteback(page). If we
+> can prove that one of the other conditions is true this particular call
+> is a waste of effort.
+
+Actually, test_clear_page_writeback is probably called
+on IO completion and it was just me being confused after
+a few hundred lines of very new (to me) VM code :)
+
+I guess the patch is correct.
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
