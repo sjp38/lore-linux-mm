@@ -1,127 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B52786B0047
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 18:17:46 -0400 (EDT)
-Message-ID: <49D144D6.9000001@redhat.com>
-Date: Tue, 31 Mar 2009 01:16:54 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-References: <20090327150905.819861420@de.ibm.com>	<1238195024.8286.562.camel@nimitz>	<20090329161253.3faffdeb@skybase>	<1238428495.8286.638.camel@nimitz> <49D11184.3060002@goop.org>	<49D11287.4030307@redhat.com> <49D11674.9040205@goop.org>	<49D12564.40708@redhat.com> <49D12D16.6050407@goop.org> <49D13BB9.3010200@redhat.com>
-In-Reply-To: <49D13BB9.3010200@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8677F6B003D
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 19:55:29 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2UNuJAu005113
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 31 Mar 2009 08:56:19 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B61F45DE51
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:56:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 497B645DE4F
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:56:19 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 574D2E18002
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:56:19 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 135F31DB8038
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:56:19 +0900 (JST)
+Date: Tue, 31 Mar 2009 08:54:51 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
+Message-Id: <20090331085451.ce6a5147.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090328181100.GB26686@balbir.in.ibm.com>
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090328181100.GB26686@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Rik van Riel <riel@redhat.com>, akpm@osdl.org, nickpiggin@yahoo.com.au, frankeh@watson.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>, virtualization@lists.osdl.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, hugh@veritas.com, dlaor@redhat.com
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
->> Rik van Riel wrote:
->>  
->>> Jeremy Fitzhardinge wrote:
->>>    
->>>> Rik van Riel wrote:
->>>>      
->>>>> Jeremy Fitzhardinge wrote:
->>>>>
->>>>>        
->>>>>> That said, people have been looking at tracking block IO to work 
->>>>>> out when it might be useful to try and share pages between guests 
->>>>>> under Xen.
->>>>>>           
->>>>> Tracking block IO seems like a bass-ackwards way to figure
->>>>> out what the contents of a memory page are.
->>>>>         
->>>> Well, they're research projects, so nobody said that they're 
->>>> necessarily useful results ;).  I think the rationale is that, in 
->>>> general, there aren't all that many sharable pages, and asize from 
->>>> zero-pages, the bulk of them are the result of IO.       
->>> I'll give you a hint:  Windows zeroes out freed pages.
->>>     
->>
->> Right: "aside from zero-pages".  If you exclude zero-pages from your 
->> count of shared pages, the amount of sharing drops a lot.
+On Sat, 28 Mar 2009 23:41:00 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-20026 root      15   0  707m 526m 246m S  7.0 14.0   0:39.57 
-qemu-system-x86                                                                                                       
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-03-27 13:59:33]:
+> 
+> > ==brief test result==
+> > On 2CPU/1.6GB bytes machine. create group A and B
+> >   A.  soft limit=300M
+> >   B.  no soft limit
+> > 
+> >   Run a malloc() program on B and allcoate 1G of memory. The program just
+> >   sleeps after allocating memory and no memory refernce after it.
+> >   Run make -j 6 and compile the kernel.
+> > 
+> >   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
+> >   When vm.swappiness = 10  => 1MB of memory are swapped out from B    
+> > 
+> >   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
+> >
+> 
+> I ran the same tests, booted the machine with mem=1700M and maxcpus=2
+> 
+with your patch ?
 
-20010 root      15   0  707m 526m 239m S  6.3 14.0   0:47.16 
-qemu-system-x86                                                                                                       
+> Here is what I see with
+> 
+> A has a swapout of 344M and B has not swapout at all, since B is
+> always under its soft limit. vm.swappiness is set to 60
+> 
+> I think the above is more along the lines of the expected functional behaviour. 
+> 
 
-20015 root      15   0  707m 526m 247m S  5.7 14.0   0:46.84 
-qemu-system-x86                                                                                                       
+yes. but it's depend on workload (and fortune?) of A in this implementation.
+Follwing is what I think now. We need some changes to vmscanc, later.
 
-20031 root      15   0  707m 526m 242m S  5.7 14.1   0:46.74 
-qemu-system-x86                                                                                                       
+explain)
+    This patch rotate memcg's page to the top of LRU. But, LRU is divided into
+    INACTIVE/ACTIVE. So, sometimes, memcg's INACTIVE LRU can be empty and
+    pages from other group can be reclaimed.
+    In my test, group A's RSS usage can be 1-2M sometimes.
 
-20005 root      15   0  707m 526m 239m S  0.3 14.0   0:54.16 qemu-system-x86
-
-I just ran 5 debian 5.0 guests with each have 512 mb physical ram,
-all i did was just open X, and then open thunderbird and firefox in 
-them, check the SHR field...
-
-You cannot ignore the fact that the librarys and the kernel would be 
-identical among guests and would be shared...
-Other than the library we got the big bonus that is called zero page in 
-windows, but that is really not the case for the above example since 
-thigs guests are linux.....
-
->>
->>  
->>> It should also be possible to hook up arch_free_page() so
->>> freed pages in Linux guests become sharable.
->>>
->>> Furthermore, every guest with the same OS version will be
->>> running the same system daemons, same glibc, etc.  This
->>> means sharable pages from not just disk IO (probably from
->>> different disks anyway),
->>>     
->>
->> Why?  If you're starting a bunch of cookie-cutter guests, then you're 
->> probably starting them from the same template image or COW block 
->> devices.  (Also, if you're wearing the cost of physical IO anyway, 
->> then additional cost of hashing is relatively small.)
->>
->>  
->>> but also in the BSS and possibly
->>> even on the heap.
->>>     
->>
->> Well, maybe.  Modern systems generally randomize memory layouts, so 
->> even if they're semantically the same, the pointers will all have 
->> different values.
->>
->> Other research into "sharing" mostly-similar pages is more promising 
->> for that kind of case.
->>
->>  
->>> Eventually.  It starts out with hashing the first 128 (IIRC)
->>> bytes of page content and comparing the hashes.  If that
->>> matches, it will do content comparison.
->>>     
-> The algorithm was changed quite a bit. Izik is planning to resubmit it
-> any day now.
->>> Content comparison is done in the background on the host.
->>> I suspect (but have not checked) that it is somehow hooked
->>> up to the page reclaim code on the host.
->>>     
->>
->> Yeah, that's the straightforward approach; there's about a research 
->> project/year doing a Xen implementation, but they never seem to get 
->> very good results aside from very artificial test conditions.
-I keep hear this argument from Microsoft but even in the hardest test 
-condition, how would you make the librarys and the kernel wont be 
-identical among the guests?.
-
-Anyway Page sharing is running and installed for our customers and so 
-far i only hear from sells guys how surprised and happy the costumers 
-are from the overcommit that page sharing is offer...
+Thanks,
+-Kame
+    
 
 
-Anyway i have ready massive-changed (mostly the logical algorithm for 
-finding pages) ksm version that i made against the mainline version and 
-is ready to be send after i will get some better benchmarks numbers to 
-post on the list when together with the patch...
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
