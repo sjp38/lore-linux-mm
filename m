@@ -1,66 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E6BA06B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 02:58:44 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2V6xcZS016000
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 71F806B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 04:19:55 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2V8KBgD021578
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 31 Mar 2009 15:59:38 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ED3A45DD7B
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FB5E45DD78
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CE401DB803F
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DEBA61DB803C
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:37 +0900 (JST)
-Date: Tue, 31 Mar 2009 15:58:10 +0900
+	Tue, 31 Mar 2009 17:20:11 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D59145DE53
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 17:20:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4D5D545DE4F
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 17:20:11 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 10ACB1DB803E
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 17:20:11 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A4FA1DB8041
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 17:20:09 +0900 (JST)
+Date: Tue, 31 Mar 2009 17:18:40 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
-Message-Id: <20090331155810.85bfb987.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090331064901.GK16497@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 5/8] memcg soft limit (yet another new design) v1
+Message-Id: <20090331171840.83fb7dab.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090327140923.7dbbf677.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090328181100.GB26686@balbir.in.ibm.com>
-	<20090328182747.GA8339@balbir.in.ibm.com>
-	<20090331085538.2aaa5e2b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090331050055.GF16497@balbir.in.ibm.com>
-	<20090331140502.813993cc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090331061010.GJ16497@balbir.in.ibm.com>
-	<20090331152843.e1db942b.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090331064901.GK16497@balbir.in.ibm.com>
+	<20090327140923.7dbbf677.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 31 Mar 2009 12:19:02 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > >  At some point, memcg soft limit reclaim
-> > > hits A and reclaims memory from it, allowing B to run without any
-> > > problems. I am talking about the state at the end of the experiment.
-> > > 
-> > Considering LRU rotation (ACTIVE->INACTIVE), pages in group B never goes back
-> > to ACTIVE list and can be the first candidates for swap-out via kswapd.
-> > 
-> > Hmm....kswapd doesn't work at all ?
-> > 
-> > (or 1700MB was too much.)
-> >
+On Fri, 27 Mar 2009 14:09:23 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> memcg's reclaim routine is designed to ignore locality andplacements and
+> then, inactive_anon_is_low() function doesn't take "zone" as its argument.
 > 
-> No 1700MB is not too much, since we reclaim from A towards the end
-> when ld runs. I need to investigate more and look at the watermarks,
-> may be soft limit reclaim reclaims enough and/or the watermarks are
-> not very high. I use fake NUMA nodes as well.
+> In later soft limit patch, we use "zone" as an arguments.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+> Index: mmotm-2.6.29-Mar23/mm/memcontrol.c
+> ===================================================================
+> --- mmotm-2.6.29-Mar23.orig/mm/memcontrol.c
+> +++ mmotm-2.6.29-Mar23/mm/memcontrol.c
+> @@ -561,15 +561,28 @@ void mem_cgroup_record_reclaim_priority(
+>  	spin_unlock(&mem->reclaim_param_lock);
+>  }
 >  
-When talking about XXMB of swap, +100MB is much ;)
+> -static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
+> +static int calc_inactive_ratio(struct mem_cgroup *memcg,
+> +			       unsigned long *present_pages,
+> +			       struct zone *z)
+>  {
+>  	unsigned long active;
+>  	unsigned long inactive;
+>  	unsigned long gb;
+>  	unsigned long inactive_ratio;
+>  
+> -	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_ANON);
+> -	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
+> +	if (!z) {
+> +		inactive = mem_cgroup_get_local_zonestat(memcg,
+> +							 LRU_INACTIVE_ANON);
+> +		active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_ANON);
+> +	} else {
+> +		int nid = z->zone_pgdat->node_id;
+> +		int zid = zone_idx(z);
+> +		struct mem_cgroup_per_zone *mz;
+> +
+> +		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+> +		inactive = MEM_CGROUP_ZSTAT(mz, LRU_INACTIVE_ANON);
+> +		active = MEM_CGROUP_ZSTAT(mz, LRU_ACTIVE_ANON);
+> +	}
+>  
+>  	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+>  	if (gb)
+> @@ -585,14 +598,14 @@ static int calc_inactive_ratio(struct me
+>  	return inactive_ratio;
+>  }
+>  
+> -int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg)
+> +int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg, struct zone *z)
+>  {
+>  	unsigned long active;
+>  	unsigned long inactive;
+>  	unsigned long present_pages[2];
+>  	unsigned long inactive_ratio;
+>  
+> -	inactive_ratio = calc_inactive_ratio(memcg, present_pages);
+> +	inactive_ratio = calc_inactive_ratio(memcg, present_pages, NULL);
+
+The last arguments should be "z" not NULL...
+
+seems posted version is a bit old...OMG, sorry.
+
+I'm now adding bugfix etc..
 
 -Kame
 
