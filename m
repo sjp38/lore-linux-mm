@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 8663C6B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 02:56:53 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2V6vjO5015206
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id E6BA06B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 02:58:44 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2V6xcZS016000
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 31 Mar 2009 15:57:45 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5501F45DE4F
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:57:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A27045DD72
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:57:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3640E1DB8037
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:57:45 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id E95E4E18001
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:57:41 +0900 (JST)
-Date: Tue, 31 Mar 2009 15:56:14 +0900
+	Tue, 31 Mar 2009 15:59:38 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ED3A45DD7B
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3FB5E45DD78
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CE401DB803F
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:38 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DEBA61DB803C
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:59:37 +0900 (JST)
+Date: Tue, 31 Mar 2009 15:58:10 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
-Message-Id: <20090331155614.8ad0c9b2.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090331155810.85bfb987.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090331064901.GK16497@balbir.in.ibm.com>
 References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
 	<20090328181100.GB26686@balbir.in.ibm.com>
@@ -42,32 +42,26 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 31 Mar 2009 12:19:02 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-
 > > 
-> > > > Nothing special boot options. My test was on VMware 2cpus/1.6GB memory.
-> > > > 
-> > > > I wonder why swapout can be 0 on your test. Do you add some extra hooks to
-> > > > kswapd ?
-> > > >
+> > >  At some point, memcg soft limit reclaim
+> > > hits A and reclaims memory from it, allowing B to run without any
+> > > problems. I am talking about the state at the end of the experiment.
 > > > 
-> > > Nope.. no special hooks to kswapd. B never enters the RB-Tree and thus
-> > > never hits the memcg soft limit reclaim path. kswapd can reclaim from
-> > > it, but it grows back quickly.
-> > Why grows back ? tasks in B sleeps ?
+> > Considering LRU rotation (ACTIVE->INACTIVE), pages in group B never goes back
+> > to ACTIVE list and can be the first candidates for swap-out via kswapd.
+> > 
+> > Hmm....kswapd doesn't work at all ?
+> > 
+> > (or 1700MB was too much.)
+> >
 > 
-> Since B continuously consumes memory
-> 
-Not sleep ?
+> No 1700MB is not too much, since we reclaim from A towards the end
+> when ld runs. I need to investigate more and look at the watermarks,
+> may be soft limit reclaim reclaims enough and/or the watermarks are
+> not very high. I use fake NUMA nodes as well.
+>  
+When talking about XXMB of swap, +100MB is much ;)
 
-In my test
- 1. malloc 1GB and touch all and sleep in B. Wait until the memory usage in B
-    goes up to 1024MB. This never wake up until 3. 
- 2. run make in group A.
- 3. kill malloc program.
-
-Then why why continuously consumes memory ?
-
-Thanks,
 -Kame
 
 --
