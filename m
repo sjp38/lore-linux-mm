@@ -1,72 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1384F6B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 09:31:06 -0400 (EDT)
-Received: by qyk15 with SMTP id 15so5336508qyk.12
-        for <linux-mm@kvack.org>; Tue, 31 Mar 2009 06:31:35 -0700 (PDT)
-Message-ID: <49D21B33.4070406@codemonkey.ws>
-Date: Tue, 31 Mar 2009 08:31:31 -0500
-From: Anthony Liguori <anthony@codemonkey.ws>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-References: <1238457560-7613-1-git-send-email-ieidus@redhat.com> <1238457560-7613-2-git-send-email-ieidus@redhat.com> <1238457560-7613-3-git-send-email-ieidus@redhat.com> <1238457560-7613-4-git-send-email-ieidus@redhat.com> <1238457560-7613-5-git-send-email-ieidus@redhat.com> <49D17C04.9070307@codemonkey.ws> <49D20B63.8020709@redhat.com>
-In-Reply-To: <49D20B63.8020709@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 41B9A6B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 09:32:00 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate8.de.ibm.com (8.14.3/8.13.8) with ESMTP id n2VDWRmF059058
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 13:32:27 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n2VDWQce3637448
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:32:27 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n2VDWP2m008300
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 15:32:26 +0200
+Date: Tue, 31 Mar 2009 15:32:23 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH] do_xip_mapping_read: fix length calculation
+Message-ID: <20090331153223.74b177bd@skybase>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Izik Eidus <ieidus@redhat.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Carsten Otte <cotte@de.ibm.com>, Nick Piggin <npiggin@suse.de>, Jared Hulbert <jaredeh@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Izik Eidus wrote:
->
-> I belive using ioctl for registering memory of applications make it 
-> easier....
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Yes, I completely agree.
+The calculation of the value nr in do_xip_mapping_read is incorrect. If
+the copy required more than one iteration in the do while loop the
+copies variable will be non-zero. The maximum length that may be passed
+to the call to copy_to_user(buf+copied, xip_mem+offset, nr) is len-copied
+but the check only compares against (nr > len).
 
-> Ksm doesnt have any complicated API that would benefit from sysfs 
-> (beside adding more complexity)
->
->> That is, the KSM_START_STOP_KTHREAD part, not necessarily the rest of 
->> the API.
->
-> What you mean?
+This bug is the cause for the heap corruption Carsten has been chasing
+for so long:
 
-The ioctl(KSM_START_STOP_KTHREAD) API is distinct from the rest of the 
-API.  Whereas the rest of the API is used by applications to register 
-their memory with KSM, this API is used by ksmctl to allow parameters to 
-be tweaked in userspace.
+*** glibc detected *** /bin/bash: free(): invalid next size (normal): 0x00000000800e39f0 ***  
+======= Backtrace: =========  
+/lib64/libc.so.6[0x200000b9b44]  
+/lib64/libc.so.6(cfree+0x8e)[0x200000bdade]  
+/bin/bash(free_buffered_stream+0x32)[0x80050e4e]  
+/bin/bash(close_buffered_stream+0x1c)[0x80050ea4]  
+/bin/bash(unset_bash_input+0x2a)[0x8001c366]  
+/bin/bash(make_child+0x1d4)[0x8004115c]  
+/bin/bash[0x8002fc3c]  
+/bin/bash(execute_command_internal+0x656)[0x8003048e]  
+/bin/bash(execute_command+0x5e)[0x80031e1e]  
+/bin/bash(execute_command_internal+0x79a)[0x800305d2]  
+/bin/bash(execute_command+0x5e)[0x80031e1e]  
+/bin/bash(reader_loop+0x270)[0x8001efe0]  
+/bin/bash(main+0x1328)[0x8001e960]  
+/lib64/libc.so.6(__libc_start_main+0x100)[0x200000592a8]  
+/bin/bash(clearerr+0x5e)[0x8001c092]  
 
-These parameters are just simple values like enable, pages_to_scan, 
-sleep_time.  Then there is KSM_GET_INFO_KTHREAD which provides a read 
-interface to these parameters.
+With this bug fix the commit 0e4a9b59282914fe057ab17027f55123964bc2e2
+"ext2/xip: refuse to change xip flag during remount with busy inodes"
+can be removed again.
 
-You could drop KSM_START_STOP_KTHREAD and KSM_GET_INFO_KTHREAD 
-altogether, and introduce a sysfs hierarchy:
+Cc: Carsten Otte <cotte@de.ibm.com>
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Jared Hulbert <jaredeh@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+---
 
-/sysfs/<some/path>/ksm/{enable,pages_to_scan,sleep_time}
+ mm/filemap_xip.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-That eliminates the need for ksmctl altogether, cleanly separates the 
-two APIs, and provides a stronger interface.
-
-The main problem with the current API is that it uses a single device to 
-do both the administrative task and the userspace interface.  That means 
-that any application that has access to registering its memory with KSM 
-also has the ability to disable KSM.  That seems like a security concern 
-to me since registering a memory region ought to be an unprivileged 
-action whereas enabling/disabling KSM ought to be a privileged action.
-
-Regards,
-
-Anthony Liguori
-
->>
->> Regards,
->>
->> Anthony Liguori
->>
->
+diff -urpN linux-2.6/mm/filemap_xip.c linux-2.6-patched/mm/filemap_xip.c
+--- linux-2.6/mm/filemap_xip.c	2009-03-24 00:12:14.000000000 +0100
++++ linux-2.6-patched/mm/filemap_xip.c	2009-03-31 15:25:53.000000000 +0200
+@@ -89,8 +89,8 @@ do_xip_mapping_read(struct address_space
+ 			}
+ 		}
+ 		nr = nr - offset;
+-		if (nr > len)
+-			nr = len;
++		if (nr > len - copied)
++			nr = len - copied;
+ 
+ 		error = mapping->a_ops->get_xip_mem(mapping, index, 0,
+ 							&xip_mem, &xip_pfn);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
