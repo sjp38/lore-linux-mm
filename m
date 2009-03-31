@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 394896B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:28:15 -0400 (EDT)
-Message-ID: <49D20B63.8020709@redhat.com>
-Date: Tue, 31 Mar 2009 15:24:03 +0300
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 6BC076B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 08:37:53 -0400 (EDT)
+Message-ID: <49D20DAF.6000805@redhat.com>
+Date: Tue, 31 Mar 2009 15:33:51 +0300
 From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-References: <1238457560-7613-1-git-send-email-ieidus@redhat.com> <1238457560-7613-2-git-send-email-ieidus@redhat.com> <1238457560-7613-3-git-send-email-ieidus@redhat.com> <1238457560-7613-4-git-send-email-ieidus@redhat.com> <1238457560-7613-5-git-send-email-ieidus@redhat.com> <49D17C04.9070307@codemonkey.ws>
-In-Reply-To: <49D17C04.9070307@codemonkey.ws>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux
+References: <1238457560-7613-1-git-send-email-ieidus@redhat.com> <49D174FC.80900@codemonkey.ws>
+In-Reply-To: <49D174FC.80900@codemonkey.ws>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,76 +18,23 @@ List-ID: <linux-mm.kvack.org>
 
 Anthony Liguori wrote:
 > Izik Eidus wrote:
->> Ksm is driver that allow merging identical pages between one or more
->> applications in way unvisible to the application that use it.
->> Pages that are merged are marked as readonly and are COWed when any
->> application try to change them.
->>
->> Ksm is used for cases where using fork() is not suitable,
->> one of this cases is where the pages of the application keep changing
->> dynamicly and the application cannot know in advance what pages are
->> going to be identical.
->>
->> Ksm works by walking over the memory pages of the applications it
->> scan in order to find identical pages.
->> It uses a two sorted data strctures called stable and unstable trees
->> to find in effective way the identical pages.
->>
->> When ksm finds two identical pages, it marks them as readonly and merges
->> them into single one page,
->> after the pages are marked as readonly and merged into one page, linux
->> will treat this pages as normal copy_on_write pages and will fork them
->> when write access will happen to them.
->>
->> Ksm scan just memory areas that were registred to be scanned by it.
->>
->> Ksm api:
->>
->> KSM_GET_API_VERSION:
->> Give the userspace the api version of the module.
->>
->> KSM_CREATE_SHARED_MEMORY_AREA:
->> Create shared memory reagion fd, that latter allow the user to register
->> the memory region to scan by using:
->> KSM_REGISTER_MEMORY_REGION and KSM_REMOVE_MEMORY_REGION
->>
->> KSM_START_STOP_KTHREAD:
->> Return information about the kernel thread, the inforamtion is returned
->> using the ksm_kthread_info structure:
->> ksm_kthread_info:
->> __u32 sleep:
->>         number of microsecoends to sleep between each iteration of
->> scanning.
->>
->> __u32 pages_to_scan:
->>         number of pages to scan for each iteration of scanning.
->>
->> __u32 max_pages_to_merge:
->>         maximum number of pages to merge in each iteration of scanning
->>         (so even if there are still more pages to scan, we stop this
->> iteration)
->>
->> __u32 flags:
->>        flags to control ksmd (right now just ksm_control_flags_run
->>                   available)
+>> I am sending another seires of patchs for kvm kernel and kvm-userspace
+>> that would allow users of kvm to test ksm with it.
+>> The kvm patchs would apply to Avi git tree.
 >>   
->
-> Wouldn't this make more sense as a sysfs interface?
+> Any reason to not take these through upstream QEMU instead of 
+> kvm-userspace?  In principle, I don't see anything that would prevent 
+> normal QEMU from almost making use of this functionality.  That would 
+> make it one less thing to eventually have to merge...
 
-I belive using ioctl for registering memory of applications make it 
-easier....
-Ksm doesnt have any complicated API that would benefit from sysfs 
-(beside adding more complexity)
+The changes for the kvm-userspace were just provided for testing it...
+After we will have ksm inside the kernel we will send another patch to 
+qemu-devel that will add support for it.
 
-> That is, the KSM_START_STOP_KTHREAD part, not necessarily the rest of 
-> the API.
-
-What you mean?
 >
 > Regards,
 >
 > Anthony Liguori
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
