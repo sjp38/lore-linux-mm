@@ -1,57 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id D1D4F6B0047
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 13:11:55 -0400 (EDT)
-Date: Tue, 31 Mar 2009 19:11:58 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-Message-ID: <20090331171158.GY9137@random.random>
-References: <49D20B63.8020709@redhat.com> <49D21B33.4070406@codemonkey.ws> <20090331142533.GR9137@random.random> <49D22A9D.4050403@codemonkey.ws> <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <49D24A02.6070000@codemonkey.ws>
+	by kanga.kvack.org (Postfix) with ESMTP id 7B26A6B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 14:16:55 -0400 (EDT)
+Subject: Re: Detailed Stack Information Patch [0/3]
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <87eiwdn15a.fsf@basil.nowhere.org>
+References: <1238511498.364.60.camel@matrix>
+	 <87eiwdn15a.fsf@basil.nowhere.org>
+Content-Type: text/plain
+Date: Tue, 31 Mar 2009 20:22:15 +0200
+Message-Id: <1238523735.3692.30.camel@matrix>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Anthony Liguori <anthony@codemonkey.ws>
-Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 31, 2009 at 11:51:14AM -0500, Anthony Liguori wrote:
-> You have two things here.  CONFIG_MEM_SHARABLE and CONFIG_KSM.  
-> CONFIG_MEM_SHARABLE cannot be a module. If it's set to =n, then 
-> madvise(MADV_SHARABLE) == -ENOSYS.
+Hi Andi,
 
-Where the part that -ENOSYS tell userland madvise syscall table is
-empty, which is obviously not the case, wasn't clear?
+Am Dienstag, den 31.03.2009, 17:49 +0200 schrieb Andi Kleen:
+> Stefani Seibold <stefani@seibold.net> writes:
+> >
+> > - Get out of virtual memory by creating a lot of threads
+> >  (f.e. the developer did assign each of them the default size)
+> 
+> The application just fails then? I don't think that needs
+> a new monitoring tool.
+> 
 
-> If CONFIG_MEM_SHARABLE=y, then madvise(MADV_SHARABLE) will keep track of 
-> all sharable memory regions.  Independently of that, CONFIG_KSM can be set 
-> to n,m,y.  It depends on CONFIG_MEM_SHARABLE and when it's loaded, it 
-> consumes the list of sharable vmas.
+First, this patch is not only a monitoring tool. Only the last part 3/3
+is the monitoring tool.
 
-And what do you gain by creating two config params when only one is
-needed other than more pain for the poor user doing make oldconfig and
-being asked new zillon of questions that aren't necessary?
+Patch 1/3 enhance the the proc/<pid>/task/<tid>/maps by the marking the
+thread stack.
 
-> But honestly, CONFIG_MEM_SHARABLE shouldn't a lot of code so I don't see 
-> why you'd even need to make it configable.
+Patch 2/3 gives you an overview of the current process/thread stack
+usage with the /proc/stackmon entry.
 
-Even if you were to move the registration code in madvise with a
--EINVAL retval if KSM was set to N for embedded, CONFIG_KSM would be
-enough: the registration code would be surrounded by CONFIG_KSM_MODULE
-|| CONFIG_KSM, just like page_wrprotect/replace_page. This
-CONFIG_MEM_SHARABLE in addition to CONFIG_KSM is beyond what can make
-sense to me.
+> > - Misuse the thread stack for big temporary data buffers
+> 
+> That would be better checked for at compile time
+> (except for alloca, but that is quite rare)
 
-> The ioctl() interface is quite bad for what you're doing.  You're telling 
-> the kernel extra information about a VA range in userspace.  That's what 
+Fine but it did not work for functions like:
 
-The ioctl can be extended to also tell which pid to share without
-having to specify VA range, and having the feature inherited by the
-child. Not everyone wants to deal with VA.
+void foo(int n)
+{
+	char buf[n*1024];
 
-But my main issue with madvise is that it's core kernel functionality
-while KSM clearly is not.
+}
+
+This is valid with gcc.
+
+> 
+> > - Thread stack overruns
+> 
+> Your method would be racy at best to determine this because
+> you don't keep track of the worst case, only the current case.
+> 
+> So e.g. if you monitoring app checks once per second the stack
+> could overflow between your monitoring intervals, but already
+> have bounced back before the checker comes in.
+> 
+
+The Monitor is part 3/3. And you are right it is not a complete rock
+solid solution. But it works in many cases and thats is what counts.
+
+> Alternatively you could keep
+> track of consumption in the VMA that has the stack,  but
+> that can't handle very large jumps (like f() { char x[1<<30]; } )
+> The later can only be handled well by the compiler.
+
+Thats is exactly what i am doing, i walk through the pages of the thread
+stack mapped memory and keep track of the highest access page. So i have
+the high water mark of the used stack.
+
+The patches are not intrusive, especially part 1.
+
+> 
+
+Stefani
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
