@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id C9BF46B004D
-	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 21:47:52 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n2V1mZUi007807
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 31 Mar 2009 10:48:35 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C897C45DE5C
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 10:48:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3AFFC45DE53
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 10:48:34 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 24ED1E38004
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 10:48:34 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E043E18001
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 10:48:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] vmscan: memcg needs may_swap (Re: [patch] vmscan: rename  sc.may_swap to may_unmap)
-In-Reply-To: <20090331104237.e689f279.kamezawa.hiroyu@jp.fujitsu.com>
-References: <28c262360903301826w6429720es8ceb361cfc088b1@mail.gmail.com> <20090331104237.e689f279.kamezawa.hiroyu@jp.fujitsu.com>
-Message-Id: <20090331104625.B1C7.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 31 Mar 2009 10:48:32 +0900 (JST)
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 11D9F6B0047
+	for <linux-mm@kvack.org>; Mon, 30 Mar 2009 22:01:59 -0400 (EDT)
+Date: Tue, 31 Mar 2009 10:52:49 +0900
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Subject: Re: [PATCH] vmscan: memcg needs may_swap (Re: [patch] vmscan:
+ rename  sc.may_swap to may_unmap)
+Message-Id: <20090331105249.98fd051b.nishimura@mxp.nes.nec.co.jp>
+In-Reply-To: <28c262360903301826w6429720es8ceb361cfc088b1@mail.gmail.com>
+References: <20090327151926.f252fba7.nishimura@mxp.nes.nec.co.jp>
+	<20090327153035.35498303.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090328214636.68FF.A69D9226@jp.fujitsu.com>
+	<28c262360903301826w6429720es8ceb361cfc088b1@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@in.ibm.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: nishimura@mxp.nes.nec.co.jp, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-> > Sorry for too late response.
-> > I don't know memcg well.
-> > 
-> > The memcg managed to use may_swap well with global page reclaim until now.
-> > I think that was because may_swap can represent both meaning.
-> > Do we need each variables really ?
-> > 
-> > How about using union variable ?
+Hi,
+
+> > ========
+> > Subject: vmswan: reintroduce sc->may_swap
+> >
+> > vmscan-rename-scmay_swap-to-may_unmap.patch removed may_swap flag,
+> > but memcg had used it as a flag for "we need to use swap?", as the
+> > name indicate.
+> >
+> > And in current implementation, memcg cannot reclaim mapped file caches
+> > when mem+swap hits the limit.
+> >
+> > re-introduce may_swap flag and handle it at get_scan_ratio().
+> > This patch doesn't influence any scan_control users other than memcg.
+> >
+> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> > --
+> > A mm/vmscan.c | A  12 ++++++++++--
+> > A 1 files changed, 10 insertions(+), 2 deletions(-)
+> >
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 3be6157..00ea4a1 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -63,6 +63,9 @@ struct scan_control {
+> > A  A  A  A /* Can mapped pages be reclaimed? */
+> > A  A  A  A int may_unmap;
+> >
+> > + A  A  A  /* Can pages be swapped as part of reclaim? */
+> > + A  A  A  int may_swap;
+> > +
 > 
-> or Just removing one of them  ?
+> Sorry for too late response.
+> I don't know memcg well.
+> 
+> The memcg managed to use may_swap well with global page reclaim until now.
+memcg had a bug that it cannot reclaim mapped file caches when it hit
+the mem+swap limit :(
 
-I hope all may_unmap user convert to using may_swap.
-may_swap is more efficient and cleaner meaning.
 
-
+Thanks,
+Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
