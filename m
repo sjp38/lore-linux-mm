@@ -1,78 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B8B9F6B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 17:19:37 -0400 (EDT)
-Subject: Re: Detailed Stack Information Patch [0/3]
-From: Stefani Seibold <stefani@seibold.net>
-In-Reply-To: <20090331203014.GR11935@one.firstfloor.org>
-References: <1238511498.364.60.camel@matrix>
-	 <87eiwdn15a.fsf@basil.nowhere.org> <1238523735.3692.30.camel@matrix>
-	 <20090331203014.GR11935@one.firstfloor.org>
-Content-Type: text/plain
-Date: Tue, 31 Mar 2009 23:25:09 +0200
-Message-Id: <1238534709.11837.43.camel@matrix>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 765C36B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 18:08:35 -0400 (EDT)
+Date: Tue, 31 Mar 2009 15:00:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC v2][PATCH]page_fault retry with NOPAGE_RETRY
+Message-Id: <20090331150046.16539218.akpm@linux-foundation.org>
+In-Reply-To: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com>
+References: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, mikew@google.com, rientjes@google.com, rohitseth@google.com, hugh@veritas.com, a.p.zijlstra@chello.nl, hpa@zytor.com, edwintorok@gmail.com, lee.schermerhorn@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hi Andi,
+On Fri, 5 Dec 2008 11:40:19 -0800
+Ying Han <yinghan@google.com> wrote:
 
-stop complaining about the monitor. This is only an additional
-functionality.
-
-The main purpose are part 1 and 2.
-
+> changelog[v2]:
+> - reduce the runtime overhead by extending the 'write' flag of
+>   handle_mm_fault() to indicate the retry hint.
+> - add another two branches in filemap_fault with retry logic.
+> - replace find_lock_page with find_lock_page_retry to make the code
+>   cleaner.
 > 
-> Well some implementation of it. There are certainly runtimes that
-> switch stacks. For example what happens when someone uses sigaltstack()?
+> todo:
+> - there is potential a starvation hole with the retry. By the time the
+>   retry returns, the pages might be released. we can make change by holding
+>   page reference as well as remembering what the page "was"(in case the
+>   file was truncated). any suggestion here are welcomed.
 > 
+> I also made patches for all other arch. I am posting x86_64 here first and
+> i will post others by the time everyone feels comfortable of this patch.
 
-What should happen with sigaltstack? This is complete independent from
-the process and thread stack. So it works.
+I'm about to send this into Linus.  What happened to the patches for
+other architectures?
 
-
-> That's the alloca() case, but you can disable both with the right options.
-> There's still the "recursive function" case.
-> 
-
-And no idea ;-) 
-
-> > 
-> > The Monitor is part 3/3. And you are right it is not a complete rock
-> > solid solution. But it works in many cases and thats is what counts.
-> 
-> For stack overflow one would think a rock solid solution
-> is needed?  After all you'll crash if you miss a case.
-> 
-
-Again, the monitor is the only a part of the patch and i know that this
-is a issue.
-
-The first two patches will also work without the monitor and if you
-don't like the monitor, no problem. It is a CONFIG_... parameter.
-
-> To be honest it seems too much like a special case hack to me
-> to include by default. It could be probably done with a systemtap
-> script in the same way, but I would really recommend to just
-> build with gcc's stack overflow checker while testing together
-> with static checking.
-> 
-
-Thanks for the hack - I am not sure if you really had a look at my first
-posting nor had a look into my code.
-
-We discus about complete different things. You have from user land no
-possibility to figure out where is the thread stack locate nor what was
-the highest used thread stack address.
-
-That is a simple debug information which can provide very easily which
-the first two patches.
-
-Stefani
-
+Please send them over when convenient and I'll work on getting them
+trickled out to arch maintainers, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
