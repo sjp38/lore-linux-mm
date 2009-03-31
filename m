@@ -1,99 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 326B26B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 16:28:14 -0400 (EDT)
-Date: Tue, 31 Mar 2009 22:30:14 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Detailed Stack Information Patch [0/3]
-Message-ID: <20090331203014.GR11935@one.firstfloor.org>
-References: <1238511498.364.60.camel@matrix> <87eiwdn15a.fsf@basil.nowhere.org> <1238523735.3692.30.camel@matrix>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id CF98A6B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 16:43:43 -0400 (EDT)
+Received: from smtp4-g21.free.fr (localhost [127.0.0.1])
+	by smtp4-g21.free.fr (Postfix) with ESMTP id 32D9C4C8042
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 22:44:16 +0200 (CEST)
+Received: from [192.168.0.50] (lns-bzn-57-82-249-54-59.adsl.proxad.net [82.249.54.59])
+	by smtp4-g21.free.fr (Postfix) with ESMTP id 3C51D4C811D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 22:44:14 +0200 (CEST)
+From: Francois - kml <fckernml@free.fr>
+Subject: Migrating SYSV Limits to rlimit ?
+Date: Tue, 31 Mar 2009 22:44:13 +0200
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <1238523735.3692.30.camel@matrix>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200903312244.13687.fckernml@free.fr>
 Sender: owner-linux-mm@kvack.org
-To: Stefani Seibold <stefani@seibold.net>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@elte.hu>, Joerg Engel <joern@logfs.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 31, 2009 at 08:22:15PM +0200, Stefani Seibold wrote:
-> Hi Andi,
-> 
-> Am Dienstag, den 31.03.2009, 17:49 +0200 schrieb Andi Kleen:
-> > Stefani Seibold <stefani@seibold.net> writes:
-> > >
-> > > - Get out of virtual memory by creating a lot of threads
-> > >  (f.e. the developer did assign each of them the default size)
-> > 
-> > The application just fails then? I don't think that needs
-> > a new monitoring tool.
-> > 
-> 
-> First, this patch is not only a monitoring tool. Only the last part 3/3
-> is the monitoring tool.
-> 
-> Patch 1/3 enhance the the proc/<pid>/task/<tid>/maps by the marking the
-> thread stack.
+Hi,
 
-Well some implementation of it. There are certainly runtimes that
-switch stacks. For example what happens when someone uses sigaltstack()?
+Most distros sets their own shmmax/shmall values.
+DB admins wants and usually sets large values for their processes.
+Global limits means there's no guarantee, except the upper limit.
 
-You'll probably need some more sanity checks, otherwise a monitor
-will occasionally just report crap in legitimate cases. Unfortunately
-it's difficult to distingush the legitimate cases from the bugs.
+So I'm currently working on a patch moving sysv shm limits to rlimit, which 
+would allow a finer grained tuning. Currently:
+- Lower by default shmmax/shmall values (at least the mainline ones)
+- Allow raising those limits through sysctl, privilegied /proc access or 
+setrlimit w/CAP_SYS_RESOURCE
+- Limit resources by user with the user accounting struct
+- Set the initial values through Kconfig
+- Bind of sysctl modifications to init's rlimit hard values
 
-> > > - Misuse the thread stack for big temporary data buffers
-> > 
-> > That would be better checked for at compile time
-> > (except for alloca, but that is quite rare)
-> 
-> Fine but it did not work for functions like:
+I'm looking for comments.
+Is that something that could interest a specific branch ?
 
-That's the alloca() case, but you can disable both with the right options.
-There's still the "recursive function" case.
+Refs: Bugzilla Bug 11381
+Some discussion about it:
+http://marc.info/?t=112315565600001&r=1&w=2
 
-> > > - Thread stack overruns
-> > 
-> > Your method would be racy at best to determine this because
-> > you don't keep track of the worst case, only the current case.
-> > 
-> > So e.g. if you monitoring app checks once per second the stack
-> > could overflow between your monitoring intervals, but already
-> > have bounced back before the checker comes in.
-> > 
-> 
-> The Monitor is part 3/3. And you are right it is not a complete rock
-> solid solution. But it works in many cases and thats is what counts.
-
-For stack overflow one would think a rock solid solution
-is needed?  After all you'll crash if you miss a case.
-
-> > track of consumption in the VMA that has the stack,  but
-> > that can't handle very large jumps (like f() { char x[1<<30]; } )
-> > The later can only be handled well by the compiler.
-> 
-> Thats is exactly what i am doing, i walk through the pages of the thread
-> stack mapped memory and keep track of the highest access page. So i have
-> the high water mark of the used stack.
-
-Ok. Of course it doesn't work for really large allocations. there used
-to be special patches around to add a special gap to catch those,
-but it's problematic with the tight address space on 32bit and also
-again not fully bullet proof. On 64bit the solution is typical
-to just use a large stack.
-
-> The patches are not intrusive, especially part 1.
-
-To be honest it seems too much like a special case hack to me
-to include by default. It could be probably done with a systemtap
-script in the same way, but I would really recommend to just
-build with gcc's stack overflow checker while testing together
-with static checking.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Francois
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
