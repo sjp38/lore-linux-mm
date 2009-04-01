@@ -1,42 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 327146B003D
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 18:57:54 -0400 (EDT)
-Message-ID: <49D3F088.50600@redhat.com>
-Date: Thu, 02 Apr 2009 01:54:00 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-References: <1238457560-7613-5-git-send-email-ieidus@redhat.com> <49D17C04.9070307@codemonkey.ws> <49D20B63.8020709@redhat.com> <49D21B33.4070406@codemonkey.ws> <20090331142533.GR9137@random.random> <49D22A9D.4050403@codemonkey.ws> <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws>
-In-Reply-To: <49D24A02.6070000@codemonkey.ws>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E8B366B003D
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 19:06:07 -0400 (EDT)
+Date: Wed, 1 Apr 2009 16:02:41 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: close page_mkwrite races
+Message-Id: <20090401160241.ec2f4573.akpm@linux-foundation.org>
+In-Reply-To: <Pine.LNX.4.64.0903311244200.19769@cobra.newdream.net>
+References: <20090330135307.GP31000@wotan.suse.de>
+	<20090330135613.GQ31000@wotan.suse.de>
+	<Pine.LNX.4.64.0903311244200.19769@cobra.newdream.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Anthony Liguori <anthony@codemonkey.ws>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
+To: Sage Weil <sage@newdream.net>
+Cc: npiggin@suse.de, trond.myklebust@fys.uio.no, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Anthony Liguori wrote:
-> Andrea Arcangeli wrote:
->> On Tue, Mar 31, 2009 at 10:54:57AM -0500, Anthony Liguori wrote:
->>  
->>> You can still disable ksm and simply return ENOSYS for the MADV_ 
->>> flag.  You     
->>
->>
-Anthony, the biggest problem about madvice() is that it is a real system 
-call api, i wouldnt want in that stage of ksm commit into api changes of 
-linux...
+On Tue, 31 Mar 2009 12:55:16 -0700 (PDT)
+Sage Weil <sage@newdream.net> wrote:
 
-The ioctl itself is restricting, madvice is much more...,
+> On Mon, 30 Mar 2009, Nick Piggin wrote:
+> > [Fixed linux-mm address. Please reply here]
+> > 
+> > Hi,
+> > 
+> > I'd like opinions on this patch (applies on top of the previous
+> > page_mkwrite fixes in -mm). I was not going to ask to merge it
+> > immediately however it appears that fsblock is not the only one who
+> > needs it...
+> > --
+> > 
+> > I want to have the page be protected by page lock between page_mkwrite
+> > notification to the filesystem, and the actual setting of the page
+> > dirty. Do this by allowing the filesystem to return a locked page from
+> > page_mkwrite, and have the page fault code keep it held until after it
+> > calls set_page_dirty.
+> > 
+> > I need this in fsblock because I am working to ensure filesystem metadata
+> > can be correctly allocated and refcounted. This means that page cleaning
+> > should not require memory allocation.
 
-Can we draft this issue to after ksm is merged, and after all the big 
-new fetures that we want to add to ksm will be merge....
-(then the api would be much more stable, and we will be able to ask ppl 
-in the list about changing of api, but for new driver that it yet to be 
-merged, it is kind of overkill to add api to linux)
+wot?  "page cleaning" involves writeout.  How can we avoid doing
+allocations there?
 
-What do you think?
+> > Without this patch, then for example we could get a concurrent writeout
+> > after the page_mkwrite (which allocates page metadata required to clean
+> > it), but before the set_page_dirty. The writeout will clean the page and
+> > notice that the metadata is now unused and may be deallocated (because
+> > it appears clean as set_page_dirty hasn't been called yet). So at this
+> > point the page may be dirtied via the pte without enough metadata to be
+> > able to write it back.
+> > 
+> > Sage needs this race closed for ceph, and Trond maybe for NFS.
+> 
+> I ran a few tests and this fixes the problem for me (although fyi the 
+> patch didn't apply cleanly on top of your previously posted page_mkwrite 
+> prototype change patch, due to some differences in block_page_mkwrite).
+
+What is "the problem"?  Can we get "the problem"'s description included
+in the changelog?
+
+The patch is fairly ugly, somewhat costly and makes things (even) more
+complex.    Sigh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
