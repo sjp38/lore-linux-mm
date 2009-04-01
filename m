@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 71C246B003D
-	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 22:10:50 -0400 (EDT)
-Message-ID: <49D2CD28.9080700@redhat.com>
-Date: Tue, 31 Mar 2009 22:10:48 -0400
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id ED6876B003D
+	for <linux-mm@kvack.org>; Tue, 31 Mar 2009 22:51:21 -0400 (EDT)
+Message-ID: <49D2D6D4.8000309@redhat.com>
+Date: Tue, 31 Mar 2009 22:52:04 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 2/6] Guest page hinting: volatile swap cache.
-References: <20090327150905.819861420@de.ibm.com> <20090327151011.798602788@de.ibm.com>
-In-Reply-To: <20090327151011.798602788@de.ibm.com>
+Subject: Re: [patch 3/6] Guest page hinting: mlocked pages.
+References: <20090327150905.819861420@de.ibm.com> <20090327151012.095486071@de.ibm.com>
+In-Reply-To: <20090327151012.095486071@de.ibm.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,8 +21,9 @@ Martin Schwidefsky wrote:
 > From: Hubertus Franke <frankeh@watson.ibm.com>
 > From: Himanshu Raj
 > 
-> The volatile page state can be used for anonymous pages as well, if
-> they have been added to the swap cache and the swap write is finished.
+> Add code to get mlock() working with guest page hinting. The problem
+> with mlock is that locked pages may not be removed from page cache.
+> That means they need to be stable. 
 
 > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
