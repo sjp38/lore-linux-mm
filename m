@@ -1,70 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2B6326B003D
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 09:25:20 -0400 (EDT)
-Message-ID: <49D36B4E.7000702@redhat.com>
-Date: Wed, 01 Apr 2009 09:25:34 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4DB3C6B003D
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 09:30:31 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 25so34564wfa.11
+        for <linux-mm@kvack.org>; Wed, 01 Apr 2009 06:30:59 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch 4/6] Guest page hinting: writable page table entries.
-References: <20090327150905.819861420@de.ibm.com> <20090327151012.398894143@de.ibm.com>
-In-Reply-To: <20090327151012.398894143@de.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.64.0904011245130.12751@blonde.anvils>
+References: <28c262360903310338k20b8eebbncb86baac9b09e54@mail.gmail.com>
+	 <Pine.LNX.4.64.0903311154570.19028@blonde.anvils>
+	 <20090401165516.B1EB.A69D9226@jp.fujitsu.com>
+	 <Pine.LNX.4.64.0904011245130.12751@blonde.anvils>
+Date: Wed, 1 Apr 2009 22:30:58 +0900
+Message-ID: <2f11576a0904010630w5ab7aaa6wccf0a9d30b43bced@mail.gmail.com>
+Subject: Re: add_to_swap_cache with GFP_ATOMIC ?
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky wrote:
+>> IOW, GFP_ATOMIC on add_to_swap() was introduced accidentally. the reason
+>> was old add_to_page_cache() didn't have gfp_mask parameter and we didn't
+>> =A0have the reason of changing add_to_swap() behavior.
+>> I think it don't have deeply reason and changing GFP_NOIO
+>> don't cause regression.
+>
+> You may well be right: we'll see if you send in a patch to change it.
+> But I won't be sending in that patch myself, that's all :)
 
-This code has me stumped.  Does it mean that if a page already
-has the PageWritable bit set (and count_ok stays 0), we will
-always mark the page as volatile?
-
-How does that work out on !s390?
-
->  /**
-> + * __page_check_writable() - check page state for new writable pte
-> + *
-> + * @page: the page the new writable pte refers to
-> + * @pte: the new writable pte
-> + */
-> +void __page_check_writable(struct page *page, pte_t pte, unsigned int offset)
-> +{
-> +	int count_ok = 0;
-> +
-> +	preempt_disable();
-> +	while (page_test_set_state_change(page))
-> +		cpu_relax();
-> +
-> +	if (!TestSetPageWritable(page)) {
-> +		count_ok = check_counts(page, offset);
-> +		if (check_bits(page) && count_ok)
-> +			page_set_volatile(page, 1);
-> +		else
-> +			/*
-> +			 * If two processes create a write mapping at the
-> +			 * same time check_counts will return false or if
-> +			 * the page is currently isolated from the LRU
-> +			 * check_bits will return false but the page might
-> +			 * be in volatile state.
-> +			 * We have to take care about the dirty bit so the
-> +			 * only option left is to make the page stable but
-> +			 * we can try to make it volatile a bit later.
-> +			 */
-> +			page_set_stable_if_present(page);
-> +	}
-> +	page_clear_state_change(page);
-> +	if (!count_ok)
-> +		page_make_volatile(page, 1);
-> +	preempt_enable();
-> +}
-> +EXPORT_SYMBOL(__page_check_writable);
-
-
--- 
-All rights reversed.
+OK, I'll queue it on my local patch queue. thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
