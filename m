@@ -1,29 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1910E6B003D
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 19:23:05 -0400 (EDT)
-From: David Howells <dhowells@redhat.com>
-Subject: FS-Cache VM-affecting patch review
-Date: Thu, 02 Apr 2009 00:23:11 +0100
-Message-ID: <29600.1238628191@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5266B0047
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 19:33:14 -0400 (EDT)
+Subject: Re: [patch] mm: close page_mkwrite races
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <20090401160241.ec2f4573.akpm@linux-foundation.org>
+References: <20090330135307.GP31000@wotan.suse.de>
+	 <20090330135613.GQ31000@wotan.suse.de>
+	 <Pine.LNX.4.64.0903311244200.19769@cobra.newdream.net>
+	 <20090401160241.ec2f4573.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 01 Apr 2009 19:33:31 -0400
+Message-Id: <1238628811.18376.4.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: dhowells@redhat.com, linux-mm@kvack.org, torvalds@osdl.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sage Weil <sage@newdream.net>, npiggin@suse.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 2009-04-01 at 16:02 -0700, Andrew Morton wrote:
+> What is "the problem"?  Can we get "the problem"'s description included
+> in the changelog?
+> 
+> The patch is fairly ugly, somewhat costly and makes things (even) more
+> complex.    Sigh.
 
-Hi Nick, Hugh, Peter,
+The problem is that currently, pages can be marked as dirty after they
+have been written out, or even during writeout.
 
-I don't suppose I could persuade you to review some of my FS-Cache patches?
-specifically patches 05, 06, 22 and 23 from the set I've just posted.
+IOW: the filesystem and the mm no longer agree on the state of the page,
+which again triggers issues such as
+  http://bugzilla.kernel.org/show_bug.cgi?id=12913
 
-[PATCH 05/43] FS-Cache: Release page->private after failed readahead
-[PATCH 06/43] FS-Cache: Recruit a couple of page flags for cache management
-[PATCH 22/43] CacheFiles: Add a hook to write a single page of data to an inode
-[PATCH 23/43] CacheFiles: Permit the page lock state to be monitored
-
-Thanks,
-David
+Trond
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
