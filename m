@@ -1,49 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8686B003D
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 10:45:56 -0400 (EDT)
-Message-ID: <49D37E21.2000609@redhat.com>
-Date: Wed, 01 Apr 2009 10:45:53 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 09C966B003D
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 11:11:07 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n31FBCjc030989
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 2 Apr 2009 00:11:13 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C19C745DD76
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 00:11:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A048E45DD75
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 00:11:12 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B1D91DB8012
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 00:11:12 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BCAF1DB8017
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 00:11:12 +0900 (JST)
+Message-ID: <fe5dec67977261684809e4fb7a63dbc1.squirrel@webmail-b.css.fujitsu.com>
+In-Reply-To: <20090401144252.GE4210@balbir.in.ibm.com>
+References: <20090327135933.789729cb.kamezawa.hiroyu@jp.fujitsu.com>
+    <20090401144252.GE4210@balbir.in.ibm.com>
+Date: Thu, 2 Apr 2009 00:11:11 +0900 (JST)
+Subject: Re: [RFC][PATCH] memcg soft limit (yet another new design) v1
+From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch 4/6] Guest page hinting: writable page table entries.
-References: <20090327150905.819861420@de.ibm.com>	<20090327151012.398894143@de.ibm.com>	<49D36B4E.7000702@redhat.com> <20090401163658.60f851ed@skybase>
-In-Reply-To: <20090401163658.60f851ed@skybase>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=iso-2022-jp
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
+To: balbir@linux.vnet.ibm.com
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky wrote:
-> On Wed, 01 Apr 2009 09:25:34 -0400
-> Rik van Riel <riel@redhat.com> wrote:
-> 
->> Martin Schwidefsky wrote:
+Balbir Singh wrote:
+>> ==brief test result==
+>> On 2CPU/1.6GB bytes machine. create group A and B
+>>   A.  soft limit=300M
+>>   B.  no soft limit
 >>
->> This code has me stumped.  Does it mean that if a page already
->> has the PageWritable bit set (and count_ok stays 0), we will
->> always mark the page as volatile?
+>>   Run a malloc() program on B and allcoate 1G of memory. The program
+>> just
+>>   sleeps after allocating memory and no memory refernce after it.
+>>   Run make -j 6 and compile the kernel.
 >>
->> How does that work out on !s390?
-> 
-> No, we will not always mark the page as volatile. If PG_writable is
-> already set count_ok will stay 0 and a call to page_make_volatile is
-> done. This differs from page_set_volatile as it repeats all the
-> required checks, then calls page_set_volatile with a PageWritable(page)
-> as second argument. What state the page will get depends on the
-> architecture definition of page_set_volatile. For s390 this will do a
-> state transition to potentially volatile as the PG_writable bit is set.
-> On architecture that cannot check the dirty bit on a physical page basis
-> you need to make the page stable.
+>>   When vm.swappiness = 60  => 60MB of memory are swapped out from B.
+>>   When vm.swappiness = 10  => 1MB of memory are swapped out from B
+>>
+>>   If no soft limit, 350MB of swap out will happen from B.(swapiness=60)
+>>
+>
+> I did some brief functionality tests and the results are far better
+> than the previous versions of the patch. Both my v7 (with some minor
+> changes) and this patchset seem to do well functionally. Time to do
+> some more exhaustive tests. Any results from your end?
+>
+Grad to hear that.
 
-Good point. I guess that means patch 4/6 checks out right, then :)
+Seems good result under several simple tests after fixing
+inactive_anon_is_low(). But needed some fixes for corner cases,
+add hook to uncharge, hook to cpu hotplug, etc....and making codes
+slim, tuning parameters to make more sense. (or adding comments.)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+I wonder whether it's convenient to post v2 before new mmotm.
+(mmotm includes some fixes around memcg/vmscan.)
+I'll continue test (hopefully more complicated cases on big machine.)
 
--- 
-All rights reversed.
+Anyway, I often update patch to v5 or more before posting final ones ;)
+
+Thanks,
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
