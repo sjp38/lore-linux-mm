@@ -1,98 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A48236B004D
-	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 01:20:03 -0400 (EDT)
-Date: Wed, 1 Apr 2009 14:08:28 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] vmscan: memcg needs may_swap (Re: [patch] vmscan:
- rename  sc.may_swap to may_unmap)
-Message-Id: <20090401140828.755f87aa.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090401040951.GA1548@cmpxchg.org>
-References: <28c262360903301826w6429720es8ceb361cfc088b1@mail.gmail.com>
-	<20090331104237.e689f279.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090331104625.B1C7.A69D9226@jp.fujitsu.com>
-	<20090401040951.GA1548@cmpxchg.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id DA20C6B003D
+	for <linux-mm@kvack.org>; Wed,  1 Apr 2009 04:13:28 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate7.de.ibm.com (8.14.3/8.13.8) with ESMTP id n318Daea073644
+	for <linux-mm@kvack.org>; Wed, 1 Apr 2009 08:13:36 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n318Dak94194538
+	for <linux-mm@kvack.org>; Wed, 1 Apr 2009 10:13:36 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n318DZ6q032261
+	for <linux-mm@kvack.org>; Wed, 1 Apr 2009 10:13:35 +0200
+Date: Wed, 1 Apr 2009 10:13:34 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [patch 2/6] Guest page hinting: volatile swap cache.
+Message-ID: <20090401101334.7e6ea848@skybase>
+In-Reply-To: <49D2CD28.9080700@redhat.com>
+References: <20090327150905.819861420@de.ibm.com>
+	<20090327151011.798602788@de.ibm.com>
+	<49D2CD28.9080700@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: nishimura@mxp.nes.nec.co.jp, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Rik van Riel <riel@redhat.com>, Balbir Singh <balbir@in.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, frankeh@watson.ibm.com, akpm@osdl.org, nickpiggin@yahoo.com.au, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Apr 2009 06:09:51 +0200, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Tue, Mar 31, 2009 at 10:48:32AM +0900, KOSAKI Motohiro wrote:
-> > > > Sorry for too late response.
-> > > > I don't know memcg well.
-> > > > 
-> > > > The memcg managed to use may_swap well with global page reclaim until now.
-> > > > I think that was because may_swap can represent both meaning.
-> > > > Do we need each variables really ?
-> > > > 
-> > > > How about using union variable ?
-> > > 
-> > > or Just removing one of them  ?
+On Tue, 31 Mar 2009 22:10:48 -0400
+Rik van Riel <riel@redhat.com> wrote:
+
+> Martin Schwidefsky wrote:
+> > From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> > From: Hubertus Franke <frankeh@watson.ibm.com>
+> > From: Himanshu Raj
 > > 
-> > I hope all may_unmap user convert to using may_swap.
-> > may_swap is more efficient and cleaner meaning.
+> > The volatile page state can be used for anonymous pages as well, if
+> > they have been added to the swap cache and the swap write is finished.
 > 
-> How about making may_swap mean the following:
+> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 > 
-> 	@@ -642,6 +639,8 @@ static unsigned long shrink_page_list(st
-> 	 		 * Try to allocate it some swap space here.
-> 	 		 */
-> 	 		if (PageAnon(page) && !PageSwapCache(page)) {
-> 	+			if (!sc->map_swap)
-> 	+				goto keep_locked;
-> 	 			if (!(sc->gfp_mask & __GFP_IO))
-> 	 				goto keep_locked;
-> 	 			if (!add_to_swap(page))
-> 
-but it doesn't work for shmem/tmpfs, does it?
-So, I did in my first patch like:
+> Acked-by: Rik van Riel <riel@redhat.com>
 
-@@ -616,6 +619,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (!sc->may_unmap && page_mapped(page))
- 			goto keep_locked;
- 
-+		if (!sc->may_swap && PageSwapBacked(page)
-+			/* SwapCache uses 'swap' already */
-+			&& !PageSwapCache(page))
-+			goto keep_locked;
-+
- 		/* Double the slab pressure for mapped and swapcache pages */
- 		if (page_mapped(page) || PageSwapCache(page))
- 			sc->nr_scanned++;
+Thanks you for the review. I'll add the Acked-by.
 
-> try_to_free_pages() always sets it.
-> 
-> try_to_free_mem_cgroup_pages() sets it depending on whether it really
-> wants swapping, and only swapping, right?
-right.
+-- 
+blue skies,
+   Martin.
 
-> But the above would still reclaim already swapped anon pages
-then, it would be better to add a check at shrink_page_list anyway..
-
-Kosaki-san, what do you think?
-
-
-Thanks,
-Daisuke Nishimura.
-
-> and I don't know the memory
-> controller.
-> 
-> balance_pgdat() always sets it.
-> 
-> __zone_reclaim() sets it depending on zone_reclaim_mode.  The
-> RECLAIM_SWAP bit of this field and its documentation in
-> Documentation/sysctl/vm.txt suggests it also really only means swap.
-> 
-> shrink_all_memory() would be the sole user of may_unmap because it
-> really wants to eat cache first.  But this could be figured out on a
-> different occasion.
-> 
-> 	Hannes
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
