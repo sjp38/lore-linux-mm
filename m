@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E012C6B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 11:28:27 -0400 (EDT)
-Date: Thu, 2 Apr 2009 17:28:53 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Problem in "prune_icache"
-Message-ID: <20090402152853.GB17275@atrey.karlin.mff.cuni.cz>
-References: <351740.68168.qm@web15302.mail.cnb.yahoo.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 2541E6B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 11:50:42 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+Date: Fri, 3 Apr 2009 02:51:20 +1100
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200904022224.31060.nickpiggin@yahoo.com.au> <20090402113400.GC3010@duck.suse.cz>
+In-Reply-To: <20090402113400.GC3010@duck.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <351740.68168.qm@web15302.mail.cnb.yahoo.com>
+Message-Id: <200904030251.22197.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: HongChao Zhang <zhanghc08@yahoo.com.cn>
-Cc: linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Ying Han <yinghan@google.com>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-  Hi,
+On Thursday 02 April 2009 22:34:01 Jan Kara wrote:
+> On Thu 02-04-09 22:24:29, Nick Piggin wrote:
+> > On Thursday 02 April 2009 09:36:13 Ying Han wrote:
+> > > Hi Jan:
+> > >     I feel that the problem you saw is kind of differnt than mine. As
+> > > you mentioned that you saw the PageError() message, which i don't see
+> > > it on my system. I tried you patch(based on 2.6.21) on my system and
+> > > it runs ok for 2 days, Still, since i don't see the same error message
+> > > as you saw, i am not convineced this is the root cause at least for
+> > > our problem. I am still looking into it.
+> > >     So, are you seeing the PageError() every time the problem happened?
+> > 
+> > So I asked if you could test with my workaround of taking truncate_mutex
+> > at the start of ext2_get_blocks, and report back. I never heard of any
+> > response after that.
+> > 
+> > To reiterate: I was able to reproduce a problem with ext2 (I was testing
+> > on brd to get IO rates high enough to reproduce it quite frequently).
+> > I think I narrowed the problem down to block allocation or inode block
+> > tree corruption because I was unable to reproduce it with that hack in
+> > place.
+>   Nick, what load did you use for reproduction? I'll try to reproduce it
+> here so that I can debug ext2...
 
-> I'am from Lustre, which is a product of SUN Mirocsystem to implement
-> Scaled Distributed FileSystem, and we encounter a deadlock problem 
-> in prune_icache, the detailed is,
->  
-> during truncating a file, a new update in current journal transaction
-> will be created, but it found memory in low level during processing, 
-> then it call try_to_free_pages to free some pages, which finially call
-> shrink_icache_memory/prune_icache to free cache memory occupied by inodes.
-> Note: prune_icache will get and hold "iprune_mutex" during its whole pruning work.
->  
-> but at the same time, kswapd have called shrink_icache_memory/prune_icache with 
-> "iprune_mutex" locked, which found some inodes to dispose and call 
-> clear_inode/DQUOT_DROP/fs-specific-quota-drop-op(say "ldiskfs_dquot_drop" in our case)
-> to drop dquot, and this fs-specific-quota-drop-op can call journal_start to
-> start a new update, but it found the buffers in current transaction is up to
-> j_max_transaction_buffers, so it wake up kjournald to commit the transaction.
-> so kjournald will call journal_commit_transaction to commit the transcation,
-> which set the state of the transaction as T_LOCKED then check whether there are
-> still pending updates for the committing transaction, and it found there is a
-> pending update(started in truncating operation, see above), so it will wait
-> the update to complete, BUT the update won't be completed for it can't get the
-> "iprune_mutex" hold by kswapd, so the deadlock is triggered.
-  Yes, this has happened with other filesystems as well (ext3,
-ext4,...). The usual solution for this problem is to specify GFP_NOFS to
-all allocations that happen while the transaction is open. That way we
-never get to recursing back to the filesystem in the allocation. Is
-there some reason why that is no-go for you?
+OK, I set up the filesystem like this:
 
-									Honza
+modprobe rd rd_size=$[3*1024*1024]   #almost fill memory so we reclaim buffers
+dd if=/dev/zero of=/dev/ram0 bs=4k   #prefill brd so we don't get alloc deadlock
+mkfs.ext2 -b1024 /dev/ram0           #1K buffers
 
--- 
-Jan Kara <jack@suse.cz>
-SuSE CR Labs
+Test is basically unmodified except I use 64MB files, and start 8 of them
+at once to (8 core system, so improve chances of hitting the bug). Although I
+do see it with only 1 running it takes longer to trigger.
+
+I also run a loop doing 'sync ; echo 3 > /proc/sys/vm/drop_caches' but I don't
+know if that really helps speed up reproducing it. It is quite random to hit,
+but I was able to hit it IIRC in under a minute with that setup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
