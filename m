@@ -1,52 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 0D2346B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 09:36:35 -0400 (EDT)
-Message-ID: <49D4BE64.8020508@redhat.com>
-Date: Thu, 02 Apr 2009 16:32:20 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 9E6B66B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 10:40:53 -0400 (EDT)
+Date: Thu, 2 Apr 2009 16:41:18 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 5/4] update ksm userspace interfaces
-References: <20090331142533.GR9137@random.random> <49D22A9D.4050403@codemonkey.ws> <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws> <20090402012215.GE1117@x200.localdomain> <49D424AF.3090806@codemonkey.ws> <20090402053114.GF1117@x200.localdomain>
+Message-ID: <20090402144118.GH9137@random.random>
+References: <49D22A9D.4050403@codemonkey.ws> <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws> <20090402012215.GE1117@x200.localdomain> <49D424AF.3090806@codemonkey.ws> <20090402053114.GF1117@x200.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20090402053114.GF1117@x200.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Chris Wright <chrisw@redhat.com>
-Cc: Anthony Liguori <anthony@codemonkey.ws>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
+Cc: Anthony Liguori <anthony@codemonkey.ws>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Chris Wright wrote:
-> * Anthony Liguori (anthony@codemonkey.ws) wrote:
->   
->> Using an interface like madvise() would force the issue to be dealt with  
->> properly from the start :-)
->>     
->
-> Yeah, I'm not at all opposed to it.
->
-> This updates to madvise for register and sysfs for control.
->
-> madvise issues:
-> - MADV_SHAREABLE
+On Wed, Apr 01, 2009 at 10:31:14PM -0700, Chris Wright wrote:
 >   - register only ATM, can add MADV_UNSHAREABLE to allow an app to proactively
 >     unregister, but need a cleanup when ->mm goes away via exit/exec
->   - will register a region per vma, should probably push the whole thing
->     into vma rather than keep [mm,addr,len] tuple in ksm
->
->   
-The main problem that ksm will face when removing the fd interface is:
-right now when you register memory into ksm, you open fd, and then ksm 
-do get_task_mm(), we will do mmput when the file will be closed
-(note that this doesnt mean that if you fork and not close the fd the 
-memory wont go away...., get_task_mm() doesnt protect the vmas inside 
-the mm strcture and therefore they will be able to get removed)
 
-So if we move into madvice and we remove the get_task_mm() usage, we 
-will have to add notification to exit_mm() so ksm will know it should 
-stop using this mm strcture, and drop it from all the trees data...
-
-Is this what we want?
+The unregister cleanup must happen at the vma level (with unregister
+when vma goes away or is overwritten) for this to provide sane madvise
+semantics (not just in exit/exec, but in unmap/mmap too). Otherwise
+this is all but madvise. Basically we need a chunk of code in core VM
+when KSM=y/m, even if we keep returning -EINVAL when KSM=n (for
+backwards compatibility, -ENOSYS not). Example, vma must be split in
+two if you MAP_SHARABLE only part of it etc...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
