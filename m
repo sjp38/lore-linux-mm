@@ -1,32 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id A5BB56B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 12:00:47 -0400 (EDT)
-Message-ID: <49D4E00B.8050904@redhat.com>
-Date: Thu, 02 Apr 2009 18:55:55 +0300
-From: Izik Eidus <ieidus@redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 31DD36B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 12:18:27 -0400 (EDT)
+Message-ID: <49D4E55F.8010406@goop.org>
+Date: Thu, 02 Apr 2009 09:18:39 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/4] update ksm userspace interfaces
-References: <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws> <20090402012215.GE1117@x200.localdomain> <49D424AF.3090806@codemonkey.ws> <20090402053114.GF1117@x200.localdomain> <49D4BE64.8020508@redhat.com> <20090402155633.GD10392@x200.localdomain>
-In-Reply-To: <20090402155633.GD10392@x200.localdomain>
+Subject: Re: [patch 0/6] Guest page hinting version 7.
+References: <20090327150905.819861420@de.ibm.com>	<200903281705.29798.rusty@rustcorp.com.au>	<20090329162336.7c0700e9@skybase>	<200904022232.02185.nickpiggin@yahoo.com.au> <20090402175249.3c4a6d59@skybase>
+In-Reply-To: <20090402175249.3c4a6d59@skybase>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Wright <chrisw@redhat.com>
-Cc: Anthony Liguori <anthony@codemonkey.ws>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, dmonakhov@openvz.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, akpm@osdl.org, frankeh@watson.ibm.com, virtualization@lists.osdl.org, riel@redhat.com, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Chris Wright wrote:
-> * Izik Eidus (ieidus@redhat.com) wrote:
->   
->> Is this what we want?
+Martin Schwidefsky wrote:
+>> I still think this needs much more justification.
 >>     
->
-> How about baby steps...
->
-> admit that ioctl to control plane is better done via sysfs?
+>  
+> Ok, I can understand that. We probably need a KVM based version to show
+> that benefits exist on non-s390 hardware as well.
 >   
-Yes
+
+BTW, there was a presentation at the most recent Xen summit which makes 
+use of CMM ("Satori: Enlightened Page Sharing", 
+http://www.xen.org/files/xensummit_oracle09/Satori.pdf).
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
