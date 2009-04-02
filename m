@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 9D4486B004F
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:22:16 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 222846B005C
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:27:35 -0400 (EDT)
+Date: Thu, 2 Apr 2009 20:27:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [patch 0/6] Guest page hinting version 7.
-Date: Fri, 3 Apr 2009 06:22:29 +1100
-References: <20090327150905.819861420@de.ibm.com> <20090402175249.3c4a6d59@skybase> <49D50CB7.2050705@redhat.com>
-In-Reply-To: <49D50CB7.2050705@redhat.com>
+In-Reply-To: <20090402175249.3c4a6d59@skybase>
+Message-ID: <Pine.LNX.4.64.0904022016180.29625@blonde.anvils>
+References: <20090327150905.819861420@de.ibm.com> <200903281705.29798.rusty@rustcorp.com.au>
+ <20090329162336.7c0700e9@skybase> <200904022232.02185.nickpiggin@yahoo.com.au>
+ <20090402175249.3c4a6d59@skybase>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200904030622.30935.nickpiggin@yahoo.com.au>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, frankeh@watson.ibm.com, hugh@veritas.com
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, frankeh@watson.ibm.com, riel@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Friday 03 April 2009 06:06:31 Rik van Riel wrote:
-> Martin Schwidefsky wrote:
-> > The benefits are the same but the algorithmic complexity is reduced.
-> > The patch to the memory management has complexity in itself but from a
-> > 1000 feet standpoint guest page hinting is simpler, no? 
-> Page hinting has a complex, but well understood, mechanism
-> and simple policy.
+On Thu, 2 Apr 2009, Martin Schwidefsky wrote:
+> On Thu, 2 Apr 2009 22:32:00 +1100
+> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 > 
-> Ballooning has a simpler mechanism, but relies on an
-> as-of-yet undiscovered policy.
-> 
-> Having experienced a zillion VM corner cases over the
-> last decade and a bit, I think I prefer a complex mechanism
-> over complex (or worse, unknown!) policy any day.
+> > I still think this needs much more justification.
+>  
+> Ok, I can understand that. We probably need a KVM based version to show
+> that benefits exist on non-s390 hardware as well.
 
-I disagree with it being so clear cut. Volatile pagecache policy is completely
-out of the control of the Linux VM. Wheras ballooning does have to make some
-tradeoff between guests, but the actual reclaim will be driven by the guests.
-Neither way is perfect, but it's not like the hypervisor reclaim is foolproof
-against making a bad tradeoff between guests.
+That would indeed help your cause enormously (I think I made the same
+point last time).  All these complex transitions, added to benefit only
+an architecture to which few developers have access, asks for trouble -
+we mm hackers already get caught out often enough by your
+too-well-camouflaged page_test_dirty().
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
