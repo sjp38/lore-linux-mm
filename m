@@ -1,60 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2541E6B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 11:50:42 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Date: Fri, 3 Apr 2009 02:51:20 +1100
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <200904022224.31060.nickpiggin@yahoo.com.au> <20090402113400.GC3010@duck.suse.cz>
-In-Reply-To: <20090402113400.GC3010@duck.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 45A776B0047
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 11:52:07 -0400 (EDT)
+Received: from d12nrmr1607.megacenter.de.ibm.com (d12nrmr1607.megacenter.de.ibm.com [9.149.167.49])
+	by mtagate2.de.ibm.com (8.13.1/8.13.1) with ESMTP id n32FqqcS024056
+	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 15:52:52 GMT
+Received: from d12av02.megacenter.de.ibm.com (d12av02.megacenter.de.ibm.com [9.149.165.228])
+	by d12nrmr1607.megacenter.de.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n32FqpYj2732220
+	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 17:52:51 +0200
+Received: from d12av02.megacenter.de.ibm.com (loopback [127.0.0.1])
+	by d12av02.megacenter.de.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n32Fqp84031726
+	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 17:52:51 +0200
+Date: Thu, 2 Apr 2009 17:52:49 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [patch 0/6] Guest page hinting version 7.
+Message-ID: <20090402175249.3c4a6d59@skybase>
+In-Reply-To: <200904022232.02185.nickpiggin@yahoo.com.au>
+References: <20090327150905.819861420@de.ibm.com>
+	<200903281705.29798.rusty@rustcorp.com.au>
+	<20090329162336.7c0700e9@skybase>
+	<200904022232.02185.nickpiggin@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200904030251.22197.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Ying Han <yinghan@google.com>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, frankeh@watson.ibm.com, riel@redhat.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 02 April 2009 22:34:01 Jan Kara wrote:
-> On Thu 02-04-09 22:24:29, Nick Piggin wrote:
-> > On Thursday 02 April 2009 09:36:13 Ying Han wrote:
-> > > Hi Jan:
-> > >     I feel that the problem you saw is kind of differnt than mine. As
-> > > you mentioned that you saw the PageError() message, which i don't see
-> > > it on my system. I tried you patch(based on 2.6.21) on my system and
-> > > it runs ok for 2 days, Still, since i don't see the same error message
-> > > as you saw, i am not convineced this is the root cause at least for
-> > > our problem. I am still looking into it.
-> > >     So, are you seeing the PageError() every time the problem happened?
-> > 
-> > So I asked if you could test with my workaround of taking truncate_mutex
-> > at the start of ext2_get_blocks, and report back. I never heard of any
-> > response after that.
-> > 
-> > To reiterate: I was able to reproduce a problem with ext2 (I was testing
-> > on brd to get IO rates high enough to reproduce it quite frequently).
-> > I think I narrowed the problem down to block allocation or inode block
-> > tree corruption because I was unable to reproduce it with that hack in
-> > place.
->   Nick, what load did you use for reproduction? I'll try to reproduce it
-> here so that I can debug ext2...
+On Thu, 2 Apr 2009 22:32:00 +1100
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
-OK, I set up the filesystem like this:
+> On Monday 30 March 2009 01:23:36 Martin Schwidefsky wrote:
+> > On Sat, 28 Mar 2009 17:05:28 +1030
+> >
+> > Rusty Russell <rusty@rustcorp.com.au> wrote:
+> > > On Saturday 28 March 2009 01:39:05 Martin Schwidefsky wrote:
+> > > > Greetings,
+> > > > the circus is back in town -- another version of the guest page hinting
+> > > > patches. The patches differ from version 6 only in the kernel version,
+> > > > they apply against 2.6.29. My short sniff test showed that the code
+> > > > is still working as expected.
+> > > >
+> > > > To recap (you can skip this if you read the boiler plate of the last
+> > > > version of the patches):
+> > > > The main benefit for guest page hinting vs. the ballooner is that there
+> > > > is no need for a monitor that keeps track of the memory usage of all
+> > > > the guests, a complex algorithm that calculates the working set sizes
+> > > > and for the calls into the guest kernel to control the size of the
+> > > > balloons.
+> > >
+> > > I thought you weren't convinced of the concrete benefits over ballooning,
+> > > or am I misremembering?
+> >
+> > The performance test I have seen so far show that the benefits of
+> > ballooning vs. guest page hinting are about the same. I am still
+> > convinced that the guest page hinting is the way to go because you do
+> > not need an external monitor. Calculating the working set size for a
+> > guest is a challenge. With guest page hinting there is no need for a
+> > working set size calculation.
+> 
+> Sounds backwards to me. If the benefits are the same, then having
+> complexity in an external monitor (which, by the way, shares many
+> problems and goals of single-kernel resource/workload management),
+> rather than putting a huge chunk of crap in the guest kernel's core
+> mm code.
 
-modprobe rd rd_size=$[3*1024*1024]   #almost fill memory so we reclaim buffers
-dd if=/dev/zero of=/dev/ram0 bs=4k   #prefill brd so we don't get alloc deadlock
-mkfs.ext2 -b1024 /dev/ram0           #1K buffers
+The benefits are the same but the algorithmic complexity is reduced.
+The patch to the memory management has complexity in itself but from a
+1000 feet standpoint guest page hinting is simpler, no? The question
+how much memory each guest has to release does not exist. With the
+balloner I have seen a few problematic cases where the size of
+the balloon in principle killed the guest. My favorite is the "clever"
+monitor script that queried the guests free memory and put all free
+memory into the balloon. Now gues what happened with a guest that just
+booted..
 
-Test is basically unmodified except I use 64MB files, and start 8 of them
-at once to (8 core system, so improve chances of hitting the bug). Although I
-do see it with only 1 running it takes longer to trigger.
+And could you please explain with a few more words >what< you consider
+to be "crap"? I can't do anything with a general statement "this is
+crap". Which translates to me: leave me alone..
 
-I also run a loop doing 'sync ; echo 3 > /proc/sys/vm/drop_caches' but I don't
-know if that really helps speed up reproducing it. It is quite random to hit,
-but I was able to hit it IIRC in under a minute with that setup.
+> I still think this needs much more justification.
+ 
+Ok, I can understand that. We probably need a KVM based version to show
+that benefits exist on non-s390 hardware as well.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
