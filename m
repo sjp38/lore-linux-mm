@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 58CFF6B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:57:43 -0400 (EDT)
-Message-ID: <49D518E9.1090001@goop.org>
-Date: Thu, 02 Apr 2009 12:58:33 -0700
-From: Jeremy Fitzhardinge <jeremy@goop.org>
+	by kanga.kvack.org (Postfix) with SMTP id 35AC66B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 16:06:17 -0400 (EDT)
+Message-ID: <49D51A82.8090908@redhat.com>
+Date: Thu, 02 Apr 2009 16:05:22 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
 Subject: Re: [patch 0/6] Guest page hinting version 7.
-References: <20090327150905.819861420@de.ibm.com>	<200903281705.29798.rusty@rustcorp.com.au>	<20090329162336.7c0700e9@skybase>	<200904022232.02185.nickpiggin@yahoo.com.au>	<20090402175249.3c4a6d59@skybase> <49D50CB7.2050705@redhat.com>
-In-Reply-To: <49D50CB7.2050705@redhat.com>
+References: <20090327150905.819861420@de.ibm.com> <20090402175249.3c4a6d59@skybase> <49D50CB7.2050705@redhat.com> <200904030622.30935.nickpiggin@yahoo.com.au>
+In-Reply-To: <200904030622.30935.nickpiggin@yahoo.com.au>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, akpm@osdl.org, Nick Piggin <nickpiggin@yahoo.com.au>, frankeh@watson.ibm.com, virtualization@lists.osdl.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, hugh@veritas.com, Xen-devel <xen-devel@lists.xensource.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, frankeh@watson.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Page hinting has a complex, but well understood, mechanism
-> and simple policy.
+Nick Piggin wrote:
+> On Friday 03 April 2009 06:06:31 Rik van Riel wrote:
 >   
-
-For the guest perhaps, and yes, it does push the problem out to the 
-host.  But that doesn't make solving a performance problem any easier if 
-you end up in a mess.
-
-> Ballooning has a simpler mechanism, but relies on an
-> as-of-yet undiscovered policy.
+>> Ballooning has a simpler mechanism, but relies on an
+>> as-of-yet undiscovered policy.
+>>
+>> Having experienced a zillion VM corner cases over the
+>> last decade and a bit, I think I prefer a complex mechanism
+>> over complex (or worse, unknown!) policy any day.
+>>     
+>
+> I disagree with it being so clear cut. Volatile pagecache policy is completely
+> out of the control of the Linux VM. Wheras ballooning does have to make some
+> tradeoff between guests, but the actual reclaim will be driven by the guests.
+> Neither way is perfect, but it's not like the hypervisor reclaim is foolproof
+> against making a bad tradeoff between guests.
 >   
-(I'm talking about Xen ballooning here; I know KVM ballooning works 
-differently.)
+I guess we could try to figure out a simple and robust policy
+for ballooning.  If we can come up with a policy which nobody
+can shoot holes in by just discussing it, it may be worth
+implementing and benchmarking.
 
-Yes and no.  If you want to be able to shrink the guest very 
-aggressively, then you need to be very careful about not shrinking too 
-much for its current and near-future needs.  But you'll get into an 
-equivalently bad state with page hinting if the host decides to swap out 
-and discard lots of persistent guest pages.
+Maybe something based on the host passing memory pressure
+on to the guests, and the guests having their own memory
+pressure push back to the host.
 
-When the host demands memory from the guest, the simple caseballooning 
-is analogous to page hinting:
+I'l start by telling you the best auto-ballooning policy idea
+I have come up with so far, and the (major?) hole in it.
 
-    * give up free pages == mark pages unused
-    * give up clean pages == mark pages volatile
-    * cause pressure to release some memory == host swapping
+Basically, the host needs the memory pressure notification,
+where the VM will notify the guests when memory is running
+low (and something could soon be swapped).  At that point,
+each guest which receives the signal will try to free some
+memory and return it to the host.
 
-The flipside is how guests can ask for memory if their needs increase 
-again.  Page-hinting is fault-driven, so the guest may stall while the 
-host sorts out some memory to back the guests pages.  Ballooning 
-requires the guest to explicitly ask for memory, and that could be done 
-in advance if it notices the pool of easily-freed pages is shrinking 
-rapidly (though I guess it could be done on demand as well, but we don't 
-have hooks for that).
+Each guest can have the reverse in its own pageout code.
+Once memory pressure grows to a certain point (eg. when
+the guest is about to swap something out), it could reclaim
+a few pages from the host.
 
-But of course, there are other approaches people are playing with, like 
-Dan Magenheimer's transcendental memory, which is a pool of 
-hypervisor-owned and managed pages which guests can use via a copy 
-interface, as a second-chance page discard cache, fast swap, etc.  Such 
-mechanisms may be easier on both the guest complexity and policy fronts.
+If all the guests behave themselves, this could work.
 
-The more complex host policy decisions of how to balance overall memory 
-use system-wide are much in the same for both mechanisms.
+However, even with just reasonably behaving guests,
+differences between the VMs in each guest could lead
+to unbalanced reclaiming, penalizing better behaving
+guests.
 
-    J
+If one guest is behaving badly, it could really impact
+the other guests.
+
+Can you think of improvements to this idea?
+
+Can you think of another balloon policy that does
+not have nasty corner cases?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
