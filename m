@@ -1,83 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1B6A96B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:42:09 -0400 (EDT)
-Message-ID: <49D5141F.40900@redhat.com>
-Date: Thu, 02 Apr 2009 22:38:07 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id A8F1E6B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:48:43 -0400 (EDT)
+Date: Thu, 2 Apr 2009 21:49:27 +0200 (CEST)
+From: Jesper Juhl <jj@chaosbits.net>
 Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux
-References: <1238457560-7613-1-git-send-email-ieidus@redhat.com> <alpine.LNX.2.00.0904022114040.4265@swampdragon.chaosbits.net>
-In-Reply-To: <alpine.LNX.2.00.0904022114040.4265@swampdragon.chaosbits.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20090402193920.GF10392@x200.localdomain>
+Message-ID: <alpine.LNX.2.00.0904022147450.4265@swampdragon.chaosbits.net>
+References: <1238457560-7613-1-git-send-email-ieidus@redhat.com> <alpine.LNX.2.00.0904022114040.4265@swampdragon.chaosbits.net> <20090402193920.GF10392@x200.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jesper Juhl <jj@chaosbits.net>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
+To: Chris Wright <chrisw@redhat.com>
+Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Jesper Juhl wrote:
-> Hi,
->
-> On Tue, 31 Mar 2009, Izik Eidus wrote:
->
->   
->> KSM is a linux driver that allows dynamicly sharing identical memory
->> pages between one or more processes.
->>
->> Unlike tradtional page sharing that is made at the allocation of the
->> memory, ksm do it dynamicly after the memory was created.
->> Memory is periodically scanned; identical pages are identified and
->> merged.
->> The sharing is unnoticeable by the process that use this memory.
->> (the shared pages are marked as readonly, and in case of write
->> do_wp_page() take care to create new copy of the page)
->>
->> To find identical pages ksm use algorithm that is split into three
->> primery levels:
->>
->> 1) Ksm will start scan the memory and will calculate checksum for each
->>    page that is registred to be scanned.
->>    (In the first round of the scanning, ksm would only calculate
->>     this checksum for all the pages)
->>
->>     
->
-> One question;
->
-> Calcolating a checksum is a fine way to find pages that are "likely to be 
-> identical"
+On Thu, 2 Apr 2009, Chris Wright wrote:
 
-I dont use checksum as with hash table, the checksum doesnt use to find 
-identical pages by the way that they have similer data...
-the checksum is used to let me know that the page was not changed for a 
-while and it is worth checking for identical pages to it...
-In the future we will want to use the page table dirty bit for it, as 
-taking checksum is somewhat expensive
+> * Jesper Juhl (jj@chaosbits.net) wrote:
+> > Do you rely only on the checksum or do you actually compare pages to check 
+> > they are 100% identical before sharing?
+> 
+> Checksum has absolutely nothing to do w/ finding if two pages match.
+> It's only used as a heuristic to suggest whether a single page has
+> changed.  If that page is changing we won't bother trying to find a
+> match for it.  Here's an example of the life of a page w.r.t checksum.
+> 
+> 1. checksum = uninitialized
+> 2. first time page is found, checksum it (checksum = A).
+>    if checksum has changed (uninitialize != A) don't go any further w/ that page
+> 3. next time page is found, checksum it (checksum = B).
+>    if checksum has change (A != B) don't go any further w/ that page
+> 4. next time page is found, checksum it (checksum = B).
+>    if checksum has changed (B == B)...it hasn't, continue processing the
+>    page
+> 
+> later if a match is found in the tree (which is sorted by _contents_,
+> i.e. memcmp) we'll attempt to merge the pages which at it's very core
+> does:
+> 
+> 	if (pages_identical(oldpage, newpage))
+> 		ret = replace_page(vma, oldpage, newpage, orig_pte, newprot);
+> 
+> pages_identical?  you guessed it...just does:
+> 
+> 	r = memcmp(addr1, addr2, PAGE_SIZE)
+> 
 
-> , but there is no guarantee that two pages with the same 
-> checksum really are identical - there *will* be checksum collisions 
-> eventually. So, I really hope that your implementation actually checks 
-> that two pages that it find that have identical checksums really are 100% 
-> identical by comparing them bit by bit before throwing one away.
->   
-We do that :-)
+Thank you for that explanation, it set my mind at ease :-)
 
-> If you rely only on a checksum then eventually a user will get bitten by a 
-> checksum collision and, in the best case, something will crash, and in the 
-> worst case, data will silently be corrupted.
->
-> Do you rely only on the checksum or do you actually compare pages to check 
-> they are 100% identical before sharing?
->   
 
-I do 100% compare to the pages before i share them.
-
-> I must admit that I have not read through the patch to find the answer, I 
-> just read your description and became concerned.
->
->   
-Dont worry, me neither :-)
+-- 
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
