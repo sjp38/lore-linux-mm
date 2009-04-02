@@ -1,39 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 620966B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:06:46 -0400 (EDT)
-Message-ID: <49D50CB7.2050705@redhat.com>
-Date: Thu, 02 Apr 2009 15:06:31 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 1CB8A6B004D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 15:22:13 -0400 (EDT)
+Date: Thu, 2 Apr 2009 21:22:26 +0200 (CEST)
+From: Jesper Juhl <jj@chaosbits.net>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux
+In-Reply-To: <1238457560-7613-1-git-send-email-ieidus@redhat.com>
+Message-ID: <alpine.LNX.2.00.0904022114040.4265@swampdragon.chaosbits.net>
+References: <1238457560-7613-1-git-send-email-ieidus@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-References: <20090327150905.819861420@de.ibm.com>	<200903281705.29798.rusty@rustcorp.com.au>	<20090329162336.7c0700e9@skybase>	<200904022232.02185.nickpiggin@yahoo.com.au> <20090402175249.3c4a6d59@skybase>
-In-Reply-To: <20090402175249.3c4a6d59@skybase>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Rusty Russell <rusty@rustcorp.com.au>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.osdl.org, akpm@osdl.org, frankeh@watson.ibm.com, hugh@veritas.com
+To: Izik Eidus <ieidus@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky wrote:
-> The benefits are the same but the algorithmic complexity is reduced.
-> The patch to the memory management has complexity in itself but from a
-> 1000 feet standpoint guest page hinting is simpler, no? 
-Page hinting has a complex, but well understood, mechanism
-and simple policy.
+Hi,
 
-Ballooning has a simpler mechanism, but relies on an
-as-of-yet undiscovered policy.
+On Tue, 31 Mar 2009, Izik Eidus wrote:
 
-Having experienced a zillion VM corner cases over the
-last decade and a bit, I think I prefer a complex mechanism
-over complex (or worse, unknown!) policy any day.
-> Ok, I can understand that. We probably need a KVM based version to show
-> that benefits exist on non-s390 hardware as well.
-I believe it can work for KVM just fine, if we keep the host state
-and the guest state in separate places (so the guest can always
-write the guest state without a hypercall).
+> KSM is a linux driver that allows dynamicly sharing identical memory
+> pages between one or more processes.
+> 
+> Unlike tradtional page sharing that is made at the allocation of the
+> memory, ksm do it dynamicly after the memory was created.
+> Memory is periodically scanned; identical pages are identified and
+> merged.
+> The sharing is unnoticeable by the process that use this memory.
+> (the shared pages are marked as readonly, and in case of write
+> do_wp_page() take care to create new copy of the page)
+> 
+> To find identical pages ksm use algorithm that is split into three
+> primery levels:
+> 
+> 1) Ksm will start scan the memory and will calculate checksum for each
+>    page that is registred to be scanned.
+>    (In the first round of the scanning, ksm would only calculate
+>     this checksum for all the pages)
+> 
+
+One question;
+
+Calcolating a checksum is a fine way to find pages that are "likely to be 
+identical", but there is no guarantee that two pages with the same 
+checksum really are identical - there *will* be checksum collisions 
+eventually. So, I really hope that your implementation actually checks 
+that two pages that it find that have identical checksums really are 100% 
+identical by comparing them bit by bit before throwing one away.
+If you rely only on a checksum then eventually a user will get bitten by a 
+checksum collision and, in the best case, something will crash, and in the 
+worst case, data will silently be corrupted.
+
+Do you rely only on the checksum or do you actually compare pages to check 
+they are 100% identical before sharing?
+
+I must admit that I have not read through the patch to find the answer, I 
+just read your description and became concerned.
+
+-- 
+Jesper Juhl <jj@chaosbits.net>             http://www.chaosbits.net/
+Plain text mails only, please      http://www.expita.com/nomime.html
+Don't top-post  http://www.catb.org/~esr/jargon/html/T/top-post.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
