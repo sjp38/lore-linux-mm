@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id A9A1A6B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 07:24:14 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-Date: Thu, 2 Apr 2009 22:24:29 +1100
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com> <20090324173511.GJ23439@duck.suse.cz> <604427e00904011536i6332a239pe21786cc4c8b3025@mail.gmail.com>
-In-Reply-To: <604427e00904011536i6332a239pe21786cc4c8b3025@mail.gmail.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 924EC6B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 07:27:23 -0400 (EDT)
+Message-ID: <49D4A016.9040506@redhat.com>
+Date: Thu, 02 Apr 2009 14:23:02 +0300
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
+References: <49D20B63.8020709@redhat.com> <49D21B33.4070406@codemonkey.ws> <20090331142533.GR9137@random.random> <49D22A9D.4050403@codemonkey.ws> <20090331150218.GS9137@random.random> <49D23224.9000903@codemonkey.ws> <20090331151845.GT9137@random.random> <49D23CD1.9090208@codemonkey.ws> <20090331162525.GU9137@random.random> <49D24A02.6070000@codemonkey.ws> <20090402012215.GE1117@x200.localdomain> <49D424AF.3090806@codemonkey.ws>
+In-Reply-To: <49D424AF.3090806@codemonkey.ws>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200904022224.31060.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Jan Kara <jack@suse.cz>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Anthony Liguori <anthony@codemonkey.ws>
+Cc: Chris Wright <chrisw@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, riel@redhat.com, jeremy@goop.org, mtosatti@redhat.com, hugh@veritas.com, corbet@lwn.net, yaniv@redhat.com, dmonakhov@openvz.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 02 April 2009 09:36:13 Ying Han wrote:
-> Hi Jan:
->     I feel that the problem you saw is kind of differnt than mine. As
-> you mentioned that you saw the PageError() message, which i don't see
-> it on my system. I tried you patch(based on 2.6.21) on my system and
-> it runs ok for 2 days, Still, since i don't see the same error message
-> as you saw, i am not convineced this is the root cause at least for
-> our problem. I am still looking into it.
->     So, are you seeing the PageError() every time the problem happened?
+Anthony Liguori wrote:
+> Chris Wright wrote:
+>> * Anthony Liguori (anthony@codemonkey.ws) wrote:
+>>  
+>>> The ioctl() interface is quite bad for what you're doing.  You're  
+>>> telling the kernel extra information about a VA range in 
+>>> userspace.   That's what madvise is for.  You're tweaking simple 
+>>> read/write values of  kernel infrastructure.  That's what sysfs is for.
+>>>     
+>>
+>> I agree re: sysfs (brought it up myself before).  As far as madvise vs.
+>> ioctl, the one thing that comes from the ioctl is fops->release to
+>> automagically unregister memory on exit.
+>
+> This is precisely why ioctl() is a bad interface.  fops->release isn't 
+> tied to the process but rather tied to the open file.  The file can 
+> stay open long after the process exits either by a fork()'d child 
+> inheriting the file descriptor or through something more sinister like 
+> SCM_RIGHTS.
+>
+> In fact, a common mistake is to leak file descriptors by not closing 
+> them when exec()'ing a process.  Instead of just delaying a close, if 
+> you rely on this behavior to unregister memory regions, you could 
+> potentially have badness happen in the kernel if ksm attempted to 
+> access an invalid memory region. 
+How could such badness ever happen in the kernel?
+Ksm work by virtual addresses!, it fetch the pages by using 
+get_user_pages(), and the mm struct is protected by get_task_mm(), in 
+addion we take the down_read(mmap_sem)
 
-So I asked if you could test with my workaround of taking truncate_mutex
-at the start of ext2_get_blocks, and report back. I never heard of any
-response after that.
+So how could ksm ever acces to invalid memory region unless the host 
+page table or get_task_mm() would stop working!
 
-To reiterate: I was able to reproduce a problem with ext2 (I was testing
-on brd to get IO rates high enough to reproduce it quite frequently).
-I think I narrowed the problem down to block allocation or inode block
-tree corruption because I was unable to reproduce it with that hack in
-place.
+When someone register memory for scan, we do get_task_mm() when the file 
+is closed or when he say that he dont want this to be registered anymore 
+he call the unregister ioctl
+
+
+You can aurgoment about API, but this is mathamathical thing to say Ksm 
+is insecure, please show me senario!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
