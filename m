@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 203756B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 17:13:30 -0400 (EDT)
-Date: Thu, 2 Apr 2009 23:13:36 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH for -mm] getrusage: fill ru_maxrss value
-Message-ID: <20090402211336.GB4076@elte.hu>
-References: <20081230201052.128B.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20081231110816.5f80e265@psychotron.englab.brq.redhat.com> <20081231213705.1293.KOSAKI.MOTOHIRO@jp.fujitsu.com> <20090103175913.GA21180@redhat.com> <2f11576a0901031313u791d7dcex94b927cc56026e40@mail.gmail.com> <20090105163204.3ec9ff10@psychotron.englab.brq.redhat.com> <20090105141313.a4abd475.akpm@linux-foundation.org> <20090106104839.78eb07d1@psychotron.englab.brq.redhat.com> <20090402134738.43d87cb7.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090402134738.43d87cb7.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B22D6B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 17:20:13 -0400 (EDT)
+Subject: Re: Detailed Stack Information Patch [2/3]
+From: Stefani Seibold <stefani@seibold.net>
+In-Reply-To: <20090401193639.GB12316@elte.hu>
+References: <1238511507.364.62.camel@matrix>
+	 <20090401193639.GB12316@elte.hu>
+Content-Type: text/plain
+Date: Thu, 02 Apr 2009 23:25:47 +0200
+Message-Id: <1238707547.3882.24.camel@matrix>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiri Pirko <jpirko@redhat.com>, kosaki.motohiro@jp.fujitsu.com, oleg@redhat.com, linux-kernel@vger.kernel.org, hugh@veritas.com, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Joerg Engel <joern@logfs.org>
 List-ID: <linux-mm.kvack.org>
 
-
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> I have a note here that this patch needs acks, but I didn't note who
-> from.
+Am Mittwoch, den 01.04.2009, 21:36 +0200 schrieb Ingo Molnar:
+> * Stefani Seibold <stefani@seibold.net> wrote:
 > 
-> Someone ack it :)
+> > +config PROC_STACK_MONITOR
+> > + 	default y
+> > +	depends on PROC_STACK
+> > +	bool "Enable /proc/stackmon detailed stack monitoring"
+> > + 	help
+> > +	  This enables detailed monitoring of process and thread stack
+> > +	  utilization via the /proc/stackmon interface.
+> > +	  Disabling these interfaces will reduce the size of the kernel by
+> > +	  approximately 2kb.
+> 
+> Hm, i'm not convinced about this one. Stupid question: what's wrong 
+> with ulimit -s?
+> 
 
-looks good to me at a quick glance. A stupid technicality. There's 
-repetitive patterns of:
+To tell a long story short, you are right. After a quick investigation
+of the glibc 2.9 library i figure out that this is also the default
+stack size of a thread started with pthread_create().
 
-> +	if (current->mm) {
-> +		unsigned long hiwater_rss = get_mm_hiwater_rss(current->mm);
-> +
-> +		if (sig->maxrss < hiwater_rss)
-> +			sig->maxrss = hiwater_rss;
-> +	}
+> Also, if for some reason you dont want to (or cannot) enforce a 
+> system-wide stack size ulimit, or it has some limitation that makes 
+> it impractical for you - if we add what i suggested to the 
+> /proc/*/maps files, your user-space watchdog daemon could scan those 
+> periodically and report any excesses and zap the culprit ... right?
 
-in about 3 separate places. Wouldnt a helper along the lines of:
+I think a user space daemon will be the a good way if the /proc/*/maps
+or /proc/*/stack will provide the following information:
 
-	sig->maxrss = mm_hiwater_rss(current->mm, sig->maxrss);
+- start address of the stack
+- current address of the stack pointer
+- highest used address in the stack
 
-be much more readable?
+> 
+> 	Ingo
 
-The helper could be something like:
+Stefani
 
- static inline unsigned long
- mm_hiwater_rss(struct mm_struct *mm, unsigned long maxrss)
- {
-	return max(maxrss, mm ? get_mm_hiwater_rss(mm) : 0);
- }	
-
-much nicer?
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
