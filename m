@@ -1,1848 +1,639 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id E857D6B005A
-	for <linux-mm@kvack.org>; Sat,  4 Apr 2009 10:35:58 -0400 (EDT)
-From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 4/4] add ksm kernel shared memory driver.
-Date: Sat,  4 Apr 2009 17:35:22 +0300
-Message-Id: <1238855722-32606-5-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1238855722-32606-4-git-send-email-ieidus@redhat.com>
-References: <1238855722-32606-1-git-send-email-ieidus@redhat.com>
- <1238855722-32606-2-git-send-email-ieidus@redhat.com>
- <1238855722-32606-3-git-send-email-ieidus@redhat.com>
- <1238855722-32606-4-git-send-email-ieidus@redhat.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 8CC076B004D
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 04:25:59 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n338QL6o002737
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 3 Apr 2009 17:26:21 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DB16D45DE51
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:26:20 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B1A5E45DE4F
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:26:20 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9C9E31DB8040
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:26:20 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 422AF1DB8043
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:26:20 +0900 (JST)
+Date: Fri, 3 Apr 2009 17:24:53 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH ex/9] for debug
+Message-Id: <20090403172453.3a229bb7.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd"
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, Izik Eidus <ieidus@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Ksm is driver that allow merging identical pages between one or more
-applications in way unvisible to the application that use it.
-Pages that are merged are marked as readonly and are COWed when any
-application try to change them.
+This is a multi-part message in MIME format.
 
-Ksm is used for cases where using fork() is not suitable,
-one of this cases is where the pages of the application keep changing
-dynamicly and the application cannot know in advance what pages are
-going to be identical.
+--Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 
-Ksm works by walking over the memory pages of the applications it
-scan in order to find identical pages.
-It uses a two sorted data strctures called stable and unstable trees
-to find in effective way the identical pages.
+This mail attaches a patch and scirpt for debug.
 
-When ksm finds two identical pages, it marks them as readonly and merges
-them into single one page,
-after the pages are marked as readonly and merged into one page, linux
-will treat this pages as normal copy_on_write pages and will fork them
-when write access will happen to them.
+soft_limit_show_prio.patch is for showing priority in memory.stat file.
+I wonder I should add this to patch series or now...
 
-Ksm scan just memory areas that were registred to be scanned by it.
+cgroup.rb and ctop.rb is my personal ruby script, an utility to manage cgroup.
+I sometimes use this. place both files to the same directory and run ctop.rb
 
-Ksm api:
+#ruby ctop.rb
 
-KSM_GET_API_VERSION:
-Give the userspace the api version of the module.
+help will show this is for what.
 
-KSM_CREATE_SHARED_MEMORY_AREA:
-Create shared memory reagion fd, that latter allow the user to register
-the memory region to scan by using:
-KSM_REGISTER_MEMORY_REGION and KSM_REMOVE_MEMORY_REGION
+Thanks,
+-Kame
 
-KSM_REGISTER_MEMORY_REGION:
-Register userspace virtual address range to be scanned by ksm.
-This ioctl is using the ksm_memory_region structure:
-ksm_memory_region:
-__u32 npages;
-         number of pages to share inside this memory region.
-__u32 pad;
-__u64 addr:
-        the begining of the virtual address of this region.
-__u64 reserved_bits;
-        reserved bits for future usage.
+--Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd
+Content-Type: application/octet-stream;
+ name="soft_limit_show_prio.patch"
+Content-Disposition: attachment;
+ filename="soft_limit_show_prio.patch"
+Content-Transfer-Encoding: base64
 
-KSM_REMOVE_MEMORY_REGION:
-Remove memory region from ksm.
+RnJvbTogS0FNRVpBV0EgSGlyb3l1a2kgPGthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbT4K
+ClNob3cgaW50ZXJuYWwgY29udHJvbCBpbmZvcm1hdGlvbiBvZiBzb2Z0IGxpbWl0IHdoZW4gREVC
+VUdfVk0gaXMgb24uCgpTaWduZWQtb2ZmLWJ5OiBLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2Eu
+aGlyb3l1QGpwLmZ1aml0c3UuY29tPgotLS0KIG1tL21lbWNvbnRyb2wuYyB8ICAgIDEgKwogMSBm
+aWxlIGNoYW5nZWQsIDEgaW5zZXJ0aW9uKCspCgpJbmRleDogc29mdGxpbWl0LXRlc3QyL21tL21l
+bWNvbnRyb2wuYwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09Ci0tLSBzb2Z0bGltaXQtdGVzdDIub3JpZy9tbS9tZW1jb250
+cm9sLmMKKysrIHNvZnRsaW1pdC10ZXN0Mi9tbS9tZW1jb250cm9sLmMKQEAgLTI2MTcsNiArMjYx
+Nyw3IEBAIHN0YXRpYyBpbnQgbWVtX2NvbnRyb2xfc3RhdF9zaG93KHN0cnVjdCAKICNpZmRlZiBD
+T05GSUdfREVCVUdfVk0KIAljYi0+ZmlsbChjYiwgImluYWN0aXZlX3JhdGlvIiwKIAkJCWNhbGNf
+aW5hY3RpdmVfcmF0aW8obWVtX2NvbnQsIE5VTEwsIE5VTEwpKTsKKwljYi0+ZmlsbChjYiwgInNv
+ZnRfbGltaXRfcHJpbyIsIG1lbV9jb250LT5zb2Z0X2xpbWl0X3ByaW9yaXR5KTsKIAogCXsKIAkJ
+aW50IG5pZCwgemlkOwo=
 
-Signed-off-by: Izik Eidus <ieidus@redhat.com>
----
- include/linux/ksm.h        |   48 ++
- include/linux/miscdevice.h |    1 +
- mm/Kconfig                 |    6 +
- mm/Makefile                |    1 +
- mm/ksm.c                   | 1668 ++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 1724 insertions(+), 0 deletions(-)
- create mode 100644 include/linux/ksm.h
- create mode 100644 mm/ksm.c
+--Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd
+Content-Type: application/octet-stream;
+ name="cgroup.rb"
+Content-Disposition: attachment;
+ filename="cgroup.rb"
+Content-Transfer-Encoding: base64
 
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-new file mode 100644
-index 0000000..2c11e9a
---- /dev/null
-+++ b/include/linux/ksm.h
-@@ -0,0 +1,48 @@
-+#ifndef __LINUX_KSM_H
-+#define __LINUX_KSM_H
-+
-+/*
-+ * Userspace interface for /dev/ksm - kvm shared memory
-+ */
-+
-+#include <linux/types.h>
-+#include <linux/ioctl.h>
-+
-+#include <asm/types.h>
-+
-+#define KSM_API_VERSION 1
-+
-+#define ksm_control_flags_run 1
-+
-+/* for KSM_REGISTER_MEMORY_REGION */
-+struct ksm_memory_region {
-+	__u32 npages; /* number of pages to share */
-+	__u32 pad;
-+	__u64 addr; /* the begining of the virtual address */
-+        __u64 reserved_bits;
-+};
-+
-+#define KSMIO 0xAB
-+
-+/* ioctls for /dev/ksm */
-+
-+#define KSM_GET_API_VERSION              _IO(KSMIO,   0x00)
-+/*
-+ * KSM_CREATE_SHARED_MEMORY_AREA - create the shared memory reagion fd
-+ */
-+#define KSM_CREATE_SHARED_MEMORY_AREA    _IO(KSMIO,   0x01) /* return SMA fd */
-+
-+/* ioctls for SMA fds */
-+
-+/*
-+ * KSM_REGISTER_MEMORY_REGION - register virtual address memory area to be
-+ * scanned by kvm.
-+ */
-+#define KSM_REGISTER_MEMORY_REGION       _IOW(KSMIO,  0x20,\
-+					      struct ksm_memory_region)
-+/*
-+ * KSM_REMOVE_MEMORY_REGION - remove virtual address memory area from ksm.
-+ */
-+#define KSM_REMOVE_MEMORY_REGION         _IO(KSMIO,   0x21)
-+
-+#endif
-diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
-index beb6ec9..297c0bb 100644
---- a/include/linux/miscdevice.h
-+++ b/include/linux/miscdevice.h
-@@ -30,6 +30,7 @@
- #define HPET_MINOR		228
- #define FUSE_MINOR		229
- #define KVM_MINOR		232
-+#define KSM_MINOR		233
- #define MISC_DYNAMIC_MINOR	255
- 
- struct device;
-diff --git a/mm/Kconfig b/mm/Kconfig
-index b53427a..3f3fd04 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -223,3 +223,9 @@ config HAVE_MLOCKED_PAGE_BIT
- 
- config MMU_NOTIFIER
- 	bool
-+
-+config KSM
-+	tristate "Enable KSM for page sharing"
-+	help
-+	  Enable the KSM kernel module to allow page sharing of equal pages
-+	  among different tasks.
-diff --git a/mm/Makefile b/mm/Makefile
-index ec73c68..b885513 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -24,6 +24,7 @@ obj-$(CONFIG_SPARSEMEM_VMEMMAP) += sparse-vmemmap.o
- obj-$(CONFIG_TMPFS_POSIX_ACL) += shmem_acl.o
- obj-$(CONFIG_SLOB) += slob.o
- obj-$(CONFIG_MMU_NOTIFIER) += mmu_notifier.o
-+obj-$(CONFIG_KSM) += ksm.o
- obj-$(CONFIG_PAGE_POISONING) += debug-pagealloc.o
- obj-$(CONFIG_SLAB) += slab.o
- obj-$(CONFIG_SLUB) += slub.o
-diff --git a/mm/ksm.c b/mm/ksm.c
-new file mode 100644
-index 0000000..fb59a08
---- /dev/null
-+++ b/mm/ksm.c
-@@ -0,0 +1,1668 @@
-+/*
-+ * Memory merging driver for Linux
-+ *
-+ * This module enables dynamic sharing of identical pages found in different
-+ * memory areas, even if they are not shared by fork()
-+ *
-+ * Copyright (C) 2008 Red Hat, Inc.
-+ * Authors:
-+ *	Izik Eidus
-+ *	Andrea Arcangeli
-+ *	Chris Wright
-+ *
-+ * This work is licensed under the terms of the GNU GPL, version 2.
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/errno.h>
-+#include <linux/mm.h>
-+#include <linux/fs.h>
-+#include <linux/miscdevice.h>
-+#include <linux/vmalloc.h>
-+#include <linux/file.h>
-+#include <linux/mman.h>
-+#include <linux/sched.h>
-+#include <linux/rwsem.h>
-+#include <linux/pagemap.h>
-+#include <linux/sched.h>
-+#include <linux/rmap.h>
-+#include <linux/spinlock.h>
-+#include <linux/jhash.h>
-+#include <linux/delay.h>
-+#include <linux/kthread.h>
-+#include <linux/wait.h>
-+#include <linux/scatterlist.h>
-+#include <linux/random.h>
-+#include <linux/slab.h>
-+#include <linux/swap.h>
-+#include <linux/rbtree.h>
-+#include <linux/anon_inodes.h>
-+#include <linux/ksm.h>
-+
-+#include <asm/tlbflush.h>
-+
-+MODULE_AUTHOR("Red Hat, Inc.");
-+MODULE_LICENSE("GPL");
-+
-+static int rmap_hash_size;
-+module_param(rmap_hash_size, int, 0);
-+MODULE_PARM_DESC(rmap_hash_size, "Hash table size for the reverse mapping");
-+
-+/*
-+ * ksm_mem_slot - hold information for an userspace scanning range
-+ * (the scanning for this region will be from addr untill addr +
-+ *  npages * PAGE_SIZE inside mm)
-+ */
-+struct ksm_mem_slot {
-+	struct list_head link;
-+	struct list_head sma_link;
-+	struct mm_struct *mm;
-+	unsigned long addr;	/* the begining of the virtual address */
-+	unsigned npages;	/* number of pages to share */
-+};
-+
-+/*
-+ * ksm_sma - shared memory area, each process have its own sma that contain the
-+ * information about the slots that it own
-+ */
-+struct ksm_sma {
-+	struct list_head sma_slots;
-+};
-+
-+/**
-+ * struct ksm_scan - cursor for scanning
-+ * @slot_index: the current slot we are scanning
-+ * @page_index: the page inside the sma that is currently being scanned
-+ *
-+ * ksm uses it to know what are the next pages it need to scan
-+ */
-+struct ksm_scan {
-+	struct ksm_mem_slot *slot_index;
-+	unsigned long page_index;
-+};
-+
-+/*
-+ * Few notes about ksm scanning progress (make it easier to understand the
-+ * data structures below):
-+ *
-+ * In order to reduce excessive scanning, ksm sort the memory pages by their
-+ * contents into a data strcture that hold pointer into the pages.
-+ *
-+ * Since the contents of the pages may change at any moment, ksm cant just
-+ * insert the pages into normal sorted tree and expect it to find anything.
-+ *
-+ * For this purpuse ksm use two data strctures - stable and unstable trees,
-+ * the stable tree hold pointers into all the merged pages (KsmPage) sorted by
-+ * their contents, beacuse that each such page have to be write-protected,
-+ * searching on this tree is fully assuranced to be working and therefore this
-+ * tree is called the stable tree.
-+ *
-+ * In addition to the stable tree, ksm use another data strcture called the
-+ * unstable tree, this specific tree hold pointers into pages that have
-+ * been found to be "unchanged for period of time", the unstable tree sort this
-+ * pages by their contents, but given the fact that this pages are not
-+ * write-protected, ksm cant trust the unstable tree to be fully assuranced to
-+ * work.
-+ * For the reason that the unstable tree would become corrupted when some of
-+ * the page inside itself would change, the tree is called unstable.
-+ * Ksm solve this problem by two ways:
-+ * 1) the unstable tree get flushed every time ksm finish to scan the whole
-+ *    memory, and then the tree is rebuild from the begining.
-+ * 2) Ksm will only insert into the unstable tree, pages that their hash value
-+ *    was not changed during the whole progress of one circuler scanning of the
-+ *    memory.
-+ * 3) The unstable tree is RedBlack Tree - meaning its balancing is based on
-+ *    the colors of the nodes and not their content, this assure that even when
-+ *    the tree get "corrupted" we wont get out of balance and the timing of
-+ *    scanning is the same, another issue is that searching and inserting nodes
-+ *    into rbtree is the same algorithem, therefore we have no overhead when we
-+ *    flush the tree and rebuild it.
-+ * 4) Ksm never flush the stable tree, this mean that even if it would take 10
-+ *    times to find page inside the unstable tree, as soon as we would find it,
-+ *    it will be secured inside the stable tree,
-+ *    (When we scan new page, we first compare it against the stable tree, and
-+ *     then against the unstable tree)
-+ */
-+
-+struct rmap_item;
-+
-+/*
-+ * tree_item - object of the stable and unstable trees
-+ */
-+struct tree_item {
-+	struct rb_node node;
-+	struct rmap_item *rmap_item;
-+};
-+
-+/*
-+ * rmap_item - object of the rmap_hash hash table
-+ * (it is holding the previous hash value (oldindex),
-+ *  pointer into the page_hash_item, and pointer into the tree_item)
-+ */
-+
-+/**
-+ * struct rmap_item - reverse mapping item for virtual addresses
-+ * @link: link into the rmap_hash hash table.
-+ * @mm: the memory strcture the rmap_item is pointing to.
-+ * @address: the virtual address the rmap_item is pointing to.
-+ * @oldchecksum: old checksum result for the page belong the virtual address
-+ * @stable_tree: when 1 rmap_item is used for stable_tree, 0 unstable tree
-+ * @kpage_outside_tree: when 1 this rmap_item point into kpage outside tree
-+ * @tree_item: pointer into the stable/unstable tree that hold the virtual
-+ *             address that the rmap_item is pointing to.
-+ * @next: the next rmap item inside the stable/unstable tree that have that is
-+ *        found inside the same tree node.
-+ */
-+
-+struct rmap_item {
-+	struct hlist_node link;
-+	struct mm_struct *mm;
-+	unsigned long address;
-+	unsigned int oldchecksum; /* old checksum value */
-+	unsigned char stable_tree; /* 1 stable_tree 0 unstable tree */
-+	unsigned char kpage_outside_tree;
-+	struct tree_item *tree_item;
-+	struct rmap_item *next;
-+	struct rmap_item *prev;
-+};
-+
-+/*
-+ * slots is linked list that hold all the memory regions that were registred
-+ * to be scanned.
-+ */
-+static LIST_HEAD(slots);
-+/*
-+ * slots_lock protect against removing and adding memory regions while a scanner
-+ * is in the middle of scanning.
-+ */
-+static DECLARE_RWSEM(slots_lock);
-+
-+/* The stable and unstable trees heads. */
-+struct rb_root root_stable_tree = RB_ROOT;
-+struct rb_root root_unstable_tree = RB_ROOT;
-+
-+
-+/* The number of linked list members inside the hash table */
-+static int nrmaps_hash;
-+/* rmap_hash hash table */
-+static struct hlist_head *rmap_hash;
-+
-+static struct kmem_cache *tree_item_cache;
-+static struct kmem_cache *rmap_item_cache;
-+
-+/* the number of nodes inside the stable tree */
-+static unsigned long nnodes_stable_tree;
-+
-+/* the number of kernel allocated pages outside the stable tree */
-+static unsigned long nkpage_out_tree;
-+
-+static int kthread_sleep; /* sleep time of the kernel thread */
-+static int kthread_pages_to_scan; /* npages to scan for the kernel thread */
-+static int kthread_max_kernel_pages; /* number of unswappable pages allowed */
-+static unsigned long ksm_pages_shared;
-+static struct ksm_scan kthread_ksm_scan;
-+static int ksmd_flags;
-+static struct task_struct *kthread;
-+static DECLARE_WAIT_QUEUE_HEAD(kthread_wait);
-+static DECLARE_RWSEM(kthread_lock);
-+
-+
-+static int ksm_slab_init(void)
-+{
-+	int ret = -ENOMEM;
-+
-+	tree_item_cache = KMEM_CACHE(tree_item, 0);
-+	if (!tree_item_cache)
-+		goto out;
-+
-+	rmap_item_cache = KMEM_CACHE(rmap_item, 0);
-+	if (!rmap_item_cache)
-+		goto out_free;
-+
-+	return 0;
-+
-+out_free:
-+	kmem_cache_destroy(tree_item_cache);
-+out:
-+	return ret;
-+}
-+
-+static void ksm_slab_free(void)
-+{
-+	kmem_cache_destroy(rmap_item_cache);
-+	kmem_cache_destroy(tree_item_cache);
-+}
-+
-+static inline struct tree_item *alloc_tree_item(void)
-+{
-+	return kmem_cache_zalloc(tree_item_cache, GFP_KERNEL);
-+}
-+
-+static void free_tree_item(struct tree_item *tree_item)
-+{
-+	kmem_cache_free(tree_item_cache, tree_item);
-+}
-+
-+static inline struct rmap_item *alloc_rmap_item(void)
-+{
-+	return kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-+}
-+
-+static inline void free_rmap_item(struct rmap_item *rmap_item)
-+{
-+	kmem_cache_free(rmap_item_cache, rmap_item);
-+}
-+
-+static unsigned long addr_in_vma(struct vm_area_struct *vma, struct page *page)
-+{
-+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	unsigned long addr;
-+
-+	addr = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	if (unlikely(addr < vma->vm_start || addr >= vma->vm_end))
-+		return -EFAULT;
-+	return addr;
-+}
-+
-+static pte_t *get_pte(struct mm_struct *mm, unsigned long addr)
-+{
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *ptep = NULL;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		goto out;
-+
-+	pud = pud_offset(pgd, addr);
-+	if (!pud_present(*pud))
-+		goto out;
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (!pmd_present(*pmd))
-+		goto out;
-+
-+	ptep = pte_offset_map(pmd, addr);
-+out:
-+	return ptep;
-+}
-+
-+
-+static int is_present_pte(struct mm_struct *mm, unsigned long addr)
-+{
-+	pte_t *ptep;
-+	int r;
-+
-+	ptep = get_pte(mm, addr);
-+	if (!ptep)
-+		return 0;
-+
-+	r = pte_present(*ptep);
-+	pte_unmap(ptep);
-+
-+	return r;
-+}
-+
-+static int is_dirty_pte(struct mm_struct *mm, unsigned long addr)
-+{
-+	pte_t *ptep;
-+	int r;
-+
-+	ptep = get_pte(mm, addr);
-+	if (!ptep)
-+		return 0;
-+
-+	r = pte_dirty(*ptep);
-+	pte_unmap(ptep);
-+
-+	return r;
-+}
-+
-+/*
-+ * PageKsm - this type of pages are the write protected pages that ksm map
-+ * into multiple vmas (this is the "shared page")
-+ * this page was allocated using alloc_page(), and every pte that point to it
-+ * is always write protected (therefore its data content cant ever be changed)
-+ * and this page cant be swapped.
-+ */
-+static inline int PageKsm(struct page *page, struct mm_struct *mm,
-+			  unsigned long addr)
-+{
-+	/*
-+	 * When ksm create new shared page, it create kernel allocated page
-+	 * using alloc_page(), therefore this page is not anonymous, taking into
-+	 * account that ksm scan just anonymous pages, we can relay on the fact
-+	 * that each time we see !PageAnon(page) we are hitting shared page,
-+	 * the !is_dirty_pte is used to protect against do_wp_page() that might
-+	 * keep the last COW page as filed-backed, therefore we use the dirty
-+	 * bit to know if such thing happend to the page.
-+	 * for more info about that look at reuse: in do_wp_page() memory.c
-+	 * (It always set there the pte as dirty)
-+	 */
-+	return !PageAnon(page) && !is_dirty_pte(mm, addr);
-+}
-+
-+static int rmap_hash_init(void)
-+{
-+	if (!rmap_hash_size) {
-+		struct sysinfo sinfo;
-+
-+		si_meminfo(&sinfo);
-+		rmap_hash_size = sinfo.totalram / 10;
-+	}
-+	nrmaps_hash = rmap_hash_size;
-+	rmap_hash = vmalloc(nrmaps_hash * sizeof(struct hlist_head));
-+	if (!rmap_hash)
-+		return -ENOMEM;
-+	memset(rmap_hash, 0, nrmaps_hash * sizeof(struct hlist_head));
-+	return 0;
-+}
-+
-+static void rmap_hash_free(void)
-+{
-+	int i;
-+	struct hlist_head *bucket;
-+	struct hlist_node *node, *n;
-+	struct rmap_item *rmap_item;
-+
-+	for (i = 0; i < nrmaps_hash; ++i) {
-+		bucket = &rmap_hash[i];
-+		hlist_for_each_entry_safe(rmap_item, node, n, bucket, link) {
-+			hlist_del(&rmap_item->link);
-+			free_rmap_item(rmap_item);
-+		}
-+	}
-+	vfree(rmap_hash);
-+}
-+
-+static inline u32 calc_checksum(struct page *page)
-+{
-+	u32 checksum;
-+	void *addr = kmap_atomic(page, KM_USER0);
-+	checksum = jhash(addr, PAGE_SIZE, 17);
-+	kunmap_atomic(addr, KM_USER0);
-+	return checksum;
-+}
-+
-+/*
-+ * Return rmap_item for a given virtual address.
-+ */
-+static struct rmap_item *get_rmap_item(struct mm_struct *mm, unsigned long addr)
-+{
-+	struct rmap_item *rmap_item;
-+	struct hlist_head *bucket;
-+	struct hlist_node *node;
-+
-+	bucket = &rmap_hash[addr % nrmaps_hash];
-+	hlist_for_each_entry(rmap_item, node, bucket, link) {
-+		if (mm == rmap_item->mm && rmap_item->address == addr) {
-+			return rmap_item;
-+		}
-+	}
-+	return NULL;
-+}
-+
-+/*
-+ * Removing rmap_item from stable or unstable tree.
-+ * This function will free the rmap_item object, and if that rmap_item was
-+ * insde the stable or unstable trees, it would remove the link from there
-+ * as well.
-+ */
-+static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
-+{
-+	struct tree_item *tree_item;
-+
-+	tree_item = rmap_item->tree_item;
-+	rmap_item->tree_item = NULL;
-+
-+	if (rmap_item->stable_tree) {
-+		ksm_pages_shared--;
-+		if (rmap_item->prev) {
-+			BUG_ON(rmap_item->prev->next != rmap_item);
-+			rmap_item->prev->next = rmap_item->next;
-+		}
-+		if (rmap_item->next) {
-+			BUG_ON(rmap_item->next->prev != rmap_item);
-+			rmap_item->next->prev = rmap_item->prev;
-+		}
-+	} else if (rmap_item->kpage_outside_tree) {
-+		ksm_pages_shared--;
-+		nkpage_out_tree--;
-+	}
-+
-+	if (tree_item) {
-+		if (rmap_item->stable_tree) {
-+	 		if (!rmap_item->next && !rmap_item->prev) {
-+				rb_erase(&tree_item->node, &root_stable_tree);
-+				free_tree_item(tree_item);
-+				nnodes_stable_tree--;
-+			} else if (!rmap_item->prev) {
-+				tree_item->rmap_item = rmap_item->next;
-+			} else {
-+				tree_item->rmap_item = rmap_item->prev;
-+			}
-+		} else {
-+			free_tree_item(tree_item);
-+		}
-+	}
-+
-+	hlist_del(&rmap_item->link);
-+	free_rmap_item(rmap_item);
-+}
-+
-+static void break_cow(struct mm_struct *mm, unsigned long addr)
-+{
-+	struct page *page[1];
-+
-+	down_read(&mm->mmap_sem);
-+	if (get_user_pages(current, mm, addr, 1, 1, 0, page, NULL)) {
-+			put_page(page[0]);
-+	}
-+	up_read(&mm->mmap_sem);
-+}
-+
-+static void remove_page_from_tree(struct mm_struct *mm,
-+				  unsigned long addr)
-+{
-+	struct rmap_item *rmap_item;
-+
-+	rmap_item = get_rmap_item(mm, addr);
-+	if (!rmap_item)
-+		return;
-+
-+	if (rmap_item->stable_tree) {
-+		/* We are breaking all the KsmPages of area that is removed */
-+		break_cow(mm, addr);
-+	} else {
-+		/*
-+		 * If kpage_outside_tree is set, this item is KsmPage outside
-+		 * the stable tree, therefor we have to break the COW and
-+		 * in addition we have to dec nkpage_out_tree.
-+		 */
-+		if (rmap_item->kpage_outside_tree)
-+			break_cow(mm, addr);
-+	}
-+
-+	remove_rmap_item_from_tree(rmap_item);
-+}
-+
-+static int ksm_sma_ioctl_register_memory_region(struct ksm_sma *ksm_sma,
-+						struct ksm_memory_region *mem)
-+{
-+	struct ksm_mem_slot *slot;
-+	int ret = -EPERM;
-+
-+	slot = kzalloc(sizeof(struct ksm_mem_slot), GFP_KERNEL);
-+	if (!slot) {
-+		ret = -ENOMEM;
-+		goto out;
-+	}
-+
-+	slot->mm = get_task_mm(current);
-+	if (!slot->mm)
-+		goto out_free;
-+	slot->addr = mem->addr;
-+	slot->npages = mem->npages;
-+
-+	down_write(&slots_lock);
-+
-+	list_add_tail(&slot->link, &slots);
-+	list_add_tail(&slot->sma_link, &ksm_sma->sma_slots);
-+
-+	up_write(&slots_lock);
-+	return 0;
-+
-+out_free:
-+	kfree(slot);
-+out:
-+	return ret;
-+}
-+
-+static void remove_mm_from_hash_and_tree(struct mm_struct *mm)
-+{
-+	struct ksm_mem_slot *slot;
-+	int pages_count;
-+
-+	list_for_each_entry(slot, &slots, link)
-+		if (slot->mm == mm)
-+			break;
-+	BUG_ON(!slot);
-+
-+	root_unstable_tree = RB_ROOT;
-+	for (pages_count = 0; pages_count < slot->npages; ++pages_count)
-+		remove_page_from_tree(mm, slot->addr +
-+				      pages_count * PAGE_SIZE);
-+	list_del(&slot->link);
-+}
-+
-+static int ksm_sma_ioctl_remove_memory_region(struct ksm_sma *ksm_sma)
-+{
-+	struct ksm_mem_slot *slot, *node;
-+
-+	down_write(&slots_lock);
-+	list_for_each_entry_safe(slot, node, &ksm_sma->sma_slots, sma_link) {
-+		remove_mm_from_hash_and_tree(slot->mm);
-+		mmput(slot->mm);
-+		list_del(&slot->sma_link);
-+		kfree(slot);
-+	}
-+	up_write(&slots_lock);
-+	return 0;
-+}
-+
-+static int ksm_sma_release(struct inode *inode, struct file *filp)
-+{
-+	struct ksm_sma *ksm_sma = filp->private_data;
-+	int r;
-+
-+	r = ksm_sma_ioctl_remove_memory_region(ksm_sma);
-+	kfree(ksm_sma);
-+	return r;
-+}
-+
-+static long ksm_sma_ioctl(struct file *filp,
-+			  unsigned int ioctl, unsigned long arg)
-+{
-+	struct ksm_sma *sma = filp->private_data;
-+	void __user *argp = (void __user *)arg;
-+	int r = EINVAL;
-+
-+	switch (ioctl) {
-+	case KSM_REGISTER_MEMORY_REGION: {
-+		struct ksm_memory_region ksm_memory_region;
-+
-+		r = -EFAULT;
-+		if (copy_from_user(&ksm_memory_region, argp,
-+				   sizeof(ksm_memory_region)))
-+			goto out;
-+		r = ksm_sma_ioctl_register_memory_region(sma,
-+							 &ksm_memory_region);
-+		break;
-+	}
-+	case KSM_REMOVE_MEMORY_REGION:
-+		r = ksm_sma_ioctl_remove_memory_region(sma);
-+		break;
-+	}
-+
-+out:
-+	return r;
-+}
-+
-+static int memcmp_pages(struct page *page1, struct page *page2)
-+{
-+	char *addr1, *addr2;
-+	int r;
-+
-+	addr1 = kmap_atomic(page1, KM_USER0);
-+	addr2 = kmap_atomic(page2, KM_USER1);
-+	r = memcmp(addr1, addr2, PAGE_SIZE);
-+	kunmap_atomic(addr1, KM_USER0);
-+	kunmap_atomic(addr2, KM_USER1);
-+	return r;
-+}
-+
-+/* pages_identical
-+ * return 1 if identical, 0 otherwise.
-+ */
-+static inline int pages_identical(struct page *page1, struct page *page2)
-+{
-+	return !memcmp_pages(page1, page2);
-+}
-+
-+/*
-+ * try_to_merge_one_page - take two pages and merge them into one
-+ * @mm: mm_struct that hold vma pointing into oldpage
-+ * @vma: the vma that hold the pte pointing into oldpage
-+ * @oldpage: the page that we want to replace with newpage
-+ * @newpage: the page that we want to map instead of oldpage
-+ * @newprot: the new permission of the pte inside vma
-+ * note:
-+ * oldpage should be anon page while newpage should be file mapped page
-+ *
-+ * this function return 0 if the pages were merged, 1 otherwise.
-+ */
-+static int try_to_merge_one_page(struct mm_struct *mm,
-+				 struct vm_area_struct *vma,
-+				 struct page *oldpage,
-+				 struct page *newpage,
-+				 pgprot_t newprot)
-+{
-+	int ret = 1;
-+	int odirect_sync;
-+	unsigned long page_addr_in_vma;
-+	pte_t orig_pte, *orig_ptep;
-+
-+	get_page(newpage);
-+	get_page(oldpage);
-+
-+	down_read(&mm->mmap_sem);
-+
-+	page_addr_in_vma = addr_in_vma(vma, oldpage);
-+	if (page_addr_in_vma == -EFAULT)
-+		goto out_unlock;
-+
-+	orig_ptep = get_pte(mm, page_addr_in_vma);
-+	if (!orig_ptep)
-+		goto out_unlock;
-+	orig_pte = *orig_ptep;
-+	pte_unmap(orig_ptep);
-+	if (!pte_present(orig_pte))
-+		goto out_unlock;
-+	if (page_to_pfn(oldpage) != pte_pfn(orig_pte))
-+		goto out_unlock;
-+	/*
-+	 * we need the page lock to read a stable PageSwapCache in
-+	 * page_wrprotect()
-+	 */
-+	if (!trylock_page(oldpage))
-+		goto out_unlock;
-+	/*
-+	 * page_wrprotect check if the page is swapped or in swap cache,
-+	 * in the future we might want to run here if_present_pte and then
-+	 * swap_free
-+	 */
-+	if (!page_wrprotect(oldpage, &odirect_sync, 2)) {
-+		unlock_page(oldpage);
-+		goto out_unlock;
-+	}
-+	unlock_page(oldpage);
-+	if (!odirect_sync)
-+		goto out_unlock;
-+
-+	orig_pte = pte_wrprotect(orig_pte);
-+
-+	if (pages_identical(oldpage, newpage))
-+		ret = replace_page(vma, oldpage, newpage, orig_pte, newprot);
-+
-+out_unlock:
-+	up_read(&mm->mmap_sem);
-+	put_page(oldpage);
-+	put_page(newpage);
-+	return ret;
-+}
-+
-+/*
-+ * try_to_merge_two_pages - take two identical pages and prepare them to be
-+ * merged into one page.
-+ *
-+ * this function return 0 if we successfully mapped two identical pages into one
-+ * page, 1 otherwise.
-+ * (note in case we created KsmPage and mapped one page into it but the second
-+ *  page was not mapped we consider it as a failure and return 1)
-+ */
-+static int try_to_merge_two_pages(struct mm_struct *mm1, struct page *page1,
-+				  struct mm_struct *mm2, struct page *page2,
-+				  unsigned long addr1, unsigned long addr2)
-+{
-+	struct vm_area_struct *vma;
-+	pgprot_t prot;
-+	int ret = 1;
-+
-+	/*
-+	 * If page2 isn't shared (it isn't PageKsm) we have to allocate a new
-+	 * file mapped page and make the two ptes of mm1(page1) and mm2(page2)
-+	 * point to it.  If page2 is shared, we can just make the pte of
-+	 * mm1(page1) point to page2
-+	 */
-+	if (PageKsm(page2, mm2, addr2)) {
-+		down_read(&mm1->mmap_sem);
-+		vma = find_vma(mm1, addr1);
-+		up_read(&mm1->mmap_sem);
-+		if (!vma)
-+			return ret;
-+		prot = vma->vm_page_prot;
-+		pgprot_val(prot) &= ~_PAGE_RW;
-+		ret = try_to_merge_one_page(mm1, vma, page1, page2, prot);
-+		if (!ret)
-+			ksm_pages_shared++;
-+	} else {
-+		struct page *kpage;
-+
-+		/*
-+		 * The number of the nodes inside the stable tree +
-+		 * nkpage_out_tree is the same as the number kernel pages that
-+		 * we hold.
-+		 */
-+		if (kthread_max_kernel_pages &&
-+		    (nnodes_stable_tree + nkpage_out_tree) >=
-+		    kthread_max_kernel_pages)
-+			return ret;
-+
-+		kpage = alloc_page(GFP_HIGHUSER);
-+		if (!kpage)
-+			return ret;
-+		down_read(&mm1->mmap_sem);
-+		vma = find_vma(mm1, addr1);
-+		up_read(&mm1->mmap_sem);
-+		if (!vma) {
-+			put_page(kpage);
-+			return ret;
-+		}
-+		prot = vma->vm_page_prot;
-+		pgprot_val(prot) &= ~_PAGE_RW;
-+
-+		copy_user_highpage(kpage, page1, addr1, vma);
-+		ret = try_to_merge_one_page(mm1, vma, page1, kpage, prot);
-+
-+		if (!ret) {
-+			down_read(&mm2->mmap_sem);
-+			vma = find_vma(mm2, addr2);
-+			up_read(&mm2->mmap_sem);
-+			if (!vma) {
-+				put_page(kpage);
-+				break_cow(mm1, addr1);
-+				ret = 1;
-+				return ret;
-+			}
-+
-+			prot = vma->vm_page_prot;
-+			pgprot_val(prot) &= ~_PAGE_RW;
-+
-+			ret = try_to_merge_one_page(mm2, vma, page2, kpage,
-+						    prot);
-+			/*
-+			 * If the secoend try_to_merge_one_page call was failed,
-+			 * we are in situation where we have Ksm page that have
-+			 * just one pte pointing to it, in this case we break
-+			 * it.
-+			 */
-+			if (ret) {
-+				break_cow(mm1, addr1);
-+			} else {
-+				ksm_pages_shared += 2;
-+			}
-+		}
-+		put_page(kpage);
-+	}
-+	return ret;
-+}
-+
-+/*
-+ * is_zapped_item - check if the page belong to the rmap_item was zapped.
-+ *
-+ * This function would check if the page that the virtual address inside
-+ * rmap_item is poiting to is still KsmPage, and therefore we can trust the
-+ * content of this page.
-+ * Since that this function call already to get_user_pages it return the
-+ * pointer to the page as an optimization.
-+ */
-+static int is_zapped_item(struct rmap_item *rmap_item,
-+			  struct page **page)
-+{
-+	int ret = 0;
-+
-+	cond_resched();
-+	if (is_present_pte(rmap_item->mm, rmap_item->address)) {
-+		down_read(&rmap_item->mm->mmap_sem);
-+		ret = get_user_pages(current, rmap_item->mm, rmap_item->address,
-+				     1, 0, 0, page, NULL);
-+		up_read(&rmap_item->mm->mmap_sem);
-+	}
-+
-+	if (!ret)
-+		return 1;
-+
-+	if (unlikely(!PageKsm(page[0], rmap_item->mm, rmap_item->address))) { 
-+		put_page(page[0]);
-+		return 1;
-+	}
-+	return 0;
-+}
-+
-+/*
-+ * stable_tree_search - search page inside the stable tree
-+ * @page: the page that we are searching idneitcal pages to.
-+ * @page2: pointer into identical page that we are holding inside the stable
-+ *	   tree that we have found.
-+ * @rmap_item: the reverse mapping item
-+ *
-+ * this function check if there is a page inside the stable tree
-+ * with identical content to the page that we are scanning right now.
-+ *
-+ * this function return rmap_item pointer to the identical item if found, NULL
-+ * otherwise.
-+ */
-+static struct rmap_item *stable_tree_search(struct page *page,
-+					    struct page **page2,
-+					    struct rmap_item *rmap_item)
-+{
-+	struct rb_node *node = root_stable_tree.rb_node;
-+	struct tree_item *tree_item;
-+	struct rmap_item *found_rmap_item;
-+
-+	while (node) {
-+		int ret;
-+
-+		tree_item = rb_entry(node, struct tree_item, node);
-+		found_rmap_item = tree_item->rmap_item;
-+		while (found_rmap_item) {
-+			BUG_ON(!found_rmap_item->stable_tree);
-+			BUG_ON(!found_rmap_item->tree_item);
-+			if (!rmap_item ||
-+			     !(found_rmap_item->mm == rmap_item->mm &&
-+			      found_rmap_item->address == rmap_item->address)) {
-+				if (!is_zapped_item(found_rmap_item, page2))
-+					break;
-+				remove_rmap_item_from_tree(found_rmap_item);
-+			}
-+			found_rmap_item = found_rmap_item->next;
-+		}
-+		if (!found_rmap_item)
-+			goto out_didnt_find;
-+
-+		/*
-+		 * We can trust the value of the memcmp as we know the pages
-+		 * are write protected.
-+		 */
-+		ret = memcmp_pages(page, page2[0]);
-+
-+		if (ret < 0) {
-+			put_page(page2[0]);
-+			node = node->rb_left;
-+		} else if (ret > 0) {
-+			put_page(page2[0]);
-+			node = node->rb_right;
-+		} else {
-+			goto out_found;
-+		}
-+	}
-+out_didnt_find:
-+	found_rmap_item = NULL;
-+out_found:
-+	return found_rmap_item;
-+}
-+
-+/*
-+ * stable_tree_insert - insert into the stable tree, new rmap_item that is
-+ * pointing into a new KsmPage.
-+ *
-+ * @page: the page that we are searching identical page to inside the stable
-+ *	  tree.
-+ * @new_tree_item: the new tree item we are going to link into the stable tree.
-+ * @rmap_item: pointer into the reverse mapping item.
-+ *
-+ * this function return 0 if success, 1 otherwise.
-+ * otherwise.
-+ */
-+static int stable_tree_insert(struct page *page,
-+			      struct tree_item *new_tree_item,
-+			      struct rmap_item *rmap_item)
-+{
-+	struct rb_node **new = &(root_stable_tree.rb_node);
-+	struct rb_node *parent = NULL;
-+	struct tree_item *tree_item;
-+	struct page *page2[1];
-+
-+	while (*new) {
-+		int ret;
-+		struct rmap_item *insert_rmap_item;
-+
-+		tree_item = rb_entry(*new, struct tree_item, node);
-+		BUG_ON(!tree_item);
-+		BUG_ON(!tree_item->rmap_item);
-+
-+		insert_rmap_item = tree_item->rmap_item;
-+		while (insert_rmap_item) {
-+			BUG_ON(!insert_rmap_item->stable_tree);
-+			BUG_ON(!insert_rmap_item->tree_item);
-+			if (!(insert_rmap_item->mm == rmap_item->mm &&
-+			     insert_rmap_item->address == rmap_item->address)) {
-+				if (!is_zapped_item(insert_rmap_item, page2))
-+					break;
-+				remove_rmap_item_from_tree(insert_rmap_item);
-+			}
-+			insert_rmap_item = insert_rmap_item->next;
-+		}
-+		if (!insert_rmap_item)
-+			return 1;
-+
-+		ret = memcmp_pages(page, page2[0]);
-+
-+		parent = *new;
-+		if (ret < 0) {
-+			put_page(page2[0]);
-+			new = &((*new)->rb_left);
-+		} else if (ret > 0) {
-+			put_page(page2[0]);
-+			new = &((*new)->rb_right);
-+		} else {
-+			/*
-+			 * It isnt a bug when we are here (the fact that we
-+			 * didnt find the page inside the stable tree), beacuse:
-+			 * when we searched the page inside the stable tree
-+			 * it was still not write protected, and therefore it
-+			 * could have changed later.
-+			 */
-+			return 1;
-+		}
-+	}
-+
-+	rb_link_node(&new_tree_item->node, parent, new);
-+	rb_insert_color(&new_tree_item->node, &root_stable_tree);
-+	nnodes_stable_tree++;
-+	rmap_item->stable_tree = 1;
-+	rmap_item->tree_item = new_tree_item;
-+
-+	return 0;
-+}
-+
-+/*
-+ * unstable_tree_search_insert - search and insert items into the unstable tree.
-+ *
-+ * @page: the page that we are going to search for identical page or to insert
-+ *	  into the unstable tree
-+ * @page2: pointer into identical page that was found inside the unstable tree
-+ * @page_rmap_item: the reverse mapping item of page
-+ *
-+ * this function search if identical page to the page that we
-+ * are scanning right now is found inside the unstable tree, and in case no page
-+ * with identical content is exist inside the unstable tree, we insert
-+ * page_rmap_item as a new object into the unstable tree.
-+ *
-+ * this function return pointer to rmap_item pointer of item that is found to
-+ * be identical to the page that we are scanning right now, NULL otherwise.
-+ *
-+ * (this function do both searching and inserting, beacuse the fact that
-+ *  searching and inserting share the same walking algorithem in rbtrees)
-+ */
-+static struct tree_item *unstable_tree_search_insert(struct page *page,
-+					struct page **page2,
-+					struct rmap_item *page_rmap_item)
-+{
-+	struct rb_node **new = &(root_unstable_tree.rb_node);
-+	struct rb_node *parent = NULL;
-+	struct tree_item *tree_item;
-+	struct tree_item *new_tree_item;
-+	struct rmap_item *rmap_item;
-+
-+	while (*new) {
-+		int ret;
-+
-+		tree_item = rb_entry(*new, struct tree_item, node);
-+		BUG_ON(!tree_item);
-+		rmap_item = tree_item->rmap_item;
-+		BUG_ON(!rmap_item);
-+
-+		/*
-+		 * We dont want to swap in pages
-+		 */
-+		if (!is_present_pte(rmap_item->mm, rmap_item->address))
-+			return NULL;
-+
-+		down_read(&rmap_item->mm->mmap_sem);
-+		ret = get_user_pages(current, rmap_item->mm, rmap_item->address,
-+				     1, 0, 0, page2, NULL);
-+		up_read(&rmap_item->mm->mmap_sem);
-+		if (!ret)
-+			return NULL;
-+
-+		ret = memcmp_pages(page, page2[0]);
-+
-+		parent = *new;
-+		if (ret < 0) {
-+			put_page(page2[0]);
-+			new = &((*new)->rb_left);
-+		} else if (ret > 0) {
-+			put_page(page2[0]);
-+			new = &((*new)->rb_right);
-+		} else {
-+			return tree_item;
-+		}
-+	}
-+
-+	if (!page_rmap_item)
-+		return NULL;
-+
-+	new_tree_item = alloc_tree_item();
-+	if (!new_tree_item)
-+		return NULL;
-+
-+	page_rmap_item->tree_item = new_tree_item;
-+	page_rmap_item->stable_tree = 0;
-+	new_tree_item->rmap_item = page_rmap_item;
-+	rb_link_node(&new_tree_item->node, parent, new);
-+	rb_insert_color(&new_tree_item->node, &root_unstable_tree);
-+
-+	return NULL;
-+}
-+
-+/*
-+ * update_stable_tree - check if the page inside tree got zapped,
-+ * and if it got zapped, kick it from the tree.
-+ *
-+ * we return 1 in case we removed the rmap_item.
-+ */
-+int update_tree(struct rmap_item *rmap_item)
-+{
-+	if (!rmap_item->stable_tree) {
-+		if (unlikely(rmap_item->kpage_outside_tree)) {
-+			remove_rmap_item_from_tree(rmap_item);
-+			return 1;
-+		}
-+		/*
-+		 * If the rmap_item is !stable_tree and in addition
-+		 * it have tree_item != NULL, it mean this rmap_item
-+		 * was inside the unstable tree, therefore we have to free
-+		 * the tree_item from it (beacuse the unstable tree was already
-+		 * flushed by the time we are here).
-+		 */
-+		if (rmap_item->tree_item) {
-+			free_tree_item(rmap_item->tree_item);
-+			rmap_item->tree_item = NULL;
-+			return 0;
-+		}
-+		return 0;
-+	}
-+	/*
-+	 * If we are here it mean the rmap_item was zapped, beacuse the
-+	 * rmap_item was pointing into the stable_tree and there all the pages
-+	 * should be KsmPages, so it shouldnt have came to here in the first
-+	 * place. (cmp_and_merge_page() shouldnt have been called)
-+	 */
-+	remove_rmap_item_from_tree(rmap_item);
-+	return 1;
-+}
-+
-+static void create_new_rmap_item(struct rmap_item *rmap_item,
-+				 struct mm_struct *mm,
-+				 unsigned long addr,
-+				 unsigned int checksum)
-+{
-+	struct hlist_head *bucket;
-+
-+	rmap_item->mm = mm;
-+	rmap_item->address = addr;
-+	rmap_item->oldchecksum = checksum;
-+	rmap_item->stable_tree = 0;
-+	rmap_item->kpage_outside_tree = 0;
-+	rmap_item->tree_item = NULL;
-+
-+	bucket = &rmap_hash[addr % nrmaps_hash];
-+	hlist_add_head(&rmap_item->link, bucket);
-+}
-+
-+/*
-+ * cmp_and_merge_page - take a page computes its hash value and check if there
-+ * is similar hash value to different page,
-+ * in case we find that there is similar hash to different page we call to
-+ * try_to_merge_two_pages().
-+ *
-+ * @ksm_scan: the ksm scanner strcture.
-+ * @page: the page that we are searching identical page to.
-+ */
-+static int cmp_and_merge_page(struct ksm_scan *ksm_scan, struct page *page)
-+{
-+	struct page *page2[1];
-+	struct ksm_mem_slot *slot;
-+	struct tree_item *tree_item;
-+	struct rmap_item *rmap_item;
-+	struct rmap_item *tree_rmap_item;
-+	unsigned int checksum;
-+	unsigned long addr;
-+	int wait = 0;
-+	int ret = 0;
-+
-+	slot = ksm_scan->slot_index;
-+	addr = slot->addr + ksm_scan->page_index * PAGE_SIZE;
-+	rmap_item = get_rmap_item(slot->mm, addr);
-+	if (rmap_item) {
-+		if (update_tree(rmap_item)) {
-+			rmap_item = NULL;
-+			wait = 1;
-+		}
-+	}
-+
-+	/* We first start with searching the page inside the stable tree */
-+	tree_rmap_item = stable_tree_search(page, page2, rmap_item);
-+	if (tree_rmap_item) {
-+		struct rmap_item *tmp_rmap_item = NULL;
-+
-+		if (!rmap_item) {
-+			tmp_rmap_item = alloc_rmap_item();
-+			if (!tmp_rmap_item)
-+				return ret;
-+		}
-+
-+		BUG_ON(!tree_rmap_item->tree_item);
-+		ret = try_to_merge_two_pages(slot->mm, page, tree_rmap_item->mm,
-+					     page2[0], addr,
-+					     tree_rmap_item->address);
-+		put_page(page2[0]);
-+		if (!ret) {
-+			/*
-+			 * The page was successuly merged, lets insert its
-+			 * rmap_item into the stable tree.
-+			 */
-+
-+			if (!rmap_item) {
-+				create_new_rmap_item(tmp_rmap_item, slot->mm,
-+						     addr, 0);
-+				rmap_item = tmp_rmap_item;
-+			}
-+
-+			rmap_item->next = tree_rmap_item->next;
-+			rmap_item->prev = tree_rmap_item;
-+
-+			if (tree_rmap_item->next)
-+				tree_rmap_item->next->prev = rmap_item;
-+
-+			tree_rmap_item->next = rmap_item;
-+
-+			rmap_item->stable_tree = 1;
-+			rmap_item->tree_item = tree_rmap_item->tree_item;
-+		} else {
-+			if (tmp_rmap_item)
-+				free_rmap_item(tmp_rmap_item);
-+		}
-+		ret = !ret;
-+		goto out;
-+	}
-+
-+	/*
-+	 * In case the hash value of the page was changed from the last time we
-+	 * have calculated it, this page to be changed frequely, therefore we
-+	 * dont want to insert it to the unstable tree, and we dont want to
-+	 * waste our time to search if there is something identical to it there.
-+	 */
-+	if (rmap_item) {
-+		checksum = calc_checksum(page);
-+		if (rmap_item->oldchecksum != checksum) {
-+			rmap_item->oldchecksum = checksum;
-+			goto out;
-+		}
-+	}
-+
-+	tree_item = unstable_tree_search_insert(page, page2, rmap_item);
-+	if (tree_item) {
-+		struct rmap_item *tmp_rmap_item = NULL;
-+		struct rmap_item *merge_rmap_item;
-+
-+		merge_rmap_item = tree_item->rmap_item;
-+		BUG_ON(!merge_rmap_item);
-+
-+		if (!rmap_item) {
-+			tmp_rmap_item = alloc_rmap_item();
-+			if (!tmp_rmap_item)
-+				return ret;
-+		}
-+
-+		ret = try_to_merge_two_pages(slot->mm, page,
-+					     merge_rmap_item->mm,
-+					     page2[0], addr,
-+					     merge_rmap_item->address);
-+		/*
-+		 * As soon as we successuly merged this page, we want to remove
-+		 * the rmap_item object of the page that we have merged with
-+		 * from the unstable_tree and instead insert it as a new stable
-+		 * tree node.
-+		 */
-+		if (!ret) {
-+			rb_erase(&tree_item->node, &root_unstable_tree);
-+			/*
-+			 * In case we will fail to insert the page into
-+			 * the stable tree, we will have 2 virtual addresses
-+			 * that are pointing into KsmPage that wont be inside
-+			 * the stable tree, therefore we have to mark both of
-+			 * their rmap as tree_item->kpage_outside_tree = 1
-+			 * and to inc nkpage_out_tree by 2.
-+			 */
-+			if (stable_tree_insert(page2[0],
-+					       tree_item, merge_rmap_item)) {
-+				merge_rmap_item->kpage_outside_tree = 1;
-+				if (!rmap_item) {
-+					create_new_rmap_item(tmp_rmap_item,
-+							     slot->mm,
-+							     addr, 0);
-+					rmap_item = tmp_rmap_item;
-+				}
-+				rmap_item->kpage_outside_tree = 1;
-+				nkpage_out_tree += 2;
-+			} else {
-+				if (tmp_rmap_item) {
-+					create_new_rmap_item(tmp_rmap_item,
-+							     slot->mm, addr, 0);
-+					rmap_item = tmp_rmap_item;
-+				}
-+				rmap_item->stable_tree = 1;
-+			}
-+		} else {
-+			if (tmp_rmap_item)
-+				free_rmap_item(tmp_rmap_item);
-+		}
-+		put_page(page2[0]);
-+		ret = !ret;
-+		goto out;
-+	}
-+	/*
-+	 * When wait is 1, we dont want to calculate the hash value of the page
-+	 * right now, instead we prefer to wait.
-+	 */
-+	if (!wait && !rmap_item) {
-+		rmap_item = alloc_rmap_item();
-+		if (!rmap_item)
-+			return ret;
-+		checksum = calc_checksum(page);
-+		create_new_rmap_item(rmap_item, slot->mm, addr, checksum);
-+	}
-+out:
-+	return ret;
-+}
-+
-+/* return -EAGAIN - no slots registered, nothing to be done */
-+static int scan_get_next_index(struct ksm_scan *ksm_scan)
-+{
-+	struct ksm_mem_slot *slot;
-+
-+	if (list_empty(&slots))
-+		return -EAGAIN;
-+
-+	slot = ksm_scan->slot_index;
-+
-+	/* Are there pages left in this slot to scan? */
-+	if ((slot->npages - ksm_scan->page_index - 1) > 0) {
-+		ksm_scan->page_index++;
-+		return 0;
-+	}
-+
-+	list_for_each_entry_from(slot, &slots, link) {
-+		if (slot == ksm_scan->slot_index)
-+			continue;
-+		ksm_scan->page_index = 0;
-+		ksm_scan->slot_index = slot;
-+		return 0;
-+	}
-+
-+	/* look like we finished scanning the whole memory, starting again */
-+	root_unstable_tree = RB_ROOT;
-+	ksm_scan->page_index = 0;
-+	ksm_scan->slot_index = list_first_entry(&slots,
-+						struct ksm_mem_slot, link);
-+	return 0;
-+}
-+
-+/*
-+ * update slot_index - make sure ksm_scan will point to vaild data,
-+ * it is possible that by the time we are here the data that ksm_scan was
-+ * pointed to was released so we have to call this function every time after
-+ * taking the slots_lock
-+ */
-+static void scan_update_old_index(struct ksm_scan *ksm_scan)
-+{
-+	struct ksm_mem_slot *slot;
-+
-+	if (list_empty(&slots))
-+		return;
-+
-+	list_for_each_entry(slot, &slots, link) {
-+		if (ksm_scan->slot_index == slot)
-+			return;
-+	}
-+
-+	ksm_scan->slot_index = list_first_entry(&slots,
-+						struct ksm_mem_slot, link);
-+	ksm_scan->page_index = 0;
-+}
-+
-+/**
-+ * ksm_scan_start - the ksm scanner main worker function.
-+ * @ksm_scan -    the scanner.
-+ * @scan_npages - number of pages we are want to scan before we return from this
-+ * @function.
-+ *
-+ * (this function can be called from the kernel thread scanner, or from 
-+ *  userspace ioctl context scanner)
-+ *
-+ *  The function return -EAGAIN in case there are not slots to scan.
-+ */
-+static int ksm_scan_start(struct ksm_scan *ksm_scan, unsigned int scan_npages)
-+{
-+	struct ksm_mem_slot *slot;
-+	struct page *page[1];
-+	int val;
-+	int ret = 0;
-+
-+	down_read(&slots_lock);
-+
-+	scan_update_old_index(ksm_scan);
-+
-+	while (scan_npages > 0) {
-+		ret = scan_get_next_index(ksm_scan);
-+		if (ret)
-+			goto out;
-+
-+		slot = ksm_scan->slot_index;
-+
-+		cond_resched();
-+
-+		/*
-+		 * If the page is swapped out or in swap cache, we don't want to
-+		 * scan it (it is just for performance).
-+		 */
-+		if (is_present_pte(slot->mm, slot->addr +
-+				   ksm_scan->page_index * PAGE_SIZE)) {
-+			down_read(&slot->mm->mmap_sem);
-+			val = get_user_pages(current, slot->mm, slot->addr +
-+					     ksm_scan->page_index * PAGE_SIZE ,
-+					      1, 0, 0, page, NULL);
-+			up_read(&slot->mm->mmap_sem);
-+			if (val == 1) {
-+				if (!PageKsm(page[0], slot->mm,
-+					     slot->addr + ksm_scan->page_index *
-+					     PAGE_SIZE))
-+					cmp_and_merge_page(ksm_scan, page[0]);
-+				put_page(page[0]);
-+			}
-+		}
-+		scan_npages--;
-+	}
-+	scan_get_next_index(ksm_scan);
-+out:
-+	up_read(&slots_lock);
-+	return ret;
-+}
-+
-+static struct file_operations ksm_sma_fops = {
-+	.release        = ksm_sma_release,
-+	.unlocked_ioctl = ksm_sma_ioctl,
-+	.compat_ioctl   = ksm_sma_ioctl,
-+};
-+
-+static int ksm_dev_ioctl_create_shared_memory_area(void)
-+{
-+	int fd = -1;
-+	struct ksm_sma *ksm_sma;
-+
-+	ksm_sma = kmalloc(sizeof(struct ksm_sma), GFP_KERNEL);
-+	if (!ksm_sma)
-+		goto out;
-+
-+	INIT_LIST_HEAD(&ksm_sma->sma_slots);
-+
-+	fd = anon_inode_getfd("ksm-sma", &ksm_sma_fops, ksm_sma, 0);
-+	if (fd < 0)
-+		goto out_free;
-+
-+	return fd;
-+out_free:
-+	kfree(ksm_sma);
-+out:
-+	return fd;
-+}
-+
-+static long ksm_dev_ioctl(struct file *filp,
-+			  unsigned int ioctl, unsigned long arg)
-+{
-+	long r = -EINVAL;
-+
-+	switch (ioctl) {
-+	case KSM_GET_API_VERSION:
-+		r = KSM_API_VERSION;
-+		break;
-+	case KSM_CREATE_SHARED_MEMORY_AREA:
-+		r = ksm_dev_ioctl_create_shared_memory_area();
-+		break;
-+	default:
-+		break;
-+	}
-+	return r;
-+}
-+
-+static struct file_operations ksm_chardev_ops = {
-+	.unlocked_ioctl = ksm_dev_ioctl,
-+	.compat_ioctl   = ksm_dev_ioctl,
-+	.owner          = THIS_MODULE,
-+};
-+
-+static struct miscdevice ksm_dev = {
-+	KSM_MINOR,
-+	"ksm",
-+	&ksm_chardev_ops,
-+};
-+
-+int kthread_ksm_scan_thread(void *nothing)
-+{
-+	while (!kthread_should_stop()) {
-+		if (ksmd_flags & ksm_control_flags_run) {
-+			down_read(&kthread_lock);
-+			ksm_scan_start(&kthread_ksm_scan,
-+				       kthread_pages_to_scan);
-+			up_read(&kthread_lock);
-+			schedule_timeout_interruptible(
-+					usecs_to_jiffies(kthread_sleep));
-+		} else {
-+			wait_event_interruptible(kthread_wait,
-+					ksmd_flags & ksm_control_flags_run ||
-+					kthread_should_stop());
-+		}
-+	}
-+	return 0;
-+}
-+
-+#define KSM_ATTR_RO(_name) \
-+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
-+#define KSM_ATTR(_name) \
-+	static struct kobj_attribute _name##_attr = \
-+		__ATTR(_name, 0644, _name##_show, _name##_store)
-+
-+static ssize_t sleep_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			  char *buf)
-+{
-+	unsigned int usecs;
-+
-+	down_read(&kthread_lock);
-+	usecs = kthread_sleep;
-+	up_read(&kthread_lock);
-+
-+	return sprintf(buf, "%u\n", usecs);
-+}
-+
-+static ssize_t sleep_store(struct kobject *kobj,
-+				   struct kobj_attribute *attr,
-+				   const char *buf, size_t count)
-+{
-+	unsigned long usecs;
-+	int err;
-+
-+	err = strict_strtoul(buf, 10, &usecs);
-+	if (err)
-+		return 0;
-+
-+	/* TODO sanitize usecs */
-+
-+	down_write(&kthread_lock);
-+	kthread_sleep = usecs;
-+	up_write(&kthread_lock);
-+
-+	return count;
-+}
-+KSM_ATTR(sleep);
-+
-+static ssize_t pages_to_scan_show(struct kobject *kobj,
-+				  struct kobj_attribute *attr, char *buf)
-+{
-+	unsigned long nr_pages;
-+
-+	down_read(&kthread_lock);
-+	nr_pages = kthread_pages_to_scan;
-+	up_read(&kthread_lock);
-+
-+	return sprintf(buf, "%lu\n", nr_pages);
-+}
-+
-+static ssize_t pages_to_scan_store(struct kobject *kobj,
-+				   struct kobj_attribute *attr,
-+				   const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long nr_pages;
-+
-+	err = strict_strtoul(buf, 10, &nr_pages);
-+	if (err)
-+		return 0;
-+
-+	down_write(&kthread_lock);
-+	kthread_pages_to_scan = nr_pages;
-+	up_write(&kthread_lock);
-+
-+	return count;
-+}
-+KSM_ATTR(pages_to_scan);
-+
-+static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			char *buf)
-+{
-+	unsigned long run;
-+
-+	down_read(&kthread_lock);
-+	run = ksmd_flags;
-+	up_read(&kthread_lock);
-+
-+	return sprintf(buf, "%lu\n", run);
-+}
-+
-+static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
-+			 const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long k_flags;
-+
-+	err = strict_strtoul(buf, 10, &k_flags);
-+	if (err)
-+		return 0;
-+
-+	down_write(&kthread_lock);
-+	ksmd_flags = k_flags;
-+	up_write(&kthread_lock);
-+
-+	if (ksmd_flags)
-+		wake_up_interruptible(&kthread_wait);
-+
-+	return count;
-+}
-+KSM_ATTR(run);
-+
-+static ssize_t pages_shared_show(struct kobject *kobj,
-+				 struct kobj_attribute *attr, char *buf)
-+{
-+	/*
-+	 * Note: this number does not include the shared pages outside the
-+	 * stable tree.
-+	 */
-+	return sprintf(buf, "%lu\n", ksm_pages_shared - nnodes_stable_tree);
-+}
-+KSM_ATTR_RO(pages_shared);
-+
-+static ssize_t kernel_pages_allocated_show(struct kobject *kobj,
-+					   struct kobj_attribute *attr,
-+					   char *buf)
-+{
-+	return sprintf(buf, "%lu\n", nnodes_stable_tree);
-+}
-+KSM_ATTR_RO(kernel_pages_allocated);
-+
-+static ssize_t max_kernel_pages_store(struct kobject *kobj,
-+				      struct kobj_attribute *attr,
-+				      const char *buf, size_t count)
-+{
-+	int err;
-+	unsigned long nr_pages;
-+
-+	err = strict_strtoul(buf, 10, &nr_pages);
-+	if (err)
-+		return 0;
-+
-+	down_write(&kthread_lock);
-+	kthread_max_kernel_pages = nr_pages;
-+	up_write(&kthread_lock);
-+
-+	return count;
-+}
-+
-+static ssize_t max_kernel_pages_show(struct kobject *kobj,
-+				     struct kobj_attribute *attr, char *buf)
-+{
-+	unsigned long nr_pages;
-+
-+	down_read(&kthread_lock);
-+	nr_pages = kthread_max_kernel_pages;
-+	up_read(&kthread_lock);
-+
-+	return sprintf(buf, "%lu\n", nr_pages);
-+}
-+KSM_ATTR(max_kernel_pages);
-+
-+static struct attribute *ksm_attrs[] = {
-+	&sleep_attr.attr,
-+	&pages_to_scan_attr.attr,
-+	&run_attr.attr,
-+	&pages_shared_attr.attr,
-+	&kernel_pages_allocated_attr.attr,
-+	&max_kernel_pages_attr.attr,
-+	NULL,
-+};
-+
-+static struct attribute_group ksm_attr_group = {
-+	.attrs = ksm_attrs,
-+	.name = "ksm",
-+};
-+
-+
-+static int __init ksm_init(void)
-+{
-+	int r;
-+
-+	r = ksm_slab_init();
-+	if (r)
-+		goto out;
-+
-+	r = rmap_hash_init();
-+	if (r)
-+		goto out_free1;
-+
-+	kthread = kthread_run(kthread_ksm_scan_thread, NULL, "kksmd");
-+	if (IS_ERR(kthread)) {
-+		printk(KERN_ERR "ksm: creating kthread failed\n");
-+		r = PTR_ERR(kthread);
-+		goto out_free2;
-+	}
-+
-+	r = misc_register(&ksm_dev);
-+	if (r) {
-+		printk(KERN_ERR "ksm: misc device register failed\n");
-+		goto out_free3;
-+	}
-+
-+	r = sysfs_create_group(mm_kobj, &ksm_attr_group);
-+	if (r) {
-+		printk(KERN_ERR "ksm: register sysfs failed\n");
-+		goto out_free4;
-+	}
-+
-+	printk(KERN_WARNING "ksm loaded\n");
-+	return 0;
-+
-+out_free4:
-+	misc_deregister(&ksm_dev);
-+out_free3:
-+	kthread_stop(kthread);
-+out_free2:
-+	rmap_hash_free();
-+out_free1:
-+	ksm_slab_free();
-+out:
-+	return r;
-+}
-+
-+static void __exit ksm_exit(void)
-+{
-+	sysfs_remove_group(mm_kobj, &ksm_attr_group);
-+	misc_deregister(&ksm_dev);
-+	ksmd_flags = ksm_control_flags_run;
-+	kthread_stop(kthread);
-+	rmap_hash_free();
-+	ksm_slab_free();
-+}
-+
-+module_init(ksm_init)
-+module_exit(ksm_exit)
--- 
-1.5.6.5
+CnJlcXVpcmUgJ2ZpbmQnCgokc3Vic3lzX2FycmF5ID0gQXJyYXkubmV3CiRhbGxzdWJzeXMgPSBI
+YXNoLm5ldwokYWxsbW91bnRzID0gSGFzaC5uZXcKCmNsYXNzIFN1Yl9zeXN0ZW0KICBkZWYgaW5p
+dGlhbGl6ZShuYW1lLCBtb3VudCwgb3B0aW9uKQogICAgQG5hbWUgPSBuYW1lCiAgICBAbW91bnQ9
+IG1vdW50CiAgICBAaGllcmFyY2h5ID0gQXJyYXkubmV3CiAgICBpZiAob3B0aW9uID1+IC8uKm5v
+cHJlZml4LiovKSB0aGVuCiAgICAgIEBwcmVmaXggPSIiCiAgICBlbHNlCiAgICAgIEBwcmVmaXgg
+PSBuYW1lICsiLiIKICAgIGVuZAogICBAb3B0aW9uID0gb3B0aW9uCiAgIEB3cml0YWJsZV9maWxl
+cyA9IEFycmF5Lm5ldwogIGVuZAoKICBkZWYgbW91bnRfcG9pbnQKICAgIEBtb3VudAogIGVuZAoK
+ICBkZWYgdHlwZQogICAgQG5hbWUKICBlbmQKCiAgZGVmIG15ZmlsZShuYW1lLCBhdHRyKQogICAg
+bmFtZSArICIvIiArIEBwcmVmaXggKyBhdHRyCiAgZW5kCgogIGRlZiBvcHRpb24KICAgIEBvcHRp
+b24KICBlbmQKICAjCiAgIyB3YWxrIGRpcmVjdHJveSB0cmVlIGFuZCBhZGQgQ2dyb3VwcyB0byBo
+YXNoLgogICMKICBkZWYgcmVsb2FkCiAgICBAaGllcmFyY2h5LmNsZWFyCiAgICBsZW4gPSBAbW91
+bnQuc2l6ZQogICAgRmluZC5maW5kKEBtb3VudCkgZG8gfGZpbGV8CiAgICAgIGlmIEZpbGUuZGly
+ZWN0b3J5PyhmaWxlKSB0aGVuCglAaGllcmFyY2h5LnB1c2goZmlsZSk7CiAgICAgIGVuZAogICAg
+ZW5kCiAgZW5kCgogIGRlZiBlYWNoX2Nncm91cCgmYmxvY2spCiAgICBAaGllcmFyY2h5LmVhY2go
+JmJsb2NrKQogIGVuZAoKICBkZWYgZW50KGlkKQogICAgaWYgKGlkIDwgMCkgdGhlbiByZXR1cm4g
+bmlsCiAgICBlbmQKICAgIHJldHVybiBAaGllcmFyY2h5LmF0KGlkKQogIGVuZAoKICBkZWYgc2l6
+ZQogICAgQGhpZXJhcmNoeS5zaXplCiAgZW5kCgogIGRlZiBzdGF0IChuYW1lKQogICAgW1siTm90
+IGltcGxlbWVudGVkIiwgIiJdXQogIGVuZAoKICBkZWYgZWFjaF93cml0YWJsZV9maWxlcyhuYW1l
+KQogICAgQHdyaXRhYmxlX2ZpbGVzLmVhY2gge3x4fCB5aWVsZCBteWZpbGUobmFtZSx4KX0KICBl
+bmQKCiAgZGVmIHRhc2tzKG5hbWUpCiAgICBsaXN0PUFycmF5Lm5ldwogICAgYmVnaW4KICAgICAg
+RmlsZS5vcGVuKG5hbWUrIi90YXNrcyIsICJyIikgZG8gfGZpbGV8CiAgICAgICAgZmlsZS5lYWNo
+X2xpbmUgZG8gfHh8CiAgICAgICAgeC5jaG9tcCEKICAgICAgICBsaXN0LnB1c2goeCkKICAgICAg
+ICBlbmQKICAgICAgZW5kCiAgICByZXNjdWUKICAgICAgcmV0dXJuIG5pbAogICAgZW5kCiAgICBy
+ZXR1cm4gbGlzdAogIGVuZAplbmQKCmRlZiByZWFkX29uZWxpbmVfZmlsZShmaWxlbmFtZSkKICB2
+YWw9bmlsCiAgYmVnaW4KICAgIGYgPSBGaWxlLm9wZW4oZmlsZW5hbWUsICJyIikKICAgIGxpbmUg
+PSBmLnJlYWRsaW5lCiAgICB2YWwgPSBsaW5lLnRvX2kKICByZXNjdWUKICAgIHRocm93IDpyZWFk
+ZmFpbHVyZSxmYWxzZQogIGVuc3VyZQogICAgZi5jbG9zZSBpZiBmICE9IG5pbAogIGVuZAogIHJl
+dHVybiB2YWwKZW5kCgojCiNmb3IgQ1BVIHN1YnN5c3RlbQojCmNsYXNzIENwdV9TdWJzeXMgPCBT
+dWJfc3lzdGVtCiAgZGVmIGluaXRpYWxpemUobW91bnQsIG9wdGlvbikKICAgIHN1cGVyKCJjcHUi
+LCBtb3VudCwgb3B0aW9uKQogICAgQHdyaXRhYmxlX2ZpbGVzICs9IFsic2hhcmVzIl0KICBlbmQK
+CiAgZGVmIHJlYWRfc2hhcmUgKG5hbWUpCiAgICByZXQgPSBuaWwKICAgIGNhdGNoIDpyZWFkZmFp
+bHVyZSBkbwogICAgICB2YWwgPSByZWFkX29uZWxpbmVfZmlsZShteWZpbGUobmFtZSwic2hhcmVz
+IikpCiAgICAgIHJldHVybiBbdmFsLnRvX3MsIHZhbC50b19zKyIgKDEwMCUpIl0gaWYgKG5hbWUg
+PT0gQG1vdW50KQogICAgICBhbGw9MAoKICAgICAgZGlybmFtZSA9IEZpbGUuZGlybmFtZShuYW1l
+KQogICAgICBEaXIuZm9yZWFjaChkaXJuYW1lKSBkbyB8eHwKICAgICAgICBuZXh0IGlmICgoeCA9
+PSAiLiIpIHx8ICh4ID09ICIuLiIpKQogICAgICAgIHggPSAiI3tkaXJuYW1lfS8je3h9IgogICAg
+ICAgIG5leHQgdW5sZXNzIEZpbGUuZGlyZWN0b3J5Pyh4KQogICAgICAgIG5leHQgdW5sZXNzIEZp
+bGUuZXhpc3Q/KG15ZmlsZShuYW1lLCJzaGFyZXMiKSkKICAgICAgICBnb3QgPSByZWFkX29uZWxp
+bmVfZmlsZShteWZpbGUobmFtZSwic2hhcmVzIikpCiAgICAgICAgYWxsKz1nb3QKICAgICAgZW5k
+CiAgICAgIHNoYXJlPXNwcmludGYoIiVkICglLjFmJSUpIiwgYWxsLCB2YWwqMTAwLjAvYWxsKQog
+ICAgICByZXQgPSBbdmFsLnRvX3MsIHNoYXJlXQogICAgZW5kCiAgICByZXR1cm4gcmV0CiAgZW5k
+CgogIGRlZiBzdGF0KG5hbWUpCiAgICBsZXZlbD0wCiAgICBkYXRhID0gQXJyYXkubmV3CiAgICBw
+b3MgPSBAbW91bnQKICAgIG5hbWVfYXJyYXkgPSBBcnJheS5uZXcKICAgIGxvb3AgZG8KICAgICAg
+bmFtZV9hcnJheS5wdXNoKG5hbWUpCiAgICAgIGJyZWFrIGlmIG5hbWUgPT0gQG1vdW50CiAgICAg
+IG5hbWUgPSBGaWxlLmRpcm5hbWUobmFtZSkKICAgIGVuZAogICAgbmFtZV9hcnJheS5yZXZlcnNl
+IQogICAgbmFtZV9hcnJheS5lYWNoIGRvIHx4fAogICAgICB2YWwgPSByZWFkX3NoYXJlKHgpCiAg
+ICAgIGlmIHZhbCA9PSBuaWwgdGhlbgogICAgICAgIGRhdGEgPSBuaWwKICAgICAgICBicmVhawog
+ICAgICBlbmQKICAgICAgc3RyID0gc3ByaW50ZigiJTVzIC8gJXMiLCB2YWxbMF0sIHZhbFsxXSkK
+ICAgICAgZGF0YS5wdXNoKFt4LCBzdHJdKQogICAgZW5kCiAgICByZXR1cm4gZGF0YSBpZiAoZGF0
+YSAhPSBuaWwgJiYgZGF0YS5zaXplID4gMCkKICAgIHJldHVybiBuaWwKICBlbmQKZW5kCgojCiNm
+b3IgQ1BVYWNjdCBzdWJzeXN0ZW0KIwpjbGFzcyBDcHVhY2N0X1N1YnN5cyA8IFN1Yl9zeXN0ZW0K
+ICBkZWYgaW5pdGlhbGl6ZShtb3VudCwgb3B0aW9uKQogICAgc3VwZXIoImNwdWFjY3QiLCBtb3Vu
+dCwgb3B0aW9uKQogIGVuZAogIGRlZiBzdGF0KG5hbWUpCiAgICBkYXRhID0gQXJyYXkubmV3CiAg
+ICBjYXRjaCA6cmVhZF9mYWlsdXJlIGRvCiAgICAgIHZhbCA9IHJlYWRfb25lbGluZV9maWxlKG15
+ZmlsZShuYW1lLCAidXNhZ2UiKSkKICAgICAgZGF0YS5wdXNoKFsiQWxsIiwgdmFsLnRvX3NdKQog
+ICAgICBiZWdpbgogICAgICAgIGYgPSBGaWxlLm9wZW4obXlmaWxlKG5hbWUsInVzYWdlX3BlcmNw
+dSIpLCAiciIpCiAgICAgICAgaWQ9MAogICAgICAgIGxpbmUgPSBmLnJlYWRsaW5lCiAgICAgICAg
+d2hpbGUgKGxpbmUgPX4vXGQrLykgZG8KICAgICAgICAgIGxpbmUgPSQnCiAgICAgICAgICBkYXRh
+LnB1c2goWyJjcHUiK2lkLnRvX3MsICQmXSkKICAgICAgICAgIGlkICs9IDEKICAgICAgICBlbmQg
+CiAgICAgIHJlc2N1ZQogICAgICAgIGRhdGEuY2xlYXIKICAgICAgZW5zdXJlCiAgICAgICAgZi5j
+bG9zZSBpZiBmICE9IG5pbAogICAgICBlbmQKICAgIHJldHVybiBkYXRhIGlmIGRhdGEuc2l6ZSA+
+IDAKICAgIHJldHVybiBuaWwKICAgIGVuZAogIGVuZAplbmQKCiMKIyBGb3IgY3B1c2V0CiMKY2xh
+c3MgQ3B1c2V0X1N1YnN5cyA8IFN1Yl9zeXN0ZW0KICBkZWYgaW5pdGlhbGl6ZShtb3VudCwgb3B0
+aW9uKQogICAgc3VwZXIoImNwdXNldCIsIG1vdW50LCBvcHRpb24pCiAgICBAZWxlbWVudHMgPVsi
+Y3B1X2V4Y2x1c2l2ZSIsImNwdXMiLCJtZW1zIiwgIm1lbV9leGNsdXNpdmUiLCJtZW1faGFyZHdh
+bGwiLAogICAgICAgICAgICAgICAgIm1lbW9yeV9taWdyYXRlIiwgIm1lbW9yeV9wcmVzc3VyZSIs
+ICJtZW1vcnlfcHJlc3N1cmVfZW5hYmxlZCIsCiAgICAgICAgICAgICAgICAibWVtb3J5X3NwcmVh
+ZF9wYWdlIiwibWVtb3J5X3NwcmVhZF9zbGFiIiwKICAgICAgICAgICAgICAgICJzY2hlZF9sb2Fk
+X2JhbGFuY2UiLCJzY2hlZF9yZWxheF9kb21haW5fbGV2ZWwiXQogICAgQHdyaXRhYmxlX2ZpbGVz
+ICs9IEBlbGVtZW50cwogIGVuZAogIGRlZiBzdGF0KG5hbWUpCiAgICBkYXRhID0gQXJyYXkubmV3
+CiAgICBmb3IgeCBpbiBAZWxlbWVudHMKICAgICAgYmVnaW4KICAgICAgICBmaWxlbmFtZSA9IG15
+ZmlsZShuYW1lLCB4KQogICAgICAgIG5leHQgdW5sZXNzIChGaWxlLmZpbGU/KGZpbGVuYW1lKSkK
+ICAgICAgICBGaWxlLm9wZW4oZmlsZW5hbWUsICJyIikgZG8gfCBmaWxlIHwKICAgICAgICAgIHN0
+ciA9IGZpbGUucmVhZGxpbmUKICAgICAgICAgIHN0ci5jaG9tcCEKICAgICAgICAgIGNhc2UgeAog
+ICAgICAgICAgd2hlbiAiY3B1cyIsICJtZW1zIgogICAgICAgICAgICBzdHIgPSAiZW1wdHkiIGlm
+IChzdHIgPT0gIiIpCiAgICAgICAgICBlbmQKICAgICAgICAgIGRhdGEucHVzaChbeCxzdHJdKQog
+ICAgICAgIGVuZAogICAgICByZXNjdWUKICAgICAgICAjZGF0YSA9IG5pbAogICAgICAgIGJyZWFr
+CiAgICAgIGVuZAogICAgZW5kCiAgICByZXR1cm4gZGF0YQogIGVuZAplbmQKIwojZm9yIE1lbW9y
+eSBTdWJzeXMKIwpkZWYgY29udmVydF9ieXRlcyhieXRlcywgcHJlY2lzZSkKICBjYXNlCiAgd2hl
+biAocHJlY2lzZSA9PSAwKSAmJiAoYnl0ZXMgPiA2NCAqIDEwMjQqMTAyNCoxMDI0KjEwMjQpCiAg
+ICBzcHJpbnRmKCJVbmxpbWl0ZWQiKQogIHdoZW4gKHByZWNpc2UgPT0gMCkgJiYgKGJ5dGVzID4g
+MTAyNCoxMDI0KjEwMjQqMTAyNCkKICAgIHNwcmludGYoIiVkVCIsYnl0ZXMvMTAyNC8xMDI0LzEw
+MjQvMTAyNCkKICB3aGVuIChwcmVjaXNlID09IDApICYmIChieXRlcyA+IDEwMjQqMTAyNCoxMDI0
+KQogICAgc3ByaW50ZigiJWRHIiwgYnl0ZXMvMTAyNC8xMDI0LzEwMjQpCiAgd2hlbiAoYnl0ZXMg
+PiAxMDI0KjEwMjQpCiAgICBzcHJpbnRmKCIlZE0iLCBieXRlcy8xMDI0LzEwMjQpCiAgd2hlbiAo
+Ynl0ZXMgPiAxMDI0KQogICAgc3ByaW50ZigiJWRrIiwgYnl0ZXMvMTAyNCkKICBlbHNlCiAgICBz
+cHJpbnRmKCIlZCIsIGJ5dGVzKQogIGVuZAplbmQKCiMKI2ZvciBNZW1vcnkgU3Vic3lzdGVtCiMK
+Y2xhc3MgTWVtb3J5X1N1YnN5cyA8IFN1Yl9zeXN0ZW0KICBkZWYgaW5pdGlhbGl6ZShtb3VudCwg
+b3B0aW9uKQogICAgc3VwZXIoIm1lbW9yeSIsIG1vdW50LCBvcHRpb24pCiAgICBpZiAoRmlsZS5l
+eGlzdD8oIiN7bW91bnR9L21lbW9yeS5tZW1zdy51c2FnZV9pbl9ieXRlcyIpKSB0aGVuCiAgICAg
+IEBtZW1zdz10cnVlCiAgICBlbHNlCiAgICAgIEBtZW1zdz1mYWxzZQogICAgZW5kCiAgICBAd3Jp
+dGFibGVfZmlsZXMgKz0gWyJsaW1pdF9pbl9ieXRlcyIsICJ1c2VfaGllcmFyY2h5Iiwic3dhcHBp
+bmVzcyIsICJzb2Z0X2xpbWl0X2luX2J5dGVzIl0KICAgIGlmIChAbWVtc3cpIHRoZW4KICAgICAg
+QHdyaXRhYmxlX2ZpbGVzICs9IFsibWVtc3cubGltaXRfaW5fYnl0ZXMiXQogICAgZW5kCiAgZW5k
+CiAgIwogICMgRmluZCBhIHJvb3QgZGlyZWN0cm95IG9mIGhpZXJhcmNoeS4KICAjCiAgZGVmIGZp
+bmRfaGllcmFyY2h5X3Jvb3QobmFtZSkKICAgIGN1cj1bbmFtZSwgRmlsZS5kaXJuYW1lKG5hbWUp
+XQogICAgcmV0PUBtb3VudAogICAgd2hpbGUgKGN1clswXSAhPSBAbW91bnQpCiAgICAgIHJldD0i
+aG9nZSIKICAgICAgdW5kZXIgPSByZWFkX29uZWxpbmVfZmlsZSgiI3tjdXJbMV19L21lbW9yeS51
+c2VfaGllcmFyY2h5IikKICAgICAgaWYgKHVuZGVyID09IDApIHRoZW4KICAgICAgICByZXR1cm4g
+Y3VyWzBdCiAgICAgIGVuZAogICAgICBjdXJbMF0gPSBjdXJbMV0KICAgICAgY3VyWzFdID0gRmls
+ZS5kaXJuYW1lKGN1clsxXSkKICAgIGVuZAogICAgcmV0dXJuIHJldAogIGVuZAogICMKICAjIEdl
+bmVyYXRlIGFuIGFycmF5IGZvciByZXBvcmludGcgc3RhdHVzCiAgIwogIGRlZiBzdGF0KG5hbWUp
+CiAgICBkYXRhID0gQXJyYXkubmV3CgogICAgc3VjY2VzcyA9IGNhdGNoKDpyZWFkZmFpbHVyZSkg
+ZG8KICAgICAgdW5kZXIgPXJlYWRfb25lbGluZV9maWxlKG15ZmlsZShuYW1lLCJ1c2VfaGllcmFy
+Y2h5IikpCiAgICAgIGlmICh1bmRlciA9PSAxKSB0aGVuCiAgICAgICAgc3RyPWZpbmRfaGllcmFy
+Y2h5X3Jvb3QobmFtZSkKICAgICAgICBpZiAoc3RyICE9IG5hbWUpIHRoZW4KICAgICAgICAgIHN0
+cj0idW5kZXIgI3tzdHJ9IgogICAgICAgICAgdW5kZXI9MgogICAgICAgIGVsc2UKICAgICAgICAg
+IHN0cj0iaGllcmFyY2h5IFJPT1QiCiAgICAgICAgZW5kCiAgICAgIGVsc2UgI05vdCB1bmRlciBo
+aWVyYXJjaHkKICAgICAgICBzdHI9IiIKICAgICAgZW5kCiAgICAgIGVudCA9IFsiTWVtb3J5IFN1
+YnN5cyIsIHN0cl0KICAgICAgZGF0YS5wdXNoKGVudCkKICAgICAgCiAgICAgICMgTGltaXQgYW5k
+IFVzYWdlCiAgICAgIHg9QXJyYXkubmV3CiAgICAgIHgucHVzaCgiVXNhZ2UvTGltaXQiKQoKICAg
+ICAgYnl0ZXMgPSByZWFkX29uZWxpbmVfZmlsZShteWZpbGUobmFtZSwidXNhZ2VfaW5fYnl0ZXMi
+KSkKICAgICAgdXNhZ2UgPSBjb252ZXJ0X2J5dGVzKGJ5dGVzLCAxKQoKICAgICAgaWYgKEBtZW1z
+dykgdGhlbgogICAgICAgIGJ5dGVzID0gcmVhZF9vbmVsaW5lX2ZpbGUobXlmaWxlKG5hbWUsIm1l
+bXN3LnVzYWdlX2luX2J5dGVzIikpCiAgICAgICAgdXNhZ2UyID0gY29udmVydF9ieXRlcyhieXRl
+cywgMSkKICAgICAgICB1c2FnZSA9ICIje3VzYWdlfSAoI3t1c2FnZTJ9KSIKICAgICAgZW5kCiAg
+ICAgIGJ5dGVzID0gcmVhZF9vbmVsaW5lX2ZpbGUobXlmaWxlKG5hbWUsImxpbWl0X2luX2J5dGVz
+IikpCiAgICAgIGxpbWl0ID0gY29udmVydF9ieXRlcyhieXRlcywgMCkKICAgICAgdXNhZ2UgPSAi
+I3t1c2FnZX0gLyAje2xpbWl0fSIKICAgICAgaWYgKEBtZW1zdykgdGhlbgogICAgICAgIGJ5dGVz
+ID0gcmVhZF9vbmVsaW5lX2ZpbGUobXlmaWxlKG5hbWUsIm1lbXN3LmxpbWl0X2luX2J5dGVzIikp
+CiAgICAgICAgbGltaXQyID0gY29udmVydF9ieXRlcyhieXRlcywgMCkKICAgICAgICB1c2FnZSA9
+ICIje3VzYWdlfSAoI3tsaW1pdDJ9KSIKICAgICAgZW5kCiAgICAgIHgucHVzaCh1c2FnZSkKCiAg
+ICAgIGRhdGEucHVzaCh4KQoKICAgICAgIyBNQVggVVNBR0UKICAgICAgeCA9IEFycmF5Lm5ldwog
+ICAgICB4LnB1c2goIk1heCBVc2FnZSIpCiAgICAgIGJ5dGVzID0gcmVhZF9vbmVsaW5lX2ZpbGUo
+bXlmaWxlKG5hbWUsICJtYXhfdXNhZ2VfaW5fYnl0ZXMiKSkKICAgICAgdXNhZ2UgPSBjb252ZXJ0
+X2J5dGVzKGJ5dGVzLCAxKQogICAgICBpZiAoQG1lbXN3KSB0aGVuCiAgICAgICAgYnl0ZXMgPSBy
+ZWFkX29uZWxpbmVfZmlsZShteWZpbGUobmFtZSwibWVtc3cubWF4X3VzYWdlX2luX2J5dGVzIikp
+CiAgICAgICAgdXNhZ2UyID0gY29udmVydF9ieXRlcyhieXRlcywgMSkKICAgICAgICB1c2FnZSA9
+ICIje3VzYWdlfSAoI3t1c2FnZTJ9KSIKICAgICAgZW5kCiAgICAgIHgucHVzaCh1c2FnZSkKICAg
+ICAgZGF0YS5wdXNoKHgpCgogICAgICAjIHNvZnQgbGltaXQKICAgICAgeCA9IEFycmF5Lm5ldwog
+ICAgICB4LnB1c2goIlNvZnQgbGltaXQiKQogICAgICBieXRlcyA9IHJlYWRfb25lbGluZV9maWxl
+KG15ZmlsZShuYW1lLCAic29mdF9saW1pdF9pbl9ieXRlcyIpKQogICAgICB1c2FnZSA9IGNvbnZl
+cnRfYnl0ZXMoYnl0ZXMsIDEpCiAgICAgIHgucHVzaCh1c2FnZSkKICAgICAgZGF0YS5wdXNoKHgp
+CgogICAgICAjIGZhaWxjbnQKICAgICAgeCA9IEFycmF5Lm5ldwogICAgICB4LnB1c2goIkZhaWwg
+Q291bnQiKQogICAgICBjbnQgPSByZWFkX29uZWxpbmVfZmlsZShteWZpbGUobmFtZSwiZmFpbGNu
+dCIpKQogICAgICBmYWlsY250ID0gY250LnRvX3MKICAgICAgaWYgKEBtZW1zdykgdGhlbgogICAg
+ICAgIGNudCA9IHJlYWRfb25lbGluZV9maWxlKG15ZmlsZShuYW1lLCAibWVtc3cuZmFpbGNudCIp
+KQogICAgICAgIGZhaWxjbnQ9IiN7ZmFpbGNudH0gKCN7Y250LnRvX3N9KSIKICAgICAgZW5kCiAg
+ICAgIHgucHVzaChmYWlsY250KQogICAgICBkYXRhLnB1c2goeCkKCiAgICAgIGJlZ2luCiAgICAg
+ICAgZiA9IEZpbGUub3BlbihteWZpbGUobmFtZSwic3RhdCIpLCAiciIpCiAgICAgICAgZm9yIHgg
+aW4gWyJDYWNoZSIsIlJzcyIsIlBhZ2VpbiIsIlBhZ2VvdXQiLG5pbCwgbmlsLCBuaWwsIG5pbCwg
+bmlsLAogICAgICAgICAgICAgICAgICAiSGllcmFyY2h5TGltaXQiLCJTdWJ0cmVlQ2FjaGUiLCJT
+dWJ0cmVlUnNzIiwgbmlsLCBuaWwsCgkJICBuaWwsIG5pbCwgbmlsLCBuaWwsIG5pbCwgbmlsLCAi
+c29mdF9saW1pdF9wcmlvIl0KICAgICAgICAgIGxpbmUgPWYucmVhZGxpbmUKICAgICAgICAgIG5l
+eHQgaWYgeCA9PSBuaWwKICAgICAgICAgIGxpbmUgPX4gL15cUytccysoLispLwogICAgICAgICAg
+dmFsPSQxCiAgICAgICAgICBjYXNlIHgKICAgICAgICAgIHdoZW4gIkNhY2hlIiwiUnNzIiwiU3Vi
+dHJlZUNhY2hlIiwiU3VidHJlZVJzcyIKICAgICAgICAgICAgYnl0ZXMgPSBjb252ZXJ0X2J5dGVz
+KHZhbC50b19pLCAxKQogICAgICAgICAgICBkYXRhLnB1c2goW3gsIGJ5dGVzXSkKICAgICAgICAg
+IHdoZW4gIlBhZ2VpbiIsIlBhZ2VvdXQiCiAgICAgICAgICAgIGRhdGEucHVzaChbeCwgdmFsXSkK
+CSAgd2hlbiAic29mdF9saW1pdF9wcmlvIgoJICAgIGRhdGEucHVzaChbeCwgdmFsXSkKICAgICAg
+ICAgIHdoZW4gIkhpZXJhcmNoeUxpbWl0IgogICAgICAgICAgICBtZW1saW1pdCA9IGNvbnZlcnRf
+Ynl0ZXModmFsLnRvX2ksIDApCiAgICAgICAgICAgIGlmIChAbWVtc3cpIHRoZW4KICAgICAgICAg
+ICAgICBsaW5lID1mLnJlYWRsaW5lCiAgICAgICAgICAgICAgbGluZSA9fiAvXlxTK1xzKyguKykv
+CiAgICAgICAgICAgICAgbWVtc3dsaW1pdCA9IGNvbnZlcnRfYnl0ZXModmFsLnRvX2ksIDApCiAg
+ICAgICAgICAgICAgbWVtbGltaXQgKz0gIiAoIiArIG1lbXN3bGltaXQgKyAiKSIKICAgICAgICAg
+ICAgZW5kCiAgICAgICAgICAgIGRhdGEucHVzaChbeCwgbWVtbGltaXRdKQogICAgICAgICAgZW5k
+CiAgICAgICAgZW5kCiAgICAgIGVuc3VyZQogICAgICAgIGYuY2xvc2UgaWYgZiAhPSBuaWwKICAg
+ICAgZW5kCiAgICB0cnVlCiAgICBlbmQKICAgIHJldHVybiBkYXRhIGlmIHN1Y2Nlc3M9PXRydWUK
+ICAgIHJldHVybiBuaWwKICBlbmQKZW5kCgojCiMgUmVhZCAvcHJvYy9tb3VudHMgYW5kIHBhcnNl
+IGVhY2ggbGluZXMuCiMgV2hlbiBjZ3JvdXAgbW91bnQgcG9pbnQgaXMgZm91bmQsIGVhY2ggc3Vi
+c3lzdGVtJ3MgY2dyb3VwcyBhcmUgYWRkZWQKIyB0byBzdWJzeXN0ZW0ncyBIYXNoLgojCgpkZWYg
+cmVnaXN0ZXJfc3Vic3lzKG5hbWUsIG1vdW50LCBvcHRpb24pCiAgaWYgJGFsbHN1YnN5c1tuYW1l
+XSA9PSBuaWwgdGhlbgogICAgc3Vic3lzID0gbmlsCiAgICBjYXNlIG5hbWUKICAgIHdoZW4gImNw
+dSIgdGhlbiBzdWJzeXMgPSBDcHVfU3Vic3lzLm5ldyhtb3VudCwgb3B0aW9uKQogICAgd2hlbiAi
+Y3B1YWNjdCIgdGhlbiBzdWJzeXMgPSBDcHVhY2N0X1N1YnN5cy5uZXcobW91bnQsIG9wdGlvbikK
+ICAgIHdoZW4gIm1lbW9yeSIgdGhlbiAgc3Vic3lzID0gTWVtb3J5X1N1YnN5cy5uZXcobW91bnQs
+IG9wdGlvbikKICAgIHdoZW4gImNwdXNldCIgdGhlbiAgc3Vic3lzID0gQ3B1c2V0X1N1YnN5cy5u
+ZXcobW91bnQsIG9wdGlvbikKICAgIGVuZAogICAgaWYgc3Vic3lzICE9IG5pbCB0aGVuCiAgICAg
+ICRzdWJzeXNfYXJyYXkucHVzaChuYW1lKQogICAgICAkYWxsc3Vic3lzW25hbWVdID0gc3Vic3lz
+CiAgICBlbmQKICBlbmQKZW5kCgojCiMgUmVhZCAvcHJvYy9tb3VudHMgYW5kIHByZXBhcmUgc3Vi
+c3lzIGFycmF5CiMKZGVmIHBhcnNlX21vdW50KGxpbmUpCiAgcGFyc2VkID0gbGluZS5zcGxpdCgv
+XHMrLykKICBpZiBwYXJzZWRbMl0gPT0gImNncm91cCIgdGhlbgogICAgbW91bnQ9cGFyc2VkWzFd
+CiAgICBvcHRzPXBhcnNlZFszXS5zcGxpdCgvXCwvKQogICAgb3B0cy5lYWNoIGRvIHxuYW1lfAog
+ICAgICBjYXNlIG5hbWUKICAgICAgd2hlbiAicnciIHRoZW4gbmV4dAogICAgICBlbHNlCiAgICAg
+ICAgcmVnaXN0ZXJfc3Vic3lzKG5hbWUsIG1vdW50LCBwYXJzZWRbM10pCiAgICAgICAgJGFsbG1v
+dW50c1ttb3VudF09bmFtZQogICAgICBlbmQKICAgIGVuZAogIGVuZAplbmQKCgpkZWYgcmVhZF9t
+b3VudAogIEZpbGUub3BlbigiL3Byb2MvbW91bnRzIiwgInIiKSBkbyB8ZmlsZXwKICAgIGZpbGUu
+ZWFjaF9saW5lIHt8bGluZXwgcGFyc2VfbW91bnQobGluZSkgfQogIGVuZAogICRzdWJzeXNfYXJy
+YXkuc29ydCEKZW5kCgojCiMgUmVhZCBhbGwgL3Byb2MvbW91bnRzIGFuZCBzY2FuIGRpcmVjdG9y
+eSB1bmRlciBtb3VudCBwb2ludC4KIwpkZWYgcmVmcmVzaF9hbGwKICAgJGFsbG1vdW50cy5jbGVh
+cgogICAkc3Vic3lzX2FycmF5LmNsZWFyCiAgICRhbGxzdWJzeXMuY2xlYXIKICAgcmVhZF9tb3Vu
+dAplbmQKCmRlZiBjaGVja19hbmRfcmVmcmVzaF9tb3VudF9pbmZvCiAgCiAgbXlzdWJzeXM9QXJy
+YXkubmV3CiAgRmlsZS5vcGVuKCIvcHJvYy9tb3VudHMiLCAiciIpIGRvIHxmaWxlfAogICAgZmls
+ZS5lYWNoX2xpbmUgZG8gfGxpbmV8CiAgICAgIHBhcnNlZCA9IGxpbmUuc3BsaXQoL1xzKy8pCiAg
+ICAgIGlmIChwYXJzZWRbMl0gPT0gImNncm91cCIpICB0aGVuCiAgICAgICAgbXlzdWJzeXMucHVz
+aChwYXJzZWRbMV0pCiAgICAgIGVuZAogICAgZW5kCiAgZW5kCgogIGlmIChteXN1YnN5cy5zaXpl
+ICE9ICRhbGxtb3VudHMuc2l6ZSkgdGhlbgogICAgcmVmcmVzaF9hbGwKICAgIHJldHVybiB0cnVl
+IAogIGVuZAogIAogIG15c3Vic3lzLmVhY2ggZG8gfHh8CiAgICBpZiAoJGFsbG1vdW50c1t4XSA9
+PSBuaWwpIHRoZW4KICAgICAgcmVmcmVzaF9hbGwKICAgICAgcmV0dXJuIHRydWUKICAgIGVuZAog
+IGVuZAogIHJldHVybiBmYWxzZQplbmQKCg==
+
+--Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd
+Content-Type: application/octet-stream;
+ name="ctop.rb"
+Content-Disposition: attachment;
+ filename="ctop.rb"
+Content-Transfer-Encoding: base64
+
+IwojIGN0b3AucmIgCiMgd3JpdHRlbiBieSBLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGly
+b3l1QGpwLmZ1aml0c3UuY29tPgojIENvcHlyaWdodCAyMDA5IEZ1aml0c3UgTGltaXRlZAojCiMg
+Q2hhbmdlbG9nOgojCiMgdjAwMwojICAgLSBmaXhlZCBidWcgaW4gcm1kaXIvbWtkaXIKIyAgIC0g
+Y2hhbmdlZCBjb21tYW5kLW1vZGUgaW50ZXJmYWNlCiMgICAtIGFkZGVkIGNvbW1lbnRzIGFuZCBt
+YWRlIGNvZGVzIGNsZWFuCiMgCiMgdjAwMiAoMjAwOS8wMi8yNSkKIyAgIC0gZml4ZWQgbGVhayBv
+ZiBmaWxlIGRlc2NyaXB0b3IKIyAgIC0gbW91bnQvdW1vdW50IDwtPiByZWxvYWQgZGF0YSBwcm9i
+bGVtIGlzIGZpeGVkLgojICAgLSAibW91bnQgdHdpY2UiIHByb2JsZW0gaXMgZml4ZWQuCiMgICAt
+IHJlbW92ZWQgUiBrZXkgZm9yIHJlbG9hZCBhbGwuIGl0J3Mgbm93IGF1dG9tYXRpYwojICAgLSBo
+YW5kbGUgIm5vcHJlZml4IiBtb3VudCBvcHRpb24KIyAgIC0gc2hvdyBtb3VudCBvcHRpb24gaW4g
+aGVscCB3aW5kb3cKIyAgIC0gYWRkIGNwdXNldCBzdXBwb3J0CiMgICAtIGFkZCBjb21tYW5kLW1v
+ZGUKIwojIHYwMDEgKDIwMDkvMDIvMDQpCiMgICAtIGZpcnN0IHZlcnNpb24gcmVsZWFzZWQKIyAg
+IC0gY3B1LCBjcHVhY2N0LCBtZW1vcnkgc3Vic3lzIGlzIHN1cHBvcnRlZAojICAga25vd24gYnVn
+cyAtPiBub3ByZWZpeCwgdW1vdW50LCBtb3VudCB0d2ljZQojCnJlcXVpcmUgJ2Nncm91cC5yYicK
+cmVxdWlyZSAnY3Vyc2VzJwpyZXF1aXJlICdldGMnCnJlcXVpcmUgJ3RpbWVvdXQnCnJlcXVpcmUg
+J3NpbmdsZXRvbicKCkRJUldJTl9MSU5FUz03CkRJUldJTl9GSUVMRFM9IERJUldJTl9MSU5FUyAt
+IDIKVVBLRVk9MjU2CkRPV05LRVk9MjU3ClJJR0hUS0VZPTI1OApMRUZUS0VZPTI1OQoKI21vZGUK
+U0hPV01PVU5UPTAKU0hPV1RBU0tTPTEKU0hPV1NVQlNZUz0yCgojZm9yICdwcycKUElEPTAKU1RB
+VEU9MQpQUElEPTIKVUlEPTMKQ09NTUFORD00ClBHSUQ9NQoKI2ZvciBwcm9jZXNzIHN0YXR1cyBm
+aWx0ZXIKUlVOTklORz0wCgojCiMgSGVscGVyIGZ1bmN0aW9uIGZvciBjdXJzZXMKIwoKZGVmIGhp
+dF9hbnlfa2V5KHN0ciwgd2luZG93KQogIHdpbmRvdy5hZGRzdHIoc3RyKSBpZiBzdHIgIT0gbmls
+CiAgd2luZG93LmFkZHN0cigiXG5bSGl0IEFueSBLZXldIikKICB3aW5kb3cuZ2V0Y2gKZW5kCgpk
+ZWYgd2luZG93X3ByaW50Zih3aW5kb3csIGZvcm1hdCwgKmFyZykKICBzdHIgPSBzcHJpbnRmKGZv
+cm1hdCwgKmFyZykKICB3aW5kb3cuYWRkc3RyKHN0cikKZW5kCiMKIyBDdXJzb3IgaG9sZHMgY3Vy
+cmVudCBzdGF0dXMgb2Ygc3Vic3lzJ3Mgd2luZG93LgojIAojCmNsYXNzIEN1cnNvcgogIGRlZiBp
+bml0aWFsaXplKG5hbWUpCiAgICBAc3Vic3lzbmFtZT1uYW1lICAgICAgICAgICAgIyBuYW1lIG9m
+IHN1YnN5cwogICAgQGN1cnNvcj0wICAgICAgICAgICAgICAgICAgICMgY3VycmVudCBkaXJlY3Ry
+b3kgcG9zaXRpb24KICAgIEBtb2RlPVNIT1dUQVNLUyAgICAgICAgICAgICAjIGN1cnJlbnQgbW9k
+ZSAocHMtbW9kZS9zdGF0LW1vZGUpCiAgICBAaW5mb19zdGFydGxpbmU9MCAgICAgICAgICAgIyB1
+c2VkIGZvciBzY3JvbGwgaW4gaW5mb3dpbgogICAgQGluZm9fZW5kbGluZT0wICAgICAgICAgICAg
+ICMgdXNlZCBmb3Igc2NvcmxsIGluIGluZm93aW4KICAgIEBzaG93X29ubHlfcnVubmluZyA9IDAg
+ICAgICAjIGEgZmlsdGVyIGZvciBwcy1tb2RlCiAgICBAdXNlcl9uYW1lX2ZpbHRlcj1uaWwgICAg
+ICAgIyBhIGZpbHRlciBmb3IgcHMtbW9kZQogICAgQGNvbW1hbmRfbmFtZV9maWx0ZXI9bmlsICAg
+ICMgYSBmaWx0ZXIgZm9yIHBzLW1vZGUKICBlbmQKCiAgZGVmIHBvcwogICAgQGN1cnNvcgogIGVu
+ZAoKICBkZWYgbW9kZQogICAgQG1vZGUKICBlbmQKCiAgZGVmIGNoYW5nZV9tb2RlICMgc3dpdGNo
+IG1vZGUgcHMtbW9kZSA8LT4gc3RhdC1tb2RlCiAgICBjYXNlIEBtb2RlCiAgICB3aGVuIFNIT1dU
+QVNLUyB0aGVuIEBtb2RlPVNIT1dTVUJTWVMKICAgIHdoZW4gU0hPV1NVQlNZUyB0aGVuIEBtb2Rl
+PVNIT1dUQVNLUwogICAgZW5kCiAgZW5kCiAgIwogICMgRmlsdGVyIGZvciBQUy1NT0RFCiAgIwog
+IGRlZiBwcm9jZXNzX3N0YXR1c19maWx0ZXIoc3RhdCkKICAgIHJldHVybiB0cnVlIGlmIChAc2hv
+d19vbmx5X3J1bm5pbmcgPT0gMCkKICAgIHJldHVybiB0cnVlIGlmIChzdGF0ID09IlIiKQogICAg
+cmV0dXJuIGZhbHNlCiAgZW5kCgogIGRlZiB1c2VyX25hbWVfZmlsdGVyKHN0cikKICAgIHJldHVy
+biB0cnVlIGlmIChAdXNlcl9uYW1lX2ZpbHRlciA9PSBuaWwpCiAgICByZXR1cm4gdHJ1ZSBpZiAo
+QHVzZXJfbmFtZV9maWx0ZXIgPT0gc3RyKQogICAgcmV0dXJuIGZhbHNlCiAgZW5kCgogIGRlZiBj
+b21tYW5kX25hbWVfZmlsdGVyKHN0cikKICAgIHJldHVybiB0cnVlIGlmIChAY29tbWFuZF9uYW1l
+X2ZpbHRlciA9PSBuaWwpCiAgICByZXR1cm4gdHJ1ZSBpZiAoc3RyID1+IC8je0Bjb21tYW5kX25h
+bWVfZmlsdGVyfS8pCiAgICByZXR1cm4gZmFsc2UKICBlbmQKCiAgZGVmIHRvZ2dsZV9zaG93X29u
+bHlfcnVubmluZwogICAgaWYgKEBzaG93X29ubHlfcnVubmluZyA9PSAwKSB0aGVuCiAgICAgIEBz
+aG93X29ubHlfcnVubmluZyA9IDEgIyBzaG93IG9ubHkgcnVubmluZyBwcm9jZXNzIGluIHBzLW1v
+ZGUKICAgIGVsc2UKICAgICAgQHNob3dfb25seV9ydW5uaW5nID0gMCAjIHNob3cgYWxsIHByb2Nl
+c3NlcwogICAgZW5kCiAgZW5kCgogIGRlZiBzZXRfdXNlcl9uYW1lX2ZpbHRlcihzdHIpCiAgICBz
+dHIgPSBuaWwgaWYgKHN0ciA9PSAiIikKICAgIEB1c2VyX25hbWVfZmlsdGVyPXN0cgogIGVuZAoK
+ICBkZWYgc2V0X2NvbW1hbmRfbmFtZV9maWx0ZXIoc3RyKQogICAgc3RyPW5pbCBpZiAoc3RyID09
+ICIiKQogICAgQGNvbW1hbmRfbmFtZV9maWx0ZXI9c3RyCiAgZW5kCgogICMKICAjIFNjcm9sbCBt
+YW5hZ2VtZW50IGZvciBpbmZvd2luIAogICMKICBkZWYgaW5mb19zdGFydGxpbmUKICAgIEBpbmZv
+X3N0YXJ0bGluZQogIGVuZAoKICBkZWYgc2V0X2luZm9lbmRsaW5lKG51bSkKICAgIEBpbmZvX2Vu
+ZGxpbmU9bnVtCiAgZW5kCgogIGRlZiBzZXRfaW5mb2xpbmUobnVtKQogICAgaWYgKChudW0gPCAw
+KSB8fCAobnVtID49IEBpbmZvX2VuZGxpbmUpKSB0aGVuCiAgICAgIEBpbmZvX3N0YXJ0bGluZT0w
+CiAgICBlbHNlCiAgICAgIEBpbmZvX3N0YXJ0bGluZT1udW0KICAgIGVuZAogIGVuZAoKICAjCiAg
+IyBjaGRpcigpIGZvciBzdWJzeXMuCiAgIwogIGRlZiBtb3ZlKGRpcmVjdGlvbikKICAgIHN1YnN5
+cyA9JGFsbHN1YnN5c1tAc3Vic3lzbmFtZV0KICAgIGlmIChzdWJzeXMgPT0gbmlsKSB0aGVuIHJl
+dHVybgogICAgZW5kCiAgICBpZiAoZGlyZWN0aW9uID09IC0xKSB0aGVuCiAgICAgIEBjdXJzb3Ig
+LT0gMSBpZiBAY3Vyc29yID4gMAogICAgZWxzaWYgKGRpcmVjdGlvbiA9PSAxKQogICAgICBAY3Vy
+c29yICs9IDEgaWYgQGN1cnNvciA8IHN1YnN5cy5zaXplLTEKICAgIGVuZAogIGVuZAplbmQKCiMK
+IyBDdXJyZW50IGlzIGEgc2luZ2xldG9uIGhvbGRzIGN1cnJlbnQgc3RhdHVzIG9mIHRoaXMgcHJv
+Z3JhbS4KIwpjbGFzcyBDdXJyZW50CiAgaW5jbHVkZSBTaW5nbGV0b24KICBkZWYgaW5pdGlhbGl6
+ZQogICAgQGluZGV4PS0xICAgICNjdXJyZW50IHN1c2JzeXMgaW5kZXggaW4gJHN1YnN5c19hcnJh
+eVtdCiAgICBAbmFtZT1uaWwgICAgI2N1cnJlbnQgbmFtZSBvZiBzdWJzeXMKICAgIEBjdXJzb3I9
+bmlsICAjcmVmZXJlbmNlIHRvIGN1cnJlbnQgQ3Vyc29yIAogICAgQHN1YnN5cz1uaWwgICNyZWZl
+cmVuY2UgdG8gY3VycmVudCBTdWJzeXMgCiAgICBAc3Vic3lzX2N1cnNvciA9IEhhc2gubmV3CiAg
+ZW5kCgogIGRlZiBzZXQoeCkKICAgIEBpbmRleD14CiAgICBpZiAoeCA9PSAtMSkgdGhlbgogICAg
+ICBAaW5kZXgsIEBuYW1lLCBAY3Vyc29yLCBAc3Vic3lzID0gLTEsICJoZWxwIiwgbmlsLCBuaWwK
+ICAgIGVsc2UKICAgICAgQG5hbWUgPSAkc3Vic3lzX2FycmF5W3hdCiAgICAgIEBzdWJzeXMgPSAk
+YWxsc3Vic3lzW0BuYW1lXQogICAgICBpZiAoQHN1YnN5c19jdXJzb3JbQG5hbWVdID09IG5pbCkg
+dGhlbgogICAgICAgIEBzdWJzeXNfY3Vyc29yW0BuYW1lXSA9IEN1cnNvci5uZXcoQG5hbWUpCiAg
+ICAgIGVuZAogICAgICBAY3Vyc29yID0gQHN1YnN5c19jdXJzb3JbQG5hbWVdCiAgICBlbmQKICBl
+bmQKCiAgI2NoYW5nZSBzdWJzeXMgdmlldwogIGRlZiBtb3ZlIChkaXIpCiAgICBjYXNlIGRpcgog
+ICAgd2hlbiAibGVmdCIKICAgICAgQGluZGV4IC09IDEgaWYgKEBpbmRleCA+IC0xKQogICAgd2hl
+biAicmlnaHQiCiAgICAgIEBpbmRleCArPSAxIGlmIChAaW5kZXggPCAkc3Vic3lzX2FycmF5LnNp
+emUgLSAxKQogICAgZW5kCiAgICBzZXQoQGluZGV4KQogIGVuZAoKICAjY2hhbmdlIGRpcmVjdHJv
+eSB2aWV3IG9mIGN1cnJlbnQgY3Vyc29yCiAgZGVmIGNoZGlyKGRpcmVjdGlvbikKICAgIGlmIChA
+Y3Vyc29yICE9IG5pbCkgdGhlbgogICAgICBAY3Vyc29yLm1vdmUoZGlyZWN0aW9uKSAgCiAgICBl
+bmQKICBlbmQKICAjc3dpdGNoIGN1cnJlbnQgbW9kZSBvZiBjdXJzb3IKICBkZWYgY2hhbmdlX21v
+ZGUKICAgIGlmIChAY3Vyc29yICE9IG5pbCkgdGhlbgogICAgICBAY3Vyc29yLmNoYW5nZV9tb2Rl
+CiAgICBlbmQKICBlbmQKCiAgZGVmIG5hbWUKICAgIEBuYW1lCiAgZW5kCgogIGRlZiBjdXJzb3IK
+ICAgIEBjdXJzb3IKICBlbmQKCiAgZGVmIHN1YnN5cwogICAgQHN1YnN5cwogIGVuZAplbmQKCiRj
+dXIgPSBDdXJyZW50Lmluc3RhbmNlCgojCiMgU2hvdyBkaXJlY3Rvcnkgd2luZG93CiMKCmRlZiBk
+ZXRlY3RfZGlybGlzdF9wb3NpdGlvbihzdWJzeXNuYW1lLCBzdWJzeXMpCiAgcG9zID0gMAogIHNp
+emU9c3Vic3lzLnNpemUKICBjdXJzb3IgPSAkY3VyLmN1cnNvcgogIHJldHVybiBbMCwgMCwgMF0g
+aWYgY3Vyc29yID09IG5pbAoKICBwb3MgPSBjdXJzb3IucG9zCiAgaWYgKChzaXplIDwgNCkgfHwg
+KHBvcyA8PSAyKSkgdGhlbiAKICAgICAgaGVhZD0wCiAgICAgIHRhaWw9NAogIGVsc2lmIChwb3Mg
+PCBzaXplIC0gMikgdGhlbgogICAgICBoZWFkPXBvcy0xCiAgICAgIHRhaWw9cG9zKzIKICBlbHNl
+CiAgICAgIGhlYWQgPSBzaXplIC0gNAogICAgICB0YWlsID0gc2l6ZSAtIDEKICBlbmQKICByZXR1
+cm4gW3BvcywgaGVhZCwgdGFpbF0KZW5kCgpkZWYgZ2V0X293bmVyX25hbWUobmFtZSkKICBiZWdp
+bgogICAgc3RhdCA9IEZpbGUuc3RhdChuYW1lKQogIHJlc2N1ZQogICAgcmV0dXJuICIiCiAgZW5k
+CiAgYmVnaW4KICAgIGluZm8gPSBFdGM6OmdldHB3dWlkKHN0YXQudWlkKQogICAgdW5hbWUgPSBp
+bmZvLm5hbWUKICByZXNjdWUKICAgICRiYXJ3aW4uYWRkc3RyKCQhKQogICAgdW5hbWUgPSBzdGF0
+LnVpZC50b19zCiAgZW5kCgogIGJlZ2luCiAgICBpbmZvID0gRXRjOjpnZXRncmdpZChzdGF0Lmdp
+ZCkKICAgIGduYW1lID0gaW5mby5uYW1lCiAgcmVzY3VlCiAgICBnbmFtZSA9IHN0YXQuZ2lkLnRv
+X3MKICBlbmQKICBzcHJpbnRmKCJcdC1cdCglcy8lcykiLCB1bmFtZSwgZ25hbWUpCmVuZAoKZGVm
+IGRyYXdfZGlybGlzdChkaXJ3aW4sIHN1YnN5cykKCiAgbm93LCBoZWFkLCB0YWlsID0gZGV0ZWN0
+X2Rpcmxpc3RfcG9zaXRpb24oJGN1ci5uYW1lLCBzdWJzeXMpCgogIGxpbmVzPTEKICBpPWhlYWQK
+ICB3aGlsZSBpIDw9IHRhaWwKICAgIG5hbWUgPSBzdWJzeXMuZW50KGkpCiAgICBpZiAobmFtZSA9
+PSBuaWwpIHRoZW4gYnJlYWsKICAgIGVuZAoKICAgIGRpcndpbi5zZXRwb3MobGluZXMsIDMpCiAg
+ICBkaXJ3aW4uc3RhbmRvdXQgaWYgKGkgPT0gbm93KQogICAgZGlyd2luLmFkZHN0cihuYW1lICsg
+Z2V0X293bmVyX25hbWUobmFtZSkpCiAgICBkaXJ3aW4uc3RhbmRlbmQgaWYgKGkgPT0gbm93KQog
+ICAgbGluZXMrPTEKICAgIGkgKz0gMQogIGVuZAplbmQKCiMKIyBGaWxsIGRpcndpbiBjb250ZW50
+cy4KIwpkZWYgZHJhd19kaXJ3aW4oZGlyd2luKQogIGRpcndpbi5jbGVhcgogIGRpcndpbi5ib3go
+P3wsPy0sPyopCiAgZGlyd2luLnNldHBvcygwLCAxKQoKICAjc2hvdyBhbGwgc3Vic3lzcyBpbiBo
+ZWFkCiAgLTEudXB0bygkc3Vic3lzX2FycmF5LnNpemUpIGRvIHx4fAogICAgZGlyd2luLmFkZHN0
+cigiLSIpCiAgICBpZiAoeCA9PSAtMSkgdGhlbgogICAgICBzdHI9ImhlbHAiCiAgICBlbHNlCiAg
+ICAgIHN0cj1zcHJpbnRmKCIlcyIsJHN1YnN5c19hcnJheVt4XSkKICAgIGVuZAogICAgYnJlYWsg
+aWYgKHN0ciA9PSBuaWwpCgogICAgZGlyd2luLnN0YW5kb3V0IGlmIChzdHIgPT0gJGN1ci5uYW1l
+KQogICAgZGlyd2luLmFkZHN0cihzdHIpCiAgICBkaXJ3aW4uc3RhbmRlbmQgaWYgKHN0ciA9PSAk
+Y3VyLm5hbWUpCiAgZW5kCgogICNzaG93IGN1cnJlbnQgdGltZQogIGRpcndpbi5zZXRwb3MoNixk
+aXJ3aW4ubWF4eC0zMikKICBkaXJ3aW4uYWRkc3RyKCJbI3tUaW1lLm5vdy5hc2N0aW1lfV0iKQog
+ICMKICAjIFNob3cgZGlyZWN0b3J5IGxpc3QKICAjCiAgaWYgJGN1ci5zdWJzeXMgIT0gbmlsIHRo
+ZW4KICAgICNSZWxvYWQgaW5mb3JtYXRpb24gCiAgICAkY3VyLnN1YnN5cy5yZWxvYWQKICAgIGRy
+YXdfZGlybGlzdChkaXJ3aW4sICRjdXIuc3Vic3lzKQogIGVuZAplbmQKCiMKIwojIGZvciBpbmZv
+d2luCiMKCiMKIyBDb250ZW50cyBvZiBpbmZvd2luIHdpbGwgYmUgcGFzc2VkIGJ5IGRhdGFbXQoj
+IFRoaXMgZnVuY3Rpb24gc2hvd3MgY29udGVudHMgYmFzZWQgb24gY3VycmVudCBzY3JvbGwgaW5m
+cm9tYXRpb24uCiMgZm9yIGNvbnZlcnRpbmcgY29udGVudHMgb2YgYXJyYXkgdG8gc3RyaW5nLCBj
+b2RlIGJsb2NrIGlzIGNhbGxlZCBieSB5aWVsZAojCmRlZiBkcmF3X2luZm93aW5fbGltaXRlZChp
+bmZvd2luLCBjdXJzb3IsIGRhdGEpCiAgIwogICMgR2VuZXJhdGUgSGVhZGVyCiAgIwogIHN0ciA9
+IHlpZWxkIG5pbCAjIHdyaXRlIGEgaGVhZGVyIGlmIG5lY2Vzc2FyeQogIGlmIChzdHIgIT0gbmls
+KSB0aGVuCiAgICBkcmF3PTEKICAgIGluZm93aW4uc2V0cG9zKDAsMikKICAgIGluZm93aW4uYWRk
+c3RyKHN0cikKICBlbHNlCiAgICBkcmF3PTAKICBlbmQKICAjCiAgIyBwcmludCBhIGxpbmUgd2hp
+Y2kgaXMgaW4gdGhlIHdpbmRvdwogICMKICBzdGFydGxpbmUgPSBjdXJzb3IuaW5mb19zdGFydGxp
+bmUKICBlbmRsaW5lID0gY3Vyc29yLmluZm9fc3RhcnRsaW5lICsgaW5mb3dpbi5tYXh5LTIKICBz
+dGFydGxpbmUudXB0byhlbmRsaW5lKSBkbyB8bGluZW51bWJlcnwKICAgIHggPSBkYXRhLmF0KGxp
+bmVudW1iZXIpCiAgICByZXR1cm4gaWYgKHggPT0gbmlsKSAjbm8gbW9yZSBkYXRhCiAgICBzdHIg
+PSB5aWVsZCh4KQogICAgaW5mb3dpbi5zZXRwb3MoZHJhdywgMikKICAgIGluZm93aW4uYWRkc3Ry
+KHN0cikKICAgIGRyYXcgPSAxK2luZm93aW4uY3VyeQogICAgYnJlYWsgaWYgKGRyYXcgPT0gaW5m
+b3dpbi5tYXh5KQogIGVuZAoKICBjdXJzb3Iuc2V0X2luZm9lbmRsaW5lKGRhdGEuc2l6ZSkgIApl
+bmQKCiMKIwojIFNob3cgaGVscCBhbmQgY3VycmVudCBtb3VudCBpbmZvcm1hdGlvbiBpbiBoZWxw
+IHdpbmRvdwojCmRlZiBzaG93X21vdW50X2luZm8oaW5mb3dpbikKICBpZiAoJGFsbHN1YnN5cy5l
+bXB0eT8pIHRoZW4KICAgICRiYXJ3aW4uYWRkc3RyKCJjZ3JvdXBzIGFyZSBub3QgbW91bnRlZFxu
+IikKICBlbmQKICAkYWxsc3Vic3lzLmVhY2ggZG8gfG5hbWUsIHN1YnN5c3wKICAgIHdpbmRvd19w
+cmludGYoaW5mb3dpbiwgIiUxMnNcdCVzXHQjJXNcbiIsCiAgICAgICAgICAgICAgICAgICAgICAg
+bmFtZSwgc3Vic3lzLm1vdW50X3BvaW50LCBzdWJzeXMub3B0aW9uKQogIGVuZAogICMkYmFyd2lu
+LmFkZHN0cigibW91bnRlZCBzdWJzeXN0ZW1zIikKICAjCiAgIyBIZWxwCiAgIwogIGluZm93aW4u
+YWRkc3RyKCJDb21tYW5kXG4iKQogIGluZm93aW4uYWRkc3RyKCJbTEVGVCwgUklHSFRdXHQgbW92
+ZSBzdWJzeXN0ZW1zXG4iKQogIGluZm93aW4uYWRkc3RyKCJbVVAsIERPV05dXHQgbW92ZSBkaXJl
+Y3RvcnlcbiIpCiAgaW5mb3dpbi5hZGRzdHIoIltuLCBiXVx0XHQgc2NvcmxsIGluZm9ybWF0aW9u
+IHdpbmRvd1xuIikKICBpbmZvd2luLmFkZHN0cigiW3NdXHRcdCBzd2l0Y2ggc2hvd24gaW5mb3Jt
+YXRpb24gKHBzLW1vZGUvc3RhdC1tb2RlKVxuIikKICBpbmZvd2luLmFkZHN0cigiW3JdXHRcdCBz
+ZXQgcmVmcmVzaCByYXRlXG4iKQogIGluZm93aW4uYWRkc3RyKCJbY11cdFx0IEVudGVyIGNvbW1h
+bmQtbW9kZVxuIikKCiAgaW5mb3dpbi5hZGRzdHIoInBzIG1vZGUgb3B0aW9uXG4iKQogIGluZm93
+aW4uYWRkc3RyKCJbdF1cdFx0IChwcy1tb2RlKXRvZ2dsZSBzaG93IG9ubHkgcnVubmluZyBwcm9j
+ZXNzXG4iKQogIGluZm93aW4uYWRkc3RyKCJbdV1cdFx0IChwcy1tb2RlKXNldC91bnNldCB1c2Vy
+IG5hbWUgZmlsdGVyXG4iKQogIGluZm93aW4uYWRkc3RyKCJbZl1cdFx0IChwcy1tb2RlKXNldC91
+bnNldCBjb21tYW5kIG5hbWUgZmlsdGVyIikKCmVuZAoKIwojIFJlYWQgL3Byb2MvPHBpZD4vc3Rh
+dHVzIGZpbGUgYW5kIGZpbGwgZGF0YVtdIGFycmF5LCByZXR1cm4gaXQKIwoKZGVmIHBhcnNlX3Bp
+ZF9zdGF0dXMoZiwgZXMpCiAgaW5wdXQgPSBmLnJlYWRsaW5lCiAgaW5wdXQgPX4gZXMKICByZXR1
+cm4gJDEKZW5kCgojCiMgZGF0YVtdID1bUElELCBTdGF0ZSwgUFBJRCwgVUlELCBDT01NQU5ELCBQ
+R0lEXQojCmRlZiBwYXJzZV9wcm9jZXNzKHBpZCkKICAjCiAgIyBTdGF0dXMKICAjCiAgZGF0YSA9
+IEFycmF5Lm5ldwogIHN0YXQgPSBuaWwKCiAgc3RhdCA9IGNhdGNoKDpiYWRfdGFza19zdGF0dXMp
+IGRvCiAgICBkYXRhW1BJRF09cGlkLnRvX2kKICAgIGJlZ2luCiAgICAgIGYgPSBGaWxlLm9wZW4o
+Ii9wcm9jLyN7cGlkfS9zdGF0dXMiLCAiciIpCgogICAgICAjTmFtZQogICAgICBkYXRhW0NPTU1B
+TkRdID0gcGFyc2VfcGlkX3N0YXR1cyhmLC9eTmFtZTpccysoLispLykKICAgICAgdW5sZXNzIChG
+aWxlLmV4aXN0PygiL3Byb2MvI3twaWR9L2V4ZSIpKSB0aGVuCiAgICAgICAgZGF0YVtDT01NQU5E
+XSA9ICJbIiArIGRhdGFbQ09NTUFORF0gKyAiXSIKICAgICAgZW5kCiAgICAgICNTdGF0ZQogICAg
+ICBkYXRhW1NUQVRFXSA9IHBhcnNlX3BpZF9zdGF0dXMoZiwgL15TdGF0ZTpccysoW0EtWl0pLisv
+KQogICAgICAjIFRHSUQ6IElzIHRocmVhZCBncm91byBsZWFkZXIgPwogICAgICBpZiAocGFyc2Vf
+cGlkX3N0YXR1cyhmLCAvXlRnaWQ6XHMrKC4rKS8pICE9IHBpZCkgdGhlbgogICAgICAgIHRocm93
+IDpiYWRfdGFza19zdGF0dXMsIGZhbHNlCiAgICAgIGVuZAogICAgICAjc2tpcCBQSUQKICAgICAg
+aW5wdXQgPSBmLnJlYWRsaW5lCiAgICAgICNQUElECiAgICAgIGRhdGFbUFBJRF09IHBhcnNlX3Bp
+ZF9zdGF0dXMoZiwvXlBQaWQ6XHMrKC4rKS8pCiAgICAgIHBwaWQ9ZGF0YVtQUElEXQogICAgICAj
+VHJhY2VyUElECiAgICAgIGlucHV0ID0gZi5yZWFkbGluZSAKICAgICAgI1VJRAogICAgICB1aWQg
+PSBwYXJzZV9waWRfc3RhdHVzKGYsL15VaWQ6XHMrKFswLTldKykuKy8pCiAgICAgIGJlZ2luIAog
+ICAgICAgIGluZm89RXRjOjpnZXRwd3VpZCh1aWQudG9faSkKICAgICAgICBkYXRhW1VJRF09aW5m
+by5uYW1lCiAgICAgIHJlc2N1ZSAKICAgICAgICBkYXRhW1VJRF09dWlkCiAgICAgIGVuZAogICAg
+cmVzY3VlCiAgICAgIHRocm93IDpiYWRfdGFza19zdGF0dXMsIGZhbHNlIAogICAgZW5zdXJlCiAg
+ICAgIGYuY2xvc2UgdW5sZXNzIGYubmlsPwogICAgZW5kCiAgZW5kCiAgcmV0dXJuIGRhdGEgdW5s
+ZXNzIHN0YXQubmlsPwogIHJldHVybiBuaWwKZW5kCgojCiMgUFMtTU9ERQojIENhdCAidGFza3Mi
+IGZpbGUgYW5kIHZpc2l0IGFsbCAvcHJvYy88cGlkPi9zdGF0dXMgZmlsZQojIEFsbCBpbmZvcm1h
+dGlvbiB3aWxsIGJlIHB1c2hlZCBpbnRvICJwcyIgYXJyYXkKIwpkZWYgc2hvd190YXNrcyhzdWJz
+eXMsIGN1cnNvciwgaW5mb3dpbikKICAjIEdldCBOYW1lIG9mIEN1cnJlbnQgQ2dyb3VwIGFuZCBy
+ZWFkIHRhc2sgZmlsZQogIHBzID0gQXJyYXkubmV3ICAKICBjYXRjaCA6cXVpdCBkbwogICAgZ3Jv
+dXAgPSBzdWJzeXMuZW50KGN1cnNvci5wb3MpCiAgICB0aHJvdyA6cXVpdCwibm9ncm91cCIgaWYg
+Z3JvdXA9PW5pbAogICAgdGFza3MgPSBzdWJzeXMudGFza3MoZ3JvdXApCiAgICB0aHJvdyA6cXVp
+dCwibm9ncm91cCIgaWYgdGFza3M9PW5pbAogICAgIAogICAgdGFza3MuZWFjaCBkbyB8eHwKICAg
+ICAgZGF0YSA9IHBhcnNlX3Byb2Nlc3MoeCkKICAgICAgbmV4dCBpZiAoZGF0YSA9PSBuaWwpCiAg
+ICAgIG5leHQgdW5sZXNzIChjdXJzb3IucHJvY2Vzc19zdGF0dXNfZmlsdGVyKGRhdGFbU1RBVEVd
+KSkKICAgICAgbmV4dCB1bmxlc3MgKGN1cnNvci5jb21tYW5kX25hbWVfZmlsdGVyKGRhdGFbQ09N
+TUFORF0pKQogICAgICBwcy5wdXNoKGRhdGEpIGlmIChjdXJzb3IudXNlcl9uYW1lX2ZpbHRlcihk
+YXRhW1VJRF0pKQogICAgZW5kCiAgICAjCiAgICAjIFNvcnQgcHMncyByZXN1bHQsICJSIiBmaXJz
+dC4KICAgICMKICAgIHBzLnNvcnQhIGRvIHx4ICwgeXwKICAgICAgaWYgKHhbU1RBVEVdID09ICJS
+IiAmJiB5W1NUQVRFXSAhPSAiUiIpIHRoZW4KICAgICAgICAtMQogICAgICBlbHNpZiAoeFtTVEFU
+RV0gIT0gIlIiICYmIHlbU1RBVEVdID09ICJSIikgdGhlbgogICAgICAgIDEKICAgICAgZWxzZQog
+ICAgICAgIDAKICAgICAgZW5kCiAgICBlbmQKICBlbmQKICAKICByZXR1cm4gaWYgKHBzLnNpemUg
+PT0gMCkKCiAgZHJhd19pbmZvd2luX2xpbWl0ZWQoaW5mb3dpbiwgY3Vyc29yLCBwcylkbyB8eHwK
+ICAgIGlmICh4ID09IG5pbCkgdGhlbgogICAgICBzcHJpbnRmKCIlNnMgJTZzICU4cyAlNXMgJTE2
+cyIsICJQSUQiLCJQUElEIiwiVVNFUiIsIlNUQVRFIiwgIkNPTU1BTkQiKQogICAgZWxzZQogICAg
+ICBzcHJpbnRmKCIlNmQgJTZkICU4cyAlNXMgJTE2cyIsCiAgICAgICAgICAgICAgeFtQSURdLCB4
+W1BQSURdLCB4W1VJRF0sIHhbU1RBVEVdLCB4W0NPTU1BTkRdKQogICAgZW5kCiAgZW5kCgogIHVu
+bGVzcyAoJGN1ci5jdXJzb3IucHJvY2Vzc19zdGF0dXNfZmlsdGVyKCJTIikpIHRoZW4KICAgICRi
+YXJ3aW4uYWRkc3RyKCJbcl0iKQogIGVuZAogIHVubGVzcyAoJGN1ci5jdXJzb3IudXNlcl9uYW1l
+X2ZpbHRlcigiYmFkbmFtZW1hbmRhYiIpKSB0aGVuCiAgICAkYmFyd2luLmFkZHN0cigiW3VdIikK
+ICBlbmQKICB1bmxlc3MgKCRjdXIuY3Vyc29yLmNvbW1hbmRfbmFtZV9maWx0ZXIoImJhZG5hbWVt
+YW5kYWIiKSkgdGhlbgogICAgJGJhcndpbi5hZGRzdHIoIltjXSIpCiAgZW5kCmVuZAoKZGVmIHNo
+b3dfc3Vic3lzX3N0YXQoc3Vic3lzLCBjdXJzb3IsIGluZm93aW4pCiAgZ3JvdXAgPSBzdWJzeXMu
+ZW50KGN1cnNvci5wb3MpCiAgcmV0dXJuIGlmIGdyb3VwID09IG5pbAogIGRhdGEgPSBzdWJzeXMu
+c3RhdChncm91cCkKICByZXR1cm4gaWYgZGF0YSA9PSBuaWwKICBkcmF3X2luZm93aW5fbGltaXRl
+ZChpbmZvd2luLCBjdXJzb3IsIGRhdGEpIGRvIHx4fAogICAgbmV4dCBpZiB4ID09IG5pbAogICAg
+aWYgKHhbMF0uc2l6ZSA+IDI0KSB0aGVuCiAgICAgIGxlbiA9IHhbMF0uc2l6ZSAtIDI0CiAgICAg
+IHhbMF0uc2xpY2UhKDAuLmxlbikKICAgIGVuZAogICAgc3ByaW50ZigiJTI0c1x0JXMiLCB4WzBd
+LCB4WzFdKQogIGVuZAplbmQKCgojCiMgW25dLFtiXSAgTW92ZSBjdXJzb3IncyBjdXJyZW50IHBv
+c2l0aW9uIGluIGluZm93aW4KIwpkZWYgc2V0X3Njcm9sbChpbmZvd2luLCBkaXJlY3Rpb24pCiAg
+Y3Vyc29yID0gJGN1ci5jdXJzb3IKICByZXR1cm4gaWYgKGN1cnNvciA9PSBuaWwpCgogIGlmIChk
+aXJlY3Rpb24gPT0gMSkgdGhlbiAKICAgIGN1cmxpbmU9Y3Vyc29yLmluZm9fc3RhcnRsaW5lCiAg
+ICBjdXJzb3Iuc2V0X2luZm9saW5lKGN1cmxpbmUraW5mb3dpbi5tYXh5KQogIGVsc2UKICAgIGN1
+cmxpbmU9Y3Vyc29yLmluZm9fc3RhcnRsaW5lCiAgICBjdXJzb3Iuc2V0X2luZm9saW5lKGN1cmxp
+bmUtaW5mb3dpbi5tYXh5KQogIGVuZAplbmQKCiMKIyBbdF0gU2V0L1Vuc2V0IFNob3ctUnVubmlu
+Zy1Pbmx5IGZpbHRlcgojCmRlZiB0b2dnbGVfcnVubmluZ19maWx0ZXIKICBpZiAoJGN1ci5jdXJz
+b3IgIT0gbmlsKSB0aGVuCiAgICAkY3VyLmN1cnNvci50b2dnbGVfc2hvd19vbmx5X3J1bm5pbmcK
+ICBlbmQKZW5kCgoKIwojIEZpbHRlcnMgZm9yIHBzLW1vZGUKIwoKIwojIFt1XSBGaWx0ZXIgYnkg
+VUlECiMKZGVmIHVzZXJfbmFtZV9maWx0ZXIoaW5mb3dpbikKICBpbmZvd2luLmNsZWFyCiAgd2lu
+ZG93X3ByaW50ZihpbmZvd2luLCAidXNlciBuYW1lIGZpbHRlcjoiKQogIHN0cj1pbmZvd2luLmdl
+dHN0cgogIGN1cnNvcj0gJGN1ci5jdXJzb3IKICBjdXJzb3Iuc2V0X3VzZXJfbmFtZV9maWx0ZXIo
+c3RyKSBpZiAoY3Vyc29yICE9IG5pbCkKZW5kCgojCiMgW2ZdIEZpbHRlciBieSBuYW1lIG9mIGNv
+bW1hbmQKIwpkZWYgY29tbWFuZF9uYW1lX2ZpbHRlcihpbmZvd2luKQogIGluZm93aW4uY2xlYXIK
+ICB3aW5kb3dfcHJpbnRmKGluZm93aW4sICJjb21tYW5kIG5hbWUgZmlsdGVyOiIpCiAgc3RyPWlu
+Zm93aW4uZ2V0c3RyCiAgY3Vyc29yID0kY3VyLmN1cnNvcgogIGN1cnNvci5zZXRfY29tbWFuZF9u
+YW1lX2ZpbHRlcihzdHIpIGlmIChjdXJzb3IgIT0gbmlsKQplbmQKCiMKIyBbcl0gc2V0IHJlZnJl
+c2ggdGltZQojCmRlZiBzZXRfcmVmcmVzaF90aW1lKHRpbWUsIGluZm93aW4pCiAgaW5mb3dpbi5j
+bGVhcgogIHdpbmRvd19wcmludGYoaW5mb3dpbiwgInNldCByZWZyZXNoIHRpbWUobm93ICVkcyki
+LHRpbWUpCiAgc3RyPWluZm93aW4uZ2V0c3RyCiAgcmV0dXJuIHRpbWUgaWYgKHN0ci50b19pID09
+IDApCiAgcmV0dXJuIHN0ci50b19pCmVuZAoKIwojIFtjXSBCZWxvdyBhcmUgc3ViIHJvdXRpbmVz
+IGZvciBjb21tYW5kLW1vZGUuCiMKCmRlZiBzbWFydF9wcmludChzdHIsIHdpbmRvdykKICBpZiAo
+d2luZG93Lm1heHggLSB3aW5kb3cuY3VyeCA8IHN0ci5zaXplLTIpIHRoZW4KICAgIHdpbmRvdy5h
+ZGRzdHIoIlxuIitzdHIpCiAgZWxzZQogICAgd2luZG93LmFkZHN0cihzdHIpCiAgZW5kCmVuZAoK
+ZGVmIHNob3dfd3JpdGFibGVfZmlsZXMoc3Vic3lzLCBjdXJzb3IsIGluZm93aW4pCiAgZ3JvdXAg
+PSBzdWJzeXMuZW50KGN1cnNvci5wb3MpCiAgcmV0dXJuIG5pbCBpZiBncm91cCA9PSBuaWwKICBl
+bnQ9MQogIGRhdGEgPSBBcnJheS5uZXcKICBzdWJzeXMuZWFjaF93cml0YWJsZV9maWxlcyhncm91
+cCkgZG8gfHh8CiAgICBzdHIgPSBzcHJpbnRmKCIlMmQ6ICVzICIsIGVudCwgRmlsZS5iYXNlbmFt
+ZSh4KSkKICAgIGVudD1lbnQrMQogICAgc21hcnRfcHJpbnQoc3RyLCBpbmZvd2luKQogICAgZGF0
+YS5wdXNoKHgpCiAgZW5kCiAgaW5mb3dpbi5yZWZyZXNoCiAgcmV0dXJuIGRhdGEKZW5kCgojCiMg
+U2NhbiBkaXJlY3Ryb3kgYW5kIGNoYW5nZSBvd25lci9ncm91cCBvZiBhbGwgcmVndWxhciBmaWxl
+cwojIGFuZCBjdXJyZW50IGRpcmVjdG9yeS4KIwpkZWYgY2hvd25fYWxsX2ZpbGVzKHVpZCwgZ2lk
+LCBncm91cCwgaW5mb3dpbikKICAjIGNoYW5nZSBvd25lci9ncm91cCBvZiBjdXJyZW50IGRpcgog
+IGJlZ2luCiAgICBGaWxlLmNob3duKHVpZCwgZ2lkLCBncm91cCkKICByZXNjdWUKICAgIGhpdF9h
+bnlfa2V5KCJFcnJvcjoiKyQhLCBpbmZvd2luKQogICAgcmV0dXJuCiAgZW5kCiAgIyBjaGFuZ2Ug
+b3duZXIvZ3JvdXAgb2YgcmVndWxhciBmaWxlcwogIERpci5mb3JlYWNoKGdyb3VwKSBkbyB8eHwK
+ICAgIG5hbWUgPSBncm91cCsiLyIreAogICAgbmV4dCBpZiBGaWxlLmRpcmVjdG9yeT8obmFtZSkK
+ICAgIGJlZ2luCiAgICAgIEZpbGUuY2hvd24obmlsLCBnaWQsIG5hbWUpCiAgICByZXNjdWUKICAg
+ICAgaGl0X2FueV9rZXkoIkVycm9yOiIrJCEsIGluZm93aW4pCiAgICAgIGJyZWFrCiAgICBlbmQK
+ICBlbmQKZW5kCgojCiMgQ2hlY2sgIi8iIGlzIGluY2x1ZGVkIG9yIG5vdCBhdCBta2Rpci9ybWRp
+cgojCmRlZiBjaGVja19ta3JtZGlyX3N0cmluZyhzdHIsIGluZm93aW4pCiAgaWYgKHN0ciA9fiAv
+XC8vKSB0aGVuCiAgICBpbmZvd2luLmFkZHN0cigiZG9uJ3QgaW5jbHVkZSAvXG4iKQogICAgcmV0
+dXJuIGZhbHNlCiAgZWxzaWYgKHN0ciA9PSAiLiIpIHRoZW4KICAgIGluZm93aW4uYWRkc3RyKCJj
+YW4ndCByZW1vdmUgY3VycmVudFxuIikKICBlbmQKICByZXR1cm4gdHJ1ZQplbmQKCiMKIyBHZXQg
+c3RyaW5nIGFuZCByZXR1bnMgdWlkIG9yIGdpZCBhcyBpbnRlZ2VyCiMKZGVmIHBhcnNlX2lkKHdp
+bmRvdywgdWlkLCBzdHIpCiAgaWYgKHN0ciA9fiAvXEQvKSB0aGVuCiAgICBiZWdpbgogICAgICBp
+ZiAodWlkID09IDEpIHRoZW4KICAgICAgICBpbmZvID0gRXRjOjpnZXRwd25hbShzdHIpCiAgICAg
+ICAgaWQgPSBpbmZvLnVpZAogICAgICBlbHNlCiAgICAgICAgaW5mbyA9IEV0Yzo6Z2V0Z3JuYW0o
+c3RyKQogICAgICAgIGlkID0gaW5mby5naWQKICAgICAgZW5kCiAgICByZXNjdWUKICAgICAgaGl0
+X2FueV9rZXkoIkVycm9yOiIrJCEsIHdpbmRvdykKICAgICAgaWQ9bmlsCiAgICBlbmQKICBlbHNl
+CiAgICBpZCA9IHN0ci50b19pCiAgZW5kCiAgcmV0dXJuIGlkCmVuZAoKIwojCiMgQ29tbWFuZCBt
+b2RlIGludGVyZmFjZQojCiMKZGVmIGNvbW1hbmRfbW9kZShpbmZvd2luKQogIHJldHVybiBpZiAo
+JGN1ci5zdWJzeXMgPT0gbmlsKQogIGluZm93aW4uY2xlYXIKICAkYmFyd2luLmNsZWFyCiAgJGJh
+cndpbi5hZGRzdHIoIltjb21tYW5kLW1vZGVdIikKICAkYmFyd2luLnJlZnJlc2gKICAjCiAgIyBT
+dWJzeXMgc3BlY2lhbCBmaWxlcyBhcmUgaW4gbnVtYmVyCiAgIwogIGluZm93aW4uYWRkc3RyKCI9
+PT09c3Vic3lzIGNvbW1hbmQ9PT09XG4iKQogIGRhdGEgPSBzaG93X3dyaXRhYmxlX2ZpbGVzKCRj
+dXIuc3Vic3lzLCAkY3VyLmN1cnNvciwgaW5mb3dpbikKICBpZiBkYXRhPT1uaWwgdGhlbgogICAg
+aW5mb3dpbi5hZGRzdHIoIm5vIHN1YnN5cyBjb21tYW5kIikKICBlbmQKICAjCiAgIyBDZ3JvdXAg
+Z2VuZXJpYyBvcHMgYXJlIGluIGFscGhhYmV0IAogICMKICBpbmZvd2luLmFkZHN0cigiXG49PT09
+Y2dyb3VwIGNvbW1hbmQ9PT09XG4iKQogIHNtYXJ0X3ByaW50KCJbQV0gYXR0YWNoIHRhc2soUElE
+KSIsIGluZm93aW4pCiAgc21hcnRfcHJpbnQoIiBbTV0gbWtkaXIiLCBpbmZvd2luKQogIHNtYXJ0
+X3ByaW50KCIgW1JdIHJtZGlyIixpbmZvd2luKQogIHNtYXJ0X3ByaW50KCIgW09dIGNob3duKE9X
+TkVSKSIsIGluZm93aW4pCiAgc21hcnRfcHJpbnQoIiBbR10gY2hvd24oR0lEKSIsIGluZm93aW4p
+CiAgaW5mb3dpbi5hZGRzdHIoIlxuXG5Nb2RpZnkgd2hpY2ggPyBbYW5kIEhpdCByZXR1cm5dOiIp
+CgogICNsaW5lIHRvIHNob3cgcHJvbXB0CiAgZW5kbGluZSA9IGluZm93aW4uY3VyeSsxCiAgI3dh
+aXQgZm9yIHRoZSBudW1iZXJzIG9yIEFPR01SCiAgc3RyPWluZm93aW4uZ2V0c3RyCiAgI3Rhcmdl
+dCBkaXJlY3RvcnkgaXMgdGhpcy4KICBncm91cCA9ICRjdXIuc3Vic3lzLmVudCgkY3VyLmN1cnNv
+ci5wb3MpCgogIGNhc2Ugc3RyLnRvX2kgIyBpZiBzdHIgaXMgbm90IG51bWJlciwgcmV0dXJucyAw
+LgogICMgU3Vic3lzdGVtIGNvbW1hbmRzCiAgd2hlbiAxLi45OQogICAgaWYgKGRhdGEgIT0gbmls
+KSB0aGVuCiAgICAgIG5hbWUgPSBkYXRhLmF0KHN0ci50b19pIC0gMSkKICAgICAgI2dldCBpbnB1
+dAogICAgICBpbmZvd2luLnNldHBvcyhlbmRsaW5lLCAwKQogICAgICB3aW5kb3dfcHJpbnRmKGlu
+Zm93aW4sICIjZWNobyB0byA+JXM6IiwgRmlsZS5iYXNlbmFtZShuYW1lKSkKICAgICAgc3RyID0g
+aW5mb3dpbi5nZXRzdHIKICAgICAgI3dyaXRlCiAgICAgIGJlZ2luCiAgICAgICAgZiA9IEZpbGUu
+b3BlbihuYW1lLCAidyIpIHt8ZnwgZi53cml0ZShzdHIpIH0KICAgICAgcmVzY3VlCiAgICAgICAg
+aGl0X2FueV9rZXkoIkVycm9yOiIrJCEsIGluZm93aW4pCiAgICAgIGVuZAogICAgZW5kCiAgIyBD
+Z3JvdXAgY29tbWFuZHMgKHN0ci50b19pIHJldHVybnMgMCkKICB3aGVuIDAKICAgIGNhc2Ugc3Ry
+CiAgICB3aGVuICJhIiwiQSIgI0F0dGFjaAogICAgICB3aW5kb3dfcHJpbnRmKGluZm93aW4sICJB
+dHRhY2ggdGFzayB0byAlczoiLCBncm91cCkKICAgICAgc3RyID0gaW5mb3dpbi5nZXRzdHIKICAg
+ICAgYmVnaW4gCiAgICAgICAgRmlsZS5vcGVuKGdyb3VwICsgIi90YXNrcyIsICJ3Iikge3xmfCBm
+LndyaXRlKHN0cikgfQogICAgICByZXNjdWUKICAgICAgICBoaXRfYW55X2tleSgiRXJyb3I6Iisk
+ISwgaW5mb3dpbikKICAgICAgZW5kCgogICAgd2hlbiAibyIsIk8iICNjaG93biAoT1dORVIpCiAg
+ICAgIGluZm93aW4uYWRkc3RyKCJjaGFuZ2Ugb3duZXIgaWQgb2YgYWxsIGZpbGVzIHRvOiIpCiAg
+ICAgIGlkID0gcGFyc2VfaWQoaW5mb3dpbiwgMSwgaW5mb3dpbi5nZXRzdHIpCiAgICAgIGNob3du
+X2FsbF9maWxlcyhpZCwgLTEsIGdyb3VwLCBpbmZvd2luKSBpZiBpZCAhPSBuaWwKCiAgICB3aGVu
+ICJnIiwiRyIgI2Nob3duIChHUk9VUCkKICAgICAgaW5mb3dpbi5hZGRzdHIoImNoYW5nZSBncm91
+cCBpZCBvZiBhbGwgZmlsZXMgdG86IikKICAgICAgaWQgPSBwYXJzZV9pZChpbmZvd2luLCAwLCBp
+bmZvd2luLmdldHN0cikKICAgICAgY2hvd25fYWxsX2ZpbGVzKC0xLCBpZCwgZ3JvdXAsIGluZm93
+aW4pIGlmIGlkICE9IG5pbAoKICAgIHdoZW4gIm0iLCJNIiAjbWtkaXIKICAgICAgaW5mb3dpbi5h
+ZGRzdHIoIm1rZGlyIC0uZW50ZXIgbmFtZToiKQogICAgICBzdHIgPSBpbmZvd2luLmdldHN0cgog
+ICAgICBpZiAoY2hlY2tfbWtybWRpcl9zdHJpbmcoc3RyLCBpbmZvd2luKSkgdGhlbgogICAgICAg
+IGJlZ2luCiAgICAgICAgICBpZiAoRGlyLm1rZGlyKGdyb3VwKyIvIitzdHIpICE9IDApIHRoZW4K
+ICAgICAgICAgICAgaGl0X2FueV9rZXkoIkVycm9yOiIrJCEsIGluZm93aW4pCgkgZW5kCiAgICAg
+ICAgcmVzY3VlCiAgICAgICAgICBoaXRfYW55X2tleSgiRXJyb3I6IiskISwgaW5mb3dpbikKICAg
+ICAgICBlbmQKICAgICAgZWxzZQogICAgICAgIGhpdF9hbnlfa2V5KG5pbCwgaW5mb3dpbikKICAg
+ICAgZW5kCgogICAgd2hlbiAiciIsIlIiICNybWRpcgogICAgICBpbmZvd2luLmFkZHN0cigicm1k
+aXIgLS5lbnRlciBuYW1lOiIpCiAgICAgIHN0ciA9IGluZm93aW4uZ2V0c3RyCiAgICAgIGlmIChj
+aGVja19ta3JtZGlyX3N0cmluZyhzdHIsIGluZm93aW4pKSB0aGVuCiAgICAgICAgYmVnaW4KICAg
+ICAgICAgIGlmIChEaXIucm1kaXIoZ3JvdXArIi8iK3N0cikgIT0gMCkgdGhlbgogICAgICAgICAg
+ICBoaXRfYW55X2tleSgiRXJyb3I6IiskISwgaW5mb3dpbikKICAgICAgICAgIGVuZAogICAgICAg
+IHJlc2N1ZQogICAgICAgICAgaGl0X2FueV9rZXkoIkVycm9yOiIrJCEsIGluZm93aW4pCiAgICAg
+ICAgZW5kCiAgICAgIGVsc2UKICAgICAgICBoaXRfYW55X2tleShuaWwsIGluZm93aW4pCiAgICAg
+IGVuZAogICAgZW5kCiAgZW5kCiAgJGJhcndpbi5jbGVhcgplbmQKCiMKIyBNYWluIGRyYXcgcm91
+dGluZQojCmRlZiBkcmF3X2luZm93aW4oaW5mb3dpbikKICBpbmZvd2luLmNsZWFyCiAgY3Vyc29y
+ID0gJGN1ci5jdXJzb3IKICBpZiBjdXJzb3IgPT0gbmlsIHRoZW4KICAgIG1vZGUgPSBTSE9XTU9V
+TlQKICBlbHNlCiAgICBtb2RlID0gY3Vyc29yLm1vZGUKICBlbmQKICAjCiAgIyBJZiBubyBzdWJz
+eXMgaXMgc3BlY2lmaWVkLCBqdXN0IHNob3cgbW91bnQgaW5mb3JtYXRpb24uCiAgIwoKICBjYXNl
+IG1vZGUKICB3aGVuIFNIT1dNT1VOVAogICAgc2hvd19tb3VudF9pbmZvKGluZm93aW4pCiAgd2hl
+biBTSE9XVEFTS1MKICAgICRiYXJ3aW4uYWRkc3RyKCJbcHMtbW9kZV0iKQogICAgc2hvd190YXNr
+cygkY3VyLnN1YnN5cywgY3Vyc29yLCBpbmZvd2luKQogIHdoZW4gU0hPV1NVQlNZUwogICAgJGJh
+cndpbi5hZGRzdHIoIltzdGF0LW1vZGVdIikKICAgIHNob3dfc3Vic3lzX3N0YXQoJGN1ci5zdWJz
+eXMsIGN1cnNvciwgaW5mb3dpbikKICBlbmQKZW5kCgojCiMgTWFpbiBsb29wCiMKIwojIEZvciBz
+dGRzY3JlZW4KIwojIENoZWNrIC9wcm9jL21vdW50cyBhbmQgcmVhZCBhbGwgc3Vic3lzLgojCnJl
+ZnJlc2hfYWxsCgojCiMgTWFpbiBsb29wLiBjcmVhdGUgd2luZG93cyBhbmQgd2FpdCBmb3IgaW5w
+dXRzCiMKQ3Vyc2VzOjppbml0X3NjcmVlbgpiZWdpbgogICRsaW5lcz1DdXJzZXM6OmxpbmVzCiAg
+JGNvbHM9Q3Vyc2VzOjpjb2xzCiAgb2ZmPTAKICAjCiAgIyBDcmVhdGUgd2luZG93CiAgIwogIGRp
+cndpbiA9IEN1cnNlczo6c3Rkc2NyLnN1YndpbihESVJXSU5fTElORVMsICRjb2xzLCBvZmYsIDAp
+CiAgI2ZvciBtaXNjIGluZm8KICBvZmYrPURJUldJTl9MSU5FUwogICRiYXJ3aW4gPSBDdXJzZXM6
+OnN0ZHNjci5zdWJ3aW4oMSwgJGNvbHMsIG9mZiwgMCk7CiAgJGJhcndpbi5zdGFuZG91dAogIG9m
+Zis9MQogIGluZm93aW4gPSBDdXJzZXM6OnN0ZHNjci5zdWJ3aW4oJGxpbmVzLW9mZiwgJGNvbHMs
+IG9mZiwgMCkKICBtb2RlPVNIT1dUQVNLUyAgCiAgcXVpdD0wCiAgcmVmcmVzaF90aW1lPTE1CiAg
+CiAgd2hpbGUgcXVpdCA9PSAwIAogICAgIyRiYXJ3aW4uY2xlYXIKCiAgICAjJGJhcndpbi5hZGRz
+dHIoIkluZm86IikKICAgIGRyYXdfZGlyd2luKGRpcndpbikKICAgIGRyYXdfaW5mb3dpbihpbmZv
+d2luKQogICAgZGlyd2luLnJlZnJlc2gKICAgIGluZm93aW4ucmVmcmVzaAogICAgJGJhcndpbi5y
+ZWZyZXNoCiAgICAjCiAgICAjIGhhbmRsZSBpbnB1dC4KICAgICMgCiAgICAkYmFyd2luLmNsZWFy
+CiAgICBDdXJzZXM6OnNldHBvcygwLDApCiAgICBjaD0wCiAgICBDdXJzZXM6Om5vZWNobwogICAg
+YmVnaW4KICAgICAgVGltZW91dDo6dGltZW91dChyZWZyZXNoX3RpbWUpIGRvCiAgICAgICAgY2g9
+Q3Vyc2VzOjpnZXRjaAogICAgICBlbmQKICAgIHJlc2N1ZSBUaW1lb3V0OjpFcnJvcgogICAgICAj
+JGJhcndpbi5hZGRzdHIoInRpbWVvdXQiKQogICAgZW5kCiAgICBDdXJzZXM6OmVjaG8KICAgICNj
+aGVjayBlc3BhY2Ugc2VxdWVuY2UKICAgIGlmIGNoID09IDI3IHRoZW4KICAgICAgY2ggPSBDdXJz
+ZXM6OmdldGNoCiAgICAgIGlmIGNoID09IDkxIHRoZW4KICAgICAgICBjaCA9IEN1cnNlczo6Z2V0
+Y2gKICAgICAgICBjYXNlIGNoCiAgICAgICAgICB3aGVuIDY1IHRoZW4gY2ggPSBVUEtFWQogICAg
+ICAgICAgd2hlbiA2NiB0aGVuIGNoID0gRE9XTktFWQogICAgICAgICAgd2hlbiA2NyB0aGVuIGNo
+ID0gUklHSFRLRVkKICAgICAgICAgIHdoZW4gNjggdGhlbiBjaCA9IExFRlRLRVkKICAgICAgICBl
+bmQKICAgICAgZW5kCiAgICBlbmQKICAgICMKICAgICMKICAgICMKICAgIGlmIChjaGVja19hbmRf
+cmVmcmVzaF9tb3VudF9pbmZvKSB0aGVuCiAgICAgICRjdXIuc2V0KC0xKQogICAgZW5kCiAgIAog
+ICAgIyRiYXJ3aW4uYWRkc3RyKFRpbWUubm93LmFzY3RpbWUpCiAgICBjYXNlIGNoCiAgICAgIHdo
+ZW4gP3EKICAgICAgICBxdWl0PTEKICAgICAgICBicmVhawogICAgICB3aGVuIExFRlRLRVkgdGhl
+biAkY3VyLm1vdmUoImxlZnQiKQogICAgICB3aGVuIFJJR0hUS0VZIHRoZW4gJGN1ci5tb3ZlKCJy
+aWdodCIpCiAgICAgIHdoZW4gVVBLRVkgdGhlbiAkY3VyLmNoZGlyKC0xKQogICAgICB3aGVuIERP
+V05LRVkgdGhlbiAkY3VyLmNoZGlyKDEpCiAgICAgIHdoZW4gP3MgdGhlbiAkY3VyLmNoYW5nZV9t
+b2RlCiAgICAgIHdoZW4gP24gdGhlbiBzZXRfc2Nyb2xsKGluZm93aW4sIDEpCiAgICAgIHdoZW4g
+P2IgdGhlbiBzZXRfc2Nyb2xsKGluZm93aW4sIC0xKQogICAgICB3aGVuID90IHRoZW4gdG9nZ2xl
+X3J1bm5pbmdfZmlsdGVyCiAgICAgIHdoZW4gP3UgdGhlbiB1c2VyX25hbWVfZmlsdGVyKGluZm93
+aW4pCiAgICAgIHdoZW4gP2YgdGhlbiBjb21tYW5kX25hbWVfZmlsdGVyKGluZm93aW4pCiAgICAg
+IHdoZW4gP2MgdGhlbiBjb21tYW5kX21vZGUoaW5mb3dpbikKICAgICAgd2hlbiA/ciB0aGVuIHJl
+ZnJlc2hfdGltZT1zZXRfcmVmcmVzaF90aW1lKHJlZnJlc2hfdGltZSwgaW5mb3dpbikKICAgIGVu
+ZAogIGVuZAplbnN1cmUKICBDdXJzZXM6OmNsb3NlX3NjcmVlbgplbmQK
+
+--Multipart=_Fri__3_Apr_2009_17_24_53_+0900_NDLvmcSHk.tojAYd--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
