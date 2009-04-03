@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id CEEFA6B003D
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 04:17:05 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n338HJD3000916
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id CFEC16B004D
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 04:18:46 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n338J2PR005448
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 3 Apr 2009 17:17:20 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 94CE845DD75
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:17:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7218845DD72
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:17:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5CD4E1DB8016
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:17:19 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 08243E08003
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:17:19 +0900 (JST)
-Date: Fri, 3 Apr 2009 17:15:52 +0900
+	Fri, 3 Apr 2009 17:19:02 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A134345DD7E
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:19:02 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F12945DD78
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:19:02 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 56C631DB803F
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:19:02 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C6091DB803C
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 17:19:02 +0900 (JST)
+Date: Fri, 3 Apr 2009 17:17:35 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH 7/9] vicitim selection logic
-Message-Id: <20090403171552.676b422e.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH 8/9] lru reordering
+Message-Id: <20090403171735.7a048a25.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
 References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
 Mime-Version: 1.0
@@ -34,258 +34,176 @@ List-ID: <linux-mm.kvack.org>
 
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Soft Limit victim selection/cache logic.
+This patch adds a function to change the LRU order of pages in global LRU
+under control of memcg's victim of soft limit.
 
-This patch implements victim selection logic and caching method.
+FILE and ANON victim is divided and LRU rotation will be done independently.
+(memcg which only includes FILE cache or ANON can exists.)
 
-victim memcg is selected in following way, assume a zone under shrinking
-is specified. Selected memcg will be
-  - has the highest priority (high usage)
-  - has memory on the zone.
-
-When a memcg is selected, it's rotated and cached per cpu with tickets.
-
-This cache is refreshed when
-  - given ticket is exhausetd
-  - very long time since last update.
-  - the cached memcg doesn't include proper zone.
-
-Even when no proper memcg is not found in victim selection logic,
-some tickets are assigned to NULL victim.
-
-As softlimitq, this cache's information has 2 ents for anon and file.
-
-Change Log v1 -> v2:
- - clean up.
- - cpu hotplug support.
- - change "bonus" calclation of victime.
- - try to make the code slim.
+This patch removes finds specfied number of pages from memcg's LRU and
+move it to top of global LRU. They will be the first target of shrink_xxx_list.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c |  198 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 198 insertions(+)
+ include/linux/memcontrol.h |   15 ++++++++++
+ mm/memcontrol.c            |   67 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/vmscan.c                |   18 +++++++++++-
+ 3 files changed, 99 insertions(+), 1 deletion(-)
 
+Index: softlimit-test2/include/linux/memcontrol.h
+===================================================================
+--- softlimit-test2.orig/include/linux/memcontrol.h
++++ softlimit-test2/include/linux/memcontrol.h
+@@ -117,6 +117,9 @@ static inline bool mem_cgroup_disabled(v
+ 
+ extern bool mem_cgroup_oom_called(struct task_struct *task);
+ 
++void mem_cgroup_soft_limit_reorder_lru(struct zone *zone,
++			       unsigned long nr_to_scan, enum lru_list l);
++int mem_cgroup_soft_limit_inactive_anon_is_low(struct zone *zone);
+ #else /* CONFIG_CGROUP_MEM_RES_CTLR */
+ struct mem_cgroup;
+ 
+@@ -264,6 +267,18 @@ mem_cgroup_print_oom_info(struct mem_cgr
+ {
+ }
+ 
++static inline void
++mem_cgroup_soft_limit_reorder_lru(struct zone *zone, unsigned long nr_to_scan,
++				  enum lru_list lru);
++{
++}
++
++static inline
++int mem_cgroup_soft_limit_inactive_anon_is_low(struct zone *zone)
++{
++	return 0;
++}
++
+ #endif /* CONFIG_CGROUP_MEM_CONT */
+ 
+ #endif /* _LINUX_MEMCONTROL_H */
 Index: softlimit-test2/mm/memcontrol.c
 ===================================================================
 --- softlimit-test2.orig/mm/memcontrol.c
 +++ softlimit-test2/mm/memcontrol.c
-@@ -37,6 +37,8 @@
- #include <linux/vmalloc.h>
- #include <linux/mm_inline.h>
- #include <linux/page_cgroup.h>
-+#include <linux/cpu.h>
-+
- #include "internal.h"
- 
- #include <asm/uaccess.h>
-@@ -1093,6 +1095,169 @@ static void mem_cgroup_update_soft_limit
- 	return;
+@@ -1257,6 +1257,73 @@ static struct mem_cgroup *get_soft_limit
+ 	return ret;
  }
  
-+/* softlimit victim selection logic */
-+
-+/* Returns the amount of evictable memory in memcg */
-+static unsigned long
-+mem_cgroup_usage(struct mem_cgroup *mem, struct zone *zone, int file)
-+{
-+	struct mem_cgroup_per_zone *mz;
-+	int nid = zone->zone_pgdat->node_id;
-+	int zid = zone_idx(zone);
-+	unsigned long usage = 0;
-+	enum lru_list l = LRU_BASE;
-+
-+	mz = mem_cgroup_zoneinfo(mem, nid, zid);
-+	if (file)
-+		l += LRU_FILE;
-+	usage = MEM_CGROUP_ZSTAT(mz, l) + MEM_CGROUP_ZSTAT(mz, l + LRU_ACTIVE);
-+
-+	return usage;
-+}
-+
-+struct soft_limit_cache {
-+	/* If ticket is 0, refresh and refill the cache.*/
-+	int ticket[2];
-+	/* next update time for ticket(jiffies)*/
-+	unsigned long next_update;
-+	/* victim memcg */
-+	struct mem_cgroup *mem[2];
-+};
-+
 +/*
-+ * Typically, 32pages are reclaimed per call. 4*32=128pages as base ticket.
-+ * 4 * prio scans are added as bonus for high priority.
++ * zone->lru and memcg's lru is synchronous under zone->lock.
++ * This tries to rotate pages in specfied LRU.
 + */
-+#define SLCACHE_NULL_TICKET (4)
-+#define SLCACHE_UPDATE_JIFFIES (HZ*5) /* 5 minutes is very long. */
-+DEFINE_PER_CPU(struct soft_limit_cache, soft_limit_cache);
-+
-+#ifdef CONFIG_HOTPLUG_CPU
-+static void forget_soft_limit_cache(long cpu)
++void mem_cgroup_soft_limit_reorder_lru(struct zone *zone,
++				      unsigned long nr_to_scan,
++				      enum lru_list l)
 +{
-+	struct soft_limit_cache *slc;
++	struct mem_cgroup *mem;
++	struct mem_cgroup_per_zone *mz;
++	int nid, zid, file;
++	unsigned long scan, flags;
++	struct list_head *src;
++	LIST_HEAD(found);
++	struct page_cgroup *pc;
++	struct page *page;
 +
-+	slc = &per_cpu(soft_limit_cache, cpu);
-+	slc->ticket[0] = 0;
-+	slc->ticket[1] = 0;
-+	slc->next_update = jiffies;
-+	if (slc->mem[0])
-+		mem_cgroup_put(slc->mem[0]);
-+	if (slc->mem[1])
-+		mem_cgroup_put(slc->mem[1]);
-+	slc->mem[0] = NULL;
-+	slc->mem[1] = NULL;
-+}
-+#endif
++	nid = zone->zone_pgdat->node_id;
++	zid = zone_idx(zone);
 +
++	file = is_file_lru(l);
 +
-+/* This is called under preempt disabled context....*/
-+static noinline void reload_softlimit_victim(struct soft_limit_cache *slc,
-+				    struct zone *zone, int file)
-+{
-+	struct mem_cgroup *mem, *tmp;
-+	struct list_head *queue, *cur;
-+	int prio;
-+	unsigned long usage = 0;
-+
-+	if (slc->mem[file]) {
-+		mem_cgroup_put(slc->mem[file]);
-+		slc->mem[file] = NULL;
-+	}
-+	slc->ticket[file] = SLCACHE_NULL_TICKET;
-+	slc->next_update = jiffies + SLCACHE_UPDATE_JIFFIES;
-+
-+	/* brief check the queue */
-+	for (prio = SLQ_MAXPRIO - 1; prio > 0; prio--) {
-+		if (!list_empty(&softlimitq.queue[prio][file]))
-+			break;
-+	}
-+retry:
-+	if (prio == 0)
++	mem = get_soft_limit_victim(zone, file);
++	if (!mem)
 +		return;
++	mz = mem_cgroup_zoneinfo(mem, nid, zid);
++	src = &mz->lists[l];
++	scan = 0;
 +
-+	/* check queue in priority order */
-+
-+	queue = &softlimitq.queue[prio][file];
-+
-+	spin_lock(&softlimitq.lock);
-+	mem = NULL;
-+	/*
-+	 * does same behavior as list_for_each_entry but
-+	 * member for next entity depends on "file".
-+	 */
-+	list_for_each(cur, queue) {
-+		if (!file)
-+			tmp = container_of(cur, struct mem_cgroup,
-+					   soft_limit_list[0]);
-+		else
-+			tmp = container_of(cur, struct mem_cgroup,
-+					   soft_limit_list[1]);
-+
-+		usage = mem_cgroup_usage(tmp, zone, file);
-+		if (usage) {
-+			mem = tmp;
-+			list_move_tail(&mem->soft_limit_list[file], queue);
++	/* Find at most nr_to_scan pages from local LRU */
++	spin_lock_irqsave(&zone->lru_lock, flags);
++	list_for_each_entry_reverse(pc, src, lru) {
++		if (scan >= nr_to_scan)
 +			break;
-+		}
++		/* We don't check Used bit */
++		page = pc->page;
++		/* Can happen ? */
++		if (unlikely(!PageLRU(page)))
++			continue;
++		/* This page is on (the same) LRU */
++		list_move(&page->lru, &found);
++		scan++;
 +	}
-+	spin_unlock(&softlimitq.lock);
++	/* vmscan searches pages from lru->prev. link this to lru->prev. */
++	list_splice_tail(&found, &zone->lru[l].list);
++	spin_unlock_irqrestore(&zone->lru_lock, flags);
 +
-+	/* If not found, goes to next priority */
-+	if (!mem) {
-+		prio--;
-+		goto retry;
-+	}
-+
-+	if (!css_is_removed(&mem->css)) {
-+		int bonus = 0;
-+		unsigned long estimated_excess;
-+		estimated_excess = totalram_pages/SLQ_PRIO_FACTOR;
-+		estimated_excess <<= prio;
-+		slc->mem[file] = mem;
-+		/*
-+		 * If not using hierarchy, this memcg itself consumes memory.
-+		 * Then, add extra scan bonus to this memcg itself.
-+		 * If not, this memcg itself may not be very bad one. If
-+		 * this memcg's (anon or file )usage > 12% of excess,
-+		 * add extra scan bonus. if not, just small scan.
-+		 */
-+		if (!mem->use_hierarchy || (usage > estimated_excess/8))
-+			bonus = SLCACHE_NULL_TICKET * prio;
-+		else
-+			bonus = SLCACHE_NULL_TICKET; /* twice to NULL */
-+		slc->ticket[file] += bonus;
-+		mem_cgroup_get(mem);
-+	}
++	/* When we cannot fill the request, check we should forget this cache
++	   or not */
++	if (scan < nr_to_scan &&
++	    !is_active_lru(l) &&
++	    mem_cgroup_usage(mem, zone, file) < SWAP_CLUSTER_MAX)
++		slc_reset_cache_ticket(file);
 +}
 +
-+static void slc_reset_cache_ticket(int file)
++/* Returns 1 if soft limit is active && memcg's zone's status is that */
++int mem_cgroup_soft_limit_inactive_anon_is_low(struct zone *zone)
 +{
-+	struct soft_limit_cache *slc = &get_cpu_var(soft_limit_cache);
-+
-+	slc->ticket[file] = 0;
-+	put_cpu_var(soft_limit_cache);
-+}
-+
-+static struct mem_cgroup *get_soft_limit_victim(struct zone *zone, int file)
-+{
-+	struct mem_cgroup *ret;
 +	struct soft_limit_cache *slc;
++	int ret = 0;
 +
 +	slc = &get_cpu_var(soft_limit_cache);
-+	/*
-+	 * If ticket is expired or long time since last ticket.
-+	 * reload victim.
-+	 */
-+	if ((--slc->ticket[file] < 0) ||
-+	    (time_after(jiffies, slc->next_update)))
-+		reload_softlimit_victim(slc, zone, file);
-+	ret = slc->mem[file];
++	if (slc->mem[SL_ANON])
++		ret = mem_cgroup_inactive_anon_is_low(slc->mem[SL_ANON], zone);
 +	put_cpu_var(soft_limit_cache);
 +	return ret;
 +}
-+
-+
+ 
  static void softlimitq_init(void)
  {
- 	int i;
-@@ -2780,3 +2945,36 @@ static int __init disable_swap_account(c
- }
- __setup("noswapaccount", disable_swap_account);
- #endif
-+
-+#ifdef CONFIG_HOTPLUG_CPU
-+/*
-+ * _NOW_, what we have to handle is just cpu removal.
-+ */
-+static int __cpuinit memcg_cpu_callback(struct notifier_block *nfb,
-+					unsigned long action,
-+					void *hcpu)
-+{
-+	long cpu = (long) hcpu;
-+
-+	switch (action) {
-+	case CPU_DEAD:
-+	case CPU_DEAD_FROZEN:
-+		forget_soft_limit_cache(cpu);
-+		break;
-+	default:
-+		break;
+Index: softlimit-test2/mm/vmscan.c
+===================================================================
+--- softlimit-test2.orig/mm/vmscan.c
++++ softlimit-test2/mm/vmscan.c
+@@ -1066,6 +1066,13 @@ static unsigned long shrink_inactive_lis
+ 	pagevec_init(&pvec, 1);
+ 
+ 	lru_add_drain();
++	if (scanning_global_lru(sc)) {
++		enum lru_list l = LRU_INACTIVE_ANON;
++		if (file)
++			l = LRU_INACTIVE_FILE;
++		mem_cgroup_soft_limit_reorder_lru(zone, max_scan, l);
 +	}
-+	return NOTIFY_OK;
-+}
 +
-+static struct notifier_block __cpuinitdata soft_limit_notifier = {
-+	&memcg_cpu_callback, NULL, 0
-+};
+ 	spin_lock_irq(&zone->lru_lock);
+ 	do {
+ 		struct page *page;
+@@ -1233,6 +1240,13 @@ static void shrink_active_list(unsigned 
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+ 
+ 	lru_add_drain();
++	if (scanning_global_lru(sc)) {
++		enum lru_list l = LRU_ACTIVE_ANON;
++		if (file)
++			l = LRU_ACTIVE_FILE;
++		mem_cgroup_soft_limit_reorder_lru(zone, nr_pages, l);
++	}
 +
-+static int __cpuinit memcg_cpuhp_init(void)
-+{
-+	register_cpu_notifier(&soft_limit_notifier);
-+	return 0;
-+}
-+__initcall(memcg_cpuhp_init);
-+#endif
+ 	spin_lock_irq(&zone->lru_lock);
+ 	pgmoved = sc->isolate_pages(nr_pages, &l_hold, &pgscanned, sc->order,
+ 					ISOLATE_ACTIVE, zone,
+@@ -1328,7 +1342,9 @@ static int inactive_anon_is_low_global(s
+ 
+ 	if (inactive * zone->inactive_ratio < active)
+ 		return 1;
+-
++	/* check soft limit vicitm's status */
++	if (mem_cgroup_soft_limit_inactive_anon_is_low(zone))
++		return 1;
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
