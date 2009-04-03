@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D83D76B003D
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 04:53:35 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 321E06B003D
+	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 04:54:29 -0400 (EDT)
+Date: Fri, 3 Apr 2009 16:55:03 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] vfs: reduce page fault retry code
+Message-ID: <20090403085503.GC6084@localhost>
+References: <604427e00812051140s67b2a89dm35806c3ee3b6ed7a@mail.gmail.com> <20090331150046.16539218.akpm@linux-foundation.org> <20090403082230.GA6084@localhost> <20090403083559.GB6084@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <18901.52910.795773.284166@pilspetsen.it.uu.se>
-Date: Fri, 3 Apr 2009 10:54:06 +0200
-From: Mikael Pettersson <mikpe@it.uu.se>
-Subject: Re: Detailed Stack Information Patch [2/3]
-In-Reply-To: <1238745668.8735.4.camel@matrix>
-References: <1238511507.364.62.camel@matrix>
-	<20090401193639.GB12316@elte.hu>
-	<1238707547.3882.24.camel@matrix>
-	<18901.48028.862826.66492@pilspetsen.it.uu.se>
-	<1238745668.8735.4.camel@matrix>
+Content-Disposition: inline
+In-Reply-To: <20090403083559.GB6084@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Stefani Seibold <stefani@seibold.net>
-Cc: Mikael Pettersson <mikpe@it.uu.se>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Joerg Engel <joern@logfs.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ying Han <yinghan@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@elte.hu, mikew@google.com, rientjes@google.com, rohitseth@google.com, hugh@veritas.com, a.p.zijlstra@chello.nl, hpa@zytor.com, edwintorok@gmail.com, lee.schermerhorn@hp.com, npiggin@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Stefani Seibold writes:
- > Am Freitag, den 03.04.2009, 09:32 +0200 schrieb Mikael Pettersson:
- > > Stefani Seibold writes:
- > >  > I think a user space daemon will be the a good way if the /proc/*/maps
- > >  > or /proc/*/stack will provide the following information:
- > >  > 
- > >  > - start address of the stack
- > >  > - current address of the stack pointer
- > >  > - highest used address in the stack
- > > 
- > > You're assuming
- > > 1. a thread has exactly one stack
- > > 2. the stack is a single unbroken area
- > > 3. the kernel knows the location of this area
- > > 
- > > None of these assumptions are necessarily valid, esp. in
- > > the presence of virtualizers, managed runtimes, or mixed
- > > interpreted/JIT language implementations.
- > 
- > We are talking about the kernel view. And from this point a thread has
- > only one stack and it is a single mapped continuous area. There are only
- > one exception and that is the sigaltstack().
+find_lock_page_retry() works the same way as find_lock_page()
+when retry_flag=0. And their return value handling shall work
+(almost) in the same way, or it will already be a bug.
 
-So you're proposing to have the kernel export data which,
-while accurate from the kernel's limited view, may be
-arbitrarily inaccurate for the user-space process in question?
+So the !retry_flag special casing can be eliminated.
 
-Also I'm not sure you even need a kernel extension for the
-optimistic case of a single simple stack. ptrace to get stack
-pointer then scan /proc/$tid/maps to identify the corresponding
-mapping should give the same information, no?
+Cc: Ying Han <yinghan@google.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/filemap.c |    7 -------
+ 1 file changed, 7 deletions(-)
+
+--- mm.orig/mm/filemap.c
++++ mm/mm/filemap.c
+@@ -1663,13 +1663,6 @@ no_cached_page:
+ 	 * meantime, we'll just come back here and read it again.
+ 	 */
+ 	if (error >= 0) {
+-		/*
+-		 * If caller cannot tolerate a retry in the ->fault path
+-		 * go back to check the page again.
+-		 */
+-		if (!retry_flag)
+-			goto retry_find;
+-
+ 		retry_ret = find_lock_page_retry(mapping, vmf->pgoff,
+ 					vma, &page, retry_flag);
+ 		if (retry_ret == VM_FAULT_RETRY)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
