@@ -1,117 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A34B96B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 21:26:39 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n331R2Gj027331
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 3 Apr 2009 10:27:02 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E5B7045DE52
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 10:27:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AA98445DE4F
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 10:27:01 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 816D2E08005
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 10:27:01 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 39ED4E08001
-	for <linux-mm@kvack.org>; Fri,  3 Apr 2009 10:27:01 +0900 (JST)
-Date: Fri, 3 Apr 2009 10:25:34 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] proc pid maps dont show pgoff of pure anon vmas style fix
- (WasRe: [RFC][PATCH] don't show pgoff of vma if vma is pure ANON (was Re:
- mmotm 2009-01-12-16-53 uploaded)
-Message-Id: <20090403102534.1d1e22de.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090402131816.54724d4e.akpm@linux-foundation.org>
-References: <200901130053.n0D0rhev023334@imap1.linux-foundation.org>
-	<20090113181317.48e910af.kamezawa.hiroyu@jp.fujitsu.com>
-	<496CC9D8.6040909@google.com>
-	<20090114162245.923c4caf.kamezawa.hiroyu@jp.fujitsu.com>
-	<Pine.LNX.4.64.0901141349410.5465@blonde.anvils>
-	<20090115114312.e42a0dba.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090402131816.54724d4e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B36DB6B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 21:28:59 -0400 (EDT)
+Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
+	by smtp-out.google.com with ESMTP id n331TNtT016881
+	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 18:29:24 -0700
+Received: from wf-out-1314.google.com (wfc28.prod.google.com [10.142.3.28])
+	by spaceape24.eur.corp.google.com with ESMTP id n331SWoW029151
+	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 18:29:22 -0700
+Received: by wf-out-1314.google.com with SMTP id 28so934159wfc.10
+        for <linux-mm@kvack.org>; Thu, 02 Apr 2009 18:29:21 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090402233908.GA22206@duck.suse.cz>
+References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
+	 <200904022224.31060.nickpiggin@yahoo.com.au>
+	 <20090402113400.GC3010@duck.suse.cz>
+	 <200904030251.22197.nickpiggin@yahoo.com.au>
+	 <604427e00904021044n73302f4uc39ca09fe96caf57@mail.gmail.com>
+	 <604427e00904021552m7ef58163n5392bbe54d902c21@mail.gmail.com>
+	 <20090402233908.GA22206@duck.suse.cz>
+Date: Thu, 2 Apr 2009 18:29:21 -0700
+Message-ID: <604427e00904021829j6a9aba65gafcc67df9c842a86@mail.gmail.com>
+Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: hugh@veritas.com, mikew@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, yinghan@google.com
+To: Jan Kara <jack@suse.cz>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 List-ID: <linux-mm.kvack.org>
 
-I wrote this on mmotm-Mar23 as 2.6.29-rc8-mm1. Is this ok ?
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Thu, Apr 2, 2009 at 4:39 PM, Jan Kara <jack@suse.cz> wrote:
+> On Thu 02-04-09 15:52:19, Ying Han wrote:
+>> On Thu, Apr 2, 2009 at 10:44 AM, Ying Han <yinghan@google.com> wrote:
+>> > On Thu, Apr 2, 2009 at 8:51 AM, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>> >> On Thursday 02 April 2009 22:34:01 Jan Kara wrote:
+>> >>> On Thu 02-04-09 22:24:29, Nick Piggin wrote:
+>> >>> > On Thursday 02 April 2009 09:36:13 Ying Han wrote:
+>> >>> > > Hi Jan:
+>> >>> > >     I feel that the problem you saw is kind of differnt than mine. As
+>> >>> > > you mentioned that you saw the PageError() message, which i don't see
+>> >>> > > it on my system. I tried you patch(based on 2.6.21) on my system and
+>> >>> > > it runs ok for 2 days, Still, since i don't see the same error message
+>> >>> > > as you saw, i am not convineced this is the root cause at least for
+>> >>> > > our problem. I am still looking into it.
+>> >>> > >     So, are you seeing the PageError() every time the problem happened?
+>> >>> >
+>> >>> > So I asked if you could test with my workaround of taking truncate_mutex
+>> >>> > at the start of ext2_get_blocks, and report back. I never heard of any
+>> >>> > response after that.
+>> >>> >
+>> >>> > To reiterate: I was able to reproduce a problem with ext2 (I was testing
+>> >>> > on brd to get IO rates high enough to reproduce it quite frequently).
+>> >>> > I think I narrowed the problem down to block allocation or inode block
+>> >>> > tree corruption because I was unable to reproduce it with that hack in
+>> >>> > place.
+>> >>>   Nick, what load did you use for reproduction? I'll try to reproduce it
+>> >>> here so that I can debug ext2...
+>> >>
+>> >> OK, I set up the filesystem like this:
+>> >>
+>> >> modprobe rd rd_size=$[3*1024*1024]   #almost fill memory so we reclaim buffers
+>> >> dd if=/dev/zero of=/dev/ram0 bs=4k   #prefill brd so we don't get alloc deadlock
+>> >> mkfs.ext2 -b1024 /dev/ram0           #1K buffers
+>> >>
+>> >> Test is basically unmodified except I use 64MB files, and start 8 of them
+>> >> at once to (8 core system, so improve chances of hitting the bug). Although I
+>> >> do see it with only 1 running it takes longer to trigger.
+>> >>
+>> >> I also run a loop doing 'sync ; echo 3 > /proc/sys/vm/drop_caches' but I don't
+>> >> know if that really helps speed up reproducing it. It is quite random to hit,
+>> >> but I was able to hit it IIRC in under a minute with that setup.
+>> >>
+>> >
+>> > Here is how i reproduce it:
+>> > Filesystem is ext2 with blocksize 4096
+>> > Fill up the ram with 95% anon memory and mlockall ( put enough memory
+>> > pressure which will trigger page reclaim and background writeout)
+>> > Run one thread of the test program
+>> >
+>> > and i will see "bad pages" within few minutes.
+>>
+>> And here is the "top" and stdout while it is getting "bad pages"
+>> top
+>>
+>>   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+>>  3487 root      20   0 52616  50m  284 R   95  0.3   3:58.85 usemem
+>>  3810 root      20   0  129m  99m  99m D   41  0.6   0:01.87 ftruncate_mmap
+>>   261 root      15  -5     0    0    0 D    4  0.0   0:31.08 kswapd0
+>>   262 root      15  -5     0    0    0 D    3  0.0   0:10.26 kswapd1
+>>
+>> stdout:
+>>
+>> while true; do
+>>     ./ftruncate_mmap;
+>> done
+>> Running 852 bad page
+>> Running 315 bad page
+>> Running 999 bad page
+>> Running 482 bad page
+>> Running 24 bad page
+>  Thanks, for the help. I've debugged the problem to a bug in
+> ext2_get_block(). I've already sent out a patch which should fix the issue
+> (at least it fixes the problem for me).
+>  The fix is also attached if you want to try it.
 
-Fix condig style of proc-pid-maps-dont-show-pgoff-of-pure-anon-vmas.patch
+hmm, now i do see that get_block() returns ENOSPC by printk the err.
+So did you applied the patch which redirty_page_for_writepage as well
+as this one together?
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- fs/proc/task_mmu.c   |    5 +++--
- fs/proc/task_nommu.c |    5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+I will start the test with kernel applied both patches and leave it for running.
 
-Index: mmotm-2.6.29-rc8-mm1/fs/proc/task_mmu.c
-===================================================================
---- mmotm-2.6.29-rc8-mm1.orig/fs/proc/task_mmu.c
-+++ mmotm-2.6.29-rc8-mm1/fs/proc/task_mmu.c
-@@ -204,6 +204,7 @@ static void show_map_vma(struct seq_file
- 	struct file *file = vma->vm_file;
- 	int flags = vma->vm_flags;
- 	unsigned long ino = 0;
-+	unsigned long long pgoff = 0;
- 	dev_t dev = 0;
- 	int len;
- 
-@@ -211,6 +212,7 @@ static void show_map_vma(struct seq_file
- 		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
- 		dev = inode->i_sb->s_dev;
- 		ino = inode->i_ino;
-+		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
- 	}
- 
- 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
-@@ -220,8 +222,7 @@ static void show_map_vma(struct seq_file
- 			flags & VM_WRITE ? 'w' : '-',
- 			flags & VM_EXEC ? 'x' : '-',
- 			flags & VM_MAYSHARE ? 's' : 'p',
--			(!vma->vm_file) ? 0 :
--				((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
-+			pgoff,
- 			MAJOR(dev), MINOR(dev), ino, &len);
- 
- 	/*
-Index: mmotm-2.6.29-rc8-mm1/fs/proc/task_nommu.c
-===================================================================
---- mmotm-2.6.29-rc8-mm1.orig/fs/proc/task_nommu.c
-+++ mmotm-2.6.29-rc8-mm1/fs/proc/task_nommu.c
-@@ -125,6 +125,7 @@ static int nommu_vma_show(struct seq_fil
- 	struct file *file;
- 	dev_t dev = 0;
- 	int flags, len;
-+	unsigned long long pgoff = 0;
- 
- 	flags = vma->vm_flags;
- 	file = vma->vm_file;
-@@ -133,6 +134,7 @@ static int nommu_vma_show(struct seq_fil
- 		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
- 		dev = inode->i_sb->s_dev;
- 		ino = inode->i_ino;
-+		pgoff = (loff_t)vma->pg_off << PAGE_SHIFT;
- 	}
- 
- 	seq_printf(m,
-@@ -143,8 +145,7 @@ static int nommu_vma_show(struct seq_fil
- 		   flags & VM_WRITE ? 'w' : '-',
- 		   flags & VM_EXEC ? 'x' : '-',
- 		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
--		   (!vma->vm_file) ? 0 :
--			(unsigned long long) vma->vm_pgoff << PAGE_SHIFT,
-+		   pgoff,
- 		   MAJOR(dev), MINOR(dev), ino, &len);
- 
- 	if (file) {
+>
+>                                                                        Honza
+> --
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
