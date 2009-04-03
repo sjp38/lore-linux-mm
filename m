@@ -1,122 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id B36DB6B003D
-	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 21:28:59 -0400 (EDT)
-Received: from spaceape24.eur.corp.google.com (spaceape24.eur.corp.google.com [172.28.16.76])
-	by smtp-out.google.com with ESMTP id n331TNtT016881
-	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 18:29:24 -0700
-Received: from wf-out-1314.google.com (wfc28.prod.google.com [10.142.3.28])
-	by spaceape24.eur.corp.google.com with ESMTP id n331SWoW029151
-	for <linux-mm@kvack.org>; Thu, 2 Apr 2009 18:29:22 -0700
-Received: by wf-out-1314.google.com with SMTP id 28so934159wfc.10
-        for <linux-mm@kvack.org>; Thu, 02 Apr 2009 18:29:21 -0700 (PDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 084E76B003D
+	for <linux-mm@kvack.org>; Thu,  2 Apr 2009 23:49:18 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [aarcange@redhat.com: [PATCH] fork vs gup(-fast) fix]
+Date: Fri, 3 Apr 2009 14:49:48 +1100
+References: <20090322205249.6801.A69D9226@jp.fujitsu.com> <20090330191830.6924.A69D9226@jp.fujitsu.com> <200904022307.12043.nickpiggin@yahoo.com.au>
+In-Reply-To: <200904022307.12043.nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-In-Reply-To: <20090402233908.GA22206@duck.suse.cz>
-References: <604427e00903181244w360c5519k9179d5c3e5cd6ab3@mail.gmail.com>
-	 <200904022224.31060.nickpiggin@yahoo.com.au>
-	 <20090402113400.GC3010@duck.suse.cz>
-	 <200904030251.22197.nickpiggin@yahoo.com.au>
-	 <604427e00904021044n73302f4uc39ca09fe96caf57@mail.gmail.com>
-	 <604427e00904021552m7ef58163n5392bbe54d902c21@mail.gmail.com>
-	 <20090402233908.GA22206@duck.suse.cz>
-Date: Thu, 2 Apr 2009 18:29:21 -0700
-Message-ID: <604427e00904021829j6a9aba65gafcc67df9c842a86@mail.gmail.com>
-Subject: Re: ftruncate-mmap: pages are lost after writing to mmaped file.
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200904031449.49594.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Jan Kara <jack@suse.cz>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, "Martin J. Bligh" <mbligh@mbligh.org>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, guichaz@gmail.com, Alex Khesin <alexk@google.com>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Ingo Molnar <mingo@elte.hu>, Nick Piggin <npiggin@novell.com>, Hugh Dickins <hugh@veritas.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 2, 2009 at 4:39 PM, Jan Kara <jack@suse.cz> wrote:
-> On Thu 02-04-09 15:52:19, Ying Han wrote:
->> On Thu, Apr 2, 2009 at 10:44 AM, Ying Han <yinghan@google.com> wrote:
->> > On Thu, Apr 2, 2009 at 8:51 AM, Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->> >> On Thursday 02 April 2009 22:34:01 Jan Kara wrote:
->> >>> On Thu 02-04-09 22:24:29, Nick Piggin wrote:
->> >>> > On Thursday 02 April 2009 09:36:13 Ying Han wrote:
->> >>> > > Hi Jan:
->> >>> > >     I feel that the problem you saw is kind of differnt than mine. As
->> >>> > > you mentioned that you saw the PageError() message, which i don't see
->> >>> > > it on my system. I tried you patch(based on 2.6.21) on my system and
->> >>> > > it runs ok for 2 days, Still, since i don't see the same error message
->> >>> > > as you saw, i am not convineced this is the root cause at least for
->> >>> > > our problem. I am still looking into it.
->> >>> > >     So, are you seeing the PageError() every time the problem happened?
->> >>> >
->> >>> > So I asked if you could test with my workaround of taking truncate_mutex
->> >>> > at the start of ext2_get_blocks, and report back. I never heard of any
->> >>> > response after that.
->> >>> >
->> >>> > To reiterate: I was able to reproduce a problem with ext2 (I was testing
->> >>> > on brd to get IO rates high enough to reproduce it quite frequently).
->> >>> > I think I narrowed the problem down to block allocation or inode block
->> >>> > tree corruption because I was unable to reproduce it with that hack in
->> >>> > place.
->> >>>   Nick, what load did you use for reproduction? I'll try to reproduce it
->> >>> here so that I can debug ext2...
->> >>
->> >> OK, I set up the filesystem like this:
->> >>
->> >> modprobe rd rd_size=$[3*1024*1024]   #almost fill memory so we reclaim buffers
->> >> dd if=/dev/zero of=/dev/ram0 bs=4k   #prefill brd so we don't get alloc deadlock
->> >> mkfs.ext2 -b1024 /dev/ram0           #1K buffers
->> >>
->> >> Test is basically unmodified except I use 64MB files, and start 8 of them
->> >> at once to (8 core system, so improve chances of hitting the bug). Although I
->> >> do see it with only 1 running it takes longer to trigger.
->> >>
->> >> I also run a loop doing 'sync ; echo 3 > /proc/sys/vm/drop_caches' but I don't
->> >> know if that really helps speed up reproducing it. It is quite random to hit,
->> >> but I was able to hit it IIRC in under a minute with that setup.
->> >>
->> >
->> > Here is how i reproduce it:
->> > Filesystem is ext2 with blocksize 4096
->> > Fill up the ram with 95% anon memory and mlockall ( put enough memory
->> > pressure which will trigger page reclaim and background writeout)
->> > Run one thread of the test program
->> >
->> > and i will see "bad pages" within few minutes.
->>
->> And here is the "top" and stdout while it is getting "bad pages"
->> top
->>
->>   PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
->>  3487 root      20   0 52616  50m  284 R   95  0.3   3:58.85 usemem
->>  3810 root      20   0  129m  99m  99m D   41  0.6   0:01.87 ftruncate_mmap
->>   261 root      15  -5     0    0    0 D    4  0.0   0:31.08 kswapd0
->>   262 root      15  -5     0    0    0 D    3  0.0   0:10.26 kswapd1
->>
->> stdout:
->>
->> while true; do
->>     ./ftruncate_mmap;
->> done
->> Running 852 bad page
->> Running 315 bad page
->> Running 999 bad page
->> Running 482 bad page
->> Running 24 bad page
->  Thanks, for the help. I've debugged the problem to a bug in
-> ext2_get_block(). I've already sent out a patch which should fix the issue
-> (at least it fixes the problem for me).
->  The fix is also attached if you want to try it.
+[sorry, resending because my mail client started sending HTML and
+this didn't get through spam filters]
 
-hmm, now i do see that get_block() returns ENOSPC by printk the err.
-So did you applied the patch which redirty_page_for_writepage as well
-as this one together?
+On Thursday 02 April 2009 23:07:11 Nick Piggin wrote:
+Hi!
 
-I will start the test with kernel applied both patches and leave it for running.
-
+On Monday 30 March 2009 21:52:44 KOSAKI Motohiro wrote:
+> > Hi Nick,
 >
->                                                                        Honza
-> --
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
+> > > Am I missing any thing?
+> >
+> > I still don't understand why this way is so much better than
+> > my last proposal. I just wanted to let that simmer down for a
+> > few days :) But I'm honestly really just interested in a good
+> > discussion and I don't mind being sworn at if I'm being stupid,
+> > but I really want to hear opinions of why I'm wrong too.
+> >
+> > Yes my patch has downsides I'm quite happy to admit. But I just
+> > don't see that copy-on-fork rather than wrprotect-on-fork is
+> > the showstopper. To me it seemed nice because it is practically
+> > just reusing code straight from do_wp_page, and pretty well
+> > isolated out of the fastpath.
 >
+> Firstly, I'm very sorry for very long delay responce. This month, I'm
+> very busy and I don't have enough developing time ;)
+
+No problem.
+
+
+> Secondly, I have strongly obsession to bugfix. (I guess you alread know 
+it)
+> but I don't have obsession to bugfix _way_. my patch was made for
+> creating good discussion, not NAK your patch.
+
+Definitely. I like more discussion and alternative approaches.
+
+
+> I think your patch is good. but it have few disadvantage.
+> (yeah, I agree mine have lot disadvantage)
+>
+> 1. using page->flags
+>    nowadays, page->flags is one of most prime estate in linux.
+>    as far as possible, we can avoid to use it.
+
+Well... I'm not sure if it is that bad. It uses an anonymous
+page flag, which are not so congested as pagecache page flags.
+I can't think of anything preventing anonymous pages from
+using PG_owner_priv_1, PG_private, or PG_mappedtodisk, so a
+"final" solution that uses a page flag would use one of those
+I guess.
+
+
+> 2. don't have GUP_FLAGS_PINNING_PAGE flag
+>    then, access_process_vm() can decow a page unnecessary.
+>    it isn't good feature, I think.
+
+access_process_vm I think can just avoid COWing because it
+holds mmap_sem for the duration of the operation. I just didn't
+fix that because I didn't really think of it.
+
+
+>    IOW, I don't think "caller transparent" is important.
+
+Well I don't know about that. I don't know that O_DIRECT is particularly
+more important to fix the problem than vmsplice, or any of the numerous
+other zero-copy methods open coded in drivers.
+
+
+>    minimal side effect is important more. my side-effect mean non direct-
+io
+>    effection. I don't mind direct-io path side effection. it is only used
+> DB or similar software. then, we can assume a lot of userland usage.
+
+I agree my patch should not be de-cowing for access_process_vm for read.
+I think that can be fixed.
+ 
+But I disagree that O_DIRECT is unimportant. I think the big database users
+don't like more cost in this path, and they obviously have the capacity to
+use it carefully so I'm sure they would prefer not to add anything. Intel
+definitely counts cycles in the O_DIRECT path.
+
+
+> and I was playing your patch in last week. but I conclude I can't shrink
+> it more.
+> As far as I understand, Linus don't refuse copy-on-fork itself. he only
+> refuse messy bugfix patch.
+> In general, bugfix patch should be backportable to stable tree.
+
+I think assessing this type of patch based of diffstat is a bit
+ridiculous ;) But I think it can be shrunk a bit if it shares a
+bit of code with do_wp_page.
+
+
+> Then, I think step-by-step development is better.
+>
+> 1. at first, merge wrprotect-on-fork.
+> 2. improve speed.
+>
+> What do you think?
+>
+>
+> btw,
+> Linus give me good inspiration. if page pinning happend, the patch
+> is guranteed to grabbed only one process.
+> then, we can put pinning-count and some additional information
+> into anon_vma. it can avoid to use page->flags although we implement
+> copy-on-fork. maybe.
+
+Hmm, I might try playing with that in my patch. Not so much because the
+extra flag is important (as I explain above), but keeping a count will
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
