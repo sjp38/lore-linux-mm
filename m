@@ -1,212 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1B7736B0047
-	for <linux-mm@kvack.org>; Sat,  4 Apr 2009 10:35:50 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id BD83C6B0047
+	for <linux-mm@kvack.org>; Sat,  4 Apr 2009 10:35:51 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
-Date: Sat,  4 Apr 2009 17:35:18 +0300
-Message-Id: <1238855722-32606-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 2/4] add page_wrprotect(): write protecting page.
+Date: Sat,  4 Apr 2009 17:35:20 +0300
+Message-Id: <1238855722-32606-3-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1238855722-32606-2-git-send-email-ieidus@redhat.com>
+References: <1238855722-32606-1-git-send-email-ieidus@redhat.com>
+ <1238855722-32606-2-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
->From v1 to v2:
+this patch add new function called page_wrprotect(),
+page_wrprotect() is used to take a page and mark all the pte that
+point into it as readonly.
 
-1)Fixed security issue found by Chris Wright:
-    Ksm was checking if page is a shared page by running !PageAnon.
-    Beacuse that Ksm scan only anonymous memory, all !PageAnons
-    inside ksm data strctures are shared page, however there might
-    be a case for do_wp_page() when the VM_SHARED is used where
-    do_wp_page() would instead of copying the page into new anonymos
-    page, would reuse the page, it was fixed by adding check for the
-    dirty_bit of the virtual addresses pointing into the shared page.
-    I was not finding any VM code tha would clear the dirty bit from
-    this virtual address (due to the fact that we allocate the page
-    using page_alloc() - kernel allocated pages), ~but i still want
-    confirmation about this from the vm guys - thanks.~
+The function is working by walking the rmap of the page, and setting
+each pte realted to the page as readonly.
 
-2)Moved to sysfs to control ksm:
-    It was requested as a better way to control the ksm scanning
-    thread than ioctls.
-    the sysfs api:
-    dir: /sys/kernel/mm/ksm/
+The odirect_sync parameter is used to protect against possible races
+with odirect while we are marking the pte as readonly,
+as noted by Andrea Arcanglei:
 
-    kernel_pages_allocated - information about how many kernel pages
-    ksm have allocated, this pages are not swappable, and each page
-    like that is used by ksm to share pages with identical content
-    
-    pages_shared - how many pages were shared by ksm
+"While thinking at get_user_pages_fast I figured another worse way
+things can go wrong with ksm and o_direct: think a thread writing
+constantly to the last 512bytes of a page, while another thread read
+and writes to/from the first 512bytes of the page. We can lose
+O_DIRECT reads, the very moment we mark any pte wrprotected..."
 
-    run - set to 1 when you want ksm to run, 0 when no
+Signed-off-by: Izik Eidus <ieidus@redhat.com>
+---
+ include/linux/rmap.h |   11 ++++
+ mm/rmap.c            |  139 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+), 0 deletions(-)
 
-    max_kernel_pages - set the maximum amount of kernel pages
-    to be allocated by ksm, set 0 for unlimited.
-
-    pages_to_scan - how many pages to scan before ksm will sleep
-
-    sleep - how much usecs ksm will sleep.
-
-3)Add sysfs paramater to control the maximum kernel pages to be by
-ksm.
-
-4)Add statistics about how much pages are really shared.
-
-
-One issue still to be discussed:
-There was a suggestion to use madvice(SHAREABLE) instead of using
-ioctls to register memory that need to be scanned by ksm.
-Such change is outside the area of ksm.c and would required adding
-new madvice api, and change some parts of the vm and the kernel
-code, so first thing to do, is realized if we really want this.
-
-I dont know any other open issues.
-
-Thanks.
-
-This is from the first post:
-(The kvm part, togather with the kvm-userspace part, was post with V1
-before about a week, whoever want to test ksm may download the
-patch from lkml archive)
-
-KSM is a linux driver that allows dynamicly sharing identical memory
-pages between one or more processes.
-
-Unlike tradtional page sharing that is made at the allocation of the
-memory, ksm do it dynamicly after the memory was created.
-Memory is periodically scanned; identical pages are identified and
-merged.
-The sharing is unnoticeable by the process that use this memory.
-(the shared pages are marked as readonly, and in case of write
-do_wp_page() take care to create new copy of the page)
-
-To find identical pages ksm use algorithm that is split into three
-primery levels:
-
-1) Ksm will start scan the memory and will calculate checksum for each
-   page that is registred to be scanned.
-   (In the first round of the scanning, ksm would only calculate
-    this checksum for all the pages)
-
-2) Ksm will go again on the whole memory and will recalculate the
-   checmsum of the pages, pages that are found to have the same
-   checksum value, would be considered "pages that are most likely
-   wont changed"
-   Ksm will insert this pages into sorted by page content RB-tree that
-   is called "unstable tree", the reason that this tree is called
-   unstable is due to the fact that the page contents might changed
-   while they are still inside the tree, and therefore the tree would
-   become corrupted.
-   Due to this problem ksm take two more steps in addition to the
-   checksum calculation:
-   a) Ksm will throw and recreate the entire unstable tree each round
-      of memory scanning - so if we have corruption, it will be fixed
-      when we will rebuild the tree.
-   b) Ksm is using RB-tree, that its balancing is made by the node color
-      and not by the content, so even if the page get corrupted, it still
-      would take the same amount of time to search on it.
-
-3) In addition to the unstable tree, ksm hold another tree that is called
-   "stable tree" - this tree is RB-tree that is sorted by the pages
-   content and all its pages are write protected, and therefore it cant get
-   corrupted.
-   Each time ksm will find two identcial pages using the unstable tree,
-   it will create new write-protected shared page, and this page will be
-   inserted into the stable tree, and would be saved there, the
-   stable tree, unlike the unstable tree, is never throwen away, so each
-   page that we find would be saved inside it.
-
-Taking into account the three levels that described above, the algorithm
-work like that:
-
-search primary tree (sorted by entire page contents, pages write protected)
-- if match found, merge
-- if no match found...
-  - search secondary tree (sorted by entire page contents, pages not write
-    protected)
-    - if match found, merge
-      - remove from secondary tree and insert merged page into primary tree
-    - if no match found...
-      - checksum
-        - if checksum hasn't changed
-	  - insert into secondary tree
-	- if it has, store updated checksum (note: first time this page
-	  is handled it won't have a checksum, so checksum will appear
-	  as "changed", so it takes two passes w/ no other matches to
-	  get into secondary tree)
-	  - do not insert into any tree, will see it again on next pass
-
-The basic idea of this algorithm, is that even if the unstable tree doesnt
-promise to us to find two identical pages in the first round, we would
-probably find them in the second or the third or the tenth round,
-then after we have found this two identical pages only once, we will insert
-them into the stable tree, and then they would be protected there forever.
-So the all idea of the unstable tree, is just to build the stable tree and
-then we will find the identical pages using it.
-
-The current implemantion can be improved alot:
-we dont have to calculate exspensive checksum, we can just use the host
-dirty bit.
-
-currently we dont support shared pages swapping (other pages that are not
-shared can be swapped (all the pages that we didnt find to be identical
-to other pages...).
-
-Walking on the tree, we keep call to get_user_pages(), we can optimized it
-by saving the pfn, and using mmu notifiers to know when the virtual address
-mapping was changed.
-
-We currently scan just programs that were registred to be used by ksm, we
-would later want to add the abilaty to tell ksm to scan PIDS (so you can
-scan closed binary applications as well).
-
-Right now ksm scanning is made by just one thread, multiple scanners
-support might would be needed.
-
-This driver is very useful for KVM as in cases of runing multiple guests
-operation system of the same type.
-(For desktop work loads we have achived more than x2 memory overcommit
-(more like x3))
-
-This driver have found users other than KVM, for example CERN,
-Fons Rademakers:
-"on many-core machines we run one large detector simulation program per core.
-These simulation programs are identical but run each in their own process and
-need about 2 - 2.5 GB RAM.
-We typically buy machines with 2GB RAM per core and so have a problem to run
-one of these programs per core.
-Of the 2 - 2.5 GB about 700MB is identical data in the form of magnetic field
-maps, detector geometry, etc.
-Currently people have been trying to start one program, initialize the geometry
-and field maps and then fork it N times, to have the data shared.
-With KSM this would be done automatically by the system so it sounded extremely
-attractive when Andrea presented it."
-
-I am sending another seires of patchs for kvm kernel and kvm-userspace
-that would allow users of kvm to test ksm with it.
-The kvm patchs would apply to Avi git tree.
-
-
-Izik Eidus (4):
-  MMU_NOTIFIERS: add set_pte_at_notify()
-  add page_wrprotect(): write protecting page.
-  add replace_page(): change the page pte is pointing to.
-  add ksm kernel shared memory driver.
-
- include/linux/ksm.h          |   48 ++
- include/linux/miscdevice.h   |    1 +
- include/linux/mm.h           |    5 +
- include/linux/mmu_notifier.h |   34 +
- include/linux/rmap.h         |   11 +
- mm/Kconfig                   |    6 +
- mm/Makefile                  |    1 +
- mm/ksm.c                     | 1668 ++++++++++++++++++++++++++++++++++++++++++
- mm/memory.c                  |   90 +++-
- mm/mmu_notifier.c            |   20 +
- mm/rmap.c                    |  139 ++++
- 11 files changed, 2021 insertions(+), 2 deletions(-)
- create mode 100644 include/linux/ksm.h
- create mode 100644 mm/ksm.c
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index b35bc0e..469376d 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -118,6 +118,10 @@ static inline int try_to_munlock(struct page *page)
+ }
+ #endif
+ 
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
++#endif
++
+ #else	/* !CONFIG_MMU */
+ 
+ #define anon_vma_init()		do {} while (0)
+@@ -132,6 +136,13 @@ static inline int page_mkclean(struct page *page)
+ 	return 0;
+ }
+ 
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
++static inline int page_wrprotect(struct page *page, int *odirect_sync,
++				 int count_offset)
++{
++	return 0;
++}
++#endif
+ 
+ #endif	/* CONFIG_MMU */
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1652166..95c55ea 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -585,6 +585,145 @@ int page_mkclean(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(page_mkclean);
+ 
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
++
++static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
++			      int *odirect_sync, int count_offset)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int ret = 0;
++
++	address = vma_address(page, vma);
++	if (address == -EFAULT)
++		goto out;
++
++	pte = page_check_address(page, mm, address, &ptl, 0);
++	if (!pte)
++		goto out;
++
++	if (pte_write(*pte)) {
++		pte_t entry;
++
++		flush_cache_page(vma, address, pte_pfn(*pte));
++		/*
++		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
++		 * take any lock, therefore the check that we are going to make
++		 * with the pagecount against the mapcount is racey and
++		 * O_DIRECT can happen right after the check.
++		 * So we clear the pte and flush the tlb before the check
++		 * this assure us that no O_DIRECT can happen after the check
++		 * or in the middle of the check.
++		 */
++		entry = ptep_clear_flush(vma, address, pte);
++		/*
++		 * Check that no O_DIRECT or similar I/O is in progress on the
++		 * page
++		 */
++		if ((page_mapcount(page) + count_offset) != page_count(page)) {
++			*odirect_sync = 0;
++			set_pte_at_notify(mm, address, pte, entry);
++			goto out_unlock;
++		}
++		entry = pte_wrprotect(entry);
++		set_pte_at_notify(mm, address, pte, entry);
++	}
++	ret = 1;
++
++out_unlock:
++	pte_unmap_unlock(pte, ptl);
++out:
++	return ret;
++}
++
++static int page_wrprotect_file(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct address_space *mapping;
++	struct prio_tree_iter iter;
++	struct vm_area_struct *vma;
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	int ret = 0;
++
++	mapping = page_mapping(page);
++	if (!mapping)
++		return ret;
++
++	spin_lock(&mapping->i_mmap_lock);
++
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	spin_unlock(&mapping->i_mmap_lock);
++
++	return ret;
++}
++
++static int page_wrprotect_anon(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct vm_area_struct *vma;
++	struct anon_vma *anon_vma;
++	int ret = 0;
++
++	anon_vma = page_lock_anon_vma(page);
++	if (!anon_vma)
++		return ret;
++
++	/*
++	 * If the page is inside the swap cache, its _count number was
++	 * increased by one, therefore we have to increase count_offset by one.
++	 */
++	if (PageSwapCache(page))
++		count_offset++;
++
++	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	page_unlock_anon_vma(anon_vma);
++
++	return ret;
++}
++
++/**
++ * page_wrprotect - set all ptes pointing to a page as readonly
++ * @page:         the page to set as readonly
++ * @odirect_sync: boolean value that is set to 0 when some of the ptes were not
++ *                marked as readonly beacuse page_wrprotect_one() was not able
++ *                to mark this ptes as readonly without opening window to a race
++ *                with odirect
++ * @count_offset: number of times page_wrprotect() caller had called get_page()
++ *                on the page
++ *
++ * returns the number of ptes which were marked as readonly.
++ * (ptes that were readonly before this function was called are counted as well)
++ */
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset)
++{
++	int ret = 0;
++
++	/*
++	 * Page lock is needed for anon pages for the PageSwapCache check,
++	 * and for page_mapping for filebacked pages
++	 */
++	BUG_ON(!PageLocked(page));
++
++	*odirect_sync = 1;
++	if (PageAnon(page))
++		ret = page_wrprotect_anon(page, odirect_sync, count_offset);
++	else
++		ret = page_wrprotect_file(page, odirect_sync, count_offset);
++
++	return ret;
++}
++EXPORT_SYMBOL(page_wrprotect);
++
++#endif
++
+ /**
+  * __page_set_anon_rmap - setup new anonymous rmap
+  * @page:	the page to add the mapping to
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
