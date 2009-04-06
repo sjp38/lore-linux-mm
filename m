@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id DA7CA5F0001
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 03:32:18 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [patch 0/6] Guest page hinting version 7.
-Date: Mon, 6 Apr 2009 17:32:39 +1000
-References: <20090327150905.819861420@de.ibm.com> <49D6532C.6010804@goop.org> <20090406092111.3b432edd@skybase>
-In-Reply-To: <20090406092111.3b432edd@skybase>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 04C5A5F0001
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 03:32:41 -0400 (EDT)
+Message-ID: <49D9B031.2090209@redhat.com>
+Date: Mon, 06 Apr 2009 10:33:05 +0300
+From: Avi Kivity <avi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
+References: <1238855722-32606-1-git-send-email-ieidus@redhat.com> <200904061704.50052.nickpiggin@yahoo.com.au>
+In-Reply-To: <200904061704.50052.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200904061732.39885.nickpiggin@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Jeremy Fitzhardinge <jeremy@goop.org>, Rik van Riel <riel@redhat.com>, akpm@osdl.org, frankeh@watson.ibm.com, virtualization@lists.osdl.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, hugh@veritas.com, Xen-devel <xen-devel@lists.xensource.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Izik Eidus <ieidus@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 April 2009 17:21:11 Martin Schwidefsky wrote:
-> On Fri, 03 Apr 2009 11:19:24 -0700
+Nick Piggin wrote:
+> On Sunday 05 April 2009 01:35:18 Izik Eidus wrote:
+>
+>   
+>> This driver is very useful for KVM as in cases of runing multiple guests
+>> operation system of the same type.
+>> (For desktop work loads we have achived more than x2 memory overcommit
+>> (more like x3))
+>>     
+>
+> Interesting that it is a desirable workload to have multiple guests each
+> running MS office.
+>
+> I wonder, can windows enter a paravirtualised guest mode for KVM?
 
-> > Yes.  But it still depends on the guest.  A very helpful guest could 
-> > deliberately preswap pages so that it can mark them as volatile, whereas 
-> > a less helpful one may keep them persistent and defer preswapping them 
-> > until there's a good reason to do so.  Host swapping and page hinting 
-> > won't put any apparent memory pressure on the guest, so it has no reason 
-> > to start preswapping even if the overall system is under pressure.  
-> > Ballooning will expose each guest to its share of the overall system 
-> > memory pressure, so they can respond appropriately (one hopes).
-> 
-> Why should the guest want to do preswapping? It is as expensive for
-> the host to swap a page and get it back as it is for the guest (= one
-> write + one read). It is a waste of cpu time to call into the guest. You
-> need something we call PFAULT though: if a guest process hits a page
-> that is missing in the host page table you don't want to stop the
-> virtual cpu until the page is back. You notify the guest that the host
-> page is missing. The process that caused the fault is put to sleep
-> until the host retrieved the page again. You will find the pfault code
-> for s390 in arch/s390/mm/fault.c
-> 
-> So to me preswap doesn't make sense. The only thing you can gain by
-> putting memory pressure on the guest is to free some of the memory that
-> is used by the kernel for dentries, inodes, etc. 
+Windows has some support for paravirtualization, for example it can use 
+hypercalls instead of tlb flush IPIs.
 
-The guest kernel can have more context about usage patterns, or user
-hints set on some pages or ranges. And as you say, there are
-non-pagecache things to free that can be taking significant or most of
-the freeable memory, and there can be policy knobs set in the guest
-(swappiness or vfs_cache_pressure etc).
+>  And can
+> you detect page allocation/freeing events?
+>   
 
-I guess that counters or performance monitoring events in the guest
-should also look more like a normal Linux kernel (although I haven't
-remembered what you do in that department in your patches).
+Not that I know of.
+
+-- 
+error compiling committee.c: too many arguments to function
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
