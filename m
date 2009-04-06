@@ -1,254 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A685F0001
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 07:06:28 -0400 (EDT)
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n36B6Jfi007673
-	for <linux-mm@kvack.org>; Mon, 6 Apr 2009 16:36:19 +0530
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n36B6DRE614512
-	for <linux-mm@kvack.org>; Mon, 6 Apr 2009 16:36:13 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n36B62sX026171
-	for <linux-mm@kvack.org>; Mon, 6 Apr 2009 16:36:03 +0530
-Date: Mon, 6 Apr 2009 16:35:34 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 4/9] soft limit queue and priority
-Message-ID: <20090406110534.GJ7082@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com> <20090403171248.df3e1b03.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 4F3455F0001
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 07:20:04 -0400 (EDT)
+Message-ID: <49D9E53D.5080807@redhat.com>
+Date: Mon, 06 Apr 2009 14:19:25 +0300
+From: Izik Eidus <ieidus@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090403171248.df3e1b03.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
+References: <1238855722-32606-1-git-send-email-ieidus@redhat.com> <200904061704.50052.nickpiggin@yahoo.com.au>
+In-Reply-To: <200904061704.50052.nickpiggin@yahoo.com.au>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-03 17:12:48]:
+Nick Piggin wrote:
+> On Sunday 05 April 2009 01:35:18 Izik Eidus wrote:
+>
+>   
+>> This driver is very useful for KVM as in cases of runing multiple guests
+>> operation system of the same type.
+>> (For desktop work loads we have achived more than x2 memory overcommit
+>> (more like x3))
+>>     
+>
+> Interesting that it is a desirable workload to have multiple guests each
+> running MS office.
+>   
 
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> 
-> Softlimitq. for memcg.
-> 
-> Implements an array of queue to list memcgs, array index is determined by
-> the amount of memory usage excess the soft limit.
-> 
-> While Balbir's one uses RB-tree and my old one used a per-zone queue
-> (with round-robin), this is one of mixture of them.
-> (I'd like to use rotation of queue in later patches)
-> 
-> Priority is determined by following.
->    Assume unit = total pages/1024. (the code uses different value)
->    if excess is...
->       < unit,          priority = 0, 
->       < unit*2,        priority = 1,
->       < unit*2*2,      priority = 2,
->       ...
->       < unit*2^9,      priority = 9,
->       < unit*2^10,     priority = 10, (> 50% to total mem)
-> 
-> This patch just includes queue management part and not includes 
-> selection logic from queue. Some trick will be used for selecting victims at
-> soft limit in efficient way.
-> 
-> And this equips 2 queues, for anon and file. Inset/Delete of both list is
-> done at once but scan will be independent. (These 2 queues are used later.)
-> 
-> Major difference from Balbir's one other than RB-tree is bahavior under
-> hierarchy. This one adds all children to queue by checking hierarchical
-> priority. This is for helping per-zone usage check on victim-selection logic.
-> 
-> Changelog: v1->v2
->  - fixed comments.
->  - change base size to exponent.
->  - some micro optimization to reduce code size.
->  - considering memory hotplug, it's not good to record a value calculated
->    from totalram_pages at boot and using it later is bad manner. Fixed it.
->  - removed soft_limit_lock (spinlock) 
->  - added soft_limit_update counter for avoiding mulptiple update at once.
->    
-> 
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> ---
->  mm/memcontrol.c |  118 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 117 insertions(+), 1 deletion(-)
-> 
-> Index: softlimit-test2/mm/memcontrol.c
-> ===================================================================
-> --- softlimit-test2.orig/mm/memcontrol.c
-> +++ softlimit-test2/mm/memcontrol.c
-> @@ -192,7 +192,14 @@ struct mem_cgroup {
->  	atomic_t	refcnt;
-> 
->  	unsigned int	swappiness;
-> -
-> +	/*
-> +	 * For soft limit.
-> +	 */
-> +	int soft_limit_priority;
-> +	struct list_head soft_limit_list[2];
-> +#define SL_ANON (0)
-> +#define SL_FILE (1)
+This numbers are took from such workload, it is some kind of weird 
+script that keep opening Word / Excel and write there like a user...
+I think in addition it open internet explorer and enter to random sites...
+I can search for the script if wanted...
 
-Comments for the #define please.
+> I wonder, can windows enter a paravirtualised guest mode for KVM? And can
+> you detect page allocation/freeing events?
+>   
 
-> +	atomic_t soft_limit_update;
->  	/*
->  	 * statistics. This must be placed at the end of memcg.
->  	 */
-> @@ -938,11 +945,115 @@ static bool mem_cgroup_soft_limit_check(
->  	return ret;
->  }
-> 
-> +/*
-> + * Assume "base_amount", and excess = usage - soft limit.
-> + *
-> + * 0...... if excess < base_amount
-> + * 1...... if excess < base_amount * 2
-> + * 2...... if excess < base_amount * 2^2
-> + * 3.......if excess < base_amount * 2^3
-> + * ....
-> + * 9.......if excess < base_amount * 2^9
-> + * 10 .....if excess < base_amount * 2^10
-> + *
-> + * base_amount is detemined from total pages in the system.
-> + */
-> +
-> +#define SLQ_MAXPRIO (11)
-> +static struct {
-> +	spinlock_t lock;
-> +	struct list_head queue[SLQ_MAXPRIO][2]; /* 0:anon 1:file */
-> +} softlimitq;
-> +
-> +#define SLQ_PRIO_FACTOR (1024) /* 2^10 */
-> +
-> +static int __calc_soft_limit_prio(unsigned long excess)
-> +{
-> +	unsigned long factor = totalram_pages /SLQ_PRIO_FACTOR;
+I Dont know.
 
-I would prefer to use global_lru_pages()
+>  
+>   
+>> This driver have found users other than KVM, for example CERN,
+>> Fons Rademakers:
+>> "on many-core machines we run one large detector simulation program per core.
+>> These simulation programs are identical but run each in their own process and
+>> need about 2 - 2.5 GB RAM.
+>> We typically buy machines with 2GB RAM per core and so have a problem to run
+>> one of these programs per core.
+>> Of the 2 - 2.5 GB about 700MB is identical data in the form of magnetic field
+>> maps, detector geometry, etc.
+>> Currently people have been trying to start one program, initialize the geometry
+>> and field maps and then fork it N times, to have the data shared.
+>> With KSM this would be done automatically by the system so it sounded extremely
+>> attractive when Andrea presented it."
+>>     
+>
+> They should use a shared memory segment, or MAP_ANONYMOUS|MAP_SHARED etc.
+> Presumably they will probably want to control it to interleave it over
+> all numa nodes and use hugepages for it. It would be very little work.
+>   
 
-> +
-> +	return fls(excess/factor);
-> +}
-> +
-> +static int mem_cgroup_soft_limit_prio(struct mem_cgroup *mem)
-> +{
-> +	unsigned long excess, max_excess = 0;
-> +	struct res_counter *c = &mem->res;
-> +
-> +	do {
-> +		excess = res_counter_soft_limit_excess(c) >> PAGE_SHIFT;
-> +		if (max_excess < excess)
-> +			max_excess = excess;
-                max_excess = min(max_excess, excess)
-> +		c = c->parent;
-> +	} while (c);
-> +
-> +	return __calc_soft_limit_prio(max_excess);
-> +}
-> +
-> +static void __mem_cgroup_requeue(struct mem_cgroup *mem, int prio)
-> +{
-> +	/* enqueue to softlimit queue */
-> +	int i;
-> +
-> +	spin_lock(&softlimitq.lock);
-> +	if (prio != mem->soft_limit_priority) {
-> +		mem->soft_limit_priority = prio;
-> +		for (i = 0; i < 2; i++) {
-> +			list_del_init(&mem->soft_limit_list[i]);
-> +			list_add_tail(&mem->soft_limit_list[i],
-> +				      &softlimitq.queue[prio][i]);
-> +		}
-> +	}
-> +	spin_unlock(&softlimitq.lock);
-> +}
-> +
-> +static void __mem_cgroup_dequeue(struct mem_cgroup *mem)
-> +{
-> +	int i;
-> +
-> +	spin_lock(&softlimitq.lock);
-> +	for (i = 0; i < 2; i++)
-> +		list_del_init(&mem->soft_limit_list[i]);
-> +	spin_unlock(&softlimitq.lock);
-> +}
-> +
-> +static int
-> +__mem_cgroup_update_soft_limit_cb(struct mem_cgroup *mem, void *data)
-> +{
-> +	int priority;
-> +	/* If someone updates, we don't need more */
-> +	priority = mem_cgroup_soft_limit_prio(mem);
-> +
-> +	if (priority != mem->soft_limit_priority)
-> +		__mem_cgroup_requeue(mem, priority);
-> +	return 0;
-> +}
-> +
->  static void mem_cgroup_update_soft_limit(struct mem_cgroup *mem)
->  {
-> +	int priority;
-> +
-> +	/* check status change */
-> +	priority = mem_cgroup_soft_limit_prio(mem);
-> +	if (priority != mem->soft_limit_priority &&
-> +	    atomic_inc_return(&mem->soft_limit_update) > 1) {
-> +		mem_cgroup_walk_tree(mem, NULL,
-> +				     __mem_cgroup_update_soft_limit_cb);
-> +		atomic_set(&mem->soft_limit_update, 0);
-> +	}
->  	return;
->  }
-> 
-> +static void softlimitq_init(void)
-> +{
-> +	int i;
-> +
-> +	spin_lock_init(&softlimitq.lock);
-> +	for (i = 0; i < SLQ_MAXPRIO; i++) {
-> +		INIT_LIST_HEAD(&softlimitq.queue[i][SL_ANON]);
-> +		INIT_LIST_HEAD(&softlimitq.queue[i][SL_FILE]);
-> +	}
-> +}
-> +
->  /*
->   * Unlike exported interface, "oom" parameter is added. if oom==true,
->   * oom-killer can be invoked.
-> @@ -2512,6 +2623,7 @@ mem_cgroup_create(struct cgroup_subsys *
->  	if (cont->parent == NULL) {
->  		enable_swap_cgroup();
->  		parent = NULL;
-> +		softlimitq_init();
->  	} else {
->  		parent = mem_cgroup_from_cont(cont->parent);
->  		mem->use_hierarchy = parent->use_hierarchy;
-> @@ -2532,6 +2644,9 @@ mem_cgroup_create(struct cgroup_subsys *
->  		res_counter_init(&mem->memsw, NULL);
->  	}
->  	mem->last_scanned_child = 0;
-> +	mem->soft_limit_priority = 0;
-> +	INIT_LIST_HEAD(&mem->soft_limit_list[SL_ANON]);
-> +	INIT_LIST_HEAD(&mem->soft_limit_list[SL_FILE]);
->  	spin_lock_init(&mem->reclaim_param_lock);
-> 
->  	if (parent)
-> @@ -2556,6 +2671,7 @@ static void mem_cgroup_destroy(struct cg
->  {
->  	struct mem_cgroup *mem = mem_cgroup_from_cont(cont);
-> 
-> +	__mem_cgroup_dequeue(mem);
->  	mem_cgroup_put(mem);
->  }
-> 
-> 
-> 
+Agree about that, dont know their application to much, i know they had 
+problems to do it.
 
--- 
-	Balbir
+>  
+>   
+>> I am sending another seires of patchs for kvm kernel and kvm-userspace
+>> that would allow users of kvm to test ksm with it.
+>> The kvm patchs would apply to Avi git tree.
+>>     
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
