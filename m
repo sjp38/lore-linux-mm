@@ -1,83 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 300506B003D
-	for <linux-mm@kvack.org>; Sun,  5 Apr 2009 23:56:47 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n363vcUj013604
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 6 Apr 2009 12:57:38 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 9372B45DE54
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 12:57:38 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 73A6D45DE4E
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 12:57:38 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 548AC1DB805F
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 12:57:38 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E0051DB8043
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 12:57:38 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: + mm-align-vmstat_works-timer.patch added to -mm tree
-In-Reply-To: <20090406120533.450B.A69D9226@jp.fujitsu.com>
-References: <200904011945.n31JjWqG028114@imap1.linux-foundation.org> <20090406120533.450B.A69D9226@jp.fujitsu.com>
-Message-Id: <20090406125627.4514.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 98E765F0001
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 03:04:54 -0400 (EDT)
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v2
+Date: Mon, 6 Apr 2009 17:04:49 +1000
+References: <1238855722-32606-1-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1238855722-32606-1-git-send-email-ieidus@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Disposition: inline
+Message-Id: <200904061704.50052.nickpiggin@yahoo.com.au>
+Content-Type: text/plain;
+  charset="utf-8"
 Content-Transfer-Encoding: 7bit
-Date: Mon,  6 Apr 2009 12:57:37 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, anton@samba.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> (swich to lkml and linux-mm)
-> 
-> Hi Anton,
-> 
-> Do you have any mesurement data?
-> 
-> Honestly, I made the same patch few week ago.
-> but I found two problems.
-> 
-> 1)
-> work queue tracer (in -tip) reported it isn't proper rounded.
+On Sunday 05 April 2009 01:35:18 Izik Eidus wrote:
 
-Ah, sorry ignore this sentence.
-I used my local patch queue's feature for mesurement, not -tip.
+> This driver is very useful for KVM as in cases of runing multiple guests
+> operation system of the same type.
+> (For desktop work loads we have achived more than x2 memory overcommit
+> (more like x3))
 
+Interesting that it is a desirable workload to have multiple guests each
+running MS office.
 
-> 
-> The fact is, schedule_delayed_work(work, round_jiffies_relative()) is
-> a bit ill.
-> 
-> it mean
->   - round_jiffies_relative() calculate rounded-time - jiffies
->   - schedule_delayed_work() calculate argument + jiffies
-> 
-> it assume no jiffies change at above two place. IOW it assume
-> non preempt kernel.
-> 
-> 
-> 2)
-> > -	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
-> > +	schedule_delayed_work_on(cpu, vmstat_work,
-> > +				 __round_jiffies_relative(HZ, cpu));
-> 
-> isn't same meaning.
-> 
-> vmstat_work mean to move per-cpu stastics to global stastics.
-> Then, (HZ + cpu) mean to avoid to touch the same global variable at the same time.
-> 
-> Oh well, this patch have performance regression risk on _very_ big server.
-> (perhaps, only sgi?)
-> 
-> but I agree vmstat_work is one of most work queue heavy user.
-> For power consumption view, it isn't proper behavior.
-> 
-> I still think improving another way.
+I wonder, can windows enter a paravirtualised guest mode for KVM? And can
+you detect page allocation/freeing events?
 
+ 
+> This driver have found users other than KVM, for example CERN,
+> Fons Rademakers:
+> "on many-core machines we run one large detector simulation program per core.
+> These simulation programs are identical but run each in their own process and
+> need about 2 - 2.5 GB RAM.
+> We typically buy machines with 2GB RAM per core and so have a problem to run
+> one of these programs per core.
+> Of the 2 - 2.5 GB about 700MB is identical data in the form of magnetic field
+> maps, detector geometry, etc.
+> Currently people have been trying to start one program, initialize the geometry
+> and field maps and then fork it N times, to have the data shared.
+> With KSM this would be done automatically by the system so it sounded extremely
+> attractive when Andrea presented it."
+
+They should use a shared memory segment, or MAP_ANONYMOUS|MAP_SHARED etc.
+Presumably they will probably want to control it to interleave it over
+all numa nodes and use hugepages for it. It would be very little work.
+
+ 
+> I am sending another seires of patchs for kvm kernel and kvm-userspace
+> that would allow users of kvm to test ksm with it.
+> The kvm patchs would apply to Avi git tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
