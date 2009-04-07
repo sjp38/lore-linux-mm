@@ -1,81 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E36B15F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:08 -0400 (EDT)
-Message-Id: <20090407072132.943283183@intel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 740055F000B
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:10 -0400 (EDT)
+Message-Id: <20090407072133.871329342@intel.com>
 References: <20090407071729.233579162@intel.com>
-Date: Tue, 07 Apr 2009 15:17:31 +0800
+Date: Tue, 07 Apr 2009 15:17:39 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 02/14] mm: fix major/minor fault accounting on retried fault
-Content-Disposition: inline; filename=filemap-major-fault-retry.patch
+Subject: [PATCH 10/14] readahead: remove sync/async readahead call dependency
+Content-Disposition: inline; filename=readahead-remove-call-dependancy.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
+Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-VM_FAULT_RETRY does make major/minor faults accounting a bit twisted..
+The readahead call scheme is error-prone in that it expects on the call sites
+to check for async readahead after doing any sync one. I.e. 
 
-Cc: Ying Han <yinghan@google.com>
+			if (!page)
+				page_cache_sync_readahead();
+			page = find_get_page();
+			if (page && PageReadahead(page))
+				page_cache_async_readahead();
+
+This is because PG_readahead could be set by a sync readahead for the _current_
+newly faulted in page, and the readahead code simply expects one more callback
+on the same page to start the async readahead. If the caller fails to do so, it
+will miss the PG_readahead bits and never able to start an async readahead.
+
+Eliminate this insane constraint by piggy-backing the async part into the
+current readahead window.
+
+Now if an async readahead should be started immediately after a sync one,
+the readahead logic itself will do it. So the following code becomes valid:
+(the 'else' in particular)
+
+			if (!page)
+				page_cache_sync_readahead();
+			else if (PageReadahead(page))
+				page_cache_async_readahead();
+
+Cc: Nick Piggin <npiggin@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- arch/x86/mm/fault.c |    2 ++
- mm/memory.c         |   22 ++++++++++++++--------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+ mm/readahead.c |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
---- mm.orig/arch/x86/mm/fault.c
-+++ mm/arch/x86/mm/fault.c
-@@ -1160,6 +1160,8 @@ good_area:
- 	if (fault & VM_FAULT_RETRY) {
- 		if (retry_flag) {
- 			retry_flag = 0;
-+			tsk->maj_flt++;
-+			tsk->min_flt--;
- 			goto retry;
- 		}
- 		BUG();
---- mm.orig/mm/memory.c
-+++ mm/mm/memory.c
-@@ -2882,26 +2882,32 @@ int handle_mm_fault(struct mm_struct *mm
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
-+	int ret;
+--- mm.orig/mm/readahead.c
++++ mm/mm/readahead.c
+@@ -446,6 +446,16 @@ ondemand_readahead(struct address_space 
+ 	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
  
- 	__set_current_state(TASK_RUNNING);
- 
--	count_vm_event(PGFAULT);
--
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+	if (unlikely(is_vm_hugetlb_page(vma))) {
-+		ret = hugetlb_fault(mm, vma, address, write_access);
-+		goto out;
+ readit:
++	/*
++	 * Will this read hit the readahead marker made by itself?
++	 * If so, trigger the readahead marker hit now, and merge
++	 * the resulted next readahead window into the current one.
++	 */
++	if (offset == ra->start && ra->size == ra->async_size) {
++		ra->async_size = get_next_ra_size(ra, max);
++		ra->size += ra->async_size;
 +	}
- 
-+	ret = VM_FAULT_OOM;
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
- 	if (!pud)
--		return VM_FAULT_OOM;
-+		goto out;
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
--		return VM_FAULT_OOM;
-+		goto out;
- 	pte = pte_alloc_map(mm, pmd, address);
- 	if (!pte)
--		return VM_FAULT_OOM;
-+		goto out;
- 
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	ret = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+out:
-+	if (!(ret & VM_FAULT_RETRY))
-+		count_vm_event(PGFAULT);
-+	return ret;
++
+ 	return ra_submit(ra, mapping, filp);
  }
  
- #ifndef __PAGETABLE_PUD_FOLDED
 
 -- 
 
