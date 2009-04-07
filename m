@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B7EEB5F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 14:51:26 -0400 (EDT)
-Date: Tue, 7 Apr 2009 20:51:46 +0200
+	by kanga.kvack.org (Postfix) with ESMTP id 01BE25F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 15:03:32 -0400 (EDT)
+Date: Tue, 7 Apr 2009 21:03:30 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] [13/16] POISON: The high level memory error handler in the VM
-Message-ID: <20090407185146.GA3818@cmpxchg.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151010.E72A91D0471@basil.firstfloor.org>
+Subject: Re: [PATCH] [8/16] POISON: Add various poison checks in mm/memory.c
+Message-ID: <20090407190330.GB3818@cmpxchg.org>
+References: <20090407509.382219156@firstfloor.org> <20090407151005.4E24B1D046D@basil.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090407151010.E72A91D0471@basil.firstfloor.org>
+In-Reply-To: <20090407151005.4E24B1D046D@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 To: Andi Kleen <andi@firstfloor.org>
-Cc: hugh@veritas.com, npiggin@suse.de, riel@redhat.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andi,
-
-On Tue, Apr 07, 2009 at 05:10:10PM +0200, Andi Kleen wrote:
-
-> +static void collect_procs_anon(struct page *page, struct list_head *to_kill,
-> +			      struct to_kill **tkc)
-> +{
-> +	struct vm_area_struct *vma;
-> +	struct task_struct *tsk;
-> +	struct anon_vma *av = page_lock_anon_vma(page);
+On Tue, Apr 07, 2009 at 05:10:05PM +0200, Andi Kleen wrote:
+> 
+> Bail out early when poisoned pages are found in page fault handling.
+> Since they are poisoned they should not be mapped freshly
+> into processes.
+> 
+> This is generally handled in the same way as OOM, just a different
+> error code is returned to the architecture code.
+> 
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> 
+> ---
+>  mm/memory.c |    7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> Index: linux/mm/memory.c
+> ===================================================================
+> --- linux.orig/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
+> +++ linux/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
+> @@ -2560,6 +2560,10 @@
+>  		goto oom;
+>  	__SetPageUptodate(page);
+>  
+> +	/* Kludge for now until we take poisoned pages out of the free lists */
+> +	if (unlikely(PagePoison(page)))
+> +		return VM_FAULT_POISON;
 > +
-> +	if (av == NULL)	/* Not actually mapped anymore */
-> +		goto out;
-> +
-> +	read_lock(&tasklist_lock);
-> +	for_each_process (tsk) {
-> +		if (!tsk->mm)
-> +			continue;
-> +		list_for_each_entry (vma, &av->head, anon_vma_node) {
-> +			if (vma->vm_mm == tsk->mm)
-> +				add_to_kill(tsk, page, vma, to_kill, tkc);
-> +		}
-> +	}
-> +	read_unlock(&tasklist_lock);
-> +out:
-> +	page_unlock_anon_vma(av);
 
-If !av, this doesn't need an unlock and in fact crashes due to
-dereferencing NULL.
-
-> +static int poison_page_prepare(struct page *p, unsigned long pfn, int trapno)
-> +{
-> +	if (PagePoison(p)) {
-> +		printk(KERN_ERR
-> +		       "MCE: Error for already poisoned page at %lx\n", pfn);
-> +		return -1;
-> +	}
-> +	SetPagePoison(p);
-
-TestSetPagePoison()?
+When memory_failure() hits a page still on the free list
+(!page_count()) then the get_page() in memory_failure() will trigger a
+VM_BUG.  So either this check is unneeded or it should be
+get_page_unless_zero() in memory_failure()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
