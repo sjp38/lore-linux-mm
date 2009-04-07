@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 421235F0001
-	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 19:56:31 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n36NvMUh022020
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 4B57B5F0001
+	for <linux-mm@kvack.org>; Mon,  6 Apr 2009 20:06:07 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3706AUo025653
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Tue, 7 Apr 2009 08:57:23 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A7D4E45DD72
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 08:57:22 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 83FD245DE4F
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 08:57:22 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 7C8BC1DB8040
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 08:57:22 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2BA66E18002
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 08:57:22 +0900 (JST)
-Date: Tue, 7 Apr 2009 08:55:55 +0900
+	Tue, 7 Apr 2009 09:06:10 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F3AC45DE63
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 09:06:07 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E4ABA45DE61
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 09:06:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B1469E38008
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 09:06:05 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id A42D21DB8041
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 09:06:04 +0900 (JST)
+Date: Tue, 7 Apr 2009 09:04:38 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH 4/9] soft limit queue and priority
-Message-Id: <20090407085555.a8818209.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090406110534.GJ7082@balbir.in.ibm.com>
+Subject: Re: [RFC][PATCH 3/9] soft limit update filter
+Message-Id: <20090407090438.9646e90c.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090406094351.GI7082@balbir.in.ibm.com>
 References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090403171248.df3e1b03.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090406110534.GJ7082@balbir.in.ibm.com>
+	<20090403171202.cd7e094b.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090406094351.GI7082@balbir.in.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -34,119 +34,146 @@ To: balbir@linux.vnet.ibm.com
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Apr 2009 16:35:34 +0530
+On Mon, 6 Apr 2009 15:13:51 +0530
 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-03 17:12:48]:
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-03 17:12:02]:
 > 
+> > No changes from v1.
+> > ==
 > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > 
-> > Softlimitq. for memcg.
+> > Check/Update softlimit information at every charge is over-killing, so
+> > we need some filter.
 > > 
-> > Implements an array of queue to list memcgs, array index is determined by
-> > the amount of memory usage excess the soft limit.
+> > This patch tries to count events in the memcg and if events > threshold
+> > tries to update memcg's soft limit status and reset event counter to 0.
 > > 
-> > While Balbir's one uses RB-tree and my old one used a per-zone queue
-> > (with round-robin), this is one of mixture of them.
-> > (I'd like to use rotation of queue in later patches)
-> > 
-> > Priority is determined by following.
-> >    Assume unit = total pages/1024. (the code uses different value)
-> >    if excess is...
-> >       < unit,          priority = 0, 
-> >       < unit*2,        priority = 1,
-> >       < unit*2*2,      priority = 2,
-> >       ...
-> >       < unit*2^9,      priority = 9,
-> >       < unit*2^10,     priority = 10, (> 50% to total mem)
-> > 
-> > This patch just includes queue management part and not includes 
-> > selection logic from queue. Some trick will be used for selecting victims at
-> > soft limit in efficient way.
-> > 
-> > And this equips 2 queues, for anon and file. Inset/Delete of both list is
-> > done at once but scan will be independent. (These 2 queues are used later.)
-> > 
-> > Major difference from Balbir's one other than RB-tree is bahavior under
-> > hierarchy. This one adds all children to queue by checking hierarchical
-> > priority. This is for helping per-zone usage check on victim-selection logic.
-> > 
-> > Changelog: v1->v2
-> >  - fixed comments.
-> >  - change base size to exponent.
-> >  - some micro optimization to reduce code size.
-> >  - considering memory hotplug, it's not good to record a value calculated
-> >    from totalram_pages at boot and using it later is bad manner. Fixed it.
-> >  - removed soft_limit_lock (spinlock) 
-> >  - added soft_limit_update counter for avoiding mulptiple update at once.
-> >    
+> > Event counter is maintained by per-cpu which has been already used,
+> > Then, no siginificant overhead(extra cache-miss etc..) in theory.
 > > 
 > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > > ---
-> >  mm/memcontrol.c |  118 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
-> >  1 file changed, 117 insertions(+), 1 deletion(-)
-> > 
-> > Index: softlimit-test2/mm/memcontrol.c
+> > Index: mmotm-2.6.29-Mar23/mm/memcontrol.c
 > > ===================================================================
-> > --- softlimit-test2.orig/mm/memcontrol.c
-> > +++ softlimit-test2/mm/memcontrol.c
-> > @@ -192,7 +192,14 @@ struct mem_cgroup {
-> >  	atomic_t	refcnt;
+> > --- mmotm-2.6.29-Mar23.orig/mm/memcontrol.c
+> > +++ mmotm-2.6.29-Mar23/mm/memcontrol.c
+> > @@ -66,6 +66,7 @@ enum mem_cgroup_stat_index {
+> >  	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
+> >  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
 > > 
-> >  	unsigned int	swappiness;
-> > -
-> > +	/*
-> > +	 * For soft limit.
-> > +	 */
-> > +	int soft_limit_priority;
-> > +	struct list_head soft_limit_list[2];
-> > +#define SL_ANON (0)
-> > +#define SL_FILE (1)
-> 
-> Comments for the #define please.
-> 
-Sure.
-
-> > +	atomic_t soft_limit_update;
-> >  	/*
-> >  	 * statistics. This must be placed at the end of memcg.
-> >  	 */
-> > @@ -938,11 +945,115 @@ static bool mem_cgroup_soft_limit_check(
+> > +	MEM_CGROUP_STAT_EVENTS,  /* sum of page-in/page-out for internal use */
+> >  	MEM_CGROUP_STAT_NSTATS,
+> >  };
+> > 
+> > @@ -105,6 +106,22 @@ static s64 mem_cgroup_local_usage(struct
 > >  	return ret;
 > >  }
 > > 
-> > +/*
-> > + * Assume "base_amount", and excess = usage - soft limit.
-> > + *
-> > + * 0...... if excess < base_amount
-> > + * 1...... if excess < base_amount * 2
-> > + * 2...... if excess < base_amount * 2^2
-> > + * 3.......if excess < base_amount * 2^3
-> > + * ....
-> > + * 9.......if excess < base_amount * 2^9
-> > + * 10 .....if excess < base_amount * 2^10
-> > + *
-> > + * base_amount is detemined from total pages in the system.
-> > + */
+> > +/* For intenal use of per-cpu event counting. */
 > > +
-> > +#define SLQ_MAXPRIO (11)
-> > +static struct {
-> > +	spinlock_t lock;
-> > +	struct list_head queue[SLQ_MAXPRIO][2]; /* 0:anon 1:file */
-> > +} softlimitq;
-> > +
-> > +#define SLQ_PRIO_FACTOR (1024) /* 2^10 */
-> > +
-> > +static int __calc_soft_limit_prio(unsigned long excess)
+> > +static inline void
+> > +__mem_cgroup_stat_reset_safe(struct mem_cgroup_stat_cpu *stat,
+> > +		enum mem_cgroup_stat_index idx)
 > > +{
-> > +	unsigned long factor = totalram_pages /SLQ_PRIO_FACTOR;
+> > +	stat->count[idx] = 0;
+> > +}
 > 
-> I would prefer to use global_lru_pages()
+> Why do we do this and why do we need a special event?
 > 
-Hmm, ok.
+2 points.
+
+  1.  we do "reset" this counter.
+  2.  We're counting page-in/page-out. I wonder I should counter others...
+
+> > +
+> > +static inline s64
+> > +__mem_cgroup_stat_read_local(struct mem_cgroup_stat_cpu *stat,
+> > +			    enum mem_cgroup_stat_index idx)
+> > +{
+> > +	return stat->count[idx];
+> > +}
+> > +
+> >  /*
+> >   * per-zone information in memory controller.
+> >   */
+> > @@ -235,6 +252,8 @@ static void mem_cgroup_charge_statistics
+> >  	else
+> >  		__mem_cgroup_stat_add_safe(cpustat,
+> >  				MEM_CGROUP_STAT_PGPGOUT_COUNT, 1);
+> > +	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_EVENTS, 1);
+> > +
+> >  	put_cpu();
+> >  }
+> > 
+> > @@ -897,9 +916,26 @@ static void record_last_oom(struct mem_c
+> >  	mem_cgroup_walk_tree(mem, NULL, record_last_oom_cb);
+> >  }
+> > 
+> > +#define SOFTLIMIT_EVENTS_THRESH (1024) /* 1024 times of page-in/out */
+> > +/*
+> > + * Returns true if sum of page-in/page-out events since last check is
+> > + * over SOFTLIMIT_EVENT_THRESH. (counter is per-cpu.)
+> > + */
+> >  static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
+> >  {
+> > -	return false;
+> > +	bool ret = false;
+> > +	int cpu = get_cpu();
+> > +	s64 val;
+> > +	struct mem_cgroup_stat_cpu *cpustat;
+> > +
+> > +	cpustat = &mem->stat.cpustat[cpu];
+> > +	val = __mem_cgroup_stat_read_local(cpustat, MEM_CGROUP_STAT_EVENTS);
+> > +	if (unlikely(val > SOFTLIMIT_EVENTS_THRESH)) {
+> > +		__mem_cgroup_stat_reset_safe(cpustat, MEM_CGROUP_STAT_EVENTS);
+> > +		ret = true;
+> > +	}
+> > +	put_cpu();
+> > +	return ret;
+> >  }
+> >
+> 
+> It is good to have the caller and the function in the same patch.
+> Otherwise, you'll notice unused warnings. I think this function can be
+> simplified further
+> 
+> 1. Lets gid rid of MEM_CGRUP_STAT_EVENTS
+> 2. Lets rewrite mem_cgroup_soft_limit_check as
+> 
+> static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
+> {
+>      bool ret = false;
+>      int cpu = get_cpu();
+>      s64 pgin, pgout;
+>      struct mem_cgroup_stat_cpu *cpustat;
+> 
+>      cpustat = &mem->stat.cpustat[cpu];
+>      pgin = __mem_cgroup_stat_read_local(cpustat, MEM_CGROUP_STAT_PGPGIN_COUNT);
+>      pgout = __mem_cgroup_stat_read_local(cpustat, MEM_CGROUP_STAT_PGPGOUT_COUNT);
+>      val = pgin + pgout - mem->last_event_count;
+>      if (unlikely(val > SOFTLIMIT_EVENTS_THRESH)) {
+>              mem->last_event_count = pgin + pgout;
+>              ret = true;
+>      }
+>      put_cpu();
+>      return ret;
+> }
+> 
+> mem->last_event_count can either be atomic or protected using one of
+> the locks you intend to introduce. This will avoid the overhead of
+> incrementing event at every charge_statistics.
+> 
+Incrementing always hits cache.
+
+Hmm, making mem->last_event_count as per-cpu, we can do above. And maybe no
+difference with current code. But you don't seem to like counting,
+it's ok to change the shape.
+
 
 Thanks,
 -Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
