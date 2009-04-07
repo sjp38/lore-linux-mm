@@ -1,78 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B53F5F0003
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:09:56 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 58A615F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:09:59 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090407509.382219156@firstfloor.org>
 In-Reply-To: <20090407509.382219156@firstfloor.org>
-Subject: [PATCH] [2/16] POISON: Add page flag for poisoned pages
-Message-Id: <20090407150958.BA68F1D046D@basil.firstfloor.org>
-Date: Tue,  7 Apr 2009 17:09:58 +0200 (CEST)
+Subject: [PATCH] [3/16] POISON: Handle poisoned pages in page free
+Message-Id: <20090407150959.C099D1D046E@basil.firstfloor.org>
+Date: Tue,  7 Apr 2009 17:09:59 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-Poisoned pages need special handling in the VM and shouldn't be touched 
-again. This requires a new page flag. Define it here.
+Make sure no poisoned pages are put back into the free page
+lists.  This can happen with some races.
 
-The page flags wars seem to be over, so it shouldn't be a problem
-to get a new one. I hope.
+This is allo slow path in the bad page bits path, so another
+check doesn't really matter.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/page-flags.h |   16 +++++++++++++++-
- 1 file changed, 15 insertions(+), 1 deletion(-)
+ mm/page_alloc.c |    9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-Index: linux/include/linux/page-flags.h
+Index: linux/mm/page_alloc.c
 ===================================================================
---- linux.orig/include/linux/page-flags.h	2009-04-07 16:39:27.000000000 +0200
-+++ linux/include/linux/page-flags.h	2009-04-07 16:39:39.000000000 +0200
-@@ -51,6 +51,9 @@
-  * PG_buddy is set to indicate that the page is free and in the buddy system
-  * (see mm/page_alloc.c).
-  *
-+ * PG_poison indicates that a page got corrupted in hardware and contains
-+ * data with incorrect ECC bits that triggered a machine check. Accessing is
-+ * not safe since it may cause another machine check. Don't touch!
-  */
+--- linux.orig/mm/page_alloc.c	2009-04-07 16:39:26.000000000 +0200
++++ linux/mm/page_alloc.c	2009-04-07 16:39:39.000000000 +0200
+@@ -228,6 +228,15 @@
+ 	static unsigned long nr_unshown;
  
- /*
-@@ -104,6 +107,9 @@
- #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
- 	PG_uncached,		/* Page has been mapped as uncached */
- #endif
-+#ifdef CONFIG_MEMORY_FAILURE
-+	PG_poison,		/* poisoned page. Don't touch */
-+#endif
- 	__NR_PAGEFLAGS,
- 
- 	/* Filesystems */
-@@ -273,6 +279,14 @@
- PAGEFLAG_FALSE(Uncached)
- #endif
- 
-+#ifdef CONFIG_MEMORY_FAILURE
-+PAGEFLAG(Poison, poison)
-+#define __PG_POISON (1UL << PG_poison)
-+#else
-+PAGEFLAG_FALSE(Poison)
-+#define __PG_POISON 0
-+#endif
+ 	/*
++	 * Page may have been marked bad before process is freeing it.
++	 * Make sure it is not put back into the free page lists.
++	 */
++	if (PagePoison(page)) {
++		/* check more flags here... */
++		return;
++	}
 +
- static inline int PageUptodate(struct page *page)
- {
- 	int ret = test_bit(PG_uptodate, &(page)->flags);
-@@ -403,7 +417,7 @@
- 	 1 << PG_private | 1 << PG_private_2 | \
- 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
--	 __PG_UNEVICTABLE | __PG_MLOCKED)
-+	 __PG_POISON  | __PG_UNEVICTABLE | __PG_MLOCKED)
- 
- /*
-  * Flags checked when a page is prepped for return by the page allocator.
++	/*
+ 	 * Allow a burst of 60 reports, then keep quiet for that minute;
+ 	 * or allow a steady drip of one report per second.
+ 	 */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
