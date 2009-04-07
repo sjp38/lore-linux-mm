@@ -1,93 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EDC45F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 00:06:35 -0400 (EDT)
-Date: Tue, 7 Apr 2009 14:04:04 +1000
-From: Anton Blanchard <anton@samba.org>
-Subject: Re: + mm-align-vmstat_works-timer.patch added to -mm tree
-Message-ID: <20090407040404.GB9584@kryten>
-References: <200904011945.n31JjWqG028114@imap1.linux-foundation.org> <20090406120533.450B.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 080555F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 00:39:47 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 6so1578643yxn.26
+        for <linux-mm@kvack.org>; Mon, 06 Apr 2009 21:40:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090406120533.450B.A69D9226@jp.fujitsu.com>
+In-Reply-To: <1239054936.8846.130.camel@nimitz>
+References: <1239054936.8846.130.camel@nimitz>
+Date: Tue, 7 Apr 2009 00:40:23 -0400
+Message-ID: <787b0d920904062140n72b82c7mfc6ca78c291363f7@mail.gmail.com>
+Subject: Re: [feedback] procps and new kernel fields
+From: Albert Cahalan <acahalan@cs.uml.edu>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, tglx@linutronix.de
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: bart.vanassche@gmail.com, linux-mm <linux-mm@kvack.org>, procps-feedback@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Apr 6, 2009 at 5:55 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-Hi,
+> Novell has integrated that patch into procps
+...
+> The most worrisome side-effect of this change to me is that we can no
+> longer run vmstat or free on two machines and compare their output.
 
-> Do you have any mesurement data?
+Right. Vendors never consier that. They then expect upstream
+to accept and support their hack until the end of time.
 
-I was using a simple set of kprobes to look at when timers and
-workqueues fire.
+> At the same time, we have machines that have dozens of GB of slab
+> objects that are mostly reclaimable.  Yet, 'free' and 'vmstat' basically
+> ignore slab.  Surely we need to find some way to report on those,
+> especially since we can now break out {un,}reclaimable slab.
+>
+> We also have "new" memory use like unstable NFS pages.  How should we
+> account for those?
 
-> The fact is, schedule_delayed_work(work, round_jiffies_relative()) is
-> a bit ill.
-> 
-> it mean
->   - round_jiffies_relative() calculate rounded-time - jiffies
->   - schedule_delayed_work() calculate argument + jiffies
-> 
-> it assume no jiffies change at above two place. IOW it assume
-> non preempt kernel.
+How should I know? :-)
 
-I'm not sure we are any worse off here. Before the patch we could end up
-with all threads converging on the same jiffy, and once that happens
-they will continue to fire over the top of each other (at least until a
-difference in the time it takes vmstat_work to complete causes them to
-diverge again).
+I've seen memstat fields go away before. This makes me
+reluctant to bother with data that few people will need or
+even understand. Why should I believe that these fields
+are now securely part of the kernel ABI?
 
-With the patch we always apply a per cpu offset, so should keep them
-separated even if jiffies sometimes changes between
-round_jiffies_relative() and schedule_delayed_work().
+> I'd love to see an --extended output from things like vmstat. It could
+> include wider output since fitting in 80 columns just isn't that
+> important any more, and my 256GB machine's output really screws up the
+> column alignment.
 
-> 2)
-> > -	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
-> > +	schedule_delayed_work_on(cpu, vmstat_work,
-> > +				 __round_jiffies_relative(HZ, cpu));
-> 
-> isn't same meaning.
-> 
-> vmstat_work mean to move per-cpu stastics to global stastics.
-> Then, (HZ + cpu) mean to avoid to touch the same global variable at the same time.
+80 is still the default xterm width, the default console
+width, and sometimes the only available width.
 
-round_jiffies_common still provides per cpu skew doesn't it?
+I certainly like the idea of allowing options for extra columns
+and for wider columns.
 
-        /*
-         * We don't want all cpus firing their timers at once hitting the
-         * same lock or cachelines, so we skew each extra cpu with an extra
-         * 3 jiffies. This 3 jiffies came originally from the mm/ code which
-         * already did this.
-         * The skew is done by adding 3*cpunr, then round, then subtract this
-         * extra offset again.
-         */
+The current code is too simplistic to handle such changes
+without becoming an unreadable mess. It really needs to be
+rewritten in a more serious style, much like ps.
 
-In fact we are also skewing timer interrupts across half a timer tick in
-tick_setup_sched_timer:
+> We could also add some information which is in
+> addition to what we already provide in order to account for things like
+> slab more precisely.
 
-	/* Get the next period (per cpu) */
-	hrtimer_set_expires(&ts->sched_timer, tick_init_jiffy_update());
-	offset = ktime_to_ns(tick_period) >> 1;
-	do_div(offset, num_possible_cpus());
-	offset *= smp_processor_id();
-	hrtimer_add_expires_ns(&ts->sched_timer, offset);
+How do I even explain a slab? What about a slob or slub?
+A few years from now, will this allocator even exist?
 
-I still need to see if I can measure a reduction in jitter by removing
-this half jiffy skew and aligning all timer interrupts. Assuming we skew
-per cpu work and timers, it seems like we shouldn't need to skew timer
-interrupts too.
-
-> but I agree vmstat_work is one of most work queue heavy user.
-> For power consumption view, it isn't proper behavior.
-> 
-> I still think improving another way.
-
-I definitely agree it would be nice to fix vmstat_work :)
-
-Anton
+Remember that I need something for the man page, and most
+of my audience knows almost nothing about programming.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
