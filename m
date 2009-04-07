@@ -1,71 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EBD585F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 18:33:02 -0400 (EDT)
-Date: Wed, 8 Apr 2009 00:35:45 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [10/16] POISON: Use bitmask/action code for try_to_unmap behaviour
-Message-ID: <20090407223545.GC17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151007.71F3F1D046F@basil.firstfloor.org> <alpine.DEB.1.10.0904071714450.12192@qirst.com> <20090407215953.GA17934@one.firstfloor.org> <alpine.DEB.1.10.0904071802290.12192@qirst.com>
-Mime-Version: 1.0
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 89BF45F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 18:45:19 -0400 (EDT)
+Date: Wed, 8 Apr 2009 06:45:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 02/14] mm: fix major/minor fault accounting on retried
+	fault
+Message-ID: <20090407224545.GA5607@localhost>
+References: <20090407071729.233579162@intel.com> <20090407072132.943283183@intel.com> <604427e00904071258y78eea757m6d95d08deec49450@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0904071802290.12192@qirst.com>
+In-Reply-To: <604427e00904071258y78eea757m6d95d08deec49450@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Lee.Schermerhorn@hp.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 07, 2009 at 06:04:39PM -0400, Christoph Lameter wrote:
-> On Tue, 7 Apr 2009, Andi Kleen wrote:
-> 
-> > > Ignoring MLOCK? This means we are violating POSIX which says that an
-> > > MLOCKed page cannot be unmapped from a process?
+On Wed, Apr 08, 2009 at 03:58:16AM +0800, Ying Han wrote:
+> On Tue, Apr 7, 2009 at 12:17 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
+> > VM_FAULT_RETRY does make major/minor faults accounting a bit twisted..
 > >
-> > I'm sure if you can find sufficiently vague language in the document
-> > to standards lawyer around that requirement @)
+> > Cc: Ying Han <yinghan@google.com>
+> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+> > ---
+> >  arch/x86/mm/fault.c |    2 ++
+> >  mm/memory.c         |   22 ++++++++++++++--------
+> >  2 files changed, 16 insertions(+), 8 deletions(-)
 > >
-> > The alternative would be to panic.
-> 
-> 
-> If you unmmap a MLOCKed page then you may get memory corruption because
-> f.e. the Infiniband layer is doing DMA to that page.
+> > --- mm.orig/arch/x86/mm/fault.c
+> > +++ mm/arch/x86/mm/fault.c
+> > @@ -1160,6 +1160,8 @@ good_area:
+> >        if (fault & VM_FAULT_RETRY) {
+> >                if (retry_flag) {
+> >                        retry_flag = 0;
+> > +                       tsk->maj_flt++;
+> > +                       tsk->min_flt--;
+> >                        goto retry;
+> >                }
+> >                BUG();
+> sorry, little bit confuse here. are we assuming the retry path will
+> return min_flt as always?
 
-The page is not going away, it's poisoned in hardware and software 
-and stays. There is currently no mechanism to unpoison pages without
-rebooting.
+Sure - except for some really exceptional ftruncate cases.
+The page was there ready, and we'll retry immediately.
 
-DMA should actually cause a bus abort on the hardware level, 
-at least for RMW.
+maj_flt/min_flt are not _exact_ numbers by their nature, so 99.9%
+accuracy shall be fine.
 
-I currently don't have a cancel mechanism for such kinds of mappings
-though. It just does cancel_dirty_page(), but when IO is happening
+Thanks,
+Fengguang
 
-In theory one could add a more forceful IO cancel mechanism using
-special driver callbacks, but I'm not sure it's worth it. Normally the 
-hardware should abort on hitting poison (although some might do strange things)
-and you'll get some more (recoverable) machine checks.
-
-> > > How does that work for the poisoning case? We substitute a fresh page?
+> > --- mm.orig/mm/memory.c
+> > +++ mm/mm/memory.c
+> > @@ -2882,26 +2882,32 @@ int handle_mm_fault(struct mm_struct *mm
+> >        pud_t *pud;
+> >        pmd_t *pmd;
+> >        pte_t *pte;
+> > +       int ret;
 > >
-> > It depends on the state of the page. If it was a clean disk mapped
-> > page yes (it's just invalidated and can be reloaded). If it's a dirty anon
-> > page the process is normally killed first (with advisory mode on) or only
-> > killed when it hits the corrupted page. The process can also
-> > catch the signal if it choses so. The late killing works with
-> > a special entry similar to the migration case, but that results
-> > in a special SIGBUS.
-> 
-> I think a process needs to be killed if any MLOCKed page gets corrupted
-> because the OS cannot keep the POSIX guarantees.
-
-That's the default behaviour with vm.memory_failure_early_kill = 1
-However the process can catch the signal if it wants.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+> >        __set_current_state(TASK_RUNNING);
+> >
+> > -       count_vm_event(PGFAULT);
+> > -
+> > -       if (unlikely(is_vm_hugetlb_page(vma)))
+> > -               return hugetlb_fault(mm, vma, address, write_access);
+> > +       if (unlikely(is_vm_hugetlb_page(vma))) {
+> > +               ret = hugetlb_fault(mm, vma, address, write_access);
+> > +               goto out;
+> > +       }
+> >
+> > +       ret = VM_FAULT_OOM;
+> >        pgd = pgd_offset(mm, address);
+> >        pud = pud_alloc(mm, pgd, address);
+> >        if (!pud)
+> > -               return VM_FAULT_OOM;
+> > +               goto out;
+> >        pmd = pmd_alloc(mm, pud, address);
+> >        if (!pmd)
+> > -               return VM_FAULT_OOM;
+> > +               goto out;
+> >        pte = pte_alloc_map(mm, pmd, address);
+> >        if (!pte)
+> > -               return VM_FAULT_OOM;
+> > +               goto out;
+> >
+> > -       return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
+> > +       ret = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
+> > +out:
+> > +       if (!(ret & VM_FAULT_RETRY))
+> > +               count_vm_event(PGFAULT);
+> > +       return ret;
+> >  }
+> >
+> >  #ifndef __PAGETABLE_PUD_FOLDED
+> >
+> > --
+> >
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
