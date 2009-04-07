@@ -1,53 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9A2005F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:03 -0400 (EDT)
-Message-Id: <20090407071729.233579162@intel.com>
-Date: Tue, 07 Apr 2009 15:17:29 +0800
+	by kanga.kvack.org (Postfix) with SMTP id 19AE55F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:05 -0400 (EDT)
+Message-Id: <20090407072133.053995305@intel.com>
+References: <20090407071729.233579162@intel.com>
+Date: Tue, 07 Apr 2009 15:17:32 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 00/14] filemap and readahead fixes
+Subject: [PATCH 03/14] mm: remove FAULT_FLAG_RETRY dead code
+Content-Disposition: inline; filename=memory-fault-retry-simp.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Cc: Ying Han <yinghan@google.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ mm/memory.c |    4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-This is a set of fixes and cleanups for filemap and readahead.
-They are for 2.6.29-rc8-mm1 and have been carefully tested.
+--- mm.orig/mm/memory.c
++++ mm/mm/memory.c
+@@ -2766,10 +2766,8 @@ static int do_linear_fault(struct mm_str
+ {
+ 	pgoff_t pgoff = (((address & PAGE_MASK)
+ 			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+-	int write = write_access & ~FAULT_FLAG_RETRY;
+-	unsigned int flags = (write ? FAULT_FLAG_WRITE : 0);
++	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
+ 
+-	flags |= (write_access & FAULT_FLAG_RETRY);
+ 	pte_unmap(page_table);
+ 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+ }
 
-filemap VM_FAULT_RETRY fixes
-----------------------------
-        [PATCH 01/14] mm: fix find_lock_page_retry() return value parsing
-        [PATCH 02/14] mm: fix major/minor fault accounting on retried fault
-        [PATCH 03/14] mm: remove FAULT_FLAG_RETRY dead code
-        [PATCH 04/14] mm: reduce duplicate page fault code
-        [PATCH 05/14] readahead: account mmap_miss for VM_FAULT_RETRY
-
-readahead fixes
----------------
-minor cleanups:
-        [PATCH 06/14] readahead: move max_sane_readahead() calls into force_page_cache_readahead()
-        [PATCH 07/14] readahead: apply max_sane_readahead() limit in ondemand_readahead()
-        [PATCH 08/14] readahead: remove one unnecessary radix tree lookup
-
-behavior changes necessary for the following mmap readahead:
-        [PATCH 09/14] readahead: increase interleaved readahead size
-        [PATCH 10/14] readahead: remove sync/async readahead call dependency
-
-mmap readaround/readahead
--------------------------
-major cleanups from Linus:
-(the cleanups automatically fix a PGMAJFAULT accounting bug in VM_RAND_READ case)
-        [PATCH 11/14] readahead: clean up and simplify the code for filemap page fault readahead
-
-and my further steps:
-        [PATCH 12/14] readahead: sequential mmap readahead
-        [PATCH 13/14] readahead: enforce full readahead size on async mmap readahead
-        [PATCH 14/14] readahead: record mmap read-around states in file_ra_state
-
-Thanks,
-Fengguang
 -- 
 
 --
