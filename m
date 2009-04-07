@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1BBFC5F0009
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id E36B15F0001
 	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:08 -0400 (EDT)
-Message-Id: <20090407072133.296409976@intel.com>
+Message-Id: <20090407072132.943283183@intel.com>
 References: <20090407071729.233579162@intel.com>
-Date: Tue, 07 Apr 2009 15:17:34 +0800
+Date: Tue, 07 Apr 2009 15:17:31 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 05/14] readahead: account mmap_miss for VM_FAULT_RETRY
-Content-Disposition: inline; filename=readahead-mmap_miss-retry.patch
+Subject: [PATCH 02/14] mm: fix major/minor fault accounting on retried fault
+Content-Disposition: inline; filename=filemap-major-fault-retry.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-The VM_FAULT_RETRY case introduced a performance bug that leads to
-excessive/unconditional mmap readarounds for wild random mmap reads.
-
-A retried page fault means a mmap readahead miss(mmap_miss++) followed by
-a hit(mmap_miss--) on the same page. This sticks mmap_miss, and thus stops
-mmap readaround from being turned off for wild random reads. Fix it by an
-extra mmap_miss increament in order to counteract the followed mmap hit.
-
-Also make mmap_miss a more robust 'unsigned int', so that if ever mmap_miss
-goes out of range, it only create _temporary_ performance impacts.
+VM_FAULT_RETRY does make major/minor faults accounting a bit twisted..
 
 Cc: Ying Han <yinghan@google.com>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/fs.h |    2 +-
- mm/filemap.c       |    8 ++++++--
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ arch/x86/mm/fault.c |    2 ++
+ mm/memory.c         |   22 ++++++++++++++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)
 
---- mm.orig/mm/filemap.c
-+++ mm/mm/filemap.c
-@@ -1574,8 +1574,10 @@ retry_find:
- 							   vmf->pgoff, 1);
- 			retry_ret = find_lock_page_retry(mapping, vmf->pgoff,
- 						vma, &page, retry_flag);
--			if (retry_ret == VM_FAULT_RETRY)
-+			if (retry_ret == VM_FAULT_RETRY) {
-+				ra->mmap_miss++; /* counteract the followed retry hit */
- 				return retry_ret;
-+			}
- 			if (!page)
- 				goto no_cached_page;
+--- mm.orig/arch/x86/mm/fault.c
++++ mm/arch/x86/mm/fault.c
+@@ -1160,6 +1160,8 @@ good_area:
+ 	if (fault & VM_FAULT_RETRY) {
+ 		if (retry_flag) {
+ 			retry_flag = 0;
++			tsk->maj_flt++;
++			tsk->min_flt--;
+ 			goto retry;
  		}
-@@ -1617,8 +1619,10 @@ retry_find:
- retry_find_retry:
- 		retry_ret = find_lock_page_retry(mapping, vmf->pgoff,
- 				vma, &page, retry_flag);
--		if (retry_ret == VM_FAULT_RETRY)
-+		if (retry_ret == VM_FAULT_RETRY) {
-+			ra->mmap_miss++; /* counteract the followed retry hit */
- 			return retry_ret;
-+		}
- 		if (!page)
- 			goto no_cached_page;
- 	}
---- mm.orig/include/linux/fs.h
-+++ mm/include/linux/fs.h
-@@ -824,7 +824,7 @@ struct file_ra_state {
- 					   there are only # of pages ahead */
+ 		BUG();
+--- mm.orig/mm/memory.c
++++ mm/mm/memory.c
+@@ -2882,26 +2882,32 @@ int handle_mm_fault(struct mm_struct *mm
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
++	int ret;
  
- 	unsigned int ra_pages;		/* Maximum readahead window */
--	int mmap_miss;			/* Cache miss stat for mmap accesses */
-+	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
- 	loff_t prev_pos;		/* Cache last read() position */
- };
+ 	__set_current_state(TASK_RUNNING);
  
+-	count_vm_event(PGFAULT);
+-
+-	if (unlikely(is_vm_hugetlb_page(vma)))
+-		return hugetlb_fault(mm, vma, address, write_access);
++	if (unlikely(is_vm_hugetlb_page(vma))) {
++		ret = hugetlb_fault(mm, vma, address, write_access);
++		goto out;
++	}
+ 
++	ret = VM_FAULT_OOM;
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+ 	if (!pud)
+-		return VM_FAULT_OOM;
++		goto out;
+ 	pmd = pmd_alloc(mm, pud, address);
+ 	if (!pmd)
+-		return VM_FAULT_OOM;
++		goto out;
+ 	pte = pte_alloc_map(mm, pmd, address);
+ 	if (!pte)
+-		return VM_FAULT_OOM;
++		goto out;
+ 
+-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++	ret = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
++out:
++	if (!(ret & VM_FAULT_RETRY))
++		count_vm_event(PGFAULT);
++	return ret;
+ }
+ 
+ #ifndef __PAGETABLE_PUD_FOLDED
 
 -- 
 
