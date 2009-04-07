@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 24A305F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 12:28:20 -0400 (EDT)
-Date: Tue, 7 Apr 2009 18:30:57 +0200
-From: Andi Kleen <andi@firstfloor.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B7EEB5F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 14:51:26 -0400 (EDT)
+Date: Tue, 7 Apr 2009 20:51:46 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] [13/16] POISON: The high level memory error handler in the VM
-Message-ID: <20090407163057.GR17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151010.E72A91D0471@basil.firstfloor.org> <49DB7934.3060008@redhat.com>
+Message-ID: <20090407185146.GA3818@cmpxchg.org>
+References: <20090407509.382219156@firstfloor.org> <20090407151010.E72A91D0471@basil.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <49DB7934.3060008@redhat.com>
+In-Reply-To: <20090407151010.E72A91D0471@basil.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, npiggin@suse.de, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: hugh@veritas.com, npiggin@suse.de, riel@redhat.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 07, 2009 at 12:03:00PM -0400, Rik van Riel wrote:
-> Andi Kleen wrote:
-> 
-> >This is rather tricky code and needs a lot of review. Undoubtedly it still
-> >has bugs.
-> 
-> It's just complex enough that it looks like it might have
-> more bugs, but I sure couldn't find any.
+Hi Andi,
 
-Thanks for the review.
+On Tue, Apr 07, 2009 at 05:10:10PM +0200, Andi Kleen wrote:
 
-Perhaps I didn't put it strongly enough: I know there are still bugs 
-in there (e.g. nonlinear mappings deadlock and there are some cases
-where the reference count of the page doesn't drop the zero).
+> +static void collect_procs_anon(struct page *page, struct list_head *to_kill,
+> +			      struct to_kill **tkc)
+> +{
+> +	struct vm_area_struct *vma;
+> +	struct task_struct *tsk;
+> +	struct anon_vma *av = page_lock_anon_vma(page);
+> +
+> +	if (av == NULL)	/* Not actually mapped anymore */
+> +		goto out;
+> +
+> +	read_lock(&tasklist_lock);
+> +	for_each_process (tsk) {
+> +		if (!tsk->mm)
+> +			continue;
+> +		list_for_each_entry (vma, &av->head, anon_vma_node) {
+> +			if (vma->vm_mm == tsk->mm)
+> +				add_to_kill(tsk, page, vma, to_kill, tkc);
+> +		}
+> +	}
+> +	read_unlock(&tasklist_lock);
+> +out:
+> +	page_unlock_anon_vma(av);
 
-> Hitting a bug in this code seems favorable to hitting
-> guaranteed memory corruption, so I hope Andrew or Ingo
+If !av, this doesn't need an unlock and in fact crashes due to
+dereferencing NULL.
 
-Yes the alternative is always panic() when the hardware detects
-the consumed corruption and bails out.  So even if this code is buggy it's 
-very likely still an improvement. So it would be reasonable to
-do a relatively early merge and improve further in tree.
+> +static int poison_page_prepare(struct page *p, unsigned long pfn, int trapno)
+> +{
+> +	if (PagePoison(p)) {
+> +		printk(KERN_ERR
+> +		       "MCE: Error for already poisoned page at %lx\n", pfn);
+> +		return -1;
+> +	}
+> +	SetPagePoison(p);
 
-> >Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
-
-Thanks added 
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+TestSetPagePoison()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
