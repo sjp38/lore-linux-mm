@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id BA8AC5F000D
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:10 -0400 (EDT)
-Message-Id: <20090407072134.228597454@intel.com>
+	by kanga.kvack.org (Postfix) with SMTP id 5990D5F000B
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 03:45:11 -0400 (EDT)
+Message-Id: <20090407072133.415263210@intel.com>
 References: <20090407071729.233579162@intel.com>
-Date: Tue, 07 Apr 2009 15:17:42 +0800
+Date: Tue, 07 Apr 2009 15:17:35 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: [PATCH 13/14] readahead: enforce full readahead size on async mmap readahead
-Content-Disposition: inline; filename=readahead-mmap-full-async-readahead-size.patch
+Subject: [PATCH 06/14] readahead: move max_sane_readahead() calls into force_page_cache_readahead()
+Content-Disposition: inline; filename=readahead-move-max_sane_readahead.patch
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-We need this in one perticular case and two more general ones.
-
-Now we do async readahead for sequential mmap reads, and do it with the help of
-PG_readahead. For normal reads, PG_readahead is the sufficient condition to do
-a sequential readahead. But unfortunately, for mmap reads, there is a tiny nuisance:
-
-[11736.998347] readahead-init0(process: sh/23926, file: sda1/w3m, offset=0:4503599627370495, ra=0+4-3) = 4
-[11737.014985] readahead-around(process: w3m/23926, file: sda1/w3m, offset=0:0, ra=290+32-0) = 17
-[11737.019488] readahead-around(process: w3m/23926, file: sda1/w3m, offset=0:0, ra=118+32-0) = 32
-[11737.024921] readahead-interleaved(process: w3m/23926, file: sda1/w3m, offset=0:2, ra=4+6-6) = 6
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~                                                 ~~~~~~~~~~~~~
-An unfavorably small readahead. The original dumb read-around size could be more efficient.
-
-That happened because ld-linux.so does a read(832) in L1 before mmap(),
-which triggers a 4-page readahead, with the second page tagged PG_readahead.
-
-L0: open("/lib/libc.so.6", O_RDONLY)        = 3
-L1: read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\340\342"..., 832) = 832
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-L2: fstat(3, {st_mode=S_IFREG|0755, st_size=1420624, ...}) = 0
-L3: mmap(NULL, 3527256, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fac6e51d000
-L4: mprotect(0x7fac6e671000, 2097152, PROT_NONE) = 0
-L5: mmap(0x7fac6e871000, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x154000) = 0x7fac6e871000
-L6: mmap(0x7fac6e876000, 16984, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fac6e876000
-L7: close(3)                                = 0
-
-In general, the PG_readahead flag will also be hit in cases
-- sequential reads
-- clustered random reads
-A full readahead size is desirable in both cases.
+Impact: code simplification.
 
 Cc: Nick Piggin <npiggin@suse.de>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- mm/filemap.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ mm/fadvise.c   |    2 +-
+ mm/filemap.c   |    3 +--
+ mm/madvise.c   |    3 +--
+ mm/readahead.c |    1 +
+ 4 files changed, 4 insertions(+), 5 deletions(-)
 
+--- mm.orig/mm/fadvise.c
++++ mm/mm/fadvise.c
+@@ -101,7 +101,7 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, lof
+ 		
+ 		ret = force_page_cache_readahead(mapping, file,
+ 				start_index,
+-				max_sane_readahead(nrpages));
++				nrpages);
+ 		if (ret > 0)
+ 			ret = 0;
+ 		break;
 --- mm.orig/mm/filemap.c
 +++ mm/mm/filemap.c
-@@ -1584,7 +1584,8 @@ static void do_async_mmap_readahead(stru
- 	if (ra->mmap_miss > 0)
- 		ra->mmap_miss--;
- 	if (PageReadahead(page))
--		page_cache_async_readahead(mapping, ra, file, page, offset, 1);
-+		page_cache_async_readahead(mapping, ra, file,
-+					   page, offset, ra->ra_pages);
+@@ -1458,8 +1458,7 @@ do_readahead(struct address_space *mappi
+ 	if (!mapping || !mapping->a_ops || !mapping->a_ops->readpage)
+ 		return -EINVAL;
+ 
+-	force_page_cache_readahead(mapping, filp, index,
+-					max_sane_readahead(nr));
++	force_page_cache_readahead(mapping, filp, index, nr);
+ 	return 0;
  }
  
- /**
+--- mm.orig/mm/madvise.c
++++ mm/mm/madvise.c
+@@ -123,8 +123,7 @@ static long madvise_willneed(struct vm_a
+ 		end = vma->vm_end;
+ 	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+ 
+-	force_page_cache_readahead(file->f_mapping,
+-			file, start, max_sane_readahead(end - start));
++	force_page_cache_readahead(file->f_mapping, file, start, end - start);
+ 	return 0;
+ }
+ 
+--- mm.orig/mm/readahead.c
++++ mm/mm/readahead.c
+@@ -223,6 +223,7 @@ int force_page_cache_readahead(struct ad
+ 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+ 		return -EINVAL;
+ 
++	nr_to_read = max_sane_readahead(nr_to_read);
+ 	while (nr_to_read) {
+ 		int err;
+ 
 
 -- 
 
