@@ -1,67 +1,54 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2756C6B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 23:26:15 -0400 (EDT)
-Received: by gxk20 with SMTP id 20so3559365gxk.14
-        for <linux-mm@kvack.org>; Thu, 30 Apr 2009 20:26:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090428090129.17081.782.sendpatchset@rx1.opensource.se>
-References: <20090428090129.17081.782.sendpatchset@rx1.opensource.se>
-Date: Fri, 1 May 2009 12:26:38 +0900
-Message-ID: <aec7e5c30904302026q42ecbd57m6e88c937bbd262bb@mail.gmail.com>
-Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V2
-From: Magnus Damm <magnus.damm@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH 00/14] filemap and readahead fixes
+Date: Tue, 07 Apr 2009 19:50:39 +0800
+Message-ID: <20090407115039.780820496@intel.com>
+Return-path: <owner-linux-mm@kvack.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 298725F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 08:00:50 -0400 (EDT)
 Sender: owner-linux-mm@kvack.org
-To: linux-media@vger.kernel.org
-Cc: hverkuil@xs4all.nl, linux-mm@kvack.org, Magnus Damm <magnus.damm@gmail.com>, lethal@linux-sh.org, hannes@cmpxchg.org
-List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hugh@veritas.com>, Ingo Molnar <mingo@elte.hu>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Mike Waychison <mikew@google.com>, Nick Piggin <npiggin@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rohit Seth <rohitseth@google.com>, Edwin <edwintorok@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Ying Han <yinghan@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+List-Id: linux-mm.kvack.org
 
-On Tue, Apr 28, 2009 at 6:01 PM, Magnus Damm <magnus.damm@gmail.com> wrote:
-> This is V2 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
+Andrew,
 
-I guess the V4L2 specific bits are pretty simple.
+This is a set of fixes and cleanups for filemap and readahead.
+They are for 2.6.29-rc8-mm1 and have been carefully tested.
 
-As for the minor mm modifications below,
+filemap VM_FAULT_RETRY fixes
+----------------------------
+        [PATCH 01/14] mm: fix find_lock_page_retry() return value parsing
+        [PATCH 02/14] mm: fix major/minor fault accounting on retried fault
+        [PATCH 03/14] mm: remove FAULT_FLAG_RETRY dead code
+        [PATCH 04/14] mm: reduce duplicate page fault code
+        [PATCH 05/14] readahead: account mmap_miss for VM_FAULT_RETRY
 
-> --- 0001/mm/memory.c
-> +++ work/mm/memory.c =A0 =A02009-04-28 14:56:43.000000000 +0900
-> @@ -3009,7 +3009,6 @@ int in_gate_area_no_task(unsigned long a
->
-> =A0#endif /* __HAVE_ARCH_GATE_AREA */
->
-> -#ifdef CONFIG_HAVE_IOREMAP_PROT
-> =A0int follow_phys(struct vm_area_struct *vma,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long address, unsigned int flags,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long *prot, resource_size_t *phys=
-)
+readahead fixes
+---------------
+minor cleanups:
+        [PATCH 06/14] readahead: move max_sane_readahead() calls into force_page_cache_readahead()
+        [PATCH 07/14] readahead: apply max_sane_readahead() limit in ondemand_readahead()
+        [PATCH 08/14] readahead: remove one unnecessary radix tree lookup
 
-Is it ok with the memory management guys to always build follow_phys()?
+behavior changes necessary for the following mmap readahead:
+        [PATCH 09/14] readahead: increase interleaved readahead size
+        [PATCH 10/14] readahead: remove sync/async readahead call dependency
 
-> @@ -3063,7 +3062,9 @@ unlock:
-> =A0out:
-> =A0 =A0 =A0 =A0return ret;
-> =A0}
-> +EXPORT_SYMBOL(follow_phys);
->
-> +#ifdef CONFIG_HAVE_IOREMAP_PROT
-> =A0int generic_access_phys(struct vm_area_struct *vma, unsigned long addr=
-,
-> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *buf, int len, int wr=
-ite)
-> =A0{
+mmap readaround/readahead
+-------------------------
+major cleanups from Linus:
+(the cleanups automatically fix a PGMAJFAULT accounting bug in VM_RAND_READ case)
+        [PATCH 11/14] readahead: clean up and simplify the code for filemap page fault readahead
 
-How about exporting follow_phys()? This because the user
-videobuf-dma-contig.c can be built as a module.
-
-Should I use EXPORT_SYMBOL_GPL() instead of EXPORT_SYMBOL()?
-
-Any comments?
+and my further steps:
+        [PATCH 12/14] readahead: sequential mmap readahead
+        [PATCH 13/14] readahead: enforce full readahead size on async mmap readahead
+        [PATCH 14/14] readahead: record mmap read-around states in file_ra_state
 
 Thanks,
-
-/ magnus
+Fengguang
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
