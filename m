@@ -1,68 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id D35F85F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 15:29:05 -0400 (EDT)
-Date: Tue, 7 Apr 2009 21:31:45 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 102CC5F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 15:35:48 -0400 (EDT)
+Date: Tue, 7 Apr 2009 21:38:34 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [8/16] POISON: Add various poison checks in mm/memory.c
-Message-ID: <20090407193145.GU17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151005.4E24B1D046D@basil.firstfloor.org> <20090407190330.GB3818@cmpxchg.org>
+Subject: Re: [PATCH] [0/16] POISON: Intro
+Message-ID: <20090407193834.GV17934@one.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org> <20090407191300.GA10768@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090407190330.GB3818@cmpxchg.org>
+In-Reply-To: <20090407191300.GA10768@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Russ Anderson <rja@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 07, 2009 at 09:03:30PM +0200, Johannes Weiner wrote:
-> On Tue, Apr 07, 2009 at 05:10:05PM +0200, Andi Kleen wrote:
-> > 
-> > Bail out early when poisoned pages are found in page fault handling.
-> > Since they are poisoned they should not be mapped freshly
-> > into processes.
-> > 
-> > This is generally handled in the same way as OOM, just a different
-> > error code is returned to the architecture code.
-> > 
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> > 
-> > ---
-> >  mm/memory.c |    7 +++++++
-> >  1 file changed, 7 insertions(+)
-> > 
-> > Index: linux/mm/memory.c
-> > ===================================================================
-> > --- linux.orig/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
-> > +++ linux/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
-> > @@ -2560,6 +2560,10 @@
-> >  		goto oom;
-> >  	__SetPageUptodate(page);
-> >  
-> > +	/* Kludge for now until we take poisoned pages out of the free lists */
-> > +	if (unlikely(PagePoison(page)))
-> > +		return VM_FAULT_POISON;
-> > +
-> 
-> When memory_failure() hits a page still on the free list
+On Tue, Apr 07, 2009 at 02:13:00PM -0500, Robin Holt wrote:
+> How does this overlap with the bad page quarantine that ia64 uses
+> following an MCA?
 
-It won't free it then. Later on it will take it out of the free lists,
-but that code is not written yet.
-
-> (!page_count()) then the get_page() in memory_failure() will trigger a
-> VM_BUG.  So either this check is unneeded or it should be
-
-So no bug
-> get_page_unless_zero() in memory_failure()?
-
-That's not what this is handling.  The issue is that sometimes
-the process can still freeing it and we need to make sure it 
-never hits the free lists.
+It's much more comprehensive than what ia64 has, mostly due to 
+differing requirements. It also doesn't limit itself to user
+mapped anonymous pages only.
 
 -Andi
--- 
-ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
