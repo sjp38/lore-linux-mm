@@ -1,52 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id CBA155F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 18:23:09 -0400 (EDT)
-Date: Wed, 8 Apr 2009 00:25:43 +0200
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD585F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 18:33:02 -0400 (EDT)
+Date: Wed, 8 Apr 2009 00:35:45 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [5/16] POISON: Add support for poison swap entries
-Message-ID: <20090407222543.GB17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151002.0AA8F1D046E@basil.firstfloor.org> <alpine.DEB.1.10.0904071710500.12192@qirst.com> <20090407215605.GZ17934@one.firstfloor.org> <alpine.DEB.1.10.0904071755200.12192@qirst.com>
+Subject: Re: [PATCH] [10/16] POISON: Use bitmask/action code for try_to_unmap behaviour
+Message-ID: <20090407223545.GC17934@one.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org> <20090407151007.71F3F1D046F@basil.firstfloor.org> <alpine.DEB.1.10.0904071714450.12192@qirst.com> <20090407215953.GA17934@one.firstfloor.org> <alpine.DEB.1.10.0904071802290.12192@qirst.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.1.10.0904071755200.12192@qirst.com>
+In-Reply-To: <alpine.DEB.1.10.0904071802290.12192@qirst.com>
 Sender: owner-linux-mm@kvack.org
 To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+Cc: Andi Kleen <andi@firstfloor.org>, Lee.Schermerhorn@hp.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 07, 2009 at 05:56:28PM -0400, Christoph Lameter wrote:
+On Tue, Apr 07, 2009 at 06:04:39PM -0400, Christoph Lameter wrote:
 > On Tue, 7 Apr 2009, Andi Kleen wrote:
 > 
-> > On Tue, Apr 07, 2009 at 05:11:26PM -0400, Christoph Lameter wrote:
-> > >
-> > > Could you separate the semantic changes to flag checking for migration
+> > > Ignoring MLOCK? This means we are violating POSIX which says that an
+> > > MLOCKed page cannot be unmapped from a process?
 > >
-> > You mean to try_to_unmap?
+> > I'm sure if you can find sufficiently vague language in the document
+> > to standards lawyer around that requirement @)
+> >
+> > The alternative would be to panic.
 > 
-> I mean the changes to checking the pte contents for a migratable /
-> swappable page. Those are significant independent from this patchset and
-> would be useful to review independently.
+> 
+> If you unmmap a MLOCKed page then you may get memory corruption because
+> f.e. the Infiniband layer is doing DMA to that page.
 
-Sorry I'm still not quite sure what you're asking for.
+The page is not going away, it's poisoned in hardware and software 
+and stays. There is currently no mechanism to unpoison pages without
+rebooting.
 
-Are you asking about the fault path or about try_to_unmap or some
-other path?
+DMA should actually cause a bus abort on the hardware level, 
+at least for RMW.
 
-And why do you want a separate patchset versus merely a separate patch?
-(afaik the patches to generic code are already pretty separated)
+I currently don't have a cancel mechanism for such kinds of mappings
+though. It just does cancel_dirty_page(), but when IO is happening
 
-I don't really change the semantics of the migration or swap code itself
-for example. At least not consciously. If I did that would be a bug.
+In theory one could add a more forceful IO cancel mechanism using
+special driver callbacks, but I'm not sure it's worth it. Normally the 
+hardware should abort on hitting poison (although some might do strange things)
+and you'll get some more (recoverable) machine checks.
 
-e.g. the changes to try_to_unmap are two stages:
-- add flags/action code. Everything should still do the same, just
-the flags are passed around differently.
-- add a check for an already poisoned page and insert a poison
-swap entry for those
+> > > How does that work for the poisoning case? We substitute a fresh page?
+> >
+> > It depends on the state of the page. If it was a clean disk mapped
+> > page yes (it's just invalidated and can be reloaded). If it's a dirty anon
+> > page the process is normally killed first (with advisory mode on) or only
+> > killed when it hits the corrupted page. The process can also
+> > catch the signal if it choses so. The late killing works with
+> > a special entry similar to the migration case, but that results
+> > in a special SIGBUS.
+> 
+> I think a process needs to be killed if any MLOCKed page gets corrupted
+> because the OS cannot keep the POSIX guarantees.
+
+That's the default behaviour with vm.memory_failure_early_kill = 1
+However the process can catch the signal if it wants.
 
 -Andi
+
 -- 
 ak@linux.intel.com -- Speaking for myself only.
 
