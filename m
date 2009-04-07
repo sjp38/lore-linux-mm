@@ -1,91 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A7755F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:10:05 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 493F45F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:10:08 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090407509.382219156@firstfloor.org>
 In-Reply-To: <20090407509.382219156@firstfloor.org>
-Subject: [PATCH] [7/16] POISON: Add basic support for poisoned pages in fault handler
-Message-Id: <20090407151004.2F5D21D0470@basil.firstfloor.org>
-Date: Tue,  7 Apr 2009 17:10:04 +0200 (CEST)
+Subject: [PATCH] [5/16] POISON: Add support for poison swap entries
+Message-Id: <20090407151002.0AA8F1D046E@basil.firstfloor.org>
+Date: Tue,  7 Apr 2009 17:10:01 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-- Add a new VM_FAULT_POISON error code to handle_mm_fault. Right now
-architectures have to explicitely enable poison page support, so
-this is forward compatible to all architectures. They only need
-to add it when they enable poison page support.
-- Add poison page handling in swap in fault code
+CPU migration uses special swap entry types to trigger special actions on page
+faults. Extend this mechanism to also support poisoned swap entries, to trigger
+poison handling on page faults. This allows followon patches to prevent 
+processes from faulting in poisoned pages again.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- include/linux/mm.h |    3 ++-
- mm/memory.c        |   17 ++++++++++++++---
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ include/linux/swap.h    |   34 ++++++++++++++++++++++++++++------
+ include/linux/swapops.h |   38 ++++++++++++++++++++++++++++++++++++++
+ mm/swapfile.c           |    4 ++--
+ 3 files changed, 68 insertions(+), 8 deletions(-)
 
-Index: linux/mm/memory.c
+Index: linux/include/linux/swap.h
 ===================================================================
---- linux.orig/mm/memory.c	2009-04-07 16:39:24.000000000 +0200
-+++ linux/mm/memory.c	2009-04-07 16:43:06.000000000 +0200
-@@ -1315,7 +1315,8 @@
- 				if (ret & VM_FAULT_ERROR) {
- 					if (ret & VM_FAULT_OOM)
- 						return i ? i : -ENOMEM;
--					else if (ret & VM_FAULT_SIGBUS)
-+					if (ret &
-+					    (VM_FAULT_POISON|VM_FAULT_SIGBUS))
- 						return i ? i : -EFAULT;
- 					BUG();
- 				}
-@@ -2426,8 +2427,15 @@
- 		goto out;
- 
- 	entry = pte_to_swp_entry(orig_pte);
--	if (is_migration_entry(entry)) {
--		migration_entry_wait(mm, pmd, address);
-+	if (unlikely(non_swap_entry(entry))) {
-+		if (is_migration_entry(entry)) {
-+			migration_entry_wait(mm, pmd, address);
-+		} else if (is_poison_entry(entry)) {
-+			ret = VM_FAULT_POISON;
-+		} else {
-+			print_bad_pte(vma, address, pte, NULL);
-+			ret = VM_FAULT_OOM;
-+		}
- 		goto out;
- 	}
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-@@ -2451,6 +2459,9 @@
- 		/* Had to read the page from swap area: Major fault */
- 		ret = VM_FAULT_MAJOR;
- 		count_vm_event(PGMAJFAULT);
-+	} else if (PagePoison(page)) {
-+		ret = VM_FAULT_POISON;
-+		goto out;
- 	}
- 
- 	lock_page(page);
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h	2009-04-07 16:39:24.000000000 +0200
-+++ linux/include/linux/mm.h	2009-04-07 16:43:05.000000000 +0200
-@@ -702,11 +702,12 @@
- #define VM_FAULT_SIGBUS	0x0002
- #define VM_FAULT_MAJOR	0x0004
- #define VM_FAULT_WRITE	0x0008	/* Special case for get_user_pages */
-+#define VM_FAULT_POISON 0x0010	/* Hit poisoned page */
- 
- #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
- #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
- 
--#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
-+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_POISON)
+--- linux.orig/include/linux/swap.h	2009-04-07 16:39:25.000000000 +0200
++++ linux/include/linux/swap.h	2009-04-07 16:39:39.000000000 +0200
+@@ -34,16 +34,38 @@
+  * the type/offset into the pte as 5/27 as well.
+  */
+ #define MAX_SWAPFILES_SHIFT	5
+-#ifndef CONFIG_MIGRATION
+-#define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
++
++/*
++ * Use some of the swap files numbers for other purposes. This
++ * is a convenient way to hook into the VM to trigger special
++ * actions on faults.
++ */
++
++/*
++ * NUMA node memory migration support
++ */
++#ifdef CONFIG_MIGRATION
++#define SWP_MIGRATION_NUM 2
++#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_POISON_NUM + 1)
++#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_POISON_NUM + 2)
+ #else
+-/* Use last two entries for page migration swap entries */
+-#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
+-#define SWP_MIGRATION_READ	MAX_SWAPFILES
+-#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
++#define SWP_MIGRATION_NUM 0
+ #endif
  
  /*
-  * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
++ * Handling of poisoned pages with memory corruption.
++ */
++#ifdef CONFIG_MEMORY_FAILURE
++#define SWP_POISON_NUM 1
++#define SWP_POISON 		(MAX_SWAPFILES + 1)
++#else
++#define SWP_POISON_NUM 0
++#endif
++
++#define MAX_SWAPFILES \
++	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_POISON_NUM)
++
++/*
+  * Magic header for a swap area. The first part of the union is
+  * what the swap magic looks like for the old (limited to 128MB)
+  * swap area format, the second part of the union adds - in the
+Index: linux/include/linux/swapops.h
+===================================================================
+--- linux.orig/include/linux/swapops.h	2009-04-07 16:39:25.000000000 +0200
++++ linux/include/linux/swapops.h	2009-04-07 16:39:39.000000000 +0200
+@@ -131,3 +131,41 @@
+ 
+ #endif
+ 
++#ifdef CONFIG_MEMORY_FAILURE
++/*
++ * Support for poisoned pages
++ */
++static inline swp_entry_t make_poison_entry(struct page *page)
++{
++	BUG_ON(!PageLocked(page));
++	return swp_entry(SWP_POISON, page_to_pfn(page));
++}
++
++static inline int is_poison_entry(swp_entry_t entry)
++{
++	return swp_type(entry) == SWP_POISON;
++}
++#else
++
++static inline swp_entry_t make_poison_entry(struct page *page)
++{
++	return swp_entry(0, 0);
++}
++
++static inline int is_poison_entry(swp_entry_t swp)
++{
++	return 0;
++}
++#endif
++
++#if defined(CONFIG_MEMORY_FAILURE) || defined(CONFIG_MIGRATION)
++static inline int non_swap_entry(swp_entry_t entry)
++{
++	return swp_type(entry) > MAX_SWAPFILES;
++}
++#else
++static inline int non_swap_entry(swp_entry_t entry)
++{
++	return 0;
++}
++#endif
+Index: linux/mm/swapfile.c
+===================================================================
+--- linux.orig/mm/swapfile.c	2009-04-07 16:39:25.000000000 +0200
++++ linux/mm/swapfile.c	2009-04-07 16:39:39.000000000 +0200
+@@ -579,7 +579,7 @@
+ 	struct swap_info_struct *p;
+ 	struct page *page = NULL;
+ 
+-	if (is_migration_entry(entry))
++	if (non_swap_entry(entry))
+ 		return 1;
+ 
+ 	p = swap_info_get(entry);
+@@ -1949,7 +1949,7 @@
+ 	unsigned long offset, type;
+ 	int result = 0;
+ 
+-	if (is_migration_entry(entry))
++	if (non_swap_entry(entry))
+ 		return 1;
+ 
+ 	type = swp_type(entry);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
