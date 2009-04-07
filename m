@@ -1,55 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id D072A5F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 16:03:38 -0400 (EDT)
-Received: from wpaz5.hot.corp.google.com (wpaz5.hot.corp.google.com [172.24.198.69])
-	by smtp-out.google.com with ESMTP id n37K3cGX031977
-	for <linux-mm@kvack.org>; Tue, 7 Apr 2009 21:03:38 +0100
-Received: from wf-out-1314.google.com (wfd26.prod.google.com [10.142.4.26])
-	by wpaz5.hot.corp.google.com with ESMTP id n37K2V4p013001
-	for <linux-mm@kvack.org>; Tue, 7 Apr 2009 13:03:36 -0700
-Received: by wf-out-1314.google.com with SMTP id 26so3161519wfd.0
-        for <linux-mm@kvack.org>; Tue, 07 Apr 2009 13:03:36 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090407072133.053995305@intel.com>
-References: <20090407071729.233579162@intel.com>
-	 <20090407072133.053995305@intel.com>
-Date: Tue, 7 Apr 2009 13:03:36 -0700
-Message-ID: <604427e00904071303g1d092eabp59fca0713ddacf82@mail.gmail.com>
-Subject: Re: [PATCH 03/14] mm: remove FAULT_FLAG_RETRY dead code
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 4ED535F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 16:17:08 -0400 (EDT)
+Date: Tue, 7 Apr 2009 22:17:08 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] [8/16] POISON: Add various poison checks in mm/memory.c
+Message-ID: <20090407201708.GA4220@cmpxchg.org>
+References: <20090407509.382219156@firstfloor.org> <20090407151005.4E24B1D046D@basil.firstfloor.org> <20090407190330.GB3818@cmpxchg.org> <20090407193145.GU17934@one.firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090407193145.GU17934@one.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 7, 2009 at 12:17 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> Cc: Ying Han <yinghan@google.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  mm/memory.c |    4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
->
-> --- mm.orig/mm/memory.c
-> +++ mm/mm/memory.c
-> @@ -2766,10 +2766,8 @@ static int do_linear_fault(struct mm_str
->  {
->        pgoff_t pgoff = (((address & PAGE_MASK)
->                        - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> -       int write = write_access & ~FAULT_FLAG_RETRY;
-> -       unsigned int flags = (write ? FAULT_FLAG_WRITE : 0);
-> +       unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
->
-> -       flags |= (write_access & FAULT_FLAG_RETRY);
->        pte_unmap(page_table);
->        return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
->  }
-So, we got rid of FAULT_FLAG_RETRY flag?
-> --
->
->
+On Tue, Apr 07, 2009 at 09:31:45PM +0200, Andi Kleen wrote:
+> On Tue, Apr 07, 2009 at 09:03:30PM +0200, Johannes Weiner wrote:
+> > On Tue, Apr 07, 2009 at 05:10:05PM +0200, Andi Kleen wrote:
+> > > 
+> > > Bail out early when poisoned pages are found in page fault handling.
+> > > Since they are poisoned they should not be mapped freshly
+> > > into processes.
+> > > 
+> > > This is generally handled in the same way as OOM, just a different
+> > > error code is returned to the architecture code.
+> > > 
+> > > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> > > 
+> > > ---
+> > >  mm/memory.c |    7 +++++++
+> > >  1 file changed, 7 insertions(+)
+> > > 
+> > > Index: linux/mm/memory.c
+> > > ===================================================================
+> > > --- linux.orig/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
+> > > +++ linux/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
+> > > @@ -2560,6 +2560,10 @@
+> > >  		goto oom;
+> > >  	__SetPageUptodate(page);
+> > >  
+> > > +	/* Kludge for now until we take poisoned pages out of the free lists */
+> > > +	if (unlikely(PagePoison(page)))
+> > > +		return VM_FAULT_POISON;
+> > > +
+> > 
+> > When memory_failure() hits a page still on the free list
+> 
+> It won't free it then. Later on it will take it out of the free lists,
+> but that code is not written yet.
+> 
+> > (!page_count()) then the get_page() in memory_failure() will trigger a
+> > VM_BUG.  So either this check is unneeded or it should be
+> 
+> So no bug
+> > get_page_unless_zero() in memory_failure()?
+> 
+> That's not what this is handling.  The issue is that sometimes
+> the process can still freeing it and we need to make sure it 
+> never hits the free lists.
+
+I think we missed each other here.  I wasn't talking about _why_ you
+take that reference -- that is clear.  But I see these two
+possibilities:
+
+  a) memory_failure() is called on a page on the free list, the
+  get_page() will trigger a bug because the refcount is 0
+
+  b) if that is not possible, the above check is not needed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
