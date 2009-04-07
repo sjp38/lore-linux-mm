@@ -1,56 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 0800B5F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:10:09 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD745F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:10:12 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090407509.382219156@firstfloor.org>
 In-Reply-To: <20090407509.382219156@firstfloor.org>
-Subject: [PATCH] [8/16] POISON: Add various poison checks in mm/memory.c
-Message-Id: <20090407151005.4E24B1D046D@basil.firstfloor.org>
-Date: Tue,  7 Apr 2009 17:10:05 +0200 (CEST)
+Subject: [PATCH] [9/16] POISON: x86: Add VM_FAULT_POISON handling to x86 page fault handler
+Message-Id: <20090407151006.537AC1D046E@basil.firstfloor.org>
+Date: Tue,  7 Apr 2009 17:10:06 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-Bail out early when poisoned pages are found in page fault handling.
-Since they are poisoned they should not be mapped freshly
-into processes.
-
-This is generally handled in the same way as OOM, just a different
-error code is returned to the architecture code.
+Add VM_FAULT_POISON handling to the x86 page fault handler. This is 
+very similar to VM_FAULT_OOM, the only difference is that a different
+si_code is passed to user space and the new addr_lsb field is initialized.
 
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- mm/memory.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/mm/fault.c |   18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
 
-Index: linux/mm/memory.c
+Index: linux/arch/x86/mm/fault.c
 ===================================================================
---- linux.orig/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
-+++ linux/mm/memory.c	2009-04-07 16:39:39.000000000 +0200
-@@ -2560,6 +2560,10 @@
- 		goto oom;
- 	__SetPageUptodate(page);
+--- linux.orig/arch/x86/mm/fault.c	2009-04-07 16:39:23.000000000 +0200
++++ linux/arch/x86/mm/fault.c	2009-04-07 16:39:39.000000000 +0200
+@@ -189,6 +189,7 @@
+ 	info.si_errno	= 0;
+ 	info.si_code	= si_code;
+ 	info.si_addr	= (void __user *)address;
++	info.si_addr_lsb = si_code == BUS_MCEERR_AR ? PAGE_SHIFT : 0;
  
-+	/* Kludge for now until we take poisoned pages out of the free lists */
-+	if (unlikely(PagePoison(page)))
-+		return VM_FAULT_POISON;
-+
- 	if (mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))
- 		goto oom_free_page;
+ 	force_sig_info(si_signo, &info, tsk);
+ }
+@@ -827,10 +828,12 @@
+ }
  
-@@ -2625,6 +2629,9 @@
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
- 		return ret;
+ static void
+-do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
++do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
++	  unsigned int fault)
+ {
+ 	struct task_struct *tsk = current;
+ 	struct mm_struct *mm = tsk->mm;
++	int code = BUS_ADRERR;
  
-+	if (unlikely(PagePoison(vmf.page)))
-+		return VM_FAULT_POISON;
-+
- 	/*
- 	 * For consistency in subsequent calls, make the faulted page always
- 	 * locked.
+ 	up_read(&mm->mmap_sem);
+ 
+@@ -846,7 +849,14 @@
+ 	tsk->thread.error_code	= error_code;
+ 	tsk->thread.trap_no	= 14;
+ 
+-	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
++#ifdef CONFIG_MEMORY_FAILURE
++	if (fault & VM_FAULT_POISON) {
++		printk(KERN_ERR "MCE: Killing %s:%d due to hardware memory corruption\n",
++			tsk->comm, tsk->pid);
++		code = BUS_MCEERR_AR;
++	}
++#endif
++	force_sig_info_fault(SIGBUS, code, address, tsk);
+ }
+ 
+ static noinline void
+@@ -856,8 +866,8 @@
+ 	if (fault & VM_FAULT_OOM) {
+ 		out_of_memory(regs, error_code, address);
+ 	} else {
+-		if (fault & VM_FAULT_SIGBUS)
+-			do_sigbus(regs, error_code, address);
++		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_POISON))
++			do_sigbus(regs, error_code, address, fault);
+ 		else
+ 			BUG();
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
