@@ -1,752 +1,331 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C9F15F0001
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF255F0008
 	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 11:10:23 -0400 (EDT)
 From: Andi Kleen <andi@firstfloor.org>
 References: <20090407509.382219156@firstfloor.org>
 In-Reply-To: <20090407509.382219156@firstfloor.org>
-Subject: [PATCH] [13/16] POISON: The high level memory error handler in the VM
-Message-Id: <20090407151010.E72A91D0471@basil.firstfloor.org>
-Date: Tue,  7 Apr 2009 17:10:10 +0200 (CEST)
+Subject: [PATCH] [15/16] x86: MCE: Support action-optional machine checks
+Message-Id: <20090407151013.17B2B1D046F@basil.firstfloor.org>
+Date: Tue,  7 Apr 2009 17:10:13 +0200 (CEST)
 Sender: owner-linux-mm@kvack.org
-To: hugh@veritas.com, npiggin@suse.de, riel@redhat.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
 
-This patch adds the high level memory handler that poisons pages. 
-It is portable code and lives in mm/memory-failure.c
+Newer Intel CPUs support a new class of machine checks called recoverable
+action optional.
 
-To quote the overview comment:
+Action Optional means that the CPU detected some form of corruption in
+the background and tells the OS about using a machine check
+exception. The OS can then take appropiate action, like killing the
+process with the corrupted data or logging the event properly to disk.
 
- * High level machine check handler. Handles pages reported by the
- * hardware as being corrupted usually due to a 2bit ECC memory or cache
- * failure.
- *
- * This focusses on pages detected as corrupted in the background.
- * When the current CPU tries to consume corruption the currently
- * running process can just be killed directly instead. This implies
- * that if the error cannot be handled for some reason it's safe to
- * just ignore it because no corruption has been consumed yet. Instead
- * when that happens another machine check will happen.
- *
- * Handles page cache pages in various states. The tricky part
- * here is that we can access any page asynchronous to other VM
- * users, because memory failures could happen anytime and anywhere,
- * possibly violating some of their assumptions. This is why this code
- * has to be extremely careful. Generally it tries to use normal locking
- * rules, as in get the standard locks, even if that means the
- * error handling takes potentially a long time.
- *
- * Some of the operations here are somewhat inefficient and have non
- * linear algorithmic complexity, because the data structures have not
- * been optimized for this case. This is in particular the case
- * for the mapping from a vma to a process. Since this case is expected
- * to be rare we hope we can get away with this.
+This is done by the new generic high level memory failure handler added in a
+earlier patch. The high level handler takes the address with the failed
+memory and does the appropiate action, like killing the process.
 
-There are in principle two strategies to kill processes on poison:
-- just unmap the data and wait for an actual reference before 
-killing
-- kill as soon as corruption is detected.
-Both have advantages and disadvantages and should be used 
-in different situations. Right now both are implemented and can
-be switched with a new sysctl vm.memory_failure_early_kill
-The default is early kill.
+The high level handler cannot be directly called from the machine check 
+exception though, because it has to run in a defined process context to be able
+to sleep when taking VM locks (it is not expected to sleep for a long time,
+just do so in some exceptional cases like lock contention) 
 
-The patch does some rmap data structure walking on its own to collect
-processes to kill. This is unusual because normally all rmap data structure
-knowledge is in rmap.c only. I put it here for now to keep 
-everything together and rmap knowledge has been seeping out anyways
+Thus the MCE handler has to queue a work item for process context,
+trigger process context and then call the high level handler from there.
 
-This isn't complete yet. The biggest gap is the missing hugepage 
-handling and also a few other corner cases. The code is unable
-in all cases to get rid of all references.
+This patch adds two path to process context: through a per thread kernel exit
+notify_user() callback or through a high priority work item.  The first
+runs when the process exits back to user space, the other when it goes
+to sleep and there is no higher priority process. 
 
-This is rather tricky code and needs a lot of review. Undoubtedly it still
-has bugs.
+The machine check handler will schedule both, and whoever runs first
+will grab the event. This is done because quick reaction to this 
+event is critical to avoid a potential more fatal machine check
+when the corruption is consumed.
 
-Cc: hugh@veritas.com
-Cc: npiggin@suse.de
-Cc: riel@redhat.com
-Cc: lee.schermerhorn@hp.com
-Cc: akpm@linux-foundation.org
+There is a simple lock less ring buffer to queue the corrupted
+addresses between the exception handler and the process context handler.
+Then in process context it just calls the high level VM code with 
+the corrupted PFNs.
+
+The code adds the required code to extract the failed address from
+the CPU's machine check registers. It doesn't try to handle all 
+possible cases -- the specification has 6 different ways to specify
+memory address -- but only the linear address.
+
+Most of the required checking has been already done earlier in the
+mce_severity rule checking engine.  Following the Intel
+recommendations Action Optional errors are only enabled for known
+situations (encoded in MCACODs). The errors are ignored otherwise,
+because they are action optional.
+
 Signed-off-by: Andi Kleen <ak@linux.intel.com>
 
 ---
- fs/proc/meminfo.c   |    9 
- include/linux/mm.h  |    4 
- kernel/sysctl.c     |   14 +
- mm/Kconfig          |    3 
- mm/Makefile         |    1 
- mm/memory-failure.c |  575 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 605 insertions(+), 1 deletion(-)
+ arch/x86/Kconfig                          |    1 
+ arch/x86/include/asm/irq_vectors.h        |    1 
+ arch/x86/include/asm/mce.h                |    1 
+ arch/x86/kernel/cpu/mcheck/mce-severity.c |    8 +-
+ arch/x86/kernel/cpu/mcheck/mce_64.c       |  114 ++++++++++++++++++++++++++++++
+ arch/x86/kernel/signal.c                  |    2 
+ 6 files changed, 125 insertions(+), 2 deletions(-)
 
-Index: linux/mm/Makefile
+Index: linux/arch/x86/kernel/cpu/mcheck/mce_64.c
 ===================================================================
---- linux.orig/mm/Makefile	2009-04-07 16:39:21.000000000 +0200
-+++ linux/mm/Makefile	2009-04-07 16:39:39.000000000 +0200
-@@ -38,3 +38,4 @@
- endif
- obj-$(CONFIG_QUICKLIST) += quicklist.o
- obj-$(CONFIG_CGROUP_MEM_RES_CTLR) += memcontrol.o page_cgroup.o
-+obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
-Index: linux/mm/memory-failure.c
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux/mm/memory-failure.c	2009-04-07 16:39:39.000000000 +0200
-@@ -0,0 +1,575 @@
-+/*
-+ * Copyright (C) 2008, 2009 Intel Corporation
-+ * Author: Andi Kleen
-+ *
-+ * This software may be redistributed and/or modified under the terms of
-+ * the GNU General Public License ("GPL") version 2 only as published by the
-+ * Free Software Foundation.
-+ *
-+ * High level machine check handler. Handles pages reported by the
-+ * hardware as being corrupted usually due to a 2bit ECC memory or cache
-+ * failure.
-+ *
-+ * This focuses on pages detected as corrupted in the background.
-+ * When the current CPU tries to consume corruption the currently
-+ * running process can just be killed directly instead. This implies
-+ * that if the error cannot be handled for some reason it's safe to
-+ * just ignore it because no corruption has been consumed yet. Instead
-+ * when that happens another machine check will happen.
-+ *
-+ * Handles page cache pages in various states.	The tricky part
-+ * here is that we can access any page asynchronous to other VM
-+ * users, because memory failures could happen anytime and anywhere,
-+ * possibly violating some of their assumptions. This is why this code
-+ * has to be extremely careful. Generally it tries to use normal locking
-+ * rules, as in get the standard locks, even if that means the
-+ * error handling takes potentially a long time.
-+ *
-+ * Some of the operations here are somewhat inefficient and have non
-+ * linear algorithmic complexity, because the data structures have not
-+ * been optimized for this case. This is in particular the case
-+ * for the mapping from a VMA to a process. Since this case is expected
-+ * to be rare we hope we can get away with this.
-+ */
-+
-+/*
-+ * Notebook:
-+ * - hugetlb needs more code
-+ * - nonlinear
-+ * - remap races
-+ * - anonymous (tinject):
-+ *   + left over references when process catches signal?
-+ * - error reporting on EIO missing (tinject)
-+ * - kcore/oldmem/vmcore/mem/kmem check for poison pages
-+ * - pass bad pages to kdump next kernel
-+ */
-+#include <linux/kernel.h>
+--- linux.orig/arch/x86/kernel/cpu/mcheck/mce_64.c	2009-04-07 16:39:39.000000000 +0200
++++ linux/arch/x86/kernel/cpu/mcheck/mce_64.c	2009-04-07 16:39:39.000000000 +0200
+@@ -14,6 +14,7 @@
+ #include <linux/sched.h>
+ #include <linux/string.h>
+ #include <linux/rcupdate.h>
 +#include <linux/mm.h>
-+#include <linux/page-flags.h>
-+#include <linux/sched.h>
-+#include <linux/rmap.h>
-+#include <linux/pagemap.h>
-+#include <linux/swap.h>
-+#include "internal.h"
+ #include <linux/kallsyms.h>
+ #include <linux/sysdev.h>
+ #include <linux/miscdevice.h>
+@@ -79,6 +80,8 @@
+ 	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
+ };
+ 
++static DEFINE_PER_CPU(struct work_struct, mce_work);
 +
-+#define Dprintk(x...) printk(x)
-+
-+int sysctl_memory_failure_early_kill __read_mostly = 1;
-+
-+atomic_long_t mce_bad_pages;
-+
+ /* Do initial initialization of a struct mce */
+ void mce_setup(struct mce *m)
+ {
+@@ -273,6 +276,52 @@
+ 	wrmsrl(msr, v);
+ }
+ 
 +/*
-+ * Send all the processes who have the page mapped an ``action optional''
-+ * signal.
++ * Simple lockless ring to communicate PFNs from the exception handler with the
++ * process context work function. This is vastly simplified because there's
++ * only a single reader and a single writer.
 + */
-+static int kill_proc_ao(struct task_struct *t, unsigned long addr, int trapno)
-+{
-+	struct siginfo si;
-+	int ret;
++#define MCE_RING_SIZE 16	/* we use one entry less */
 +
-+	printk(KERN_ERR
-+		"MCE: Killing %s:%d due to hardware memory corruption\n",
-+		t->comm, t->pid);
-+	si.si_signo = SIGBUS;
-+	si.si_errno = 0;
-+	si.si_code = BUS_MCEERR_AO;
-+	si.si_addr = (void *)addr;
-+#ifdef __ARCH_SI_TRAPNO
-+	si.si_trapno = trapno;
-+#endif
-+	si.si_addr_lsb = PAGE_SHIFT;
-+	ret = force_sig_info(SIGBUS, &si, t);  /* synchronous? */
-+	if (ret < 0)
-+		printk(KERN_INFO "MCE: Error sending signal to %s:%d: %d\n",
-+		       t->comm, t->pid, ret);
-+	return ret;
-+}
-+
-+/*
-+ * Kill all processes that have a poisoned page mapped and then isolate
-+ * the page.
-+ *
-+ * General strategy:
-+ * Find all processes having the page mapped and kill them.
-+ * But we keep a page reference around so that the page is not
-+ * actually freed yet.
-+ * Then stash the page away
-+ *
-+ * There's no convenient way to get back to mapped processes
-+ * from the VMAs. So do a brute-force search over all
-+ * running processes.
-+ *
-+ * Remember that machine checks are not common (or rather
-+ * if they are common you have other problems), so this shouldn't
-+ * be a performance issue.
-+ *
-+ * Also there are some races possible while we get from the
-+ * error detection to actually handle it.
-+ */
-+
-+struct to_kill {
-+	struct list_head nd;
-+	struct task_struct *tsk;
-+	unsigned long addr;
++struct mce_ring {
++	unsigned short start;
++	unsigned short end;
++	unsigned long ring[MCE_RING_SIZE];
 +};
++static DEFINE_PER_CPU(struct mce_ring, mce_ring);
 +
-+/*
-+ * Failure handling: if we can't find or can't kill a process there's
-+ * not much we can do.  We just print a message and ignore otherwise.
-+ */
-+
-+/*
-+ * Schedule a process for later kill.
-+ * Uses GFP_ATOMIC allocations to avoid potential recursions in the VM.
-+ * TBD would GFP_NOIO be enough?
-+ */
-+static void add_to_kill(struct task_struct *tsk, struct page *p,
-+		       struct vm_area_struct *vma,
-+		       struct list_head *to_kill,
-+		       struct to_kill **tkc)
++static int mce_ring_empty(void)
 +{
-+	int fail = 0;
-+	struct to_kill *tk;
++	struct mce_ring *r = &__get_cpu_var(mce_ring);
 +
-+	if (*tkc) {
-+		tk = *tkc;
-+		*tkc = NULL;
-+	} else {
-+		tk = kmalloc(sizeof(struct to_kill), GFP_ATOMIC);
-+		if (!tk) {
-+			printk(KERN_ERR "MCE: Out of memory while machine check handling\n");
-+			return;
-+		}
-+	}
-+	tk->addr = page_address_in_vma(p, vma);
-+	if (tk->addr == -EFAULT) {
-+		printk(KERN_INFO "MCE: Failed to get address in VMA\n");
-+		tk->addr = 0;
-+		fail = 1;
-+	}
-+	get_task_struct(tsk);
-+	tk->tsk = tsk;
-+	list_add_tail(&tk->nd, to_kill);
++	return r->start == r->end;
 +}
 +
-+/*
-+ * Kill the processes that have been collected earlier.
-+ */
-+static void
-+kill_procs_ao(struct list_head *to_kill, int doit, int trapno, int fail)
++static int mce_ring_get(unsigned long *pfn)
 +{
-+	struct to_kill *tk, *next;
++	struct mce_ring *r = &__get_cpu_var(mce_ring);
 +
-+	list_for_each_entry_safe (tk, next, to_kill, nd) {
-+		if (doit) {
-+			/*
-+			 * In case something went wrong with munmaping
-+			 * make sure the process doesn't catch the
-+			 * signal and then access the memory. So reset
-+			 * the signal handlers
-+			 */
-+			if (fail)
-+				flush_signal_handlers(tk->tsk, 1);
-+
-+			/*
-+			 * In theory the process could have mapped
-+			 * something else on the address in-between. We could
-+			 * check for that, but we need to tell the
-+			 * process anyways.
-+			 */
-+			if (kill_proc_ao(tk->tsk, tk->addr, trapno) < 0)
-+				printk(KERN_ERR
-+		"MCE: Cannot send advisory machine check signal to %s:%d\n",
-+						 tk->tsk->comm, tk->tsk->pid);
-+		}
-+		put_task_struct(tk->tsk);
-+		kfree(tk);
-+	}
++	if (r->start == r->end)
++		return 0;
++	*pfn = r->ring[r->start];
++	r->start = (r->start + 1) % MCE_RING_SIZE;
++	return 1;
 +}
 +
-+/*
-+ * Collect processes when the error hit an anonymous page.
-+ */
-+static void collect_procs_anon(struct page *page, struct list_head *to_kill,
-+			      struct to_kill **tkc)
++static int mce_ring_add(unsigned long pfn)
 +{
-+	struct vm_area_struct *vma;
-+	struct task_struct *tsk;
-+	struct anon_vma *av = page_lock_anon_vma(page);
++	struct mce_ring *r = &__get_cpu_var(mce_ring);
++	unsigned next;
 +
-+	if (av == NULL)	/* Not actually mapped anymore */
-+		goto out;
-+
-+	read_lock(&tasklist_lock);
-+	for_each_process (tsk) {
-+		if (!tsk->mm)
-+			continue;
-+		list_for_each_entry (vma, &av->head, anon_vma_node) {
-+			if (vma->vm_mm == tsk->mm)
-+				add_to_kill(tsk, page, vma, to_kill, tkc);
-+		}
-+	}
-+	read_unlock(&tasklist_lock);
-+out:
-+	page_unlock_anon_vma(av);
-+}
-+
-+/*
-+ * Collect processes when the error hit a file mapped page.
-+ */
-+static void collect_procs_file(struct page *page, struct list_head *to_kill,
-+			      struct to_kill **tkc)
-+{
-+	struct vm_area_struct *vma;
-+	struct task_struct *tsk;
-+	struct prio_tree_iter iter;
-+	struct address_space *mapping = page_mapping(page);
-+
-+	read_lock(&tasklist_lock);
-+	spin_lock(&mapping->i_mmap_lock);
-+	for_each_process(tsk) {
-+		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+
-+		if (!tsk->mm)
-+			continue;
-+
-+		vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff,
-+				      pgoff)
-+			if (vma->vm_mm == tsk->mm)
-+				add_to_kill(tsk, page, vma, to_kill, tkc);
-+	}
-+	spin_unlock(&mapping->i_mmap_lock);
-+	read_unlock(&tasklist_lock);
-+}
-+
-+/*
-+ * Collect the processes who have the corrupted page mapped to kill.
-+ * This is done in two steps for locking reasons.
-+ * First preallocate one tokill structure outside the spin locks,
-+ * so that we can kill at least one process reasonably reliable.
-+ */
-+static void collect_procs(struct page *page, struct list_head *tokill)
-+{
-+	struct to_kill *tk;
-+
-+	tk = kmalloc(sizeof(struct to_kill), GFP_KERNEL);
-+	/* memory allocation failure is implicitly handled */
-+	if (PageAnon(page))
-+		collect_procs_anon(page, tokill, &tk);
-+	else
-+		collect_procs_file(page, tokill, &tk);
-+	kfree(tk);
-+}
-+
-+/*
-+ * Error handlers for various types of pages.
-+ */
-+
-+enum outcome {
-+	FAILED,
-+	DELAYED,
-+	IGNORED,
-+	RECOVERED,
-+};
-+
-+static const char *action_name[] = {
-+	[FAILED] = "Failed",
-+	[DELAYED] = "Delayed",
-+	[IGNORED] = "Ignored",
-+	[RECOVERED] = "Recovered",
-+};
-+
-+/*
-+ * Error hit kernel page.
-+ * Do nothing, try to be lucky and not touch this instead. For a few cases we
-+ * could be more sophisticated.
-+ */
-+static int me_kernel(struct page *p)
-+{
-+	return DELAYED;
-+}
-+
-+/*
-+ * Already poisoned page.
-+ */
-+static int me_ignore(struct page *p)
-+{
-+	return IGNORED;
-+}
-+
-+/*
-+ * Page in unknown state. Do nothing.
-+ */
-+static int me_unknown(struct page *p)
-+{
-+	printk(KERN_ERR "MCE: Unknown state page %lx flags %lx, count %d\n",
-+	       page_to_pfn(p), p->flags, page_count(p));
-+	return FAILED;
-+}
-+
-+/*
-+ * Free memory
-+ */
-+static int me_free(struct page *p)
-+{
-+	/* TBD Should delete page from buddy here. */
-+	return IGNORED;
-+}
-+
-+/*
-+ * Clean (or cleaned) page cache page.
-+ */
-+static int me_pagecache_clean(struct page *p)
-+{
-+	struct address_space *mapping;
-+
-+	if (PagePrivate(p))
-+		do_invalidatepage(p, 0);
-+	mapping = page_mapping(p);
-+	if (mapping) {
-+		if (!remove_mapping(mapping, p))
-+			return FAILED;
-+	}
-+	return RECOVERED;
-+}
-+
-+/*
-+ * Dirty cache page page
-+ * Issues: when the error hit a hole page the error is not properly
-+ * propagated.
-+ */
-+static int me_pagecache_dirty(struct page *p)
-+{
-+	struct address_space *mapping = page_mapping(p);
-+
-+	SetPageError(p);
-+	/* TBD: print more information about the file. */
-+	printk(KERN_ERR "MCE: Hardware memory corruption on dirty file page: write error\n");
-+	if (mapping) {
-+		/* CHECKME: does that report the error in all cases? */
-+		mapping_set_error(mapping, EIO);
-+	}
-+	if (PagePrivate(p)) {
-+		if (try_to_release_page(p, GFP_KERNEL)) {
-+			/*
-+			 * Normally this should not happen because we
-+			 * have the lock.  What should we do
-+			 * here. wait on the page? (TBD)
-+			 */
-+			printk(KERN_ERR
-+			       "MCE: Trying to release dirty page failed\n");
-+			return FAILED;
-+		}
-+	} else if (mapping) {
-+		cancel_dirty_page(p, PAGE_CACHE_SIZE);
-+	}
-+	return me_pagecache_clean(p);
-+}
-+
-+/*
-+ * Dirty swap cache.
-+ * Cannot map back to the process because the rmaps are gone. Instead we rely
-+ * on any subsequent re-fault to run into the Poison bit. This is not optimal.
-+ */
-+static int me_swapcache_dirty(struct page *p)
-+{
-+	delete_from_swap_cache(p);
-+	return DELAYED;
-+}
-+
-+/*
-+ * Clean swap cache.
-+ */
-+static int me_swapcache_clean(struct page *p)
-+{
-+	delete_from_swap_cache(p);
-+	return RECOVERED;
-+}
-+
-+/*
-+ * Huge pages. Needs work.
-+ * Issues:
-+ * No rmap support so we cannot find the original mapper. In theory could walk
-+ * all MMs and look for the mappings, but that would be non atomic and racy.
-+ * Need rmap for hugepages for this. Alternatively we could employ a heuristic,
-+ * like just walking the current process and hoping it has it mapped (that
-+ * should be usually true for the common "shared database cache" case)
-+ * Should handle free huge pages and dequeue them too, but this needs to
-+ * handle huge page accounting correctly.
-+ */
-+static int me_huge_page(struct page *p)
-+{
-+	return FAILED;
-+}
-+
-+/*
-+ * Various page states we can handle.
-+ *
-+ * This is quite tricky because we can access page at any time
-+ * in its live cycle.
-+ *
-+ * This is not complete. More states could be added.
-+ */
-+static struct page_state {
-+	unsigned long mask;
-+	unsigned long res;
-+	char *msg;
-+	int (*action)(struct page *p);
-+} error_states[] = {
-+#define F(x) (1UL << PG_ ## x)
-+	{ F(reserved), F(reserved), "reserved kernel", me_ignore },
-+	{ F(buddy), F(buddy), "free kernel", me_free },
-+	/*
-+	 * Could in theory check if slab page is free or if we can drop
-+	 * currently unused objects without touching them. But just
-+	 * treat it as standard kernel for now.
-+	 */
-+	{ F(slab), F(slab), "kernel slab", me_kernel },
-+#ifdef CONFIG_PAGEFLAGS_EXTENDED
-+	{ F(head), F(head), "hugetlb", me_huge_page },
-+	{ F(tail), F(tail), "hugetlb", me_huge_page },
-+#else
-+	{ F(compound), F(compound), "hugetlb", me_huge_page },
-+#endif
-+	{ F(swapcache)|F(dirty), F(swapcache)|F(dirty), "dirty swapcache",
-+	  me_swapcache_dirty },
-+	{ F(swapcache)|F(dirty), F(swapcache), "clean swapcache",
-+	  me_swapcache_clean },
-+#ifdef CONFIG_UNEVICTABLE_LRU
-+	{ F(unevictable)|F(dirty), F(unevictable)|F(dirty),
-+	  "unevictable dirty page cache", me_pagecache_dirty },
-+	{ F(unevictable), F(unevictable), "unevictable page cache",
-+	  me_pagecache_clean },
-+#endif
-+#ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
-+	{ F(mlocked)|F(dirty), F(mlocked)|F(dirty), "mlocked dirty page cache",
-+	  me_pagecache_dirty },
-+	{ F(mlocked), F(mlocked), "mlocked page cache", me_pagecache_clean },
-+#endif
-+	{ F(lru)|F(dirty), F(lru)|F(dirty), "dirty lru", me_pagecache_dirty },
-+	{ F(lru)|F(dirty), F(lru), "clean lru", me_pagecache_clean },
-+	{ F(swapbacked), F(swapbacked), "anonymous", me_pagecache_clean },
-+	/*
-+	 * More states could be added here.
-+	 */
-+	{ 0, 0, "unknown page state", me_unknown },  /* must be at end */
-+#undef F
-+};
-+
-+static void page_action(char *msg, struct page *p, int (*action)(struct page *),
-+			unsigned long pfn)
-+{
-+	int ret;
-+
-+	printk(KERN_ERR
-+	       "MCE: Starting recovery on %s page %lx corrupted by hardware\n",
-+	       msg, pfn);
-+	ret = action(p);
-+	printk(KERN_ERR "MCE: Recovery of %s page %lx: %s\n",
-+	       msg, pfn, action_name[ret]);
-+	if (page_count(p) != 1)
-+		printk(KERN_ERR
-+       "MCE: Page %lx (flags %lx) still referenced by %d users after recovery\n",
-+		       pfn, p->flags, page_count(p));
-+
-+	/* Could do more checks here if page looks ok */
-+	atomic_long_add(1, &mce_bad_pages);
-+
-+	/*
-+	 * Could adjust zone counters here to correct for the missing page.
-+	 */
-+}
-+
-+#define N_UNMAP_TRIES 5
-+
-+static int poison_page_prepare(struct page *p, unsigned long pfn, int trapno)
-+{
-+	if (PagePoison(p)) {
-+		printk(KERN_ERR
-+		       "MCE: Error for already poisoned page at %lx\n", pfn);
++	next = (r->end + 1) % MCE_RING_SIZE;
++	if (next == r->start)
 +		return -1;
-+	}
-+	SetPagePoison(p);
-+
-+	if (!PageReserved(p) && !PageSlab(p) && page_mapped(p)) {
-+		LIST_HEAD(tokill);
-+		int ret;
-+		int i;
-+
-+		/*
-+		 * First collect all the processes that have the page
-+		 * mapped.  This has to be done before try_to_unmap,
-+		 * because ttu takes the rmap data structures down.
-+		 *
-+		 * Error handling: We ignore errors here because
-+		 * there's nothing that can be done.
-+		 *
-+		 * RED-PEN some cases in process exit seem to deadlock
-+		 * on the page lock. drop it or add poison checks?
-+		 */
-+		if (sysctl_memory_failure_early_kill)
-+			collect_procs(p, &tokill);
-+
-+		/*
-+		 * try_to_unmap can fail temporarily due to races.
-+		 * Try a few times (RED-PEN better strategy?)
-+		 */
-+		for (i = 0; i < N_UNMAP_TRIES; i++) {
-+			ret = try_to_unmap(p, TTU_UNMAP|
-+					   TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
-+			if (ret == SWAP_SUCCESS)
-+				break;
-+			Dprintk("MCE: try_to_unmap retry needed %d\n", ret);
-+		}
-+
-+		/*
-+		 * Now that the dirty bit has been propagated to the
-+		 * struct page and all unmaps done we can decide if
-+		 * killing is needed or not.  Only kill when the page
-+		 * was dirty, otherwise the tokill list is merely
-+		 * freed.  When there was a problem unmapping earlier
-+		 * use a more force-full uncatchable kill to prevent
-+		 * any accesses to the poisoned memory.
-+		 */
-+		kill_procs_ao(&tokill, !!PageDirty(p), trapno,
-+			      ret != SWAP_SUCCESS);
-+	}
-+
++	r->ring[r->end] = pfn;
++	wmb();
++	r->end = next;
 +	return 0;
 +}
 +
-+/**
-+ * memory_failure - Handle memory failure of a page.
-+ *
-+ */
-+void memory_failure(unsigned long pfn, int trapno)
+ int mce_available(struct cpuinfo_x86 *c)
+ {
+ 	if (mce_dont_init)
+@@ -293,6 +342,15 @@
+ 		m->ip = mce_rdmsrl(rip_msr);
+ }
+ 
++static void mce_schedule_work(void)
 +{
-+	Dprintk("memory failure %lx\n", pfn);
-+
-+	if (!pfn_valid(pfn)) {
-+		printk(KERN_ERR
-+   "MCE: Hardware memory corruption in memory outside kernel control at %lx\n",
-+		       pfn);
-+	} else {
-+		struct page *p = pfn_to_page(pfn);
-+		struct page_state *ps;
-+
-+		/*
-+		 * Make sure no one frees the page outside our control.
-+		 */
-+		get_page(p);
-+		lock_page_nosync(p);
-+
-+		if (poison_page_prepare(p, pfn, trapno) < 0)
-+			goto out;
-+
-+		for (ps = error_states;; ps++) {
-+			if ((p->flags & ps->mask) == ps->res) {
-+				page_action(ps->msg, p, ps->action, pfn);
-+				break;
-+			}
-+		}
-+out:
-+		unlock_page(p);
++	if (!mce_ring_empty()) {
++		struct work_struct *work = &__get_cpu_var(mce_work);
++		if (!work_pending(work))
++			schedule_work(work);
 +	}
 +}
-Index: linux/include/linux/mm.h
-===================================================================
---- linux.orig/include/linux/mm.h	2009-04-07 16:39:39.000000000 +0200
-+++ linux/include/linux/mm.h	2009-04-07 16:39:39.000000000 +0200
-@@ -1322,6 +1322,10 @@
- 
- extern void *alloc_locked_buffer(size_t size);
- extern void free_locked_buffer(void *buffer, size_t size);
-+
-+extern void memory_failure(unsigned long pfn, int trapno);
-+extern int sysctl_memory_failure_early_kill;
-+extern atomic_long_t mce_bad_pages;
- extern void release_locked_buffer(void *buffer, size_t size);
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-Index: linux/kernel/sysctl.c
-===================================================================
---- linux.orig/kernel/sysctl.c	2009-04-07 16:39:21.000000000 +0200
-+++ linux/kernel/sysctl.c	2009-04-07 16:39:39.000000000 +0200
-@@ -1266,6 +1266,20 @@
- 		.extra2		= &one,
- 	},
- #endif
-+#ifdef CONFIG_MEMORY_FAILURE
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "memory_failure_early_kill",
-+		.data		= &sysctl_memory_failure_early_kill,
-+		.maxlen		= sizeof(vm_highmem_is_dirtyable),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec_minmax,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
-+#endif
 +
  /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
-Index: linux/fs/proc/meminfo.c
-===================================================================
---- linux.orig/fs/proc/meminfo.c	2009-04-07 16:39:21.000000000 +0200
-+++ linux/fs/proc/meminfo.c	2009-04-07 16:39:39.000000000 +0200
-@@ -97,7 +97,11 @@
- 		"Committed_AS:   %8lu kB\n"
- 		"VmallocTotal:   %8lu kB\n"
- 		"VmallocUsed:    %8lu kB\n"
--		"VmallocChunk:   %8lu kB\n",
-+		"VmallocChunk:   %8lu kB\n"
-+#ifdef CONFIG_MEMORY_FAILURE
-+		"BadPages:       %8lu kB\n"
-+#endif
-+		,
- 		K(i.totalram),
- 		K(i.freeram),
- 		K(i.bufferram),
-@@ -144,6 +148,9 @@
- 		(unsigned long)VMALLOC_TOTAL >> 10,
- 		vmi.used >> 10,
- 		vmi.largest_chunk >> 10
-+#ifdef CONFIG_MEMORY_FAILURE
-+		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
-+#endif
- 		);
+  * Called after interrupts have been reenabled again
+  * when a MCE happened during an interrupts off region
+@@ -304,6 +362,7 @@
+ 	exit_idle();
+ 	irq_enter();
+ 	mce_notify_irq();
++	mce_schedule_work();
+ 	irq_exit();
+ }
  
- 	hugetlb_report_meminfo(m);
-Index: linux/mm/Kconfig
-===================================================================
---- linux.orig/mm/Kconfig	2009-04-07 16:39:21.000000000 +0200
-+++ linux/mm/Kconfig	2009-04-07 16:39:39.000000000 +0200
-@@ -223,3 +223,6 @@
+@@ -311,6 +370,13 @@
+ {
+ 	if (regs->flags & (X86_VM_MASK|X86_EFLAGS_IF)) {
+ 		mce_notify_irq();
++		/*
++		 * Triggering the work queue here is just an insurance
++		 * policy in case the syscall exit notify handler
++		 * doesn't run soon enough or ends up running on the
++		 * wrong CPU (can happen when audit sleeps)
++		 */
++		mce_schedule_work();
+ 		return;
+ 	}
  
- config MMU_NOTIFIER
- 	bool
+@@ -669,6 +735,23 @@
+ 	return ret;
+ }
+ 
++/*
++ * Check if the address reported by the CPU is in a format we can parse.
++ * It would be possible to add code for most other cases, but all would
++ * be somewhat complicated (e.g. segment offset would require an instruction
++ * parser). So only support physical addresses upto page granuality for now.
++ */
++static int mce_usable_address(struct mce *m)
++{
++	if (!(m->status & MCI_STATUS_MISCV) || !(m->status & MCI_STATUS_ADDRV))
++		return 0;
++	if ((m->misc & 0x3f) > PAGE_SHIFT)
++		return 0;
++	if (((m->misc >> 6) & 7) != MCM_ADDR_PHYS)
++		return 0;
++	return 1;
++}
 +
-+config MEMORY_FAILURE
-+	bool
+ static void mce_clear_state(unsigned long *toclear)
+ {
+ 	int i;
+@@ -802,6 +885,16 @@
+ 		if (m.status & MCI_STATUS_ADDRV)
+ 			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
+ 
++		/*
++		 * Action optional error. Queue address for later processing.
++		 * When the ring overflows we just ignore the AO error.
++		 * RED-PEN add some logging mechanism when
++		 * usable_address or mce_add_ring fails.
++		 * RED-PEN don't ignore overflow for tolerant == 0
++		 */
++		if (severity == MCE_AO_SEVERITY && mce_usable_address(&m))
++			mce_ring_add(m.addr >> PAGE_SHIFT);
++
+ 		mce_get_rip(&m, regs);
+ 		mce_log(&m);
+ 
+@@ -852,6 +945,26 @@
+ }
+ EXPORT_SYMBOL_GPL(do_machine_check);
+ 
++/*
++ * Called after mce notification in process context. This code
++ * is allowed to sleep. Call the high level VM handler to process
++ * any corrupted pages.
++ * Assume that the work queue code only calls this one at a time
++ * per CPU.
++ */
++void mce_notify_process(void)
++{
++	unsigned long pfn;
++	mce_notify_irq();
++	while (mce_ring_get(&pfn))
++		memory_failure(pfn, MCE_VECTOR);
++}
++
++static void mce_process_work(struct work_struct *dummy)
++{
++	mce_notify_process();
++}
++
+ #ifdef CONFIG_X86_MCE_INTEL
+ /***
+  * mce_log_therm_throt_event - Logs the thermal throttling event to mcelog
+@@ -1088,6 +1201,7 @@
+ 	mce_init();
+ 	mce_cpu_features(c);
+ 	mce_init_timer();
++	INIT_WORK(&__get_cpu_var(mce_work), mce_process_work);
+ }
+ 
+ /*
+Index: linux/arch/x86/include/asm/mce.h
+===================================================================
+--- linux.orig/arch/x86/include/asm/mce.h	2009-04-07 16:39:39.000000000 +0200
++++ linux/arch/x86/include/asm/mce.h	2009-04-07 16:39:39.000000000 +0200
+@@ -163,6 +163,7 @@
+ extern void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+ 
+ extern int mce_notify_irq(void);
++extern void mce_notify_process(void);
+ 
+ #endif /* !CONFIG_X86_32 */
+ 
+Index: linux/arch/x86/kernel/signal.c
+===================================================================
+--- linux.orig/arch/x86/kernel/signal.c	2009-04-07 16:39:39.000000000 +0200
++++ linux/arch/x86/kernel/signal.c	2009-04-07 16:39:39.000000000 +0200
+@@ -860,7 +860,7 @@
+ #if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
+ 	/* notify userspace of pending MCEs */
+ 	if (thread_info_flags & _TIF_MCE_NOTIFY)
+-		mce_notify_irq();
++		mce_notify_process();
+ #endif /* CONFIG_X86_64 && CONFIG_X86_MCE */
+ 
+ 	/* deal with pending signal delivery */
+Index: linux/arch/x86/kernel/cpu/mcheck/mce-severity.c
+===================================================================
+--- linux.orig/arch/x86/kernel/cpu/mcheck/mce-severity.c	2009-04-07 16:39:00.000000000 +0200
++++ linux/arch/x86/kernel/cpu/mcheck/mce-severity.c	2009-04-07 16:39:39.000000000 +0200
+@@ -67,7 +67,13 @@
+ 	     "Action required; unknown MCACOD", SER),
+ 	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_OVER|MCI_UC_SAR, PANIC,
+ 	     "Action required with lost events", SER),
+-	/* AO add known MCACODs here */
++
++	/* known AO MCACODs: handle by calling high level handler */
++	MASK(MCI_UC_SAR|0xfff0, MCI_UC_S|0xc0, AO,
++	     "Action optional: memory scrubbing error", SER),
++	MASK(MCI_UC_SAR|MCACOD, MCI_UC_S|0x17a, AO,
++	     "Action optional: last level cache writeback error", SER),
++
+ 	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S, SOME,
+ 	     "Action optional unknown MCACOD", SER),
+ 	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S|MCI_STATUS_OVER, SOME,
+Index: linux/arch/x86/include/asm/irq_vectors.h
+===================================================================
+--- linux.orig/arch/x86/include/asm/irq_vectors.h	2009-04-07 16:39:00.000000000 +0200
++++ linux/arch/x86/include/asm/irq_vectors.h	2009-04-07 16:39:39.000000000 +0200
+@@ -25,6 +25,7 @@
+  */
+ 
+ #define NMI_VECTOR			0x02
++#define MCE_VECTOR			0x12
+ 
+ /*
+  * IDT vectors usable for external interrupt sources start
+Index: linux/arch/x86/Kconfig
+===================================================================
+--- linux.orig/arch/x86/Kconfig	2009-04-07 16:39:00.000000000 +0200
++++ linux/arch/x86/Kconfig	2009-04-07 16:39:39.000000000 +0200
+@@ -760,6 +760,7 @@
+ 
+ config X86_MCE
+ 	bool "Machine Check Exception"
++	select MEMORY_FAILURE
+ 	---help---
+ 	  Machine Check Exception support allows the processor to notify the
+ 	  kernel if it detects a problem (e.g. overheating, component failure).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
