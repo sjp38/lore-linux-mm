@@ -1,49 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 1461C5F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 17:24:42 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id E7D3382C230
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 17:34:03 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id 3BKnWuPSg0As for <linux-mm@kvack.org>;
-	Tue,  7 Apr 2009 17:34:03 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 573DF82C275
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 17:33:54 -0400 (EDT)
-Date: Tue, 7 Apr 2009 17:19:19 -0400 (EDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] [10/16] POISON: Use bitmask/action code for try_to_unmap
- behaviour
-In-Reply-To: <20090407151007.71F3F1D046F@basil.firstfloor.org>
-Message-ID: <alpine.DEB.1.10.0904071714450.12192@qirst.com>
-References: <20090407509.382219156@firstfloor.org> <20090407151007.71F3F1D046F@basil.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F165F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 17:53:03 -0400 (EDT)
+Date: Tue, 7 Apr 2009 23:56:05 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] [5/16] POISON: Add support for poison swap entries
+Message-ID: <20090407215605.GZ17934@one.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org> <20090407151002.0AA8F1D046E@basil.firstfloor.org> <alpine.DEB.1.10.0904071710500.12192@qirst.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.1.10.0904071710500.12192@qirst.com>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Lee.Schermerhorn@hp.com, npiggin@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Apr 2009, Andi Kleen wrote:
+On Tue, Apr 07, 2009 at 05:11:26PM -0400, Christoph Lameter wrote:
+> 
+> Could you separate the semantic changes to flag checking for migration
 
-> +
-> +enum ttu_flags {
-> +	TTU_UNMAP = 0,			/* unmap mode */
-> +	TTU_MIGRATION = 1,		/* migration mode */
-> +	TTU_MUNLOCK = 2,		/* munlock mode */
-> +	TTU_ACTION_MASK = 0xff,
-> +
-> +	TTU_IGNORE_MLOCK = (1 << 8),	/* ignore mlock */
+You mean to try_to_unmap? 
 
+> out for easier review?
 
-Ignoring MLOCK? This means we are violating POSIX which says that an
-MLOCKed page cannot be unmapped from a process? Note that page migration
-does this under special pte entries so that the page will never appear to
-be unmapped to user space.
+That's already done. The first patch doesn't change any semantics,
+just flags/action checking.  Or rather any semantics change in there
+would be a bug.
 
-How does that work for the poisoning case? We substitute a fresh page?
+Only the two later ttu patches add to the semantics.
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
