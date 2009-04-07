@@ -1,103 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 89BF45F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 18:45:19 -0400 (EDT)
-Date: Wed, 8 Apr 2009 06:45:45 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 02/14] mm: fix major/minor fault accounting on retried
-	fault
-Message-ID: <20090407224545.GA5607@localhost>
-References: <20090407071729.233579162@intel.com> <20090407072132.943283183@intel.com> <604427e00904071258y78eea757m6d95d08deec49450@mail.gmail.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 0F91D5F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 19:21:31 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id f25so2621233rvb.26
+        for <linux-mm@kvack.org>; Tue, 07 Apr 2009 16:21:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <604427e00904071258y78eea757m6d95d08deec49450@mail.gmail.com>
+In-Reply-To: <20090407150959.C099D1D046E@basil.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org>
+	 <20090407150959.C099D1D046E@basil.firstfloor.org>
+Date: Wed, 8 Apr 2009 08:21:51 +0900
+Message-ID: <28c262360904071621j5bdd8e33u1fbd8534d177a941@mail.gmail.com>
+Subject: Re: [PATCH] [3/16] POISON: Handle poisoned pages in page free
+From: Minchan Kim <minchan.kim@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 08, 2009 at 03:58:16AM +0800, Ying Han wrote:
-> On Tue, Apr 7, 2009 at 12:17 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > VM_FAULT_RETRY does make major/minor faults accounting a bit twisted..
-> >
-> > Cc: Ying Han <yinghan@google.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  arch/x86/mm/fault.c |    2 ++
-> >  mm/memory.c         |   22 ++++++++++++++--------
-> >  2 files changed, 16 insertions(+), 8 deletions(-)
-> >
-> > --- mm.orig/arch/x86/mm/fault.c
-> > +++ mm/arch/x86/mm/fault.c
-> > @@ -1160,6 +1160,8 @@ good_area:
-> >        if (fault & VM_FAULT_RETRY) {
-> >                if (retry_flag) {
-> >                        retry_flag = 0;
-> > +                       tsk->maj_flt++;
-> > +                       tsk->min_flt--;
-> >                        goto retry;
-> >                }
-> >                BUG();
-> sorry, little bit confuse here. are we assuming the retry path will
-> return min_flt as always?
+Hi, Andi.
 
-Sure - except for some really exceptional ftruncate cases.
-The page was there ready, and we'll retry immediately.
+On Wed, Apr 8, 2009 at 12:09 AM, Andi Kleen <andi@firstfloor.org> wrote:
+>
+> Make sure no poisoned pages are put back into the free page
+> lists. =C2=A0This can happen with some races.
+>
+> This is allo slow path in the bad page bits path, so another
+> check doesn't really matter.
+>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+>
+> ---
+> =C2=A0mm/page_alloc.c | =C2=A0 =C2=A09 +++++++++
+> =C2=A01 file changed, 9 insertions(+)
+>
+> Index: linux/mm/page_alloc.c
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+> --- linux.orig/mm/page_alloc.c =C2=A02009-04-07 16:39:26.000000000 +0200
+> +++ linux/mm/page_alloc.c =C2=A0 =C2=A0 =C2=A0 2009-04-07 16:39:39.000000=
+000 +0200
+> @@ -228,6 +228,15 @@
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0static unsigned long nr_unshown;
+>
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Page may have been marked bad before proce=
+ss is freeing it.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Make sure it is not put back into the free=
+ page lists.
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
+> + =C2=A0 =C2=A0 =C2=A0 if (PagePoison(page)) {
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* check more flags he=
+re... */
 
-maj_flt/min_flt are not _exact_ numbers by their nature, so 99.9%
-accuracy shall be fine.
+How about adding WARNING with some information(ex, pfn, flags..).
 
-Thanks,
-Fengguang
 
-> > --- mm.orig/mm/memory.c
-> > +++ mm/mm/memory.c
-> > @@ -2882,26 +2882,32 @@ int handle_mm_fault(struct mm_struct *mm
-> >        pud_t *pud;
-> >        pmd_t *pmd;
-> >        pte_t *pte;
-> > +       int ret;
-> >
-> >        __set_current_state(TASK_RUNNING);
-> >
-> > -       count_vm_event(PGFAULT);
-> > -
-> > -       if (unlikely(is_vm_hugetlb_page(vma)))
-> > -               return hugetlb_fault(mm, vma, address, write_access);
-> > +       if (unlikely(is_vm_hugetlb_page(vma))) {
-> > +               ret = hugetlb_fault(mm, vma, address, write_access);
-> > +               goto out;
-> > +       }
-> >
-> > +       ret = VM_FAULT_OOM;
-> >        pgd = pgd_offset(mm, address);
-> >        pud = pud_alloc(mm, pgd, address);
-> >        if (!pud)
-> > -               return VM_FAULT_OOM;
-> > +               goto out;
-> >        pmd = pmd_alloc(mm, pud, address);
-> >        if (!pmd)
-> > -               return VM_FAULT_OOM;
-> > +               goto out;
-> >        pte = pte_alloc_map(mm, pmd, address);
-> >        if (!pte)
-> > -               return VM_FAULT_OOM;
-> > +               goto out;
-> >
-> > -       return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-> > +       ret = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-> > +out:
-> > +       if (!(ret & VM_FAULT_RETRY))
-> > +               count_vm_event(PGFAULT);
-> > +       return ret;
-> >  }
-> >
-> >  #ifndef __PAGETABLE_PUD_FOLDED
-> >
-> > --
-> >
-> >
+> + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;
+> + =C2=A0 =C2=A0 =C2=A0 }
+> +
+> + =C2=A0 =C2=A0 =C2=A0 /*
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * Allow a burst of 60 reports, then keep quie=
+t for that minute;
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 * or allow a steady drip of one report per se=
+cond.
+> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+
+--=20
+Kinds regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
