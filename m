@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F5595F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 01:18:08 -0400 (EDT)
-Date: Tue, 7 Apr 2009 22:14:21 -0700
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C9485F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 01:19:21 -0400 (EDT)
+Date: Tue, 7 Apr 2009 22:15:42 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] [2/16] POISON: Add page flag for poisoned pages
-Message-Id: <20090407221421.890f27a6.akpm@linux-foundation.org>
-In-Reply-To: <20090407150958.BA68F1D046D@basil.firstfloor.org>
+Subject: Re: [PATCH] [0/16] POISON: Intro
+Message-Id: <20090407221542.91cd3c42.akpm@linux-foundation.org>
+In-Reply-To: <20090407509.382219156@firstfloor.org>
 References: <20090407509.382219156@firstfloor.org>
-	<20090407150958.BA68F1D046D@basil.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,18 +16,17 @@ To: Andi Kleen <andi@firstfloor.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue,  7 Apr 2009 17:09:58 +0200 (CEST) Andi Kleen <andi@firstfloor.org> wrote:
+On Tue,  7 Apr 2009 17:09:56 +0200 (CEST) Andi Kleen <andi@firstfloor.org> wrote:
 
-> Poisoned pages need special handling in the VM and shouldn't be touched 
-> again. This requires a new page flag. Define it here.
+> Upcoming Intel CPUs have support for recovering from some memory errors. This
+> requires the OS to declare a page "poisoned", kill the processes associated
+> with it and avoid using it in the future. This patchkit implements
+> the necessary infrastructure in the VM.
 
-I wish this patchset didn't change/abuse the well-understood meaning of
-the word "poison".
+If the page is clean then we can just toss it and grab a new one from
+backing store without killing anyone.
 
-> The page flags wars seem to be over, so it shouldn't be a problem
-> to get a new one. I hope.
-
-They are?  How did it all get addressed?
+Does the patchset do that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
