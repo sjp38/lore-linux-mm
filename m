@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 7ACA55F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 20:10:23 -0400 (EDT)
-Date: Tue, 7 Apr 2009 19:10:29 -0500
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 39AFD5F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 20:11:25 -0400 (EDT)
+Date: Tue, 7 Apr 2009 19:11:33 -0500
 From: Russ Anderson <rja@sgi.com>
-Subject: [PATCH 0/2] Migrate data off physical pages with corrected memory errors
-Message-ID: <20090408001029.GA27170@sgi.com>
+Subject: [PATCH 1/2] Avoid putting a bad page back on the LRU
+Message-ID: <20090408001133.GB27170@sgi.com>
 Reply-To: Russ Anderson <rja@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -15,136 +15,137 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 Cc: Russ Anderson <rja@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Purpose:
-
-	Physical memory with corrected errors may decay over time into
-	uncorrectable errors.  The purpose of this patch is to move the
-	data off pages with correctable memory errors before the memory
-	goes bad.
-
-	This patch set applies on top of Andi Kleen's POISON patch set.
-
-The patches:
-
-  [1/2] Avoid putting a bad page back on the LRU.
-
-	Avoid putting a bad page back on the LRU after migrating the
-	data to a new page.  The reference count on the bad page is
-	not decremented to zero to avoid it being reallocated.
-
-  [2/3] Call migration code on correctable errors
-
-	This patch has ia64 specific changes.  It connects the CPE
-	handler to the page migration code.  It is implemented as a kernel
-	loadable module, similar to the mca recovery code (mca_recovery.ko),
-	so that it can be removed to turn off the feature.  Create
-	/sys/kernel/badram to print page discard information and to free
-	bad pages.
-
-Comments:
-
-	There is always an issue of how agressive the code should be on
-	migrating pages.  This patch uses /sys/firmware/badram/migrate_threshold
-	to adjust the number of correctable errors before migrating a 
-	page.
-
-	Only pages that can be isolated on the LRU are migrated.  Other
-	pages, such as compound pages, are not migrated.  That functionality
-	could be a future enhancement.
-
-	/sys/kernel/badram/bad_pages is used to display information about
-	the bad memory.  The interface can be used to free pages marked bad.
-
-Sample output:
-
-	This is sample output from a system with a DIMM that has correctable
-	errors at many addresses.
-
-	linux> ls /sys/firmware/badram/
-	bad_pages  cmc_polling_threshold  cpe_polling_threshold  migrate_threshold
-
-	linux> cat /sys/firmware/badram/bad_pages
-	Memory marked bad:        704 kB
-	Pages marked bad:         11
-	Unable to isolate on LRU: 1
-	Unable to migrate:        0
-	Already marked bad:       2
-	Already on list:          0
-	List of bad physical pages
- 	  0x06871110000 0x06014820000 0x26003b20000 0x26005380000 0x26005390000
- 	  0x260053a0000 0x260053b0000 0x260052f0000 0x26004bf0000 0x26004af0000
- 	  0x26005330000
+Prevent a page with a physical memory error from being placed back
+on the LRU.  This patch applies on top of Andi Kleen's POISON
+patchset.
 
 
-		// Free one of the pages
-	linux> echo 0x06014820000 > /sys/firmware/badram/bad_pages
+Signed-off-by: Russ Anderson <rja@sgi.com>
 
-		// 10 pages remain on the list
-	linux> cat /sys/firmware/badram/bad_pages
-	Memory marked bad:        640 kB
-	Pages marked bad:         10
-	Unable to isolate on LRU: 1
-	Unable to migrate:        0
-	Already marked bad:       2
-	Already on list:          0
-	List of bad physical pages
- 	  0x06871110000 0x26003b20000 0x26005380000 0x26005390000 0x260053a0000
- 	  0x260053b0000 0x260052f0000 0x26004bf0000 0x26004af0000 0x26005330000
+---
+ include/linux/page-flags.h |    8 +++++++-
+ mm/migrate.c               |   39 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 45 insertions(+), 2 deletions(-)
 
-		// Free all the bad pages
-	linux> echo 0 > /sys/firmware/badram/bad_pages
-
-		// All the pages are freed
-	linux> cat /sys/firmware/badram/bad_pages
-	Memory marked bad:        0 kB
-	Pages marked bad:         0
-	Unable to isolate on LRU: 1
-	Unable to migrate:        0
-	Already marked bad:       2
-	Already on list:          0
-	List of bad physical pages
-
-
-
-Flow of the code description (while testing on IA64):
-
-	1) A user level application test program allocates memory and
-	   passes the virtual address of the memory to the error injection
-	   driver.
-
-	2) The error injection driver converts the virtual address to
-	   physical, functions the Altix hardware to modify the ECC for the
-	   physical page, creating a correctable error, and returns to the
-	   user application.
-
-	3) The user application reads the memory.
-
-	4) The Altix hardware detects the correctable error and interrupts
-	   prom.  SAL builds a CPU error record, then sends a CPE 
-	   interrupt to linux.
-
-	5) The linux CPE handler calls the cpe_migrate module (if installed).
-
-	6) cpe_setup_migrate parses the physical address from the CPE record
-	   and adds the address to the migrate list (if not already on the
-	   list) and wakes up a kernel thread (cpe_process_queue).
-
-	7) cpe_process_queue checks if the threshold has been exceeded and 
-	   calls ia64_mca_cpe_move_page.
-
-	8) ia64_mca_cpe_move_page validates the physical address, converts
-	   to page, sets PG_memerror flag and calls the migration code
-	   (migrate_prep(), isolate_lru_page(), and migrate_pages().  If the
-	   page migrates successfully, the bad page is added to badpagelist.
-
-	9) Because PG_Poison is set, the bad page is not added back on the LRU
-	   by avoiding calls to move_to_lru().  Avoiding move_to_lru() prevents
-	   the page count from being decremented to zero.
-
-	10) If the page fails to migrate, PG_Poison is cleared and the page 
-	   returned to the LRU.  If another correctable error occurs on the
-	   page another attempt will be made to migrate it.
-
+Index: linux-next/mm/migrate.c
+===================================================================
+--- linux-next.orig/mm/migrate.c	2009-04-07 18:32:12.781949840 -0500
++++ linux-next/mm/migrate.c	2009-04-07 18:34:19.169736260 -0500
+@@ -72,6 +72,7 @@ int putback_lru_pages(struct list_head *
+ 	}
+ 	return count;
+ }
++EXPORT_SYMBOL(isolate_lru_page);
+ 
+ /*
+  * Restore a potential migration pte to a working pte entry
+@@ -139,6 +140,7 @@ static void remove_migration_pte(struct 
+ out:
+ 	pte_unmap_unlock(ptep, ptl);
+ }
++EXPORT_SYMBOL(migrate_prep);
+ 
+ /*
+  * Note that remove_file_migration_ptes will only work on regular mappings,
+@@ -161,6 +163,7 @@ static void remove_file_migration_ptes(s
+ 
+ 	spin_unlock(&mapping->i_mmap_lock);
+ }
++EXPORT_SYMBOL(putback_lru_pages);
+ 
+ /*
+  * Must hold mmap_sem lock on at least one of the vmas containing
+@@ -693,6 +696,26 @@ unlock:
+  		 * restored.
+  		 */
+  		list_del(&page->lru);
++#ifdef CONFIG_MEMORY_FAILURE
++		if (PagePoison(page)) {
++			if (rc == 0)
++				/*
++				 * A page with a memory error that has
++				 * been migrated will not be moved to
++				 * the LRU.
++				 */
++				goto move_newpage;
++			else
++				/*
++				 * The page failed to migrate and will not
++				 * be added to the bad page list.  Clearing
++				 * the error bit will allow another attempt
++				 * to migrate if it gets another correctable
++				 * error.
++				 */
++				ClearPagePoison(page);
++		}
++#endif
+ 		putback_lru_page(page);
+ 	}
+ 
+@@ -736,7 +759,7 @@ int migrate_pages(struct list_head *from
+ 	struct page *page;
+ 	struct page *page2;
+ 	int swapwrite = current->flags & PF_SWAPWRITE;
+-	int rc;
++	int rc = 0;
+ 
+ 	if (!swapwrite)
+ 		current->flags |= PF_SWAPWRITE;
+@@ -765,6 +788,19 @@ int migrate_pages(struct list_head *from
+ 			}
+ 		}
+ 	}
++
++#ifdef CONFIG_MEMORY_FAILURE
++	if (rc != 0)
++		list_for_each_entry_safe(page, page2, from, lru)
++			if (PagePoison(page))
++				/*
++				 * The page failed to migrate.  Clearing
++				 * the error bit will allow another attempt
++				 * to migrate if it gets another correctable
++				 * error.
++				 */
++				ClearPagePoison(page);
++#endif
+ 	rc = 0;
+ out:
+ 	if (!swapwrite)
+@@ -777,6 +813,7 @@ out:
+ 
+ 	return nr_failed + retry;
+ }
++EXPORT_SYMBOL(migrate_pages);
+ 
+ #ifdef CONFIG_NUMA
+ /*
+Index: linux-next/include/linux/page-flags.h
+===================================================================
+--- linux-next.orig/include/linux/page-flags.h	2009-04-07 18:32:12.789950956 -0500
++++ linux-next/include/linux/page-flags.h	2009-04-07 18:34:19.197737925 -0500
+@@ -169,15 +169,21 @@ static inline int TestSetPage##uname(str
+ static inline int TestClearPage##uname(struct page *page)		\
+ 		{ return test_and_clear_bit(PG_##lname, &page->flags); }
+ 
++#define PAGEFLAGMASK(uname, lname)					\
++static inline int PAGEMASK_##uname(void)				\
++		{ return (1 << PG_##lname); }
+ 
+ #define PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
+-	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)
++	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)		\
++	PAGEFLAGMASK(uname, lname)
+ 
+ #define __PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
+ 	__SETPAGEFLAG(uname, lname)  __CLEARPAGEFLAG(uname, lname)
+ 
+ #define PAGEFLAG_FALSE(uname) 						\
+ static inline int Page##uname(struct page *page) 			\
++			{ return 0; }					\
++static inline int PAGEMASK_##uname(void)				\
+ 			{ return 0; }
+ 
+ #define TESTSCFLAG(uname, lname)					\
 -- 
 Russ Anderson, OS RAS/Partitioning Project Lead  
 SGI - Silicon Graphics Inc          rja@sgi.com
