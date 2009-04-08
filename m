@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id E9C205F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 03:38:41 -0400 (EDT)
-Received: by wf-out-1314.google.com with SMTP id 25so2811310wfa.11
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2009 00:39:17 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090408065121.GI17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org>
-	 <20090407150959.C099D1D046E@basil.firstfloor.org>
-	 <28c262360904071621j5bdd8e33u1fbd8534d177a941@mail.gmail.com>
-	 <20090408065121.GI17934@one.firstfloor.org>
-Date: Wed, 8 Apr 2009 16:39:17 +0900
-Message-ID: <28c262360904080039l65c381edn106484c88f1c5819@mail.gmail.com>
-Subject: Re: [PATCH] [3/16] POISON: Handle poisoned pages in page free
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 6FBD25F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 03:40:16 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n387eqle032119
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Wed, 8 Apr 2009 16:40:52 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5198445DE5D
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 16:40:52 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E6E045DE51
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 16:40:52 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CA2361DB803E
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 16:40:51 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7877BE38003
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 16:40:51 +0900 (JST)
+Date: Wed, 8 Apr 2009 16:39:23 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFI] Shared accounting for memory resource controller
+Message-Id: <20090408163923.a40aad03.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090408161824.26f47077.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090407063722.GQ7082@balbir.in.ibm.com>
+	<20090407160014.8c545c3c.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090407071825.GR7082@balbir.in.ibm.com>
+	<20090407163331.8e577170.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090407080355.GS7082@balbir.in.ibm.com>
+	<20090407172419.a5f318b9.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090408052904.GY7082@balbir.in.ibm.com>
+	<20090408151529.fd6626c2.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090408070401.GC7082@balbir.in.ibm.com>
+	<20090408160733.4813cb8d.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090408071115.GD7082@balbir.in.ibm.com>
+	<20090408161824.26f47077.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Rik van Riel <riel@surriel.com>, Bharata B Rao <bharata.rao@in.ibm.com>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 8, 2009 at 3:51 PM, Andi Kleen <andi@firstfloor.org> wrote:
->> >
->> > =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Page may have been marked bad before pr=
-ocess is freeing it.
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Make sure it is not put back into the f=
-ree page lists.
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> > + =C2=A0 =C2=A0 =C2=A0 if (PagePoison(page)) {
->> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* check more flags=
- here... */
->>
->> How about adding WARNING with some information(ex, pfn, flags..).
->
-> The memory_failure() code is already quite chatty. Don't think more
-> noise is needed currently.
+On Wed, 8 Apr 2009 16:18:24 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
 
-Sure.
+> On Wed, 8 Apr 2009 12:41:15 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> 
+> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-08 16:07:33]:
+> > 1. First our rss in memory.stat is confusing, we should call it anon
+> > RSS
+> ok. but ....changing current interface ?
+> 
+> > 2. We need to add file rss, this is sort of inline with the
+> > information we export per process file_rss and anon_rss
+> 
+> maybe good. *but* active/incative ratio in lru file cache is good estimation for this.
+> 
+> > 3. Using the above, we can then try to (using an algorithm you
+> > proposed), try to do some work for figuring out the shared percentage.
+> > 
+> This is the point. At last. Why "# of shared pages" is important ?
+> 
+> I wonder it's better to add new stat file as memory.cacheinfo which helps
+> following kind of commands.
+> 
+>   #cacheinfo /cgroups/memory/group01/
+>        /usr/lib/libc.so.1     30pages
+>        /var/log/messages      1 pages
+>        /tmp/xxxxxx            20 pages
+>        .....
+>        .....
+To do above, I wonder it's better to add "cache count cgroup" rather than modify memcg.
+plz ignore.
 
-> Or are you worrying about the case where a page gets corrupted
-> by software and suddenly has Poison bits set? (e.g. 0xff everywhere).
-> That would deserve a printk, but I'm not sure how to reliably test for
-> that. After all a lot of flag combinations are valid.
-
-I misunderstood your code.
-That's because you add the code in bad_page.
-
-As you commented, your intention was to prevent bad page from returning bud=
-dy.
-Is right ?
-If it is right, how about adding prevention code to free_pages_check ?
-Now, bad_page is for showing the information that why it is bad page
-I don't like emergency exit in bad_page.
-
-> -Andi
->
-> --
-> ak@linux.intel.com -- Speaking for myself only.
->
-
-
-
---=20
-Kinds regards,
-Minchan Kim
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
