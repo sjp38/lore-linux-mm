@@ -1,34 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BFD05F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 02:23:44 -0400 (EDT)
-Date: Wed, 8 Apr 2009 08:26:21 +0200
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C70675F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 02:46:02 -0400 (EDT)
+Subject: Re: [PATCH 1/2] Avoid putting a bad page back on the LRU
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [2/16] POISON: Add page flag for poisoned pages
-Message-ID: <20090408062621.GG17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407150958.BA68F1D046D@basil.firstfloor.org> <20090408002941.GA14041@sgi.com>
-Mime-Version: 1.0
+References: <20090408001133.GB27170@sgi.com>
+	<200904080543.16454.ioe-lkml@rameria.de>
+Date: Wed, 08 Apr 2009 08:46:41 +0200
+In-Reply-To: <200904080543.16454.ioe-lkml@rameria.de> (Ingo Oeser's message of "Wed, 8 Apr 2009 05:43:15 +0200")
+Message-ID: <87r603abhq.fsf@basil.nowhere.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090408002941.GA14041@sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Russ Anderson <rja@sgi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Ingo Oeser <ioe-lkml@rameria.de>
+Cc: Russ Anderson <rja@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > @@ -104,6 +107,9 @@
-> >  #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
-> >  	PG_uncached,		/* Page has been mapped as uncached */
-> >  #endif
-> > +#ifdef CONFIG_MEMORY_FAILURE
-> 
-> Is it necessary to have this under CONFIG_MEMORY_FAILURE?
+Ingo Oeser <ioe-lkml@rameria.de> writes:
+>
+> Clearing the flag doesn't change the fact, that this page is representing 
+> permanently bad RAM.
 
-That was mainly so that !MEMORY_FAILURE 32bits NUMA architectures who
-might not use sparsemap/vsparsemap get a few more zone bits in page flags
-to play with. Not sure those really exist, so it might be indeed
-redundant, but it seemed safer.
+Yes, you cannot ever clear a Poison flag, at least not without a special
+hardware mechanism that clears the hardware poison too (but that has
+other issues in Linux too). Otherwise you would die later.
 
+> What about removing it from the LRU and adding it to a bad RAM list in every case?
+
+That is what memory_failure() already should be doing. Except there's no list
+currently.
+
+> After hot swapping the physical RAM banks it could be moved back, not before.
+
+Linux doesn't really support that. That is at least not when it's OS visible.
 
 -Andi
 -- 
