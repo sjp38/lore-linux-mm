@@ -1,81 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FA705F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 03:47:57 -0400 (EDT)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp07.au.ibm.com (8.13.1/8.13.1) with ESMTP id n387mdm9026120
-	for <linux-mm@kvack.org>; Wed, 8 Apr 2009 17:48:39 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n387mdLb1101884
-	for <linux-mm@kvack.org>; Wed, 8 Apr 2009 17:48:39 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n387mcMr032406
-	for <linux-mm@kvack.org>; Wed, 8 Apr 2009 17:48:39 +1000
-Date: Wed, 8 Apr 2009 13:18:09 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [RFI] Shared accounting for memory resource controller
-Message-ID: <20090408074809.GF7082@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090407071825.GR7082@balbir.in.ibm.com> <20090407163331.8e577170.kamezawa.hiroyu@jp.fujitsu.com> <20090407080355.GS7082@balbir.in.ibm.com> <20090407172419.a5f318b9.kamezawa.hiroyu@jp.fujitsu.com> <20090408052904.GY7082@balbir.in.ibm.com> <20090408151529.fd6626c2.kamezawa.hiroyu@jp.fujitsu.com> <20090408070401.GC7082@balbir.in.ibm.com> <20090408160733.4813cb8d.kamezawa.hiroyu@jp.fujitsu.com> <20090408071115.GD7082@balbir.in.ibm.com> <20090408161824.26f47077.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 2DBF65F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 03:51:13 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id c5so2186929rvf.6
+        for <linux-mm@kvack.org>; Wed, 08 Apr 2009 00:52:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090408161824.26f47077.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090408163440.4442dc3c.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090407063722.GQ7082@balbir.in.ibm.com>
+	 <20090407172419.a5f318b9.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090408052904.GY7082@balbir.in.ibm.com>
+	 <20090408151529.fd6626c2.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090408070401.GC7082@balbir.in.ibm.com>
+	 <20090408160733.4813cb8d.kamezawa.hiroyu@jp.fujitsu.com>
+	 <20090408071115.GD7082@balbir.in.ibm.com>
+	 <20090408161824.26f47077.kamezawa.hiroyu@jp.fujitsu.com>
+	 <344eb09a0904080031y4406c001n584725b87024755@mail.gmail.com>
+	 <20090408163440.4442dc3c.kamezawa.hiroyu@jp.fujitsu.com>
+Date: Wed, 8 Apr 2009 13:15:01 +0530
+Message-ID: <344eb09a0904080045s94c792dmc2250aaf39c09222@mail.gmail.com>
+Subject: Re: [RFI] Shared accounting for memory resource controller
+From: Bharata B Rao <bharata.rao@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Rik van Riel <riel@surriel.com>, Bharata B Rao <bharata.rao@in.ibm.com>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "lizf@cn.fujitsu.com" <lizf@cn.fujitsu.com>, Rik van Riel <riel@surriel.com>, Bharata B Rao <bharata.rao@in.ibm.com>, Dhaval Giani <dhaval@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-08 16:18:24]:
-
-> On Wed, 8 Apr 2009 12:41:15 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-08 16:07:33]:
-> > 1. First our rss in memory.stat is confusing, we should call it anon
-> > RSS
-> ok. but ....changing current interface ?
-> 
-
-No, lets just a new field called file_rss and make sure the
-documentation reflects the correct information.
-
-> > 2. We need to add file rss, this is sort of inline with the
-> > information we export per process file_rss and anon_rss
-> 
-> maybe good. *but* active/incative ratio in lru file cache is good estimation for this.
-
-Active/Inactive tell us about frequently a page is referenced rather
-than what is mapped and what is not. We could get very bad results if
-we make an assumption.
-
-> 
-> > 3. Using the above, we can then try to (using an algorithm you
-> > proposed), try to do some work for figuring out the shared percentage.
-> > 
-> This is the point. At last. Why "# of shared pages" is important ?
-> 
-
-I posted this in my motivation yesterday. # of shared pages can help
-plan the system better and the size of the cgroup. A cgroup might have
-small usage_in_bytes but large number of shared pages. We need a
-metric that can help figure out the fair usage of the cgroup.
-
-> I wonder it's better to add new stat file as memory.cacheinfo which helps
-> following kind of commands.
-> 
->   #cacheinfo /cgroups/memory/group01/
->        /usr/lib/libc.so.1     30pages
->        /var/log/messages      1 pages
->        /tmp/xxxxxx            20 pages
->        .....
->        .....
+On Wed, Apr 8, 2009 at 1:04 PM, KAMEZAWA Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> On Wed, 8 Apr 2009 13:01:15 +0530
+> Bharata B Rao <bharata.rao@gmail.com> wrote:
 >
+>> On Wed, Apr 8, 2009 at 12:48 PM, KAMEZAWA Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> >
+>> > On Wed, 8 Apr 2009 12:41:15 +0530
+>> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+>> > > 3. Using the above, we can then try to (using an algorithm you
+>> > > proposed), try to do some work for figuring out the shared percentag=
+e.
+>> > >
+>> > This is the point. At last. Why "# of shared pages" is important ?
+>> >
+>> > I wonder it's better to add new stat file as memory.cacheinfo which he=
+lps
+>> > following kind of commands.
+>> >
+>> > =A0#cacheinfo /cgroups/memory/group01/
+>> > =A0 =A0 =A0 /usr/lib/libc.so.1 =A0 =A0 30pages
+>> > =A0 =A0 =A0 /var/log/messages =A0 =A0 =A01 pages
+>> > =A0 =A0 =A0 /tmp/xxxxxx =A0 =A0 =A0 =A0 =A0 =A020 pages
+>>
+>> Can I suggest that we don't add new files for additional stats and try
+>> as far as possible to include them in <controller>.stat file. Please
+>> note that we have APIs in libcgroup library which can return
+>> statistics from controllers associated with a cgroup and these APIs
+>> assume that stats are part of <controller>.stat file.
+>>
+> Hmm ? Is there generic assumption as all cgroup has "stat" file ?
 
-But, what I need at the moment is shared usage information.
+No. But I would think if any controller has any stats to export, it
+would do so via <controller>.stat file.
 
--- 
-	Balbir
+> And libcgroup cause bug if the new entry is added to stat file ?
+
+No. It can cope with new entries being added to stat file as long as
+they appear as (name, value) pairs.
+
+> (IOW, libcgroup can't ignore new entry added ?)
+
+It won't ignore, but can read the new stat.
+
+Regards,
+Bharata.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
