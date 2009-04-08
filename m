@@ -1,140 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 6E6D55F0001
-	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 19:26:52 -0400 (EDT)
-Date: Wed, 8 Apr 2009 07:27:00 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 03/14] mm: remove FAULT_FLAG_RETRY dead code
-Message-ID: <20090407232700.GB5607@localhost>
-References: <20090407071729.233579162@intel.com> <20090407072133.053995305@intel.com> <604427e00904071303g1d092eabp59fca0713ddacf82@mail.gmail.com>
-MIME-Version: 1.0
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 7ACA55F0001
+	for <linux-mm@kvack.org>; Tue,  7 Apr 2009 20:10:23 -0400 (EDT)
+Date: Tue, 7 Apr 2009 19:10:29 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: [PATCH 0/2] Migrate data off physical pages with corrected memory errors
+Message-ID: <20090408001029.GA27170@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <604427e00904071303g1d092eabp59fca0713ddacf82@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Ying Han <yinghan@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+Cc: Russ Anderson <rja@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 08, 2009 at 04:03:36AM +0800, Ying Han wrote:
-> On Tue, Apr 7, 2009 at 12:17 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > Cc: Ying Han <yinghan@google.com>
-> > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > ---
-> >  mm/memory.c |    4 +---
-> >  1 file changed, 1 insertion(+), 3 deletions(-)
-> >
-> > --- mm.orig/mm/memory.c
-> > +++ mm/mm/memory.c
-> > @@ -2766,10 +2766,8 @@ static int do_linear_fault(struct mm_str
-> >  {
-> >        pgoff_t pgoff = (((address & PAGE_MASK)
-> >                        - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> > -       int write = write_access & ~FAULT_FLAG_RETRY;
-> > -       unsigned int flags = (write ? FAULT_FLAG_WRITE : 0);
-> > +       unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
-> >
-> > -       flags |= (write_access & FAULT_FLAG_RETRY);
-> >        pte_unmap(page_table);
-> >        return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
-> >  }
-> So, we got rid of FAULT_FLAG_RETRY flag?
+Purpose:
 
-Seems yes for the current mm tree, see the following two commits.
+	Physical memory with corrected errors may decay over time into
+	uncorrectable errors.  The purpose of this patch is to move the
+	data off pages with correctable memory errors before the memory
+	goes bad.
 
-I did this patch on seeing 761fe7bc8193b7. But a closer look
-indicates that the following two patches disable the filemap
-VM_FAULT_RETRY part totally...
+	This patch set applies on top of Andi Kleen's POISON patch set.
 
-Anyway, if these two patches are to be reverted somehow(I guess yes),
-this patch shall be _ignored_.
+The patches:
 
-btw, do you have any test case and performance numbers for
-FAULT_FLAG_RETRY? And possible overheads for (the worst case)
-sparse random mmap reads on a sparse file?  I cannot find any
-in your changelogs..
+  [1/2] Avoid putting a bad page back on the LRU.
 
-Thanks,
-Fengguang
+	Avoid putting a bad page back on the LRU after migrating the
+	data to a new page.  The reference count on the bad page is
+	not decremented to zero to avoid it being reallocated.
 
+  [2/3] Call migration code on correctable errors
 
-commit 761fe7bc8193b7858b7dc7eb4a026dc66e49fe1f
-Author: Andrew Morton <akpm@linux-foundation.org>
-Date:   Mon Feb 9 21:08:50 2009 +0100
+	This patch has ia64 specific changes.  It connects the CPE
+	handler to the page migration code.  It is implemented as a kernel
+	loadable module, similar to the mca recovery code (mca_recovery.ko),
+	so that it can be removed to turn off the feature.  Create
+	/sys/kernel/badram to print page discard information and to free
+	bad pages.
 
-    A shot in the dark :(
-    
-    Cc: Mike Waychison <mikew@google.com>
-    Cc: Ying Han <yinghan@google.com>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Comments:
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index bac7d7a..1c6736d 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -1139,8 +1139,6 @@ good_area:
-                return;
-        }
- 
--       write |= retry_flag;
--
-        /*
-         * If for any reason at all we couldn't handle the fault,
-         * make sure we exit gracefully rather than endlessly redo
+	There is always an issue of how agressive the code should be on
+	migrating pages.  This patch uses /sys/firmware/badram/migrate_threshold
+	to adjust the number of correctable errors before migrating a 
+	page.
+
+	Only pages that can be isolated on the LRU are migrated.  Other
+	pages, such as compound pages, are not migrated.  That functionality
+	could be a future enhancement.
+
+	/sys/kernel/badram/bad_pages is used to display information about
+	the bad memory.  The interface can be used to free pages marked bad.
+
+Sample output:
+
+	This is sample output from a system with a DIMM that has correctable
+	errors at many addresses.
+
+	linux> ls /sys/firmware/badram/
+	bad_pages  cmc_polling_threshold  cpe_polling_threshold  migrate_threshold
+
+	linux> cat /sys/firmware/badram/bad_pages
+	Memory marked bad:        704 kB
+	Pages marked bad:         11
+	Unable to isolate on LRU: 1
+	Unable to migrate:        0
+	Already marked bad:       2
+	Already on list:          0
+	List of bad physical pages
+ 	  0x06871110000 0x06014820000 0x26003b20000 0x26005380000 0x26005390000
+ 	  0x260053a0000 0x260053b0000 0x260052f0000 0x26004bf0000 0x26004af0000
+ 	  0x26005330000
 
 
-commit f01ca7a68c37680a4eee22a8722a713c5102b3bb
-Author: Andrew Morton <akpm@linux-foundation.org>
-Date:   Mon Feb 9 21:08:50 2009 +0100
+		// Free one of the pages
+	linux> echo 0x06014820000 > /sys/firmware/badram/bad_pages
 
-    Untangle the `write' boolean from the FAULT_FLAG_foo non-boolean field.
-    
-    Cc: "H. Peter Anvin" <hpa@zytor.com>
-    Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-    Cc: David Rientjes <rientjes@google.com>
-    Cc: Hugh Dickins <hugh@veritas.com>
-    Cc: Ingo Molnar <mingo@elte.hu>
-    Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>
-    Cc: Mike Waychison <mikew@google.com>
-    Cc: Nick Piggin <npiggin@suse.de>
-    Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-    Cc: Rohit Seth <rohitseth@google.com>
-    Cc: T<F6>r<F6>k Edwin <edwintorok@gmail.com>
-    Cc: Valdis.Kletnieks@vt.edu
-    Cc: Ying Han <yinghan@google.com>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+		// 10 pages remain on the list
+	linux> cat /sys/firmware/badram/bad_pages
+	Memory marked bad:        640 kB
+	Pages marked bad:         10
+	Unable to isolate on LRU: 1
+	Unable to migrate:        0
+	Already marked bad:       2
+	Already on list:          0
+	List of bad physical pages
+ 	  0x06871110000 0x26003b20000 0x26005380000 0x26005390000 0x260053a0000
+ 	  0x260053b0000 0x260052f0000 0x26004bf0000 0x26004af0000 0x26005330000
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index b2cc88f..bac7d7a 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -978,7 +978,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
-        struct mm_struct *mm;
-        int write;
-        int fault;
--       unsigned int retry_flag = FAULT_FLAG_RETRY;
-+       int retry_flag = 1;
- 
-        tsk = current;
-        mm = tsk->mm;
-@@ -1140,6 +1140,7 @@ good_area:
-        }
- 
-        write |= retry_flag;
-+
-        /*
-         * If for any reason at all we couldn't handle the fault,
-         * make sure we exit gracefully rather than endlessly redo
-@@ -1159,8 +1160,8 @@ good_area:
-         * be removed or changed after the retry.
-         */
-        if (fault & VM_FAULT_RETRY) {
--               if (write & FAULT_FLAG_RETRY) {
--                       retry_flag &= ~FAULT_FLAG_RETRY;
-+               if (retry_flag) {
-+                       retry_flag = 0;
-                        goto retry;
-                }
+		// Free all the bad pages
+	linux> echo 0 > /sys/firmware/badram/bad_pages
+
+		// All the pages are freed
+	linux> cat /sys/firmware/badram/bad_pages
+	Memory marked bad:        0 kB
+	Pages marked bad:         0
+	Unable to isolate on LRU: 1
+	Unable to migrate:        0
+	Already marked bad:       2
+	Already on list:          0
+	List of bad physical pages
+
+
+
+Flow of the code description (while testing on IA64):
+
+	1) A user level application test program allocates memory and
+	   passes the virtual address of the memory to the error injection
+	   driver.
+
+	2) The error injection driver converts the virtual address to
+	   physical, functions the Altix hardware to modify the ECC for the
+	   physical page, creating a correctable error, and returns to the
+	   user application.
+
+	3) The user application reads the memory.
+
+	4) The Altix hardware detects the correctable error and interrupts
+	   prom.  SAL builds a CPU error record, then sends a CPE 
+	   interrupt to linux.
+
+	5) The linux CPE handler calls the cpe_migrate module (if installed).
+
+	6) cpe_setup_migrate parses the physical address from the CPE record
+	   and adds the address to the migrate list (if not already on the
+	   list) and wakes up a kernel thread (cpe_process_queue).
+
+	7) cpe_process_queue checks if the threshold has been exceeded and 
+	   calls ia64_mca_cpe_move_page.
+
+	8) ia64_mca_cpe_move_page validates the physical address, converts
+	   to page, sets PG_memerror flag and calls the migration code
+	   (migrate_prep(), isolate_lru_page(), and migrate_pages().  If the
+	   page migrates successfully, the bad page is added to badpagelist.
+
+	9) Because PG_Poison is set, the bad page is not added back on the LRU
+	   by avoiding calls to move_to_lru().  Avoiding move_to_lru() prevents
+	   the page count from being decremented to zero.
+
+	10) If the page fails to migrate, PG_Poison is cleared and the page 
+	   returned to the LRU.  If another correctable error occurs on the
+	   page another attempt will be made to migrate it.
+
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
