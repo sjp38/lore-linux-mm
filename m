@@ -1,92 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3F24E5F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 06:05:27 -0400 (EDT)
-Received: by wf-out-1314.google.com with SMTP id 25so31280wfa.11
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2009 03:05:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090408094159.GK17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org>
-	 <20090407150959.C099D1D046E@basil.firstfloor.org>
-	 <28c262360904071621j5bdd8e33u1fbd8534d177a941@mail.gmail.com>
-	 <20090408065121.GI17934@one.firstfloor.org>
-	 <28c262360904080039l65c381edn106484c88f1c5819@mail.gmail.com>
-	 <20090408094159.GK17934@one.firstfloor.org>
-Date: Wed, 8 Apr 2009 19:05:30 +0900
-Message-ID: <28c262360904080305y381628e3y466038f7c6232b2f@mail.gmail.com>
-Subject: Re: [PATCH] [3/16] POISON: Handle poisoned pages in page free
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 385EE5F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 09:30:52 -0400 (EDT)
+Date: Wed, 8 Apr 2009 08:31:15 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: Re: [PATCH 1/2] Avoid putting a bad page back on the LRU
+Message-ID: <20090408133115.GB11041@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
+References: <20090408001133.GB27170@sgi.com> <200904080543.16454.ioe-lkml@rameria.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200904080543.16454.ioe-lkml@rameria.de>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Ingo Oeser <ioe-lkml@rameria.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Andi Kleen <andi@firstfloor.org>, rja@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 8, 2009 at 6:41 PM, Andi Kleen <andi@firstfloor.org> wrote:
-> On Wed, Apr 08, 2009 at 04:39:17PM +0900, Minchan Kim wrote:
->> On Wed, Apr 8, 2009 at 3:51 PM, Andi Kleen <andi@firstfloor.org> wrote:
->> >> >
->> >> > =C2=A0 =C2=A0 =C2=A0 =C2=A0/*
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Page may have been marked bad before=
- process is freeing it.
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0* Make sure it is not put back into th=
-e free page lists.
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0*/
->> >> > + =C2=A0 =C2=A0 =C2=A0 if (PagePoison(page)) {
->> >> > + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 /* check more fl=
-ags here... */
->> >>
->> >> How about adding WARNING with some information(ex, pfn, flags..).
->> >
->> > The memory_failure() code is already quite chatty. Don't think more
->> > noise is needed currently.
->>
->> Sure.
->>
->> > Or are you worrying about the case where a page gets corrupted
->> > by software and suddenly has Poison bits set? (e.g. 0xff everywhere).
->> > That would deserve a printk, but I'm not sure how to reliably test for
->> > that. After all a lot of flag combinations are valid.
->>
->> I misunderstood your code.
->> That's because you add the code in bad_page.
->>
->> As you commented, your intention was to prevent bad page from returning =
-buddy.
->> Is right ?
->
-> Yes. Well actually it should not happen anymore. Perhaps I should
-> make it a BUG()
->
->> If it is right, how about adding prevention code to free_pages_check ?
->> Now, bad_page is for showing the information that why it is bad page
->> I don't like emergency exit in bad_page.
->
-> There's already one in there, so i just reused that one. It was a conveni=
-ent
-> way to keep things out of the fast path
+On Wed, Apr 08, 2009 at 05:43:15AM +0200, Ingo Oeser wrote:
+> Hi Russ,
+> 
+> On Wednesday 08 April 2009, Russ Anderson wrote:
+> > --- linux-next.orig/mm/migrate.c	2009-04-07 18:32:12.781949840 -0500
+> > +++ linux-next/mm/migrate.c	2009-04-07 18:34:19.169736260 -0500
+> > @@ -693,6 +696,26 @@ unlock:
+> >   		 * restored.
+> >   		 */
+> >   		list_del(&page->lru);
+> > +#ifdef CONFIG_MEMORY_FAILURE
+> > +		if (PagePoison(page)) {
+> > +			if (rc == 0)
+> > +				/*
+> > +				 * A page with a memory error that has
+> > +				 * been migrated will not be moved to
+> > +				 * the LRU.
+> > +				 */
+> > +				goto move_newpage;
+> > +			else
+> > +				/*
+> > +				 * The page failed to migrate and will not
+> > +				 * be added to the bad page list.  Clearing
+> > +				 * the error bit will allow another attempt
+> > +				 * to migrate if it gets another correctable
+> > +				 * error.
+> > +				 */
+> > +				ClearPagePoison(page);
+> 
+> Clearing the flag doesn't change the fact, that this page is representing 
+> permanently bad RAM.
 
+Yes, but this is intended for corrected memory errors (meaning there is
+an underlying RAM error, but has not reached the point of losing data).
 
-Sorry for my vague previous comment.
-I mean bad_page function's role is just to print why it is bad now.
-Whoever can use bad_page to show information.
-If someone begin to add side branch in bad_page, anonther people might
-add his exception case in one.
+After talking with Andi, it is clear the intent of the Poison flag
+(uncorrectable memory error) is different from my intent (corrected
+memory error).  I'll go back to using a different page flag to avoid
+confusing the two issues.
+ 
+> What about removing it from the LRU and adding it to a bad RAM list in every case?
 
-So, I think it would be better to check PagePoison in free_pages_check
-not bad_page. :)
+That is what happens when the page migrates (the normal case).  The else case 
+s when the page could not be migrated.  My intent was to wait for the next
+corrected error on that page and try migrating again.
 
-> -Andi
->
-> ak@linux.intel.com -- Speaking for myself only.
->
+> After hot swapping the physical RAM banks it could be moved back, not before.
 
+As soon as the code is written.  :-)
 
-
---=20
-Kinds regards,
-Minchan Kim
+-- 
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
