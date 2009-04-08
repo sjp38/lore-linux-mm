@@ -1,75 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 385EE5F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 09:30:52 -0400 (EDT)
-Date: Wed, 8 Apr 2009 08:31:15 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: Re: [PATCH 1/2] Avoid putting a bad page back on the LRU
-Message-ID: <20090408133115.GB11041@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
-References: <20090408001133.GB27170@sgi.com> <200904080543.16454.ioe-lkml@rameria.de>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2D55F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 13:05:58 -0400 (EDT)
+Subject: Re: [PATCH] [13/16] POISON: The high level memory error handler in
+ the VM
+From: Chris Mason <chris.mason@oracle.com>
+In-Reply-To: <20090407151010.E72A91D0471@basil.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org>
+	 <20090407151010.E72A91D0471@basil.firstfloor.org>
+Content-Type: text/plain
+Date: Wed, 08 Apr 2009 13:03:59 -0400
+Message-Id: <1239210239.28688.15.camel@think.oraclecorp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200904080543.16454.ioe-lkml@rameria.de>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Ingo Oeser <ioe-lkml@rameria.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Andi Kleen <andi@firstfloor.org>, rja@sgi.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: hugh@veritas.com, npiggin@suse.de, riel@redhat.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 08, 2009 at 05:43:15AM +0200, Ingo Oeser wrote:
-> Hi Russ,
-> 
-> On Wednesday 08 April 2009, Russ Anderson wrote:
-> > --- linux-next.orig/mm/migrate.c	2009-04-07 18:32:12.781949840 -0500
-> > +++ linux-next/mm/migrate.c	2009-04-07 18:34:19.169736260 -0500
-> > @@ -693,6 +696,26 @@ unlock:
-> >   		 * restored.
-> >   		 */
-> >   		list_del(&page->lru);
-> > +#ifdef CONFIG_MEMORY_FAILURE
-> > +		if (PagePoison(page)) {
-> > +			if (rc == 0)
-> > +				/*
-> > +				 * A page with a memory error that has
-> > +				 * been migrated will not be moved to
-> > +				 * the LRU.
-> > +				 */
-> > +				goto move_newpage;
-> > +			else
-> > +				/*
-> > +				 * The page failed to migrate and will not
-> > +				 * be added to the bad page list.  Clearing
-> > +				 * the error bit will allow another attempt
-> > +				 * to migrate if it gets another correctable
-> > +				 * error.
-> > +				 */
-> > +				ClearPagePoison(page);
-> 
-> Clearing the flag doesn't change the fact, that this page is representing 
-> permanently bad RAM.
+On Tue, 2009-04-07 at 17:10 +0200, Andi Kleen wrote:
+> This patch adds the high level memory handler that poisons pages. 
+> It is portable code and lives in mm/memory-failure.c
 
-Yes, but this is intended for corrected memory errors (meaning there is
-an underlying RAM error, but has not reached the point of losing data).
+I think this is an important feature, thanks for doing all this work
+Andi.
 
-After talking with Andi, it is clear the intent of the Poison flag
-(uncorrectable memory error) is different from my intent (corrected
-memory error).  I'll go back to using a different page flag to avoid
-confusing the two issues.
- 
-> What about removing it from the LRU and adding it to a bad RAM list in every case?
+> Index: linux/mm/memory-failure.c
+> ===================================================================
+> --- /dev/null	1970-01-01 00:00:00.000000000 +0000
+> +++ linux/mm/memory-failure.c	2009-04-07 16:39:39.000000000 +0200
+> +
+> +/*
+> + * Clean (or cleaned) page cache page.
+> + */
+> +static int me_pagecache_clean(struct page *p)
+> +{
+> +	struct address_space *mapping;
+> +
+> +	if (PagePrivate(p))
+> +		do_invalidatepage(p, 0);
+> +	mapping = page_mapping(p);
+> +	if (mapping) {
+> +		if (!remove_mapping(mapping, p))
+> +			return FAILED;
+> +	}
+> +	return RECOVERED;
+> +}
+> +
+> +/*
+> + * Dirty cache page page
+> + * Issues: when the error hit a hole page the error is not properly
+> + * propagated.
+> + */
+> +static int me_pagecache_dirty(struct page *p)
+> +{
+> +	struct address_space *mapping = page_mapping(p);
+> +
+> +	SetPageError(p);
+> +	/* TBD: print more information about the file. */
+> +	printk(KERN_ERR "MCE: Hardware memory corruption on dirty file page: write error\n");
+> +	if (mapping) {
+> +		/* CHECKME: does that report the error in all cases? */
+> +		mapping_set_error(mapping, EIO);
+> +	}
+> +	if (PagePrivate(p)) {
+> +		if (try_to_release_page(p, GFP_KERNEL)) {
 
-That is what happens when the page migrates (the normal case).  The else case 
-s when the page could not be migrated.  My intent was to wait for the next
-corrected error on that page and try migrating again.
+So, try_to_release_page returns 1 when it works.  I know this only
+because I have to read it every time to remember ;)
 
-> After hot swapping the physical RAM banks it could be moved back, not before.
+try_to_release_page is also very likely to fail if the page is dirty or
+under writeback.  At the end of the day, we'll probably need a call into
+the FS to tell it a given page isn't coming back, and to clean it at all
+cost.
 
-As soon as the code is written.  :-)
+invalidatepage is close, but ext3/reiserfs will keep the buffer heads
+and let the page->mapping go to null in an ugly data=ordered corner
+case.  The buffer heads pin the page and it won't be freed until the IO
+is done.
 
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+-chris
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
