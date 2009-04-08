@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 84DA25F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 02:48:21 -0400 (EDT)
-Date: Wed, 8 Apr 2009 08:51:21 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [3/16] POISON: Handle poisoned pages in page free
-Message-ID: <20090408065121.GI17934@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407150959.C099D1D046E@basil.firstfloor.org> <28c262360904071621j5bdd8e33u1fbd8534d177a941@mail.gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D5BD5F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 03:03:45 -0400 (EDT)
+Date: Wed, 8 Apr 2009 00:00:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] [2/16] POISON: Add page flag for poisoned pages
+Message-Id: <20090408000018.9567a5fa.akpm@linux-foundation.org>
+In-Reply-To: <20090408062441.GF17934@one.firstfloor.org>
+References: <20090407509.382219156@firstfloor.org>
+	<20090407150958.BA68F1D046D@basil.firstfloor.org>
+	<20090407221421.890f27a6.akpm@linux-foundation.org>
+	<20090408062441.GF17934@one.firstfloor.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <28c262360904071621j5bdd8e33u1fbd8534d177a941@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> >
-> >        /*
-> > +        * Page may have been marked bad before process is freeing it.
-> > +        * Make sure it is not put back into the free page lists.
-> > +        */
-> > +       if (PagePoison(page)) {
-> > +               /* check more flags here... */
+On Wed, 8 Apr 2009 08:24:41 +0200 Andi Kleen <andi@firstfloor.org> wrote:
+
+> On Tue, Apr 07, 2009 at 10:14:21PM -0700, Andrew Morton wrote:
+> > On Tue,  7 Apr 2009 17:09:58 +0200 (CEST) Andi Kleen <andi@firstfloor.org> wrote:
+> > 
+> > > Poisoned pages need special handling in the VM and shouldn't be touched 
+> > > again. This requires a new page flag. Define it here.
+> > 
+> > I wish this patchset didn't change/abuse the well-understood meaning of
+> > the word "poison".
 > 
-> How about adding WARNING with some information(ex, pfn, flags..).
+> Sorry, that's the terminology on the hardware side.
+> 
+> If there's much confusion I could rename it HwPoison or somesuch?
 
-The memory_failure() code is already quite chatty. Don't think more
-noise is needed currently.
+I understand that'd be a PITA but I suspect it would be best,
+long-term.  Having this conflict in core MM is really pretty bad.
 
-Or are you worrying about the case where a page gets corrupted
-by software and suddenly has Poison bits set? (e.g. 0xff everywhere).
-That would deserve a printk, but I'm not sure how to reliably test for
-that. After all a lot of flag combinations are valid.
+> > > The page flags wars seem to be over, so it shouldn't be a problem
+> > > to get a new one. I hope.
+> > 
+> > They are?  How did it all get addressed?
+> 
+> Allowing 64bit to use more and using [V]SPARSEMAP to limit flags
+> use for zones. I think.
 
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Nobody ever seems to be able to work out how many we actually have
+left.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
