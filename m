@@ -1,261 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C765F0001
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 16:06:23 -0400 (EDT)
-Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
-	by smtp-out.google.com with ESMTP id n38K6O8B008178
-	for <linux-mm@kvack.org>; Wed, 8 Apr 2009 21:06:25 +0100
-Received: from rv-out-0506.google.com (rvbf6.prod.google.com [10.140.82.6])
-	by zps37.corp.google.com with ESMTP id n38K5tXA003190
-	for <linux-mm@kvack.org>; Wed, 8 Apr 2009 13:06:23 -0700
-Received: by rv-out-0506.google.com with SMTP id f6so234568rvb.53
-        for <linux-mm@kvack.org>; Wed, 08 Apr 2009 13:06:23 -0700 (PDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B472F5F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 20:58:59 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n390xqiY010804
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 9 Apr 2009 09:59:52 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F33F45DD82
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 09:59:52 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 10BD845DD7B
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 09:59:52 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E2F8D1DB8041
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 09:59:51 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8AE4B1DB803C
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 09:59:51 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: + mm-align-vmstat_works-timer.patch added to -mm tree
+In-Reply-To: <20090407040404.GB9584@kryten>
+References: <20090406120533.450B.A69D9226@jp.fujitsu.com> <20090407040404.GB9584@kryten>
+Message-Id: <20090409095435.8D8D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Date: Wed, 8 Apr 2009 13:06:23 -0700
-Message-ID: <604427e00904081306vd7f2671x7b5ec8baf2b9bf58@mail.gmail.com>
-Subject: [PATCH][1/2]page_fault retry with NOPAGE_RETRY
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Thu,  9 Apr 2009 09:59:49 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, akpm <akpm@linux-foundation.org>, torvalds@linux-foundation.org, Ingo Molnar <mingo@elte.hu>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, =?ISO-8859-1?Q?T=F6r=F6k_Edwin?= <edwintorok@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>, Wu Fengguang <fengguang.wu@intel.com>
+To: Anton Blanchard <anton@samba.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, mingo@elte.hu, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-support for FAULT_FLAG_RETRY with no user change:
+Hi
 
-Signed-off-by: Ying Han <yinghan@google.com>
-              Mike Waychison <mikew@google.com>
+> 
+> Hi,
+> 
+> > Do you have any mesurement data?
+> 
+> I was using a simple set of kprobes to look at when timers and
+> workqueues fire.
 
- include/linux/fs.h  |    2 +-
- include/linux/mm.h  |    2 +
- mm/filemap.c        |   72 ++++++++++++++++++++++++++++++++++++++++++++++++--
- mm/memory.c         |   33 +++++++++++++++++------
-
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 4a853ef..29c2c39 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -793,7 +793,7 @@ struct file_ra_state {
- 					   there are only # of pages ahead */
-
- 	unsigned int ra_pages;		/* Maximum readahead window */
--	int mmap_miss;			/* Cache miss stat for mmap accesses */
-+	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
- 	loff_t prev_pos;		/* Cache last read() position */
- };
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ffee2f7..5a134a9 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -144,6 +144,7 @@ extern pgprot_t protection_map[16];
-
- #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
- #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
-+#define FAULT_FLAG_RETRY	0x04	/* Retry major fault */
+ok. thanks.
 
 
- /*
-@@ -690,6 +691,7 @@ static inline int page_mapped(struct page *page)
+> > The fact is, schedule_delayed_work(work, round_jiffies_relative()) is
+> > a bit ill.
+> > 
+> > it mean
+> >   - round_jiffies_relative() calculate rounded-time - jiffies
+> >   - schedule_delayed_work() calculate argument + jiffies
+> > 
+> > it assume no jiffies change at above two place. IOW it assume
+> > non preempt kernel.
+> 
+> I'm not sure we are any worse off here. Before the patch we could end up
+> with all threads converging on the same jiffy, and once that happens
+> they will continue to fire over the top of each other (at least until a
+> difference in the time it takes vmstat_work to complete causes them to
+> diverge again).
+> 
+> With the patch we always apply a per cpu offset, so should keep them
+> separated even if jiffies sometimes changes between
+> round_jiffies_relative() and schedule_delayed_work().
 
- #define VM_FAULT_MINOR	0 /* For backwards compat. Remove me quickly. */
+Well, ok I agree your patch don't have back step.
 
-+#define VM_FAULT_RETRY	0x0010
- #define VM_FAULT_OOM	0x0001
- #define VM_FAULT_SIGBUS	0x0002
- #define VM_FAULT_MAJOR	0x0004
-diff --git a/mm/filemap.c b/mm/filemap.c
-index f3e5f89..6eb7c36 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -714,6 +714,58 @@ repeat:
- EXPORT_SYMBOL(find_lock_page);
+I mean I agree preempt kernel vs round_jiffies_relative() problem is
+unrelated to your patch.
 
- /**
-+ * find_lock_page_retry - locate, pin and lock a pagecache page
-+ * @mapping: the address_space to search
-+ * @offset: the page index
-+ * @vma: vma in which the fault was taken
-+ * @ppage: zero if page not present, otherwise point to the page in pagecache
-+ * @retry: 1 indicate caller tolerate a retry.
-+ *
-+ * If retry flag is on, and page is already locked by someone else, return
-+ * a hint of retry and leave *ppage untouched.
-+ *
-+ * Return *ppage==NULL if page is not in pagecache. Otherwise return *ppage
-+ * points to the page in the pagecache with ret=VM_FAULT_RETRY indicate a
-+ * hint to caller for retry, or ret=0 which means page is succefully
-+ * locked.
-+ */
-+unsigned find_lock_page_retry(struct address_space *mapping, pgoff_t offset,
-+				struct vm_area_struct *vma, struct page **ppage,
-+				int retry)
-+{
-+	unsigned int ret = 0;
-+	struct page *page;
-+
-+repeat:
-+	page = find_get_page(mapping, offset);
-+	if (page) {
-+		if (!retry)
-+			lock_page(page);
-+		else {
-+			if (!trylock_page(page)) {
-+				struct mm_struct *mm = vma->vm_mm;
-+
-+				up_read(&mm->mmap_sem);
-+				wait_on_page_locked(page);
-+				down_read(&mm->mmap_sem);
-+
-+				page_cache_release(page);
-+				return VM_FAULT_RETRY;
-+			}
-+		}
-+		if (unlikely(page->mapping != mapping)) {
-+			unlock_page(page);
-+			page_cache_release(page);
-+			goto repeat;
-+		}
-+		VM_BUG_ON(page->index != offset);
-+	}
-+	*ppage = page;
-+	return ret;
-+}
-+EXPORT_SYMBOL(find_lock_page_retry);
-+
-+/**
-  * find_or_create_page - locate or add a pagecache page
-  * @mapping: the page's address_space
-  * @index: the page's index into the mapping
-@@ -1444,6 +1496,8 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_
- 	pgoff_t size;
- 	int did_readaround = 0;
- 	int ret = 0;
-+	int retry_flag = vmf->flags & FAULT_FLAG_RETRY;
-+	int retry_ret;
 
- 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
- 	if (vmf->pgoff >= size)
-@@ -1458,6 +1512,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_
- 	 */
- retry_find:
- 	page = find_lock_page(mapping, vmf->pgoff);
-+
- 	/*
- 	 * For sequential accesses, we use the generic readahead logic.
- 	 */
-@@ -1465,7 +1520,13 @@ retry_find:
- 		if (!page) {
- 			page_cache_sync_readahead(mapping, ra, file,
- 							   vmf->pgoff, 1);
--			page = find_lock_page(mapping, vmf->pgoff);
-+			retry_ret = find_lock_page_retry(mapping, vmf->pgoff,
-+						vma, &page, retry_flag);
-+			if (retry_ret == VM_FAULT_RETRY) {
-+				/* counteract the followed retry hit */
-+				ra->mmap_miss++;
-+				return retry_ret;
-+			}
- 			if (!page)
- 				goto no_cached_page;
- 		}
-@@ -1504,7 +1565,14 @@ retry_find:
- 				start = vmf->pgoff - ra_pages / 2;
- 			do_page_cache_readahead(mapping, file, start, ra_pages);
- 		}
--		page = find_lock_page(mapping, vmf->pgoff);
-+retry_find_retry:
-+		retry_ret = find_lock_page_retry(mapping, vmf->pgoff,
-+				vma, &page, retry_flag);
-+		if (retry_ret == VM_FAULT_RETRY) {
-+			/* counteract the followed retry hit */
-+			ra->mmap_miss++;
-+			return retry_ret;
-+		}
- 		if (!page)
- 			goto no_cached_page;
- 	}
-@@ -1548,7 +1616,7 @@ no_cached_page:
- 	 * meantime, we'll just come back here and read it again.
- 	 */
- 	if (error >= 0)
--		goto retry_find;
-+		goto retry_find_retry;
+> > 2)
+> > > -	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
+> > > +	schedule_delayed_work_on(cpu, vmstat_work,
+> > > +				 __round_jiffies_relative(HZ, cpu));
+> > 
+> > isn't same meaning.
+> > 
+> > vmstat_work mean to move per-cpu stastics to global stastics.
+> > Then, (HZ + cpu) mean to avoid to touch the same global variable at the same time.
+> 
+> round_jiffies_common still provides per cpu skew doesn't it?
+> 
+>         /*
+>          * We don't want all cpus firing their timers at once hitting the
+>          * same lock or cachelines, so we skew each extra cpu with an extra
+>          * 3 jiffies. This 3 jiffies came originally from the mm/ code which
+>          * already did this.
+>          * The skew is done by adding 3*cpunr, then round, then subtract this
+>          * extra offset again.
+>          */
+> 
+> In fact we are also skewing timer interrupts across half a timer tick in
+> tick_setup_sched_timer:
+> 
+> 	/* Get the next period (per cpu) */
+> 	hrtimer_set_expires(&ts->sched_timer, tick_init_jiffy_update());
+> 	offset = ktime_to_ns(tick_period) >> 1;
+> 	do_div(offset, num_possible_cpus());
+> 	offset *= smp_processor_id();
+> 	hrtimer_add_expires_ns(&ts->sched_timer, offset);
+> 
+> I still need to see if I can measure a reduction in jitter by removing
+> this half jiffy skew and aligning all timer interrupts. Assuming we skew
+> per cpu work and timers, it seems like we shouldn't need to skew timer
+> interrupts too.
 
- 	/*
- 	 * An error return from page_cache_read can result if the
-diff --git a/mm/memory.c b/mm/memory.c
-index 164951c..5e215c9 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2467,6 +2467,13 @@ static int __do_fault(struct mm_struct *mm, struct vm_a
- 	vmf.page = NULL;
+Ah, you are perfectly right.
+I missed it.
 
- 	ret = vma->vm_ops->fault(vma, &vmf);
-+
-+	/* page may be available, but we have to restart the process
-+	 * because mmap_sem was dropped during the ->fault
-+	 */
-+	if (ret & VM_FAULT_RETRY)
-+		return ret;
-+
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
- 		return ret;
 
-@@ -2611,8 +2618,10 @@ static int do_linear_fault(struct mm_struct *mm, struct
- {
- 	pgoff_t pgoff = (((address & PAGE_MASK)
- 			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
--	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
-+	int write = write_access & ~FAULT_FLAG_RETRY;
-+	unsigned int flags = (write ? FAULT_FLAG_WRITE : 0);
+> > but I agree vmstat_work is one of most work queue heavy user.
+> > For power consumption view, it isn't proper behavior.
+> > 
+> > I still think improving another way.
+> 
+> I definitely agree it would be nice to fix vmstat_work :)
 
-+	flags |= (write_access & FAULT_FLAG_RETRY);
- 	pte_unmap(page_table);
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
- }
-@@ -2726,26 +2735,32 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_ar
- 	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
-+	int ret;
+Thank you for kindful explanation :)
 
- 	__set_current_state(TASK_RUNNING);
 
--	count_vm_event(PGFAULT);
--
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+	if (unlikely(is_vm_hugetlb_page(vma))) {
-+		ret = hugetlb_fault(mm, vma, address, write_access);
-+		goto out;
-+	}
-
-+	ret = VM_FAULT_OOM;
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
- 	if (!pud)
--		return VM_FAULT_OOM;
-+		goto out;
- 	pmd = pmd_alloc(mm, pud, address);
- 	if (!pmd)
--		return VM_FAULT_OOM;
-+		goto out;
- 	pte = pte_alloc_map(mm, pmd, address);
- 	if (!pte)
--		return VM_FAULT_OOM;
-+		goto out;
-
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	ret = handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+out:
-+	if (!(ret & VM_FAULT_RETRY))
-+		count_vm_event(PGFAULT);
-+	return ret;
- }
-
- #ifndef __PAGETABLE_PUD_FOLDED
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
