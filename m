@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AE8485F0001
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 10:00:39 -0400 (EDT)
-Date: Thu, 9 Apr 2009 16:02:58 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] [13/16] POISON: The high level memory error handler in the VM II
-Message-ID: <20090409140257.GI14687@one.firstfloor.org>
-References: <20090407509.382219156@firstfloor.org> <20090407151010.E72A91D0471@basil.firstfloor.org> <1239210239.28688.15.camel@think.oraclecorp.com> <20090409072949.GF14687@one.firstfloor.org> <20090409075805.GG14687@one.firstfloor.org> <1239283829.23150.34.camel@think.oraclecorp.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 58FE75F0001
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 10:04:30 -0400 (EDT)
+Subject: Re: [PATCH] mm: move the scan_unevictable_pages sysctl to the vm
+	table
+From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+In-Reply-To: <1239270133.7647.213.camel@twins>
+References: <1239270133.7647.213.camel@twins>
+Content-Type: text/plain
+Date: Thu, 09 Apr 2009 10:04:32 -0400
+Message-Id: <1239285872.24817.20.camel@lts-notebook>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1239283829.23150.34.camel@think.oraclecorp.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Mason <chris.mason@oracle.com>
-Cc: Andi Kleen <andi@firstfloor.org>, hugh@veritas.com, npiggin@suse.de, riel@redhat.com, lee.schermerhorn@hp.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 09, 2009 at 09:30:29AM -0400, Chris Mason wrote:
-> > Is that a correct assumption?
+On Thu, 2009-04-09 at 11:42 +0200, Peter Zijlstra wrote:
+> Subject: mm: move the scan_unevictable_pages sysctl to the vm table
+> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Date: Thu Apr 09 11:38:45 CEST 2009
 > 
-> Yes, the page won't become writeback when you're holding the page lock.
-> But, the FS usually thinks of try_to_releasepage as a polite request.
-> It might fail internally for a bunch of reasons.
+> vm knobs should go in the vm table. Probably too late for randomize_va_space
+> though.
+
+I was surprised to see "scan_unevictable_pages" in the kernel table.
+This must be the result of a merge glitch.  I originally put this at the
+end of the vm table.  Just went back and looked at some older patches to
+be sure.  E.g.,
+
+	http://marc.info/?l=linux-mm&m=121321022603288&w=4
+
+It had been moved to the kernel table by the time the unevictable lru
+was merged upstream:
+
+	http://marc.info/?l=linux-mm-commits&m=122453486931267&w=4
+
+Anyway...
+
 > 
-> To make things even more fun, the page won't become writeback magically,
-> but ext3 and reiser maintain lists of buffer heads for data=ordered, and
-> they do the data=ordered IO on the buffer heads directly.  writepage is
-> never called and the page lock is never taken, but the buffer heads go
-> to disk.  I don't think any of the other filesystems do it this way.
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Ok, so do you think my code handles this correctly?
+Acked-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-> If we really want the page gone, we'll have to tell the FS
-> drop-this-or-else....sorry, its some ugly stuff.
-
-I would like to give a very strong hint at least. If it fails
-we can still ignore it, but it will likely have negative consequences later.
-
+> ---
+>  kernel/sysctl.c |   20 ++++++++++----------
+>  1 file changed, 10 insertions(+), 10 deletions(-)
 > 
-> The good news is, it is pretty rare.  I wouldn't hold up the whole patch
-
-You mean pages with Private bit are rare? Are you suggesting to just
-ignore those? How common is it to have Private pages which are not
-locked by someone else?
-
-I keep thinking about doing some instrumentation and figure out
-how common the various page types are under different loads, but haven't written 
-that bit so far.
-
-> set just for this problem.  We could document the future fun required
-> and fix the return value check 
-
-I fixed the return value check. Thanks.
-
-> and concentrate on something other than
-> this ugly corner ;)
-
-Any suggestions welcome.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+> Index: linux-2.6/kernel/sysctl.c
+> ===================================================================
+> --- linux-2.6.orig/kernel/sysctl.c
+> +++ linux-2.6/kernel/sysctl.c
+> @@ -914,16 +914,6 @@ static struct ctl_table kern_table[] = {
+>  		.proc_handler	= &proc_dointvec,
+>  	},
+>  #endif
+> -#ifdef CONFIG_UNEVICTABLE_LRU
+> -	{
+> -		.ctl_name	= CTL_UNNUMBERED,
+> -		.procname	= "scan_unevictable_pages",
+> -		.data		= &scan_unevictable_pages,
+> -		.maxlen		= sizeof(scan_unevictable_pages),
+> -		.mode		= 0644,
+> -		.proc_handler	= &scan_unevictable_handler,
+> -	},
+> -#endif
+>  #ifdef CONFIG_SLOW_WORK
+>  	{
+>  		.ctl_name	= CTL_UNNUMBERED,
+> @@ -1324,6 +1314,16 @@ static struct ctl_table vm_table[] = {
+>  		.extra2		= &one,
+>  	},
+>  #endif
+> +#ifdef CONFIG_UNEVICTABLE_LRU
+> +	{
+> +		.ctl_name	= CTL_UNNUMBERED,
+> +		.procname	= "scan_unevictable_pages",
+> +		.data		= &scan_unevictable_pages,
+> +		.maxlen		= sizeof(scan_unevictable_pages),
+> +		.mode		= 0644,
+> +		.proc_handler	= &scan_unevictable_handler,
+> +	},
+> +#endif
+>  /*
+>   * NOTE: do not add new entries to this table unless you have read
+>   * Documentation/sysctl/ctl_unnumbered.txt
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
