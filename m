@@ -1,69 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DA5F5F0001
-	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 05:39:46 -0400 (EDT)
-Subject: [PATCH] mm: move the scan_unevictable_pages sysctl to the vm table
-From: Peter Zijlstra <peterz@infradead.org>
-Content-Type: text/plain
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2620B5F0001
+	for <linux-mm@kvack.org>; Thu,  9 Apr 2009 06:06:36 -0400 (EDT)
+Message-ID: <49DDC8AC.8090300@fastmail.fm>
+Date: Thu, 09 Apr 2009 11:06:36 +0100
+From: Jack Stone <jwjstone@fastmail.fm>
+MIME-Version: 1.0
+Subject: Re: [PATCH 25/56] mm: Remove void casts
+References: <> <1239189748-11703-11-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-12-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-13-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-14-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-15-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-16-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-17-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-18-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-19-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-20-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-21-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-22-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-23-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-24-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-25-git-send-email-jwjstone@fastmail.fm> <1239189748-11703-26-git-send-email-jwjstone@fastmail.fm>
+In-Reply-To: <1239189748-11703-26-git-send-email-jwjstone@fastmail.fm>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Thu, 09 Apr 2009 11:42:13 +0200
-Message-Id: <1239270133.7647.213.camel@twins>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "lee.schermerhorn" <lee.schermerhorn@hp.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: jeff@garzik.org, kernel-janitors@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Subject: mm: move the scan_unevictable_pages sysctl to the vm table
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date: Thu Apr 09 11:38:45 CEST 2009
-
-vm knobs should go in the vm table. Probably too late for randomize_va_space
-though.
-
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
----
- kernel/sysctl.c |   20 ++++++++++----------
- 1 file changed, 10 insertions(+), 10 deletions(-)
-
-Index: linux-2.6/kernel/sysctl.c
-===================================================================
---- linux-2.6.orig/kernel/sysctl.c
-+++ linux-2.6/kernel/sysctl.c
-@@ -914,16 +914,6 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= &proc_dointvec,
- 	},
- #endif
--#ifdef CONFIG_UNEVICTABLE_LRU
--	{
--		.ctl_name	= CTL_UNNUMBERED,
--		.procname	= "scan_unevictable_pages",
--		.data		= &scan_unevictable_pages,
--		.maxlen		= sizeof(scan_unevictable_pages),
--		.mode		= 0644,
--		.proc_handler	= &scan_unevictable_handler,
--	},
--#endif
- #ifdef CONFIG_SLOW_WORK
- 	{
- 		.ctl_name	= CTL_UNNUMBERED,
-@@ -1324,6 +1314,16 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+#ifdef CONFIG_UNEVICTABLE_LRU
-+	{
-+		.ctl_name	= CTL_UNNUMBERED,
-+		.procname	= "scan_unevictable_pages",
-+		.data		= &scan_unevictable_pages,
-+		.maxlen		= sizeof(scan_unevictable_pages),
-+		.mode		= 0644,
-+		.proc_handler	= &scan_unevictable_handler,
-+	},
-+#endif
- /*
-  * NOTE: do not add new entries to this table unless you have read
-  * Documentation/sysctl/ctl_unnumbered.txt
+[Added maintainer CC]
+Jack Stone wrote:
+> Remove uneeded void casts
+>
+> Signed-Off-By: Jack Stone <jwjstone@fastmail.fm>
+> ---
+>  mm/shmem.c |    2 +-
+>  1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index d94d2e9..4febea9 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2357,7 +2357,7 @@ static struct kmem_cache *shmem_inode_cachep;
+>  static struct inode *shmem_alloc_inode(struct super_block *sb)
+>  {
+>  	struct shmem_inode_info *p;
+> -	p = (struct shmem_inode_info *)kmem_cache_alloc(shmem_inode_cachep, GFP_KERNEL);
+> +	p = kmem_cache_alloc(shmem_inode_cachep, GFP_KERNEL);
+>  	if (!p)
+>  		return NULL;
+>  	return &p->vfs_inode;
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
