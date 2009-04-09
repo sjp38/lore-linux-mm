@@ -1,174 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 11C225F0002
-	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 23:58:50 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 8A4895F0001
+	for <linux-mm@kvack.org>; Wed,  8 Apr 2009 23:58:55 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 1/4] MMU_NOTIFIERS: add set_pte_at_notify()
-Date: Thu,  9 Apr 2009 06:58:38 +0300
-Message-Id: <1239249521-5013-2-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 2/4] add page_wrprotect(): write protecting page.
+Date: Thu,  9 Apr 2009 06:58:39 +0300
+Message-Id: <1239249521-5013-3-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1239249521-5013-2-git-send-email-ieidus@redhat.com>
 References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+ <1239249521-5013-2-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-this macro allow setting the pte in the shadow page tables directly
-instead of flushing the shadow page table entry and then get vmexit in
-order to set it.
+this patch add new function called page_wrprotect(),
+page_wrprotect() is used to take a page and mark all the pte that
+point into it as readonly.
 
-This function is optimzation for kvm/users of mmu_notifiers for COW
-pages, it is useful for kvm when ksm is used beacuse it allow kvm
-not to have to recive VMEXIT and only then map the shared page into
-the mmu shadow pages, but instead map it directly at the same time
-linux map the page into the host page table.
+The function is working by walking the rmap of the page, and setting
+each pte realted to the page as readonly.
 
-this mmu notifer macro is working by calling to callback that will map
-directly the physical page into the shadow page tables.
+The odirect_sync parameter is used to protect against possible races
+with odirect while we are marking the pte as readonly,
+as noted by Andrea Arcanglei:
 
-(users of mmu_notifiers that didnt implement the set_pte_at_notify()
-call back will just recive the mmu_notifier_invalidate_page callback)
+"While thinking at get_user_pages_fast I figured another worse way
+things can go wrong with ksm and o_direct: think a thread writing
+constantly to the last 512bytes of a page, while another thread read
+and writes to/from the first 512bytes of the page. We can lose
+O_DIRECT reads, the very moment we mark any pte wrprotected..."
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
 ---
- include/linux/mmu_notifier.h |   34 ++++++++++++++++++++++++++++++++++
- mm/memory.c                  |   10 ++++++++--
- mm/mmu_notifier.c            |   20 ++++++++++++++++++++
- 3 files changed, 62 insertions(+), 2 deletions(-)
+ include/linux/rmap.h |   11 ++++
+ mm/rmap.c            |  139 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+), 0 deletions(-)
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index b77486d..8bb245f 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -61,6 +61,15 @@ struct mmu_notifier_ops {
- 				 struct mm_struct *mm,
- 				 unsigned long address);
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index b35bc0e..469376d 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -118,6 +118,10 @@ static inline int try_to_munlock(struct page *page)
+ }
+ #endif
  
-+	/* 
-+	* change_pte is called in cases that pte mapping into page is changed
-+	* for example when ksm mapped pte to point into a new shared page.
-+	*/
-+	void (*change_pte)(struct mmu_notifier *mn,
-+			   struct mm_struct *mm,
-+			   unsigned long address,
-+			   pte_t pte);
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset);
++#endif
 +
- 	/*
- 	 * Before this is invoked any secondary MMU is still ok to
- 	 * read/write to the page previously pointed to by the Linux
-@@ -154,6 +163,8 @@ extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
- extern void __mmu_notifier_release(struct mm_struct *mm);
- extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 					  unsigned long address);
-+extern void __mmu_notifier_change_pte(struct mm_struct *mm, 
-+				      unsigned long address, pte_t pte);
- extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address);
- extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-@@ -175,6 +186,13 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ #else	/* !CONFIG_MMU */
+ 
+ #define anon_vma_init()		do {} while (0)
+@@ -132,6 +136,13 @@ static inline int page_mkclean(struct page *page)
  	return 0;
  }
  
-+static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-+					   unsigned long address, pte_t pte)
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
++static inline int page_wrprotect(struct page *page, int *odirect_sync,
++				 int count_offset)
 +{
-+	if (mm_has_notifiers(mm))
-+		__mmu_notifier_change_pte(mm, address, pte);
++	return 0;
 +}
-+
- static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
-@@ -236,6 +254,16 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 	__young;							\
- })
++#endif
  
-+#define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
-+({									\
-+	struct mm_struct *___mm = __mm;					\
-+	unsigned long ___address = __address;				\
-+	pte_t ___pte = __pte;						\
-+									\
-+	set_pte_at(__mm, __address, __ptep, ___pte);			\
-+	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
-+})
-+
- #else /* CONFIG_MMU_NOTIFIER */
+ #endif	/* CONFIG_MMU */
  
- static inline void mmu_notifier_release(struct mm_struct *mm)
-@@ -248,6 +276,11 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	return 0;
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1652166..95c55ea 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -585,6 +585,145 @@ int page_mkclean(struct page *page)
  }
+ EXPORT_SYMBOL_GPL(page_mkclean);
  
-+static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-+					   unsigned long address, pte_t pte)
-+{
-+}
++#if defined(CONFIG_KSM) || defined(CONFIG_KSM_MODULE)
 +
- static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
-@@ -273,6 +306,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define ptep_clear_flush_notify ptep_clear_flush
-+#define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index cf6873e..1e1a14b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2051,9 +2051,15 @@ gotten:
- 		 * seen in the presence of one thread doing SMC and another
- 		 * thread doing COW.
- 		 */
--		ptep_clear_flush_notify(vma, address, page_table);
-+		ptep_clear_flush(vma, address, page_table);
- 		page_add_new_anon_rmap(new_page, vma, address);
--		set_pte_at(mm, address, page_table, entry);
++static int page_wrprotect_one(struct page *page, struct vm_area_struct *vma,
++			      int *odirect_sync, int count_offset)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long address;
++	pte_t *pte;
++	spinlock_t *ptl;
++	int ret = 0;
++
++	address = vma_address(page, vma);
++	if (address == -EFAULT)
++		goto out;
++
++	pte = page_check_address(page, mm, address, &ptl, 0);
++	if (!pte)
++		goto out;
++
++	if (pte_write(*pte)) {
++		pte_t entry;
++
++		flush_cache_page(vma, address, pte_pfn(*pte));
 +		/*
-+		 * We call here the notify macro beacuse in cases of using
-+		 * secondary mmu page table like kvm shadow page, tables we want
-+		 * the new page to be mapped directly into the secondary page
-+		 * table
++		 * Ok this is tricky, when get_user_pages_fast() run it doesnt
++		 * take any lock, therefore the check that we are going to make
++		 * with the pagecount against the mapcount is racey and
++		 * O_DIRECT can happen right after the check.
++		 * So we clear the pte and flush the tlb before the check
++		 * this assure us that no O_DIRECT can happen after the check
++		 * or in the middle of the check.
 +		 */
-+		set_pte_at_notify(mm, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
- 		if (old_page) {
- 			/*
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 5f4ef02..c3e8779 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -99,6 +99,26 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	return young;
- }
- 
-+void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
-+			       pte_t pte)
-+{
-+	struct mmu_notifier *mn;
-+	struct hlist_node *n;
-+
-+	rcu_read_lock();
-+	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
-+		if (mn->ops->change_pte)
-+			mn->ops->change_pte(mn, mm, address, pte);
-+		/* 
-+		 * some drivers dont have change_pte and therefor we must call
-+		 * for invalidate_page in that case
++		entry = ptep_clear_flush(vma, address, pte);
++		/*
++		 * Check that no O_DIRECT or similar I/O is in progress on the
++		 * page
 +		 */
-+		else if (mn->ops->invalidate_page)
-+			mn->ops->invalidate_page(mn, mm, address);
++		if ((page_mapcount(page) + count_offset) != page_count(page)) {
++			*odirect_sync = 0;
++			set_pte_at_notify(mm, address, pte, entry);
++			goto out_unlock;
++		}
++		entry = pte_wrprotect(entry);
++		set_pte_at_notify(mm, address, pte, entry);
 +	}
-+	rcu_read_unlock();
++	ret = 1;
++
++out_unlock:
++	pte_unmap_unlock(pte, ptl);
++out:
++	return ret;
 +}
 +
- void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
++static int page_wrprotect_file(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct address_space *mapping;
++	struct prio_tree_iter iter;
++	struct vm_area_struct *vma;
++	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	int ret = 0;
++
++	mapping = page_mapping(page);
++	if (!mapping)
++		return ret;
++
++	spin_lock(&mapping->i_mmap_lock);
++
++	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	spin_unlock(&mapping->i_mmap_lock);
++
++	return ret;
++}
++
++static int page_wrprotect_anon(struct page *page, int *odirect_sync,
++			       int count_offset)
++{
++	struct vm_area_struct *vma;
++	struct anon_vma *anon_vma;
++	int ret = 0;
++
++	anon_vma = page_lock_anon_vma(page);
++	if (!anon_vma)
++		return ret;
++
++	/*
++	 * If the page is inside the swap cache, its _count number was
++	 * increased by one, therefore we have to increase count_offset by one.
++	 */
++	if (PageSwapCache(page))
++		count_offset++;
++
++	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
++		ret += page_wrprotect_one(page, vma, odirect_sync,
++					  count_offset);
++
++	page_unlock_anon_vma(anon_vma);
++
++	return ret;
++}
++
++/**
++ * page_wrprotect - set all ptes pointing to a page as readonly
++ * @page:         the page to set as readonly
++ * @odirect_sync: boolean value that is set to 0 when some of the ptes were not
++ *                marked as readonly beacuse page_wrprotect_one() was not able
++ *                to mark this ptes as readonly without opening window to a race
++ *                with odirect
++ * @count_offset: number of times page_wrprotect() caller had called get_page()
++ *                on the page
++ *
++ * returns the number of ptes which were marked as readonly.
++ * (ptes that were readonly before this function was called are counted as well)
++ */
++int page_wrprotect(struct page *page, int *odirect_sync, int count_offset)
++{
++	int ret = 0;
++
++	/*
++	 * Page lock is needed for anon pages for the PageSwapCache check,
++	 * and for page_mapping for filebacked pages
++	 */
++	BUG_ON(!PageLocked(page));
++
++	*odirect_sync = 1;
++	if (PageAnon(page))
++		ret = page_wrprotect_anon(page, odirect_sync, count_offset);
++	else
++		ret = page_wrprotect_file(page, odirect_sync, count_offset);
++
++	return ret;
++}
++EXPORT_SYMBOL(page_wrprotect);
++
++#endif
++
+ /**
+  * __page_set_anon_rmap - setup new anonymous rmap
+  * @page:	the page to add the mapping to
 -- 
 1.5.6.5
 
