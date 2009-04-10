@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 655A95F0001
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 12:12:39 -0400 (EDT)
-Date: Fri, 10 Apr 2009 09:04:16 -0700 (PDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id ECF075F0001
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 12:17:25 -0400 (EDT)
+Date: Fri, 10 Apr 2009 09:09:53 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Subject: [PATCH 1/2] Remove internal use of 'write_access' in mm/memory.c
+Subject: [PATCH 2/2] Move FAULT_FLAG_xyz into handle_mm_fault() callers
 In-Reply-To: <alpine.LFD.2.00.0904100835150.4583@localhost.localdomain>
-Message-ID: <alpine.LFD.2.00.0904100903470.4583@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0904100904250.4583@localhost.localdomain>
 References: <604427e00904081302m7b29c538u7781cd8f4dd576f2@mail.gmail.com> <20090409230205.310c68a7.akpm@linux-foundation.org> <20090410073042.GB21149@localhost> <alpine.LFD.2.00.0904100835150.4583@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,186 +17,407 @@ List-ID: <linux-mm.kvack.org>
 
 
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 10 Apr 2009 08:43:11 -0700
+Date: Fri, 10 Apr 2009 09:01:23 -0700
 
-The fault handling routines really want more fine-grained flags than a
-single "was it a write fault" boolean - the callers will want to set
-flags like "you can return a retry error" etc.
-
-And that's actually how the VM works internally, but right now the
-top-level fault handling functions in mm/memory.c all pass just the
-'write_access' boolean around.
-
-This switches them over to pass around the FAULT_FLAG_xyzzy 'flags'
-variable instead.  The 'write_access' calling convention still exists
-for the exported 'handle_mm_fault()' function, but that is next.
+This allows the callers to now pass down the full set of FAULT_FLAG_xyz
+flags to handle_mm_fault().  All callers have been (mechanically)
+converted to the new calling convention, there's almost certainly room
+for architectures to clean up their code and then add FAULT_FLAG_RETRY
+when that support is added.
 
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 ---
- mm/memory.c |   42 +++++++++++++++++++++---------------------
- 1 files changed, 21 insertions(+), 21 deletions(-)
 
+Again - untested. Not compiled. Might well rape your pets and just 
+otherwise act badly. It's also a very mechanical conversion, ie I 
+explicitly did
+
+-       fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, fsr & (1 << 11));
++       fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, (fsr & (1 << 11)) ? FAULT_FLAG_WRITE : 0);
+
+rather than doing some cleanup while there.
+
+The point is, once we do this, now you really pass FAULT_FLAG_xyz 
+everywhere, and now it's trivial to add FAULT_FLAG_RETRY without horribly 
+ugly or hacky code.
+
+For example, before, I think Wu's code would have failed on ARM if 
+FAULT_FLAG_RETRY just happened to be (1 << 11), because back when we 
+passed in "zero or non-zero", ARM would literally pass in (1 << 11) or 0 
+for "write_access".
+
+Now we explicitly pass in a nice FAULT_FLAG_WRITE or 0.
+
+ arch/alpha/mm/fault.c                   |    2 +-
+ arch/arm/mm/fault.c                     |    2 +-
+ arch/avr32/mm/fault.c                   |    2 +-
+ arch/cris/mm/fault.c                    |    2 +-
+ arch/frv/mm/fault.c                     |    2 +-
+ arch/ia64/mm/fault.c                    |    2 +-
+ arch/m32r/mm/fault.c                    |    2 +-
+ arch/m68k/mm/fault.c                    |    2 +-
+ arch/mips/mm/fault.c                    |    2 +-
+ arch/mn10300/mm/fault.c                 |    2 +-
+ arch/parisc/mm/fault.c                  |    2 +-
+ arch/powerpc/mm/fault.c                 |    2 +-
+ arch/powerpc/platforms/cell/spu_fault.c |    2 +-
+ arch/s390/lib/uaccess_pt.c              |    2 +-
+ arch/s390/mm/fault.c                    |    2 +-
+ arch/sh/mm/fault_32.c                   |    2 +-
+ arch/sh/mm/tlbflush_64.c                |    2 +-
+ arch/sparc/mm/fault_32.c                |    4 ++--
+ arch/sparc/mm/fault_64.c                |    2 +-
+ arch/um/kernel/trap.c                   |    2 +-
+ arch/x86/mm/fault.c                     |    2 +-
+ arch/xtensa/mm/fault.c                  |    2 +-
+ include/linux/mm.h                      |    4 ++--
+ mm/memory.c                             |    8 ++++----
+ 24 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/arch/alpha/mm/fault.c b/arch/alpha/mm/fault.c
+index 4829f96..00a31de 100644
+--- a/arch/alpha/mm/fault.c
++++ b/arch/alpha/mm/fault.c
+@@ -146,7 +146,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
+ 	/* If for any reason at all we couldn't handle the fault,
+ 	   make sure we exit gracefully rather than endlessly redo
+ 	   the fault.  */
+-	fault = handle_mm_fault(mm, vma, address, cause > 0);
++	fault = handle_mm_fault(mm, vma, address, cause > 0 ? FAULT_FLAG_WRITE : 0);
+ 	up_read(&mm->mmap_sem);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index 0455557..6fdcbb7 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -208,7 +208,7 @@ good_area:
+ 	 * than endlessly redo the fault.
+ 	 */
+ survive:
+-	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, fsr & (1 << 11));
++	fault = handle_mm_fault(mm, vma, addr & PAGE_MASK, (fsr & (1 << 11)) ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/avr32/mm/fault.c b/arch/avr32/mm/fault.c
+index 62d4abb..b61d86d 100644
+--- a/arch/avr32/mm/fault.c
++++ b/arch/avr32/mm/fault.c
+@@ -133,7 +133,7 @@ good_area:
+ 	 * fault.
+ 	 */
+ survive:
+-	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	fault = handle_mm_fault(mm, vma, address, writeaccess ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/cris/mm/fault.c b/arch/cris/mm/fault.c
+index c4c76db..f925115 100644
+--- a/arch/cris/mm/fault.c
++++ b/arch/cris/mm/fault.c
+@@ -163,7 +163,7 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
+ 	 * the fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, writeaccess & 1);
++	fault = handle_mm_fault(mm, vma, address, (writeaccess & 1) ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/frv/mm/fault.c b/arch/frv/mm/fault.c
+index 05093d4..30f5d10 100644
+--- a/arch/frv/mm/fault.c
++++ b/arch/frv/mm/fault.c
+@@ -163,7 +163,7 @@ asmlinkage void do_page_fault(int datammu, unsigned long esr0, unsigned long ear
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, ear0, write);
++	fault = handle_mm_fault(mm, vma, ear0, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
+index 23088be..19261a9 100644
+--- a/arch/ia64/mm/fault.c
++++ b/arch/ia64/mm/fault.c
+@@ -154,7 +154,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
+ 	 * sure we exit gracefully rather than endlessly redo the
+ 	 * fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, (mask & VM_WRITE) != 0);
++	fault = handle_mm_fault(mm, vma, address, (mask & VM_WRITE) ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		/*
+ 		 * We ran out of memory, or some other thing happened
+diff --git a/arch/m32r/mm/fault.c b/arch/m32r/mm/fault.c
+index 4a71df4..7274b47 100644
+--- a/arch/m32r/mm/fault.c
++++ b/arch/m32r/mm/fault.c
+@@ -196,7 +196,7 @@ survive:
+ 	 */
+ 	addr = (address & PAGE_MASK);
+ 	set_thread_fault_code(error_code);
+-	fault = handle_mm_fault(mm, vma, addr, write);
++	fault = handle_mm_fault(mm, vma, addr, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/m68k/mm/fault.c b/arch/m68k/mm/fault.c
+index f493f03..d0e35cf 100644
+--- a/arch/m68k/mm/fault.c
++++ b/arch/m68k/mm/fault.c
+@@ -155,7 +155,7 @@ good_area:
+ 	 */
+ 
+  survive:
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ #ifdef DEBUG
+ 	printk("handle_mm_fault returns %d\n",fault);
+ #endif
+diff --git a/arch/mips/mm/fault.c b/arch/mips/mm/fault.c
+index 55767ad..6751ce9 100644
+--- a/arch/mips/mm/fault.c
++++ b/arch/mips/mm/fault.c
+@@ -102,7 +102,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/mn10300/mm/fault.c b/arch/mn10300/mm/fault.c
+index 33cf250..a62e1e1 100644
+--- a/arch/mn10300/mm/fault.c
++++ b/arch/mn10300/mm/fault.c
+@@ -258,7 +258,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/parisc/mm/fault.c b/arch/parisc/mm/fault.c
+index 92c7fa4..bfb6dd6 100644
+--- a/arch/parisc/mm/fault.c
++++ b/arch/parisc/mm/fault.c
+@@ -202,7 +202,7 @@ good_area:
+ 	 * fault.
+ 	 */
+ 
+-	fault = handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) != 0);
++	fault = handle_mm_fault(mm, vma, address, (acc_type & VM_WRITE) ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		/*
+ 		 * We hit a shared mapping outside of the file, or some
+diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
+index 7699394..e2bf1ee 100644
+--- a/arch/powerpc/mm/fault.c
++++ b/arch/powerpc/mm/fault.c
+@@ -299,7 +299,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+  survive:
+-	ret = handle_mm_fault(mm, vma, address, is_write);
++	ret = handle_mm_fault(mm, vma, address, is_write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(ret & VM_FAULT_ERROR)) {
+ 		if (ret & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/powerpc/platforms/cell/spu_fault.c b/arch/powerpc/platforms/cell/spu_fault.c
+index 95d8dad..d06ba87 100644
+--- a/arch/powerpc/platforms/cell/spu_fault.c
++++ b/arch/powerpc/platforms/cell/spu_fault.c
+@@ -70,7 +70,7 @@ int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+ 	}
+ 
+ 	ret = 0;
+-	*flt = handle_mm_fault(mm, vma, ea, is_write);
++	*flt = handle_mm_fault(mm, vma, ea, is_write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(*flt & VM_FAULT_ERROR)) {
+ 		if (*flt & VM_FAULT_OOM) {
+ 			ret = -ENOMEM;
+diff --git a/arch/s390/lib/uaccess_pt.c b/arch/s390/lib/uaccess_pt.c
+index b0b84c3..cb5d59e 100644
+--- a/arch/s390/lib/uaccess_pt.c
++++ b/arch/s390/lib/uaccess_pt.c
+@@ -66,7 +66,7 @@ static int __handle_fault(struct mm_struct *mm, unsigned long address,
+ 	}
+ 
+ survive:
+-	fault = handle_mm_fault(mm, vma, address, write_access);
++	fault = handle_mm_fault(mm, vma, address, write_access ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
+index 833e836..31456fa 100644
+--- a/arch/s390/mm/fault.c
++++ b/arch/s390/mm/fault.c
+@@ -351,7 +351,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM) {
+ 			up_read(&mm->mmap_sem);
+diff --git a/arch/sh/mm/fault_32.c b/arch/sh/mm/fault_32.c
+index 31a33eb..09ef52a 100644
+--- a/arch/sh/mm/fault_32.c
++++ b/arch/sh/mm/fault_32.c
+@@ -133,7 +133,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	fault = handle_mm_fault(mm, vma, address, writeaccess ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/sh/mm/tlbflush_64.c b/arch/sh/mm/tlbflush_64.c
+index 7876997..fcbb6e1 100644
+--- a/arch/sh/mm/tlbflush_64.c
++++ b/arch/sh/mm/tlbflush_64.c
+@@ -187,7 +187,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	fault = handle_mm_fault(mm, vma, address, writeaccess);
++	fault = handle_mm_fault(mm, vma, address, writeaccess ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/sparc/mm/fault_32.c b/arch/sparc/mm/fault_32.c
+index 12e447f..a5e30c6 100644
+--- a/arch/sparc/mm/fault_32.c
++++ b/arch/sparc/mm/fault_32.c
+@@ -241,7 +241,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault.
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+@@ -484,7 +484,7 @@ good_area:
+ 		if(!(vma->vm_flags & (VM_READ | VM_EXEC)))
+ 			goto bad_area;
+ 	}
+-	switch (handle_mm_fault(mm, vma, address, write)) {
++	switch (handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0)) {
+ 	case VM_FAULT_SIGBUS:
+ 	case VM_FAULT_OOM:
+ 		goto do_sigbus;
+diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
+index 4ab8993..e5620b2 100644
+--- a/arch/sparc/mm/fault_64.c
++++ b/arch/sparc/mm/fault_64.c
+@@ -398,7 +398,7 @@ good_area:
+ 			goto bad_area;
+ 	}
+ 
+-	fault = handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE));
++	fault = handle_mm_fault(mm, vma, address, (fault_code & FAULT_CODE_WRITE) ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/arch/um/kernel/trap.c b/arch/um/kernel/trap.c
+index 7384d8a..637c650 100644
+--- a/arch/um/kernel/trap.c
++++ b/arch/um/kernel/trap.c
+@@ -65,7 +65,7 @@ good_area:
+ 	do {
+ 		int fault;
+ 
+-		fault = handle_mm_fault(mm, vma, address, is_write);
++		fault = handle_mm_fault(mm, vma, address, is_write ? FAULT_FLAG_WRITE : 0);
+ 		if (unlikely(fault & VM_FAULT_ERROR)) {
+ 			if (fault & VM_FAULT_OOM) {
+ 				goto out_of_memory;
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index a03b727..65a07ba 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -1130,7 +1130,7 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault:
+ 	 */
+-	fault = handle_mm_fault(mm, vma, address, write);
++	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+ 
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		mm_fault_error(regs, error_code, address, fault);
+diff --git a/arch/xtensa/mm/fault.c b/arch/xtensa/mm/fault.c
+index bdd860d..bc07333 100644
+--- a/arch/xtensa/mm/fault.c
++++ b/arch/xtensa/mm/fault.c
+@@ -106,7 +106,7 @@ good_area:
+ 	 * the fault.
+ 	 */
+ survive:
+-	fault = handle_mm_fault(mm, vma, address, is_write);
++	fault = handle_mm_fault(mm, vma, address, is_write ? FAULT_FLAG_WRITE : 0);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+ 		if (fault & VM_FAULT_OOM)
+ 			goto out_of_memory;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bff1f0d..3f207d1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -810,11 +810,11 @@ extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
+ 
+ #ifdef CONFIG_MMU
+ extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-			unsigned long address, int write_access);
++			unsigned long address, unsigned int flags);
+ #else
+ static inline int handle_mm_fault(struct mm_struct *mm,
+ 			struct vm_area_struct *vma, unsigned long address,
+-			int write_access)
++			unsigned int flags)
+ {
+ 	/* should never happen if there's no MMU */
+ 	BUG();
 diff --git a/mm/memory.c b/mm/memory.c
-index cf6873e..9050bae 100644
+index 9050bae..383dc0b 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2413,7 +2413,7 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
-  */
- static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		int write_access, pte_t orig_pte)
-+		unsigned int flags, pte_t orig_pte)
- {
- 	spinlock_t *ptl;
- 	struct page *page;
-@@ -2490,9 +2490,9 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	inc_mm_counter(mm, anon_rss);
- 	pte = mk_pte(page, vma->vm_page_prot);
--	if (write_access && reuse_swap_page(page)) {
-+	if ((flags & FAULT_FLAG_WRITE) && reuse_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
--		write_access = 0;
-+		flags &= ~FAULT_FLAG_WRITE;
- 	}
- 	flush_icache_page(vma, page);
- 	set_pte_at(mm, address, page_table, pte);
-@@ -2505,7 +2505,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		try_to_free_swap(page);
- 	unlock_page(page);
- 
--	if (write_access) {
-+	if (flags & FAULT_FLAG_WRITE) {
- 		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
- 		if (ret & VM_FAULT_ERROR)
- 			ret &= VM_FAULT_ERROR;
-@@ -2533,7 +2533,7 @@ out_nomap:
-  */
- static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		int write_access)
-+		unsigned int flags)
- {
- 	struct page *page;
- 	spinlock_t *ptl;
-@@ -2698,7 +2698,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * due to the bad i386 page protection. But it's valid
- 	 * for other architectures too.
- 	 *
--	 * Note that if write_access is true, we either now have
-+	 * Note that if FAULT_FLAG_WRITE is set, we either now have
- 	 * an exclusive copy of the page, or this is a shared mapping,
- 	 * so we can make it writable and dirty to avoid having to
- 	 * handle that later.
-@@ -2753,11 +2753,10 @@ out_unlocked:
- 
- static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		int write_access, pte_t orig_pte)
-+		unsigned int flags, pte_t orig_pte)
- {
- 	pgoff_t pgoff = (((address & PAGE_MASK)
- 			- vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
--	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
- 
- 	pte_unmap(page_table);
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
-@@ -2774,12 +2773,12 @@ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-  */
- static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pte_t *page_table, pmd_t *pmd,
--		int write_access, pte_t orig_pte)
-+		unsigned int flags, pte_t orig_pte)
- {
--	unsigned int flags = FAULT_FLAG_NONLINEAR |
--				(write_access ? FAULT_FLAG_WRITE : 0);
- 	pgoff_t pgoff;
- 
-+	flags |= FAULT_FLAG_NONLINEAR;
+@@ -1310,8 +1310,9 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			cond_resched();
+ 			while (!(page = follow_page(vma, start, foll_flags))) {
+ 				int ret;
+-				ret = handle_mm_fault(mm, vma, start,
+-						foll_flags & FOLL_WRITE);
 +
- 	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
- 		return 0;
- 
-@@ -2810,7 +2809,7 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
++				/* FOLL_WRITE matches FAULT_FLAG_WRITE! */
++				ret = handle_mm_fault(mm, vma, start, foll_flags & FOLL_WRITE);
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
+ 						return i ? i : -ENOMEM;
+@@ -2864,13 +2865,12 @@ unlock:
+  * By the time we get here, we already hold the mm semaphore
   */
- static inline int handle_pte_fault(struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long address,
--		pte_t *pte, pmd_t *pmd, int write_access)
-+		pte_t *pte, pmd_t *pmd, unsigned int flags)
+ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+-		unsigned long address, int write_access)
++		unsigned long address, unsigned int flags)
  {
- 	pte_t entry;
- 	spinlock_t *ptl;
-@@ -2821,30 +2820,30 @@ static inline int handle_pte_fault(struct mm_struct *mm,
- 			if (vma->vm_ops) {
- 				if (likely(vma->vm_ops->fault))
- 					return do_linear_fault(mm, vma, address,
--						pte, pmd, write_access, entry);
-+						pte, pmd, flags, entry);
- 			}
- 			return do_anonymous_page(mm, vma, address,
--						 pte, pmd, write_access);
-+						 pte, pmd, flags);
- 		}
- 		if (pte_file(entry))
- 			return do_nonlinear_fault(mm, vma, address,
--					pte, pmd, write_access, entry);
-+					pte, pmd, flags, entry);
- 		return do_swap_page(mm, vma, address,
--					pte, pmd, write_access, entry);
-+					pte, pmd, flags, entry);
- 	}
- 
- 	ptl = pte_lockptr(mm, pmd);
- 	spin_lock(ptl);
- 	if (unlikely(!pte_same(*pte, entry)))
- 		goto unlock;
--	if (write_access) {
-+	if (flags & FAULT_FLAG_WRITE) {
- 		if (!pte_write(entry))
- 			return do_wp_page(mm, vma, address,
- 					pte, pmd, ptl, entry);
- 		entry = pte_mkdirty(entry);
- 	}
- 	entry = pte_mkyoung(entry);
--	if (ptep_set_access_flags(vma, address, pte, entry, write_access)) {
-+	if (ptep_set_access_flags(vma, address, pte, entry, flags & FAULT_FLAG_WRITE)) {
- 		update_mmu_cache(vma, address, entry);
- 	} else {
- 		/*
-@@ -2853,7 +2852,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
- 		 * This still avoids useless tlb flushes for .text page faults
- 		 * with threads.
- 		 */
--		if (write_access)
-+		if (flags & FAULT_FLAG_WRITE)
- 			flush_tlb_page(vma, address);
- 	}
- unlock:
-@@ -2871,13 +2870,14 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	pgd_t *pgd;
  	pud_t *pud;
  	pmd_t *pmd;
  	pte_t *pte;
-+	unsigned int flags = write_access ? FAULT_FLAG_WRITE : 0;
+-	unsigned int flags = write_access ? FAULT_FLAG_WRITE : 0;
  
  	__set_current_state(TASK_RUNNING);
  
- 	count_vm_event(PGFAULT);
- 
- 	if (unlikely(is_vm_hugetlb_page(vma)))
--		return hugetlb_fault(mm, vma, address, write_access);
-+		return hugetlb_fault(mm, vma, address, flags);
- 
- 	pgd = pgd_offset(mm, address);
- 	pud = pud_alloc(mm, pgd, address);
-@@ -2890,7 +2890,7 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!pte)
- 		return VM_FAULT_OOM;
- 
--	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
-+	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
- }
- 
- #ifndef __PAGETABLE_PUD_FOLDED
 -- 
 1.6.2.2.471.g6da14.dirty
 
