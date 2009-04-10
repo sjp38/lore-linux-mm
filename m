@@ -1,126 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 7D2705F0001
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 02:34:37 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3A6Z791017393
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 10 Apr 2009 15:35:07 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7922545DD78
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 15:35:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 41C0445DD76
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 15:35:07 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DA101DB8018
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 15:35:07 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C718C1DB8012
-	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 15:35:06 +0900 (JST)
-Date: Fri, 10 Apr 2009 15:33:35 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [PATCH] memcg remove warning at DEBUG_VM=off
-Message-Id: <20090410153335.b52c5f74.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090409222512.bd026a40.akpm@linux-foundation.org>
-References: <20090408142042.3fb62eea.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090408052715.GX7082@balbir.in.ibm.com>
-	<20090409222512.bd026a40.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 0F7795F0001
+	for <linux-mm@kvack.org>; Fri, 10 Apr 2009 02:48:23 -0400 (EDT)
+Date: Fri, 10 Apr 2009 14:48:45 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH][1/2]page_fault retry with NOPAGE_RETRY
+Message-ID: <20090410064845.GA21149@localhost>
+References: <604427e00904081302m7b29c538u7781cd8f4dd576f2@mail.gmail.com> <20090409230205.310c68a7.akpm@linux-foundation.org> <604427e00904092332w7e7a3004ne983abc373dd186b@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <604427e00904092332w7e7a3004ne983abc373dd186b@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbir@linux.vnet.ibm.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: Ying Han <yinghan@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Ingo Molnar <mingo@elte.hu>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, =?utf-8?B?VMO2csO2aw==?= Edwin <edwintorok@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Apr 2009 22:25:12 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Fri, Apr 10, 2009 at 02:32:01PM +0800, Ying Han wrote:
+> 2009/4/9 Andrew Morton <akpm@linux-foundation.org>:
+> >
+> >> Subject: [PATCH][1/2]page_fault retry with NOPAGE_RETRY
+> >
+> > Please give each patch in the series a unique and meaningful title.
+> >
+> > On Wed, 8 Apr 2009 13:02:35 -0700 Ying Han <yinghan@google.com> wrote:
+> >
+> >> support for FAULT_FLAG_RETRY with no user change:
+> >
+> > yup, we'd prefer a complete changelog here please.
+> >
+> >> Signed-off-by: Ying Han <yinghan@google.com>
+> >>              Mike Waychison <mikew@google.com>
+> >
+> > This form:
+> >
+> > Signed-off-by: Ying Han <yinghan@google.com>
+> > Signed-off-by: Mike Waychison <mikew@google.com>
+> 
+> Thanks Andrew,  and i need to add Fengguang to Signed-off-by.
 
-> On Wed, 8 Apr 2009 10:57:15 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-08 14:20:42]:
-> > 
-> > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > This is against 2.6.30-rc1. (maybe no problem against mmotm.)
-> > > 
-> > > ==
-> > > Fix warning as
-> > > 
-> > >   CC      mm/memcontrol.o
-> > > mm/memcontrol.c:318: warning: ?$B!Fmem_cgroup_is_obsolete?$B!G defined but not used
-> > > 
-> > > This is called only from VM_BUG_ON().
-> > > 
-> > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > ---
-> > > Index: linux-2.6.30-rc1/mm/memcontrol.c
-> > > ===================================================================
-> > > --- linux-2.6.30-rc1.orig/mm/memcontrol.c
-> > > +++ linux-2.6.30-rc1/mm/memcontrol.c
-> > > @@ -314,13 +314,14 @@ static struct mem_cgroup *try_get_mem_cg
-> > >  	return mem;
-> > >  }
-> > > 
-> > > +#ifdef CONFIG_DEBUG_VM
-> > >  static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
-> > >  {
-> > >  	if (!mem)
-> > >  		return true;
-> > >  	return css_is_removed(&mem->css);
-> > >  }
-> > > -
-> > > +#endif
-> > 
-> > Can we change the code to use
-> > 
-> >         VM_BUG_ON(!mem || css_is_removed(&mem->css));
-> > 
-> 
-> yup.
-> 
-> --- a/mm/memcontrol.c~memcg-remove-warning-when-config_debug_vm=n-fix
-> +++ a/mm/memcontrol.c
-> @@ -314,14 +314,13 @@ static struct mem_cgroup *try_get_mem_cg
->  	return mem;
->  }
->  
-> -#ifdef CONFIG_DEBUG_VM
->  static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
->  {
->  	if (!mem)
->  		return true;
->  	return css_is_removed(&mem->css);
->  }
-> -#endif
-> +
->  
->  /*
->   * Call callback function against all cgroup under hierarchy tree.
-> @@ -933,7 +932,7 @@ static int __mem_cgroup_try_charge(struc
->  	if (unlikely(!mem))
->  		return 0;
->  
-> -	VM_BUG_ON(mem_cgroup_is_obsolete(mem));
-> +	VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
->  
->  	while (1) {
->  		int ret;
-> _
-> 
-> Although it really should be
-> 
-> 	VM_BUG_ON(!mem);
-> 	VM_BUG_ON(mem_cgroup_is_obsolete(mem));
-> 
-> because if that BUG triggers, you'll be wondering which case caused it.
-> 
-Ah, sorry, I missed the reply.
-maybe calling css_is_removed() directly is a choice.
-I'll prepare v2.
+Thank you.
 
-Regards,
--Kame
+> >
+> > is conventional.
+> >
+> >> index 4a853ef..29c2c39 100644
+> >> --- a/include/linux/fs.h
+> >> +++ b/include/linux/fs.h
+> >> @@ -793,7 +793,7 @@ struct file_ra_state {
+> >>                                          there are only # of pages ahead */
+> >>
+> >>       unsigned int ra_pages;          /* Maximum readahead window */
+> >> -     int mmap_miss;                  /* Cache miss stat for mmap accesses */
+> >> +     unsigned int mmap_miss;         /* Cache miss stat for mmap accesses */
+> >
+> > This change makes sense, but we're not told the reasons for making it?
+> > Did it fix a bug, or is it an unrelated fixlet, or...?
+> 
+> Fengguang: Could you help making comments on this part? and i will
+> make changes elsewhere as Andrew pointed. Thanks
+
+Ah this may deserve a standalone patch:
+---
+readhead: make mmap_miss an unsigned int
+
+This makes the performance impact of possible mmap_miss wrap around to be
+temporary and tolerable: i.e. MMAP_LOTSAMISS=100 extra readarounds.
+
+Otherwise if ever mmap_miss wraps around to negative, it takes INT_MAX
+cache misses to bring it back to normal state.  During the time mmap
+readaround will be _enabled_ for whatever wild random workload. That's
+almost permanent performance impact.
+
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/fs.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- mm.orig/include/linux/fs.h
++++ mm/include/linux/fs.h
+@@ -824,7 +824,7 @@ struct file_ra_state {
+ 					   there are only # of pages ahead */
+ 
+ 	unsigned int ra_pages;		/* Maximum readahead window */
+-	int mmap_miss;			/* Cache miss stat for mmap accesses */
++	unsigned int mmap_miss;		/* Cache miss stat for mmap accesses */
+ 	loff_t prev_pos;		/* Cache last read() position */
+ };
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
