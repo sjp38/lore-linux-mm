@@ -1,297 +1,430 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 5B3175F0001
-	for <linux-mm@kvack.org>; Sat, 11 Apr 2009 08:07:38 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2513F5F0001
+	for <linux-mm@kvack.org>; Sat, 11 Apr 2009 08:08:56 -0400 (EDT)
 References: <m1skkf761y.fsf@fess.ebiederm.org>
 From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Sat, 11 Apr 2009 05:07:39 -0700
+Date: Sat, 11 Apr 2009 05:08:58 -0700
 In-Reply-To: <m1skkf761y.fsf@fess.ebiederm.org> (Eric W. Biederman's message of "Sat\, 11 Apr 2009 05\:01\:29 -0700")
-Message-ID: <m1ab6n75ro.fsf@fess.ebiederm.org>
+Message-ID: <m163hb75ph.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Subject: [RFC][PATCH 4/9] vfs: Generalize the file_list
+Subject: [RFC][PATCH 5/9] vfs: Introduce basic infrastructure for revoking a file
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
 
-file_list_lock is held when files are being revoked
-aka hung up on in tty_io, and also needs to be done
-in a more general revoke case.  The more general revoke
-case also needs to sleep so I have converted file_list_lock
-into a mutex.
+Going forward fops_read_lock should be held whenever file->f_op is being
+accesed and when the functions from f_op are executing.
 
-To make it clear what is on the file list and when I have changed
-file_move to file_add.  The callers have been modified to to ensure
-file_add is called exactly once on a file.  In __dentry_open
-file_add is called on everything except device files.  In __ptmx_open
-and __tty_open file_add is called to place the ttys on the tty_files
-list.
+In 4 subsystems sysfs, proc, and sysctl, and tty we have support
+for modifing a file descriptor so that the underlying object
+can go away.  In looking at the problem of pci hotunplug
+it appears that we potentially need that support for all file
+descriptors except ones talking to files on filesystems.  Even
+on for file descriptors referring to files support for file
+the underlying object going away is interesting for implementing
+features like umount -f and sys_revoke.
 
-To make using the file_list for efficient for handling revokes
-I have moved the list head from the superblock to the inode.
-This means only relevant files need to be looked at.
+The implementations in sysfs, proc and sysctl are all very similar
+and are composed of several components.
+- A reference count to track that the file operations are being used.
+- An ability to flag the file as no longer being valid.
+- An ability to wait until the reference count is no longer used.
 
-fs_may_remount_ro and mark_files_ro have been modified to
-walk the inode list to find all of the inodes and then to
-walk the file list on those inodes.  It is a slightly slower
-process but just as efficient and potentially more correct
-as inodes may have some influence on the the rw state of the
-filesystem that files do not.
+Tracking when file_operations functions are running is done by holding
+the fops_read_lock across their invocations.
+
+Flagging when the file is no longer valid will be done by taking f_lock
+and modifying f_op, with a set of file operations that will return
+appropriate error codes,. roughly EIO from most operations, POLLERR
+from poll, and 0 from reads, and setting FMODE_REVOKE.
+
+Waiting until the functions are no longer being called is done with
+by waiting until f_use goes to 0.  Essentially the same as synchronize_srcu.
+
+When implementing this I encountered an additional challenge.  Ensuring
+that f_op->release is called exactly once, in an appropriate context.
+
+To ensure this I have taken several steps.
+- file_kill is moved immediate after after frelease in __fput to ensure
+  the proper context is present even if fop_substitute calls release.
+
+- open sets FMODE_RELEASE after the open succeeds (but before fops_read_unlock)
+  ensuring that fops_subsittute will know if release needs to be called
+  after it has finished waiting for all of the files.
+
+- __fput samples fmode and f_op under f_lock and only calls __frelease
+  if FMODE_REVOKE has not happened and FMODE_RELEASE is pending.  Leaving
+  it up to fops_subsitutate to call __frelease.
+
+- fops_substituate calls __frelease in all cases if after waiting for
+  all users of a file to go to zero FMODE_RELEASE is still set.
 
 Signed-off-by: Eric W. Biederman <ebiederm@xmission.com>
 ---
- drivers/char/pty.c    |    2 +-
- drivers/char/tty_io.c |    2 +-
- fs/file_table.c       |   27 ++++++++++++++++++---------
- fs/inode.c            |    1 +
- fs/open.c             |    3 ++-
- fs/super.c            |   49 +++++++++++++++++++++++++++----------------------
- include/linux/fs.h    |   10 +++++-----
- 7 files changed, 55 insertions(+), 39 deletions(-)
+ Documentation/filesystems/vfs.txt |    4 +
+ fs/file_table.c                   |  154 ++++++++++++++++++++++++++++++++++---
+ fs/open.c                         |   19 ++++-
+ include/linux/fs.h                |   19 +++++
+ 4 files changed, 181 insertions(+), 15 deletions(-)
 
-diff --git a/drivers/char/pty.c b/drivers/char/pty.c
-index 31038a0..3ed304c 100644
---- a/drivers/char/pty.c
-+++ b/drivers/char/pty.c
-@@ -662,7 +662,7 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
+diff --git a/Documentation/filesystems/vfs.txt b/Documentation/filesystems/vfs.txt
+index deeeed0..2b115ba 100644
+--- a/Documentation/filesystems/vfs.txt
++++ b/Documentation/filesystems/vfs.txt
+@@ -807,6 +807,10 @@ otherwise noted.
+   splice_read: called by the VFS to splice data from file to a pipe. This
+ 	       method is used by the splice(2) system call
  
- 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
- 	filp->private_data = tty;
--	file_move(filp, &tty->tty_files);
-+	file_add(filp, &tty->tty_files);
- 
- 	retval = devpts_pty_new(inode, tty->link);
- 	if (retval)
-diff --git a/drivers/char/tty_io.c b/drivers/char/tty_io.c
-index 66b99a2..22b978e 100644
---- a/drivers/char/tty_io.c
-+++ b/drivers/char/tty_io.c
-@@ -1836,7 +1836,7 @@ got_driver:
- 		return PTR_ERR(tty);
- 
- 	filp->private_data = tty;
--	file_move(filp, &tty->tty_files);
-+	file_add(filp, &tty->tty_files);
- 	check_tty_count(tty, "tty_open");
- 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
- 	    tty->driver->subtype == PTY_TYPE_MASTER)
++  awaken_all_waiters: Called in while revoking a file to wake up poll,
++                      aio operations, fasync, and anything else blocked
++		      indefinitely waiting for something to happen.
++
+ Note that the file operations are implemented by the specific
+ filesystem in which the inode resides. When opening a device node
+ (character or block special) most filesystems will call special
 diff --git a/fs/file_table.c b/fs/file_table.c
-index 54018fe..03d74b6 100644
+index 03d74b6..d216557 100644
 --- a/fs/file_table.c
 +++ b/fs/file_table.c
-@@ -22,6 +22,7 @@
- #include <linux/fsnotify.h>
+@@ -23,6 +23,7 @@
  #include <linux/sysctl.h>
  #include <linux/percpu_counter.h>
-+#include <linux/writeback.h>
+ #include <linux/writeback.h>
++#include <linux/mm.h>
  
  #include <asm/atomic.h>
  
-@@ -31,7 +32,7 @@ struct files_stat_struct files_stat = {
- };
+@@ -204,7 +205,7 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
+ 	file->f_path.dentry = dentry;
+ 	file->f_path.mnt = mntget(mnt);
+ 	file->f_mapping = dentry->d_inode->i_mapping;
+-	file->f_mode = mode;
++	file->f_mode = mode | FMODE_RELEASE;
+ 	file->f_op = fop;
  
- /* public. Not pretty! */
--__cacheline_aligned_in_smp DEFINE_SPINLOCK(files_lock);
-+__cacheline_aligned_in_smp DEFINE_MUTEX(files_lock);
+ 	/*
+@@ -255,6 +256,51 @@ void drop_file_write_access(struct file *file)
+ }
+ EXPORT_SYMBOL_GPL(drop_file_write_access);
  
- /* SLAB cache for file structures */
- static struct kmem_cache *filp_cachep __read_mostly;
-@@ -357,12 +358,12 @@ void put_filp(struct file *file)
++static void __frelease(struct file *file, struct inode *inode,
++			const struct file_operations *f_op)
++{
++	locks_remove_flock(file);
++	if (unlikely(file->f_flags & FASYNC)) {
++		if (f_op && f_op->fasync)
++			file->f_op->fasync(-1, file, 0);
++	}
++	if (f_op && f_op->release)
++		f_op->release(inode, file);
++
++	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL))
++		cdev_put(inode->i_cdev);
++}
++
++static void frelease(struct file *file, struct inode *inode)
++
++{
++	const struct file_operations *f_op;
++	int fops_idx;
++	fmode_t mode;
++	int need_release = 0;
++
++	fops_idx = fops_read_lock(file);
++
++	/*
++	 * Ensure that __frelease is called exactly once.
++	 *
++	 * We don't do anything if FMODE_REVOKED is set because
++	 * we will have a f_op without the proper release method
++	 * and so can not cleanup from this path.
++	 */
++	spin_lock(&file->f_lock);
++	f_op = file->f_op;
++	mode = file->f_mode;
++	need_release = (mode & (FMODE_REVOKED | FMODE_RELEASE)) == FMODE_RELEASE;
++	if (need_release)
++		file->f_mode = mode & ~FMODE_RELEASE;
++	spin_unlock(&file->f_lock);
++
++	if (need_release)
++		__frelease(file, inode, f_op);
++	fops_read_unlock(file, fops_idx);
++}
++
+ /* __fput is called from task context when aio completion releases the last
+  * last use of a struct file *.  Do not use otherwise.
+  */
+@@ -272,21 +318,14 @@ void __fput(struct file *file)
+ 	 * in the file cleanup chain.
+ 	 */
+ 	eventpoll_release(file);
+-	locks_remove_flock(file);
+ 
+-	if (unlikely(file->f_flags & FASYNC)) {
+-		if (file->f_op && file->f_op->fasync)
+-			file->f_op->fasync(-1, file, 0);
+-	}
+-	if (file->f_op && file->f_op->release)
+-		file->f_op->release(inode, file);
++	frelease(file, inode);
++	file_kill(file);
++
+ 	security_file_free(file);
+ 	ima_file_free(file);
+-	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL))
+-		cdev_put(inode->i_cdev);
+ 	fops_put(file->f_op);
+ 	put_pid(file->f_owner.pid);
+-	file_kill(file);
+ 	if (file->f_mode & FMODE_WRITE)
+ 		drop_file_write_access(file);
+ 	file->f_path.dentry = NULL;
+@@ -296,6 +335,78 @@ void __fput(struct file *file)
+ 	mntput(mnt);
+ }
+ 
++int fops_substitute(struct file *file, const struct file_operations *f_op,
++			struct vm_operations_struct *vm_ops)
++{
++	/* Must be called with file_list_lock held */
++	/* This currently assumes that the new f_op does not need
++	 * open or release to be called.
++	 * This currently assumes that it will not be called twice
++	 * on the same file.
++	 */
++	const struct file_operations *old_f_op;
++	fmode_t mode;
++	int err;
++
++	err = -EINVAL;
++	f_op = fops_get(f_op);
++	if (!f_op)
++		goto out;
++	/*
++	 * Ensure we have no new users of the old f_ops.
++	 * Assignment order is important here.
++	 */
++	spin_lock(&file->f_lock);
++	old_f_op = file->f_op;
++	rcu_assign_pointer(file->f_op, f_op);
++	file->f_mode |= FMODE_REVOKED;
++	spin_unlock(&file->f_lock);
++
++	/*
++	 * Drain the existing uses of the original f_ops.
++	 */
++	remap_file_mappings(file, vm_ops);
++	if (old_f_op->awaken_all_waiters)
++		old_f_op->awaken_all_waiters(file);
++
++	/*
++	 * Wait until there are no more callers in the original
++	 * file_operations methods.
++	 */
++	while (atomic_long_read(&file->f_use) > 0)
++		schedule_timeout_interruptible(1);
++
++	/*
++	 * Cleanup the data structures that were associated
++	 * with the old fops.
++	 */
++	spin_lock(&file->f_lock);
++	mode = file->f_mode;
++	file->f_mode = mode & ~FMODE_RELEASE;
++	spin_unlock(&file->f_lock);
++	if (mode & FMODE_RELEASE)
++		__frelease(file, file->f_path.dentry->d_inode, old_f_op);
++	fops_put(old_f_op);
++	file->private_data = NULL;
++	err = 0;
++out:
++	return err;
++}
++
++void inode_fops_substitute(struct inode *inode, 
++	const struct file_operations *f_op,
++	struct vm_operations_struct *vm_ops)
++{
++	struct file *file;
++
++	file_list_lock();
++	/* Prevent new files from showing up with the old f_ops */
++	inode->i_fop = f_op;
++	list_for_each_entry(file, &inode->i_files, f_u.fu_list)
++		fops_substitute(file, f_op, vm_ops);
++	file_list_unlock();
++}
++
+ struct file *fget(unsigned int fd)
+ {
+ 	struct file *file;
+@@ -358,12 +469,17 @@ void put_filp(struct file *file)
  	}
  }
  
--void file_move(struct file *file, struct list_head *list)
-+void file_add(struct file *file, struct list_head *list)
++void __file_add(struct file *file, struct list_head *list)
++{
++	list_add(&file->f_u.fu_list, list);
++}
++
+ void file_add(struct file *file, struct list_head *list)
  {
  	if (!list)
  		return;
  	file_list_lock();
--	list_move(&file->f_u.fu_list, list);
-+	list_add(&file->f_u.fu_list, list);
+-	list_add(&file->f_u.fu_list, list);
++	__file_add(file, list);
  	file_list_unlock();
  }
  
-@@ -377,24 +378,32 @@ void file_kill(struct file *file)
+@@ -376,6 +492,20 @@ void file_kill(struct file *file)
+ 	}
+ }
  
++int fops_read_lock(struct file *file)
++{
++	int revoked = (file->f_mode & FMODE_REVOKED);
++	if (likely(!revoked))
++		atomic_long_inc(&file->f_use);
++	return revoked;
++}
++
++void fops_read_unlock(struct file *file, int revoked)
++{
++	if (likely(!revoked))
++		atomic_long_dec(&file->f_use);
++}
++
  int fs_may_remount_ro(struct super_block *sb)
  {
-+	struct inode *inode;
- 	struct file *file;
- 
- 	/* Check that no files are currently opened for writing. */
- 	file_list_lock();
--	list_for_each_entry(file, &sb->s_files, f_u.fu_list) {
--		struct inode *inode = file->f_path.dentry->d_inode;
--
-+	spin_lock(&inode_lock);
-+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
- 		/* File with pending delete? */
- 		if (inode->i_nlink == 0)
- 			goto too_bad;
- 
--		/* Writeable file? */
--		if (S_ISREG(inode->i_mode) && (file->f_mode & FMODE_WRITE))
--			goto too_bad;
-+		/* Regular file */
-+		if (!S_ISREG(inode->i_mode))
-+			continue;
-+
-+		list_for_each_entry(file, &inode->i_files, f_u.fu_list) {
-+			/* Writeable file? */
-+			if (file->f_mode & FMODE_WRITE)
-+				goto too_bad;
-+		}
- 	}
-+	spin_unlock(&inode_lock);
- 	file_list_unlock();
- 	return 1; /* Tis' cool bro. */
- too_bad:
-+	spin_unlock(&inode_lock);
- 	file_list_unlock();
- 	return 0;
- }
-diff --git a/fs/inode.c b/fs/inode.c
-index d06d6d2..9682caf 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -238,6 +238,7 @@ void inode_init_once(struct inode *inode)
- 	memset(inode, 0, sizeof(*inode));
- 	INIT_HLIST_NODE(&inode->i_hash);
- 	INIT_LIST_HEAD(&inode->i_dentry);
-+	INIT_LIST_HEAD(&inode->i_files);
- 	INIT_LIST_HEAD(&inode->i_devices);
- 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
- 	spin_lock_init(&inode->i_data.tree_lock);
+ 	struct inode *inode;
 diff --git a/fs/open.c b/fs/open.c
-index 377eb25..5e201cb 100644
+index 5e201cb..0b75dde 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -828,7 +828,8 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+@@ -808,7 +808,9 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+ 					int (*open)(struct inode *, struct file *),
+ 					const struct cred *cred)
+ {
++	const struct file_operations *f_op;
+ 	struct inode *inode;
++	int fops_idx;
+ 	int error;
+ 
+ 	f->f_flags = flags;
+@@ -827,21 +829,31 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+ 	f->f_path.dentry = dentry;
  	f->f_path.mnt = mnt;
  	f->f_pos = 0;
++
++	file_list_lock();
  	f->f_op = fops_get(inode->i_fop);
--	file_move(f, &inode->i_sb->s_files);
-+	if (!special_file(inode->i_mode))
-+		file_add(f, &inode->i_files);
+ 	if (!special_file(inode->i_mode))
+-		file_add(f, &inode->i_files);
++		__file_add(f, &inode->i_files);
++	file_list_unlock();
++
++	fops_idx = fops_read_lock(f);
++	f_op = rcu_dereference(f->f_op);
  
  	error = security_dentry_open(f, cred);
  	if (error)
-diff --git a/fs/super.c b/fs/super.c
-index 786fe7d..e55299c 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -67,7 +67,6 @@ static struct super_block *alloc_super(struct file_system_type *type)
- 		INIT_LIST_HEAD(&s->s_dirty);
- 		INIT_LIST_HEAD(&s->s_io);
- 		INIT_LIST_HEAD(&s->s_more_io);
--		INIT_LIST_HEAD(&s->s_files);
- 		INIT_LIST_HEAD(&s->s_instances);
- 		INIT_HLIST_HEAD(&s->s_anon);
- 		INIT_LIST_HEAD(&s->s_inodes);
-@@ -597,32 +596,38 @@ out:
+ 		goto cleanup_all;
  
- static void mark_files_ro(struct super_block *sb)
- {
-+	struct inode *inode;
- 	struct file *f;
- 
- retry:
- 	file_list_lock();
--	list_for_each_entry(f, &sb->s_files, f_u.fu_list) {
--		struct vfsmount *mnt;
--		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
--		       continue;
--		if (!file_count(f))
--			continue;
--		if (!(f->f_mode & FMODE_WRITE))
--			continue;
--		f->f_mode &= ~FMODE_WRITE;
--		if (file_check_writeable(f) != 0)
--			continue;
--		file_release_write(f);
--		mnt = mntget(f->f_path.mnt);
--		file_list_unlock();
--		/*
--		 * This can sleep, so we can't hold
--		 * the file_list_lock() spinlock.
--		 */
--		mnt_drop_write(mnt);
--		mntput(mnt);
--		goto retry;
-+	spin_lock(&inode_lock);
-+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
-+		list_for_each_entry(f, &inode->i_files, f_u.fu_list) {
-+			struct vfsmount *mnt;
-+			if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
-+				continue;
-+			if (!file_count(f))
-+				continue;
-+			if (!(f->f_mode & FMODE_WRITE))
-+				continue;
-+			f->f_mode &= ~FMODE_WRITE;
-+			if (file_check_writeable(f) != 0)
-+				continue;
-+			file_release_write(f);
-+			mnt = mntget(f->f_path.mnt);
-+			spin_unlock(&inode_lock);
-+			file_list_unlock();
-+			/*
-+			 * This can sleep, so we can't hold
-+			 * the inode_lock spinlock.
-+			 */
-+			mnt_drop_write(mnt);
-+			mntput(mnt);
-+			goto retry;
-+		}
+-	if (!open && f->f_op)
+-		open = f->f_op->open;
++	if (!open && f_op)
++		open = f_op->open;
+ 	if (open) {
+ 		error = open(inode, f);
+ 		if (error)
+ 			goto cleanup_all;
  	}
-+	spin_unlock(&inode_lock);
- 	file_list_unlock();
- }
++	spin_lock(&f->f_lock);
++	f->f_mode |= FMODE_RELEASE;
++	spin_unlock(&f->f_lock);
++	fops_read_unlock(f, fops_idx);
  
+ 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
+ 
+@@ -860,6 +872,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
+ 	return f;
+ 
+ cleanup_all:
++	fops_read_unlock(f, fops_idx);
+ 	fops_put(f->f_op);
+ 	if (f->f_mode & FMODE_WRITE) {
+ 		put_write_access(inode);
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 562d285..7805d20 100644
+index 7805d20..a82a2ea 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -656,6 +656,7 @@ struct inode {
- 	struct list_head	i_list;
- 	struct list_head	i_sb_list;
- 	struct list_head	i_dentry;
-+	struct list_head	i_files;
- 	unsigned long		i_ino;
- 	atomic_t		i_count;
- 	unsigned int		i_nlink;
-@@ -878,9 +879,9 @@ struct file {
+@@ -78,6 +78,13 @@ struct inodes_stat_t {
+ /* File is opened using open(.., 3, ..) and is writeable only for ioctls
+    (specialy hack for floppy.c) */
+ #define FMODE_WRITE_IOCTL	((__force fmode_t)256)
++/* File release method needs to be called */
++#define FMODE_RELEASE		((__force fmode_t)512)
++/*
++ * The file descriptor has been denied access to the original object.
++ * Likely a module removal, or device has been unplugged.
++ */
++#define FMODE_REVOKED		((__force fmode_t)1024)
+ 
+ /*
+  * Don't update ctime and mtime.
+@@ -329,6 +336,7 @@ struct kstatfs;
+ struct vm_area_struct;
+ struct vfsmount;
+ struct cred;
++struct vm_operations_struct;
+ 
+ extern void __init inode_init(void);
+ extern void __init inode_init_early(void);
+@@ -856,6 +864,7 @@ struct file {
+ 	const struct file_operations	*f_op;
+ 	spinlock_t		f_lock;  /* f_ep_links, f_flags, no IRQ */
+ 	atomic_long_t		f_count;
++	atomic_long_t		f_use;	/* f_op, private_data */
+ 	unsigned int 		f_flags;
+ 	fmode_t			f_mode;
+ 	loff_t			f_pos;
+@@ -879,6 +888,14 @@ struct file {
  	unsigned long f_mnt_write_state;
  #endif
  };
--extern spinlock_t files_lock;
--#define file_list_lock() spin_lock(&files_lock);
--#define file_list_unlock() spin_unlock(&files_lock);
-+extern struct mutex files_lock;
-+#define file_list_lock() mutex_lock(&files_lock);
-+#define file_list_unlock() mutex_unlock(&files_lock);
++
++extern int fops_read_lock(struct file *file);
++extern void fops_read_unlock(struct file *file, int idx);
++extern int fops_substitute(struct file *file, const struct file_operations *f_op,
++				struct vm_operations_struct *vm_ops);
++extern void inode_fops_substitute(struct inode *inode,
++	const struct file_operations *f_op, struct vm_operations_struct *vm_ops);
++
+ extern struct mutex files_lock;
+ #define file_list_lock() mutex_lock(&files_lock);
+ #define file_list_unlock() mutex_unlock(&files_lock);
+@@ -1452,6 +1469,7 @@ struct file_operations {
+ 	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+ 	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+ 	int (*setlease)(struct file *, long, struct file_lock **);
++	int (*awaken_all_waiters)(struct file *);
+ };
  
- #define get_file(x)	atomic_long_inc(&(x)->f_count)
- #define file_count(x)	atomic_long_read(&(x)->f_count)
-@@ -1277,7 +1278,6 @@ struct super_block {
- 	struct list_head	s_io;		/* parked for writeback */
- 	struct list_head	s_more_io;	/* parked for more writeback */
- 	struct hlist_head	s_anon;		/* anonymous dentries for (nfs) exporting */
--	struct list_head	s_files;
- 	/* s_dentry_lru and s_nr_dentry_unused are protected by dcache_lock */
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
- 	int			s_nr_dentry_unused;	/* # of dentry on lru */
-@@ -2116,7 +2116,7 @@ static inline void insert_inode_hash(struct inode *inode) {
+ struct inode_operations {
+@@ -2116,6 +2134,7 @@ static inline void insert_inode_hash(struct inode *inode) {
  }
  
  extern struct file * get_empty_filp(void);
--extern void file_move(struct file *f, struct list_head *list);
-+extern void file_add(struct file *f, struct list_head *list);
++extern void __file_add(struct file *f, struct list_head *list);
+ extern void file_add(struct file *f, struct list_head *list);
  extern void file_kill(struct file *f);
  #ifdef CONFIG_BLOCK
- struct bio;
 -- 
 1.6.1.2.350.g88cc
 
