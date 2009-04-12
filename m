@@ -1,119 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 522455F0001
-	for <linux-mm@kvack.org>; Sun, 12 Apr 2009 08:35:22 -0400 (EDT)
-Date: Sun, 12 Apr 2009 20:35:18 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/3] readahead: introduce context readahead algorithm
-Message-ID: <20090412123518.GA5599@localhost>
-References: <20090412071950.166891982@intel.com> <20090412072052.686760755@intel.com> <20090412084819.GA25314@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1925F0001
+	for <linux-mm@kvack.org>; Sun, 12 Apr 2009 14:56:11 -0400 (EDT)
+Date: Sun, 12 Apr 2009 19:56:59 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: [RFC][PATCH 8/9] vfs: Implement generic revoked file operations
+Message-ID: <20090412185659.GE4394@shareable.org>
+References: <m1skkf761y.fsf@fess.ebiederm.org> <m1prfj5qxp.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090412084819.GA25314@elte.hu>
+In-Reply-To: <m1prfj5qxp.fsf@fess.ebiederm.org>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladislav Bolkhovitin <vst@vlnb.net>, Jens Axboe <jens.axboe@oracle.com>, Jeff Moyer <jmoyer@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Nick Piggin <npiggin@suse.de>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Chenfeng Xu <xcf@ustc.edu.cn>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 12, 2009 at 04:48:19PM +0800, Ingo Molnar wrote:
-> 
-> * Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > Introduce page cache context based readahead algorithm.
-> > This is to better support concurrent read streams in general.
-> 
-> >  /*
-> > + * Count contiguously cached pages from @offset-1 to @offset-@max,
-> > + * this count is a conservative estimation of
-> > + * 	- length of the sequential read sequence, or
-> > + * 	- thrashing threshold in memory tight systems
-> > + */
-> > +static pgoff_t count_history_pages(struct address_space *mapping,
-> > +				   struct file_ra_state *ra,
-> > +				   pgoff_t offset, unsigned long max)
-> > +{
-> > +	pgoff_t head;
-> > +
-> > +	rcu_read_lock();
-> > +	head = radix_tree_prev_hole(&mapping->page_tree, offset - 1, max);
-> > +	rcu_read_unlock();
-> > +
-> > +	return offset - 1 - head;
-> > +}
-> 
-> Very elegant method! I suspect this will work far better 
-> than adding various increasingly more complex heuristics.
-> 
-> Emphatically-Acked-by: Ingo Molnar <mingo@elte.hu>
+> revoked_file_ops return 0 from reads (aka EOF). Tell poll the file is
+> always ready for I/O and return -EIO from all other operations.
 
-Thank you Ingo!
+I think read should return -EIO too.  If a program is reading from a
+/proc file (say), and the thing it's reading suddenly disappears, EOF
+gives the false impression that it's read to the end of formatted data
+from that file and it can process the data as if it's complete, which
+is wrong.
 
-The only pity is that this heuristic can be defeated by some user
-space program that tries to do aggressive drop-behind via
-fadvise(DONTNEED) calls. But as long as the drop-behind algorithm
-be a bit lazy and does not try to squeeze the last page at @offset-1,
-this patch will work just OK.
-
-The context readahead idea is so fundamental, that a slightly modified
-algorithm can be used for all kinds of sequential patterns, and it can
-automatically adapt to the thrashing threshold.
-
-        1 if (probe_page(index - 1)) {
-        2          begin = next_hole(index, max);
-        3          H     = index - prev_hole(index, 2*max);
-        4          end   = index + H;
-        5          update_window(begin, end);
-        6          submit_io();
-        7 }
-
-            [=] history [#] current [_] readahead [.] new readahead
-            ==========================#____________..............
-        1                            ^index-1
-        2                             |----------->[begin
-        3  |<----------- H -----------|
-        4                             |----------- H ----------->]end
-        5                                          [ new window ]
-
-
-We didn't do that because we want to
-- avoid unnecessary page cache lookups for normal cases
-- be more aggressive when thrashings are not a concern
-
-However, readahead thrashings are far more prevalent than one would
-expect in a FTP/HTTP file streaming server. It can happen in a modern
-server with 16GB memory, 1Gbps outbound bandwidth and 1MB readahead
-size, due to the existences of slow streams.
-
-Let's do a coarse calculation. The 8GB inactive_list pages will be
-cycled in 64Gb/1Gbps=64 seconds. This means an async readahead window
-must be consumed in 64s, or it will be thrashed.  That's a speed of
-2048KB/64s=32KB/s. Any client below this speed will create thrashings
-in the server. In practice, those poor slow clients could amount to
-half of the total connections(partly because it will take them more
-time to download anything). The frequent thrashings will in return
-speedup the LRU cycling/aging speed...
-
-We need a thrashing safe mode which do
-- the above modified context readahead algorithm
-- conservative ramp up of readahead size
-- conservative async readahead size
-
-The main problem is: when shall we switch into the mode?
-
-We can start with aggressive readahead and try to detect readahead
-thrashings and switch into thrashing safe mode automatically. This
-will work for non-interleaved reads.  However the big file streamer -
-lighttpd - does interleaved reads.  The current data structure is not
-able to detect most readahead thrashings for lighttpd.
-
-Luckily, the non-resident page tracking facility could help this case.
-There the thrashed pages with their timing info can be found, based on
-which we can have some extended context readahead algorithm that could
-even overcome the drop-behind problem :)
-
-Thanks,
-Fengguang
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
