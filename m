@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id EF52D5F0001
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2009 16:05:45 -0400 (EDT)
-Date: Mon, 13 Apr 2009 12:57:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4145F0001
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2009 16:27:34 -0400 (EDT)
+Date: Mon, 13 Apr 2009 13:19:50 -0700 (PDT)
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Subject: Re: [V4][PATCH 0/4]page fault retry with NOPAGE_RETRY
-In-Reply-To: <604427e00904131244y68fa7e62x85d599f588776eee@mail.gmail.com>
-Message-ID: <alpine.LFD.2.00.0904131254480.26713@localhost.localdomain>
-References: <604427e00904131244y68fa7e62x85d599f588776eee@mail.gmail.com>
+In-Reply-To: <alpine.LFD.2.00.0904131254480.26713@localhost.localdomain>
+Message-ID: <alpine.LFD.2.00.0904131314090.26713@localhost.localdomain>
+References: <604427e00904131244y68fa7e62x85d599f588776eee@mail.gmail.com> <alpine.LFD.2.00.0904131254480.26713@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,38 +17,39 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On Mon, 13 Apr 2009, Ying Han wrote:
+On Mon, 13 Apr 2009, Linus Torvalds wrote:
 > 
-> Benchmarks:
-> case 1. one application has a high count of threads each faulting in
-> different pages of a hugefile. Benchmark indicate that this double data
-> structure walking in case of major fault results in << 1% performance hit.
+> Well, have you tried the obvious optimization of _not_ doing the RETRY 
+> path when atomic_read(&mm->counter) == 1?
 > 
-> case 2. add another thread in the above application which in a tight loop
-> of mmap()/munmap(). Here we measure loop count in the new thread while other
-> threads doing the same amount of work as case one. we got << 3% performance
-> hit on the Complete Time(benchmark value for case one) and 10% performance
-> improvement on the mmap()/munmap() counter.
-> 
-> This patch helps a lot in cases we have writer which is waitting behind all
-> readers, so it could execute much faster.
+> After all, if it's not a threaded app, and it doesn't have a possibility 
+> of concurrent mmap/fault, then why release the lock?
 
-Hmm. I normally think of "<<" as "much smaller than", but the way you use 
-it makes me wonder. In particular, "<< 3%" sounds very odd. If it's much 
-smaller than 3%, I'd have expected "<< 1%" again. So it probably isn't.
+Ok, so the counter is called 'mm_users', not 'counter'.
 
-> benchmarks from Wufengguang:
-> Just tested the sparse-random-read-on-sparse-file case, and found the
-> performance impact to be 0.4% (8.706s vs 8.744s) in the worst case.
-> Kind of acceptable.
+Anyway, I would try that in the arch patch, and just see what happens when 
+you change the
 
-Well, have you tried the obvious optimization of _not_ doing the RETRY 
-path when atomic_read(&mm->counter) == 1?
+	unsigned int fault_flags = FAULT_FLAG_RETRY;
 
-After all, if it's not a threaded app, and it doesn't have a possibility 
-of concurrent mmap/fault, then why release the lock?
+into
 
-		Linus
+	unsigned int fault_flags;
+
+	..
+
+	fault_flags = atomic_read(&mm->mm_users) > 1 ? FAULT_FLAG_RETRY : 0;
+
+where you should probably do that mm dereference only after checking that 
+you're not in atomic context or something like that (so move the 
+assignment down).
+
+The reason I'd suggest doing it in the caller of handle_mm_fault() rather 
+than anywhere deeper in the call chain is that some callers _might_ really 
+want to get the retry semantics even if they are the only ones. Imagine, 
+for example, some kind of non-blocking "get_user_pages()" thing.
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
