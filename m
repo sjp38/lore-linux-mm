@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 818345F0001
-	for <linux-mm@kvack.org>; Sun, 12 Apr 2009 23:55:39 -0400 (EDT)
-Received: by wa-out-1112.google.com with SMTP id v27so849960wah.22
-        for <linux-mm@kvack.org>; Sun, 12 Apr 2009 20:56:28 -0700 (PDT)
-Date: Mon, 13 Apr 2009 12:56:23 +0900
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH] hugetlbfs: return negative error code for bad mount option
-Message-ID: <20090413035623.GA4156@localhost.localdomain>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 695FC5F0001
+	for <linux-mm@kvack.org>; Mon, 13 Apr 2009 09:18:51 -0400 (EDT)
+Date: Mon, 13 Apr 2009 21:18:42 +0800
+From: Wu Fengguang <wfg@linux.intel.com>
+Subject: Re: [PATCH] [0/16] POISON: Intro
+Message-ID: <20090413131842.GA8640@localhost>
+References: <20090407509.382219156@firstfloor.org> <20090407224709.742376ff.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090407224709.742376ff.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org
-Cc: William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This fixes the following BUG:
+On Tue, Apr 07, 2009 at 10:47:09PM -0700, Andrew Morton wrote:
+> On Tue,  7 Apr 2009 17:09:56 +0200 (CEST) Andi Kleen <andi@firstfloor.org> wrote:
+> 
+> > Upcoming Intel CPUs have support for recovering from some memory errors. This
+> > requires the OS to declare a page "poisoned", kill the processes associated
+> > with it and avoid using it in the future. This patchkit implements
+> > the necessary infrastructure in the VM.
+> 
+> Seems that this feature is crying out for a testing framework (perhaps
+> it already has one?).  A simplistic approach would be
+> 
+> 	echo some-pfn > /proc/bad-pfn-goes-here
 
-# mount -o size=MM -t hugetlbfs none /huge
-hugetlbfs: Bad value 'MM' for mount option 'size=MM'
-------------[ cut here ]------------
-kernel BUG at fs/super.c:996!
+How about reusing the /proc/kpageflags interface? i.e. make it writable.
 
-Also, remove unused #include <linux/quotaops.h>
+It may sound crazy and way too _hacky_, but it is possible to
+attach actions to the state transition of some page flags ;)
 
-Cc: William Irwin <wli@holomorphy.com>
-Cc: stable@kernel.org
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
----
+PG_poison      0 => 1: call memory_failure()
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 23a3c76..153d968 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -26,7 +26,6 @@
- #include <linux/pagevec.h>
- #include <linux/parser.h>
- #include <linux/mman.h>
--#include <linux/quotaops.h>
- #include <linux/slab.h>
- #include <linux/dnotify.h>
- #include <linux/statfs.h>
-@@ -842,7 +841,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
- bad_val:
-  	printk(KERN_ERR "hugetlbfs: Bad value '%s' for mount option '%s'\n",
- 	       args[0].from, p);
-- 	return 1;
-+ 	return -EINVAL;
- }
- 
- static int
+PG_active      1 => 0: move page into inactive lru
+PG_unevictable 1 => 0: move page out of unevictable lru
+PG_swapcache   1 => 0: remove page from swap cache
+PG_lru         1 => 0: reclaim page
+
+Thanks,
+Fengguang
+
+> A slightly more sophisticated version might do the deed from within a
+> timer interrupt, just to get a bit more coverage.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
