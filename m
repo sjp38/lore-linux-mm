@@ -1,93 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2D8B95F0001
-	for <linux-mm@kvack.org>; Sun, 12 Apr 2009 19:06:38 -0400 (EDT)
-References: <m1skkf761y.fsf@fess.ebiederm.org>
-	<m1prfj5qxp.fsf@fess.ebiederm.org>
-	<20090412185659.GE4394@shareable.org>
-	<m11vrxprk6.fsf@fess.ebiederm.org> <m1r5zxk2y2.fsf@fess.ebiederm.org>
-	<20090412210256.GK4394@shareable.org>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Sun, 12 Apr 2009 16:06:34 -0700
-In-Reply-To: <20090412210256.GK4394@shareable.org> (Jamie Lokier's message of "Sun\, 12 Apr 2009 22\:02\:56 +0100")
-Message-ID: <m11vrxh3ph.fsf@fess.ebiederm.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 818345F0001
+	for <linux-mm@kvack.org>; Sun, 12 Apr 2009 23:55:39 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id v27so849960wah.22
+        for <linux-mm@kvack.org>; Sun, 12 Apr 2009 20:56:28 -0700 (PDT)
+Date: Mon, 13 Apr 2009 12:56:23 +0900
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: [PATCH] hugetlbfs: return negative error code for bad mount option
+Message-ID: <20090413035623.GA4156@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Subject: Re: [RFC][PATCH 8/9] vfs: Implement generic revoked file operations
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Jamie Lokier <jamie@shareable.org> writes:
+This fixes the following BUG:
 
-> Eric W. Biederman wrote:
->> I just thought about that some more and I am not convinced.
->> 
->> In general the current return values from proc after an I/O operation
->> are suspect.  seek returns -EINVAL instead of -EIO. poll returns
->> DEFAULT_POLLMASK (which doesn't set POLLERR).  So I am not convinced
->> that the existing proc return values on error are correct, and they
->> are recent additions so the historical precedent is not especially
->> large.
->> 
->> EOF does give the impression that you have read all of the data from
->> the /proc file, and that is in fact the case.  There is no more
->> data coming from that proc file.
->> 
->> That the data is stale is well know.
->> 
->> That the data is not atomic, anything that spans more than a single
->> read is not atomic.
->> 
->> So I don't see what returning EIO adds to the equation.  Perhaps
->> that your fragile user space string parser may break?
->> 
->> EOF gives a clear indication the application should stop reading
->> the data, because there is no more.
->> 
->> EIO only says that the was a problem.
->> 
->> I don't know of anything that depends on the rmmod behavior either
->> way.  But if we can get away with it I would like to use something
->> that is generally useful instead of something that only makes
->> sense in the context of proc.
->
-> I'm not thinking of proc, really.  More thinking of applications: EOF
-> effectively means "whole file read without error - now do the next thing".
->
-> If a filesystem file is revoked (umount -f), you definitely want to
-> stop that Makefile which is copying a file from the unmounted
-> filesystem to a target file.  Otherwise you get inconsistent states
-> which can only occur as a result of this umount -f, something
-> Makefiles should never have to care about.
->
-> rmmod behaviour is not something any app should see normally.
-> Unexpected behaviour when files are oddly truncated (despite never
-> being written that way) is not "fragile user space".  So whatever it
-> returns, it should be some error code, imho.
+# mount -o size=MM -t hugetlbfs none /huge
+hugetlbfs: Bad value 'MM' for mount option 'size=MM'
+------------[ cut here ]------------
+kernel BUG at fs/super.c:996!
 
-Well I just took a look at NetBSD 4.0.1 and it appears they agree with
-you.
+Also, remove unused #include <linux/quotaops.h>
 
-Plus I'm starting to feel a lot better about the linux manual pages,
-as the revoke(2) man pages from the BSDs describe different error
-codes than the implementation, and they fail to mention revoke appears
-to work on ordinary files as well.
+Cc: William Irwin <wli@holomorphy.com>
+Cc: stable@kernel.org
+Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+---
 
-If the file is not a tty EIO is returned from read.
-
-opens return ENXIO
-writes return EIO
-ioctl returns EBADF
-close returns 0
-
-Operations that just lookup the vnode simply return EBADF.
-
-I don't know if that is perfectly correct for the linux case.  EBADF 
-usually means the file descriptor specified isn't open.
-
-Eric
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 23a3c76..153d968 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -26,7 +26,6 @@
+ #include <linux/pagevec.h>
+ #include <linux/parser.h>
+ #include <linux/mman.h>
+-#include <linux/quotaops.h>
+ #include <linux/slab.h>
+ #include <linux/dnotify.h>
+ #include <linux/statfs.h>
+@@ -842,7 +841,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+ bad_val:
+  	printk(KERN_ERR "hugetlbfs: Bad value '%s' for mount option '%s'\n",
+ 	       args[0].from, p);
+- 	return 1;
++ 	return -EINVAL;
+ }
+ 
+ static int
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
