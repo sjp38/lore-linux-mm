@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id D74755F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 18:12:32 -0400 (EDT)
-Date: Tue, 14 Apr 2009 16:12:40 -0600
-From: Jonathan Corbet <corbet@lwn.net>
-Subject: Re: [RFC][PATCH 5/9] vfs: Introduce basic infrastructure for
- revoking a file
-Message-ID: <20090414161240.73fe6bcd@bike.lwn.net>
-In-Reply-To: <m163hb75ph.fsf@fess.ebiederm.org>
-References: <m1skkf761y.fsf@fess.ebiederm.org>
-	<m163hb75ph.fsf@fess.ebiederm.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 567ED5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 18:14:36 -0400 (EDT)
+Date: Tue, 14 Apr 2009 15:09:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v3
+Message-Id: <20090414150903.b01fa3b9.akpm@linux-foundation.org>
+In-Reply-To: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Hi, Eric,
+On Thu,  9 Apr 2009 06:58:37 +0300
+Izik Eidus <ieidus@redhat.com> wrote:
 
-One little thing I noticed as I was looking at this...
+> KSM is a linux driver that allows dynamicly sharing identical memory
+> pages between one or more processes.
 
-> +int fops_substitute(struct file *file, const struct file_operations *f_op,
-> +			struct vm_operations_struct *vm_ops)
-> +{
+Generally looks OK to me.  But that doesn't mean much.  We should rub
+bottles with words like "hugh" and "nick" on them to be sure.
 
- [...]
 
-> +	/*
-> +	 * Wait until there are no more callers in the original
-> +	 * file_operations methods.
-> +	 */
-> +	while (atomic_long_read(&file->f_use) > 0)
-> +		schedule_timeout_interruptible(1);
+>
+> ...
+>
+>  include/linux/ksm.h          |   48 ++
+>  include/linux/miscdevice.h   |    1 +
+>  include/linux/mm.h           |    5 +
+>  include/linux/mmu_notifier.h |   34 +
+>  include/linux/rmap.h         |   11 +
+>  mm/Kconfig                   |    6 +
+>  mm/Makefile                  |    1 +
+>  mm/ksm.c                     | 1674 ++++++++++++++++++++++++++++++++++++++++++
+>  mm/memory.c                  |   90 +++-
+>  mm/mmu_notifier.c            |   20 +
+>  mm/rmap.c                    |  139 ++++
 
-You use an interruptible sleep here, but there's no signal check to get you
-out of the loop.  So it's not really interruptible.  If f_use never goes to
-zero (a distressingly likely possibility, I fear), this code will create
-the equivalent of an unkillable D-wait state without ever actually showing
-up that way in "ps".
-
-Actually, now that I look, once you've got a signal pending you'll stay
-in TASK_RUNNING, so the above could turn into a busy-wait.
-
-Unless I've missed something...?
-
-I have no idea what the right thing to do in the face of a signal would
-be.  Perhaps the wait-for-zero and release() call stuff should be dumped
-into a workqueue and done asynchronously?  OTOH, I can see a need to know
-when the revoke operation is really done...
-
-jon
+And it's pretty unobtrusive for what it is.  I expect we can get this
+into 2.6.31 unless there are some pratfalls which I missed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
