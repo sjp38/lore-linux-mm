@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 382565F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 12:44:02 -0400 (EDT)
-Date: Tue, 14 Apr 2009 18:44:39 +0200
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 297595F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 12:44:42 -0400 (EDT)
+Date: Tue, 14 Apr 2009 18:45:20 +0200
 From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 1/5] slqb: irq section fix
-Message-ID: <20090414164439.GA14873@wotan.suse.de>
+Subject: [patch 2/5] slqb: fix compilation warning
+Message-ID: <20090414164520.GB14873@wotan.suse.de>
+References: <20090414164439.GA14873@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20090414164439.GA14873@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 To: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 
-slqb: irq section fix
+slqb: fix compilation warning
 
-flush_free_list can be called with interrupts enabled, from
-kmem_cache_destroy. Fix this.
+gather_stats is not used if CONFIG_SLQB_SYSFS is not selected. Make
+it conditional and avoid the warning.
 
 Signed-off-by: Nick Piggin <npiggin@suse.de>
 ---
 Index: linux-2.6/mm/slqb.c
 ===================================================================
---- linux-2.6.orig/mm/slqb.c	2009-04-01 00:57:13.000000000 +1100
-+++ linux-2.6/mm/slqb.c	2009-04-01 01:02:02.000000000 +1100
-@@ -1087,7 +1087,6 @@ static void slab_free_to_remote(struct k
-  */
- static void flush_free_list(struct kmem_cache *s, struct kmem_cache_list *l)
+--- linux-2.6.orig/mm/slqb.c	2009-04-01 03:11:05.000000000 +1100
++++ linux-2.6/mm/slqb.c	2009-04-01 03:11:25.000000000 +1100
+@@ -3121,6 +3121,7 @@ static void gather_stats_locked(struct k
+ 	stats->nr_objects = stats->nr_slabs * s->objects;
+ }
+ 
++#ifdef CONFIG_SLQB_SYSFS
+ static void gather_stats(struct kmem_cache *s, struct stats_gather *stats)
  {
--	struct kmem_cache_cpu *c;
- 	void **head;
- 	int nr;
- 
-@@ -1100,8 +1099,6 @@ static void flush_free_list(struct kmem_
- 	slqb_stat_inc(l, FLUSH_FREE_LIST);
- 	slqb_stat_add(l, FLUSH_FREE_LIST_OBJECTS, nr);
- 
--	c = get_cpu_slab(s, smp_processor_id());
--
- 	l->freelist.nr -= nr;
- 	head = l->freelist.head;
- 
-@@ -1116,6 +1113,10 @@ static void flush_free_list(struct kmem_
- 
- #ifdef CONFIG_SMP
- 		if (page->list != l) {
-+			struct kmem_cache_cpu *c;
-+
-+			c = get_cpu_slab(s, smp_processor_id());
-+
- 			slab_free_to_remote(s, page, object, c);
- 			slqb_stat_inc(l, FLUSH_FREE_LIST_REMOTE);
- 		} else
-@@ -2251,6 +2252,7 @@ void kmem_cache_destroy(struct kmem_cach
- 	down_write(&slqb_lock);
- 	list_del(&s->list);
- 
-+	local_irq_disable();
- #ifdef CONFIG_SMP
- 	for_each_online_cpu(cpu) {
- 		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
-@@ -2297,6 +2299,7 @@ void kmem_cache_destroy(struct kmem_cach
- 
- 	free_kmem_cache_nodes(s);
+ 	down_read(&slqb_lock); /* hold off hotplug */
+@@ -3128,6 +3129,7 @@ static void gather_stats(struct kmem_cac
+ 	up_read(&slqb_lock);
+ }
  #endif
-+	local_irq_enable();
++#endif
  
- 	sysfs_slab_remove(s);
- 	up_write(&slqb_lock);
+ /*
+  * The /proc/slabinfo ABI
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
