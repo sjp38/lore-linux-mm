@@ -1,39 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id DF5675F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:10:04 -0400 (EDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC][PATCH v3 2/6] mm, directio: fix fork vs direct-io race (read(2) side IOW gup(write) side)
-References: <20090414151204.C647.A69D9226@jp.fujitsu.com>
-	<20090414151652.C64D.A69D9226@jp.fujitsu.com>
-	<20090414152500.C65F.A69D9226@jp.fujitsu.com>
-	<x49ab6jyyiy.fsf@segfault.boston.devel.redhat.com>
-	<20090414175124.GC9809@random.random>
-Date: Tue, 14 Apr 2009 14:10:08 -0400
-In-Reply-To: <20090414175124.GC9809@random.random> (Andrea Arcangeli's message
-	of "Tue, 14 Apr 2009 19:51:24 +0200")
-Message-ID: <x49hc0rxg1r.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0255F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:34:58 -0400 (EDT)
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3EIVuX2027700
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:31:56 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3EIZTh5120118
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:35:29 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3EIXkQj001097
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:33:47 -0400
+Subject: Re: [feedback] procps and new kernel fields
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <e2e108260904070602p61b0be4fpc257f850b004c49f@mail.gmail.com>
+References: <1239054936.8846.130.camel@nimitz>
+	 <787b0d920904062140n72b82c7mfc6ca78c291363f7@mail.gmail.com>
+	 <e2e108260904070602p61b0be4fpc257f850b004c49f@mail.gmail.com>
+Content-Type: text/plain
+Date: Tue, 14 Apr 2009 11:35:24 -0700
+Message-Id: <1239734124.32604.100.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Zach Brown <zach.brown@oracle.com>, Andy Grover <andy.grover@oracle.com>
+To: Bart Van Assche <bart.vanassche@gmail.com>
+Cc: Albert Cahalan <acahalan@cs.uml.edu>, linux-mm <linux-mm@kvack.org>, procps-feedback@lists.sf.net
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <aarcange@redhat.com> writes:
+On Tue, 2009-04-07 at 15:02 +0200, Bart Van Assche wrote:
+> On Tue, Apr 7, 2009 at 6:40 AM, Albert Cahalan <acahalan@cs.uml.edu> wrote:
+> > On Mon, Apr 6, 2009 at 5:55 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> >> Novell has integrated that patch into procps
+> >...
+> >> The most worrisome side-effect of this change to me is that we can no
+> >> longer run vmstat or free on two machines and compare their output.
+> >
+> > Right. Vendors never consier that. They then expect upstream
+> > to accept and support their hack until the end of time.
+> 
+> The patch that was integrated by this vendor in their procps package
+> was posted on a public mailing list more than a year ago. It would
+> have helped if someone would have commented earlier on that patch.
 
-> On Tue, Apr 14, 2009 at 12:45:41PM -0400, Jeff Moyer wrote:
->> So, if you're continuously submitting async read I/O, you will starve
->> out the fork() call indefinitely.  I agree that you want to allow
->
-> IIRC rwsem good enough to stop the down_read when a down_write is
-> blocked. Otherwise page fault flood in threads would also starve any
-> mmap or similar call. Still with this approach fork will start to hang
+We suck. :)
 
-Really?  I don't actually see that in the code, have I missed it?
+> >> We could also add some information which is in
+> >> addition to what we already provide in order to account for things like
+> >> slab more precisely.
+> >
+> > How do I even explain a slab? What about a slob or slub?
+> > A few years from now, will this allocator even exist?
+> >
+> > Remember that I need something for the man page, and most
+> > of my audience knows almost nothing about programming.
+> 
+> It's not the difference between SLAB, SLOB and SLUB that matters here,
+> but the fact that some of the memory allocated by these kernel
+> allocators can be reclaimed. The procps tools currently count
+> reclaimable SLAB / SLOB / SLUB memory as used memory, which is
+> misleading. How can this be explained to someone who is not a
+> programmer ?
 
-Cheers,
-Jeff
+I actually think it is probably OK to call them "cache".  They *are*
+quite similar to the page cache from a user's perspective.  I just have
+a problem with changing it *now*, though.
+
+Page cache is fundamentally user data.  It is verbatim in memory exactly
+what came off or is going to the filesystem, and gets exposed to
+userspace directly.
+
+The various sl*bs are fundamentally kernel data.  They're never seen by
+users directly.  
+
+So, if I were to write a tool that told users of both slab and page
+cache, I'd probably say "file cache" and "kernel cache" or something to
+that effect.  It's a bit over-simplified, but I think it gets the point
+across sufficiently.  Personally, I'd probably rather see 'buffers' get
+collapsed in with 'cache' and get a new column for sl*b.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
