@@ -1,76 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 179D35F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 07:11:57 -0400 (EDT)
-Date: Tue, 14 Apr 2009 19:11:42 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 3/3] readahead: introduce context readahead algorithm
-Message-ID: <20090414111142.GA8793@localhost>
-References: <20090412071950.166891982@intel.com> <20090412072052.686760755@intel.com> <87zlej7kwf.fsf@basil.nowhere.org> <20090414092704.GD7001@localhost> <20090414100002.GW14687@one.firstfloor.org> <20090414105824.GA8628@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 5C17E5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 08:02:47 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id f25so2039012rvb.26
+        for <linux-mm@kvack.org>; Tue, 14 Apr 2009 05:02:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=gb2312
-Content-Disposition: inline
-In-Reply-To: <20090414105824.GA8628@localhost>
+In-Reply-To: <200904141925.46012.nickpiggin@yahoo.com.au>
+References: <20090414151204.C647.A69D9226@jp.fujitsu.com>
+	 <20090414151554.C64A.A69D9226@jp.fujitsu.com>
+	 <200904141925.46012.nickpiggin@yahoo.com.au>
+Date: Tue, 14 Apr 2009 21:02:47 +0900
+Message-ID: <2f11576a0904140502h295faf33qcea9a39ff7f230a5@mail.gmail.com>
+Subject: Re: [RFC][PATCH v3 1/6] mm: Don't unmap gup()ed page
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladislav Bolkhovitin <vst@vlnb.net>, Jens Axboe <jens.axboe@oracle.com>, Jeff Moyer <jmoyer@redhat.com>, Nick Piggin <npiggin@suse.de>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Chenfeng Xu <xcf@ustc.edu.cn>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 14, 2009 at 06:58:24PM +0800, Wu Fengguang wrote:
-> On Tue, Apr 14, 2009 at 06:00:02PM +0800, Andi Kleen wrote:
-> > > I'll list some possible situations. I guess you are referring to (2.3)?
-> > 
-> > Yep. Thanks for the detailed analysis.
-> 
-> You are welcome :-)
-> 
-> > > 2.3) readahead cache hits: rare case and the impact is temporary
-> > > 
-> > > The page at @offset-1 does get referenced by this stream, but it's
-> > > created by someone else at some distant time ago. The page at
-> > > @offset-1 may be lifted to active lru by this second reference, or too
-> > > late and get reclaimed - by the time we reference page @offset.
-> > > 
-> > > Normally its a range of cached pages. We are a) either walking inside the
-> > > range and enjoying the cache hits, b) or we walk out of it and restart
-> > > readahead by ourself, c) or the range of cached pages get reclaimed
-> > > while we are walking on them, and hence cannot find page @offset-1.
-> > > 
-> > > Obviously (c) is rare and temporary and is the main cause of (2.3).
-> > > As soon as we goto the next page at @offset+1, we'll its 'previous'
-> > > page at @offset to be cached(it is created by us!). So the context
-> > > readahead starts working again - it's merely delayed by one page :-)
-> > 
-> > Thanks. The question is how much performance impact this has on
-> > the stream that is readaheaded.  I guess it would be only a smaller
-> > "hickup", with some luck hidden by the block level RA?
+> On Tuesday 14 April 2009 16:16:52 KOSAKI Motohiro wrote:
+>
+>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> Sugessted-by: Linus Torvalds <torvalds@osdl.org>
+>
+> "Suggested-by:" ;)
 
-No the block level RA wont help here, because there are no disk
-accesses at all for the cached pages before @offset: the disk RA have
-absolutely no idea on where the IO for page @offset originates from ;-)
+Agghh, thanks.
 
-> Yes there will be hickup: whenever the stream walks out of the current
-> cached page range(or the pages get reclaimed while we are walking in it),
-> there will be a 1-page read, followed by a 4-page readahead, and then 8,
-> 16, ... page sized readahead, i.e. a readahead window rampup process.
-> 
-> That's assuming we are doing 1-page reads. For large sendfile() calls,
-> the readahead size will be instantly restored to its full size on the
-> first cache miss.
-> 
-> > The other question would be if it could cause the readahead code
-> > to do a lot of unnecessary work, but your answer seems to be "no". Fine.
-> 
-> Right. The readahead will automatically be turned off inside the
-> cached page ranges, and restarted after walking out of it.
-> 
-> > I think the concept is sound.
-> 
-> ^_^ Thanks for your appreciation!
-> 
-> 
-> Best Regards,
-> Fengguang
+
+>> @@ -547,7 +549,13 @@ int reuse_swap_page(struct page *page)
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 SetPageDirty(page);
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 }
+>> =A0 =A0 =A0 }
+>> - =A0 =A0 return count =3D=3D 1;
+>> +
+>> + =A0 =A0 /*
+>> + =A0 =A0 =A0* If we can re-use the swap page _and_ the end
+>> + =A0 =A0 =A0* result has only one user (the mapping), then
+>> + =A0 =A0 =A0* we reuse the whole page
+>> + =A0 =A0 =A0*/
+>> + =A0 =A0 return count + page_count(page) =3D=3D 2;
+>> =A0}
+>
+> I guess this patch does work to close the read-side race, but I slightly =
+don't
+> like using page_count for things like this. page_count can be temporarily
+> raised for reasons other than access through their user mapping. Swapcach=
+e,
+> page reclaim, LRU pagevecs, concurrent do_wp_page, etc.
+
+Yes, that's trade-off.
+your early decow also can misjudge and make unnecessary copy.
+
+
+
+>> =A0 =A0 =A0 /*
+>> + =A0 =A0 =A0* Don't pull an anonymous page out from under get_user_page=
+s.
+>> + =A0 =A0 =A0* GUP carefully breaks COW and raises page count (while hol=
+ding
+>> + =A0 =A0 =A0* pte_lock, as we have here) to make sure that the page
+>> + =A0 =A0 =A0* cannot be freed. =A0If we unmap that page here, a user wr=
+ite
+>> + =A0 =A0 =A0* access to the virtual address will bring back the page, b=
+ut
+>> + =A0 =A0 =A0* its raised count will (ironically) be taken to mean it's =
+not
+>> + =A0 =A0 =A0* an exclusive swap page, do_wp_page will replace it by a c=
+opy
+>> + =A0 =A0 =A0* page, and the user never get to see the data GUP was hold=
+ing
+>> + =A0 =A0 =A0* the original page for.
+>> + =A0 =A0 =A0*
+>> + =A0 =A0 =A0* This test is also useful for when swapoff (unuse_process)=
+ has
+>> + =A0 =A0 =A0* to drop page lock: its reference to the page stops existi=
+ng
+>> + =A0 =A0 =A0* ptes from being unmapped, so swapoff can make progress.
+>> + =A0 =A0 =A0*/
+>> + =A0 =A0 if (PageSwapCache(page) &&
+>> + =A0 =A0 =A0 =A0 page_count(page) !=3D page_mapcount(page) + 2) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 ret =3D SWAP_FAIL;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 goto out_unmap;
+>> + =A0 =A0 }
+>
+> I guess it does add another constraint to the VM, ie. not allowed to
+> unmap an anonymous page with elevated refcount. Maybe not a big deal
+> now, but I think it is enough that it should be noted. If you squint,
+> this could actually be more complex/intrusive to the wider VM than my
+> copy on fork (which is basically exactly like a manual do_wp_page at
+> fork time).
+
+I agree this code effect widely kernel activity.
+but actually, in past days, the kernel did the same behavior. then
+almost core code is
+page_count checking safe.
+
+but Yes, we need to afraid newer code don't works with this code...
+
+
+> And.... I don't think this is safe against a concurrent gup_fast()
+> (which helps my point).
+
+Could you please explain more detail ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
