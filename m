@@ -1,13 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 567ED5F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 18:14:36 -0400 (EDT)
-Date: Tue, 14 Apr 2009 15:09:03 -0700
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A9E735F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 18:14:49 -0400 (EDT)
+Date: Tue, 14 Apr 2009 15:09:25 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v3
-Message-Id: <20090414150903.b01fa3b9.akpm@linux-foundation.org>
-In-Reply-To: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+Subject: Re: [PATCH 3/4] add replace_page(): change the page pte is pointing
+ to.
+Message-Id: <20090414150925.58b464f7.akpm@linux-foundation.org>
+In-Reply-To: <1239249521-5013-4-git-send-email-ieidus@redhat.com>
 References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+	<1239249521-5013-2-git-send-email-ieidus@redhat.com>
+	<1239249521-5013-3-git-send-email-ieidus@redhat.com>
+	<1239249521-5013-4-git-send-email-ieidus@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -16,33 +20,30 @@ To: Izik Eidus <ieidus@redhat.com>
 Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu,  9 Apr 2009 06:58:37 +0300
+On Thu,  9 Apr 2009 06:58:40 +0300
 Izik Eidus <ieidus@redhat.com> wrote:
 
-> KSM is a linux driver that allows dynamicly sharing identical memory
-> pages between one or more processes.
+> replace_page() allow changing the mapping of pte from one physical page
+> into diffrent physical page.
 
-Generally looks OK to me.  But that doesn't mean much.  We should rub
-bottles with words like "hugh" and "nick" on them to be sure.
+At a high level, this is very similar to what page migration does.  Yet
+this implementation shares nothing with the page migration code.
 
+Can this situation be improved?
 
->
-> ...
->
->  include/linux/ksm.h          |   48 ++
->  include/linux/miscdevice.h   |    1 +
->  include/linux/mm.h           |    5 +
->  include/linux/mmu_notifier.h |   34 +
->  include/linux/rmap.h         |   11 +
->  mm/Kconfig                   |    6 +
->  mm/Makefile                  |    1 +
->  mm/ksm.c                     | 1674 ++++++++++++++++++++++++++++++++++++++++++
->  mm/memory.c                  |   90 +++-
->  mm/mmu_notifier.c            |   20 +
->  mm/rmap.c                    |  139 ++++
-
-And it's pretty unobtrusive for what it is.  I expect we can get this
-into 2.6.31 unless there are some pratfalls which I missed.
+> this function is working by removing oldpage from the rmap and calling
+> put_page on it, and by setting the pte to point into newpage and by
+> inserting it to the rmap using page_add_file_rmap().
+> 
+> note: newpage must be non anonymous page, the reason for this is:
+> replace_page() is built to allow mapping one page into more than one
+> virtual addresses, the mapping of this page can happen in diffrent
+> offsets inside each vma, and therefore we cannot trust the page->index
+> anymore.
+> 
+> the side effect of this issue is that newpage cannot be anything but
+> kernel allocated page that is not swappable.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
