@@ -1,181 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id B210E5F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:22:23 -0400 (EDT)
-Date: Tue, 14 Apr 2009 15:22:31 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090414072231.GA7001@localhost>
-References: <20090414133448.C645.A69D9226@jp.fujitsu.com> <20090414064132.GB5746@localhost> <20090414154606.C665.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0C4C25F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:38:57 -0400 (EDT)
+Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
+References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 14 Apr 2009 00:39:25 -0700
+In-Reply-To: <49E4000E.10308@kernel.org> (Tejun Heo's message of "Tue\, 14 Apr 2009 12\:16\:30 +0900")
+Message-ID: <m13acbbs5u.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090414154606.C665.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 14, 2009 at 02:54:40PM +0800, KOSAKI Motohiro wrote:
-> Hi
-> 
-> > On Tue, Apr 14, 2009 at 12:37:10PM +0800, KOSAKI Motohiro wrote:
-> > > > Export the following page flags in /proc/kpageflags,
-> > > > just in case they will be useful to someone:
-> > > > 
-> > > > - PG_swapcache
-> > > > - PG_swapbacked
-> > > > - PG_mappedtodisk
-> > > > - PG_reserved
-> > > > - PG_private
-> > > > - PG_private_2
-> > > > - PG_owner_priv_1
-> > > > 
-> > > > - PG_head
-> > > > - PG_tail
-> > > > - PG_compound
-> > > > 
-> > > > - PG_unevictable
-> > > > - PG_mlocked
-> > > > 
-> > > > - PG_poison
-> > > 
-> > > Sorry, NAK this.
-> > > We shouldn't expose internal flags. please choice useful flags only.
-> > 
-> > OK. So are there anyone interested in any of these flags? Thanks!
-> > 
-> > My rational to export most page flags is that hopefully they could
-> > help debugging kernel at some random situations..
-> 
-> I think,
-> 
-> > > > - PG_mappedtodisk
-> > > > - PG_reserved
-> > > > - PG_private
-> > > > - PG_private_2
-> > > > - PG_owner_priv_1
-> > > > 
-> > > > - PG_head
-> > > > - PG_tail
+Tejun Heo <tj@kernel.org> writes:
 
-> > > > - PG_unevictable
-> > > > - PG_mlocked
- 
-How about including PG_unevictable/PG_mlocked?
-They shall be meaningful to administrators.
-
-> this 9 flags shouldn't exported.
-> I can't imazine administrator use what purpose those flags.
-
-> > > > - PG_swapcache
-> > > > - PG_swapbacked
-> > > > - PG_poison
-> > > > - PG_compound
+> Hello, Eric.
 >
-> I can agree this 4 flags.
-> However pagemap lack's hugepage considering.
-> if PG_compound exporting, we need more work.
+> Eric W. Biederman wrote:
+>> A couple of weeks ago I found myself looking at the uio, seeing that
+>> it does not support pci hot-unplug, and thinking "Great yet another
+>> implementation of hotunplug logic that needs to be added".
+>> 
+>> I decided to see what it would take to add a generic implementation of
+>> the code we have for supporting hot unplugging devices in sysfs, proc,
+>> sysctl, tty_io, and now almost in the tun driver.
+>> 
+>> Not long after I touched the tun driver and made it safe to delete the
+>> network device while still holding it's file descriptor open I someone
+>> else touch the code adding a different feature and my careful work
+>> went up in flames.  Which brought home another point at the best of it
+>> this is ultimately complex tricky code that subsystems should not need
+>> to worry about.
+>
+> I like the way it's headed.  I'm trying to add similar 'revoke' or
+> 'sever' mechanism at block and char device layers so that low level
+> drivers don't have to worry about object lifetimes and so on.  Doing
+> it at the file layer makes sense and can probably replace whatever
+> mechanism at the chardev.
+>
+> The biggest obstacle was the extra in-use reference count overhead.  I
+> thought it could be solved by implementing generic percpu reference
+> count similar to the one used for module reference counting.  Hot path
+> overhead could be reduced to local_t cmpxchg (w/o LOCK prefix) on
+> per-cpu variable + one branch, which was pretty good.  The problem was
+> that space and access overhead for dynamic per-cpu variables wasn't
+> too good, so I started working on dynamic percpu allocator.
+>
+> The dynamic per-cpu allocator is pretty close to completion.  Only
+> several archs need to be converted and it's likely to happen during
+> next few months.  The plan after that was 1. add per-cpu local_t
+> accessors (might replace local_t completely) 2. add generic per-cpu
+> reference counter and move module reference counting to it
+> 3. implement block/chardev sever (or revoke) support.
+>
+> I think #3 can be merged with what you're working on.  What do you
+> think?
 
-You mean to fold PG_head/PG_tail into PG_COMPOUND?
-Yes, that's a good simplification for end users.
+Sounds reasonable.
 
-> > 
-> > > > Also add the following two pseudo page flags:
-> > > > 
-> > > > - PG_MMAP:   whether the page is memory mapped
-> 
-> hm, I can agree it.
-> 
-> 
-> > > > - PG_NOPAGE: whether the page is present
-> 
-> PM_NOT_PRESENT isn't enough?
+Do you know of a case where we actually have multiple tasks accessing
+a file simultaneously?
 
-That would not be usable if you are going to do a system wide scan.
-PG_NOPAGE could help differentiate the 'no page' case from 'no flags'
-case.
+I just instrumented up my patch an so far the only case I have found
+are multiple processes closing the same file.  Some weird part of
+bash forking extra processes.
 
-However PG_NOPAGE is more about the last resort. The system wide scan
-can be made much more efficient if we know the exact memory layouts.
-
-Thanks,
-Fengguang
-
-> > > > 
-> > > > This increases the total number of exported page flags to 25.
-> > > > 
-> > > > Cc: Andi Kleen <andi@firstfloor.org>
-> > > > Cc: Matt Mackall <mpm@selenic.com>
-> > > > Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> > > > Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> > > > ---
-> > > >  fs/proc/page.c |  112 +++++++++++++++++++++++++++++++++--------------
-> > > >  1 file changed, 81 insertions(+), 31 deletions(-)
-> > > > 
-> > > > --- mm.orig/fs/proc/page.c
-> > > > +++ mm/fs/proc/page.c
-> > > > @@ -68,20 +68,86 @@ static const struct file_operations proc
-> > > >  
-> > > >  /* These macros are used to decouple internal flags from exported ones */
-> > > >  
-> > > > -#define KPF_LOCKED     0
-> > > > -#define KPF_ERROR      1
-> > > > -#define KPF_REFERENCED 2
-> > > > -#define KPF_UPTODATE   3
-> > > > -#define KPF_DIRTY      4
-> > > > -#define KPF_LRU        5
-> > > > -#define KPF_ACTIVE     6
-> > > > -#define KPF_SLAB       7
-> > > > -#define KPF_WRITEBACK  8
-> > > > -#define KPF_RECLAIM    9
-> > > > -#define KPF_BUDDY     10
-> > > > +enum {
-> > > > +	KPF_LOCKED,		/*  0 */
-> > > > +	KPF_ERROR,		/*  1 */
-> > > > +	KPF_REFERENCED,		/*  2 */
-> > > > +	KPF_UPTODATE,		/*  3 */
-> > > > +	KPF_DIRTY,		/*  4 */
-> > > > +	KPF_LRU,		/*  5 */
-> > > > +	KPF_ACTIVE,		/*  6 */
-> > > > +	KPF_SLAB,		/*  7 */
-> > > > +	KPF_WRITEBACK,		/*  8 */
-> > > > +	KPF_RECLAIM,		/*  9 */
-> > > > +	KPF_BUDDY,		/* 10 */
-> > > > +	KPF_MMAP,		/* 11 */
-> > > > +	KPF_SWAPCACHE,		/* 12 */
-> > > > +	KPF_SWAPBACKED,		/* 13 */
-> > > > +	KPF_MAPPEDTODISK,	/* 14 */
-> > > > +	KPF_RESERVED,		/* 15 */
-> > > > +	KPF_PRIVATE,		/* 16 */
-> > > > +	KPF_PRIVATE2,		/* 17 */
-> > > > +	KPF_OWNER_PRIVATE,	/* 18 */
-> > > > +	KPF_COMPOUND_HEAD,	/* 19 */
-> > > > +	KPF_COMPOUND_TAIL,	/* 20 */
-> > > > +	KPF_UNEVICTABLE,	/* 21 */
-> > > > +	KPF_MLOCKED,		/* 22 */
-> > > > +	KPF_POISON,		/* 23 */
-> > > > +	KPF_NOPAGE,		/* 24 */
-> > > > +	KPF_NUM
-> > > > +};
-> > > 
-> > > this is userland export value. then enum is wrong idea.
-> > > explicit name-number relationship is better. it prevent unintetional
-> > > ABI break.
-> > 
-> > Right, that's the reason I add the /* number */ comments.
-> > Anyway, it would be better to use explicit #defines.
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
-> 
-> 
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
