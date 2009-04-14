@@ -1,40 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 50C0E5F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:44:59 -0400 (EDT)
-Message-ID: <49E43F1D.3070400@kernel.org>
-Date: Tue, 14 Apr 2009 16:45:33 +0900
-From: Tejun Heo <tj@kernel.org>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 81D3D5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 04:27:40 -0400 (EDT)
+References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org>
+	<m13acbbs5u.fsf@fess.ebiederm.org> <49E43F1D.3070400@kernel.org>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 14 Apr 2009 01:27:58 -0700
+In-Reply-To: <49E43F1D.3070400@kernel.org> (Tejun Heo's message of "Tue\, 14 Apr 2009 16\:45\:33 +0900")
+Message-ID: <m18wm38ws1.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
-References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org> <m13acbbs5u.fsf@fess.ebiederm.org>
-In-Reply-To: <m13acbbs5u.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: Tejun Heo <tj@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman wrote:
-> Do you know of a case where we actually have multiple tasks accessing
-> a file simultaneously?
+Tejun Heo <tj@kernel.org> writes:
 
-I don't have anything at hand but multithread/process server accepting
-on the same socket comes to mind.  I don't think it would be a very
-rare thing.  If you confine the scope to character devices or sysfs,
-it could be quite rare tho.
+> Eric W. Biederman wrote:
+>> Do you know of a case where we actually have multiple tasks accessing
+>> a file simultaneously?
+>
+> I don't have anything at hand but multithread/process server accepting
+> on the same socket comes to mind.  I don't think it would be a very
+> rare thing.  If you confine the scope to character devices or sysfs,
+> it could be quite rare tho.
 
-> I just instrumented up my patch an so far the only case I have found
-> are multiple processes closing the same file.  Some weird part of
-> bash forking extra processes.
+Yes.  I think I can safely exclude sockets, and not bother with
+reference counting them.
 
-Hmmm...
+The only strong evidence I have that multi-threading on a single file
+descriptor is likely to be common is that we have pread and pwrite
+syscalls.  At the same time the number of races we have in struct file
+if it is accessed by multiple threads at the same time, suggests
+that at least for cases where you have an offset it doesn't happen often.
 
-Thanks.
+I cringe when I see per cpu counters for something like files that we
+are likely to have a lot of.  I keep imagining a quadratic explosion
+in data size.  In practice we are likely to have a small cpu count <=
+8-16 cpus so it is likely ok.  Especially if we are only allocating 8
+bytes per cpu per file.  I guess in total that is at most 128K per file.
+8bytes*16k cpus.  With the default system file-max on my systems 203871
+to 705863, it looks like we would max out at between 1M and 5M per cpu.
+Still a lot but survivable.
 
--- 
-tejun
+Somewhere it all falls down, but only if you max out a very rare
+very large machine, and that seems to be case with just about everything.
+
+Which all leads me to say that if we can avoid per cpu memory and not impact
+performance I want to do that.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
