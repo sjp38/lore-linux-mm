@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 6756A5F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 12:01:55 -0400 (EDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC][PATCH v3 4/6] aio: Don't inherit aio ring memory at fork
-References: <20090414151204.C647.A69D9226@jp.fujitsu.com>
-	<20090414151924.C653.A69D9226@jp.fujitsu.com>
-Date: Tue, 14 Apr 2009 12:01:50 -0400
-In-Reply-To: <20090414151924.C653.A69D9226@jp.fujitsu.com> (KOSAKI Motohiro's
-	message of "Tue, 14 Apr 2009 15:20:20 +0900 (JST)")
-Message-ID: <x49iql7z0k1.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 382565F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 12:44:02 -0400 (EDT)
+Date: Tue, 14 Apr 2009 18:44:39 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch 1/5] slqb: irq section fix
+Message-ID: <20090414164439.GA14873@wotan.suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Zach Brown <zach.brown@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-api@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> writes:
 
-> AIO folks, Am I missing anything?
->
-> ===============
-> Subject: [RFC][PATCH] aio: Don't inherit aio ring memory at fork
->
-> Currently, mm_struct::ioctx_list member isn't copyed at fork. IOW aio context don't inherit at fork.
-> but only ring memory inherited. that's strange.
->
-> This patch mark DONTFORK to ring-memory too.
+slqb: irq section fix
 
-Well, given that clearly nobody relies on io contexts being copied to
-the child, I think it's okay to make this change.  I think the current
-behaviour violates the principal of least surprise, but I'm having a
-hard time getting upset about that.  ;)
+flush_free_list can be called with interrupts enabled, from
+kmem_cache_destroy. Fix this.
 
-> In addition, This patch has good side effect. it also fix
-> "get_user_pages() vs fork" problem.
-
-Hmm, I don't follow you, here.  As I understand it, the get_user_pages
-vs. fork problem has to do with the pages used for the actual I/O, not
-the pages used to store the completion data.  So, could you elaborate a
-bit on what you mean by the above statement?
-
-> I think "man fork" also sould be changed. it only say
->
->        *  The child does not inherit outstanding asynchronous I/O operations from
->           its parent (aio_read(3), aio_write(3)).
-> but aio_context_t (return value of io_setup(2)) also don't inherit in current implementaion.
-
-I can certainly make that change, as I have other changes I need to push
-to Michael, anyway.
-
-Cheers,
-Jeff
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+---
+Index: linux-2.6/mm/slqb.c
+===================================================================
+--- linux-2.6.orig/mm/slqb.c	2009-04-01 00:57:13.000000000 +1100
++++ linux-2.6/mm/slqb.c	2009-04-01 01:02:02.000000000 +1100
+@@ -1087,7 +1087,6 @@ static void slab_free_to_remote(struct k
+  */
+ static void flush_free_list(struct kmem_cache *s, struct kmem_cache_list *l)
+ {
+-	struct kmem_cache_cpu *c;
+ 	void **head;
+ 	int nr;
+ 
+@@ -1100,8 +1099,6 @@ static void flush_free_list(struct kmem_
+ 	slqb_stat_inc(l, FLUSH_FREE_LIST);
+ 	slqb_stat_add(l, FLUSH_FREE_LIST_OBJECTS, nr);
+ 
+-	c = get_cpu_slab(s, smp_processor_id());
+-
+ 	l->freelist.nr -= nr;
+ 	head = l->freelist.head;
+ 
+@@ -1116,6 +1113,10 @@ static void flush_free_list(struct kmem_
+ 
+ #ifdef CONFIG_SMP
+ 		if (page->list != l) {
++			struct kmem_cache_cpu *c;
++
++			c = get_cpu_slab(s, smp_processor_id());
++
+ 			slab_free_to_remote(s, page, object, c);
+ 			slqb_stat_inc(l, FLUSH_FREE_LIST_REMOTE);
+ 		} else
+@@ -2251,6 +2252,7 @@ void kmem_cache_destroy(struct kmem_cach
+ 	down_write(&slqb_lock);
+ 	list_del(&s->list);
+ 
++	local_irq_disable();
+ #ifdef CONFIG_SMP
+ 	for_each_online_cpu(cpu) {
+ 		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
+@@ -2297,6 +2299,7 @@ void kmem_cache_destroy(struct kmem_cach
+ 
+ 	free_kmem_cache_nodes(s);
+ #endif
++	local_irq_enable();
+ 
+ 	sysfs_slab_remove(s);
+ 	up_write(&slqb_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
