@@ -1,84 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BF0255F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:34:58 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3EIVuX2027700
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:31:56 -0400
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3EIZTh5120118
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:35:29 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3EIXkQj001097
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 14:33:47 -0400
-Subject: Re: [feedback] procps and new kernel fields
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <e2e108260904070602p61b0be4fpc257f850b004c49f@mail.gmail.com>
-References: <1239054936.8846.130.camel@nimitz>
-	 <787b0d920904062140n72b82c7mfc6ca78c291363f7@mail.gmail.com>
-	 <e2e108260904070602p61b0be4fpc257f850b004c49f@mail.gmail.com>
-Content-Type: text/plain
-Date: Tue, 14 Apr 2009 11:35:24 -0700
-Message-Id: <1239734124.32604.100.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 3B31E5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:09:43 -0400 (EDT)
+Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
+References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org>
+	<m13acbbs5u.fsf@fess.ebiederm.org> <49E43F1D.3070400@kernel.org>
+	<m18wm38ws1.fsf@fess.ebiederm.org>
+	<20090414150745.GC26621@shareable.org>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 14 Apr 2009 12:09:41 -0700
+In-Reply-To: <20090414150745.GC26621@shareable.org> (Jamie Lokier's message of "Tue\, 14 Apr 2009 16\:07\:45 +0100")
+Message-ID: <m163h72gsq.fsf@fess.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: Bart Van Assche <bart.vanassche@gmail.com>
-Cc: Albert Cahalan <acahalan@cs.uml.edu>, linux-mm <linux-mm@kvack.org>, procps-feedback@lists.sf.net
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-04-07 at 15:02 +0200, Bart Van Assche wrote:
-> On Tue, Apr 7, 2009 at 6:40 AM, Albert Cahalan <acahalan@cs.uml.edu> wrote:
-> > On Mon, Apr 6, 2009 at 5:55 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> >> Novell has integrated that patch into procps
-> >...
-> >> The most worrisome side-effect of this change to me is that we can no
-> >> longer run vmstat or free on two machines and compare their output.
-> >
-> > Right. Vendors never consier that. They then expect upstream
-> > to accept and support their hack until the end of time.
-> 
-> The patch that was integrated by this vendor in their procps package
-> was posted on a public mailing list more than a year ago. It would
-> have helped if someone would have commented earlier on that patch.
+Jamie Lokier <jamie@shareable.org> writes:
 
-We suck. :)
+> Eric W. Biederman wrote:
+>> > I don't have anything at hand but multithread/process server accepting
+>> > on the same socket comes to mind.  I don't think it would be a very
+>> > rare thing.  If you confine the scope to character devices or sysfs,
+>> > it could be quite rare tho.
+>> 
+>> Yes.  I think I can safely exclude sockets, and not bother with
+>> reference counting them.
+>
+> Good idea.  As well as many processes calling accept(), it's not
+> unusual to have two threads or processes for reading and writing
+> concurrently to TCP sockets, and to have a single UDP socket shared
+> among threads/processes for sendto.
 
-> >> We could also add some information which is in
-> >> addition to what we already provide in order to account for things like
-> >> slab more precisely.
-> >
-> > How do I even explain a slab? What about a slob or slub?
-> > A few years from now, will this allocator even exist?
-> >
-> > Remember that I need something for the man page, and most
-> > of my audience knows almost nothing about programming.
-> 
-> It's not the difference between SLAB, SLOB and SLUB that matters here,
-> but the fact that some of the memory allocated by these kernel
-> allocators can be reclaimed. The procps tools currently count
-> reclaimable SLAB / SLOB / SLUB memory as used memory, which is
-> misleading. How can this be explained to someone who is not a
-> programmer ?
+I have been playing with what I can see when I instrument up my code.
 
-I actually think it is probably OK to call them "cache".  They *are*
-quite similar to the page cache from a user's perspective.  I just have
-a problem with changing it *now*, though.
+The first thing that popped up was that we have a lots of reads/writes
+to files with f_count > 1.  Which defeats my micro optimization in
+fops_read_lock.  So in those cases I still have to pay the full cost
+of an atomic even if I have an exclusive cache line.
 
-Page cache is fundamentally user data.  It is verbatim in memory exactly
-what came off or is going to the filesystem, and gets exposed to
-userspace directly.
+I have found that for make -j N I tend to get N processes all
+reading from the same pipe at the same time.  Not a smoking
+gun that my assumption that only one process will be using
+a file descriptor at a time in performance paths but it certainly
+shows that things are nowhere near as rare as I thought.
 
-The various sl*bs are fundamentally kernel data.  They're never seen by
-users directly.  
+The good news is that I have found a much better/cheaper optimization.
+Instead of per cpu or per file memory, use per task memory.  It is
+always uncontended, and a task appears to never use more than two files
+simultaneously (stacking?).
 
-So, if I were to write a tool that told users of both slab and page
-cache, I'd probably say "file cache" and "kernel cache" or something to
-that effect.  It's a bit over-simplified, but I think it gets the point
-across sufficiently.  Personally, I'd probably rather see 'buffers' get
-collapsed in with 'cache' and get a new column for sl*b.
+I have just prototyped that and things are looking very promising.
+Now I just need to clean everything up and resend my patches.
 
--- Dave
+>> The only strong evidence I have that multi-threading on a single file
+>> descriptor is likely to be common is that we have pread and pwrite
+>> syscalls.  At the same time the number of races we have in struct file
+>> if it is accessed by multiple threads at the same time, suggests
+>> that at least for cases where you have an offset it doesn't happen often.
+>
+> Notice the preadv and pwritev syscalls added recently?  They were
+> added because QEMU and KVM need them for performance.  Those programs
+> have multiple threads doing I/O to the same file concurrently.  It's
+> like a poor man's AIO, except it's more reliable than real Linux AIO :-)
+>
+> Databases probably should use concurrent p{read,write}{,v} if they're
+> not using direct I/O and AIO.  I'm not sure if the well-known
+> databases do.  In the past there have been some poor quality
+> "emulations" of those syscalls prone to races, on Linux and BSD I believe.
+>
+> What are the races you've noticed?
+
+Besides the f_pos (which pread variants handle) there is no locking on
+the file read ahead state, and f_flags only got locking a month or two
+ago.
+
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
