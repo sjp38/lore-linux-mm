@@ -1,126 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 250145F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 00:36:40 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E4bCE5018331
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id BB72A5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 02:15:33 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E6FjOR027408
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 14 Apr 2009 13:37:12 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id DC72245DE56
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 13:37:11 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id B035945DE50
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 13:37:11 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A46451DB8041
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 13:37:11 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 24DD51DB8044
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 13:37:11 +0900 (JST)
+	Tue, 14 Apr 2009 15:15:46 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8A5E445DD7B
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:15:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E25545DD78
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:15:45 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B20EE08006
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:15:45 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 016B6E08001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:15:45 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-In-Reply-To: <20090414042231.GA4341@localhost>
-References: <20090414042231.GA4341@localhost>
-Message-Id: <20090414133448.C645.A69D9226@jp.fujitsu.com>
+Subject: [RFC][PATCH 0/6] IO pinning(get_user_pages()) vs fork race fix
+Message-Id: <20090414151204.C647.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 14 Apr 2009 13:37:10 +0900 (JST)
+Date: Tue, 14 Apr 2009 15:15:43 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> Export the following page flags in /proc/kpageflags,
-> just in case they will be useful to someone:
-> 
-> - PG_swapcache
-> - PG_swapbacked
-> - PG_mappedtodisk
-> - PG_reserved
-> - PG_private
-> - PG_private_2
-> - PG_owner_priv_1
-> 
-> - PG_head
-> - PG_tail
-> - PG_compound
-> 
-> - PG_unevictable
-> - PG_mlocked
-> 
-> - PG_poison
 
-Sorry, NAK this.
-We shouldn't expose internal flags. please choice useful flags only.
+Linux Device Drivers, Third Edition, Chapter 15: Memory Mapping and DMA says
 
-> 
-> Also add the following two pseudo page flags:
-> 
-> - PG_MMAP:   whether the page is memory mapped
-> - PG_NOPAGE: whether the page is present
-> 
-> This increases the total number of exported page flags to 25.
-> 
-> Cc: Andi Kleen <andi@firstfloor.org>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Cc: Alexey Dobriyan <adobriyan@gmail.com>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/proc/page.c |  112 +++++++++++++++++++++++++++++++++--------------
->  1 file changed, 81 insertions(+), 31 deletions(-)
-> 
-> --- mm.orig/fs/proc/page.c
-> +++ mm/fs/proc/page.c
-> @@ -68,20 +68,86 @@ static const struct file_operations proc
->  
->  /* These macros are used to decouple internal flags from exported ones */
->  
-> -#define KPF_LOCKED     0
-> -#define KPF_ERROR      1
-> -#define KPF_REFERENCED 2
-> -#define KPF_UPTODATE   3
-> -#define KPF_DIRTY      4
-> -#define KPF_LRU        5
-> -#define KPF_ACTIVE     6
-> -#define KPF_SLAB       7
-> -#define KPF_WRITEBACK  8
-> -#define KPF_RECLAIM    9
-> -#define KPF_BUDDY     10
-> +enum {
-> +	KPF_LOCKED,		/*  0 */
-> +	KPF_ERROR,		/*  1 */
-> +	KPF_REFERENCED,		/*  2 */
-> +	KPF_UPTODATE,		/*  3 */
-> +	KPF_DIRTY,		/*  4 */
-> +	KPF_LRU,		/*  5 */
-> +	KPF_ACTIVE,		/*  6 */
-> +	KPF_SLAB,		/*  7 */
-> +	KPF_WRITEBACK,		/*  8 */
-> +	KPF_RECLAIM,		/*  9 */
-> +	KPF_BUDDY,		/* 10 */
-> +	KPF_MMAP,		/* 11 */
-> +	KPF_SWAPCACHE,		/* 12 */
-> +	KPF_SWAPBACKED,		/* 13 */
-> +	KPF_MAPPEDTODISK,	/* 14 */
-> +	KPF_RESERVED,		/* 15 */
-> +	KPF_PRIVATE,		/* 16 */
-> +	KPF_PRIVATE2,		/* 17 */
-> +	KPF_OWNER_PRIVATE,	/* 18 */
-> +	KPF_COMPOUND_HEAD,	/* 19 */
-> +	KPF_COMPOUND_TAIL,	/* 20 */
-> +	KPF_UNEVICTABLE,	/* 21 */
-> +	KPF_MLOCKED,		/* 22 */
-> +	KPF_POISON,		/* 23 */
-> +	KPF_NOPAGE,		/* 24 */
-> +	KPF_NUM
-> +};
+	get_user_pages is a low-level memory management function, with a suitably complex
+	interface. It also requires that the mmap reader/writer semaphore for the address
+	space be obtained in read mode before the call. As a result, calls to get_user_pages
+	usually look something like:
 
-this is userland export value. then enum is wrong idea.
-explicit name-number relationship is better. it prevent unintetional
-ABI break.
+		down_read(&current->mm->mmap_sem);
+		result = get_user_pages(current, current->mm, ...);
+		up_read(&current->mm->mmap_sem);
 
+	The return value is the number of pages actually mapped, which could be fewer than
+	the number requested (but greater than zero).
+
+but, it isn't true. mmap_sem isn't only used for vma traversal, but also prevent vs-fork race.
+up_read(mmap_sem) mean end of critical section, IOW after up_read() code is fork unsafe.
+(access_process_vm() explain proper get_user_pages() usage)
+
+Oh well, We have many wrong caller now. What is the best fix method?
+
+Nick Piggin and Andrea Arcangeli proposed to change get_user_pages() semantics as caller expected.
+  see "[PATCH] fork vs gup(-fast) fix" thead in linux-mm
+but Linus NACKed it.
+
+Thus I made caller change approach patch series. it is made for discuss to compare Nick's approach.
+I don't hope submit it yet.
+
+Nick, This version fixed vmsplice and aio issue (you pointed). I hope to hear your opiniton ;)
+
+
+
+ChangeLog:
+  V2 -> V3
+   o remove early decow logic
+   o introduce prevent unmap logic
+   o fix nfs-directio
+   o fix aio
+   o fix bio (only bandaid fix)
+
+  V1 -> V2
+   o fix aio+dio case
+
+TODO
+  o implement down_write_killable()
+  o fix kvm (need?)
+  o fix get_arg_page() (Why this function don't use mmap_sem?)
 
 
 --
