@@ -1,78 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 3B2805F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:41:43 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E7gJEb022502
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 14 Apr 2009 16:42:19 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 388CE2AEA81
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:19 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F01CB1EF082
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CFD181DB8060
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 22E101DB805D
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-In-Reply-To: <20090414072231.GA7001@localhost>
-References: <20090414154606.C665.A69D9226@jp.fujitsu.com> <20090414072231.GA7001@localhost>
-Message-Id: <20090414163312.C674.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 50C0E5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:44:59 -0400 (EDT)
+Message-ID: <49E43F1D.3070400@kernel.org>
+Date: Tue, 14 Apr 2009 16:45:33 +0900
+From: Tejun Heo <tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
+References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org> <m13acbbs5u.fsf@fess.ebiederm.org>
+In-Reply-To: <m13acbbs5u.fsf@fess.ebiederm.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Date: Tue, 14 Apr 2009 16:42:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
+Eric W. Biederman wrote:
+> Do you know of a case where we actually have multiple tasks accessing
+> a file simultaneously?
 
-> > > > > - PG_unevictable
-> > > > > - PG_mlocked
->  
-> How about including PG_unevictable/PG_mlocked?
-> They shall be meaningful to administrators.
+I don't have anything at hand but multithread/process server accepting
+on the same socket comes to mind.  I don't think it would be a very
+rare thing.  If you confine the scope to character devices or sysfs,
+it could be quite rare tho.
 
-I explained another mail. please see it.
+> I just instrumented up my patch an so far the only case I have found
+> are multiple processes closing the same file.  Some weird part of
+> bash forking extra processes.
 
+Hmmm...
 
-> > this 9 flags shouldn't exported.
-> > I can't imazine administrator use what purpose those flags.
-> 
-> > > > > - PG_swapcache
-> > > > > - PG_swapbacked
-> > > > > - PG_poison
-> > > > > - PG_compound
-> >
-> > I can agree this 4 flags.
-> > However pagemap lack's hugepage considering.
-> > if PG_compound exporting, we need more work.
-> 
-> You mean to fold PG_head/PG_tail into PG_COMPOUND?
-> Yes, that's a good simplification for end users.
+Thanks.
 
-Yes, I agree.
-
-
-> > > > > - PG_NOPAGE: whether the page is present
-> > 
-> > PM_NOT_PRESENT isn't enough?
-> 
-> That would not be usable if you are going to do a system wide scan.
-> PG_NOPAGE could help differentiate the 'no page' case from 'no flags'
-> case.
-> 
-> However PG_NOPAGE is more about the last resort. The system wide scan
-> can be made much more efficient if we know the exact memory layouts.
-
-Yup :)
-
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
