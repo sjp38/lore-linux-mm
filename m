@@ -1,89 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id F249A5F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 02:57:10 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E6w356004004
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 14 Apr 2009 15:58:03 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE98645DD75
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:58:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C61B645DD76
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:58:02 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CA224E08003
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:58:02 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 629DCE08001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:58:02 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH v3 6/6] fix wrong get_user_pages usage in iovlock.c
-In-Reply-To: <200904141656.14191.nickpiggin@yahoo.com.au>
-References: <20090414152151.C659.A69D9226@jp.fujitsu.com> <200904141656.14191.nickpiggin@yahoo.com.au>
-Message-Id: <20090414155719.C66B.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 14 Apr 2009 15:58:00 +0900 (JST)
+	by kanga.kvack.org (Postfix) with ESMTP id 258995F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:09:02 -0400 (EDT)
+Date: Tue, 14 Apr 2009 09:09:04 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: Re: [PATCH 2/2] Move FAULT_FLAG_xyz into handle_mm_fault() callers
+Message-ID: <20090414070904.GB23528@wotan.suse.de>
+References: <604427e00904081302m7b29c538u7781cd8f4dd576f2@mail.gmail.com> <20090409230205.310c68a7.akpm@linux-foundation.org> <20090410073042.GB21149@localhost> <alpine.LFD.2.00.0904100835150.4583@localhost.localdomain> <alpine.LFD.2.00.0904100904250.4583@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.00.0904100904250.4583@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: kosaki.motohiro@jp.fujitsu.com, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Maciej Sosnowski <maciej.sosnowski@intel.com>, "David S. Miller" <davem@davemloft.net>, Chris Leech <christopher.leech@intel.com>, netdev@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Mike Waychison <mikew@google.com>, Rohit Seth <rohitseth@google.com>, Hugh Dickins <hugh@veritas.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, =?iso-8859-1?B?VPZy9ms=?= Edwin <edwintorok@gmail.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-> On Tuesday 14 April 2009 16:23:13 KOSAKI Motohiro wrote:
-> > I don't have NET-DMA usable device. I hope to get expert review.
-> > 
-> > =========================
-> > Subject: [Untested][RFC][PATCH] fix wrong get_user_pages usage in iovlock.c
-> > 
-> > 	down_read(mmap_sem)
-> > 	get_user_pages()
-> > 	up_read(mmap_sem)
-> > 
-> > is fork unsafe.
-> > fix it.
-> > 
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> > Cc: Maciej Sosnowski <maciej.sosnowski@intel.com>
-> > Cc: David S. Miller <davem@davemloft.net>
-> > Cc: Chris Leech <christopher.leech@intel.com>
-> > Cc: netdev@vger.kernel.org
-> > ---
-> >  drivers/dma/iovlock.c |   18 ++++++------------
-> >  1 file changed, 6 insertions(+), 12 deletions(-)
-> > 
-> > Index: b/drivers/dma/iovlock.c
-> > ===================================================================
-> > --- a/drivers/dma/iovlock.c	2009-02-21 16:53:23.000000000 +0900
-> > +++ b/drivers/dma/iovlock.c	2009-04-13 04:46:02.000000000 +0900
-> > @@ -94,18 +94,10 @@ struct dma_pinned_list *dma_pin_iovec_pa
-> >  		pages += page_list->nr_pages;
-> >  
-> >  		/* pin pages down */
-> > -		down_read(&current->mm->mmap_sem);
-> > -		ret = get_user_pages(
-> > -			current,
-> > -			current->mm,
-> > -			(unsigned long) iov[i].iov_base,
-> > -			page_list->nr_pages,
-> > -			1,	/* write */
-> > -			0,	/* force */
-> > -			page_list->pages,
-> > -			NULL);
-> > -		up_read(&current->mm->mmap_sem);
-> > -
-> > +		down_read(&current->mm->mm_pinned_sem);
-> > +		ret = get_user_pages_fast((unsigned long) iov[i].iov_base,
-> > +					  page_list->nr_pages, 1,
-> > +					  page_list->pages);
+On Fri, Apr 10, 2009 at 09:09:53AM -0700, Linus Torvalds wrote:
 > 
-> I would perhaps not fold gup_fast conversions into the same patch as
-> the fix.
+> From: Linus Torvalds <torvalds@linux-foundation.org>
+> Date: Fri, 10 Apr 2009 09:01:23 -0700
+> 
+> This allows the callers to now pass down the full set of FAULT_FLAG_xyz
+> flags to handle_mm_fault().  All callers have been (mechanically)
+> converted to the new calling convention, there's almost certainly room
+> for architectures to clean up their code and then add FAULT_FLAG_RETRY
+> when that support is added.
 
-OK. I'll fix.
+I like these patches, no objections.
 
+BTW. I had been even toying with allocating the struct vm_fault structure
+further up, and filling in various bits as we we call down. Haven't put
+much time into that, but this patch goes one step toward that.. but
+arguably this patch is most useful because it allows more "flags" to be
+passed down.  Probably not much more flexibility can be gained from
+passing down the rest of the vm_fault structure (but I might still try
+it again in the hope of a readability improvement).
+
+> 
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> ---
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
