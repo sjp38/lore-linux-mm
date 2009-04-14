@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 0C4C25F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:38:57 -0400 (EDT)
-Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
-References: <m1skkf761y.fsf@fess.ebiederm.org> <49E4000E.10308@kernel.org>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: Tue, 14 Apr 2009 00:39:25 -0700
-In-Reply-To: <49E4000E.10308@kernel.org> (Tejun Heo's message of "Tue\, 14 Apr 2009 12\:16\:30 +0900")
-Message-ID: <m13acbbs5u.fsf@fess.ebiederm.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3B2805F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 03:41:43 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E7gJEb022502
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 14 Apr 2009 16:42:19 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 388CE2AEA81
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:19 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F01CB1EF082
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id CFD181DB8060
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 22E101DB805D
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 16:42:18 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
+In-Reply-To: <20090414072231.GA7001@localhost>
+References: <20090414154606.C665.A69D9226@jp.fujitsu.com> <20090414072231.GA7001@localhost>
+Message-Id: <20090414163312.C674.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 14 Apr 2009 16:42:17 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Tejun Heo <tj@kernel.org> writes:
 
-> Hello, Eric.
->
-> Eric W. Biederman wrote:
->> A couple of weeks ago I found myself looking at the uio, seeing that
->> it does not support pci hot-unplug, and thinking "Great yet another
->> implementation of hotunplug logic that needs to be added".
->> 
->> I decided to see what it would take to add a generic implementation of
->> the code we have for supporting hot unplugging devices in sysfs, proc,
->> sysctl, tty_io, and now almost in the tun driver.
->> 
->> Not long after I touched the tun driver and made it safe to delete the
->> network device while still holding it's file descriptor open I someone
->> else touch the code adding a different feature and my careful work
->> went up in flames.  Which brought home another point at the best of it
->> this is ultimately complex tricky code that subsystems should not need
->> to worry about.
->
-> I like the way it's headed.  I'm trying to add similar 'revoke' or
-> 'sever' mechanism at block and char device layers so that low level
-> drivers don't have to worry about object lifetimes and so on.  Doing
-> it at the file layer makes sense and can probably replace whatever
-> mechanism at the chardev.
->
-> The biggest obstacle was the extra in-use reference count overhead.  I
-> thought it could be solved by implementing generic percpu reference
-> count similar to the one used for module reference counting.  Hot path
-> overhead could be reduced to local_t cmpxchg (w/o LOCK prefix) on
-> per-cpu variable + one branch, which was pretty good.  The problem was
-> that space and access overhead for dynamic per-cpu variables wasn't
-> too good, so I started working on dynamic percpu allocator.
->
-> The dynamic per-cpu allocator is pretty close to completion.  Only
-> several archs need to be converted and it's likely to happen during
-> next few months.  The plan after that was 1. add per-cpu local_t
-> accessors (might replace local_t completely) 2. add generic per-cpu
-> reference counter and move module reference counting to it
-> 3. implement block/chardev sever (or revoke) support.
->
-> I think #3 can be merged with what you're working on.  What do you
-> think?
+> > > > > - PG_unevictable
+> > > > > - PG_mlocked
+>  
+> How about including PG_unevictable/PG_mlocked?
+> They shall be meaningful to administrators.
 
-Sounds reasonable.
+I explained another mail. please see it.
 
-Do you know of a case where we actually have multiple tasks accessing
-a file simultaneously?
 
-I just instrumented up my patch an so far the only case I have found
-are multiple processes closing the same file.  Some weird part of
-bash forking extra processes.
+> > this 9 flags shouldn't exported.
+> > I can't imazine administrator use what purpose those flags.
+> 
+> > > > > - PG_swapcache
+> > > > > - PG_swapbacked
+> > > > > - PG_poison
+> > > > > - PG_compound
+> >
+> > I can agree this 4 flags.
+> > However pagemap lack's hugepage considering.
+> > if PG_compound exporting, we need more work.
+> 
+> You mean to fold PG_head/PG_tail into PG_COMPOUND?
+> Yes, that's a good simplification for end users.
 
-Eric
+Yes, I agree.
+
+
+> > > > > - PG_NOPAGE: whether the page is present
+> > 
+> > PM_NOT_PRESENT isn't enough?
+> 
+> That would not be usable if you are going to do a system wide scan.
+> PG_NOPAGE could help differentiate the 'no page' case from 'no flags'
+> case.
+> 
+> However PG_NOPAGE is more about the last resort. The system wide scan
+> can be made much more efficient if we know the exact memory layouts.
+
+Yup :)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
