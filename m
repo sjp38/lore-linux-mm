@@ -1,90 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id E0F535F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 12:50:14 -0400 (EDT)
-Date: Tue, 14 Apr 2009 18:50:58 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: [patch 5/5] mm: prompt slqb default for oldconfig 
-Message-ID: <20090414165058.GE14873@wotan.suse.de>
-References: <20090414164439.GA14873@wotan.suse.de>
-Mime-Version: 1.0
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 447C85F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 13:50:45 -0400 (EDT)
+Date: Tue, 14 Apr 2009 19:51:24 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH v3 2/6] mm, directio: fix fork vs direct-io race
+	(read(2) side IOW gup(write) side)
+Message-ID: <20090414175124.GC9809@random.random>
+References: <20090414151204.C647.A69D9226@jp.fujitsu.com> <20090414151652.C64D.A69D9226@jp.fujitsu.com> <20090414152500.C65F.A69D9226@jp.fujitsu.com> <x49ab6jyyiy.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090414164439.GA14873@wotan.suse.de>
+In-Reply-To: <x49ab6jyyiy.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Zach Brown <zach.brown@oracle.com>, Andy Grover <andy.grover@oracle.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Pekka,
+On Tue, Apr 14, 2009 at 12:45:41PM -0400, Jeff Moyer wrote:
+> So, if you're continuously submitting async read I/O, you will starve
+> out the fork() call indefinitely.  I agree that you want to allow
 
-Well there have been reasonably significant changes both for SLQB and
-SLUB that I thought it is better to wait one more round before merging
-SLQB. Also, SLQB may not have been getting as much testing as it could
-have in -next, due to oldconfig choosing existing config as the default.
+IIRC rwsem good enough to stop the down_read when a down_write is
+blocked. Otherwise page fault flood in threads would also starve any
+mmap or similar call. Still with this approach fork will start to hang
+indefinitely waiting for I/O, making it an I/O bound call, and not a
+CPU call anymore, which may severely impact interactive-ness of
+applications.
 
-Thanks,
-Nick
---
-
-Change Kconfig names for slab allocator choices to prod SLQB into being
-the default. Hopefully increasing testing base.
-
-Signed-off-by: Nick Piggin <npiggin@suse.de>
----
-Index: linux-2.6/init/Kconfig
-===================================================================
---- linux-2.6.orig/init/Kconfig	2009-04-15 02:36:05.000000000 +1000
-+++ linux-2.6/init/Kconfig	2009-04-15 02:41:25.000000000 +1000
-@@ -975,18 +975,23 @@ config COMPAT_BRK
- 
- choice
- 	prompt "Choose SLAB allocator"
--	default SLQB
-+	default SLQB_ALLOCATOR
- 	help
- 	   This option allows to select a slab allocator.
- 
--config SLAB
-+config SLAB_ALLOCATOR
- 	bool "SLAB"
- 	help
- 	  The regular slab allocator that is established and known to work
- 	  well in all environments. It organizes cache hot objects in
- 	  per cpu and per node queues.
- 
--config SLUB
-+config SLAB
-+	bool
-+	default y
-+	depends on SLAB_ALLOCATOR
-+
-+config SLUB_ALLOCATOR
- 	bool "SLUB (Unqueued Allocator)"
- 	help
- 	   SLUB is a slab allocator that minimizes cache line usage
-@@ -996,11 +1001,21 @@ config SLUB
- 	   and has enhanced diagnostics. SLUB is the default choice for
- 	   a slab allocator.
- 
--config SLQB
-+config SLUB
-+	bool
-+	default y
-+	depends on SLUB_ALLOCATOR
-+
-+config SLQB_ALLOCATOR
- 	bool "SLQB (Queued allocator)"
- 	help
- 	  SLQB is a proposed new slab allocator.
- 
-+config SLQB
-+	bool
-+	default y
-+	depends on SLQB_ALLOCATOR
-+
- config SLOB
- 	depends on EMBEDDED
- 	bool "SLOB (Simple Allocator)"
+As long as fork is useful in the first place to provide memory
+protection of different code with different
+memory-corruption-trust-levels (otherwise nobody should use fork at
+all, and vfork [or better spawn] should become the only option), then
+fork from a thread pool is also reasonable. Either fork is totally
+useless as a whole (which I wouldn't argue too much about), or if you
+agree fork makes any sense, it can also make sense if intermixed with
+clone(CLONE_VM) and hopefully it should behave CPU bound like CLONE_VM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
