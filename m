@@ -1,92 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 33BD35F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 02:20:05 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E6KMmE020573
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id E72135F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 02:21:36 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3E6Ltke021105
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 14 Apr 2009 15:20:22 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E7AC45DE50
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:20:22 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E2D6545DE4F
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:20:21 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id CF1E31DB803E
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:20:21 +0900 (JST)
+	Tue, 14 Apr 2009 15:21:55 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5F35D45DE56
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:21:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 883C445DE58
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:21:54 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A57861DB803E
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:21:53 +0900 (JST)
 Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 867E31DB803A
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:20:21 +0900 (JST)
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CEEF1DB8040
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 15:21:53 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [RFC][PATCH v3 4/6] aio: Don't inherit aio ring memory at fork
+Subject: [RFC][PATCH v3 5/6] don't use bio-map in read() path
 In-Reply-To: <20090414151204.C647.A69D9226@jp.fujitsu.com>
 References: <20090414151204.C647.A69D9226@jp.fujitsu.com>
-Message-Id: <20090414151924.C653.A69D9226@jp.fujitsu.com>
+Message-Id: <20090414152020.C656.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 14 Apr 2009 15:20:20 +0900 (JST)
+Date: Tue, 14 Apr 2009 15:21:51 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: LKML <linux-kernel@vger.kernel.org>, Zach Brown <zach.brown@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-api@vger.kernel.org
-Cc: kosaki.motohiro@jp.fujitsu.com, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>, Jens Axboe <jens.axboe@oracle.com>, James Bottomley <James.Bottomley@HansenPartnership.com>
 List-ID: <linux-mm.kvack.org>
 
-AIO folks, Am I missing anything?
+Who know proper fixing way?
 
-===============
-Subject: [RFC][PATCH] aio: Don't inherit aio ring memory at fork
+=================
+Subject: [Untested][RFC][PATCH] don't use bio-map in read() path
 
-Currently, mm_struct::ioctx_list member isn't copyed at fork. IOW aio context don't inherit at fork.
-but only ring memory inherited. that's strange.
+__bio_map_user_iov() has wrong usage of get_user_pages_fast().
+it doesn't have prevent fork mechanism.
 
-This patch mark DONTFORK to ring-memory too.
-In addition, This patch has good side effect. it also fix "get_user_pages() vs fork" problem.
+then, it sould be used read-side (memory to device transfer) gup only.
 
-I think "man fork" also sould be changed. it only say
-
-       *  The child does not inherit outstanding asynchronous I/O operations from
-          its parent (aio_read(3), aio_write(3)).
-
-but aio_context_t (return value of io_setup(2)) also don't inherit in current implementaion.
+This patch is obviously temporally fix. we can implement fork safe bio_map_user()
+the future...
 
 
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Zach Brown <zach.brown@oracle.com>
-Cc: Jens Axboe <jens.axboe@oracle.com>
-Cc: linux-fsdevel@vger.kernel.org
-Cc: linux-api@vger.kernel.org,
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: Jens Axboe <jens.axboe@oracle.com>
+Cc: James Bottomley <James.Bottomley@HansenPartnership.com>
 ---
- fs/aio.c |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ block/blk-map.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Index: b/fs/aio.c
+Index: b/block/blk-map.c
 ===================================================================
---- a/fs/aio.c	2009-04-12 23:33:59.000000000 +0900
-+++ b/fs/aio.c	2009-04-13 02:56:05.000000000 +0900
-@@ -106,6 +106,7 @@ static int aio_setup_ring(struct kioctx 
- 	unsigned nr_events = ctx->max_reqs;
- 	unsigned long size;
- 	int nr_pages;
-+	int ret;
- 
- 	/* Compensate for the ring buffer's head/tail overlap entry */
- 	nr_events += 2;	/* 1 is required, 2 for good luck */
-@@ -140,6 +141,13 @@ static int aio_setup_ring(struct kioctx 
- 		return -EAGAIN;
+--- a/block/blk-map.c	2009-02-21 16:53:21.000000000 +0900
++++ b/block/blk-map.c	2009-04-12 23:36:32.000000000 +0900
+@@ -55,7 +55,7 @@ static int __blk_rq_map_user(struct requ
+ 	 * direct dma. else, set up kernel bounce buffers
+ 	 */
+ 	uaddr = (unsigned long) ubuf;
+-	if (blk_rq_aligned(q, ubuf, len) && !map_data)
++	if (blk_rq_aligned(q, ubuf, len) && !map_data && !reading)
+ 		bio = bio_map_user(q, NULL, uaddr, len, reading, gfp_mask);
+ 	else
+ 		bio = bio_copy_user(q, map_data, uaddr, len, reading, gfp_mask);
+@@ -208,7 +208,7 @@ int blk_rq_map_user_iov(struct request_q
+ 		}
  	}
  
-+	/*
-+	 * aio context doesn't inherit while fork. (see mm_init())
-+	 * Then, aio ring also mark DONTFORK.
-+	 */
-+	ret = sys_madvise(info->mmap_base, info->mmap_size, MADV_DONTFORK);
-+	BUG_ON(ret);
-+
- 	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
- 	info->nr_pages = get_user_pages(current, ctx->mm,
- 					info->mmap_base, nr_pages, 
+-	if (unaligned || (q->dma_pad_mask & len) || map_data)
++	if (unaligned || (q->dma_pad_mask & len) || map_data || read)
+ 		bio = bio_copy_user_iov(q, map_data, iov, iov_count, read,
+ 					gfp_mask);
+ 	else
 
 
 --
