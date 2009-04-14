@@ -1,67 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F0D5F0001
-	for <linux-mm@kvack.org>; Mon, 13 Apr 2009 23:15:34 -0400 (EDT)
-Message-ID: <49E4000E.10308@kernel.org>
-Date: Tue, 14 Apr 2009 12:16:30 +0900
-From: Tejun Heo <tj@kernel.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 286DF5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 00:22:28 -0400 (EDT)
+Date: Tue, 14 Apr 2009 12:22:31 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
+Message-ID: <20090414042231.GA4341@localhost>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/9] File descriptor hot-unplug support
-References: <m1skkf761y.fsf@fess.ebiederm.org>
-In-Reply-To: <m1skkf761y.fsf@fess.ebiederm.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Eric.
+Export the following page flags in /proc/kpageflags,
+just in case they will be useful to someone:
 
-Eric W. Biederman wrote:
-> A couple of weeks ago I found myself looking at the uio, seeing that
-> it does not support pci hot-unplug, and thinking "Great yet another
-> implementation of hotunplug logic that needs to be added".
-> 
-> I decided to see what it would take to add a generic implementation of
-> the code we have for supporting hot unplugging devices in sysfs, proc,
-> sysctl, tty_io, and now almost in the tun driver.
-> 
-> Not long after I touched the tun driver and made it safe to delete the
-> network device while still holding it's file descriptor open I someone
-> else touch the code adding a different feature and my careful work
-> went up in flames.  Which brought home another point at the best of it
-> this is ultimately complex tricky code that subsystems should not need
-> to worry about.
+- PG_swapcache
+- PG_swapbacked
+- PG_mappedtodisk
+- PG_reserved
+- PG_private
+- PG_private_2
+- PG_owner_priv_1
 
-I like the way it's headed.  I'm trying to add similar 'revoke' or
-'sever' mechanism at block and char device layers so that low level
-drivers don't have to worry about object lifetimes and so on.  Doing
-it at the file layer makes sense and can probably replace whatever
-mechanism at the chardev.
+- PG_head
+- PG_tail
+- PG_compound
 
-The biggest obstacle was the extra in-use reference count overhead.  I
-thought it could be solved by implementing generic percpu reference
-count similar to the one used for module reference counting.  Hot path
-overhead could be reduced to local_t cmpxchg (w/o LOCK prefix) on
-per-cpu variable + one branch, which was pretty good.  The problem was
-that space and access overhead for dynamic per-cpu variables wasn't
-too good, so I started working on dynamic percpu allocator.
+- PG_unevictable
+- PG_mlocked
 
-The dynamic per-cpu allocator is pretty close to completion.  Only
-several archs need to be converted and it's likely to happen during
-next few months.  The plan after that was 1. add per-cpu local_t
-accessors (might replace local_t completely) 2. add generic per-cpu
-reference counter and move module reference counting to it
-3. implement block/chardev sever (or revoke) support.
+- PG_poison
 
-I think #3 can be merged with what you're working on.  What do you
-think?
+Also add the following two pseudo page flags:
 
-Thanks.
+- PG_MMAP:   whether the page is memory mapped
+- PG_NOPAGE: whether the page is present
 
--- 
-tejun
+This increases the total number of exported page flags to 25.
+
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ fs/proc/page.c |  112 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 81 insertions(+), 31 deletions(-)
+
+--- mm.orig/fs/proc/page.c
++++ mm/fs/proc/page.c
+@@ -68,20 +68,86 @@ static const struct file_operations proc
+ 
+ /* These macros are used to decouple internal flags from exported ones */
+ 
+-#define KPF_LOCKED     0
+-#define KPF_ERROR      1
+-#define KPF_REFERENCED 2
+-#define KPF_UPTODATE   3
+-#define KPF_DIRTY      4
+-#define KPF_LRU        5
+-#define KPF_ACTIVE     6
+-#define KPF_SLAB       7
+-#define KPF_WRITEBACK  8
+-#define KPF_RECLAIM    9
+-#define KPF_BUDDY     10
++enum {
++	KPF_LOCKED,		/*  0 */
++	KPF_ERROR,		/*  1 */
++	KPF_REFERENCED,		/*  2 */
++	KPF_UPTODATE,		/*  3 */
++	KPF_DIRTY,		/*  4 */
++	KPF_LRU,		/*  5 */
++	KPF_ACTIVE,		/*  6 */
++	KPF_SLAB,		/*  7 */
++	KPF_WRITEBACK,		/*  8 */
++	KPF_RECLAIM,		/*  9 */
++	KPF_BUDDY,		/* 10 */
++	KPF_MMAP,		/* 11 */
++	KPF_SWAPCACHE,		/* 12 */
++	KPF_SWAPBACKED,		/* 13 */
++	KPF_MAPPEDTODISK,	/* 14 */
++	KPF_RESERVED,		/* 15 */
++	KPF_PRIVATE,		/* 16 */
++	KPF_PRIVATE2,		/* 17 */
++	KPF_OWNER_PRIVATE,	/* 18 */
++	KPF_COMPOUND_HEAD,	/* 19 */
++	KPF_COMPOUND_TAIL,	/* 20 */
++	KPF_UNEVICTABLE,	/* 21 */
++	KPF_MLOCKED,		/* 22 */
++	KPF_POISON,		/* 23 */
++	KPF_NOPAGE,		/* 24 */
++	KPF_NUM
++};
+ 
+ #define kpf_copy_bit(flags, dstpos, srcpos) (((flags >> srcpos) & 1) << dstpos)
+ 
++u64 get_uflags(struct page *page)
++{
++	unsigned long kflags; /* todo: use u64 when KPF_NUM grows beyond 32 */
++	u64 uflags;
++
++	if (!page)
++		return 1 << KPF_NOPAGE;
++
++	kflags = page->flags;
++	uflags = 0;
++
++	if (page_mapped(page))
++		uflags |= 1 << KPF_MMAP;
++
++	uflags |= kpf_copy_bit(kflags, KPF_LOCKED,	PG_locked);
++	uflags |= kpf_copy_bit(kflags, KPF_ERROR,	PG_error);
++	uflags |= kpf_copy_bit(kflags, KPF_REFERENCED,	PG_referenced);
++	uflags |= kpf_copy_bit(kflags, KPF_UPTODATE,	PG_uptodate);
++	uflags |= kpf_copy_bit(kflags, KPF_DIRTY,	PG_dirty);
++	uflags |= kpf_copy_bit(kflags, KPF_LRU,		PG_lru)	;
++	uflags |= kpf_copy_bit(kflags, KPF_ACTIVE,	PG_active);
++	uflags |= kpf_copy_bit(kflags, KPF_SLAB,	PG_slab);
++	uflags |= kpf_copy_bit(kflags, KPF_WRITEBACK,	PG_writeback);
++	uflags |= kpf_copy_bit(kflags, KPF_RECLAIM,	PG_reclaim);
++	uflags |= kpf_copy_bit(kflags, KPF_BUDDY,	PG_buddy);
++	uflags |= kpf_copy_bit(kflags, KPF_SWAPCACHE,	PG_swapcache);
++	uflags |= kpf_copy_bit(kflags, KPF_SWAPBACKED,	PG_swapbacked);
++	uflags |= kpf_copy_bit(kflags, KPF_MAPPEDTODISK, PG_mappedtodisk);
++	uflags |= kpf_copy_bit(kflags, KPF_RESERVED,	PG_reserved);
++	uflags |= kpf_copy_bit(kflags, KPF_PRIVATE,	PG_private);
++	uflags |= kpf_copy_bit(kflags, KPF_PRIVATE2,	PG_private_2);
++	uflags |= kpf_copy_bit(kflags, KPF_OWNER_PRIVATE, PG_owner_priv_1);
++#ifdef CONFIG_PAGEFLAGS_EXTENDED
++	uflags |= kpf_copy_bit(kflags, KPF_COMPOUND_HEAD, PG_head);
++	uflags |= kpf_copy_bit(kflags, KPF_COMPOUND_TAIL, PG_tail);
++#else
++	uflags |= kpf_copy_bit(kflags, KPF_COMPOUND_HEAD, PG_compound);
++#endif
++#ifdef CONFIG_UNEVICTABLE_LRU
++	uflags |= kpf_copy_bit(kflags, KPF_UNEVICTABLE,	PG_unevictable);
++	uflags |= kpf_copy_bit(kflags, KPF_MLOCKED,	PG_mlocked);
++#endif
++#ifdef CONFIG_MEMORY_FAILURE
++	uflags |= kpf_copy_bit(kflags, KPF_POISON,	PG_poison);
++#endif
++
++	return uflags;
++};
++
+ static ssize_t kpageflags_read(struct file *file, char __user *buf,
+ 			     size_t count, loff_t *ppos)
+ {
+@@ -90,7 +156,6 @@ static ssize_t kpageflags_read(struct fi
+ 	unsigned long src = *ppos;
+ 	unsigned long pfn;
+ 	ssize_t ret = 0;
+-	u64 kflags, uflags;
+ 
+ 	pfn = src / KPMSIZE;
+ 	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
+@@ -98,32 +163,17 @@ static ssize_t kpageflags_read(struct fi
+ 		return -EINVAL;
+ 
+ 	while (count > 0) {
+-		ppage = NULL;
+ 		if (pfn_valid(pfn))
+ 			ppage = pfn_to_page(pfn);
+-		pfn++;
+-		if (!ppage)
+-			kflags = 0;
+ 		else
+-			kflags = ppage->flags;
++			ppage = NULL;
+ 
+-		uflags = kpf_copy_bit(kflags, KPF_LOCKED, PG_locked) |
+-			kpf_copy_bit(kflags, KPF_ERROR, PG_error) |
+-			kpf_copy_bit(kflags, KPF_REFERENCED, PG_referenced) |
+-			kpf_copy_bit(kflags, KPF_UPTODATE, PG_uptodate) |
+-			kpf_copy_bit(kflags, KPF_DIRTY, PG_dirty) |
+-			kpf_copy_bit(kflags, KPF_LRU, PG_lru) |
+-			kpf_copy_bit(kflags, KPF_ACTIVE, PG_active) |
+-			kpf_copy_bit(kflags, KPF_SLAB, PG_slab) |
+-			kpf_copy_bit(kflags, KPF_WRITEBACK, PG_writeback) |
+-			kpf_copy_bit(kflags, KPF_RECLAIM, PG_reclaim) |
+-			kpf_copy_bit(kflags, KPF_BUDDY, PG_buddy);
+-
+-		if (put_user(uflags, out++)) {
++		if (put_user(get_uflags(ppage), out)) {
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-
++		out++;
++		pfn++;
+ 		count -= KPMSIZE;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
