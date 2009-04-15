@@ -1,163 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 28EF65F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 06:13:12 -0400 (EDT)
-Received: by fxm22 with SMTP id 22so3778246fxm.38
-        for <linux-mm@kvack.org>; Wed, 15 Apr 2009 03:13:21 -0700 (PDT)
-Date: Wed, 15 Apr 2009 12:13:17 +0200
-From: Andrea Righi <righi.andrea@gmail.com>
-Subject: Re: [PATCH] memcg remove warning at DEBUG_VM=off
-Message-ID: <20090415101317.GA3240@linux>
-References: <20090408142042.3fb62eea.kamezawa.hiroyu@jp.fujitsu.com> <20090408052715.GX7082@balbir.in.ibm.com> <20090409222512.bd026a40.akpm@linux-foundation.org> <20090410153335.b52c5f74.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id C64995F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 06:45:38 -0400 (EDT)
+Date: Wed, 15 Apr 2009 12:46:15 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC][PATCH v3 1/6] mm: Don't unmap gup()ed page
+Message-ID: <20090415104615.GG9809@random.random>
+References: <20090414143252.GE28265@random.random> <200904150042.15653.nickpiggin@yahoo.com.au> <20090415165431.AC4C.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20090410153335.b52c5f74.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090415165431.AC4C.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 10, 2009 at 03:33:35PM +0900, KAMEZAWA Hiroyuki wrote:
-> On Thu, 9 Apr 2009 22:25:12 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Wed, 8 Apr 2009 10:57:15 +0530 Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > 
-> > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-08 14:20:42]:
-> > > 
-> > > > From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > This is against 2.6.30-rc1. (maybe no problem against mmotm.)
-> > > > 
-> > > > ==
-> > > > Fix warning as
-> > > > 
-> > > >   CC      mm/memcontrol.o
-> > > > mm/memcontrol.c:318: warning: ?$B!Fmem_cgroup_is_obsolete?$B!G defined but not used
-> > > > 
-> > > > This is called only from VM_BUG_ON().
-> > > > 
-> > > > Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > ---
-> > > > Index: linux-2.6.30-rc1/mm/memcontrol.c
-> > > > ===================================================================
-> > > > --- linux-2.6.30-rc1.orig/mm/memcontrol.c
-> > > > +++ linux-2.6.30-rc1/mm/memcontrol.c
-> > > > @@ -314,13 +314,14 @@ static struct mem_cgroup *try_get_mem_cg
-> > > >  	return mem;
-> > > >  }
-> > > > 
-> > > > +#ifdef CONFIG_DEBUG_VM
-> > > >  static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
-> > > >  {
-> > > >  	if (!mem)
-> > > >  		return true;
-> > > >  	return css_is_removed(&mem->css);
-> > > >  }
-> > > > -
-> > > > +#endif
-> > > 
-> > > Can we change the code to use
-> > > 
-> > >         VM_BUG_ON(!mem || css_is_removed(&mem->css));
-> > > 
-> > 
-> > yup.
-> > 
-> > --- a/mm/memcontrol.c~memcg-remove-warning-when-config_debug_vm=n-fix
-> > +++ a/mm/memcontrol.c
-> > @@ -314,14 +314,13 @@ static struct mem_cgroup *try_get_mem_cg
-> >  	return mem;
-> >  }
-> >  
-> > -#ifdef CONFIG_DEBUG_VM
-> >  static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
-> >  {
-> >  	if (!mem)
-> >  		return true;
-> >  	return css_is_removed(&mem->css);
-> >  }
-> > -#endif
-> > +
-> >  
-> >  /*
-> >   * Call callback function against all cgroup under hierarchy tree.
-> > @@ -933,7 +932,7 @@ static int __mem_cgroup_try_charge(struc
-> >  	if (unlikely(!mem))
-> >  		return 0;
-> >  
-> > -	VM_BUG_ON(mem_cgroup_is_obsolete(mem));
-> > +	VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
-> >  
-> >  	while (1) {
-> >  		int ret;
-> > _
-> > 
-> > Although it really should be
-> > 
-> > 	VM_BUG_ON(!mem);
-> > 	VM_BUG_ON(mem_cgroup_is_obsolete(mem));
-> > 
-> > because if that BUG triggers, you'll be wondering which case caused it.
-> > 
-> Ah, sorry, I missed the reply.
-> maybe calling css_is_removed() directly is a choice.
-> I'll prepare v2.
-> 
-> Regards,
-> -Kame
+On Wed, Apr 15, 2009 at 05:05:54PM +0900, KOSAKI Motohiro wrote:
+> -	/*
+> -	 * If the page is mlock()d, we cannot swap it out.
+> -	 * If it's recently referenced (perhaps page_referenced
+> -	 * skipped over this mm) then we should reactivate it.
+> -	 */
+>  	if (!migration) {
+> +		if (PageSwapCache(page) &&
+> +		    page_count(page) != page_mapcount(page) + 2) {
+> +			ret = SWAP_FAIL;
+> +			goto out_unmap;
+> +		}
+> +
+> +		/*
+> +		 * If the page is mlock()d, we cannot swap it out.
+> +		 * If it's recently referenced (perhaps page_referenced
+> +		 * skipped over this mm) then we should reactivate it.
+> +		 */
+>  		if (vma->vm_flags & VM_LOCKED) {
+>  			ret = SWAP_MLOCK;
+>  			goto out_unmap;
+> @@ -790,7 +796,19 @@ static int try_to_unmap_one(struct page 
+>  
+>  	/* Nuke the page table entry. */
+>  	flush_cache_page(vma, address, page_to_pfn(page));
+> -	pteval = ptep_clear_flush_notify(vma, address, pte);
+> +	pteval = ptep_clear_flush(vma, address, pte);
+> +
+> +	if (!migration) {
+> +		/* re-check */
+> +		if (PageSwapCache(page) &&
+> +		    page_count(page) != page_mapcount(page) + 2) {
+> +			/* We lose race against get_user_pages_fast() */
+> +			set_pte_at(mm, address, pte, pteval);
+> +			ret = SWAP_FAIL;
+> +			goto out_unmap;
+> +		}
+> +	}
+> +	mmu_notifier_invalidate_page(vma->vm_mm, address);
 
-The warning is still there actually. I've just written a fix and seen
-this discussion, maybe I can offload a little bit Kame. ;)
-
--Andrea
----
-memcg: remove warning when CONFIG_DEBUG_VM is not set
-
-Fix the following warning removing mem_cgroup_is_obsolete():
-
-  mm/memcontrol.c:318: warning: a??mem_cgroup_is_obsoletea?? defined but not used
-
-Moreover, split the VM_BUG_ON() checks in two parts to be aware of which
-one triggered the bug.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Andrea Righi <righi.andrea@gmail.com>
----
- mm/memcontrol.c |   11 ++---------
- 1 files changed, 2 insertions(+), 9 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e44fb0f..8cd6358 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -314,14 +314,6 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
- 	return mem;
- }
- 
--static bool mem_cgroup_is_obsolete(struct mem_cgroup *mem)
--{
--	if (!mem)
--		return true;
--	return css_is_removed(&mem->css);
--}
--
--
- /*
-  * Call callback function against all cgroup under hierarchy tree.
-  */
-@@ -932,7 +924,8 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- 	if (unlikely(!mem))
- 		return 0;
- 
--	VM_BUG_ON(!mem || mem_cgroup_is_obsolete(mem));
-+	VM_BUG_ON(!mem);
-+	VM_BUG_ON(css_is_removed(&mem->css));
- 
- 	while (1) {
- 		int ret;
+With regard to mmu notifier, this is the opposite of the right
+ordering. One mmu_notifier_invalidate_page must run _before_ the first
+check. The ptep_clear_flush_notify will then stay and there's no need
+of a further mmu_notifier_invalidate_page after the second check.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
