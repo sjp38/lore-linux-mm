@@ -1,93 +1,298 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5535F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 04:22:21 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [RFC][PATCH v3 1/6] mm: Don't unmap gup()ed page
-Date: Wed, 15 Apr 2009 18:22:32 +1000
-References: <20090414143252.GE28265@random.random> <200904150042.15653.nickpiggin@yahoo.com.au> <20090415165431.AC4C.A69D9226@jp.fujitsu.com>
-In-Reply-To: <20090415165431.AC4C.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 899C25F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 04:24:48 -0400 (EDT)
+Date: Wed, 15 Apr 2009 10:25:07 +0200
+From: Nick Piggin <npiggin@suse.de>
+Subject: [patch] mm: close page_mkwrite races (try 3)
+Message-ID: <20090415082507.GA23674@wotan.suse.de>
+References: <20090414071152.GC23528@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200904151822.33478.nickpiggin@yahoo.com.au>
+In-Reply-To: <20090414071152.GC23528@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Sage Weil <sage@newdream.net>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 15 April 2009 18:05:54 KOSAKI Motohiro wrote:
-> Hi
-> 
-> > On Wednesday 15 April 2009 00:32:52 Andrea Arcangeli wrote:
-> > > On Wed, Apr 15, 2009 at 12:26:34AM +1000, Nick Piggin wrote:
-> > > > Andrea: I didn't veto that set_bit change of yours as such. I just
-> > > 
-> > > I know you didn't ;)
-> > > 
-> > > > noted there could be more atomic operations. Actually I would
-> > > > welcome more comparison between our two approaches, but they seem
-> > > 
-> > > Agree about the welcome of comparison, it'd be nice to measure it the
-> > > enterprise workloads that showed the gup_fast gain in the first place.
-> > 
-> > I think we should be able to ask IBM to run some tests, provided
-> > they still have machines available to do so. Although I don't want
-> > to waste their time so we need to have something that has got past
-> > initial code review and has a chance of being merged.
-> > 
-> > If we get that far, then I can ask them to run tests definitely.
-> 
-> Oh, it seem very charming idea.
-> Nick, I hope to help your patch's rollup. It makes good comparision, I think.
-> Is there my doable thing?
+OK, that one had some rough patches (in the changelog and the patch itself).
+One more try... if it's still misunderstandable, I give up :)
 
-Well, I guess review and testing. There are few possibilities for
-reducing the cases where we have to de-cow (or increasing the
-cases where we can WP-on-fork), which I'd like to experiment with,
-but I don't know how much it will help...
+--
 
+Change page_mkwrite to allow implementations to return with the page locked,
+and also change it's callers (in page fault paths) to hold the lock until the
+page is marked dirty. This allows the filesystem to have full control of page
+dirtying events coming from the VM.
 
-> And, I changed my patch.
-> How about this? I added simple twice check.
-> 
-> because, both do_wp_page and try_to_unmap_one grab ptl. then,
-> page-fault routine can't change pte while try_to_unmap nuke pte.
+Rather than simply hold the page locked over the page_mkwrite call, we call
+page_mkwrite with the page unlocked and allow callers to return with it locked,
+so filesystems can avoid LOR conditions with page lock.
 
-Hmm,
+The problem with the current scheme is this: a filesystem that wants to
+associate some metadata with a page as long as the page is dirty, will perform
+this manipulation in its ->page_mkwrite. It currently then must return with the
+page unlocked and may not hold any other locks (according to existing
+page_mkwrite convention).
 
-> @@ -790,7 +796,19 @@ static int try_to_unmap_one(struct page 
->  
->  	/* Nuke the page table entry. */
->  	flush_cache_page(vma, address, page_to_pfn(page));
-> -	pteval = ptep_clear_flush_notify(vma, address, pte);
-> +	pteval = ptep_clear_flush(vma, address, pte);
-> +
-> +	if (!migration) {
-> +		/* re-check */
-> +		if (PageSwapCache(page) &&
-> +		    page_count(page) != page_mapcount(page) + 2) {
-> +			/* We lose race against get_user_pages_fast() */
-> +			set_pte_at(mm, address, pte, pteval);
-> +			ret = SWAP_FAIL;
-> +			goto out_unmap;
-> +		}
-> +	}
-> +	mmu_notifier_invalidate_page(vma->vm_mm, address);
+In this window, the VM could write out the page, clearing page-dirty. The
+filesystem has no good way to detect that a dirty pte is about to be attached,
+so it will happily write out the page, at which point, the filesystem may
+manipulate the metadata to reflect that the page is no longer dirty.
 
-Hmm, in the case of powerpc-style gup_fast where the arch
-does not send IPIs to flush TLBs, either the speculative
-reference there should find the pte cleared, or the page_count
-check here should find the speculative reference.
+It is not always possible to perform the required metadata manipulation in
+->set_page_dirty, because that function cannot block or fail. The filesystem
+may need to allocate some data structure, for example.
 
-In the case of CPUs that do send IPIs and have x86-style
-gup_fast, the TLB flush should ensure all gup_fast()s that
-could have seen the pte will complete before we check
-page_count.
+And the VM cannot mark the pte dirty before page_mkwrite, because page_mkwrite
+is allowed to fail, so we must not allow any window where the page could be
+written to if page_mkwrite does fail.
 
-Yes I think it might work.
+This solution of holding the page locked over the 3 critical operations
+(page_mkwrite, setting the pte dirty, and finally setting the page dirty)
+closes out races nicely, preventing page cleaning for writeout being initiated
+in that window. This provides the filesystem with a strong synchronisation
+against the VM here.
+
+- Sage needs this race closed for ceph filesystem.
+- Trond for NFS (http://bugzilla.kernel.org/show_bug.cgi?id=12913).
+- I need it for fsblock.
+- I suspect other filesystems may need it too (eg. btrfs).
+- I have converted buffer.c to the new locking. Even simple block allocation
+  under dirty pages might be susceptible to i_size changing under partial page
+  at the end of file (we also have a buffer.c-side problem here, but it cannot
+  be fixed properly without this patch).
+- Other filesystems (eg. NFS, maybe btrfs) will need to change their
+  page_mkwrite functions themselves.
+
+[ This also moves page_mkwrite another step closer to fault, which should
+  eventually allow page_mkwrite to be moved into ->fault, and thus avoiding a
+  filesystem calldown and page lock/unlock cycle in __do_fault. ]
+
+Cc: Sage Weil <sage@newdream.net>
+Cc: Trond Myklebust <trond.myklebust@fys.uio.no>
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+
+---
+ Documentation/filesystems/Locking |   24 +++++++---
+ fs/buffer.c                       |   10 ++--
+ mm/memory.c                       |   85 +++++++++++++++++++++++++-------------
+ 3 files changed, 80 insertions(+), 39 deletions(-)
+
+Index: linux-2.6/fs/buffer.c
+===================================================================
+--- linux-2.6.orig/fs/buffer.c
++++ linux-2.6/fs/buffer.c
+@@ -2383,7 +2383,8 @@ block_page_mkwrite(struct vm_area_struct
+ 	if ((page->mapping != inode->i_mapping) ||
+ 	    (page_offset(page) > size)) {
+ 		/* page got truncated out from underneath us */
+-		goto out_unlock;
++		unlock_page(page);
++		goto out;
+ 	}
+ 
+ 	/* page is wholly or partially inside EOF */
+@@ -2397,14 +2398,15 @@ block_page_mkwrite(struct vm_area_struct
+ 		ret = block_commit_write(page, 0, end);
+ 
+ 	if (unlikely(ret)) {
++		unlock_page(page);
+ 		if (ret == -ENOMEM)
+ 			ret = VM_FAULT_OOM;
+ 		else /* -ENOSPC, -EIO, etc */
+ 			ret = VM_FAULT_SIGBUS;
+-	}
++	} else
++		ret = VM_FAULT_LOCKED;
+ 
+-out_unlock:
+-	unlock_page(page);
++out:
+ 	return ret;
+ }
+ 
+Index: linux-2.6/mm/memory.c
+===================================================================
+--- linux-2.6.orig/mm/memory.c
++++ linux-2.6/mm/memory.c
+@@ -1971,6 +1971,15 @@ static int do_wp_page(struct mm_struct *
+ 				ret = tmp;
+ 				goto unwritable_page;
+ 			}
++			if (unlikely(!(tmp & VM_FAULT_LOCKED))) {
++				lock_page(old_page);
++				if (!old_page->mapping) {
++					ret = 0; /* retry the fault */
++					unlock_page(old_page);
++					goto unwritable_page;
++				}
++			} else
++				VM_BUG_ON(!PageLocked(old_page));
+ 
+ 			/*
+ 			 * Since we dropped the lock we need to revalidate
+@@ -1980,9 +1989,11 @@ static int do_wp_page(struct mm_struct *
+ 			 */
+ 			page_table = pte_offset_map_lock(mm, pmd, address,
+ 							 &ptl);
+-			page_cache_release(old_page);
+-			if (!pte_same(*page_table, orig_pte))
++			if (!pte_same(*page_table, orig_pte)) {
++				unlock_page(old_page);
++				page_cache_release(old_page);
+ 				goto unlock;
++			}
+ 
+ 			page_mkwrite = 1;
+ 		}
+@@ -2105,16 +2116,31 @@ unlock:
+ 		 *
+ 		 * do_no_page is protected similarly.
+ 		 */
+-		wait_on_page_locked(dirty_page);
+-		set_page_dirty_balance(dirty_page, page_mkwrite);
++		if (!page_mkwrite) {
++			wait_on_page_locked(dirty_page);
++			set_page_dirty_balance(dirty_page, page_mkwrite);
++		}
+ 		put_page(dirty_page);
++		if (page_mkwrite) {
++			struct address_space *mapping = dirty_page->mapping;
++
++			set_page_dirty(dirty_page);
++			unlock_page(dirty_page);
++			page_cache_release(dirty_page);
++			balance_dirty_pages_ratelimited(mapping);
++		}
+ 	}
+ 	return ret;
+ oom_free_new:
+ 	page_cache_release(new_page);
+ oom:
+-	if (old_page)
++	if (old_page) {
++		if (page_mkwrite) {
++			unlock_page(old_page);
++			page_cache_release(old_page);
++		}
+ 		page_cache_release(old_page);
++	}
+ 	return VM_FAULT_OOM;
+ 
+ unwritable_page:
+@@ -2664,27 +2690,22 @@ static int __do_fault(struct mm_struct *
+ 				int tmp;
+ 
+ 				unlock_page(page);
+-				vmf.flags |= FAULT_FLAG_MKWRITE;
++				vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+ 				tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
+ 				if (unlikely(tmp &
+ 					  (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
+ 					ret = tmp;
+-					anon = 1; /* no anon but release vmf.page */
+-					goto out_unlocked;
+-				}
+-				lock_page(page);
+-				/*
+-				 * XXX: this is not quite right (racy vs
+-				 * invalidate) to unlock and relock the page
+-				 * like this, however a better fix requires
+-				 * reworking page_mkwrite locking API, which
+-				 * is better done later.
+-				 */
+-				if (!page->mapping) {
+-					ret = 0;
+-					anon = 1; /* no anon but release vmf.page */
+-					goto out;
++					goto unwritable_page;
+ 				}
++				if (unlikely(!(tmp & VM_FAULT_LOCKED))) {
++					lock_page(page);
++					if (!page->mapping) {
++						ret = 0; /* retry the fault */
++						unlock_page(page);
++						goto unwritable_page;
++					}
++				} else
++					VM_BUG_ON(!PageLocked(page));
+ 				page_mkwrite = 1;
+ 			}
+ 		}
+@@ -2736,19 +2757,29 @@ static int __do_fault(struct mm_struct *
+ 	pte_unmap_unlock(page_table, ptl);
+ 
+ out:
+-	unlock_page(vmf.page);
+-out_unlocked:
+-	if (anon)
+-		page_cache_release(vmf.page);
+-	else if (dirty_page) {
++	if (dirty_page) {
++		struct address_space *mapping = page->mapping;
++
+ 		if (vma->vm_file)
+ 			file_update_time(vma->vm_file);
+ 
+-		set_page_dirty_balance(dirty_page, page_mkwrite);
++		if (set_page_dirty(dirty_page))
++			page_mkwrite = 1;
++		unlock_page(dirty_page);
+ 		put_page(dirty_page);
++		if (page_mkwrite)
++			balance_dirty_pages_ratelimited(mapping);
++	} else {
++		unlock_page(vmf.page);
++		if (anon)
++			page_cache_release(vmf.page);
+ 	}
+ 
+ 	return ret;
++
++unwritable_page:
++	page_cache_release(page);
++	return ret;
+ }
+ 
+ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+Index: linux-2.6/Documentation/filesystems/Locking
+===================================================================
+--- linux-2.6.orig/Documentation/filesystems/Locking
++++ linux-2.6/Documentation/filesystems/Locking
+@@ -512,16 +512,24 @@ locking rules:
+ 		BKL	mmap_sem	PageLocked(page)
+ open:		no	yes
+ close:		no	yes
+-fault:		no	yes
+-page_mkwrite:	no	yes		no
++fault:		no	yes		can return with page locked
++page_mkwrite:	no	yes		can return with page locked
+ access:		no	yes
+ 
+-	->page_mkwrite() is called when a previously read-only page is
+-about to become writeable. The file system is responsible for
+-protecting against truncate races. Once appropriate action has been
+-taking to lock out truncate, the page range should be verified to be
+-within i_size. The page mapping should also be checked that it is not
+-NULL.
++	->fault() is called when a previously not present pte is about
++to be faulted in. The filesystem must find and return the page associated
++with the passed in "pgoff" in the vm_fault structure. If it is possible that
++the page may be truncated and/or invalidated, then the filesystem must lock
++the page, then ensure it is not already truncated (the page lock will block
++subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
++locked. The VM will unlock the page.
++
++	->page_mkwrite() is called when a previously read-only pte is
++about to become writeable. The filesystem again must ensure that there are
++no truncate/invalidate races, and then return with the page locked. If
++the page has been truncated, the filesystem should not look up a new page
++like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
++will cause the VM to retry the fault.
+ 
+ 	->access() is called when get_user_pages() fails in
+ acces_process_vm(), typically used to debug a process through
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
