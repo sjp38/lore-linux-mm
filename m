@@ -1,126 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ED1285F0001
-	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 22:43:30 -0400 (EDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [RFC][PATCH v3 4/6] aio: Don't inherit aio ring memory at fork
-References: <20090414151924.C653.A69D9226@jp.fujitsu.com>
-	<x49iql7z0k1.fsf@segfault.boston.devel.redhat.com>
-	<20090415091534.AC18.A69D9226@jp.fujitsu.com>
-Date: Tue, 14 Apr 2009 22:44:03 -0400
-In-Reply-To: <20090415091534.AC18.A69D9226@jp.fujitsu.com> (KOSAKI Motohiro's
-	message of "Wed, 15 Apr 2009 09:56:34 +0900 (JST)")
-Message-ID: <x49tz4qiqks.fsf@segfault.boston.devel.redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 1B92C5F0001
+	for <linux-mm@kvack.org>; Tue, 14 Apr 2009 22:54:18 -0400 (EDT)
+Subject: Re: [RFC][PATCH 5/9] vfs: Introduce basic infrastructure for revoking a file
+References: <m1skkf761y.fsf@fess.ebiederm.org>
+	<m163hb75ph.fsf@fess.ebiederm.org>
+	<20090414161240.73fe6bcd@bike.lwn.net>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: Tue, 14 Apr 2009 19:55:01 -0700
+In-Reply-To: <20090414161240.73fe6bcd@bike.lwn.net> (Jonathan Corbet's message of "Tue\, 14 Apr 2009 16\:12\:40 -0600")
+Message-ID: <m1tz4qwrqy.fsf@fess.ebiederm.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Zach Brown <zach.brown@oracle.com>, Jens Axboe <jens.axboe@oracle.com>, linux-api@vger.kernel.org, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jonathan Corbet <corbet@lwn.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Al Viro <viro@ZenIV.linux.org.uk>, Hugh Dickins <hugh@veritas.com>, Tejun Heo <tj@kernel.org>, Alexey Dobriyan <adobriyan@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Greg Kroah-Hartman <gregkh@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> writes:
+Jonathan Corbet <corbet@lwn.net> writes:
 
-> Hi!
+> Hi, Eric,
 >
->> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> writes:
->> 
->> > AIO folks, Am I missing anything?
->> >
->> > ===============
->> > Subject: [RFC][PATCH] aio: Don't inherit aio ring memory at fork
->> >
->> > Currently, mm_struct::ioctx_list member isn't copyed at fork. IOW aio context don't inherit at fork.
->> > but only ring memory inherited. that's strange.
->> >
->> > This patch mark DONTFORK to ring-memory too.
->> 
->> Well, given that clearly nobody relies on io contexts being copied to
->> the child, I think it's okay to make this change.  I think the current
->> behaviour violates the principal of least surprise, but I'm having a
->> hard time getting upset about that.  ;)
+> One little thing I noticed as I was looking at this...
 >
-> ok.
-> So, Can I get your Acked-by?
-
-I have more comments below.
-
->> > In addition, This patch has good side effect. it also fix
->> > "get_user_pages() vs fork" problem.
->> 
->> Hmm, I don't follow you, here.  As I understand it, the get_user_pages
->> vs. fork problem has to do with the pages used for the actual I/O, not
->> the pages used to store the completion data.  So, could you elaborate a
->> bit on what you mean by the above statement?
+>> +int fops_substitute(struct file *file, const struct file_operations *f_op,
+>> +			struct vm_operations_struct *vm_ops)
+>> +{
 >
-> No.
+>  [...]
 >
-> The problem is, get_user_pages() increment page_count only.
-> but VM page-fault logic don't care page_count. (it only care page::_mapcount)
-> Then, fork and pagefault can change virtual-physical relationship although
-> get_user_pages() is called.
+>> +	/*
+>> +	 * Wait until there are no more callers in the original
+>> +	 * file_operations methods.
+>> +	 */
+>> +	while (atomic_long_read(&file->f_use) > 0)
+>> +		schedule_timeout_interruptible(1);
 >
-> drawback worst aio scenario here
-> -----------------------------------------------------------------------
-> io_setup() and gup			inc page_count
+> You use an interruptible sleep here, but there's no signal check to get you
+> out of the loop.  So it's not really interruptible.  If f_use never goes to
+> zero (a distressingly likely possibility, I fear), this code will create
+> the equivalent of an unkillable D-wait state without ever actually showing
+> up that way in "ps".
+
+I snagged this idiom out of srcu and hadn't given it much thought.
+
+We have a number of places in the kernel where we aren't performing work
+for user space where we fib about the kind of sleep we are doing, so
+we don't increase the load.  In this case we are in fs code so I guess
+calling this an uninterruptible sleep is fair, especially since it
+looks like at some point this code path is going be called from
+a syscall.
+
+As for f_use not going to zero, we have strong progress guarantees:
+
+- fops_read_lock at that point will not increment the count of any new
+  users of the file.
+
+- There is an additional awaken_all_waiters to wake up any wait queues
+  that are causing syscalls to block in the kernel.  
+
+
+> Actually, now that I look, once you've got a signal pending you'll stay
+> in TASK_RUNNING, so the above could turn into a busy-wait.
 >
-> fork					inc mapcount
-> 					and make write-protect to pte
->
-> write ring from userland(*)		page fault and
-> 					COW break.
-> 					parent process get copyed page and
-> 					child get original page owner-ship.
->
-> kmap and memcpy from kernel		change child page. (it mean data lost)
->
-> (*) Is this happend?
+> Unless I've missed something...?
 
-I guess it's possible, but I don't know of any programs that do this.
+Well we will always schedule, so it shouldn't be a pure busy-wait,
+but overall I would call this a good catch.
 
-> MADV_DONTFORK or down_read(mmap_sem) or down_read(mm_pinned_sem) 
-> or copy-at-fork mecanism(=Nick/Andrea patch) solve it.
+> I have no idea what the right thing to do in the face of a signal would
+> be.  Perhaps the wait-for-zero and release() call stuff should be dumped
+> into a workqueue and done asynchronously?  OTOH, I can see a need to know
+> when the revoke operation is really done...
 
-OK, thanks for the explanation.
+Yes.
 
-+	/*
-+	 * aio context doesn't inherit while fork. (see mm_init())
-+	 * Then, aio ring also mark DONTFORK.
-+	 */
+For sys_revoke the wait doesn't appear necessary.
 
-Would you mind if I did some word-smithing on that comment?  Something
-like:
-	/*
-	 * The io_context is not inherited by the child after fork()
-         * (see mm_init).  Therefore, it makes little sense for the
-         * completion ring to be inherited.
-         */
+For umount -f, rmmod, or pci hotunplug we need the wait to know when we it
+is safe to free up underlying data structures.  And at least for the latter
+two being truly interruptible is a correctness problem.
 
-+	ret = sys_madvise(info->mmap_base, info->mmap_size, MADV_DONTFORK);
-+	BUG_ON(ret);
-+
-
-It appears there's no other way to set the VM_DONTCOPY flag, so I guess
-calling sys_madvise is fine.  I'm not sure I agree with the BUG_ON(ret),
-however, as EAGAIN may be feasible.
-
-So, fix that up and you can add my reviewed-by.  I think you should push
-this patch independent of the other patches in this series.
-
->> > I think "man fork" also sould be changed. it only say
->> >
->> >        *  The child does not inherit outstanding asynchronous I/O operations from
->> >           its parent (aio_read(3), aio_write(3)).
->> > but aio_context_t (return value of io_setup(2)) also don't inherit in current implementaion.
->> 
->> I can certainly make that change, as I have other changes I need to push
->> to Michael, anyway.
->
-> thanks.
-
-No problem.  As you know, I've already sent a patch for this.
-
-Cheers,
-Jeff
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
