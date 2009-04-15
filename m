@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5AFAA5F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 07:24:55 -0400 (EDT)
-Date: Wed, 15 Apr 2009 13:25:11 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/4] add replace_page(): change the page pte is
-	pointing to.
-Message-ID: <20090415112511.GH9809@random.random>
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <20090414150925.58b464f7.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with SMTP id D9B165F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 07:38:29 -0400 (EDT)
+Received: by wf-out-1314.google.com with SMTP id 25so2722960wfa.11
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2009 04:39:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090414150925.58b464f7.akpm@linux-foundation.org>
+In-Reply-To: <20090415104615.GG9809@random.random>
+References: <20090414143252.GE28265@random.random>
+	 <200904150042.15653.nickpiggin@yahoo.com.au>
+	 <20090415165431.AC4C.A69D9226@jp.fujitsu.com>
+	 <20090415104615.GG9809@random.random>
+Date: Wed, 15 Apr 2009 20:39:04 +0900
+Message-ID: <2f11576a0904150439k6e828307ja97b6729650bcb94@mail.gmail.com>
+Subject: Re: [RFC][PATCH v3 1/6] mm: Don't unmap gup()ed page
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 14, 2009 at 03:09:25PM -0700, Andrew Morton wrote:
-> On Thu,  9 Apr 2009 06:58:40 +0300
-> Izik Eidus <ieidus@redhat.com> wrote:
-> 
-> > replace_page() allow changing the mapping of pte from one physical page
-> > into diffrent physical page.
-> 
-> At a high level, this is very similar to what page migration does.  Yet
-> this implementation shares nothing with the page migration code.
-> 
-> Can this situation be improved?
+>> + =A0 =A0 if (!migration) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 /* re-check */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 if (PageSwapCache(page) &&
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page_count(page) !=3D page_mapcount(pa=
+ge) + 2) {
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* We lose race against get_us=
+er_pages_fast() */
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_pte_at(mm, address, pte, p=
+teval);
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 ret =3D SWAP_FAIL;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out_unmap;
+>> + =A0 =A0 =A0 =A0 =A0 =A0 }
+>> + =A0 =A0 }
+>> + =A0 =A0 mmu_notifier_invalidate_page(vma->vm_mm, address);
+>
+> With regard to mmu notifier, this is the opposite of the right
+> ordering. One mmu_notifier_invalidate_page must run _before_ the first
+> check. The ptep_clear_flush_notify will then stay and there's no need
+> of a further mmu_notifier_invalidate_page after the second check.
 
-This was discussed last time too. Basically the thing is that using
-migration entry with its special page fault paths, for this looks a
-bit of an overkill complexity and unnecessary dependency on the
-migration code. All we need is to mark the pte readonly. replace_page
-is a no brainer then. The brainer part is page_wrprotect
-(page_wrprotect is like fork).
+OK. but I have one question.
 
-The data visibility in the final memcmp you mentioned in the other
-mail is supposedly taken care of by page_wrprotect too. It already
-does flush_cache_page for the virtual indexed and not physically
-tagged caches. page_wrprotect has to also IPI all CPUs to nuke any not
-wrprotected tlb entry. I don't think we need further smp memory
-barriers when we're guaranteed all tlb entries are wrprotected in the
-other cpus and an IPI and invlpg run in them, to be sure we read the
-data stable during memcmp even if we read through the kernel
-pagetables and the last userland write happened through userland ptes
-before they become effective wrprotected by the IPI.
+Can we assume mmu_notifier is only used by kvm now?
+if not, we need to make new notifier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
