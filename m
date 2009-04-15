@@ -1,58 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 466605F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 09:54:07 -0400 (EDT)
-Date: Wed, 15 Apr 2009 15:57:49 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090415135749.GD14687@one.firstfloor.org>
-References: <20090414133448.C645.A69D9226@jp.fujitsu.com> <20090414064132.GB5746@localhost> <20090414154606.C665.A69D9226@jp.fujitsu.com> <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 33B345F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 18:06:33 -0400 (EDT)
+Date: Wed, 15 Apr 2009 14:59:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hugetlbfs: return negative error code for bad mount
+ option
+Message-Id: <20090415145910.22910363.akpm@linux-foundation.org>
+In-Reply-To: <20090413035623.GA4156@localhost.localdomain>
+References: <20090413035623.GA4156@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090415131800.GA11191@localhost>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: linux-kernel@vger.kernel.org, wli@holomorphy.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> That's pretty good separations. I guess it would be convenient to make the
-> extra kernel flags available under CONFIG_DEBUG_KERNEL?
+On Mon, 13 Apr 2009 12:56:23 +0900
+Akinobu Mita <akinobu.mita@gmail.com> wrote:
 
-Yes.
-
-BTW an alternative would be just someone implementing a suitable
-command/macro in crash(1) and tell the kernel hackers to run that on
-/proc/kcore. That would have the advantage to not require code.
-
-> > > > > > - PG_compound
-> > 
-> > I would combine these three into a pseudo "large page" flag.
+> This fixes the following BUG:
 > 
-> Very neat idea! Patch updated accordingly.
+> # mount -o size=MM -t hugetlbfs none /huge
+> hugetlbfs: Bad value 'MM' for mount option 'size=MM'
+> ------------[ cut here ]------------
+> kernel BUG at fs/super.c:996!
+
+I can't tell where this BUG (or WARN?) is happening unless I know
+exactly which kernel version was tested.
+
+I assume that it is BUG_ON(!mnt->mnt_sb); in vfs_kern_mount()?
+
+> Also, remove unused #include <linux/quotaops.h>
+> 
+> Cc: William Irwin <wli@holomorphy.com>
+> Cc: stable@kernel.org
+> Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
+> ---
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 23a3c76..153d968 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -26,7 +26,6 @@
+>  #include <linux/pagevec.h>
+>  #include <linux/parser.h>
+>  #include <linux/mman.h>
+> -#include <linux/quotaops.h>
+>  #include <linux/slab.h>
+>  #include <linux/dnotify.h>
+>  #include <linux/statfs.h>
+> @@ -842,7 +841,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
+>  bad_val:
+>   	printk(KERN_ERR "hugetlbfs: Bad value '%s' for mount option '%s'\n",
+>  	       args[0].from, p);
+> - 	return 1;
+> + 	return -EINVAL;
+>  }
 >  
-> However - one pity I observed:
-> 
-> # ./page-areas 0x008000
->     offset      len         KB
->       3088        4       16KB
-> 
-> We can no longer tell if the above line means one 4-page hugepage, or two
-> 2-page hugepages... Adding PG_COMPOUND_TAIL into the CONFIG_DEBUG_KERNEL block
-
-There's only a single size (2 or 4MB), at worst two.
-
-> > 
-> > PG_poison is also useful to export. But since it depends on my
-> > patchkit I will pull a patch for that into the HWPOISON series.
-> 
-> That's not a problem - since the PG_poison line is be protected by
-> #ifdef CONFIG_MEMORY_FAILURE :-) 
-
-Good point. I added a patch to only add it to my pile,
-but I can drop that again.
-
--Andi
+>  static int
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
