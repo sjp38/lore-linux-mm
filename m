@@ -1,48 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 212CB5F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 08:14:41 -0400 (EDT)
-Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
-	by e23smtp02.au.ibm.com (8.13.1/8.13.1) with ESMTP id n3GCDLCb030684
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 22:13:21 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3GCEkn21519866
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 22:14:49 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3GCEkQw014765
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 22:14:46 +1000
-Date: Thu, 16 Apr 2009 17:44:07 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Add file based RSS accounting for memory resource
-	controller (v2)
-Message-ID: <20090416121407.GH7082@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090415120510.GX7082@balbir.in.ibm.com> <20090416095303.b4106e9f.kamezawa.hiroyu@jp.fujitsu.com> <20090416015955.GB7082@balbir.in.ibm.com> <20090416110246.c3fef293.kamezawa.hiroyu@jp.fujitsu.com> <20090416164036.03d7347a.kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 705A25F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 12:08:42 -0400 (EDT)
+Message-ID: <49E7580A.1080903@goop.org>
+Date: Thu, 16 Apr 2009 09:08:42 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090416164036.03d7347a.kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org> <49E67F17.1070805@goop.org> <20090416113931.GF4524@random.random>
+In-Reply-To: <20090416113931.GF4524@random.random>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-16 16:40:36]:
-
-> 2. In above, "mem" shouldn't be got from "mm"....please get "mem" from page_cgroup.
-> (Because it's file cache, pc->mem_cgroup is not NULL always.)
-> 
-> I saw this very easily.
-> ==
-> Cache: 4096
-> mapped_file: 20480
-> ==
+Andrea Arcangeli wrote:
+> On Wed, Apr 15, 2009 at 05:43:03PM -0700, Jeremy Fitzhardinge wrote:
+>   
+>> Shouldn't that be kmap_atomic's job anyway?  Otherwise it would be hard to 
+>>     
 >
+> No because those are full noops in no-highmem kernels. I commented in
+> other email why I think it's safe thanks to the wrprotect + smp tlb
+> flush of the userland PTE.
+>   
 
-May I ask how and what was expected?
- 
--- 
-	Balbir
+I think Andrew's query was about data cache synchronization in 
+architectures with virtually indexed d-cache.  On x86 it's a non-issue, 
+but on architectures for which it is an issue, I assume kmap_atomic does 
+any necessary cache flushes, as it does tlb flushes on x86 (which may be 
+none at all, if no mapping actually happens).
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
