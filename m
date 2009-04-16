@@ -1,97 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id EAAB95F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 00:43:10 -0400 (EDT)
-Date: Thu, 16 Apr 2009 12:43:06 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090416044306.GA21153@localhost>
-References: <20090414133448.C645.A69D9226@jp.fujitsu.com> <20090414064132.GB5746@localhost> <20090414154606.C665.A69D9226@jp.fujitsu.com> <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost> <20090415135749.GD14687@one.firstfloor.org> <20090416024133.GA20162@localhost> <20090416035443.GH14687@one.firstfloor.org>
+	by kanga.kvack.org (Postfix) with SMTP id 9E17C5F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 01:01:34 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id f25so189848rvb.26
+        for <linux-mm@kvack.org>; Wed, 15 Apr 2009 22:01:34 -0700 (PDT)
+Date: Thu, 16 Apr 2009 14:01:29 +0900
+From: Akinobu Mita <akinobu.mita@gmail.com>
+Subject: Re: [PATCH] hugetlbfs: return negative error code for bad mount
+	option
+Message-ID: <20090416050129.GA4083@localhost.localdomain>
+References: <20090413035623.GA4156@localhost.localdomain> <20090415145910.22910363.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090416035443.GH14687@one.firstfloor.org>
+In-Reply-To: <20090415145910.22910363.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, wli@holomorphy.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 16, 2009 at 11:54:43AM +0800, Andi Kleen wrote:
-> On Thu, Apr 16, 2009 at 10:41:33AM +0800, Wu Fengguang wrote:
-> > On Wed, Apr 15, 2009 at 09:57:49PM +0800, Andi Kleen wrote:
-> > > > That's pretty good separations. I guess it would be convenient to make the
-> > > > extra kernel flags available under CONFIG_DEBUG_KERNEL?
-> > > 
-> > > Yes.
-> > > 
-> > > BTW an alternative would be just someone implementing a suitable
-> > > command/macro in crash(1) and tell the kernel hackers to run that on
-> > > /proc/kcore. That would have the advantage to not require code.
+On Wed, Apr 15, 2009 at 02:59:10PM -0700, Andrew Morton wrote:
+> On Mon, 13 Apr 2009 12:56:23 +0900
+> Akinobu Mita <akinobu.mita@gmail.com> wrote:
+> 
+> > This fixes the following BUG:
 > > 
-> > Hmm, that would be horrible to code/maintain. i
+> > # mount -o size=MM -t hugetlbfs none /huge
+> > hugetlbfs: Bad value 'MM' for mount option 'size=MM'
+> > ------------[ cut here ]------------
+> > kernel BUG at fs/super.c:996!
 > 
-> Actually the bits are enums and crash is able to read C type 
-> information.
+> I can't tell where this BUG (or WARN?) is happening unless I know
+> exactly which kernel version was tested.
 
-Great! That dismissed my main concern with crash.
+Oh, sorry.
 
-> > One major purpose of
-> > /proc/kpageflags is to export the unstable kernel page flag bits as
-> > stable ones to user space. 
-> 
-> That's the first case ("administrator"), but not the second one
-> ("kernel hacker")
-> 
-> BTW not saying that crash is the best solution for this, but
-> it's certainly an serious alternative for the kernel hacker
-> case. 
+> I assume that it is BUG_ON(!mnt->mnt_sb); in vfs_kern_mount()?
 
-OK.
-
-> > Note that the exact internal flag bits can
-> > not only change slowly with kernel versions, but more likely with
-> > different kconfig combinations.
-> 
-> Really? The numbers should be the same, at least for a given
-> architecture with 32bit/64bit.
-
-For example, the presence of CONFIG_PAGEFLAGS_EXTENDED will shift
-all the following flag bits by 1.
-
-        #ifdef CONFIG_PAGEFLAGS_EXTENDED
-                PG_head,                /* A head page */
-                PG_tail,                /* A tail page */
-        #else  
-                PG_compound,            /* A compound page */
-        #endif 
-                PG_swapcache,           /* Swap page: swp_entry_t in private */
-                PG_mappedtodisk,        /* Has blocks allocated on-disk */
-                PG_reclaim,             /* To be reclaimed asap */
-                PG_buddy,               /* Page is free, on buddy lists */
-                PG_swapbacked,          /* Page is backed by RAM/swap */
-        #ifdef CONFIG_UNEVICTABLE_LRU
-                PG_unevictable,         /* Page is "unevictable"  */
-        #endif
-        #ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
-                PG_mlocked,             /* Page is vma mlocked */
-        #endif
-        #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
-                PG_uncached,            /* Page has been mapped as uncached */
-        #endif  
-                __NR_PAGEFLAGS,
-
-
-> > Followed are their detailed locations. Did we found a bug? ;-)
-> 
-> I think all pages > 0 in a larger page are tails.  But I don't
-> claim to understand all the finer details of compound pages.
-
-Right. Tail pages will outnumber head pages. But I found that the
-tail page _ranges_ greatly outnumber head pages. There should be
-exactly one tail page range for one head page. 
-
-Thanks,
-Fengguang
+Yes. In vfs_kern_mount(), type->get_sb() returns 1 then BUG_ON(!mnt->mnt_sb);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
