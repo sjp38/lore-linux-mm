@@ -1,50 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id EAFC05F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 19:21:22 -0400 (EDT)
-Date: Thu, 16 Apr 2009 01:21:34 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-Message-ID: <20090415232134.GB4524@random.random>
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org> <49E661A5.8050305@redhat.com> <20090415155058.9e4635b2.akpm@linux-foundation.org>
+	by kanga.kvack.org (Postfix) with ESMTP id A83B45F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 20:42:30 -0400 (EDT)
+Message-ID: <49E67F17.1070805@goop.org>
+Date: Wed, 15 Apr 2009 17:43:03 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090415155058.9e4635b2.akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>	<1239249521-5013-2-git-send-email-ieidus@redhat.com>	<1239249521-5013-3-git-send-email-ieidus@redhat.com>	<1239249521-5013-4-git-send-email-ieidus@redhat.com>	<1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org>
+In-Reply-To: <20090414150929.174a9b25.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 15, 2009 at 03:50:58PM -0700, Andrew Morton wrote:
-> an optional thing and can even be modprobed, that doesn't work.  And
-> having a driver in mm/ which can be modprobed is kinda neat.
+Andrew Morton wrote:
+>> +static pte_t *get_pte(struct mm_struct *mm, unsigned long addr)
+>> +{
+>> +	pgd_t *pgd;
+>> +	pud_t *pud;
+>> +	pmd_t *pmd;
+>> +	pte_t *ptep = NULL;
+>> +
+>> +	pgd = pgd_offset(mm, addr);
+>> +	if (!pgd_present(*pgd))
+>> +		goto out;
+>> +
+>> +	pud = pud_offset(pgd, addr);
+>> +	if (!pud_present(*pud))
+>> +		goto out;
+>> +
+>> +	pmd = pmd_offset(pud, addr);
+>> +	if (!pmd_present(*pmd))
+>> +		goto out;
+>> +
+>> +	ptep = pte_offset_map(pmd, addr);
+>> +out:
+>> +	return ptep;
+>> +}
+>>     
+>
+> hm, this looks very generic.  Does it duplicate anything which core
+> kernel already provides?  If not, perhaps core kernel should provide
+> this (perhaps after some reorganisation).
+>   
 
-Agreed. I think madvise with all its vma split requirements and
-ksm-unregistering invoked at vma destruction time (under CONFIG_KSM ||
-CONFIG_KSM_MODULE) is clean approach only if ksm is considered a piece
-of the core kernel VM. As long as only certain users out there use ksm
-(i.e. only virtualization servers and LHC computations) the pseduochar
-ioctl interface keeps it out of the kernel, so core kernel MM API
-remains almost unaffected by ksm.
+It is lookup_address() which works on user addresses, and as such is 
+very useful.  But it would need to deal with returning a level so it can 
+deal with large pages in usermode, and have some well-defined semantics 
+on whether the caller is responsible for unmapping the returned thing 
+(ie, only if its a pte).
 
-It's kinda neat it's external as self-contained module, but the whole
-point is that to be self-contained it has to use ioctl.
+I implemented this myself a couple of months ago, but I can't find it 
+anywhere...
 
-Another thing is that madvise usually doesn't require mangling sysfs
-to be effective. madvise without enabling ksm with sysfs would be
-entirely useless. So doing it as madvise that returns success and has
-no effect unless 'root' does something, is kind of weird.
+>> +static int memcmp_pages(struct page *page1, struct page *page2)
+>> +{
+>> +	char *addr1, *addr2;
+>> +	int r;
+>> +
+>> +	addr1 = kmap_atomic(page1, KM_USER0);
+>> +	addr2 = kmap_atomic(page2, KM_USER1);
+>> +	r = memcmp(addr1, addr2, PAGE_SIZE);
+>> +	kunmap_atomic(addr1, KM_USER0);
+>> +	kunmap_atomic(addr2, KM_USER1);
+>> +	return r;
+>> +}
+>>     
+>
+> I wonder if this code all does enough cpu cache flushing to be able to
+> guarantee that it's looking at valid data.  Not my area, and presumably
+> not an issue on x86.
+>   
 
-Thinking about the absolute worst case: if this really turns out to be
-wrong decision, simply /dev/ksm won't exist anymore and no app could
-ever break as they will graceful handle the missing pseudochar. They
-won't run the ioctl and just continue like if ksm.ko wasn't loaded. As
-there are only a few (but critically important) apps using KSM,
-converting them to fallback on madvise is a few liner trivial change
-(kvm-userland will have 10 more lines to keep opening /dev/ksm before
-calling madvise if we ever later decide KSM has to become a VM core
-kernel functionality with madvise or its own per-arch syscall).
+Shouldn't that be kmap_atomic's job anyway?  Otherwise it would be hard 
+to use on any virtual-tag/indexed cache machine.
+
+    J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
