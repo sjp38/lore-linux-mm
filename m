@@ -1,50 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 136A25F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 17:12:38 -0400 (EDT)
-Received: from sj-core-1.cisco.com (sj-core-1.cisco.com [171.71.177.237])
-	by sj-dkim-1.cisco.com (8.12.11/8.12.11) with ESMTP id n3GLCnq9008092
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 14:12:49 -0700
-Received: from cliff.cisco.com (cliff.cisco.com [171.69.11.141])
-	by sj-core-1.cisco.com (8.13.8/8.13.8) with ESMTP id n3GLCn37004652
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 21:12:49 GMT
-Received: from cuplxvomd02.corp.sa.net ([64.101.20.155]) by cliff.cisco.com (8.6.12/8.6.5) with ESMTP id VAA11429 for <linux-mm@kvack.org>; Thu, 16 Apr 2009 21:12:49 GMT
-Date: Thu, 16 Apr 2009 14:12:49 -0700
-From: VomLehn <dvomlehn@cisco.com>
-Subject: Puzzled by __vm_enough_memory with OVERCOMMIT_NEVER
-Message-ID: <20090416211249.GA9828@cuplxvomd02.corp.sa.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id D6C805F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 19:58:00 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3GNwrfU011417
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Fri, 17 Apr 2009 08:58:53 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 986AF45DD7B
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 08:58:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 785CF45DD78
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 08:58:53 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 60B111DB8038
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 08:58:53 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 10FA01DB803B
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 08:58:53 +0900 (JST)
+Date: Fri, 17 Apr 2009 08:57:20 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Add file based RSS accounting for memory resource
+ controller (v2)
+Message-Id: <20090417085720.1fc8cc86.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090416121407.GH7082@balbir.in.ibm.com>
+References: <20090415120510.GX7082@balbir.in.ibm.com>
+	<20090416095303.b4106e9f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090416015955.GB7082@balbir.in.ibm.com>
+	<20090416110246.c3fef293.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090416164036.03d7347a.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090416121407.GH7082@balbir.in.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Linux Memory Management Mailing List <linux-mm@kvack.org>
+To: balbir@linux.vnet.ibm.com
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-The function __vm_enough_memory in mm/mmap.c has a piece of code for
-handling the case of disabled overcommit that has puzzled me for a while
-and looks like it may be causing a problem:
+On Thu, 16 Apr 2009 17:44:07 +0530
+Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
-	/* Don't let a single process grow too big:
-	   leave 3% of the size of this process for other processes */
-	if (mm)
-		allowed -= mm->total_vm / 32;
+> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-16 16:40:36]:
+> 
+> > 2. In above, "mem" shouldn't be got from "mm"....please get "mem" from page_cgroup.
+> > (Because it's file cache, pc->mem_cgroup is not NULL always.)
+> > 
+> > I saw this very easily.
+> > ==
+> > Cache: 4096
+> > mapped_file: 20480
+> > ==
+> >
+> 
+> May I ask how and what was expected?
+>  
 
-At this point, it seems like total_vm does not yet include the pages
-we are trying to add, so this is limiting a single process to no more than
-97% of its *old* size rather than its new size. So, this seems to make more
-sense:
+Mapped_file <= Cache,
 
-	if (mm)
-		allowed -= (mm->total_vm + pages)/ 32;
+Thanks,
+-Kame
 
-Even then, it seems like the real way to do this would be simply to lop off
-3% of the total available virtual memory, and use:
 
-	allowed -= allowed / 32;
-
-Or, perhaps I'm missing something.
---
-David VomLehn
+> -- 
+> 	Balbir
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
