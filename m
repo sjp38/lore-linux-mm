@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 91F815F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 17:06:02 -0400 (EDT)
-Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 9818D82C2F0
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 17:16:01 -0400 (EDT)
-Received: from smtp.ultrahosting.com ([74.213.174.254])
-	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id sHZaHDjiY6jf for <linux-mm@kvack.org>;
-	Thu, 16 Apr 2009 17:16:01 -0400 (EDT)
-Received: from qirst.com (unknown [74.213.171.31])
-	by smtp.ultrahosting.com (Postfix) with ESMTP id 76BBE82C308
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 17:15:55 -0400 (EDT)
-Date: Thu, 16 Apr 2009 16:58:56 -0400 (EDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: how to tell if arbitrary kernel memory address is backed by
- physical memory?
-In-Reply-To: <49E750CA.4060300@nortel.com>
-Message-ID: <alpine.DEB.1.10.0904161654480.7855@qirst.com>
-References: <49E750CA.4060300@nortel.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 136A25F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 17:12:38 -0400 (EDT)
+Received: from sj-core-1.cisco.com (sj-core-1.cisco.com [171.71.177.237])
+	by sj-dkim-1.cisco.com (8.12.11/8.12.11) with ESMTP id n3GLCnq9008092
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 14:12:49 -0700
+Received: from cliff.cisco.com (cliff.cisco.com [171.69.11.141])
+	by sj-core-1.cisco.com (8.13.8/8.13.8) with ESMTP id n3GLCn37004652
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 21:12:49 GMT
+Received: from cuplxvomd02.corp.sa.net ([64.101.20.155]) by cliff.cisco.com (8.6.12/8.6.5) with ESMTP id VAA11429 for <linux-mm@kvack.org>; Thu, 16 Apr 2009 21:12:49 GMT
+Date: Thu, 16 Apr 2009 14:12:49 -0700
+From: VomLehn <dvomlehn@cisco.com>
+Subject: Puzzled by __vm_enough_memory with OVERCOMMIT_NEVER
+Message-ID: <20090416211249.GA9828@cuplxvomd02.corp.sa.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: Chris Friesen <cfriesen@nortel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Linux Memory Management Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Apr 2009, Chris Friesen wrote:
+The function __vm_enough_memory in mm/mmap.c has a piece of code for
+handling the case of disabled overcommit that has puzzled me for a while
+and looks like it may be causing a problem:
 
-> Quick question to the memory management folks.
->
-> Is there a portable way to tell whether a particular virtual address in the
-> lowmem address range is backed by physical memory and is readable?
->
-> For background...we have some guys working on a software memory scrubber for
-> an embedded board.  The memory controller supports ECC but doesn't support
-> scrubbing  in hardware.  What we want to do is walk all of lowmem, reading in
-> memory.  If a fault is encountered, it will be handled by other code.
+	/* Don't let a single process grow too big:
+	   leave 3% of the size of this process for other processes */
+	if (mm)
+		allowed -= mm->total_vm / 32;
 
-Virtual address in the lowmem address range? lowmem address ranges exist
-for physical addresses.
+At this point, it seems like total_vm does not yet include the pages
+we are trying to add, so this is limiting a single process to no more than
+97% of its *old* size rather than its new size. So, this seems to make more
+sense:
 
-If you walk lowmem (physical) then you will never see a missing page.
+	if (mm)
+		allowed -= (mm->total_vm + pages)/ 32;
 
-So I guess you have a process that wants to determine if its memory is
-present? See
+Even then, it seems like the real way to do this would be simply to lop off
+3% of the total available virtual memory, and use:
 
-	man 2 mincore
+	allowed -= allowed / 32;
 
-which describes a glibc call that shows which pages of a process are
-present.
-
+Or, perhaps I'm missing something.
+--
+David VomLehn
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
