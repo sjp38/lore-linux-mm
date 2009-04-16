@@ -1,97 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 3C9475F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 14:25:57 -0400 (EDT)
-Message-ID: <49E77814.6030306@redhat.com>
-Date: Thu, 16 Apr 2009 21:25:24 +0300
-From: Izik Eidus <ieidus@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 944EF5F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:38:36 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 2260082C130
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:49:06 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id nXqp90Ki7Y58 for <linux-mm@kvack.org>;
+	Thu, 16 Apr 2009 16:49:00 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0D97582C18D
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:49:00 -0400 (EDT)
+Date: Thu, 16 Apr 2009 16:32:06 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: AIM9 from 2.6.22 to 2.6.29
+Message-ID: <alpine.DEB.1.10.0904161616001.17864@qirst.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v3
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <20090414150903.b01fa3b9.akpm@linux-foundation.org> <200904170355.26294.nickpiggin@yahoo.com.au>
-In-Reply-To: <200904170355.26294.nickpiggin@yahoo.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> On Wednesday 15 April 2009 08:09:03 Andrew Morton wrote:
->   
->> On Thu,  9 Apr 2009 06:58:37 +0300
->> Izik Eidus <ieidus@redhat.com> wrote:
->>
->>     
->>> KSM is a linux driver that allows dynamicly sharing identical memory
->>> pages between one or more processes.
->>>       
->> Generally looks OK to me.  But that doesn't mean much.  We should rub
->> bottles with words like "hugh" and "nick" on them to be sure.
->>     
->
-> I haven't looked too closely at it yet sorry. Hugh has a great eye for
-> these details, though, hint hint :)
->
-> As everyone knows, my favourite thing is to say nasty things about any
-> new feature that adds complexity to common code.
+Here is a list of AIM9 results for all kernels between 2.6.22 2.6.29:
 
-The whole idea and the way i wrote it so it wont touch common code, i 
-didnt change the linux mm logic no where.
-The worst thing that we have add is helper functions.
+Significant regressions:
 
->  I feel like crying to
-> hear about how many more instances of MS Office we can all run, if only
-> we apply this patch.
+creat-clo
+page_test
+brk_test
+exec_test
+fork_test (!!)
+shell_*
+fifo_test
+pipe_cpy
 
-And more instances of linux guests...
+Significant improvements:
 
->  And the poorly written HPC app just sounds like
-> scrapings from the bottom of justification barrel.
->   
+signal_test
+tcp_test
+udp_test
 
-So if you have a big rendering application that load gigas of 
-geometrical data that is handled by many threads
-and you have a case that each thread sometimes change this geometrical 
-data and you dont want the other threads will notice it.
-How would you share it in traditional way?, after one time shared data 
-will get cowed, how will you recollect it again when it become identical?
-KSM do it for applications transparently
-
-KSM writing motivation indeed was KVM where there it is highly needed 
-you may check what VMware say about the fact that they have much better 
-overcommit than Hyper-V / XEN:
-
-http://blogs.vmware.com/virtualreality/2008/03/cheap-hyperviso.html
-
-It is important to understand that in virtualization enviorments there 
-are cases where memory is much more critical than any other resource for 
-higher density.
-
-Together with KSM, KVM will have the same memory overcommit abilitys 
-such as VMware have.
-> I'm sorry, maybe I'm way off with my understanding of how important
-> this is. There isn't too much help in the changelog. A discussion of
-> where the memory savings comes from,
-
-Memory saving come from identical librarys, identical kernels, zeroed 
-pages -> that is for virtualization.
-The Librarys code will always be identical among similar guests, so why 
-have this code at multiple places on the host memory?
-
->  and how far does things like
-> sharing of fs image, or ballooning goes and how much extra savings we
-> get from this...
-
-Ballooning is much worse when it come to performance, beacuse what it 
-does is shrink the guest memory, with KSM we find identical pages and 
-merge them into one page, so we dont get guest performance lose
-
->  with people from other hypervisors involved as well.
-> Have I missed this kind of discussion?
->
-> Careful what you wish for, ay? :)
->   
+Kernel		2.6.22	2.6.23	2.6.24	2.6.25	2.6.26	2.6.27	2.6.28	2.6.29
+==============================================================================
+add_double	116.97	116.97	116.93	116.97	116.93	116.97	116.93	116.96
+add_float	175.41	175.41	175.41	175.47	175.37	175.37	175.40	175.44
+add_long	90.21	90.21	90.23	90.20	90.20	90.23	90.20	90.24
+add_int		90.24	90.21	90.23	90.24	90.17	90.20	90.20	90.21
+add_short	225.52	225.49	225.57	225.52	225.53	225.49	225.46	225.60
+creat-clo	488.77	474.00	484.93	478.81	446.78	471.17	451.50	429.66
+page_test	314.30	310.93	262.43	258.98	273.51	273.97	256.10	242.09
+brk_test	316.59	314.83	307.03	273.77	290.53	278.27	282.84	272.11
+jmp_test	34515	34513	34503	34518	34508	34525	34506	34503
+signal_test	701.40	697.93	867.33	860.33	824.67	803.77	746.43	740.52
+exec_test	220.96	232.47	211.00	201.33	201.80	205.46	201.97	200.63
+fork_test	111.20	105.76	110.97	55.40	52.23	52.98	51.77	47.95
+link_test	2713.66	2715.93	2770.50	2716.79	2710.53	2717.66	2737.43	2728.79
+disk_rr		61.69	60.38	63.51	63.18	61.63	61.88	62.61	60.83
+disk_rw		53.08	51.82	53.78	53.30	52.48	52.87	53.22	51.83
+disk_rd		542.02	542.42	606.90	602.93	546.95	558.55	554.42	560.95
+disk_wrt	76.17	74.68	78.17	77.58	76.42	76.81	78.01	75.18
+disk_cp		61.18	60.23	62.68	63.38	62.01	62.56	62.75	60.59
+sync_disk_rw	5.84	5.91	5.74	5.76	5.66	5.51	5.47	5.56
+sync_disk_wrt	1.52	1.56	1.51	1.52	0.09	0.09	0.09	1.46
+sync_disk_cp	1.52	1.55	1.50	1.51	0.09	0.10	0.10	1.46
+disk_src	1845.70	1844.33	1852.70	1870.57	1838.69	1861.63	1888.07	1830.12
+div_double	180.47	180.38	180.47	180.41	180.41	180.37	180.41	180.41
+div_float	180.38	180.47	180.41	180.50	180.41	180.43	180.43	180.41
+div_long	112.73	112.72	112.80	112.70	112.77	112.73	112.70	112.70
+div_int		412.26	412.23	412.37	412.33	412.33	412.16	412.33	412.26
+div_short	390.10	389.77	390.00	389.90	388.90	389.90	388.54	390.10
+fun_cal		1027.69	1027.59	1027.90	1027.69	1027.36	1027.67	1027.77	1027.59
+fun_cal1	1007.50	1007.43	1007.60	1007.70	1007.60	1007.57	1091.60	1091.74
+fun_cal2	1013.26	1018.16	1072.24	1012.97	1011.23	1011.06	1012.20	1010.96
+fun_cal15	318.16	395.50	317.83	322.63	317.60	350.50	323.79	397.00
+sieve		31.32	31.31	31.32	31.34	31.31	31.33	31.31	31.32
+mul_double	105.23	105.23	105.27	105.23	105.27	105.23	105.23	105.23
+mul_float	131.60	131.56	131.56	131.60	131.52	131.56	131.52	131.51
+mul_long	2719.39	2711.36	2714.80	2719.26	2719.07	2719.50	2719.17	2717.96
+mul_int		5006.00	5007.13	5006.53	5007.17	5004.60	5004.90	5005.40	5005.56
+mul_short	4005.90	4006.00	4006.50	4006.93	4040.55	4006.07	4004.03	4010.66
+num_rtns_1	5737.62	5754.18	5737.87	5754.45	5755.27	5757.10	5752.43	5750.77
+new_raph	16799	16803	16805	16434	16799	16796	16805	16799
+trig_rtns	188.60	188.71	188.60	188.74	183.50	188.50	188.90	188.00
+matrix_rtns	75809	75847	74889	74951	75830	75867	75916	70044
+array_rtns	100.50	100.50	100.50	100.60	100.50	100.53	100.57	100.50
+string_rtns	64.58	64.78	64.69	64.58	64.49	64.55	64.35	64.58
+mem_rtns_1	234.12	236.11	236.37	236.25	233.60	236.69	237.73	235.95
+mem_rtns_2	14093	14204	14098	14203	14126	14100	14179	next
+sort_rtns_1	284.20	283.51	283.77	284.11	284.71	284.87	284.17	285.24
+misc_rtns_1	4459.75	4608.23	4621.33	4652.40	4615.70	4625.30	4431.52	4501.30
+dir_rtns_1	242.04	250.48	247.50	247.12	248.98	250.75	251.77	250.60
+shell_rtns_1	272.80	289.80	266.63	254.15	252.10	251.57	253.32	252.85
+shell_rtns_2	272.88	290.41	266.70	254.80	251.83	253.42	253.62	255.61
+shell_rtns_3	273.24	290.27	266.71	251.70	253.52	252.78	253.75	254.78
+series_1	157573	157432	157527	157333	157182	157566	157523	157353
+shared_memory	12040	12233	10198	9652	9526	11991	11972	11982
+tcp_test	2779	2801.70	2789	3404.27	3615.97	3294.03	3287.70	3112.96
+udp_test	4717	4754.18	4881.60	5933.09	6114.89	6036.09	5510.03	5823.66
+fifo_test	14463	14203	14650	14454	12951	13199	13135	13150
+stream_pipe	13003	13105	13202	12514	13144	12887	12767	12930
+dgram_pipe	12060	12124	12332	11729	12219	12067	11982	12094
+pipe_cpy	17166	17396	18061	17318	15643	15794	15392	15784
+ram_copy	201765	201054	201576	201421	201500	201063	201389	201351
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
