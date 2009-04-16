@@ -1,93 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9BB975F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 02:30:38 -0400 (EDT)
-Date: Thu, 16 Apr 2009 14:30:24 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090416063024.GA5803@localhost>
-References: <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost> <20090416111108.AC55.A69D9226@jp.fujitsu.com> <20090416034918.GB20162@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090416034918.GB20162@localhost>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id E31C45F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 03:41:30 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3G7g75b015730
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 16 Apr 2009 16:42:07 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E96DF45DD78
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:42:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B8DCA45DD72
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:42:06 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id BC2A61DB8014
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:42:06 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 553F0E08005
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 16:42:06 +0900 (JST)
+Date: Thu, 16 Apr 2009 16:40:36 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] Add file based RSS accounting for memory resource
+ controller (v2)
+Message-Id: <20090416164036.03d7347a.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090416110246.c3fef293.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090415120510.GX7082@balbir.in.ibm.com>
+	<20090416095303.b4106e9f.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090416015955.GB7082@balbir.in.ibm.com>
+	<20090416110246.c3fef293.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: balbir@linux.vnet.ibm.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 16, 2009 at 11:49:18AM +0800, Wu Fengguang wrote:
-> On Thu, Apr 16, 2009 at 10:26:51AM +0800, KOSAKI Motohiro wrote:
-> > tatus: RO
-> > Content-Length: 13245
-> > Lines: 380
-> > 
-> > Hi
-> > 
-> > > > > > On Tue, Apr 14, 2009 at 12:37:10PM +0800, KOSAKI Motohiro wrote:
-> > > > > > > > Export the following page flags in /proc/kpageflags,
-> > > > > > > > just in case they will be useful to someone:
-> > > > > > > >
-> > > > > > > > - PG_swapcache
-> > > > > > > > - PG_swapbacked
-> > > > > > > > - PG_mappedtodisk
-> > > > > > > > - PG_reserved
-> > > >
-> > > > PG_reserved should be exported as PG_KERNEL or somesuch.
-> > >
-> > > PG_KERNEL could be misleading. PG_reserved obviously do not cover all
-> > > (or most) kernel pages. So I'd prefer to export PG_reserved as it is.
-> > >
-> > > It seems that the vast amount of free pages are marked PG_reserved:
-> > 
-> > Can I review the document at first?
-> > if no good document for administrator, I can't ack exposing PG_reserved.
+On Thu, 16 Apr 2009 11:02:46 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> On Thu, 16 Apr 2009 07:29:55 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> btw, is this the expected behavior to mark so many free pages as PG_reserved?
-> Last time I looked at it, in 2.6.27, the free pages simply don't have
-> any flags set.
+> > Thanks, I could have almost sworn I had it.. but I clearly don't
+> > 
+> > Here is the fixed version
+> > 
+> > Feature: Add file RSS tracking per memory cgroup
+> > 
+> > From: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > 
+> > Changelog v3 -> v2
+> > 1. Add corresponding put_cpu() for every get_cpu()
+> > 
+> > Changelog v2 -> v1
+> > 
+> > 1. Rename file_rss to mapped_file
+> > 2. Add hooks into mem_cgroup_move_account for updating MAPPED_FILE statistics
+> > 3. Use a better name for the statistics routine.
+> > 
+> > 
+> > We currently don't track file RSS, the RSS we report is actually anon RSS.
+> > All the file mapped pages, come in through the page cache and get accounted
+> > there. This patch adds support for accounting file RSS pages. It should
+> > 
+> > 1. Help improve the metrics reported by the memory resource controller
+> > 2. Will form the basis for a future shared memory accounting heuristic
+> >    that has been proposed by Kamezawa.
+> > 
+> > Unfortunately, we cannot rename the existing "rss" keyword used in memory.stat
+> > to "anon_rss". We however, add "mapped_file" data and hope to educate the end
+> > user through documentation.
+> > 
+> > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
 > 
-> //Or maybe it's a false reporting of my tool. Will double check.
+> Nice feature :) Thanks.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> I'll test this today.
+> 
+Sorry, some troubles found. Ignore above Ack. 3points now.
 
-Ah it's my fault. Something goes wrong when I convert the page-types data
-structure from a huge array to hash table. Here is the correct output:
+1. get_cpu should be after (*)
+==mem_cgroup_update_mapped_file_stat()
++	int cpu = get_cpu();
++
++	if (!page_is_file_cache(page))
++		return;
++
++	if (unlikely(!mm))
++		mm = &init_mm;
++
++	mem = try_get_mem_cgroup_from_mm(mm);
++	if (!mem)
++		return;
++ ----------------------------------------(*)
++	stat = &mem->stat;
++	cpustat = &stat->cpustat[cpu];
++
++	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE, val);
++	put_cpu();
++}
+==
 
-# echo 1 > /proc/sys/vm/drop_caches 
-# ./page-types                      
-         flags  page-count       MB  symbolic-flags                     long-symbolic-flags
-0x000000000000      479149     1871  ___________________________        
-0x000000004000       19258       75  ______________r____________        reserved
-0x000000008000          16        0  _______________o___________        compound
-0x004000008000        3655       14  _______________o__________T        compound,compound_tail
-0x000000008014           1        0  __R_D__________o___________        referenced,dirty,compound
-0x004000008014           4        0  __R_D__________o__________T        referenced,dirty,compound,compound_tail
-0x000000000020           1        0  _____l_____________________        lru
-0x000000000028          58        0  ___U_l_____________________        uptodate,lru
-0x00000000203c          17        0  __RUDl_______b_____________        referenced,uptodate,dirty,lru,swapbacked
-0x000200000064          20        0  __R__lA______________P_____        referenced,lru,active,private
-0x000200000068           5        0  ___U_lA______________P_____        uptodate,lru,active,private
-0x00000000006c          17        0  __RU_lA____________________        referenced,uptodate,lru,active
-0x00020000006c           2        0  __RU_lA______________P_____        referenced,uptodate,lru,active,private
-0x000000002078           1        0  ___UDlA______b_____________        uptodate,dirty,lru,active,swapbacked
-0x000000000228           1        0  ___U_l___x_________________        uptodate,lru,reclaim
-0x000000000400        3600       14  __________B________________        buddy
-0x000000000804           1        0  __R________m_______________        referenced,mmap
-0x000000002808           6        0  ___U_______m_b_____________        uptodate,mmap,swapbacked
-0x000000002828         974        3  ___U_l_____m_b_____________        uptodate,lru,mmap,swapbacked
-0x00000000082c           1        0  __RU_l_____m_______________        referenced,uptodate,lru,mmap
-0x000000000868        1501        5  ___U_lA____m_______________        uptodate,lru,active,mmap
-0x000000002868        2696       10  ___U_lA____m_b_____________        uptodate,lru,active,mmap,swapbacked
-0x00000000086c         969        3  __RU_lA____m_______________        referenced,uptodate,lru,active,mmap
-0x00000000286c          17        0  __RU_lA____m_b_____________        referenced,uptodate,lru,active,mmap,swapbacked
-0x000000002878           2        0  ___UDlA____m_b_____________        uptodate,dirty,lru,active,mmap,swapbacked
-0x000000008880         694        2  _______S___m___o___________        slab,mmap,compound
-0x000000000880        1183        4  _______S___m_______________        slab,mmap
-0x0000000088c0          62        0  ______AS___m___o___________        active,slab,mmap,compound
-0x0000000008c0          57        0  ______AS___m_______________        active,slab,mmap
-         total      513968     2007
+2. In above, "mem" shouldn't be got from "mm"....please get "mem" from page_cgroup.
+(Because it's file cache, pc->mem_cgroup is not NULL always.)
 
-Thanks,
-Fengguang
+I saw this very easily.
+==
+Cache: 4096
+mapped_file: 20480
+==
+
+3. at force_empty().
+==
++
++	cpu = get_cpu();
++	/* Update mapped_file data for mem_cgroup "from" */
++	stat = &from->stat;
++	cpustat = &stat->cpustat[cpu];
++	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE, -1);
++
++	/* Update mapped_file data for mem_cgroup "to" */
++	stat = &to->stat;
++	cpustat = &stat->cpustat[cpu];
++	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE, 1);
++	put_cpu();
+
+This just breaks counter when page is not mapped. please check page_mapped().
+
+like this:
+==
+    if (page_is_file_cache(page) && page_mapped(page)) {
+	modify counter.
+    }
+==
+
+and call lock_page_cgroup() in  mem_cgroup_update_mapped_file_stat().
+
+This will be slow, but optimization will be very tricky and need some amount of time.
+
+
+-Kame
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
