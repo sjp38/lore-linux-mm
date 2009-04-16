@@ -1,93 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id ACB975F0001
-	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 20:57:23 -0400 (EDT)
-Message-ID: <49E6826D.7050407@redhat.com>
-Date: Thu, 16 Apr 2009 03:57:17 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>	<1239249521-5013-2-git-send-email-ieidus@redhat.com>	<1239249521-5013-3-git-send-email-ieidus@redhat.com>	<1239249521-5013-4-git-send-email-ieidus@redhat.com>	<1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org> <49E67F17.1070805@goop.org>
-In-Reply-To: <49E67F17.1070805@goop.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+	by kanga.kvack.org (Postfix) with ESMTP id 2EE365F0001
+	for <linux-mm@kvack.org>; Wed, 15 Apr 2009 21:41:09 -0400 (EDT)
+Date: Wed, 15 Apr 2009 18:38:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm: close page_mkwrite races (try 3)
+Message-Id: <20090415183847.d4fa1efb.akpm@linux-foundation.org>
+In-Reply-To: <20090415082507.GA23674@wotan.suse.de>
+References: <20090414071152.GC23528@wotan.suse.de>
+	<20090415082507.GA23674@wotan.suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jeremy Fitzhardinge <jeremy@goop.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Nick Piggin <npiggin@suse.de>
+Cc: Sage Weil <sage@newdream.net>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jeremy Fitzhardinge wrote:
-> Andrew Morton wrote:
->>> +static pte_t *get_pte(struct mm_struct *mm, unsigned long addr)
->>> +{
->>> +    pgd_t *pgd;
->>> +    pud_t *pud;
->>> +    pmd_t *pmd;
->>> +    pte_t *ptep = NULL;
->>> +
->>> +    pgd = pgd_offset(mm, addr);
->>> +    if (!pgd_present(*pgd))
->>> +        goto out;
->>> +
->>> +    pud = pud_offset(pgd, addr);
->>> +    if (!pud_present(*pud))
->>> +        goto out;
->>> +
->>> +    pmd = pmd_offset(pud, addr);
->>> +    if (!pmd_present(*pmd))
->>> +        goto out;
->>> +
->>> +    ptep = pte_offset_map(pmd, addr);
->>> +out:
->>> +    return ptep;
->>> +}
->>>     
->>
->> hm, this looks very generic.  Does it duplicate anything which core
->> kernel already provides?  If not, perhaps core kernel should provide
->> this (perhaps after some reorganisation).
->>   
->
-> It is lookup_address() which works on user addresses, and as such is 
-> very useful.  
+On Wed, 15 Apr 2009 10:25:07 +0200 Nick Piggin <npiggin@suse.de> wrote:
 
-But ksm need the pgd offset of an mm struct, not the kernel pgd, so 
-maybe changing it to get the pgd offset would be nice..
+> OK, that one had some rough patches (in the changelog and the patch itself).
+> One more try... if it's still misunderstandable, I give up :)
+> 
+> --
+> 
+> Change page_mkwrite to allow implementations to return with the page locked,
+> and also change it's callers (in page fault paths) to hold the lock until the
+> page is marked dirty. This allows the filesystem to have full control of page
+> dirtying events coming from the VM.
+> 
+> Rather than simply hold the page locked over the page_mkwrite call, we call
+> page_mkwrite with the page unlocked and allow callers to return with it locked,
+> so filesystems can avoid LOR conditions with page lock.
 
-Another thing it is just for x86 right now, so probably it need to go 
-out to the common code
+All right, I give up.  What's LOR?
 
-> But it would need to deal with returning a level so it can deal with 
-> large pages in usermode, and have some well-defined semantics on 
-> whether the caller is responsible for unmapping the returned thing 
-> (ie, only if its a pte).
+> The problem with the current scheme is this: a filesystem that wants to
+> associate some metadata with a page as long as the page is dirty, will perform
+> this manipulation in its ->page_mkwrite. It currently then must return with the
+> page unlocked and may not hold any other locks (according to existing
+> page_mkwrite convention).
+> 
+> In this window, the VM could write out the page, clearing page-dirty. The
+> filesystem has no good way to detect that a dirty pte is about to be attached,
+> so it will happily write out the page, at which point, the filesystem may
+> manipulate the metadata to reflect that the page is no longer dirty.
+> 
+> It is not always possible to perform the required metadata manipulation in
+> ->set_page_dirty, because that function cannot block or fail. The filesystem
+> may need to allocate some data structure, for example.
+> 
+> And the VM cannot mark the pte dirty before page_mkwrite, because page_mkwrite
+> is allowed to fail, so we must not allow any window where the page could be
+> written to if page_mkwrite does fail.
+> 
+> This solution of holding the page locked over the 3 critical operations
+> (page_mkwrite, setting the pte dirty, and finally setting the page dirty)
+> closes out races nicely, preventing page cleaning for writeout being initiated
+> in that window. This provides the filesystem with a strong synchronisation
+> against the VM here.
+> 
+> - Sage needs this race closed for ceph filesystem.
+> - Trond for NFS (http://bugzilla.kernel.org/show_bug.cgi?id=12913).
+
+I wonder which kernel version(s) we should put this in.
+
+Going BUG isn't nice, but that report is against 2.6.27.  Is the BUG
+super-rare, or did we avoid it via other means, or what?
+
+> - I need it for fsblock.
+> - I suspect other filesystems may need it too (eg. btrfs).
+> - I have converted buffer.c to the new locking. Even simple block allocation
+>   under dirty pages might be susceptible to i_size changing under partial page
+>   at the end of file (we also have a buffer.c-side problem here, but it cannot
+>   be fixed properly without this patch).
+> - Other filesystems (eg. NFS, maybe btrfs) will need to change their
+>   page_mkwrite functions themselves.
+> 
+> [ This also moves page_mkwrite another step closer to fault, which should
+>   eventually allow page_mkwrite to be moved into ->fault, and thus avoiding a
+>   filesystem calldown and page lock/unlock cycle in __do_fault. ]
+> 
 >
-> I implemented this myself a couple of months ago, but I can't find it 
-> anywhere...
+> ...
 >
->>> +static int memcmp_pages(struct page *page1, struct page *page2)
->>> +{
->>> +    char *addr1, *addr2;
->>> +    int r;
->>> +
->>> +    addr1 = kmap_atomic(page1, KM_USER0);
->>> +    addr2 = kmap_atomic(page2, KM_USER1);
->>> +    r = memcmp(addr1, addr2, PAGE_SIZE);
->>> +    kunmap_atomic(addr1, KM_USER0);
->>> +    kunmap_atomic(addr2, KM_USER1);
->>> +    return r;
->>> +}
->>>     
->>
->> I wonder if this code all does enough cpu cache flushing to be able to
->> guarantee that it's looking at valid data.  Not my area, and presumably
->> not an issue on x86.
->>   
+> @@ -1980,9 +1989,11 @@ static int do_wp_page(struct mm_struct *
+>  			 */
+>  			page_table = pte_offset_map_lock(mm, pmd, address,
+>  							 &ptl);
+> -			page_cache_release(old_page);
+> -			if (!pte_same(*page_table, orig_pte))
+> +			if (!pte_same(*page_table, orig_pte)) {
+> +				unlock_page(old_page);
+> +				page_cache_release(old_page);
+>  				goto unlock;
+> +			}
+>  
+>  			page_mkwrite = 1;
+>  		}
+> @@ -2105,16 +2116,31 @@ unlock:
+>  		 *
+>  		 * do_no_page is protected similarly.
+>  		 */
+> -		wait_on_page_locked(dirty_page);
+> -		set_page_dirty_balance(dirty_page, page_mkwrite);
+> +		if (!page_mkwrite) {
+> +			wait_on_page_locked(dirty_page);
+> +			set_page_dirty_balance(dirty_page, page_mkwrite);
+> +		}
+>  		put_page(dirty_page);
+> +		if (page_mkwrite) {
+> +			struct address_space *mapping = dirty_page->mapping;
+> +
+> +			set_page_dirty(dirty_page);
+> +			unlock_page(dirty_page);
+> +			page_cache_release(dirty_page);
+> +			balance_dirty_pages_ratelimited(mapping);
+
+hm.  I wonder what prevents (prevented) *mapping from vanishing under
+our feet here.
+
+> +		}
+>  	}
+>  	return ret;
+>  oom_free_new:
+>  	page_cache_release(new_page);
+>  oom:
+> -	if (old_page)
+> +	if (old_page) {
+> +		if (page_mkwrite) {
+> +			unlock_page(old_page);
+> +			page_cache_release(old_page);
+> +		}
+>  		page_cache_release(old_page);
+> +	}
+>  	return VM_FAULT_OOM;
+>  
 >
-> Shouldn't that be kmap_atomic's job anyway?  Otherwise it would be 
-> hard to use on any virtual-tag/indexed cache machine.
+> ...
 >
->    J
+> @@ -2736,19 +2757,29 @@ static int __do_fault(struct mm_struct *
+>  	pte_unmap_unlock(page_table, ptl);
+>  
+>  out:
+> -	unlock_page(vmf.page);
+> -out_unlocked:
+> -	if (anon)
+> -		page_cache_release(vmf.page);
+> -	else if (dirty_page) {
+> +	if (dirty_page) {
+> +		struct address_space *mapping = page->mapping;
+> +
+>  		if (vma->vm_file)
+>  			file_update_time(vma->vm_file);
+>  
+> -		set_page_dirty_balance(dirty_page, page_mkwrite);
+> +		if (set_page_dirty(dirty_page))
+> +			page_mkwrite = 1;
+> +		unlock_page(dirty_page);
+>  		put_page(dirty_page);
+> +		if (page_mkwrite)
+> +			balance_dirty_pages_ratelimited(mapping);
+> +	} else {
+> +		unlock_page(vmf.page);
+> +		if (anon)
+> +			page_cache_release(vmf.page);
+>  	}
+>  
+>  	return ret;
+> +
+> +unwritable_page:
+> +	page_cache_release(page);
+> +	return ret;
+>  }
+
+Whoa.  Running file_update_time() under lock_page() opens a whole can
+of worms, doesn't it?  That thing can do journal commits and all sorts
+of stuff.  And I don't think this ordering is necessary here?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
