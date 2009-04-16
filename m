@@ -1,59 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 69B045F0001
-	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 05:29:53 -0400 (EDT)
-Date: Thu, 16 Apr 2009 11:30:18 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch 5/5] mm: prompt slqb default for oldconfig
-Message-ID: <20090416093018.GA32569@wotan.suse.de>
-References: <20090414164439.GA14873@wotan.suse.de> <20090414165058.GE14873@wotan.suse.de> <1239872109.15377.7.camel@penberg-laptop> <20090416092238.GL9813@elte.hu>
-Mime-Version: 1.0
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 057CF5F0001
+	for <linux-mm@kvack.org>; Thu, 16 Apr 2009 07:39:03 -0400 (EDT)
+Date: Thu, 16 Apr 2009 13:39:31 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
+Message-ID: <20090416113931.GF4524@random.random>
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org> <49E67F17.1070805@goop.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090416092238.GL9813@elte.hu>
+In-Reply-To: <49E67F17.1070805@goop.org>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jeremy Fitzhardinge <jeremy@goop.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 16, 2009 at 11:22:38AM +0200, Ingo Molnar wrote:
-> 
-> * Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> 
-> > Hi Nick,
-> > 
-> > On Tue, 2009-04-14 at 18:50 +0200, Nick Piggin wrote:
-> > > Hi Pekka,
-> > > 
-> > > Well there have been reasonably significant changes both for SLQB and
-> > > SLUB that I thought it is better to wait one more round before merging
-> > > SLQB. Also, SLQB may not have been getting as much testing as it could
-> > > have in -next, due to oldconfig choosing existing config as the default.
-> > > 
-> > > Thanks,
-> > > Nick
-> > > --
-> > > 
-> > > Change Kconfig names for slab allocator choices to prod SLQB into being
-> > > the default. Hopefully increasing testing base.
-> > > 
-> > > Signed-off-by: Nick Piggin <npiggin@suse.de>
-> > 
-> > I went ahead and applied this too. IIRC, Ingo had some ideas how 
-> > this should be handled so lets CC him as well.
-> 
-> I forgot it all already :)
+On Wed, Apr 15, 2009 at 05:43:03PM -0700, Jeremy Fitzhardinge wrote:
+> Shouldn't that be kmap_atomic's job anyway?  Otherwise it would be hard to 
 
-I think I roughly followed consensus. Basically just rename the choices
-so oldconfig will default to Kconfig specified rather than the existing
-.config choice. We can just revert this little shim eventually.
- 
-
-> Btw., i'm wondering, why didnt this make it into .30?
-
-Well, there was a flurry of activity on SLUB, and also one relatively
-significant change to SLQB, so in the interest of getting a more uptodate
-comparison, I think it better to wait one more round.
+No because those are full noops in no-highmem kernels. I commented in
+other email why I think it's safe thanks to the wrprotect + smp tlb
+flush of the userland PTE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
