@@ -1,83 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 59C2D5F0001
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 03:02:14 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id f25so613253rvb.26
-        for <linux-mm@kvack.org>; Fri, 17 Apr 2009 00:02:15 -0700 (PDT)
-Message-ID: <49E8292D.7050904@gmail.com>
-Date: Fri, 17 Apr 2009 15:01:01 +0800
-From: Huang Shijie <shijie8@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 011265F0001
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 03:08:00 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 4so506634ywq.26
+        for <linux-mm@kvack.org>; Fri, 17 Apr 2009 00:08:07 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Does get_user_pages_fast lock the user pages in memory in my case?
-Content-Type: text/plain; charset=UTF-8; format=flowed
+In-Reply-To: <200904170355.26294.nickpiggin@yahoo.com.au>
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com>
+	 <20090414150903.b01fa3b9.akpm@linux-foundation.org>
+	 <200904170355.26294.nickpiggin@yahoo.com.au>
+Date: Fri, 17 Apr 2009 00:08:07 -0700
+Message-ID: <6934efce0904170008p45cba2c4l3e9ca9f8775c7bde@mail.gmail.com>
+Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v3
+From: Jared Hulbert <jaredeh@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
+> As everyone knows, my favourite thing is to say nasty things about any
+> new feature that adds complexity to common code. I feel like crying to
+> hear about how many more instances of MS Office we can all run, if only
+> we apply this patch. And the poorly written HPC app just sounds like
+> scrapings from the bottom of justification barrel.
+>
+> I'm sorry, maybe I'm way off with my understanding of how important
+> this is. There isn't too much help in the changelog. A discussion of
+> where the memory savings comes from, and how far does things like
+> sharing of fs image, or ballooning goes and how much extra savings we
+> get from this... with people from other hypervisors involved as well.
+> Have I missed this kind of discussion?
 
-   I'm writting a driver for a video card with the V4L2 interface .
-   V4L2 interface supports the USER-POINTER method for the video frame 
-handling.
+Nick,
 
-   VLC player supports the USER-POINTER method,while MPALYER does not.
-
-   In the USER-POINTER method, VLC will call the posix_memalign() to 
-allocate
-203 pages in certain PAL mode (that is 720*576*2) for a single frame.
-   In my driver , I call the get_user_pages_fast() to obtain the pages 
-array,and then call
-the vmap() to map the pages to VMALLOC space for the memcpy().The code 
-shows below:
-   ....................
-   get_user_pages_fast();
-   ...
-   f->data = vmap();
-   .......................
-
-   In comments, it said :
-"
-+/**
-+ * get_user_pages_fast() - pin user pages in memory
-+ * @start:     starting user address
-+ * @nr_pages:  number of pages from start to pin
-+ * @write:     whether pages will be written to
-+ * @pages:     array that receives pointers to the pages pinned.
-+ *             Should be at least nr_pages long.
-"
-
-   But after I digged the code of kswap and the get_user_pages(called by 
-get_user_pages_fast),
-I did not find how the pages pinned in memory.I really need the pages 
-pinned in memory.
-
-   Assume page A is one of the pages obtained by get_user_pages_fast() 
-during page-fault.
-
-[1] page A will on the LRU_ACTIVE_ANON list;
-   the _count of page A increment by one;
-   PTE for page A will be set ACCESSED.
-
-[2] kswapd will scan the lru list,and move page A from LRU_ACTIVE_ANON  
-to LRU_INACTIVE_ANON.
-   In the shrink_page_list(), there is nothing can stop page A been 
-swapped out.
-   I don't think the page_reference() can move page A back to 
-LRU_ACTIVE_ANON.In my driver,
-   I am not sure if the VLC can access the page A.
-
-   Is this a bug? or I miss something?
-   Thanks .
-
-
- 
-
-
-
-
-
-
- 
+I don't know about other hypervisors, fs and balloonings, but I have
+tried this out.  It works.  It works on apps I don't consider, "poorly
+written".  I'm very excited about this.  I got >10% saving in a
+roughly off the shelf embedded system.  No user noticeable performance
+impact.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
