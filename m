@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 0E98E5F0001
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 03:58:46 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3H7xeVe010308
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3E39C5F0001
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 04:12:28 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3H8Cbnf016512
 	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Fri, 17 Apr 2009 16:59:40 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 28CCB45DE4E
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 16:59:40 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B7A4B45DE52
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 16:59:39 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BB1A1DB804B
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 16:59:39 +0900 (JST)
+	Fri, 17 Apr 2009 17:12:37 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 2DDD045DE54
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 17:12:37 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 00CB445DE52
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 17:12:37 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id EA3DD1DB8044
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 17:12:36 +0900 (JST)
 Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CA8E1DB8043
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 16:59:39 +0900 (JST)
-Date: Fri, 17 Apr 2009 16:58:06 +0900
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 982D0E18002
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 17:12:36 +0900 (JST)
+Date: Fri, 17 Apr 2009 17:11:06 +0900
 From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v3
-Message-Id: <20090417165806.4ca40a08.kamezawa.hiroyu@jp.fujitsu.com>
+Message-Id: <20090417171106.7d3a6ce9.kamezawa.hiroyu@jp.fujitsu.com>
 In-Reply-To: <20090417165036.bdca7163.nishimura@mxp.nes.nec.co.jp>
 References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
 	<20090319180631.44b0130f.kamezawa.hiroyu@jp.fujitsu.com>
@@ -49,47 +49,58 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 17 Apr 2009 16:50:36 +0900
 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> On Fri, 17 Apr 2009 15:54:11 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > On Fri, 17 Apr 2009 15:34:55 +0900
-> > Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > > I made a patch for reclaiming SwapCache from orphan LRU based on your patch,
-> > > and have been testing it these days.
-> > > 
-> > Good trial! 
-> > Honestly, I've written a patch to fix this problem in these days but seems to
-> > be over-kill ;)
+> > > +	opl = orphan_lru(page_to_nid(page), page_zonenum(page));
+> > >  	list_del_init(&pc->lru);
+> > > +	opl->count--;
+> > >  }
+> > >  
+> > >  static inline void add_orphan_list(struct page *page, struct page_cgroup *pc)
+> > >  {
+> > > +	int nid = page_to_nid(page);
+> > > +	int zid = page_zonenum(page);
+> > >  	struct orphan_list_zone *opl;
+> > >  
+> > >  	SetPageCgroupOrphan(pc);
 > > 
+> > here too.
 > > 
-> > > Major changes from your version:
-> > > - count the number of orphan pages per zone and make the threshold per zone(4MB).
-> > > - As for type 2 of orphan SwapCache, they are usually set dirty by add_to_swap.
-> > >   But try_to_drop_swapcache(__remove_mapping) can't free dirty pages,
-> > >   so add a check and try_to_free_swap to the end of shrink_page_list.
-> > > 
-> > > It seems work fine, no "pseud leak" of SwapCache can be seen.
-> > > 
-> > > What do you think ?
-> > > If it's all right, I'll merge this with the orphan list framework patch
-> > > and send it to Andrew with other fixes of memcg that I have.
-> > > 
-> > I'm sorry but my answer is "please wait". The reason is..
-> > 
-> > 1. When global LRU works, the pages will be reclaimed.
-> > 2. Global LRU will work finally.
-> > 3. While testing, "stale" swap cache cannot be big amount.
-> > 
-> Hmm, I can't understand 2.
-> 
-> If (memsize on system) >> (swapsize on system), global LRU doesn't run
-> and all the swap space can be used up by these SwapCache.
-> This means setting mem.limit can use up all the swap space on the system.
-> I've tested with 50MB size of swap and it can be used up in less than 24h.
-> I think it's not small.
+> I think PCG_ORPHAN is protected by zone->lru_lock.
 > 
 
-plz add hook to shrink_zone() to fix this as you did. 
-orphan list is overkilling at this stage.
+There is different condition for swap caches from file-cache/anonymous pages.
+
+File Cache and Anon pages are marked as USED before the first call of add_to_lru.
+So, commit_charge_swapin()'s following code never breaks page_cgroup->flags.
+
+ 948         pc->mem_cgroup = mem;
+ 949         smp_wmb();
+ 950         pc->flags = pcg_default_flags[ctype];
+
+Then, pc->flags can be broken.
+
+please notice that
+
+  43 /* Cache flag is set only once (at allocation) */
+  44 TESTPCGFLAG(Cache, CACHE)
+  45 
+  46 TESTPCGFLAG(Used, USED)
+  47 CLEARPCGFLAG(Used, USED)
+
+ClearPageCgroupUsed() is only operation which modifes page_cgroup->flags,
+but it's done under lock.
+
+If you want to avoid lock_page_cgroup(), please rewrite commit_charge_swapin to do
+
+    SetPageCgroupUsed(pc);
+    SetPageCgroupCache(pc);
+    ....
+    or
+   atomic_cmpxchg(&pc->flags, oldval, pcg_dafaule_flags[ctype]);
+
+or some.
+
+I'd like to divide lock bit and flags bit etc.. but cannot find a way to do it.
+
 
 Thanks,
 -Kame
