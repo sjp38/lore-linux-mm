@@ -1,215 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 581EA5F0001
-	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 12:30:40 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3HGUqWB015903
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 18 Apr 2009 01:30:52 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1EDBA45DE51
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 01:30:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E7A9445DE4E
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 01:30:51 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A8734E08005
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 01:30:51 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 560B81DB803A
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 01:30:51 +0900 (JST)
-Message-ID: <b239d23646a4054d65c791ca7118c1d1.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090417141837.GD3896@balbir.in.ibm.com>
-References: <20090416120316.GG7082@balbir.in.ibm.com>
-    <20090417091459.dac2cc39.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090417014042.GB18558@balbir.in.ibm.com>
-    <20090417110350.3144183d.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090417034539.GD18558@balbir.in.ibm.com>
-    <20090417124951.a8472c86.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090417045623.GA3896@balbir.in.ibm.com>
-    <20090417141726.a69ebdcc.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090417064726.GB3896@balbir.in.ibm.com>
-    <20090417155608.eeed1f02.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090417141837.GD3896@balbir.in.ibm.com>
-Date: Sat, 18 Apr 2009 01:30:50 +0900 (JST)
-Subject: Re: [PATCH] Add file based RSS accounting for memory resource
- controller (v3)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 4357A5F0001
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 12:34:26 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 82E3A82C380
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 12:44:57 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id 7O5rbxxPATQM for <linux-mm@kvack.org>;
+	Fri, 17 Apr 2009 12:44:57 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4E7F282C39B
+	for <linux-mm@kvack.org>; Fri, 17 Apr 2009 12:44:51 -0400 (EDT)
+Date: Fri, 17 Apr 2009 12:27:43 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: how to tell if arbitrary kernel memory address is backed by
+ physical memory?
+In-Reply-To: <49E8AB11.4000708@nortel.com>
+Message-ID: <alpine.DEB.1.10.0904171224530.7261@qirst.com>
+References: <49E750CA.4060300@nortel.com> <alpine.DEB.1.10.0904161654480.7855@qirst.com> <49E8AB11.4000708@nortel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Chris Friesen <cfriesen@nortel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> Hi, Kame,
->
-> How does this look? I did not use the mapped flag in page_cgroup
-> flags. page_is_file_cache and page_mapped worked as well.
->
-> Feature: Add file RSS tracking per memory cgroup
->
-> From: Balbir Singh <balbir@linux.vnet.ibm.com>
->
-> Changelog v3 -> v2
-> 1. Fix get_cpu(), put_cpu() matching. Moved away from get_cpu() and use
->    smp_processor_id(), since we are in preempt disable context
-> 2. Use pc->mem_cgroup to identify the mem_cgroup instead of mm
-> 3. page_add_file_rmap() and page_remove_rmap() argument changes are
-> undone.
->
-> Changelog v2 -> v1
->
-> 1. Rename file_rss to mapped_file
-> 2. Add hooks into mem_cgroup_move_account for updating MAPPED_FILE
-> statistics
-> 3. Use a better name for the statistics routine.
->
->
-> We currently don't track file RSS, the RSS we report is actually anon RSS.
-> All the file mapped pages, come in through the page cache and get
-> accounted
-> there. This patch adds support for accounting file RSS pages. It should
->
-> 1. Help improve the metrics reported by the memory resource controller
-> 2. Will form the basis for a future shared memory accounting heuristic
->    that has been proposed by Kamezawa.
->
-> Unfortunately, we cannot rename the existing "rss" keyword used in
-> memory.stat
-> to "anon_rss". We however, add "mapped_file" data and hope to educate the
-> end
-> user through documentation.
->
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
-> ---
->
->  include/linux/memcontrol.h |    7 ++++-
->  mm/memcontrol.c            |   66
-> +++++++++++++++++++++++++++++++++++++++++++-
->  mm/rmap.c                  |    5 +++
->  3 files changed, 75 insertions(+), 3 deletions(-)
->
->
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 18146c9..05a5c11 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -116,7 +116,7 @@ static inline bool mem_cgroup_disabled(void)
->  }
->
->  extern bool mem_cgroup_oom_called(struct task_struct *task);
-> -
-> +void mem_cgroup_update_mapped_file_stat(struct page *page, int val);
->  #else /* CONFIG_CGROUP_MEM_RES_CTLR */
->  struct mem_cgroup;
->
-> @@ -264,6 +264,11 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
-> struct task_struct *p)
->  {
->  }
->
-> +static inline void mem_cgroup_update_mapped_file_stat(struct page *page,
-> +							int val)
-> +{
-> +}
-> +
->  #endif /* CONFIG_CGROUP_MEM_CONT */
->
->  #endif /* _LINUX_MEMCONTROL_H */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e44fb0f..562bd76 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -62,7 +62,8 @@ enum mem_cgroup_stat_index {
->  	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
->  	 */
->  	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
-> -	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as rss */
-> +	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
-> +	MEM_CGROUP_STAT_MAPPED_FILE,  /* # of pages charged as file rss */
->  	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
->  	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
->
-> @@ -321,6 +322,44 @@ static bool mem_cgroup_is_obsolete(struct mem_cgroup
-> *mem)
->  	return css_is_removed(&mem->css);
->  }
->
-> +/*
-> + * Currently used to update mapped file statistics, but the routine can
-> be
-> + * generalized to update other statistics as well.
-> + */
-> +void mem_cgroup_update_mapped_file_stat(struct page *page, int val)
-> +{
-> +	struct mem_cgroup *mem;
-> +	struct mem_cgroup_stat *stat;
-> +	struct mem_cgroup_stat_cpu *cpustat;
-> +	int cpu;
-> +	struct page_cgroup *pc;
-> +
-> +	if (!page_is_file_cache(page))
-> +		return;
-> +
-> +	pc = lookup_page_cgroup(page);
-> +	if (unlikely(!pc))
-> +		return;
-> +
-> +	lock_page_cgroup(pc);
-> +	mem = pc->mem_cgroup;
-> +	if (!mem)
-> +		goto done;
-> +
-> +	if (!PageCgroupUsed(pc))
-> +		goto done;
-> +
-> +	/*
-> +	 * Preemption is already disabled, we don't need get_cpu()
-> +	 */
-> +	cpu = smp_processor_id();
-> +	stat = &mem->stat;
-> +	cpustat = &stat->cpustat[cpu];
-> +
-> +	__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE, val);
-> +done:
-> +	unlock_page_cgroup(pc);
-> +}
->
->  /*
->   * Call callback function against all cgroup under hierarchy tree.
-> @@ -1096,6 +1135,10 @@ static int mem_cgroup_move_account(struct
-> page_cgroup *pc,
->  	struct mem_cgroup_per_zone *from_mz, *to_mz;
->  	int nid, zid;
->  	int ret = -EBUSY;
-> +	struct page *page;
-> +	int cpu;
-> +	struct mem_cgroup_stat *stat;
-> +	struct mem_cgroup_stat_cpu *cpustat;
->
->  	VM_BUG_ON(from == to);
->  	VM_BUG_ON(PageLRU(pc->page));
-> @@ -1116,6 +1159,23 @@ static int mem_cgroup_move_account(struct
-> page_cgroup *pc,
->
->  	res_counter_uncharge(&from->res, PAGE_SIZE);
->  	mem_cgroup_charge_statistics(from, pc, false);
-> +
-> +	page = pc->page;
-> +	if (page_is_file_cache(page) && page_mapped(page)) {
-*Maybe* safe, but could you add comments ?
 
-ok, let's start testing under -mm.
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+On Fri, 17 Apr 2009, Chris Friesen wrote:
 
-Nice feature :)
+> We have a mips board that appears to have holes in the lowmem mappings such
+> that blindly walking all of it causes problems.  I assume the allocator knows
+> about these holes and simply doesn't assign memory at those addresses.
 
-Thanks,
--Kame
+Yes memory is registered in distinct ranges during boot.
 
+> We may have found a solution though...it looks like virt_addr_valid() returns
+> false for the problematic addresses.  Would it be reasonable to call this once
+> for each page before trying to access it?
+
+Sure. Note that virt_addr_valid only ensures that there is a page
+struct for that address. You may need to ensure that PageReserved(page) is
+false if you want to make sure that you have actual memory there that is
+valid to use.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
