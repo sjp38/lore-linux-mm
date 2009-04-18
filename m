@@ -1,96 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id EF6F35F0001
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 02:28:33 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3I6SwlG009775
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 05E3A5F0001
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 02:42:54 -0400 (EDT)
+Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3I6hX7Y015474
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 18 Apr 2009 15:28:59 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BF2345DD81
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 37E3445DD7E
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0204FE08006
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96B821DB803B
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:57 +0900 (JST)
+	Sat, 18 Apr 2009 15:43:34 +0900
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDF1445DE52
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9976145DE4E
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A8ED1DB803C
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31A7F1DB8037
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: + mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char.patch added to -mm tree
-In-Reply-To: <200904150009.n3F095J1011993@imap1.linux-foundation.org>
-References: <200904150009.n3F095J1011993@imap1.linux-foundation.org>
-Message-Id: <20090418152635.125D.A69D9226@jp.fujitsu.com>
+Subject: Re: AIM9 from 2.6.22 to 2.6.29
+In-Reply-To: <alpine.DEB.1.10.0904161616001.17864@qirst.com>
+References: <alpine.DEB.1.10.0904161616001.17864@qirst.com>
+Message-Id: <20090418154207.1260.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Sat, 18 Apr 2009 15:28:56 +0900 (JST)
+Date: Sat, 18 Apr 2009 15:43:32 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.kernel.org, den@openvz.org, dwmw2@infradead.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Signed-off-by: Denis V. Lunev <den@openvz.org>
-> Cc: David Woodhouse <dwmw2@infradead.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
+> Here is a list of AIM9 results for all kernels between 2.6.22 2.6.29:
 > 
->  drivers/mtd/mtdcore.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+> Significant regressions:
 > 
-> diff -puN drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char drivers/mtd/mtdcore.c
-> --- a/drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char
-> +++ a/drivers/mtd/mtdcore.c
-> @@ -48,11 +48,11 @@ static LIST_HEAD(mtd_notifiers);
->   */
->  static void mtd_release(struct device *dev)
->  {
-> -	struct mtd_info *mtd = dev_to_mtd(dev);
-> +	dev_t index = MTD_DEVT(dev_to_mtd(dev));
->  
->  	/* remove /dev/mtdXro node if needed */
-> -	if (MTD_DEVT(mtd->index))
-> -		device_destroy(mtd_class, MTD_DEVT(mtd->index) + 1);
-> +	if (index)
-> +		device_destroy(mtd_class, index + 1);
->  }
+> creat-clo
+> page_test
 
-I get compile failure problem on mmotm-0414.
+I'm interest to it.
+How do I get AIM9 benchmark?
 
-=====================
-mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char.patch remove one
-warnig if CONFIG_MTD_CHAR=n.
-
-but it introduce one compile error if CONFIG_MTD_CHAR=y/m.
-
-    drivers/mtd/mtdcore.c: In function ‘mtd_release’:
-    drivers/mtd/mtdcore.c:51: error: invalid operands to binary * (have ‘struct mtd_info *’ and ‘int’)
+and, Can you compare CONFIG_UNEVICTABLE_LRU is y and n?
 
 
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Denis V. Lunev <den@openvz.org>
-Cc: David Woodhouse <dwmw2@infradead.org>
----
- drivers/mtd/mtdcore.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: b/drivers/mtd/mtdcore.c
-===================================================================
---- a/drivers/mtd/mtdcore.c	2009-04-16 21:43:18.000000000 +0900
-+++ b/drivers/mtd/mtdcore.c	2009-04-16 21:44:23.000000000 +0900
-@@ -48,7 +48,7 @@ static LIST_HEAD(mtd_notifiers);
-  */
- static void mtd_release(struct device *dev)
- {
--	dev_t index = MTD_DEVT(dev_to_mtd(dev));
-+	dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
- 
- 	/* remove /dev/mtdXro node if needed */
- 	if (index)
-
+> brk_test
+> exec_test
+> fork_test (!!)
+> shell_*
+> fifo_test
+> pipe_cpy
+> 
+> Significant improvements:
+> 
+> signal_test
+> tcp_test
+> udp_test
 
 
 --
