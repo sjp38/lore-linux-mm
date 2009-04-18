@@ -1,32 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 922AF5F0001
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 10:57:26 -0400 (EDT)
-Date: Sat, 18 Apr 2009 16:58:06 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
-Message-ID: <20090418145806.GA15228@random.random>
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090414150929.174a9b25.akpm@linux-foundation.org>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 542965F0001
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 11:55:36 -0400 (EDT)
+Subject: Re: +
+ mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char.patch added to -mm
+ tree
+From: "Denis V. Lunev" <den@openvz.org>
+In-Reply-To: <20090418152635.125D.A69D9226@jp.fujitsu.com>
+References: <200904150009.n3F095J1011993@imap1.linux-foundation.org>
+	 <20090418152635.125D.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain
+Date: Sat, 18 Apr 2009 19:56:35 +0400
+Message-Id: <1240070195.29546.3.camel@iris.sw.ru>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, dwmw2@infradead.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 14, 2009 at 03:09:29PM -0700, Andrew Morton wrote:
-> We need a comment here explaining why we can't use the much preferable
-> lock_page().
-> 
-> Why can't we use the much preferable lock_page()?
+already fixed by Andrew by 
+  mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char-fix
 
-We might but then it'd risk to waste time waiting. It's not worth
-waiting, we want kksmd to be allowed to keep one (in future more than
-one as we scale it smp/numa) CPU busy at all times running memcmp and
-not schedule (other than for need_resched()) to try to free memory at
-the fastest peace possible.
+> ------------------------------------------------------
+> Subject: mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char-fix
+> From: Andrew Morton <akpm@linux-foundation.org>
+> 
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> Cc: Denis V. Lunev <den@openvz.org>
+> Cc: Randy Dunlap <randy.dunlap@oracle.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  drivers/mtd/mtdcore.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN
+drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char-fix drivers/mtd/mtdcore.c
+> ---
+a/drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char-fix
+> +++ a/drivers/mtd/mtdcore.c
+> @@ -48,7 +48,7 @@ static LIST_HEAD(mtd_notifiers);
+>   */
+>  static void mtd_release(struct device *dev)
+>  {
+> -     dev_t index = MTD_DEVT(dev_to_mtd(dev));
+> +     dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
+>  
+>       /* remove /dev/mtdXro node if needed */
+>       if (index)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
