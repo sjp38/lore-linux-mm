@@ -1,125 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 5BD575F0001
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 02:25:42 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3I6Q4eO008750
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id EF6F35F0001
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 02:28:33 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3I6SwlG009775
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 18 Apr 2009 15:26:04 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id DEA0045DE61
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:26:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B3C0E45DE55
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:26:03 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 97E581DB803C
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:26:03 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 430331DB8038
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:26:03 +0900 (JST)
+	Sat, 18 Apr 2009 15:28:59 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BF2345DD81
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 37E3445DD7E
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0204FE08006
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:58 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 96B821DB803B
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:28:57 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: [PATCH for mmotm 0414] vmscan,memcg: reintroduce sc->may_swap
-Message-Id: <20090418152100.125A.A69D9226@jp.fujitsu.com>
+Subject: Re: + mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char.patch added to -mm tree
+In-Reply-To: <200904150009.n3F095J1011993@imap1.linux-foundation.org>
+References: <200904150009.n3F095J1011993@imap1.linux-foundation.org>
+Message-Id: <20090418152635.125D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Sat, 18 Apr 2009 15:26:02 +0900 (JST)
+Date: Sat, 18 Apr 2009 15:28:56 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, den@openvz.org, dwmw2@infradead.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-Subject: vmscan,memcg: reintroduce sc->may_swap
+> Signed-off-by: Denis V. Lunev <den@openvz.org>
+> Cc: David Woodhouse <dwmw2@infradead.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  drivers/mtd/mtdcore.c |    6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff -puN drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char drivers/mtd/mtdcore.c
+> --- a/drivers/mtd/mtdcore.c~mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char
+> +++ a/drivers/mtd/mtdcore.c
+> @@ -48,11 +48,11 @@ static LIST_HEAD(mtd_notifiers);
+>   */
+>  static void mtd_release(struct device *dev)
+>  {
+> -	struct mtd_info *mtd = dev_to_mtd(dev);
+> +	dev_t index = MTD_DEVT(dev_to_mtd(dev));
+>  
+>  	/* remove /dev/mtdXro node if needed */
+> -	if (MTD_DEVT(mtd->index))
+> -		device_destroy(mtd_class, MTD_DEVT(mtd->index) + 1);
+> +	if (index)
+> +		device_destroy(mtd_class, index + 1);
+>  }
 
-vmscan-rename-scmay_swap-to-may_unmap.patch removed may_swap flag,
-but memcg had used it as a flag for "we need to use swap?", as the
-name indicate.
+I get compile failure problem on mmotm-0414.
 
-And in current implementation, memcg cannot reclaim mapped file caches
-when mem+swap hits the limit.
+=====================
+mtd-mtd-in-mtd_release-is-unused-without-config_mtd_char.patch remove one
+warnig if CONFIG_MTD_CHAR=n.
 
-re-introduce may_swap flag and handle it at get_scan_ratio().
-This patch doesn't influence any scan_control users other than memcg.
+but it introduce one compile error if CONFIG_MTD_CHAR=y/m.
+
+    drivers/mtd/mtdcore.c: In function ‘mtd_release’:
+    drivers/mtd/mtdcore.c:51: error: invalid operands to binary * (have ‘struct mtd_info *’ and ‘int’)
+
+
 
 Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
---
- mm/vmscan.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+Cc: Denis V. Lunev <den@openvz.org>
+Cc: David Woodhouse <dwmw2@infradead.org>
+---
+ drivers/mtd/mtdcore.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: b/mm/vmscan.c
+Index: b/drivers/mtd/mtdcore.c
 ===================================================================
---- a/mm/vmscan.c	2009-04-16 21:25:41.000000000 +0900
-+++ b/mm/vmscan.c	2009-04-16 21:56:54.000000000 +0900
-@@ -64,6 +64,9 @@ struct scan_control {
- 	/* Can mapped pages be reclaimed? */
- 	int may_unmap;
+--- a/drivers/mtd/mtdcore.c	2009-04-16 21:43:18.000000000 +0900
++++ b/drivers/mtd/mtdcore.c	2009-04-16 21:44:23.000000000 +0900
+@@ -48,7 +48,7 @@ static LIST_HEAD(mtd_notifiers);
+  */
+ static void mtd_release(struct device *dev)
+ {
+-	dev_t index = MTD_DEVT(dev_to_mtd(dev));
++	dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
  
-+	/* Can pages be swapped as part of reclaim? */
-+	int may_swap;
-+
- 	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
- 	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
- 	 * In this context, it doesn't matter that we scan the
-@@ -1387,7 +1390,7 @@ static void get_scan_ratio(struct zone *
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
- 
- 	/* If we have no swap space, do not bother scanning anon pages. */
--	if (nr_swap_pages <= 0) {
-+	if (!sc->may_swap || (nr_swap_pages <= 0)) {
- 		percent[0] = 0;
- 		percent[1] = 100;
- 		return;
-@@ -1704,6 +1707,7 @@ unsigned long try_to_free_pages(struct z
- 		.may_writepage = !laptop_mode,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
- 		.may_unmap = 1,
-+		.may_swap = 1,
- 		.swappiness = vm_swappiness,
- 		.order = order,
- 		.mem_cgroup = NULL,
-@@ -1724,6 +1728,7 @@ unsigned long try_to_free_mem_cgroup_pag
- 	struct scan_control sc = {
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
-+		.may_swap = 1,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
- 		.swappiness = swappiness,
- 		.order = 0,
-@@ -1734,7 +1739,7 @@ unsigned long try_to_free_mem_cgroup_pag
- 	struct zonelist *zonelist;
- 
- 	if (noswap)
--		sc.may_unmap = 0;
-+		sc.may_swap = 0;
- 
- 	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
-@@ -1774,6 +1779,7 @@ static unsigned long balance_pgdat(pg_da
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 1,
-+		.may_swap = 1,
- 		.swap_cluster_max = SWAP_CLUSTER_MAX,
- 		.swappiness = vm_swappiness,
- 		.order = order,
-@@ -2120,6 +2126,7 @@ unsigned long shrink_all_memory(unsigned
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 0,
-+		.may_swap = 1,
- 		.may_writepage = 1,
- 		.isolate_pages = isolate_pages_global,
- 	};
-@@ -2304,6 +2311,7 @@ static int __zone_reclaim(struct zone *z
- 	struct scan_control sc = {
- 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-+		.may_swap = 1,
- 		.swap_cluster_max = max_t(unsigned long, nr_pages,
- 					SWAP_CLUSTER_MAX),
- 		.gfp_mask = gfp_mask,
+ 	/* remove /dev/mtdXro node if needed */
+ 	if (index)
+
 
 
 --
