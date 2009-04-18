@@ -1,63 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 05E3A5F0001
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 02:42:54 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3I6hX7Y015474
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Sat, 18 Apr 2009 15:43:34 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BDF1445DE52
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9976145DE4E
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A8ED1DB803C
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 31A7F1DB8037
-	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 15:43:33 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: AIM9 from 2.6.22 to 2.6.29
-In-Reply-To: <alpine.DEB.1.10.0904161616001.17864@qirst.com>
-References: <alpine.DEB.1.10.0904161616001.17864@qirst.com>
-Message-Id: <20090418154207.1260.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 922AF5F0001
+	for <linux-mm@kvack.org>; Sat, 18 Apr 2009 10:57:26 -0400 (EDT)
+Date: Sat, 18 Apr 2009 16:58:06 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 4/4] add ksm kernel shared memory driver.
+Message-ID: <20090418145806.GA15228@random.random>
+References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <1239249521-5013-2-git-send-email-ieidus@redhat.com> <1239249521-5013-3-git-send-email-ieidus@redhat.com> <1239249521-5013-4-git-send-email-ieidus@redhat.com> <1239249521-5013-5-git-send-email-ieidus@redhat.com> <20090414150929.174a9b25.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Sat, 18 Apr 2009 15:43:32 +0900 (JST)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090414150929.174a9b25.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Christoph Lameter <cl@linux.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-> Here is a list of AIM9 results for all kernels between 2.6.22 2.6.29:
+On Tue, Apr 14, 2009 at 03:09:29PM -0700, Andrew Morton wrote:
+> We need a comment here explaining why we can't use the much preferable
+> lock_page().
 > 
-> Significant regressions:
-> 
-> creat-clo
-> page_test
+> Why can't we use the much preferable lock_page()?
 
-I'm interest to it.
-How do I get AIM9 benchmark?
-
-and, Can you compare CONFIG_UNEVICTABLE_LRU is y and n?
-
-
-> brk_test
-> exec_test
-> fork_test (!!)
-> shell_*
-> fifo_test
-> pipe_cpy
-> 
-> Significant improvements:
-> 
-> signal_test
-> tcp_test
-> udp_test
-
+We might but then it'd risk to waste time waiting. It's not worth
+waiting, we want kksmd to be allowed to keep one (in future more than
+one as we scale it smp/numa) CPU busy at all times running memcmp and
+not schedule (other than for need_resched()) to try to free memory at
+the fastest peace possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
