@@ -1,60 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E5F575F0001
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 07:33:37 -0400 (EDT)
-Received: by yx-out-1718.google.com with SMTP id 36so210400yxh.26
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 04:34:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <2f11576a0904190159t2898edfal858ba12d3460c4e5@mail.gmail.com>
-References: <20090418152100.125A.A69D9226@jp.fujitsu.com>
-	 <20090418184337.GA5556@cmpxchg.org>
-	 <2f11576a0904190159t2898edfal858ba12d3460c4e5@mail.gmail.com>
-Date: Sun, 19 Apr 2009 20:34:08 +0900
-Message-ID: <2f11576a0904190434y1f897a57qeb22e478dd4d43bd@mail.gmail.com>
-Subject: Re: [PATCH for mmotm 0414] vmscan,memcg: reintroduce sc->may_swap
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 629525F0001
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 08:37:03 -0400 (EDT)
+Date: Sun, 19 Apr 2009 21:37:34 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC][PATCH v3 1/6] mm: Don't unmap gup()ed page
+In-Reply-To: <2f11576a0904150453g4332e0d5h5bcad97fac7af24@mail.gmail.com>
+References: <20090415114154.GI9809@random.random> <2f11576a0904150453g4332e0d5h5bcad97fac7af24@mail.gmail.com>
+Message-Id: <20090419202328.FFBF.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Nick Piggin <nickpiggin@yahoo.com.au>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-2009/4/19 KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>:
-> Hi
->
-> Hi
->
->>> @@ -1724,6 +1728,7 @@ unsigned long try_to_free_mem_cgroup_pag
->>> =A0 =A0 =A0 struct scan_control sc =3D {
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .may_writepage =3D !laptop_mode,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .may_unmap =3D 1,
->>> + =A0 =A0 =A0 =A0 =A0 =A0 .may_swap =3D 1,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .swap_cluster_max =3D SWAP_CLUSTER_MAX,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .swappiness =3D swappiness,
->>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 .order =3D 0,
->>> @@ -1734,7 +1739,7 @@ unsigned long try_to_free_mem_cgroup_pag
->>> =A0 =A0 =A0 struct zonelist *zonelist;
->>>
->>> =A0 =A0 =A0 if (noswap)
->>> - =A0 =A0 =A0 =A0 =A0 =A0 sc.may_unmap =3D 0;
->>> + =A0 =A0 =A0 =A0 =A0 =A0 sc.may_swap =3D 0;
->>
->> Can this be directly initialized?
->>
->> struct scan_control sc =3D {
->> =A0 =A0 =A0 =A0...
->> =A0 =A0 =A0 =A0.may_swap =3D !noswap,
->> =A0 =A0 =A0 =A0...
->> };
->
-> your proposal is better coding style. but I also prefer condig style
-> consistency.
-> I think we should change may_unmap and may_swap at the same time.
-> Thus, I'd like to does it by another patch.
+> >> Can we assume mmu_notifier is only used by kvm now?
+> >> if not, we need to make new notifier.
+> >
+> > KVM is no fundamentally different from other users in this respect, so
+> > I don't see why need a new notifier. If it works for others it'll work
+> > for KVM and the other way around is true too.
+> >
+> > mmu notifier users can or cannot take a page pin. KVM does. GRU
+> > doesn't. XPMEM does. All of them releases any pin after
+> > mmu_notifier_invalidate_page. All that is important is to run
+> > mmu_notifier_invalidate_page _after_ the ptep_clear_young_notify, so
+> > that we don't nuke secondary mappings on the pages unless we really go
+> > to nuke the pte.
+> 
+> Thank you kindful explain. I understand it :)
 
-Grr, I've misunderstood your comment.
-Will fix as your suggestion.
+How about this?
+
+---
+ mm/rmap.c     |   50 +++++++++++++++++++++++++++++++++++++++++++-------
+ mm/swapfile.c |    3 ++-
+ 2 files changed, 45 insertions(+), 8 deletions(-)
+
+Index: b/mm/swapfile.c
+===================================================================
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -547,7 +547,8 @@ int reuse_swap_page(struct page *page)
+ 			SetPageDirty(page);
+ 		}
+ 	}
+-	return count == 1;
++
++	return count + page_count(page) == 2;
+ }
+ 
+ /*
+Index: b/mm/rmap.c
+===================================================================
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -772,12 +772,34 @@ static int try_to_unmap_one(struct page 
+ 	if (!pte)
+ 		goto out;
+ 
+-	/*
+-	 * If the page is mlock()d, we cannot swap it out.
+-	 * If it's recently referenced (perhaps page_referenced
+-	 * skipped over this mm) then we should reactivate it.
+-	 */
++
++	/* Unpinning the page from long time pinning subsystem (e.g. kvm). */
++	mmu_notifier_invalidate_page(vma->vm_mm, address);
++
+ 	if (!migration) {
++		/*
++		 * Don't pull an anonymous page out from under get_user_pages.
++		 * get_user_pages_fast() silently raises page count without any
++		 * lock. thus, we need twice check here and _after_ pte nuking.
++		 *
++		 * If nuke the pte of pinned pages, do_wp_page() will replace
++		 * it by a copy page, and the user never get to see the data
++		 * GUP was holding the original page for.
++		 *
++		 * note:
++		 *  page_mapcount() + 2 mean pte + swapcache + us
++		 */
++		if (PageAnon(page) &&
++		    (page_count(page) != page_mapcount(page) + 2)) {
++			ret = SWAP_FAIL;
++			goto out_unmap;
++		}
++
++		/*
++		 * If the page is mlock()d, we cannot swap it out.
++		 * If it's recently referenced (perhaps page_referenced
++		 * skipped over this mm) then we should reactivate it.
++		 */
+ 		if (vma->vm_flags & VM_LOCKED) {
+ 			ret = SWAP_MLOCK;
+ 			goto out_unmap;
+@@ -786,11 +808,25 @@ static int try_to_unmap_one(struct page 
+ 			ret = SWAP_FAIL;
+ 			goto out_unmap;
+ 		}
+-  	}
++	}
+ 
+ 	/* Nuke the page table entry. */
+ 	flush_cache_page(vma, address, page_to_pfn(page));
+-	pteval = ptep_clear_flush_notify(vma, address, pte);
++	pteval = ptep_clear_flush(vma, address, pte);
++
++	if (!migration) {
++		if (PageAnon(page) &&
++		    page_count(page) != page_mapcount(page) + 2) {
++			/*
++			 * We lose the race against get_user_pages_fast().
++			 * set the same pte and give up unmapping.
++			 */
++			set_pte_at(mm, address, pte, pteval);
++			ret = SWAP_FAIL;
++			goto out_unmap;
++		}
++	}
++
+ 
+ 	/* Move the dirty bit to the physical page now the pte is gone. */
+ 	if (pte_dirty(pteval))
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
