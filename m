@@ -1,50 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 429F05F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 01:19:35 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3K5Jolq011283
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 20 Apr 2009 14:19:50 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 61CC445DE52
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 14:19:50 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4363845DE4E
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 14:19:50 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 26E2D1DB8040
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 14:19:50 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id DAB351DB8038
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 14:19:49 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Does get_user_pages_fast lock the user pages in memory in my case?
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 0EE8B5F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 01:24:12 -0400 (EDT)
+Received: by ti-out-0910.google.com with SMTP id a21so1195540tia.8
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 22:24:33 -0700 (PDT)
+Date: Mon, 20 Apr 2009 14:24:22 +0900
+From: Minchan Kim <minchan.kim@gmail.com>
+Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
+ case?
+Message-Id: <20090420142422.ff1a2a66.minchan.kim@barrios-desktop>
 In-Reply-To: <49EC029D.1060807@gmail.com>
-References: <20090420135323.08015e32.minchan.kim@barrios-desktop> <49EC029D.1060807@gmail.com>
-Message-Id: <20090420141710.2509.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 20 Apr 2009 14:19:49 +0900 (JST)
+References: <49E8292D.7050904@gmail.com>
+	<20090420084533.7f701e16.minchan.kim@barrios-desktop>
+	<49EBDADB.4040307@gmail.com>
+	<20090420114236.dda3de34.minchan.kim@barrios-desktop>
+	<49EBEBC0.8090102@gmail.com>
+	<20090420135323.08015e32.minchan.kim@barrios-desktop>
+	<49EC029D.1060807@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 To: Huang Shijie <shijie8@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 20 Apr 2009 13:05:33 +0800
+Huang Shijie <shijie8@gmail.com> wrote:
+
+> Minchan Kim a??e??:
+> > On Mon, 20 Apr 2009 11:28:00 +0800
+> > Huang Shijie <shijie8@gmail.com> wrote:
+> >
+> > I will summarize your method. 
+> > Is right ?
+> >
+> >
+> > kernel(driver)					application 
+> >
+> > 						posix_memalign(buffer)
+> > 						ioctl(buffer)
+> >
+> > ioctl handler
+> > get_user_pages(pages);
+> > /* This pages are mapped at user's vma' 
+> > address space */
+> > vaddr = vmap(pages);
+> > /* This pages are mapped at vmalloc space */
+> > .
+> > .
+> > <after sometime, 
+> > It may change to other process context>
+> > .
+> > .
+> > interrupt handler in your driver 
+> > memcpy(vaddr, src, len); 
+> > notify_user();
+> >
+> > 						processing(buffer);
+> >
+> > It's rather awkward use case of get_user_pages. 
+> >
+> > If you want to share one big buffer between kernel and user, 
+> > You can vmalloc and remap_pfn_range.
+> >   
 > The v4l2 method IO_METHOD_MMAP does use the vmaloc() method you told above ,
 > our driver also support this method,we user vmalloc /remap_vmalloc_range().
 > 
 > But the v4l2 method IO_METHOD_USERPTR must use the method I told above.
 
-I guess you mean IO_METHOD_USERPTR can't use remap_vmalloc_range, right?
-we need explanation of v4l2 requirement.
+I can't understand IO_METHOD_USERPTR's benefit compared with IO_METHOD_MMAP. 
+I think both solution can support that application programmer can handle buffer as like pointer and kernel can reduce copy overhead from kernel to user. 
 
-Can you explain why v4l2 use two different way? Why application developer
-need two way?
+Why do you have to support IO_METHOD_USERPTR?
+If you can justify your goal, we can add locked GUP. 
 
-
-
+-- 
+Kinds Regards
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
