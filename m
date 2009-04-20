@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id D641E5F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 05:24:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3K9OWKn030035
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 20 Apr 2009 18:24:33 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C0ADB45DD7F
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:24:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B4D745DD75
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:24:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4719B1DB803C
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:24:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D70D2E08005
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:24:31 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Does get_user_pages_fast lock the user pages in memory in my case?
-In-Reply-To: <49EC311D.4090605@gmail.com>
-References: <20090420165529.61AB.A69D9226@jp.fujitsu.com> <49EC311D.4090605@gmail.com>
-Message-Id: <20090420181436.61AE.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id B2C385F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 05:48:21 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id f25so1395903rvb.26
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2009 02:49:06 -0700 (PDT)
+Message-ID: <49EC44C6.1010603@gmail.com>
+Date: Mon, 20 Apr 2009 17:47:50 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 20 Apr 2009 18:24:31 +0900 (JST)
+Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
+ case?
+References: <20090420165529.61AB.A69D9226@jp.fujitsu.com> <49EC311D.4090605@gmail.com> <20090420181436.61AE.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090420181436.61AE.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> In the V4L2_MEMORY_USERPTR method, what I want to do is pin the 
-> anonymous pages in memory.
-> 
-> I used to add the VM_LOCKED to vma associated with the pages.In my 
-> opinion, the pages will:
-> LRU_ACTIVE_ANON ---> LRU_INACTIVE_ANON---> LRU_UNEVICTABLE
-> 
-> so the pages are pinned in memory.It was ugly, but it works I think.
-> Do you have any suggestions about this method?
+KOSAKI Motohiro a??e??:
+>> In the V4L2_MEMORY_USERPTR method, what I want to do is pin the 
+>> anonymous pages in memory.
+>>
+>> I used to add the VM_LOCKED to vma associated with the pages.In my 
+>> opinion, the pages will:
+>> LRU_ACTIVE_ANON ---> LRU_INACTIVE_ANON---> LRU_UNEVICTABLE
+>>
+>> so the pages are pinned in memory.It was ugly, but it works I think.
+>> Do you have any suggestions about this method?
+>>     
+>
+> page migration (e.g. move_pages) ignore MLOCK.
+> maybe, VM_LOCKED + gut()ed solved it partially :)
+>
+>   
+My old codes used the get_user_pages()/VM_LOCKED just as you said.
 
-page migration (e.g. move_pages) ignore MLOCK.
-maybe, VM_LOCKED + gut()ed solved it partially :)
+I will read the  migration  code, I am not clear about why the gup() can 
+stop the migraion.
 
-but, user process still can call munlock. it cause disaster.
-I still think -EINVAL is better.
+> but, user process still can call munlock. it cause disaster.
+> I still think -EINVAL is better.
+>
+>
+>   
+Why the user process call munlock? VLC or Mplayer do not call it, so I 
+don't worry about that.
 
+Our video card is still not on sale.So I can wait until the bug is fixed. :)
+If there is no method to bypass the problem in future,I will return -EINVAL.
 
+thanks
+>
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
