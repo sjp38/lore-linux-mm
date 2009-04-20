@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 9CC8C5F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 03:58:20 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3K7xDG8013169
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Mon, 20 Apr 2009 16:59:14 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id C28EE45DE4E
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:59:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A188745DE4F
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:59:13 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6960FE08007
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:59:13 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 18425E08003
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:59:13 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: Does get_user_pages_fast lock the user pages in memory in my case?
-In-Reply-To: <49EC0A24.6060307@gmail.com>
-References: <20090420141710.2509.A69D9226@jp.fujitsu.com> <49EC0A24.6060307@gmail.com>
-Message-Id: <20090420165529.61AB.A69D9226@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id F0CAA5F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 04:24:51 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id v27so878834wah.22
+        for <linux-mm@kvack.org>; Mon, 20 Apr 2009 01:25:14 -0700 (PDT)
+Message-ID: <49EC311D.4090605@gmail.com>
+Date: Mon, 20 Apr 2009 16:23:57 +0800
+From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Mon, 20 Apr 2009 16:59:12 +0900 (JST)
+Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
+ case?
+References: <20090420141710.2509.A69D9226@jp.fujitsu.com> <49EC0A24.6060307@gmail.com> <20090420165529.61AB.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090420165529.61AB.A69D9226@jp.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>, linux-mm@kvack.org, Huang Shijie <shijie8@gmail.com>
 List-ID: <linux-mm.kvack.org>
 
-> http://v4l2spec.bytesex.org/spec/r13696.htm
-> shows the vidioc_reqbufs(). It determines the method of IO : "Memory 
-> Mapping or User Pointer I/O"
-> 
-> The application developers can support any methodes of the Two, there is 
-> no mandatory request to realize
-> both methods.   For example, the Mplayer only support the "memory 
-> maping" method ,and it does't support the "user pointer",
-> while the VLC supports both.
+KOSAKI Motohiro a??e??:
+>> http://v4l2spec.bytesex.org/spec/r13696.htm
+>> shows the vidioc_reqbufs(). It determines the method of IO : "Memory 
+>> Mapping or User Pointer I/O"
+>>
+>> The application developers can support any methodes of the Two, there is 
+>> no mandatory request to realize
+>> both methods.   For example, the Mplayer only support the "memory 
+>> maping" method ,and it does't support the "user pointer",
+>> while the VLC supports both.
+>>     
+>
+> I greped VIDIOC_REQBUFS on current tree.
+> Almost driver has following check.
+>
+>         if (rb->memory != V4L2_MEMORY_MMAP)
+> 		return -EINVAL;
+>
+> IOW, almost one don't provide V4L2_MEMORY_USERPTR method.
+> Thus, I think any userland application don't want use V4L2_MEMORY_USERPTR.
+> I recommend you also return -EINVAL.
+>
+>   
+Thanks.
 
-I greped VIDIOC_REQBUFS on current tree.
-Almost driver has following check.
+In the V4L2_MEMORY_USERPTR method, what I want to do is pin the 
+anonymous pages in memory.
 
-        if (rb->memory != V4L2_MEMORY_MMAP)
-		return -EINVAL;
+I used to add the VM_LOCKED to vma associated with the pages.In my 
+opinion, the pages will:
+LRU_ACTIVE_ANON ---> LRU_INACTIVE_ANON---> LRU_UNEVICTABLE
 
-IOW, almost one don't provide V4L2_MEMORY_USERPTR method.
-Thus, I think any userland application don't want use V4L2_MEMORY_USERPTR.
-I recommend you also return -EINVAL.
-
-I think we can't implement V4L2_MEMORY_USERPTR properly.
-it is mistake by specification.
+so the pages are pinned in memory.It was ugly, but it works I think.
+Do you have any suggestions about this method?
 
 
 
+
+
+> I think we can't implement V4L2_MEMORY_USERPTR properly.
+> it is mistake by specification.
+>
+>
+>
+>
+>
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
