@@ -1,160 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 004FD5F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:25:49 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id CFF3E5F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:32:12 -0400 (EDT)
+Date: Mon, 20 Apr 2009 22:31:19 +0200
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/3][rfc] vmscan: batched swap slot allocation
-Date: Mon, 20 Apr 2009 22:24:45 +0200
-Message-Id: <1240259085-25872-3-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
-References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
+Message-ID: <20090420203119.GA26066@cmpxchg.org>
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <1240259085-25872-3-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="liOOAslEiF7prFVr"
+Content-Disposition: inline
+In-Reply-To: <1240259085-25872-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Every swap slot allocation tries to be subsequent to the previous one
-to help keeping the LRU order of anon pages intact when they are
-swapped out.
 
-With an increasing number of concurrent reclaimers, the average
-distance between two subsequent slot allocations of one reclaimer
-increases as well.  The contiguous LRU list chunks each reclaimer
-swaps out get 'multiplexed' on the swap space as they allocate the
-slots concurrently.
+--liOOAslEiF7prFVr
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-	2 processes isolating 15 pages each and allocating swap slots
-	concurrently:
+A test program creates an anonymous memory mapping the size of the
+system's RAM (2G).  It faults all pages of it linearly, then kicks off
+128 reclaimers (on 4 cores) that map, fault and unmap 2G in sum and
+parallel, thereby evicting the first mapping onto swap.
 
-	#0			#1
+The time is then taken for the initial mapping to get faulted in from
+swap linearly again, thus measuring how bad the 128 reclaimers
+distributed the pages on the swap space.
 
-	page 0 slot 0		page 15 slot 1
-	page 1 slot 2		page 16 slot 3
-	page 2 slot 4		page 17 slot 5
-	...
+  Average over 5 runs, standard deviation in parens:
 
-	-> average slot distance of 2
+      swap-in          user            system            total
 
-All reclaimers being equally fast, this becomes a problem when the
-total number of concurrent reclaimers gets so high that even equal
-distribution makes the average distance between the slots of one
-reclaimer too wide for optimistic swap-in to compensate.
+old:  74.97s (0.38s)   0.52s (0.02s)   291.07s (3.28s)   2m52.66s (0m1.32s)
+new:  45.26s (0.68s)   0.53s (0.01s)   250.47s (5.17s)   2m45.93s (0m2.63s)
 
-But right now, one reclaimer can take much longer than another one
-because its pages are mapped into more page tables and it has thus
-more work to do and the faster reclaimer will allocate multiple swap
-slots between two slot allocations of the slower one.
+where old is current mmotm snapshot 2009-04-17-15-19 and new is these
+three patches applied to it.
 
-This patch makes shrink_page_list() allocate swap slots in batches,
-collecting all the anonymous memory pages in a list without
-rescheduling and actual reclaim in between.  And only after all anon
-pages are swap cached, unmap and write-out starts for them.
+Test program attached.  Kernbench didn't show any differences on my
+single core x86 laptop with 256mb ram (poor thing).
 
-While this does not fix the fundamental issue of slot distribution
-increasing with reclaimers, it mitigates the problem by balancing the
-resulting fragmentation equally between the allocators.
+--liOOAslEiF7prFVr
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="contswap2.c"
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hugh@veritas.com>
----
- mm/vmscan.c |   49 +++++++++++++++++++++++++++++++++++++++++--------
- 1 files changed, 41 insertions(+), 8 deletions(-)
+/*
+ * contswap benchmark
+ */
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 70092fa..b3823fe 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -592,24 +592,42 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 					enum pageout_io sync_writeback)
- {
- 	LIST_HEAD(ret_pages);
-+	LIST_HEAD(swap_pages);
- 	struct pagevec freed_pvec;
--	int pgactivate = 0;
-+	int pgactivate = 0, restart = 0;
- 	unsigned long nr_reclaimed = 0;
- 
- 	cond_resched();
- 
- 	pagevec_init(&freed_pvec, 1);
-+restart:
- 	while (!list_empty(page_list)) {
- 		struct address_space *mapping;
- 		struct page *page;
- 		int may_enter_fs;
- 		int referenced;
- 
--		cond_resched();
-+		if (list_empty(&swap_pages))
-+			cond_resched();
- 
- 		page = lru_to_page(page_list);
- 		list_del(&page->lru);
- 
-+		if (restart) {
-+			/*
-+			 * We are allowed to do IO when we restart for
-+			 * swap pages.
-+			 */
-+			may_enter_fs = 1;
-+			/*
-+			 * Referenced pages will be sorted out by
-+			 * try_to_unmap() and unmapped (anon!) pages
-+			 * are not to be referenced anymore.
-+			 */
-+			referenced = 0;
-+			goto reclaim;
-+		}
-+
- 		if (!trylock_page(page))
- 			goto keep;
- 
-@@ -655,14 +673,24 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 */
--		if (PageAnon(page) && !PageSwapCache(page)) {
--			if (!(sc->gfp_mask & __GFP_IO))
--				goto keep_locked;
--			if (!add_to_swap(page))
--				goto activate_locked;
--			may_enter_fs = 1;
-+		if (PageAnon(page)) {
-+			if (!PageSwapCache(page)) {
-+				if (!(sc->gfp_mask & __GFP_IO))
-+					goto keep_locked;
-+				if (!add_to_swap(page))
-+					goto activate_locked;
-+			} else if (!may_enter_fs)
-+				/*
-+				 * It's no use to batch when we are
-+				 * not allocating swap for this GFP
-+				 * mask.
-+				 */
-+				goto reclaim;
-+			list_add(&page->lru, &swap_pages);
-+			continue;
- 		}
- 
-+	reclaim:
- 		mapping = page_mapping(page);
- 
- 		/*
-@@ -794,6 +822,11 @@ keep:
- 		list_add(&page->lru, &ret_pages);
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
- 	}
-+	if (!list_empty(&swap_pages)) {
-+		list_splice_init(&swap_pages, page_list);
-+		restart = 1;
-+		goto restart;
-+	}
- 	list_splice(&ret_pages, page_list);
- 	if (pagevec_count(&freed_pvec))
- 		__pagevec_free(&freed_pvec);
--- 
-1.6.2.1.135.gde769
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+
+#define MEMORY		(1650 << 20)
+#define RECLAIMERS	128
+
+#define PAGE_SIZE	4096
+
+#define PART		(MEMORY / RECLAIMERS)
+
+static void *anonmap(unsigned long size)
+{
+	void *map = mmap(NULL, size, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
+	assert(map != MAP_FAILED);
+	return map;
+}
+
+static void touch_linear(char *map, unsigned long size)
+{
+	unsigned long off;
+
+	for (off = 0; off < size; off += PAGE_SIZE)
+		if (map[off])
+			puts("huh?");
+}
+
+static void __claim(unsigned long size)
+{
+	char *map = anonmap(size);
+	touch_linear(map, size);
+	sleep(5);
+	munmap(map, size);
+}
+
+static pid_t claim(unsigned long size)
+{
+	pid_t pid;
+
+	switch (pid = fork()) {
+	case -1:
+		puts("fork failed");
+		exit(1);
+	case 0:
+		kill(getpid(), SIGSTOP);
+		__claim(size);
+		exit(0);
+	default:
+		return pid;
+	}
+}
+
+int main(void)
+{
+	struct timeval start, stop, diff;
+	pid_t pids[RECLAIMERS];
+	int nr, crap;
+	char *one;
+
+	one = anonmap(MEMORY);
+	touch_linear(one, MEMORY);
+
+	for (nr = 0; nr < RECLAIMERS; nr++)
+		pids[nr] = claim(PART);
+	for (nr = 0; nr < RECLAIMERS; nr++)
+		kill(pids[nr], SIGCONT);
+	for (nr = 0; nr < RECLAIMERS; nr++)
+		waitpid(pids[nr], &crap, 0);
+
+	gettimeofday(&start, NULL);
+	touch_linear(one, MEMORY);
+	gettimeofday(&stop, NULL);
+	munmap(one, MEMORY);
+
+	timersub(&stop, &start, &diff);
+	printf("%lu.%lu\n", diff.tv_sec, diff.tv_usec);
+
+	return 0;
+}
+
+--liOOAslEiF7prFVr--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
