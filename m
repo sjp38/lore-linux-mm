@@ -1,50 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7D45F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:25:42 -0400 (EDT)
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AB765F0002
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 16:25:43 -0400 (EDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/3] mm: fix pageref leak in do_swap_page()
-Date: Mon, 20 Apr 2009 22:24:43 +0200
-Message-Id: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/3][rfc] swap: try to reuse freed slots in the allocation area
+Date: Mon, 20 Apr 2009 22:24:44 +0200
+Message-Id: <1240259085-25872-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-By the time the memory cgroup code is notified about a swapin we
-already hold a reference on the fault page.
+A swap slot for an anonymous memory page might get freed again just
+after allocating it when further steps in the eviction process fail.
 
-If the cgroup callback fails make sure to unlock AND release the page
-or we leak the reference.
+But the clustered slot allocation will go ahead allocating after this
+now unused slot, leaving a hole at this position.  Holes waste space
+and act as a boundary for optimistic swap-in.
+
+To avoid this, check if the next page to be swapped out can sensibly
+be placed at this just freed position.  And if so, point the next
+cluster offset to it.
+
+The acceptable 'look-back' distance is the number of slots swap-in
+clustering uses as well so that the latter continues to get related
+context when reading surrounding swap slots optimistically.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hugh@veritas.com>
+Cc: Rik van Riel <riel@redhat.com>
 ---
- mm/memory.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ mm/swapfile.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 366dab5..db126b6 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2536,8 +2536,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
- 		ret = VM_FAULT_OOM;
--		unlock_page(page);
--		goto out;
-+		goto out_page;
- 	}
- 
- 	/*
-@@ -2599,6 +2598,7 @@ out:
- out_nomap:
- 	mem_cgroup_cancel_charge_swapin(ptr);
- 	pte_unmap_unlock(page_table, ptl);
-+out_page:
- 	unlock_page(page);
- 	page_cache_release(page);
- 	return ret;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 312fafe..fc88278 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -484,6 +484,15 @@ static int swap_entry_free(struct swap_info_struct *p, swp_entry_t ent)
+ 				p->lowest_bit = offset;
+ 			if (offset > p->highest_bit)
+ 				p->highest_bit = offset;
++			/*
++			 * If the next allocation is only some slots
++			 * ahead, reuse this now free slot instead of
++			 * leaving a hole.
++			 */
++			if (p->cluster_next - offset <= 1 << page_cluster) {
++				p->cluster_next = offset;
++				p->cluster_nr++;
++			}
+ 			if (p->prio > swap_info[swap_list.next].prio)
+ 				swap_list.next = p - swap_info;
+ 			nr_swap_pages++;
 -- 
 1.6.2.1.135.gde769
 
