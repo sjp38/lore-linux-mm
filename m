@@ -1,39 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id E48AF5F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 08:52:27 -0400 (EDT)
-Message-ID: <49EC7005.7000909@redhat.com>
-Date: Mon, 20 Apr 2009 15:52:21 +0300
-From: Izik Eidus <ieidus@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] add ksm kernel shared memory driver.
-References: <1240191366-10029-1-git-send-email-ieidus@redhat.com>	<1240191366-10029-2-git-send-email-ieidus@redhat.com>	<1240191366-10029-3-git-send-email-ieidus@redhat.com>	<1240191366-10029-4-git-send-email-ieidus@redhat.com>	<1240191366-10029-5-git-send-email-ieidus@redhat.com>	<1240191366-10029-6-git-send-email-ieidus@redhat.com> <20090420110223.76ba4593@lxorguk.ukuu.org.uk> <49EC584B.3060809@redhat.com>
-In-Reply-To: <49EC584B.3060809@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA0B5F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 12:15:25 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e7.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3KG5BAT005624
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 12:05:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3KGFRVw181664
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 12:15:27 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3KGDetn005205
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 12:13:42 -0400
+Subject: Re: [PATCH V3] Fix Committed_AS underflow
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <1240218590-16714-1-git-send-email-ebmunson@us.ibm.com>
+References: <1240218590-16714-1-git-send-email-ebmunson@us.ibm.com>
+Content-Type: text/plain
+Date: Mon, 20 Apr 2009 09:15:20 -0700
+Message-Id: <1240244120.32604.278.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Avi Kivity <avi@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@linux.vnet.ibm.com, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-Avi Kivity wrote:
-> Alan Cox wrote:
->> The minor number you are using already belongs to another project.
->>
->> 10,234 is free but it would be good to know what device naming is
->> proposed. I imagine other folks would like to know why you aren't using
->> sysfs or similar or extending /dev/kvm ?
->>   
->
-> ksm was deliberately made independent of kvm.  While there may or may 
-> not be uses of ksm without kvm (you could run ordinary qemu, but no 
-> one would do this in a production deployment), keeping them separate 
-> helps avoid unnecessary interdependencies.  For example all tlb 
-> flushes are mediated through mmu notifiers instead of ksm hooking 
-> directly into kvm.
->
-Yes, beside, I do use sysfs for controlling the ksm behavior,
-Ioctls are provided as easier way for application to register its memory.
+On Mon, 2009-04-20 at 10:09 +0100, Eric B Munson wrote:
+> 1. Change NR_CPUS to min(64, NR_CPUS)
+>    This will limit the amount of possible skew on kernels compiled for very
+>    large SMP machines.  64 is an arbitrary number selected to limit the worst
+>    of the skew without using more cache lines.  min(64, NR_CPUS) is used
+>    instead of nr_online_cpus() because nr_online_cpus() requires a shared
+>    cache line and a call to hweight to make the calculation.  Its runtime
+>    overhead and keeping this counter accurate showed up in profiles and it's
+>    possible that nr_online_cpus() would also show.
+
+
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
