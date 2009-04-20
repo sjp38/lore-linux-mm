@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C02C5F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 17:39:45 -0400 (EDT)
-Date: Mon, 20 Apr 2009 23:38:56 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
-Message-ID: <20090420213856.GA26266@cmpxchg.org>
-References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <1240259085-25872-3-git-send-email-hannes@cmpxchg.org> <20090420203119.GA26066@cmpxchg.org> <20090420135303.75471bc1.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090420135303.75471bc1.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BDAA45F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:19:58 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 02/25] Do not sanity check order in the fast path
+Date: Mon, 20 Apr 2009 23:19:48 +0100
+Message-Id: <1240266011-11140-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com, hugh@veritas.com
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 20, 2009 at 01:53:03PM -0700, Andrew Morton wrote:
-> On Mon, 20 Apr 2009 22:31:19 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > A test program creates an anonymous memory mapping the size of the
-> > system's RAM (2G).  It faults all pages of it linearly, then kicks off
-> > 128 reclaimers (on 4 cores) that map, fault and unmap 2G in sum and
-> > parallel, thereby evicting the first mapping onto swap.
-> > 
-> > The time is then taken for the initial mapping to get faulted in from
-> > swap linearly again, thus measuring how bad the 128 reclaimers
-> > distributed the pages on the swap space.
-> > 
-> >   Average over 5 runs, standard deviation in parens:
-> > 
-> >       swap-in          user            system            total
-> > 
-> > old:  74.97s (0.38s)   0.52s (0.02s)   291.07s (3.28s)   2m52.66s (0m1.32s)
-> > new:  45.26s (0.68s)   0.53s (0.01s)   250.47s (5.17s)   2m45.93s (0m2.63s)
-> > 
-> > where old is current mmotm snapshot 2009-04-17-15-19 and new is these
-> > three patches applied to it.
-> > 
-> > Test program attached.  Kernbench didn't show any differences on my
-> > single core x86 laptop with 256mb ram (poor thing).
-> 
-> qsbench is pretty good at fragmenting swapspace.  It would be vaguely
-> interesting to see what effect you've had on its runtime.
-> 
-> I've found that qsbench's runtimes are fairly chaotic when it's
-> operating at the transition point between all-in-core and
-> madly-swapping, so a bit of thought and caution is needed.
->
-> I used to run it with
-> 
-> 	./qsbench -p 4 -m 96
-> 
-> on a 256MB machine and it had sufficiently repeatable runtimes to be
-> useful.
-> 
-> There's a copy of qsbench in
-> http://userweb.kernel.org/~akpm/stuff/ext3-tools.tar.gz
+No user of the allocator API should be passing in an order >= MAX_ORDER
+but we check for it on each and every allocation. Delete this check and
+make it a VM_BUG_ON check further down the call path.
 
-Thanks a lot.
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+---
+ include/linux/gfp.h |    6 ------
+ mm/page_alloc.c     |    2 ++
+ 2 files changed, 2 insertions(+), 6 deletions(-)
 
-> I wonder what effect this patch has upon hibernate/resume performance.
-
-Good point, I will test this.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 556c840..760f6c0 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -182,9 +182,6 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
+-	if (unlikely(order >= MAX_ORDER))
+-		return NULL;
+-
+ 	/* Unknown node is current node */
+ 	if (nid < 0)
+ 		nid = numa_node_id();
+@@ -198,9 +195,6 @@ extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
+ static inline struct page *
+ alloc_pages(gfp_t gfp_mask, unsigned int order)
+ {
+-	if (unlikely(order >= MAX_ORDER))
+-		return NULL;
+-
+ 	return alloc_pages_current(gfp_mask, order);
+ }
+ extern struct page *alloc_page_vma(gfp_t gfp_mask,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dcc4f05..5028f40 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1405,6 +1405,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 
+ 	classzone_idx = zone_idx(preferred_zone);
+ 
++	VM_BUG_ON(order >= MAX_ORDER);
++
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
