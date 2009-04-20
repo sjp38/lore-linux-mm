@@ -1,208 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id DC5155F0001
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 21:40:24 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id A9F2D5F0001
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 21:41:09 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 0/5] ksm - dynamic page sharing driver for linux v4
-Date: Mon, 20 Apr 2009 04:36:01 +0300
-Message-Id: <1240191366-10029-1-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 1/5] MMU_NOTIFIERS: add set_pte_at_notify()
+Date: Mon, 20 Apr 2009 04:36:02 +0300
+Message-Id: <1240191366-10029-2-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1240191366-10029-1-git-send-email-ieidus@redhat.com>
+References: <1240191366-10029-1-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Introduction:
-KSM is a linux driver that allows dynamicly sharing identical memory
-pages between one or more processes.
+this macro allow setting the pte in the shadow page tables directly
+instead of flushing the shadow page table entry and then get vmexit in
+order to set it.
 
-Unlike tradtional page sharing that is made at the allocation of the
-memory, ksm do it dynamicly after the memory was created.
-Memory is periodically scanned; identical pages are identified and
-merged.
+This function is optimzation for kvm/users of mmu_notifiers for COW
+pages, it is useful for kvm when ksm is used beacuse it allow kvm
+not to have to recive VMEXIT and only then map the shared page into
+the mmu shadow pages, but instead map it directly at the same time
+linux map the page into the host page table.
 
-The sharing is made in a transparent way to the procsess that use it.
+this mmu notifer macro is working by calling to callback that will map
+directly the physical page into the shadow page tables.
 
-Ksm is highly important for hypervisors (kvm), where in production
-enviorments there might be many copys of the same data data among the
-host memory.
-This kind of data can be:
-similar kernels, librarys, cache, and so on.
+(users of mmu_notifiers that didnt implement the set_pte_at_notify()
+call back will just recive the mmu_notifier_invalidate_page callback)
 
-Even that ksm was wrote for kvm, any userspace application that want
-to use it to share its data can try it.
+Signed-off-by: Izik Eidus <ieidus@redhat.com>
+---
+ include/linux/mmu_notifier.h |   34 ++++++++++++++++++++++++++++++++++
+ mm/memory.c                  |   10 ++++++++--
+ mm/mmu_notifier.c            |   20 ++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 2 deletions(-)
 
-Ksm may be useful for any application that might have similar (page
-aligment) data strctures among the memory, ksm will find this data merge
-it to one copy, and even if it will be changed and thereforew copy on
-writed, ksm will merge it again as soon as it will be identical again.
-
-Another reason to consider using ksm is the fact that it might simplify
-alot the userspace code of application that want to use shared private data,
-instead that the application will mange shared area, ksm will do this for
-the application, and even write to this data will be allowed without any
-synchinization acts from the application.
-
-Ksm was desgiend to be a loadable module that doesnt change the VM code
-of linux.
-
-
->From v3 - v4:
-
-1) Mostly fixes of coding styles, and few bugs that Andrew found.
-   * get_user_pages return value check - we now check == 1.
-   * protecting the vma under the mmap_sem() while checking its fields.
-   * kthread_* renaming into ksm_thread_*
-   * const to the file_operations strctures.
-
-   (The only thing i didnt change from your comments, is the number
-    of pages we are allocating for the hash table, this is performence
-    critical for ksm)
-
-2) Changed get_pte() to be linux generic function avaible for other users.
-
-
-Description of the ksm interface:
-
-Ksm interface is splited into two areas;
-Administration sysfs interface - interface that is avaible thanks to
-sysfs to control the ksm cpu timing, maximum allocation of kernel pages
-and statics.
-
-This interface is avaible at /sys/kernel/mm/ksm/ and its fields are:
-
-kernel_pages_allocated - information about how many kernel pagesksm have
-allocated, this pages are not swappabke, and each page like that is used
-by ksm to share pages with identical content.
-
-pages_shared - how many pages were shared by ksm
-
-run - set to 1 when you want ksm to run, 0 when no
-
-max_kernel_pages - set the maximum amount of kernel pages to be allocated
-by ksm, set 0 for unlimited.
-
-pages_to_scan - how many pages to scan before ksm will sleep
-
-sleep - how much usecs ksm will sleep.
-
-
-The interface for applications that want its memory to be scanned by ksm:
-This interface is built around ioctls when application want its memory
-to be scanned it will do something like that:
-
-static int ksm_register_memory(unsigned long phys_ram_size,
-                               unsigned long phys_ram_base)
-{
-    int fd;
-    int ksm_fd;
-    int r = 1;
-    struct ksm_memory_region ksm_region;
-
-    fd = open("/dev/ksm", O_RDWR | O_TRUNC, (mode_t)0600);
-    if (fd == -1)
-        goto out;
-
-    ksm_fd = ioctl(fd, KSM_CREATE_SHARED_MEMORY_AREA);
-    if (ksm_fd == -1)
-        goto out_free;
-
-    ksm_region.npages = phys_ram_size / TARGET_PAGE_SIZE;
-    ksm_region.addr = phys_ram_base;
-    r = ioctl(ksm_fd, KSM_REGISTER_MEMORY_REGION, &ksm_region);
-    if (r)
-        goto out_free1;
-
-    return r;
-
-out_free1:
-    close(ksm_fd);
-out_free:
-    close(fd);
-out:
-    return r;
-}
-
-This ioctls are:
-
-KSM_GET_API_VERSION:
-Give the userspace the api version of the module.
-
-KSM_CREATE_SHARED_MEMORY_AREA:
-Create shared memory reagion fd, that latter allow the user to register
-the memory region to scan by using:
-KSM_REGISTER_MEMORY_REGION and KSM_REMOVE_MEMORY_REGION
-
-KSM_REGISTER_MEMORY_REGION:
-Register userspace virtual address range to be scanned by ksm.
-This ioctl is using the ksm_memory_region structure:
-ksm_memory_region:
-__u32 npages;
-         number of pages to share inside this memory region.
-__u32 pad;
-__u64 addr:
-        the begining of the virtual address of this region.
-__u64 reserved_bits;
-        reserved bits for future usage.
-
-KSM_REMOVE_MEMORY_REGION:
-Remove memory region from ksm.
-
-
-Testing ksm:
-Considering the fact that i got some mails asking me how to use this,
-I guess it wasnt explined good in the last posts, i will try to improve
-this:
-
-The following steps should allow you to test ksm and play with it:
-
-1) First patch your kernel with this patchs.
-
-2) Patch avi kvm-git tree:
-   (git.kernel.org/pub/scm/linux/kernel/git/avi/kvm.git) with the patchs
-   from:
-   http://lkml.org/lkml/2009/3/30/534
-
-3) Patch kvm-userspace tree:
-   git.kernel.org/pub/scm/virt/kvm/kvm-userspace.git with the patchs from:
-   http://lkml.org/lkml/2009/3/30/538 
-
-4) try to do:
-   echo 300 > /sys/kernel/mm/ksm/pages_to_scan
-   echo 10000 > /sys/kernel/mm/ksm/sleep
-   echo 1 > /sys/kernel/mm/ksm/run 
-   (Or any other numbers...)
-
-
-Ok, you are ready :-)
-
-(Just remember, memory that is swapped, isnt scanned by ksm until it
- come back to memory, so dont try to raise alot of VMS togather)
-
-
-Thanks.
-
-
-Izik Eidus (5):
-  MMU_NOTIFIERS: add set_pte_at_notify()
-  add get_pte(): helper function: fetching pte for va
-  add page_wrprotect(): write protecting page.
-  add replace_page(): change the page pte is pointing to.
-  add ksm kernel shared memory driver.
-
- include/linux/ksm.h          |   48 ++
- include/linux/miscdevice.h   |    1 +
- include/linux/mm.h           |   29 +
- include/linux/mmu_notifier.h |   34 +
- include/linux/rmap.h         |   11 +
- mm/Kconfig                   |    6 +
- mm/Makefile                  |    1 +
- mm/ksm.c                     | 1675 ++++++++++++++++++++++++++++++++++++++++++
- mm/memory.c                  |   90 +++-
- mm/mmu_notifier.c            |   20 +
- mm/rmap.c                    |  139 ++++
- 11 files changed, 2052 insertions(+), 2 deletions(-)
- create mode 100644 include/linux/ksm.h
- create mode 100644 mm/ksm.c
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index b77486d..8bb245f 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -61,6 +61,15 @@ struct mmu_notifier_ops {
+ 				 struct mm_struct *mm,
+ 				 unsigned long address);
+ 
++	/* 
++	* change_pte is called in cases that pte mapping into page is changed
++	* for example when ksm mapped pte to point into a new shared page.
++	*/
++	void (*change_pte)(struct mmu_notifier *mn,
++			   struct mm_struct *mm,
++			   unsigned long address,
++			   pte_t pte);
++
+ 	/*
+ 	 * Before this is invoked any secondary MMU is still ok to
+ 	 * read/write to the page previously pointed to by the Linux
+@@ -154,6 +163,8 @@ extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
+ extern void __mmu_notifier_release(struct mm_struct *mm);
+ extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ 					  unsigned long address);
++extern void __mmu_notifier_change_pte(struct mm_struct *mm, 
++				      unsigned long address, pte_t pte);
+ extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address);
+ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+@@ -175,6 +186,13 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ 	return 0;
+ }
+ 
++static inline void mmu_notifier_change_pte(struct mm_struct *mm,
++					   unsigned long address, pte_t pte)
++{
++	if (mm_has_notifiers(mm))
++		__mmu_notifier_change_pte(mm, address, pte);
++}
++
+ static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+@@ -236,6 +254,16 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 	__young;							\
+ })
+ 
++#define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
++({									\
++	struct mm_struct *___mm = __mm;					\
++	unsigned long ___address = __address;				\
++	pte_t ___pte = __pte;						\
++									\
++	set_pte_at(__mm, __address, __ptep, ___pte);			\
++	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
++})
++
+ #else /* CONFIG_MMU_NOTIFIER */
+ 
+ static inline void mmu_notifier_release(struct mm_struct *mm)
+@@ -248,6 +276,11 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ 	return 0;
+ }
+ 
++static inline void mmu_notifier_change_pte(struct mm_struct *mm,
++					   unsigned long address, pte_t pte)
++{
++}
++
+ static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+@@ -273,6 +306,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+ 
+ #define ptep_clear_flush_young_notify ptep_clear_flush_young
+ #define ptep_clear_flush_notify ptep_clear_flush
++#define set_pte_at_notify set_pte_at
+ 
+ #endif /* CONFIG_MMU_NOTIFIER */
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index cf6873e..1e1a14b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2051,9 +2051,15 @@ gotten:
+ 		 * seen in the presence of one thread doing SMC and another
+ 		 * thread doing COW.
+ 		 */
+-		ptep_clear_flush_notify(vma, address, page_table);
++		ptep_clear_flush(vma, address, page_table);
+ 		page_add_new_anon_rmap(new_page, vma, address);
+-		set_pte_at(mm, address, page_table, entry);
++		/*
++		 * We call here the notify macro beacuse in cases of using
++		 * secondary mmu page table like kvm shadow page, tables we want
++		 * the new page to be mapped directly into the secondary page
++		 * table
++		 */
++		set_pte_at_notify(mm, address, page_table, entry);
+ 		update_mmu_cache(vma, address, entry);
+ 		if (old_page) {
+ 			/*
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 5f4ef02..c3e8779 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -99,6 +99,26 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ 	return young;
+ }
+ 
++void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
++			       pte_t pte)
++{
++	struct mmu_notifier *mn;
++	struct hlist_node *n;
++
++	rcu_read_lock();
++	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
++		if (mn->ops->change_pte)
++			mn->ops->change_pte(mn, mm, address, pte);
++		/* 
++		 * some drivers dont have change_pte and therefor we must call
++		 * for invalidate_page in that case
++		 */
++		else if (mn->ops->invalidate_page)
++			mn->ops->invalidate_page(mn, mm, address);
++	}
++	rcu_read_unlock();
++}
++
+ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
