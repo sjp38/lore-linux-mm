@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 70E805F0010
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0085F000D
 	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 18:20:11 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 13/25] Inline __rmqueue_smallest()
-Date: Mon, 20 Apr 2009 23:19:59 +0100
-Message-Id: <1240266011-11140-14-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 21/25] Use allocation flags as an index to the zone watermark
+Date: Mon, 20 Apr 2009 23:20:07 +0100
+Message-Id: <1240266011-11140-22-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
 References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,71 +13,76 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Inline __rmqueue_smallest by altering flow very slightly so that there
-is only one call site. This allows the function to be inlined without
-additional text bloat.
+ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
+pages_min, pages_low or pages_high is used as the zone watermark when
+allocating the pages. Two branches in the allocator hotpath determine which
+watermark to use. This patch uses the flags as an array index and places
+the three watermarks in a union with an array so it can be offset. This
+means the flags can be used as an array index and reduces the branches
+taken.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |   23 ++++++++++++++++++-----
- 1 files changed, 18 insertions(+), 5 deletions(-)
+ include/linux/mmzone.h |    8 +++++++-
+ mm/page_alloc.c        |   18 ++++++++----------
+ 2 files changed, 15 insertions(+), 11 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index f82bdba..c1fa208 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -275,7 +275,13 @@ struct zone_reclaim_stat {
+ 
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+-	unsigned long		pages_min, pages_low, pages_high;
++	union {
++		struct {
++			unsigned long	pages_min, pages_low, pages_high;
++		};
++		unsigned long pages_mark[3];
++	};
++
+ 	/*
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b13fc29..91a2cdb 100644
+index 376d848..e61867e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -665,7 +665,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-  * Go through the free lists for the given migratetype and remove
-  * the smallest available page from the freelists
-  */
--static struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-+static inline
-+struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	unsigned int current_order;
-@@ -835,24 +836,36 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
- 		}
- 	}
- 
--	/* Use MIGRATE_RESERVE rather than fail an allocation */
--	return __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
-+	return NULL;
+@@ -1157,10 +1157,13 @@ failed:
+ 	return NULL;
  }
  
- /*
-  * Do the hard work of removing an element from the buddy allocator.
-  * Call me with the zone->lock already held.
-  */
--static struct page *__rmqueue(struct zone *zone, unsigned int order,
-+static inline
-+struct page *__rmqueue(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	struct page *page;
- 
-+retry_reserve:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
--	if (unlikely(!page))
-+	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
- 		page = __rmqueue_fallback(zone, order, migratetype);
- 
-+		/*
-+		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
-+		 * is used because __rmqueue_smallest is an inline function
-+		 * and we want just one call site
-+		 */
-+		if (!page) {
-+			migratetype = MIGRATE_RESERVE;
-+			goto retry_reserve;
-+		}
-+	}
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
++/* The WMARK bits are used as an index zone->pages_mark */
++#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x08 /* don't check watermarks at all */
++#define ALLOC_WMARK_MASK	0x07 /* Mask to get the watermark bits */
 +
- 	return page;
- }
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #ifdef CONFIG_CPUSETS
+@@ -1463,12 +1466,7 @@ zonelist_scan:
  
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+-			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = zone->pages_min;
+-			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = zone->pages_low;
+-			else
+-				mark = zone->pages_high;
++			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
+ 			if (!zone_watermark_ok(zone, order, mark,
+ 				    classzone_idx, alloc_flags)) {
+ 				if (!zone_reclaim_mode ||
 -- 
 1.5.6.5
 
