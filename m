@@ -1,88 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 7B8D95F0001
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 01:42:38 -0400 (EDT)
-Received: by wa-out-1112.google.com with SMTP id v27so853567wah.22
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 22:43:17 -0700 (PDT)
-Message-ID: <49EC0B2A.5080600@gmail.com>
-Date: Mon, 20 Apr 2009 13:42:02 +0800
-From: Huang Shijie <shijie8@gmail.com>
-MIME-Version: 1.0
-Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
- case?
-References: <49E8292D.7050904@gmail.com>	<20090420084533.7f701e16.minchan.kim@barrios-desktop>	<49EBDADB.4040307@gmail.com>	<20090420114236.dda3de34.minchan.kim@barrios-desktop>	<49EBEBC0.8090102@gmail.com>	<20090420135323.08015e32.minchan.kim@barrios-desktop>	<49EC029D.1060807@gmail.com> <20090420142422.ff1a2a66.minchan.kim@barrios-desktop>
-In-Reply-To: <20090420142422.ff1a2a66.minchan.kim@barrios-desktop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 165135F0001
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 02:42:25 -0400 (EDT)
+Date: Mon, 20 Apr 2009 08:41:42 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] vmscan,memcg: reintroduce sc->may_swap
+Message-ID: <20090420064142.GA2276@cmpxchg.org>
+References: <20090418152100.125A.A69D9226@jp.fujitsu.com> <20090418184337.GA5556@cmpxchg.org> <20090419214122.FFD1.A69D9226@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090419214122.FFD1.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim a??e??:
-> On Mon, 20 Apr 2009 13:05:33 +0800
-> Huang Shijie <shijie8@gmail.com> wrote:
->
->   
->> Minchan Kim a??e??:
->>     
->>> On Mon, 20 Apr 2009 11:28:00 +0800
->>> Huang Shijie <shijie8@gmail.com> wrote:
->>>
->>> I will summarize your method. 
->>> Is right ?
->>>
->>>
->>> kernel(driver)					application 
->>>
->>> 						posix_memalign(buffer)
->>> 						ioctl(buffer)
->>>
->>> ioctl handler
->>> get_user_pages(pages);
->>> /* This pages are mapped at user's vma' 
->>> address space */
->>> vaddr = vmap(pages);
->>> /* This pages are mapped at vmalloc space */
->>> .
->>> .
->>> <after sometime, 
->>> It may change to other process context>
->>> .
->>> .
->>> interrupt handler in your driver 
->>> memcpy(vaddr, src, len); 
->>> notify_user();
->>>
->>> 						processing(buffer);
->>>
->>> It's rather awkward use case of get_user_pages. 
->>>
->>> If you want to share one big buffer between kernel and user, 
->>> You can vmalloc and remap_pfn_range.
->>>   
->>>       
->> The v4l2 method IO_METHOD_MMAP does use the vmaloc() method you told above ,
->> our driver also support this method,we user vmalloc /remap_vmalloc_range().
->>
->> But the v4l2 method IO_METHOD_USERPTR must use the method I told above.
->>     
->
-> I can't understand IO_METHOD_USERPTR's benefit compared with IO_METHOD_MMAP. 
-> I think both solution can support that application programmer can handle buffer as like pointer and kernel can reduce copy overhead from kernel to user. 
->
->   
-yes ,I agree with you .
-But the application programmers do not know which method is more efficient.
+On Sun, Apr 19, 2009 at 09:42:14PM +0900, KOSAKI Motohiro wrote:
+> 
+> next version here :)
+> 
+> ==================================
+> Subject: [PATCH v3] vmscan,memcg: reintroduce sc->may_swap
+> 
+> vmscan-rename-scmay_swap-to-may_unmap.patch removed may_swap flag,
+> but memcg had used it as a flag for "we need to use swap?", as the
+> name indicate.
+> 
+> And in current implementation, memcg cannot reclaim mapped file caches
+> when mem+swap hits the limit.
+> 
+> re-introduce may_swap flag and handle it at get_scan_ratio().
+> This patch doesn't influence any scan_control users other than memcg.
+> 
+> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-> Why do you have to support IO_METHOD_USERPTR?
->   
-just for fun. For the v4l2 spec has the method ,why I don't realize it?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-> If you can justify your goal, we can add locked GUP. 
->
->   
-I can't .
+> --
+>  mm/vmscan.c |   12 ++++++++----
+>  1 file changed, 8 insertions(+), 4 deletions(-)
+> 
+> Index: b/mm/vmscan.c
+> ===================================================================
+> --- a/mm/vmscan.c	2009-04-17 21:39:58.000000000 +0900
+> +++ b/mm/vmscan.c	2009-04-19 20:33:00.000000000 +0900
+> @@ -64,6 +64,9 @@ struct scan_control {
+>  	/* Can mapped pages be reclaimed? */
+>  	int may_unmap;
+>  
+> +	/* Can pages be swapped as part of reclaim? */
+> +	int may_swap;
+> +
+>  	/* This context's SWAP_CLUSTER_MAX. If freeing memory for
+>  	 * suspend, we effectively ignore SWAP_CLUSTER_MAX.
+>  	 * In this context, it doesn't matter that we scan the
+> @@ -1387,7 +1390,7 @@ static void get_scan_ratio(struct zone *
+>  	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
+>  
+>  	/* If we have no swap space, do not bother scanning anon pages. */
+> -	if (nr_swap_pages <= 0) {
+> +	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+>  		percent[0] = 0;
+>  		percent[1] = 100;
+>  		return;
+> @@ -1704,6 +1707,7 @@ unsigned long try_to_free_pages(struct z
+>  		.may_writepage = !laptop_mode,
+>  		.swap_cluster_max = SWAP_CLUSTER_MAX,
+>  		.may_unmap = 1,
+> +		.may_swap = 1,
+>  		.swappiness = vm_swappiness,
+>  		.order = order,
+>  		.mem_cgroup = NULL,
+> @@ -1724,6 +1728,7 @@ unsigned long try_to_free_mem_cgroup_pag
+>  	struct scan_control sc = {
+>  		.may_writepage = !laptop_mode,
+>  		.may_unmap = 1,
+> +		.may_swap = !noswap,
+>  		.swap_cluster_max = SWAP_CLUSTER_MAX,
+>  		.swappiness = swappiness,
+>  		.order = 0,
+> @@ -1733,9 +1738,6 @@ unsigned long try_to_free_mem_cgroup_pag
+>  	};
+>  	struct zonelist *zonelist;
+>  
+> -	if (noswap)
+> -		sc.may_unmap = 0;
+> -
+>  	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+>  			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
+>  	zonelist = NODE_DATA(numa_node_id())->node_zonelists;
+> @@ -1774,6 +1776,7 @@ static unsigned long balance_pgdat(pg_da
+>  	struct scan_control sc = {
+>  		.gfp_mask = GFP_KERNEL,
+>  		.may_unmap = 1,
+> +		.may_swap = 1,
+>  		.swap_cluster_max = SWAP_CLUSTER_MAX,
+>  		.swappiness = vm_swappiness,
+>  		.order = order,
+> @@ -2304,6 +2307,7 @@ static int __zone_reclaim(struct zone *z
+>  	struct scan_control sc = {
+>  		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+>  		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+> +		.may_swap = 1,
+>  		.swap_cluster_max = max_t(unsigned long, nr_pages,
+>  					SWAP_CLUSTER_MAX),
+>  		.gfp_mask = gfp_mask,
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
