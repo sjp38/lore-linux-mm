@@ -1,176 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id A9F2D5F0001
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 21:41:09 -0400 (EDT)
-From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 1/5] MMU_NOTIFIERS: add set_pte_at_notify()
-Date: Mon, 20 Apr 2009 04:36:02 +0300
-Message-Id: <1240191366-10029-2-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1240191366-10029-1-git-send-email-ieidus@redhat.com>
-References: <1240191366-10029-1-git-send-email-ieidus@redhat.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 1B6265F0001
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 22:16:58 -0400 (EDT)
+Received: by wa-out-1112.google.com with SMTP id v27so823511wah.22
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 19:17:12 -0700 (PDT)
+Message-ID: <49EBDADB.4040307@gmail.com>
+Date: Mon, 20 Apr 2009 10:15:55 +0800
+From: Huang Shijie <shijie8@gmail.com>
+MIME-Version: 1.0
+Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
+ case?
+References: <49E8292D.7050904@gmail.com> <20090420084533.7f701e16.minchan.kim@barrios-desktop>
+In-Reply-To: <20090420084533.7f701e16.minchan.kim@barrios-desktop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, Izik Eidus <ieidus@redhat.com>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-this macro allow setting the pte in the shadow page tables directly
-instead of flushing the shadow page table entry and then get vmexit in
-order to set it.
+Minchan Kim a??e??:
+> On Fri, 17 Apr 2009 15:01:01 +0800
+> Huang Shijie <shijie8@gmail.com> wrote:
+>
+>   
+>>    I'm writting a driver for a video card with the V4L2 interface .
+>>    V4L2 interface supports the USER-POINTER method for the video frame 
+>> handling.
+>>
+>>    VLC player supports the USER-POINTER method,while MPALYER does not.
+>>
+>>    In the USER-POINTER method, VLC will call the posix_memalign() to 
+>> allocate
+>> 203 pages in certain PAL mode (that is 720*576*2) for a single frame.
+>>    In my driver , I call the get_user_pages_fast() to obtain the pages 
+>> array,and then call
+>> the vmap() to map the pages to VMALLOC space for the memcpy().The code 
+>> shows below:
+>>    ....................
+>>    get_user_pages_fast();
+>>    ...
+>>    f->data = vmap();
+>>    .......................
+>>     
+>
+>
+> What I understand is that you get the pages of posix_memalign by get_user_pages_fast 
+> and then that pages are mapped at kernel vmalloc space by vmap. 
+>
+> Is it for removing copy overhead from kernel to user ?
+>
+>   
+I need a large range of virtual contigous memory to store my video 
+frame(about 203 pages). When I received a full frame ,I will queue the 
+buffer in
+a VIDIOC queue,which will be remove by the VIDIOC_DQBUF.
+>>    In comments, it said :
+>> "
+>> +/**
+>> + * get_user_pages_fast() - pin user pages in memory
+>> + * @start:     starting user address
+>> + * @nr_pages:  number of pages from start to pin
+>> + * @write:     whether pages will be written to
+>> + * @pages:     array that receives pointers to the pages pinned.
+>> + *             Should be at least nr_pages long.
+>> "
+>>
+>>    But after I digged the code of kswap and the get_user_pages(called by 
+>> get_user_pages_fast),
+>> I did not find how the pages pinned in memory.I really need the pages 
+>> pinned in memory.
+>>
+>>    Assume page A is one of the pages obtained by get_user_pages_fast() 
+>> during page-fault.
+>>
+>> [1] page A will on the LRU_ACTIVE_ANON list;
+>>    the _count of page A increment by one;
+>>    PTE for page A will be set ACCESSED.
+>>
+>> [2] kswapd will scan the lru list,and move page A from LRU_ACTIVE_ANON  
+>> to LRU_INACTIVE_ANON.
+>>    In the shrink_page_list(), there is nothing can stop page A been 
+>> swapped out.
+>>    I don't think the page_reference() can move page A back to 
+>> LRU_ACTIVE_ANON.In my driver,
+>>    I am not sure if the VLC can access the page A.
+>>
+>>    Is this a bug? or I miss something?
+>>    Thanks .
+>>     
+>
+> If above my assumption is right, It's not a BUG. 
+> You get the application's pages by get_user_pages_fast. 
+> 'Page pinning' means it shouldn't be freed. 
+> Application's pages always can be swapped out. 
+> If you don't want to swap out the page, you should use mlock. 
+> If you use mlock, kernel won't insert the page to lru [in]active list.
+> So the page never can be swapped out. 
+>
+>   
+Yes, it not a bug .
 
-This function is optimzation for kvm/users of mmu_notifiers for COW
-pages, it is useful for kvm when ksm is used beacuse it allow kvm
-not to have to recive VMEXIT and only then map the shared page into
-the mmu shadow pages, but instead map it directly at the same time
-linux map the page into the host page table.
+I read the kernel code again. In my case ,the kernel will pin the pages 
+in memory.
+I missed function is_page_cache_freeable() in the pageout().
 
-this mmu notifer macro is working by calling to callback that will map
-directly the physical page into the shadow page tables.
+In my case, is_page_cache_freeable()will return false ,for 
+page_count(page) is 3 now:
+<1> one is from alloc_page_* in page fault.
+<2> one is from get_usr_pages()
+<3> one is from add_to_swap() in shrink_page_list()
 
-(users of mmu_notifiers that didnt implement the set_pte_at_notify()
-call back will just recive the mmu_notifier_invalidate_page callback)
+So ,there is no need to use the mlock, it will mess my driver.
+is_page_cache_freeable()will return PAGE_KEEP, and page is locked in 
+swap cache.
 
-Signed-off-by: Izik Eidus <ieidus@redhat.com>
----
- include/linux/mmu_notifier.h |   34 ++++++++++++++++++++++++++++++++++
- mm/memory.c                  |   10 ++++++++--
- mm/mmu_notifier.c            |   20 ++++++++++++++++++++
- 3 files changed, 62 insertions(+), 2 deletions(-)
+Unfortunately, the page is unmaped, and the PTE of the page has been 
+replaced by a swp_entry_t .
+When the process read the page ,it will raise a page fault again, the 
+kernel will find the page in the
+swap cache, and requeue the page in LRU_ACTIVE_ANON, ---I think it is a 
+vicious circle for the kernel.
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index b77486d..8bb245f 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -61,6 +61,15 @@ struct mmu_notifier_ops {
- 				 struct mm_struct *mm,
- 				 unsigned long address);
- 
-+	/* 
-+	* change_pte is called in cases that pte mapping into page is changed
-+	* for example when ksm mapped pte to point into a new shared page.
-+	*/
-+	void (*change_pte)(struct mmu_notifier *mn,
-+			   struct mm_struct *mm,
-+			   unsigned long address,
-+			   pte_t pte);
-+
- 	/*
- 	 * Before this is invoked any secondary MMU is still ok to
- 	 * read/write to the page previously pointed to by the Linux
-@@ -154,6 +163,8 @@ extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
- extern void __mmu_notifier_release(struct mm_struct *mm);
- extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 					  unsigned long address);
-+extern void __mmu_notifier_change_pte(struct mm_struct *mm, 
-+				      unsigned long address, pte_t pte);
- extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address);
- extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-@@ -175,6 +186,13 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	return 0;
- }
- 
-+static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-+					   unsigned long address, pte_t pte)
-+{
-+	if (mm_has_notifiers(mm))
-+		__mmu_notifier_change_pte(mm, address, pte);
-+}
-+
- static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
-@@ -236,6 +254,16 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 	__young;							\
- })
- 
-+#define set_pte_at_notify(__mm, __address, __ptep, __pte)		\
-+({									\
-+	struct mm_struct *___mm = __mm;					\
-+	unsigned long ___address = __address;				\
-+	pte_t ___pte = __pte;						\
-+									\
-+	set_pte_at(__mm, __address, __ptep, ___pte);			\
-+	mmu_notifier_change_pte(___mm, ___address, ___pte);		\
-+})
-+
- #else /* CONFIG_MMU_NOTIFIER */
- 
- static inline void mmu_notifier_release(struct mm_struct *mm)
-@@ -248,6 +276,11 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	return 0;
- }
- 
-+static inline void mmu_notifier_change_pte(struct mm_struct *mm,
-+					   unsigned long address, pte_t pte)
-+{
-+}
-+
- static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
-@@ -273,6 +306,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 
- #define ptep_clear_flush_young_notify ptep_clear_flush_young
- #define ptep_clear_flush_notify ptep_clear_flush
-+#define set_pte_at_notify set_pte_at
- 
- #endif /* CONFIG_MMU_NOTIFIER */
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index cf6873e..1e1a14b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2051,9 +2051,15 @@ gotten:
- 		 * seen in the presence of one thread doing SMC and another
- 		 * thread doing COW.
- 		 */
--		ptep_clear_flush_notify(vma, address, page_table);
-+		ptep_clear_flush(vma, address, page_table);
- 		page_add_new_anon_rmap(new_page, vma, address);
--		set_pte_at(mm, address, page_table, entry);
-+		/*
-+		 * We call here the notify macro beacuse in cases of using
-+		 * secondary mmu page table like kvm shadow page, tables we want
-+		 * the new page to be mapped directly into the secondary page
-+		 * table
-+		 */
-+		set_pte_at_notify(mm, address, page_table, entry);
- 		update_mmu_cache(vma, address, entry);
- 		if (old_page) {
- 			/*
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 5f4ef02..c3e8779 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -99,6 +99,26 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	return young;
- }
- 
-+void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
-+			       pte_t pte)
-+{
-+	struct mmu_notifier *mn;
-+	struct hlist_node *n;
-+
-+	rcu_read_lock();
-+	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
-+		if (mn->ops->change_pte)
-+			mn->ops->change_pte(mn, mm, address, pte);
-+		/* 
-+		 * some drivers dont have change_pte and therefor we must call
-+		 * for invalidate_page in that case
-+		 */
-+		else if (mn->ops->invalidate_page)
-+			mn->ops->invalidate_page(mn, mm, address);
-+	}
-+	rcu_read_unlock();
-+}
-+
- void __mmu_notifier_invalidate_page(struct mm_struct *mm,
- 					  unsigned long address)
- {
--- 
-1.5.6.5
+I think there two places to put back the gup() pages.
+<1> isolate_page_glable()
+<2> in the shrink_page_list(), before called the try_to_unmap().
+KOSAKI Motohiro 's patch takes effect in the second place.
+I think the first place is better.
+
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
