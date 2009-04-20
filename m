@@ -1,61 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
-	by kanga.kvack.org (Postfix) with SMTP id 1B6265F0001
-	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 22:16:58 -0400 (EDT)
-Received: by wa-out-1112.google.com with SMTP id v27so823511wah.22
-        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 19:17:12 -0700 (PDT)
-Message-ID: <49EBDADB.4040307@gmail.com>
-Date: Mon, 20 Apr 2009 10:15:55 +0800
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id C3EF95F0001
+	for <linux-mm@kvack.org>; Sun, 19 Apr 2009 22:23:46 -0400 (EDT)
+Received: by rv-out-0708.google.com with SMTP id f25so1288969rvb.26
+        for <linux-mm@kvack.org>; Sun, 19 Apr 2009 19:23:47 -0700 (PDT)
+Message-ID: <49EBDC67.2060204@gmail.com>
+Date: Mon, 20 Apr 2009 10:22:31 +0800
 From: Huang Shijie <shijie8@gmail.com>
 MIME-Version: 1.0
 Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
  case?
-References: <49E8292D.7050904@gmail.com> <20090420084533.7f701e16.minchan.kim@barrios-desktop>
-In-Reply-To: <20090420084533.7f701e16.minchan.kim@barrios-desktop>
+References: <49E8292D.7050904@gmail.com> <20090418151620.1258.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090418151620.1258.A69D9226@jp.fujitsu.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Minchan Kim a??e??:
-> On Fri, 17 Apr 2009 15:01:01 +0800
-> Huang Shijie <shijie8@gmail.com> wrote:
+KOSAKI Motohiro a??e??:
+> Hi
 >
 >   
->>    I'm writting a driver for a video card with the V4L2 interface .
->>    V4L2 interface supports the USER-POINTER method for the video frame 
->> handling.
->>
->>    VLC player supports the USER-POINTER method,while MPALYER does not.
->>
->>    In the USER-POINTER method, VLC will call the posix_memalign() to 
->> allocate
->> 203 pages in certain PAL mode (that is 720*576*2) for a single frame.
->>    In my driver , I call the get_user_pages_fast() to obtain the pages 
->> array,and then call
->> the vmap() to map the pages to VMALLOC space for the memcpy().The code 
->> shows below:
->>    ....................
->>    get_user_pages_fast();
->>    ...
->>    f->data = vmap();
->>    .......................
->>     
->
->
-> What I understand is that you get the pages of posix_memalign by get_user_pages_fast 
-> and then that pages are mapped at kernel vmalloc space by vmap. 
->
-> Is it for removing copy overhead from kernel to user ?
->
->   
-I need a large range of virtual contigous memory to store my video 
-frame(about 203 pages). When I received a full frame ,I will queue the 
-buffer in
-a VIDIOC queue,which will be remove by the VIDIOC_DQBUF.
->>    In comments, it said :
 >> "
 >> +/**
 >> + * get_user_pages_fast() - pin user pages in memory
@@ -90,50 +57,20 @@ a VIDIOC queue,which will be remove by the VIDIOC_DQBUF.
 >>    Thanks .
 >>     
 >
-> If above my assumption is right, It's not a BUG. 
-> You get the application's pages by get_user_pages_fast. 
-> 'Page pinning' means it shouldn't be freed. 
-> Application's pages always can be swapped out. 
-> If you don't want to swap out the page, you should use mlock. 
-> If you use mlock, kernel won't insert the page to lru [in]active list.
-> So the page never can be swapped out. 
+> BUG.
+>
+> We are talking about it just now.
+>
+> see the following thread in lkml
+> 	"[RFC][PATCH 0/6] IO pinning(get_user_pages()) vs fork race fix"
 >
 >   
-Yes, it not a bug .
-
-I read the kernel code again. In my case ,the kernel will pin the pages 
-in memory.
-I missed function is_page_cache_freeable() in the pageout().
-
-In my case, is_page_cache_freeable()will return false ,for 
-page_count(page) is 3 now:
-<1> one is from alloc_page_* in page fault.
-<2> one is from get_usr_pages()
-<3> one is from add_to_swap() in shrink_page_list()
-
-So ,there is no need to use the mlock, it will mess my driver.
-is_page_cache_freeable()will return PAGE_KEEP, and page is locked in 
-swap cache.
-
-Unfortunately, the page is unmaped, and the PTE of the page has been 
-replaced by a swp_entry_t .
-When the process read the page ,it will raise a page fault again, the 
-kernel will find the page in the
-swap cache, and requeue the page in LRU_ACTIVE_ANON, ---I think it is a 
-vicious circle for the kernel.
-
-I think there two places to put back the gup() pages.
-<1> isolate_page_glable()
-<2> in the shrink_page_list(), before called the try_to_unmap().
-KOSAKI Motohiro 's patch takes effect in the second place.
-I think the first place is better.
-
-
-
-
-
-
-
+thanks, I read the thread as well as your patch.
+What about to put the gup() page back in the isolate_pages_global()?
+> but unfortunately, we don't have no painful fix. perhaps you need change
+> your code...
+>
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
