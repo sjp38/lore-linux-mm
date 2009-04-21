@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id C57036B0062
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 23:00:11 -0400 (EDT)
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-Subject: Re: [PATCH 0/4] ksm - dynamic page sharing driver for linux v3
-Date: Tue, 21 Apr 2009 12:59:58 +1000
-References: <1239249521-5013-1-git-send-email-ieidus@redhat.com> <200904170355.26294.nickpiggin@yahoo.com.au> <6934efce0904170008p45cba2c4l3e9ca9f8775c7bde@mail.gmail.com>
-In-Reply-To: <6934efce0904170008p45cba2c4l3e9ca9f8775c7bde@mail.gmail.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 1A0E86B005C
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 23:03:45 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L33jAX014162
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 21 Apr 2009 12:03:45 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D20145DE52
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD8E45DE53
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 293701DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B51941DB803A
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:44 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 04/25] Check only once if the zonelist is suitable for the allocation
+In-Reply-To: <1240266011-11140-5-git-send-email-mel@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-5-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090421120258.F122.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200904211259.59752.nickpiggin@yahoo.com.au>
+Date: Tue, 21 Apr 2009 12:03:31 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Jared Hulbert <jaredeh@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <ieidus@redhat.com>, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, avi@redhat.com, aarcange@redhat.com, chrisw@redhat.com, mtosatti@redhat.com, hugh@veritas.com, kamezawa.hiroyu@jp.fujitsu.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Friday 17 April 2009 17:08:07 Jared Hulbert wrote:
-> > As everyone knows, my favourite thing is to say nasty things about any
-> > new feature that adds complexity to common code. I feel like crying to
-> > hear about how many more instances of MS Office we can all run, if only
-> > we apply this patch. And the poorly written HPC app just sounds like
-> > scrapings from the bottom of justification barrel.
-> >
-> > I'm sorry, maybe I'm way off with my understanding of how important
-> > this is. There isn't too much help in the changelog. A discussion of
-> > where the memory savings comes from, and how far does things like
-> > sharing of fs image, or ballooning goes and how much extra savings we
-> > get from this... with people from other hypervisors involved as well.
-> > Have I missed this kind of discussion?
-> 
-> Nick,
-> 
-> I don't know about other hypervisors, fs and balloonings, but I have
-> tried this out.  It works.  It works on apps I don't consider, "poorly
-> written".  I'm very excited about this.  I got >10% saving in a
-> roughly off the shelf embedded system.  No user noticeable performance
-> impact.
+> -restart:
+> -	z = zonelist->_zonerefs;  /* the list of zones suitable for gfp_mask */
+> -
+> +	/* the list of zones suitable for gfp_mask */
+> +	z = zonelist->_zonerefs;
+>  	if (unlikely(!z->zone)) {
+>  		/*
+>  		 * Happens if we have an empty zonelist as a result of
+> @@ -1497,6 +1496,7 @@ restart:
+>  		return NULL;
+>  	}
+>  
+> +restart:
+>  	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+>  			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET);
+>  	if (page)
 
-OK well that's what I want to hear. Thanks, that means a lot to me.
+looks good.
+
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
