@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id EA1746B004F
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:20:56 -0400 (EDT)
-Subject: Re: [PATCH 07/25] Check in advance if the zonelist needs
- additional filtering
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1240266011-11140-8-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-	 <1240266011-11140-8-git-send-email-mel@csn.ul.ie>
-Date: Tue, 21 Apr 2009 10:21:12 +0300
-Message-Id: <1240298472.771.29.camel@penberg-laptop>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 257386B004F
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:21:03 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L7LKNS019108
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 21 Apr 2009 16:21:20 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 15D0745DE54
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:20 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E01BD45DE51
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADF61E08004
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E26D1DB8060
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
+In-Reply-To: <20090421161219.e13a928d.minchan.kim@barrios-desktop>
+References: <20090421142056.F127.A69D9226@jp.fujitsu.com> <20090421161219.e13a928d.minchan.kim@barrios-desktop>
+Message-Id: <20090421161829.F139.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Apr 2009 16:21:18 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan.kim@gmail.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
-
-On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
-> Zonelist are filtered based on nodemasks for memory policies normally.
-> It can be additionally filters on cpusets if they exist as well as
-> noting when zones are full. These simple checks are expensive enough to
-> be noticed in profiles. This patch checks in advance if zonelist
-> filtering will ever be needed. If not, then the bulk of the checks are
-> skipped.
+> Hi, Kosaki-san. 
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> @@ -1401,6 +1405,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
->  	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
->  	int zlc_active = 0;		/* set if using zonelist_cache */
->  	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-> +	int zonelist_filter = 0;
->  
->  	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
->  							&preferred_zone);
-> @@ -1411,6 +1416,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
->  
->  	VM_BUG_ON(order >= MAX_ORDER);
->  
-> +	/* Determine in advance if the zonelist needs filtering */
-> +	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
-> +		zonelist_filter = 1;
-> +
->  zonelist_scan:
->  	/*
->  	 * Scan zonelist, looking for a zone with enough free.
-> @@ -1418,12 +1427,16 @@ zonelist_scan:
->  	 */
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->  						high_zoneidx, nodemask) {
-> -		if (NUMA_BUILD && zlc_active &&
-> -			!zlc_zone_worth_trying(zonelist, z, allowednodes))
-> -				continue;
-> -		if ((alloc_flags & ALLOC_CPUSET) &&
-> -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> -				goto try_next_zone;
-> +
-> +		/* Ignore the additional zonelist filter checks if possible */
-> +		if (zonelist_filter) {
-> +			if (NUMA_BUILD && zlc_active &&
-> +				!zlc_zone_worth_trying(zonelist, z, allowednodes))
-> +					continue;
-> +			if ((alloc_flags & ALLOC_CPUSET) &&
+> On Tue, 21 Apr 2009 14:22:27 +0900 (JST)
+> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> 
+> > Subject: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
+> > 
+> > commit 33c120ed2843090e2bd316de1588b8bf8b96cbde (more aggressively use lumpy reclaim)
+> > change lumpy reclaim using condition. but it isn't enough change.
+> > 
+> > lumpy reclaim don't only mean isolate neighber page, but also do pageout as synchronous.
+> > this patch does it.
+> 
+> I agree. 
+> 
+> Andi added  synchronous lumpy reclaim with c661b078fd62abe06fd11fab4ac5e4eeafe26b6d.
+> At that time, lumpy reclaim is not agressive. 
+> His intension is just for high-order users.(above PAGE_ALLOC_COSTLY_ORDER). 
+> 
+> After some time, Rik added aggressive lumpy reclaim with 33c120ed2843090e2bd316de1588b8bf8b96cbde.
+> His intension is that do lumpy reclaim when high-order users and trouble getting a small set of contiguous pages. 
+> 
+> So we also have to add synchronous pageout for small set of contiguous pages. 
+> Nice catch!. 
+> 
+> Reviewed-by: Minchan Kim <Minchan.kim@gmail.com>
+> 
+> BTW, Do you have any number ? 
 
-The above expression is always true here because of the earlier
-zonelists_filter check, no?
+No.
 
-> +				!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> +					goto try_next_zone;
-> +		}
->  
->  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
->  			unsigned long mark;
+Actually, this logic only run when system is strongly memory stavation
+or fragment. not normal case.
+
+At that time, another slowdown thing hide synchronous reclaim latency, I think.
+
 
 
 --
