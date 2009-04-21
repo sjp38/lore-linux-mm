@@ -1,91 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 2197C6B0055
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:49:15 -0400 (EDT)
-Date: Tue, 21 Apr 2009 10:49:57 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 07/25] Check in advance if the zonelist needs
-	additional filtering
-Message-ID: <20090421094957.GM12713@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-8-git-send-email-mel@csn.ul.ie> <1240298472.771.29.camel@penberg-laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 335616B0055
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:51:46 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L9qXlI024092
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 21 Apr 2009 18:52:33 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F0A3C45DD7B
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D345845DD78
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B74561DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 38170E08005
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:29 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 13/25] Inline __rmqueue_smallest()
+In-Reply-To: <1240266011-11140-14-git-send-email-mel@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-14-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090421185025.F156.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1240298472.771.29.camel@penberg-laptop>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Apr 2009 18:52:28 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 21, 2009 at 10:21:12AM +0300, Pekka Enberg wrote:
-> Hi Mel,
+> Inline __rmqueue_smallest by altering flow very slightly so that there
+> is only one call site. This allows the function to be inlined without
+> additional text bloat.
 > 
-> On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
-> > Zonelist are filtered based on nodemasks for memory policies normally.
-> > It can be additionally filters on cpusets if they exist as well as
-> > noting when zones are full. These simple checks are expensive enough to
-> > be noticed in profiles. This patch checks in advance if zonelist
-> > filtering will ever be needed. If not, then the bulk of the checks are
-> > skipped.
-> > 
-> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > @@ -1401,6 +1405,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
-> >  	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
-> >  	int zlc_active = 0;		/* set if using zonelist_cache */
-> >  	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-> > +	int zonelist_filter = 0;
-> >  
-> >  	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
-> >  							&preferred_zone);
-> > @@ -1411,6 +1416,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
-> >  
-> >  	VM_BUG_ON(order >= MAX_ORDER);
-> >  
-> > +	/* Determine in advance if the zonelist needs filtering */
-> > +	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
-> > +		zonelist_filter = 1;
-> > +
-> >  zonelist_scan:
-> >  	/*
-> >  	 * Scan zonelist, looking for a zone with enough free.
-> > @@ -1418,12 +1427,16 @@ zonelist_scan:
-> >  	 */
-> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> >  						high_zoneidx, nodemask) {
-> > -		if (NUMA_BUILD && zlc_active &&
-> > -			!zlc_zone_worth_trying(zonelist, z, allowednodes))
-> > -				continue;
-> > -		if ((alloc_flags & ALLOC_CPUSET) &&
-> > -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > -				goto try_next_zone;
-> > +
-> > +		/* Ignore the additional zonelist filter checks if possible */
-> > +		if (zonelist_filter) {
-> > +			if (NUMA_BUILD && zlc_active &&
-> > +				!zlc_zone_worth_trying(zonelist, z, allowednodes))
-> > +					continue;
-> > +			if ((alloc_flags & ALLOC_CPUSET) &&
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> ---
+>  mm/page_alloc.c |   23 ++++++++++++++++++-----
+>  1 files changed, 18 insertions(+), 5 deletions(-)
 > 
-> The above expression is always true here because of the earlier
-> zonelists_filter check, no?
-> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b13fc29..91a2cdb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -665,7 +665,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+>   * Go through the free lists for the given migratetype and remove
+>   * the smallest available page from the freelists
+>   */
+> -static struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+> +static inline
+> +struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+>  						int migratetype)
 
-Yeah, silly. I've dropped the patch altogether though because it was
-avoiding zonelist filtering for the wrong reasons.
+"only one caller" is one of keypoint of this patch, I think.
+so, commenting is better? but it isn't blocking reason at all.
 
-> > +				!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > +					goto try_next_zone;
-> > +		}
-> >  
-> >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-> >  			unsigned long mark;
-> 
-> 
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
