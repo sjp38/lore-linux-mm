@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1A0E86B005C
-	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 23:03:45 -0400 (EDT)
-Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L33jAX014162
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 12:03:45 +0900
-Received: from smail (m6 [127.0.0.1])
-	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D20145DE52
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
-	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 4CD8E45DE53
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
-Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 293701DB8037
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:45 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id B51941DB803A
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 12:03:44 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 04/25] Check only once if the zonelist is suitable for the allocation
-In-Reply-To: <1240266011-11140-5-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-5-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090421120258.F122.A69D9226@jp.fujitsu.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 207036B005C
+	for <linux-mm@kvack.org>; Mon, 20 Apr 2009 23:14:58 -0400 (EDT)
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n3L3F6Uu002022
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 08:45:06 +0530
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3L3Avds4231280
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 08:40:57 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.13.1/8.13.3) with ESMTP id n3L3F6WC022691
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 13:15:06 +1000
+Date: Tue, 21 Apr 2009 08:44:20 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [patch 1/3] mm: fix pageref leak in do_swap_page()
+Message-ID: <20090421031419.GB30001@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 12:03:31 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> -restart:
-> -	z = zonelist->_zonerefs;  /* the list of zones suitable for gfp_mask */
-> -
-> +	/* the list of zones suitable for gfp_mask */
-> +	z = zonelist->_zonerefs;
->  	if (unlikely(!z->zone)) {
->  		/*
->  		 * Happens if we have an empty zonelist as a result of
-> @@ -1497,6 +1496,7 @@ restart:
->  		return NULL;
->  	}
->  
-> +restart:
->  	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
->  			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET);
->  	if (page)
+* Johannes Weiner <hannes@cmpxchg.org> [2009-04-20 22:24:43]:
 
-looks good.
+> By the time the memory cgroup code is notified about a swapin we
+> already hold a reference on the fault page.
+> 
+> If the cgroup callback fails make sure to unlock AND release the page
+> or we leak the reference.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Seems reasonable to me, could you make the changelog more verbose and
+mention that lookup_swap_cache() gets a reference to the page and we
+need to release the extra reference.
 
+BTW, have you had any luck reproducing the issue? How did you catch
+the problem?
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
