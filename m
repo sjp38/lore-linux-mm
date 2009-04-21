@@ -1,23 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id B00CE6B0047
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:47:04 -0400 (EDT)
-Date: Tue, 21 Apr 2009 10:47:45 +0100
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 2197C6B0055
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:49:15 -0400 (EDT)
+Date: Tue, 21 Apr 2009 10:49:57 +0100
 From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [PATCH 07/25] Check in advance if the zonelist needs
 	additional filtering
-Message-ID: <20090421094745.GL12713@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-8-git-send-email-mel@csn.ul.ie> <20090421155038.F130.A69D9226@jp.fujitsu.com>
+Message-ID: <20090421094957.GM12713@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-8-git-send-email-mel@csn.ul.ie> <1240298472.771.29.camel@penberg-laptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090421155038.F130.A69D9226@jp.fujitsu.com>
+In-Reply-To: <1240298472.771.29.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 21, 2009 at 03:52:48PM +0900, KOSAKI Motohiro wrote:
+On Tue, Apr 21, 2009 at 10:21:12AM +0300, Pekka Enberg wrote:
+> Hi Mel,
+> 
+> On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
 > > Zonelist are filtered based on nodemasks for memory policies normally.
 > > It can be additionally filters on cpusets if they exist as well as
 > > noting when zones are full. These simple checks are expensive enough to
@@ -26,40 +29,6 @@ On Tue, Apr 21, 2009 at 03:52:48PM +0900, KOSAKI Motohiro wrote:
 > > skipped.
 > > 
 > > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> > ---
-> >  include/linux/cpuset.h |    2 ++
-> >  mm/page_alloc.c        |   37 ++++++++++++++++++++++++++-----------
-> >  2 files changed, 28 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
-> > index a5740fc..978e2f1 100644
-> > --- a/include/linux/cpuset.h
-> > +++ b/include/linux/cpuset.h
-> > @@ -97,6 +97,8 @@ static inline void set_mems_allowed(nodemask_t nodemask)
-> >  
-> >  #else /* !CONFIG_CPUSETS */
-> >  
-> > +#define number_of_cpusets (0)
-> > +
-> >  static inline int cpuset_init(void) { return 0; }
-> >  static inline void cpuset_init_smp(void) {}
-> >  
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index c8465d0..3613ba4 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1137,7 +1137,11 @@ failed:
-> >  #define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
-> >  #define ALLOC_HARDER		0x10 /* try to alloc harder */
-> >  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
-> > +#ifdef CONFIG_CPUSETS
-> >  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-> > +#else
-> > +#define ALLOC_CPUSET		0x00
-> > +#endif /* CONFIG_CPUSETS */
-> >  
-> >  #ifdef CONFIG_FAIL_PAGE_ALLOC
-> >  
 > > @@ -1401,6 +1405,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
 > >  	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
 > >  	int zlc_active = 0;		/* set if using zonelist_cache */
@@ -96,56 +65,20 @@ On Tue, Apr 21, 2009 at 03:52:48PM +0900, KOSAKI Motohiro wrote:
 > > +				!zlc_zone_worth_trying(zonelist, z, allowednodes))
 > > +					continue;
 > > +			if ((alloc_flags & ALLOC_CPUSET) &&
+> 
+> The above expression is always true here because of the earlier
+> zonelists_filter check, no?
+> 
+
+Yeah, silly. I've dropped the patch altogether though because it was
+avoiding zonelist filtering for the wrong reasons.
+
 > > +				!cpuset_zone_allowed_softwall(zone, gfp_mask))
 > > +					goto try_next_zone;
 > > +		}
-> 
-> if number_of_cpusets==1, old code call zlc_zone_worth_trying(). but your one never call.
-> it seems regression.
-> 
-
-True, but once fixed, the patch becomes a lot less useful. The intention was
-to avoid the zlc_setup() function which is pretty heavy and hits on HIGHMEM
-machines quite easily but I did it wrong. I should have made the
-decision to only call zlc_setup() when there were online NUMA nodes to
-care about.
-
-I'll drop this patch and try again.
-
-> 
 > >  
 > >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 > >  			unsigned long mark;
-> > @@ -1445,13 +1458,15 @@ zonelist_scan:
-> >  		if (page)
-> >  			break;
-> >  this_zone_full:
-> > -		if (NUMA_BUILD)
-> > +		if (NUMA_BUILD && zonelist_filter)
-> >  			zlc_mark_zone_full(zonelist, z);
-> >  try_next_zone:
-> > -		if (NUMA_BUILD && !did_zlc_setup) {
-> > -			/* we do zlc_setup after the first zone is tried */
-> > -			allowednodes = zlc_setup(zonelist, alloc_flags);
-> > -			zlc_active = 1;
-> > +		if (NUMA_BUILD && zonelist_filter) {
-> > +			if (!did_zlc_setup) {
-> > +				/* do zlc_setup after the first zone is tried */
-> > +				allowednodes = zlc_setup(zonelist, alloc_flags);
-> > +				zlc_active = 1;
-> > +			}
-> >  			did_zlc_setup = 1;
-> >  		}
-> >  	}
-> > -- 
-> > 1.5.6.5
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
 > 
 > 
 
