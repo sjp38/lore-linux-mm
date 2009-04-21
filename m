@@ -1,29 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C769D6B0047
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:13:44 -0400 (EDT)
-Subject: Re: [PATCH 00/25] Cleanup and optimise the page allocator V6
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-Date: Tue, 21 Apr 2009 11:13:54 +0300
-Message-Id: <1240301634.771.64.camel@penberg-laptop>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C85D6B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:20:50 -0400 (EDT)
+Date: Tue, 21 Apr 2009 10:19:03 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: fix pageref leak in do_swap_page()
+Message-ID: <20090421081903.GA2527@cmpxchg.org>
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <20090421031419.GB30001@balbir.in.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090421031419.GB30001@balbir.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Balbir Singh <balbir@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
-> Here is V6 of the cleanup and optimisation of the page allocator and it
-> should be ready for wider testing. Please consider a possibility for
-> merging as a Pass 1 at making the page allocator faster.
+On Tue, Apr 21, 2009 at 08:44:20AM +0530, Balbir Singh wrote:
+> * Johannes Weiner <hannes@cmpxchg.org> [2009-04-20 22:24:43]:
+> 
+> > By the time the memory cgroup code is notified about a swapin we
+> > already hold a reference on the fault page.
+> > 
+> > If the cgroup callback fails make sure to unlock AND release the page
+> > or we leak the reference.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Balbir Singh <balbir@linux.vnet.ibm.com>
+> 
+> Seems reasonable to me, could you make the changelog more verbose and
+> mention that lookup_swap_cache() gets a reference to the page and we
+> need to release the extra reference.
 
-The patch series is quite big. Can we fast-track some of the less
-controversial patches to make it more manageable? AFAICT, 1-4 are ready
-to go in to -mm as-is.
+Okay, I will add that information.
+
+> BTW, have you had any luck reproducing the issue? How did you catch
+> the problem?
+
+I reviewed all the exit points when I shuffled code around in there
+for another series that uses a lighter version of do_wp_page() for
+swap write-faults.  I never triggered that problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
