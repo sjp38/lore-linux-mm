@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B4B026B004F
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 01:46:51 -0400 (EDT)
-Received: by yw-out-1718.google.com with SMTP id 4so1491924ywq.26
-        for <linux-mm@kvack.org>; Mon, 20 Apr 2009 22:47:35 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20090421101855.F10D.A69D9226@jp.fujitsu.com>
-References: <20090418154207.1260.A69D9226@jp.fujitsu.com>
-	 <alpine.DEB.1.10.0904201300140.1585@qirst.com>
-	 <20090421101855.F10D.A69D9226@jp.fujitsu.com>
-Date: Tue, 21 Apr 2009 08:47:35 +0300
-Message-ID: <84144f020904202247y59e991abta7be65749814f46c@mail.gmail.com>
-Subject: Re: AIM9 from 2.6.22 to 2.6.29
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id E1C216B005A
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 01:58:30 -0400 (EDT)
+Message-ID: <49ED5FC6.4010007@cs.helsinki.fi>
+Date: Tue, 21 Apr 2009 08:55:18 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+MIME-Version: 1.0
+Subject: Re: [PATCH 01/25] Replace __alloc_pages_internal() with __alloc_pages_nodemask()
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1240266011-11140-2-git-send-email-mel@csn.ul.ie>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Mel Gorman wrote:
+> __alloc_pages_internal is the core page allocator function but
+> essentially it is an alias of __alloc_pages_nodemask. Naming a publicly
+> available and exported function "internal" is also a big ugly. This
+> patch renames __alloc_pages_internal() to __alloc_pages_nodemask() and
+> deletes the old nodemask function.
+> 
+> Warning - This patch renames an exported symbol. No kernel driver is
+> affected by external drivers calling __alloc_pages_internal() should
+> change the call to __alloc_pages_nodemask() without any alteration of
+> parameters.
+> 
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 
-On Tue, Apr 21, 2009 at 4:20 AM, KOSAKI Motohiro
-<kosaki.motohiro@jp.fujitsu.com> wrote:
->> On Sat, 18 Apr 2009, KOSAKI Motohiro wrote:
->>
->> > > Here is a list of AIM9 results for all kernels between 2.6.22 2.6.29:
->> > >
->> > > Significant regressions:
->> > >
->> > > creat-clo
->> > > page_test
->> >
->> > I'm interest to it.
->> > How do I get AIM9 benchmark?
->>
->> Checkout reaim9 on sourceforge.
->
-> sourceforge search engine don't search reaim9 ;)
->
->
-> http://sourceforge.net/search/?words=aim9&type_of_search=soft&pmode=0&words=reaim9&Search=Search
-
-I can only find "reaim7" so maybe Christoph meant the aim9 suite here:
-
-  http://aimbench.sourceforge.net/
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
