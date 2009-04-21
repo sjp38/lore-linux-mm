@@ -1,118 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 804976B003D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 00:09:50 -0400 (EDT)
-Date: Tue, 21 Apr 2009 13:05:49 +0900
-From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Subject: Re: [PATCH] fix unused/stale swap cache handling on memcg  v3
-Message-Id: <20090421130549.72cd1d6a.nishimura@mxp.nes.nec.co.jp>
-In-Reply-To: <20090421115749.bcb12fa7.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090317135702.4222e62e.nishimura@mxp.nes.nec.co.jp>
-	<432ace3655a26d2d492a56303369a88a.squirrel@webmail-b.css.fujitsu.com>
-	<20090320164520.f969907a.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090323104555.cb7cd059.nishimura@mxp.nes.nec.co.jp>
-	<20090323114118.8b45105f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090323140419.40235ce3.nishimura@mxp.nes.nec.co.jp>
-	<20090323142242.f6659457.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090324173218.4de33b90.nishimura@mxp.nes.nec.co.jp>
-	<20090325085713.6f0b7b74.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417153455.c6fe2ba6.nishimura@mxp.nes.nec.co.jp>
-	<20090417155411.76901324.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417165036.bdca7163.nishimura@mxp.nes.nec.co.jp>
-	<20090417165806.4ca40a08.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417171201.6c79bee5.nishimura@mxp.nes.nec.co.jp>
-	<20090417171343.e848481f.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090421113525.29332f3d.nishimura@mxp.nes.nec.co.jp>
-	<20090421115749.bcb12fa7.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 62F3B6B0055
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 01:22:15 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L5MYXh006489
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 21 Apr 2009 14:22:34 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id D454C45DE54
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 14:22:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id A7A5145DE53
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 14:22:33 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9019B1DB803A
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 14:22:33 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 15AD8E18004
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 14:22:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
+Message-Id: <20090421142056.F127.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Apr 2009 14:22:27 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: nishimura@mxp.nes.nec.co.jp, Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@linux.vnet.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: Andy Whitcroft <apw@shadowen.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: kosaki.motohiro@jp.fujitsu.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 Apr 2009 11:57:49 +0900, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> On Tue, 21 Apr 2009 11:35:25 +0900
-> Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> 
-> > @@ -785,6 +786,23 @@ activate_locked:
-> >                 SetPageActive(page);
-> >                 pgactivate++;
-> >  keep_locked:
-> > +               if (!scanning_global_lru(sc) && PageSwapCache(page)) {
-> > +                       struct page_cgroup *pc;
-> > +
-> > +                       pc = lookup_page_cgroup(page);
-> > +                       /*
-> > +                        * Used bit of swapcache is solid under page lock.
-> > +                        */
-> > +                       if (unlikely(!PageCgroupUsed(pc)))
-> > +                               /*
-> > +                                * This can happen if the page is free'ed by
-> > +                                * the owner process before it is added to
-> > +                                * swapcache.
-> > +                                * These swapcache cannot be managed by memcg
-> > +                                * well, so free it here.
-> > +                                */
-> > +                               try_to_free_swap(page);
-> > +               }
-> >                 unlock_page(page);
-> >  keep:
-> >                 list_add(&page->lru, &ret_pages);
-> > 
-> > This cannot prevent type-1 orphan SwapCache(caused by the race
-> > between exit() and swap-in readahead).
-> > Type-1 can pressure the memsw usage(trigger OOM if memsw.limit is set, as a result)
-> > and make struct mem_cgroup unfreeable even after rmdir(because it holds refcount
-> > to mem_cgroup).
-> Hmm.
->    free_swap_cache()
-> 	-> trylock_page() => failure case ?
-> 
-Yes, but there is another case:
+Subject: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
 
-            processA                   |           processB
-  -------------------------------------+-------------------------------------
-    (free_swap_and_cache())            |  (read_swap_cache_async())
-                                       |    swap_duplicate()
-      swap_entry_free() == 1           |
-      find_get_page() -> cannot find   |
-                                       |    __set_page_locked()
-                                       |    add_to_swap_cache()
-                                       |    lru_cache_add_anon()
-                                       |      doesn't link this page to memcg's
-                                       |      LRU, because of !PageCgroupUsed.
+commit 33c120ed2843090e2bd316de1588b8bf8b96cbde (more aggressively use lumpy reclaim)
+change lumpy reclaim using condition. but it isn't enough change.
 
+lumpy reclaim don't only mean isolate neighber page, but also do pageout as synchronous.
+this patch does it.
 
-> add following codes.
-> ==
->  588                         page = find_get_page(&swapper_space, entry.val);
->  589                         if (page && !trylock_page(page)) {
-> 				     mem_cgroup_retry_free_swap_lazy(page);  <=====
->  590                                 page_cache_release(page);
->  591                                 page = NULL;
->  592                         }
-> ==
-> and  do some kind of lazy ops..I'll try some.
-> 
-> > 
-> > Do you have any ideas to solve orphan SwapCache problem by adding some hooks to shrink_zone() ?
-> > (scan some pages from global LRU and check whether it's orphan SwapCache or not by
-> > adding some code like above ?)
-> > 
-> > And, what do you think about adding above code to shrink_page_list() ?
-> > I think it might be unnecessary if we can solve the problem in another way, though.
-> > 
-> 
-> I think your hook itself is not very bad. (even if we remove this later..)
-> 
-I think it depends on how we fix the type-1 whether we should remove this or not.
-Anyway, I'll leave it as it is for now.
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andy Whitcroft <apw@shadowen.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ mm/vmscan.c |   29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
 
+Index: b/mm/vmscan.c
+===================================================================
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1049,6 +1049,19 @@ static unsigned long shrink_inactive_lis
+ 	unsigned long nr_scanned = 0;
+ 	unsigned long nr_reclaimed = 0;
+ 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
++	int lumpy_reclaim = 0;
++
++	/*
++	 * If we need a large contiguous chunk of memory, or have
++	 * trouble getting a small set of contiguous pages, we
++	 * will reclaim both active and inactive pages.
++	 *
++	 * We use the same threshold as pageout congestion_wait below.
++	 */
++	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
++		lumpy_reclaim = 1;
++	else if (sc->order && priority < DEF_PRIORITY - 2)
++		lumpy_reclaim = 1;
+ 
+ 	pagevec_init(&pvec, 1);
+ 
+@@ -1061,19 +1074,7 @@ static unsigned long shrink_inactive_lis
+ 		unsigned long nr_freed;
+ 		unsigned long nr_active;
+ 		unsigned int count[NR_LRU_LISTS] = { 0, };
+-		int mode = ISOLATE_INACTIVE;
+-
+-		/*
+-		 * If we need a large contiguous chunk of memory, or have
+-		 * trouble getting a small set of contiguous pages, we
+-		 * will reclaim both active and inactive pages.
+-		 *
+-		 * We use the same threshold as pageout congestion_wait below.
+-		 */
+-		if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
+-			mode = ISOLATE_BOTH;
+-		else if (sc->order && priority < DEF_PRIORITY - 2)
+-			mode = ISOLATE_BOTH;
++		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
+ 
+ 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
+ 			     &page_list, &nr_scan, sc->order, mode,
+@@ -1110,7 +1111,7 @@ static unsigned long shrink_inactive_lis
+ 		 * but that should be acceptable to the caller
+ 		 */
+ 		if (nr_freed < nr_taken && !current_is_kswapd() &&
+-					sc->order > PAGE_ALLOC_COSTLY_ORDER) {
++		    lumpy_reclaim) {
+ 			congestion_wait(WRITE, HZ/10);
+ 
+ 			/*
 
-Thanks,
-Daisuke Nishimura.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
