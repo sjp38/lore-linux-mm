@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id E1C216B005A
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 01:58:30 -0400 (EDT)
-Message-ID: <49ED5FC6.4010007@cs.helsinki.fi>
-Date: Tue, 21 Apr 2009 08:55:18 +0300
+	by kanga.kvack.org (Postfix) with ESMTP id 6DB756B005C
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 02:00:06 -0400 (EDT)
+Message-ID: <49ED5FEE.1060505@cs.helsinki.fi>
+Date: Tue, 21 Apr 2009 08:55:58 +0300
 From: Pekka Enberg <penberg@cs.helsinki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/25] Replace __alloc_pages_internal() with __alloc_pages_nodemask()
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-2-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1240266011-11140-2-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 02/25] Do not sanity check order in the fast path
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-3-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1240266011-11140-3-git-send-email-mel@csn.ul.ie>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,16 +17,9 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.m
 List-ID: <linux-mm.kvack.org>
 
 Mel Gorman wrote:
-> __alloc_pages_internal is the core page allocator function but
-> essentially it is an alias of __alloc_pages_nodemask. Naming a publicly
-> available and exported function "internal" is also a big ugly. This
-> patch renames __alloc_pages_internal() to __alloc_pages_nodemask() and
-> deletes the old nodemask function.
-> 
-> Warning - This patch renames an exported symbol. No kernel driver is
-> affected by external drivers calling __alloc_pages_internal() should
-> change the call to __alloc_pages_nodemask() without any alteration of
-> parameters.
+> No user of the allocator API should be passing in an order >= MAX_ORDER
+> but we check for it on each and every allocation. Delete this check and
+> make it a VM_BUG_ON check further down the call path.
 > 
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
