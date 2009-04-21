@@ -1,148 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 917206B0083
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:53:06 -0400 (EDT)
-Date: Tue, 21 Apr 2009 10:52:31 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
-Message-ID: <20090421085231.GB2527@cmpxchg.org>
-References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <1240259085-25872-3-git-send-email-hannes@cmpxchg.org> <20090421095857.b989ce44.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id B1F3F6B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:01:05 -0400 (EDT)
+Date: Tue, 21 Apr 2009 10:01:02 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 25/25] Use a pre-calculated value instead of
+	num_online_nodes() in fast paths
+Message-ID: <20090421090102.GI12713@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-26-git-send-email-mel@csn.ul.ie> <1240301300.771.58.camel@penberg-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090421095857.b989ce44.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <1240301300.771.58.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 21, 2009 at 09:58:57AM +0900, KAMEZAWA Hiroyuki wrote:
-> On Mon, 20 Apr 2009 22:24:45 +0200
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Tue, Apr 21, 2009 at 11:08:20AM +0300, Pekka Enberg wrote:
+> On Mon, 2009-04-20 at 23:20 +0100, Mel Gorman wrote:
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index 1c680e8..41d1343 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -3579,7 +3579,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+> >  	 * variable to skip the call, which is mostly likely to be present in
+> >  	 * the cache.
+> >  	 */
+> > -	if (numa_platform && cache_free_alien(cachep, objp))
+> > +	if (numa_platform > 1 && cache_free_alien(cachep, objp))
+> >  		return;
 > 
-> > Every swap slot allocation tries to be subsequent to the previous one
-> > to help keeping the LRU order of anon pages intact when they are
-> > swapped out.
-> > 
-> > With an increasing number of concurrent reclaimers, the average
-> > distance between two subsequent slot allocations of one reclaimer
-> > increases as well.  The contiguous LRU list chunks each reclaimer
-> > swaps out get 'multiplexed' on the swap space as they allocate the
-> > slots concurrently.
-> > 
-> > 	2 processes isolating 15 pages each and allocating swap slots
-> > 	concurrently:
-> > 
-> > 	#0			#1
-> > 
-> > 	page 0 slot 0		page 15 slot 1
-> > 	page 1 slot 2		page 16 slot 3
-> > 	page 2 slot 4		page 17 slot 5
-> > 	...
-> > 
-> > 	-> average slot distance of 2
-> > 
-> > All reclaimers being equally fast, this becomes a problem when the
-> > total number of concurrent reclaimers gets so high that even equal
-> > distribution makes the average distance between the slots of one
-> > reclaimer too wide for optimistic swap-in to compensate.
-> > 
-> > But right now, one reclaimer can take much longer than another one
-> > because its pages are mapped into more page tables and it has thus
-> > more work to do and the faster reclaimer will allocate multiple swap
-> > slots between two slot allocations of the slower one.
-> > 
-> > This patch makes shrink_page_list() allocate swap slots in batches,
-> > collecting all the anonymous memory pages in a list without
-> > rescheduling and actual reclaim in between.  And only after all anon
-> > pages are swap cached, unmap and write-out starts for them.
-> > 
-> > While this does not fix the fundamental issue of slot distribution
-> > increasing with reclaimers, it mitigates the problem by balancing the
-> > resulting fragmentation equally between the allocators.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Hugh Dickins <hugh@veritas.com>
-> > ---
-> >  mm/vmscan.c |   49 +++++++++++++++++++++++++++++++++++++++++--------
-> >  1 files changed, 41 insertions(+), 8 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 70092fa..b3823fe 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -592,24 +592,42 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  					enum pageout_io sync_writeback)
-> >  {
-> >  	LIST_HEAD(ret_pages);
-> > +	LIST_HEAD(swap_pages);
-> >  	struct pagevec freed_pvec;
-> > -	int pgactivate = 0;
-> > +	int pgactivate = 0, restart = 0;
-> >  	unsigned long nr_reclaimed = 0;
-> >  
-> >  	cond_resched();
-> >  
-> >  	pagevec_init(&freed_pvec, 1);
-> > +restart:
-> >  	while (!list_empty(page_list)) {
-> >  		struct address_space *mapping;
-> >  		struct page *page;
-> >  		int may_enter_fs;
-> >  		int referenced;
-> >  
-> > -		cond_resched();
-> > +		if (list_empty(&swap_pages))
-> > +			cond_resched();
-> >  
-> Why this ?
+> This doesn't look right. I assume you meant "nr_online_nodes > 1" here?
+> If so, please go ahead and remove "numa_platform" completely.
+> 
 
-It shouldn't schedule anymore when it's allocated the first swap slot.
-Another reclaimer could e.g. sleep on the cond_resched() before the
-loop and when we schedule while having swap slots allocated, we might
-continue further allocations multiple slots ahead.
+It would need to be nr_possible_nodes which would be a separate patch to add
+the definition and then drop numa_platform. This change is wrong as part of
+this patch. I'll drop it. Thanks
 
-> >  		page = lru_to_page(page_list);
-> >  		list_del(&page->lru);
-> >  
-> > +		if (restart) {
-> > +			/*
-> > +			 * We are allowed to do IO when we restart for
-> > +			 * swap pages.
-> > +			 */
-> > +			may_enter_fs = 1;
-> > +			/*
-> > +			 * Referenced pages will be sorted out by
-> > +			 * try_to_unmap() and unmapped (anon!) pages
-> > +			 * are not to be referenced anymore.
-> > +			 */
-> > +			referenced = 0;
-> > +			goto reclaim;
-> > +		}
-> > +
-> >  		if (!trylock_page(page))
-> >  			goto keep;
-> >  
-> Keeping multiple pages locked while they stay on private list ? 
-
-Yeah, it's a bit suboptimal but I don't see a way around it.
-
-> BTW, isn't it better to add "allocate multiple swap space at once" function
-> like
->  - void get_swap_pages(nr, swp_entry_array[])
-> ? "nr" will not be bigger than SWAP_CLUSTER_MAX.
-
-It will sometimes be, see __zone_reclaim().
-
-I had such a function once.  The interesting part is: how and when do
-you call it?  If you drop the page lock in between, you need to redo
-the checks for unevictability and whether the page has become mapped
-etc.
-
-You also need to have the pages in swap cache as soon as possible or
-optimistic swap-in will 'steal' your swap slots.  See add_to_swap()
-when the cache radix tree says -EEXIST.
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
