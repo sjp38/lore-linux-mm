@@ -1,48 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id B1F3F6B0047
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:01:05 -0400 (EDT)
-Date: Tue, 21 Apr 2009 10:01:02 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 25/25] Use a pre-calculated value instead of
-	num_online_nodes() in fast paths
-Message-ID: <20090421090102.GI12713@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-26-git-send-email-mel@csn.ul.ie> <1240301300.771.58.camel@penberg-laptop>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 89F4E6B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:03:26 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L93Rlh028972
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 21 Apr 2009 18:03:27 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id EC61D45DE57
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:03:26 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id C30A445DE51
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:03:26 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A2706E08008
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:03:26 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 562491DB805E
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:03:26 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [PATCH 10/25] Calculate the alloc_flags for allocation only once
+In-Reply-To: <1240266011-11140-11-git-send-email-mel@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-11-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090421165022.F13F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1240301300.771.58.camel@penberg-laptop>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Apr 2009 18:03:25 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 21, 2009 at 11:08:20AM +0300, Pekka Enberg wrote:
-> On Mon, 2009-04-20 at 23:20 +0100, Mel Gorman wrote:
-> > diff --git a/mm/slab.c b/mm/slab.c
-> > index 1c680e8..41d1343 100644
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -3579,7 +3579,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
-> >  	 * variable to skip the call, which is mostly likely to be present in
-> >  	 * the cache.
-> >  	 */
-> > -	if (numa_platform && cache_free_alien(cachep, objp))
-> > +	if (numa_platform > 1 && cache_free_alien(cachep, objp))
-> >  		return;
+> Factor out the mapping between GFP and alloc_flags only once. Once factored
+> out, it only needs to be calculated once but some care must be taken.
 > 
-> This doesn't look right. I assume you meant "nr_online_nodes > 1" here?
-> If so, please go ahead and remove "numa_platform" completely.
+> [neilb@suse.de says]
+> As the test:
+> 
+> -       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+> -                       && !in_interrupt()) {
+> -               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+> 
+> has been replaced with a slightly weaker one:
+> 
+> +       if (alloc_flags & ALLOC_NO_WATERMARKS) {
+> 
+> we need to ensure we don't recurse when PF_MEMALLOC is set.
+
+It seems good idea.
+
+
+
+
+> +static inline int
+> +gfp_to_alloc_flags(gfp_t gfp_mask)
+> +{
+> +	struct task_struct *p = current;
+> +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+> +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> +
+> +	/*
+> +	 * The caller may dip into page reserves a bit more if the caller
+> +	 * cannot run direct reclaim, or if the caller has realtime scheduling
+> +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+> +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+> +	 */
+> +	if (gfp_mask & __GFP_HIGH)
+> +		alloc_flags |= ALLOC_HIGH;
+> +
+> +	if (!wait) {
+> +		alloc_flags |= ALLOC_HARDER;
+> +		/*
+> +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+> +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> +		 */
+> +		alloc_flags &= ~ALLOC_CPUSET;
+> +	} else if (unlikely(rt_task(p)) && !in_interrupt())
+
+wait==1 and in_interrupt==1 is never occur.
+I think in_interrupt check can be removed.
+
+
+>  	/* Atomic allocations - we can't balance anything */
+>  	if (!wait)
+>  		goto nopage;
+>  
+> +	/* Avoid recursion of direct reclaim */
+> +	if (p->flags & PF_MEMALLOC)
+> +		goto nopage;
+> +
+
+Again. old code doesn't only check PF_MEMALLOC, but also check TIF_MEMDIE.
+
+
+>  	/* Try direct reclaim and then allocating */
+>  	page = __alloc_pages_direct_reclaim(gfp_mask, order,
+>  					zonelist, high_zoneidx,
+> -- 
+> 1.5.6.5
 > 
 
-It would need to be nr_possible_nodes which would be a separate patch to add
-the definition and then drop numa_platform. This change is wrong as part of
-this patch. I'll drop it. Thanks
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
