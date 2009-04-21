@@ -1,91 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 4B0CD6B003D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 07:03:13 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3LB3Dfh020057
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 20:03:14 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 55F9145DE53
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:03:13 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id F0B5345DE5A
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:03:12 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id B2502E08004
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:03:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id D56631DB803C
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:03:11 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 17/25] Do not call get_pageblock_migratetype() more than necessary
-In-Reply-To: <1240266011-11140-18-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-18-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090421200154.F174.A69D9226@jp.fujitsu.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 056BF6B003D
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 10:40:50 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 8654E82C62D
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 10:51:18 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id oWVTBfzsry8o for <linux-mm@kvack.org>;
+	Tue, 21 Apr 2009 10:51:18 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 5C97182C635
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 10:51:11 -0400 (EDT)
+Date: Tue, 21 Apr 2009 10:32:51 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: AIM9 from 2.6.22 to 2.6.29
+In-Reply-To: <20090421101855.F10D.A69D9226@jp.fujitsu.com>
+Message-ID: <alpine.DEB.1.10.0904211011430.19969@qirst.com>
+References: <20090418154207.1260.A69D9226@jp.fujitsu.com> <alpine.DEB.1.10.0904201300140.1585@qirst.com> <20090421101855.F10D.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 20:03:10 +0900 (JST)
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> get_pageblock_migratetype() is potentially called twice for every page
-> free. Once, when being freed to the pcp lists and once when being freed
-> back to buddy. When freeing from the pcp lists, it is known what the
-> pageblock type was at the time of free so use it rather than rechecking.
-> In low memory situations under memory pressure, this might skew
-> anti-fragmentation slightly but the interference is minimal and
-> decisions that are fragmenting memory are being made anyway.
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-> ---
->  mm/page_alloc.c |   16 ++++++++++------
->  1 files changed, 10 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c57c602..a1ca038 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -456,16 +456,18 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
->   */
->  
->  static inline void __free_one_page(struct page *page,
-> -		struct zone *zone, unsigned int order)
-> +		struct zone *zone, unsigned int order,
-> +		int migratetype)
->  {
->  	unsigned long page_idx;
->  	int order_size = 1 << order;
-> -	int migratetype = get_pageblock_migratetype(page);
->  
->  	if (unlikely(PageCompound(page)))
->  		if (unlikely(destroy_compound_page(page, order)))
->  			return;
->  
-> +	VM_BUG_ON(migratetype == -1);
-> +
->  	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
->  
->  	VM_BUG_ON(page_idx & (order_size - 1));
-> @@ -534,17 +536,18 @@ static void free_pages_bulk(struct zone *zone, int count,
->  		page = list_entry(list->prev, struct page, lru);
->  		/* have to delete it as __free_one_page list manipulates */
->  		list_del(&page->lru);
-> -		__free_one_page(page, zone, order);
-> +		__free_one_page(page, zone, order, page_private(page));
->  	}
->  	spin_unlock(&zone->lock);
+On Tue, 21 Apr 2009, KOSAKI Motohiro wrote:
 
-looks good.
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> sourceforge search engine don't search reaim9 ;)
 
+It has an obscure name so the search wont find it.
 
-btw, I can't review rest patch today. I plan to do that tommorow, sorry.
+http://sourceforge.net/project/showfiles.php?group_id=71019&package_id=79015&release_id=276799
 
+or try
+
+http://gentwo.org/benchmark
+
+I renamed the tarballs to aim9 and aim7 so that you can see which is
+which. Also includes Mel's vmregress stuff.
 
 
 --
