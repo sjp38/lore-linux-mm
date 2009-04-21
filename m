@@ -1,64 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id E83646B0047
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:40:43 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L9fKTa011984
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 18:41:20 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C5A245DD7B
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:41:20 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECCEA45DD7D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:41:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C4EDAE08006
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:41:19 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 342CEE08001
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:41:19 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
-In-Reply-To: <20090421093830.GA3639@cmpxchg.org>
-References: <20090421182427.F14D.A69D9226@jp.fujitsu.com> <20090421093830.GA3639@cmpxchg.org>
-Message-Id: <20090421184106.F150.A69D9226@jp.fujitsu.com>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id B00CE6B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:47:04 -0400 (EDT)
+Date: Tue, 21 Apr 2009 10:47:45 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 07/25] Check in advance if the zonelist needs
+	additional filtering
+Message-ID: <20090421094745.GL12713@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-8-git-send-email-mel@csn.ul.ie> <20090421155038.F130.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 18:41:18 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20090421155038.F130.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Apr 21, 2009 at 06:27:08PM +0900, KOSAKI Motohiro wrote:
-> > > > > -		cond_resched();
-> > > > > +		if (list_empty(&swap_pages))
-> > > > > +			cond_resched();
-> > > > >  
-> > > > Why this ?
-> > > 
-> > > It shouldn't schedule anymore when it's allocated the first swap slot.
-> > > Another reclaimer could e.g. sleep on the cond_resched() before the
-> > > loop and when we schedule while having swap slots allocated, we might
-> > > continue further allocations multiple slots ahead.
+On Tue, Apr 21, 2009 at 03:52:48PM +0900, KOSAKI Motohiro wrote:
+> > Zonelist are filtered based on nodemasks for memory policies normally.
+> > It can be additionally filters on cpusets if they exist as well as
+> > noting when zones are full. These simple checks are expensive enough to
+> > be noticed in profiles. This patch checks in advance if zonelist
+> > filtering will ever be needed. If not, then the bulk of the checks are
+> > skipped.
 > > 
-> > Oops, It seems regression. this cond_resched() intent to
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > ---
+> >  include/linux/cpuset.h |    2 ++
+> >  mm/page_alloc.c        |   37 ++++++++++++++++++++++++++-----------
+> >  2 files changed, 28 insertions(+), 11 deletions(-)
 > > 
-> > cond_resched();
-> > pageout();
-> > cond_resched();
-> > pageout();
-> > cond_resched();
-> > pageout();
+> > diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+> > index a5740fc..978e2f1 100644
+> > --- a/include/linux/cpuset.h
+> > +++ b/include/linux/cpuset.h
+> > @@ -97,6 +97,8 @@ static inline void set_mems_allowed(nodemask_t nodemask)
+> >  
+> >  #else /* !CONFIG_CPUSETS */
+> >  
+> > +#define number_of_cpusets (0)
+> > +
+> >  static inline int cpuset_init(void) { return 0; }
+> >  static inline void cpuset_init_smp(void) {}
+> >  
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index c8465d0..3613ba4 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1137,7 +1137,11 @@ failed:
+> >  #define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+> >  #define ALLOC_HARDER		0x10 /* try to alloc harder */
+> >  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+> > +#ifdef CONFIG_CPUSETS
+> >  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+> > +#else
+> > +#define ALLOC_CPUSET		0x00
+> > +#endif /* CONFIG_CPUSETS */
+> >  
+> >  #ifdef CONFIG_FAIL_PAGE_ALLOC
+> >  
+> > @@ -1401,6 +1405,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+> >  	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+> >  	int zlc_active = 0;		/* set if using zonelist_cache */
+> >  	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+> > +	int zonelist_filter = 0;
+> >  
+> >  	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+> >  							&preferred_zone);
+> > @@ -1411,6 +1416,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+> >  
+> >  	VM_BUG_ON(order >= MAX_ORDER);
+> >  
+> > +	/* Determine in advance if the zonelist needs filtering */
+> > +	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
+> > +		zonelist_filter = 1;
+> > +
+> >  zonelist_scan:
+> >  	/*
+> >  	 * Scan zonelist, looking for a zone with enough free.
+> > @@ -1418,12 +1427,16 @@ zonelist_scan:
+> >  	 */
+> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> >  						high_zoneidx, nodemask) {
+> > -		if (NUMA_BUILD && zlc_active &&
+> > -			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+> > -				continue;
+> > -		if ((alloc_flags & ALLOC_CPUSET) &&
+> > -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> > -				goto try_next_zone;
+> > +
+> > +		/* Ignore the additional zonelist filter checks if possible */
+> > +		if (zonelist_filter) {
+> > +			if (NUMA_BUILD && zlc_active &&
+> > +				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+> > +					continue;
+> > +			if ((alloc_flags & ALLOC_CPUSET) &&
+> > +				!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> > +					goto try_next_zone;
+> > +		}
 > 
-> It still does that.  While it collects swap pages (swap_pages list is
-> non-empty), it doesn't page out.  And if it restarts for unmap and
-> page-out, the swap_pages list is empty and cond_resched() is called.
+> if number_of_cpusets==1, old code call zlc_zone_worth_trying(). but your one never call.
+> it seems regression.
+> 
 
-Ah, ok.
+True, but once fixed, the patch becomes a lot less useful. The intention was
+to avoid the zlc_setup() function which is pretty heavy and hits on HIGHMEM
+machines quite easily but I did it wrong. I should have made the
+decision to only call zlc_setup() when there were online NUMA nodes to
+care about.
 
+I'll drop this patch and try again.
+
+> 
+> >  
+> >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+> >  			unsigned long mark;
+> > @@ -1445,13 +1458,15 @@ zonelist_scan:
+> >  		if (page)
+> >  			break;
+> >  this_zone_full:
+> > -		if (NUMA_BUILD)
+> > +		if (NUMA_BUILD && zonelist_filter)
+> >  			zlc_mark_zone_full(zonelist, z);
+> >  try_next_zone:
+> > -		if (NUMA_BUILD && !did_zlc_setup) {
+> > -			/* we do zlc_setup after the first zone is tried */
+> > -			allowednodes = zlc_setup(zonelist, alloc_flags);
+> > -			zlc_active = 1;
+> > +		if (NUMA_BUILD && zonelist_filter) {
+> > +			if (!did_zlc_setup) {
+> > +				/* do zlc_setup after the first zone is tried */
+> > +				allowednodes = zlc_setup(zonelist, alloc_flags);
+> > +				zlc_active = 1;
+> > +			}
+> >  			did_zlc_setup = 1;
+> >  		}
+> >  	}
+> > -- 
+> > 1.5.6.5
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
+> 
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
