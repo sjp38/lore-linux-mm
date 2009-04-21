@@ -1,45 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 467986B0055
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:12:56 -0400 (EDT)
-Subject: Re: [PATCH 05/25] Break up the allocator entry point into fast and
- slow paths
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1746B004F
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:20:56 -0400 (EDT)
+Subject: Re: [PATCH 07/25] Check in advance if the zonelist needs
+ additional filtering
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090421150235.F12A.A69D9226@jp.fujitsu.com>
+In-Reply-To: <1240266011-11140-8-git-send-email-mel@csn.ul.ie>
 References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-	 <1240266011-11140-6-git-send-email-mel@csn.ul.ie>
-	 <20090421150235.F12A.A69D9226@jp.fujitsu.com>
-Date: Tue, 21 Apr 2009 10:13:04 +0300
-Message-Id: <1240297984.771.24.camel@penberg-laptop>
+	 <1240266011-11140-8-git-send-email-mel@csn.ul.ie>
+Date: Tue, 21 Apr 2009 10:21:12 +0300
+Message-Id: <1240298472.771.29.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hi Mel,
 
-On Tue, 2009-04-21 at 15:35 +0900, KOSAKI Motohiro wrote:
-> > The core of the page allocator is one giant function which allocates memory
-> > on the stack and makes calculations that may not be needed for every
-> > allocation. This patch breaks up the allocator path into fast and slow
-> > paths for clarity. Note the slow paths are still inlined but the entry is
-> > marked unlikely.  If they were not inlined, it actally increases text size
-> > to generate the as there is only one call site.
+On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
+> Zonelist are filtered based on nodemasks for memory policies normally.
+> It can be additionally filters on cpusets if they exist as well as
+> noting when zones are full. These simple checks are expensive enough to
+> be noticed in profiles. This patch checks in advance if zonelist
+> filtering will ever be needed. If not, then the bulk of the checks are
+> skipped.
 > 
-> hmm..
-> 
-> this patch have few behavior change.
-> please separate big cleanup patch and behavior patch.
-> 
-> I hope to make this patch non functional change. I'm not sure about these
-> are your intentional change or not. it cause harder reviewing...
+> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> @@ -1401,6 +1405,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+>  	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+>  	int zlc_active = 0;		/* set if using zonelist_cache */
+>  	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+> +	int zonelist_filter = 0;
+>  
+>  	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+>  							&preferred_zone);
+> @@ -1411,6 +1416,10 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+>  
+>  	VM_BUG_ON(order >= MAX_ORDER);
+>  
+> +	/* Determine in advance if the zonelist needs filtering */
+> +	if ((alloc_flags & ALLOC_CPUSET) && unlikely(number_of_cpusets > 1))
+> +		zonelist_filter = 1;
+> +
+>  zonelist_scan:
+>  	/*
+>  	 * Scan zonelist, looking for a zone with enough free.
+> @@ -1418,12 +1427,16 @@ zonelist_scan:
+>  	 */
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  						high_zoneidx, nodemask) {
+> -		if (NUMA_BUILD && zlc_active &&
+> -			!zlc_zone_worth_trying(zonelist, z, allowednodes))
+> -				continue;
+> -		if ((alloc_flags & ALLOC_CPUSET) &&
+> -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> -				goto try_next_zone;
+> +
+> +		/* Ignore the additional zonelist filter checks if possible */
+> +		if (zonelist_filter) {
+> +			if (NUMA_BUILD && zlc_active &&
+> +				!zlc_zone_worth_trying(zonelist, z, allowednodes))
+> +					continue;
+> +			if ((alloc_flags & ALLOC_CPUSET) &&
 
-Agreed, splitting this patch into smaller chunks would make it easier to review.
+The above expression is always true here because of the earlier
+zonelists_filter check, no?
 
-			Pekka
+> +				!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> +					goto try_next_zone;
+> +		}
+>  
+>  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+>  			unsigned long mark;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
