@@ -1,74 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 257386B004F
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:21:03 -0400 (EDT)
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L7LKNS019108
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 16:21:20 +0900
-Received: from smail (m5 [127.0.0.1])
-	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 15D0745DE54
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:20 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
-	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id E01BD45DE51
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
-Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id ADF61E08004
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 5E26D1DB8060
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:21:19 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
-In-Reply-To: <20090421161219.e13a928d.minchan.kim@barrios-desktop>
-References: <20090421142056.F127.A69D9226@jp.fujitsu.com> <20090421161219.e13a928d.minchan.kim@barrios-desktop>
-Message-Id: <20090421161829.F139.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 038C76B0055
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:22:39 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L7Mxoh013465
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Apr 2009 16:22:59 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id C057745DE4F
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:22:58 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 9FD5345DD71
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:22:58 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A576A1DB8040
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:22:58 +0900 (JST)
+Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 5A71C1DB8037
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:22:55 +0900 (JST)
+Date: Tue, 21 Apr 2009 16:21:21 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] fix swap entries is not reclaimed in proper way for
+ mem+swap controller
+Message-Id: <20090421162121.1a1d15fe.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 16:21:18 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Minchan Kim <minchan.kim@gmail.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-> Hi, Kosaki-san. 
-> 
-> On Tue, 21 Apr 2009 14:22:27 +0900 (JST)
-> KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > Subject: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
-> > 
-> > commit 33c120ed2843090e2bd316de1588b8bf8b96cbde (more aggressively use lumpy reclaim)
-> > change lumpy reclaim using condition. but it isn't enough change.
-> > 
-> > lumpy reclaim don't only mean isolate neighber page, but also do pageout as synchronous.
-> > this patch does it.
-> 
-> I agree. 
-> 
-> Andi added  synchronous lumpy reclaim with c661b078fd62abe06fd11fab4ac5e4eeafe26b6d.
-> At that time, lumpy reclaim is not agressive. 
-> His intension is just for high-order users.(above PAGE_ALLOC_COSTLY_ORDER). 
-> 
-> After some time, Rik added aggressive lumpy reclaim with 33c120ed2843090e2bd316de1588b8bf8b96cbde.
-> His intension is that do lumpy reclaim when high-order users and trouble getting a small set of contiguous pages. 
-> 
-> So we also have to add synchronous pageout for small set of contiguous pages. 
-> Nice catch!. 
-> 
-> Reviewed-by: Minchan Kim <Minchan.kim@gmail.com>
-> 
-> BTW, Do you have any number ? 
+maybe this patch covers almost all cases of swap-leak of memcg, Nishimura-san
+reported. There are many callers of lock_page() but lock_page() which can
+be racy with free_swap_and_cache() is not so much, I think.
 
-No.
+Nishimura-san, How about this ?
 
-Actually, this logic only run when system is strongly memory stavation
-or fragment. not normal case.
+==
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-At that time, another slowdown thing hide synchronous reclaim latency, I think.
+free_swap_and_cache(), which is called under various spin_lock,
+is designed to be best-effort function and it does nothing if the page
+is locked, under I/O. But it's ok because global lru will find the page finally.
+
+But, when it comes to memory+swap cgroup, global LRU may not work and
+swap entry can be alive as "not used but not freed" state for very very long time
+because memory cgroup's LRU routine scans its own LRU only.
+(Such stale swap-cache is out of memcg's LRU)
+
+Nishimura repoted such kind of swap cache makes memcg unstable and
+ - we can never free mem_cgroup object (....it's big) even if no users.
+ - OOM killer can happen because amounts of charge-to-swap is leaked.
+
+This patch tries to fix the problem by adding PageCgroupStale() flag.
+If a page which is under zappped is busy swap cache, recored it as Stale.
+At the end of swap I/O, Stale flag is checked and swap and swapcache is
+freed if necessary. Page migration case is also checked.
 
 
+Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+---
+ include/linux/page_cgroup.h |    4 +++
+ include/linux/swap.h        |    8 ++++++
+ mm/memcontrol.c             |   51 ++++++++++++++++++++++++++++++++++++++++----
+ mm/page_io.c                |    2 +
+ mm/swapfile.c               |    1 
+ 5 files changed, 62 insertions(+), 4 deletions(-)
+
+Index: linux-2.6.30-rc2/include/linux/page_cgroup.h
+===================================================================
+--- linux-2.6.30-rc2.orig/include/linux/page_cgroup.h
++++ linux-2.6.30-rc2/include/linux/page_cgroup.h
+@@ -26,6 +26,7 @@ enum {
+ 	PCG_LOCK,  /* page cgroup is locked */
+ 	PCG_CACHE, /* charged as cache */
+ 	PCG_USED, /* this object is in use. */
++	PCG_STALE, /* may be a stale swap-cache */
+ };
+ 
+ #define TESTPCGFLAG(uname, lname)			\
+@@ -46,6 +47,9 @@ TESTPCGFLAG(Cache, CACHE)
+ TESTPCGFLAG(Used, USED)
+ CLEARPCGFLAG(Used, USED)
+ 
++TESTPCGFLAG(Stale, STALE)
++SETPCGFLAG(Stale, STALE)
++
+ static inline int page_cgroup_nid(struct page_cgroup *pc)
+ {
+ 	return page_to_nid(pc->page);
+Index: linux-2.6.30-rc2/include/linux/swap.h
+===================================================================
+--- linux-2.6.30-rc2.orig/include/linux/swap.h
++++ linux-2.6.30-rc2/include/linux/swap.h
+@@ -344,10 +344,18 @@ mem_cgroup_uncharge_swapcache(struct pag
+ #endif
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
++extern void mem_cgroup_mark_swapcache_stale(struct page *page);
++extern void mem_cgroup_fixup_swapcache(struct page *page);
+ #else
+ static inline void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ {
+ }
++static void mem_cgroup_check_mark_swapcache_stale(struct page *page)
++{
++}
++static void mem_cgroup_fixup_swapcache(struct page *page)
++{
++}
+ #endif
+ 
+ #else /* CONFIG_SWAP */
+Index: linux-2.6.30-rc2/mm/memcontrol.c
+===================================================================
+--- linux-2.6.30-rc2.orig/mm/memcontrol.c
++++ linux-2.6.30-rc2/mm/memcontrol.c
+@@ -1534,6 +1534,47 @@ void mem_cgroup_uncharge_swap(swp_entry_
+ 	}
+ 	rcu_read_unlock();
+ }
++
++/*
++ * free_swap_and_cache() is an best-effort function and it doesn't free
++ * swapent if the swapcache seems to be busy (ex. the page is locked.)
++ * This behavior is designed to be as is but mem+swap cgroup has to handle it.
++ * Otherwise, swp_entry seems to be leaked (for very long time)
++ */
++void mem_cgroup_mark_swapcache_stale(struct page *page)
++{
++	struct page_cgroup *pc;
++
++	if (!PageSwapCache(page) || page_mapped(page))
++		return;
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++
++	/*
++	 * This "Stale" flag will be cleared when the page is reused
++	 * somewhere.
++	 */
++	if (!PageCgroupUsed(pc))
++		SetPageCgroupStale(pc);
++	unlock_page_cgroup(pc);
++}
++
++void mem_cgroup_fixup_swapcache(struct page *page)
++{
++	struct page_cgroup *pc = lookup_page_cgroup(page);
++
++	/* Stale flag will be cleared automatically */
++	if (unlikely(PageCgroupStale(pc))) {
++		if (get_page_unless_zero(page)) {
++			lock_page(page);
++			try_to_free_swap(page);
++			unlock_page(page);
++			page_cache_release(page);
++		}
++	}
++}
++
+ #endif
+ 
+ /*
+@@ -1604,17 +1645,19 @@ void mem_cgroup_end_migration(struct mem
+ 	__mem_cgroup_commit_charge(mem, pc, ctype);
+ 
+ 	/*
+-	 * Both of oldpage and newpage are still under lock_page().
+-	 * Then, we don't have to care about race in radix-tree.
+-	 * But we have to be careful that this page is unmapped or not.
++	 * oldpage is under lock_page() at migration. Then, we don't have to
++	 * care about race in radix-tree. But we have to be careful
++	 * that this page is unmapped or not.
+ 	 *
+ 	 * There is a case for !page_mapped(). At the start of
+ 	 * migration, oldpage was mapped. But now, it's zapped.
+ 	 * But we know *target* page is not freed/reused under us.
+ 	 * mem_cgroup_uncharge_page() does all necessary checks.
+ 	 */
+-	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
++	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED) {
+ 		mem_cgroup_uncharge_page(target);
++		mem_cgroup_fixup_swapcache(target);
++	}
+ }
+ 
+ /*
+Index: linux-2.6.30-rc2/mm/page_io.c
+===================================================================
+--- linux-2.6.30-rc2.orig/mm/page_io.c
++++ linux-2.6.30-rc2/mm/page_io.c
+@@ -68,6 +68,7 @@ static void end_swap_bio_write(struct bi
+ 	}
+ 	end_page_writeback(page);
+ 	bio_put(bio);
++	mem_cgroup_fixup_swapcache(page);
+ }
+ 
+ void end_swap_bio_read(struct bio *bio, int err)
+@@ -87,6 +88,7 @@ void end_swap_bio_read(struct bio *bio, 
+ 	}
+ 	unlock_page(page);
+ 	bio_put(bio);
++	mem_cgroup_fixup_swapcache(page);
+ }
+ 
+ /*
+Index: linux-2.6.30-rc2/mm/swapfile.c
+===================================================================
+--- linux-2.6.30-rc2.orig/mm/swapfile.c
++++ linux-2.6.30-rc2/mm/swapfile.c
+@@ -587,6 +587,7 @@ int free_swap_and_cache(swp_entry_t entr
+ 		if (swap_entry_free(p, entry) == 1) {
+ 			page = find_get_page(&swapper_space, entry.val);
+ 			if (page && !trylock_page(page)) {
++				mem_cgroup_mark_swapcache_stale(page);
+ 				page_cache_release(page);
+ 				page = NULL;
+ 			}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
