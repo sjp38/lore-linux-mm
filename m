@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with SMTP id 4DF6F6B0047
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 06:22:41 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3LAN0qB003858
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 19:23:00 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E74545DD7B
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 19:23:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6885D45DD76
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 19:23:00 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 65FFD1DB8016
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 19:23:00 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1C9081DB8013
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 19:23:00 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 13/25] Inline __rmqueue_smallest()
-In-Reply-To: <20090421101115.GP12713@csn.ul.ie>
-References: <20090421185025.F156.A69D9226@jp.fujitsu.com> <20090421101115.GP12713@csn.ul.ie>
-Message-Id: <20090421192141.F168.A69D9226@jp.fujitsu.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id DE01E6B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 06:25:27 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so755329yxh.26
+        for <linux-mm@kvack.org>; Tue, 21 Apr 2009 03:25:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 19:22:59 +0900 (JST)
+In-Reply-To: <20090421084519.GE12713@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
+	 <1240266011-11140-13-git-send-email-mel@csn.ul.ie>
+	 <1240299982.771.48.camel@penberg-laptop>
+	 <20090421084519.GE12713@csn.ul.ie>
+Date: Tue, 21 Apr 2009 13:25:50 +0300
+Message-ID: <84144f020904210325v49b0321sfea6b7d9fc426237@mail.gmail.com>
+Subject: Re: [PATCH 12/25] Remove a branch by assuming __GFP_HIGH ==
+	ALLOC_HIGH
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> Is this better?
-> 
-> Inline __rmqueue_smallest by altering flow very slightly so that there
-> is only one call site. Because there is only one call-site, this
-> function can then be inlined without causing text bloat.
+Hi Mel,
 
-very nice.
+On Tue, Apr 21, 2009 at 11:45 AM, Mel Gorman <mel@csn.ul.ie> wrote:
+>> > @@ -1639,8 +1639,8 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>> > =A0 =A0 =A0* policy or is asking for __GFP_HIGH memory. =A0GFP_ATOMIC =
+requests will
+>> > =A0 =A0 =A0* set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH)=
+.
+>> > =A0 =A0 =A0*/
+>> > - =A0 if (gfp_mask & __GFP_HIGH)
+>> > - =A0 =A0 =A0 =A0 =A0 alloc_flags |=3D ALLOC_HIGH;
+>> > + =A0 VM_BUG_ON(__GFP_HIGH !=3D ALLOC_HIGH);
+>> > + =A0 alloc_flags |=3D (gfp_mask & __GFP_HIGH);
+>>
+>> Shouldn't you then also change ALLOC_HIGH to use __GFP_HIGH or at least
+>> add a comment somewhere?
+>
+> That might break in weird ways if __GFP_HIGH changes in value then. I
+> can add a comment though
+>
+> /*
+> =A0* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch.
+> =A0* Check for DEBUG_VM that the assumption is still correct. It cannot b=
+e
+> =A0* checked at compile-time due to casting
+> =A0*/
+>
+> ?
 
+I'm perfectly fine with something like that.
 
-> I don't see a need to add a comment into the function itself as I don't
-> think it would help any.
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
 
-ok. I drop my claim.
-
+                                      Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
