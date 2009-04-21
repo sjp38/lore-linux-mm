@@ -1,105 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D79326B003D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 16:27:47 -0400 (EDT)
-Date: Tue, 21 Apr 2009 13:25:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Add file based RSS accounting for memory resource
- controller (v3)
-Message-Id: <20090421132551.38e9960a.akpm@linux-foundation.org>
-In-Reply-To: <20090417141837.GD3896@balbir.in.ibm.com>
-References: <20090416120316.GG7082@balbir.in.ibm.com>
-	<20090417091459.dac2cc39.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417014042.GB18558@balbir.in.ibm.com>
-	<20090417110350.3144183d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417034539.GD18558@balbir.in.ibm.com>
-	<20090417124951.a8472c86.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417045623.GA3896@balbir.in.ibm.com>
-	<20090417141726.a69ebdcc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417064726.GB3896@balbir.in.ibm.com>
-	<20090417155608.eeed1f02.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417141837.GD3896@balbir.in.ibm.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id EE3846B003D
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:44:51 -0400 (EDT)
+Subject: [Patch] mm tracepoints update
+From: Larry Woodman <lwoodman@redhat.com>
+Content-Type: multipart/mixed; boundary="=-0npnriLYuljgwpaUBTnD"
+Date: Tue, 21 Apr 2009 18:45:15 -0400
+Message-Id: <1240353915.11613.39.camel@dhcp-100-19-198.bos.redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mingo@elte.hu, rostedt@goodmis.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Apr 2009 19:48:38 +0530
-Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 
->
-> ...
->
-> We currently don't track file RSS, the RSS we report is actually anon RSS.
-> All the file mapped pages, come in through the page cache and get accounted
-> there. This patch adds support for accounting file RSS pages. It should
-> 
-> 1. Help improve the metrics reported by the memory resource controller
-> 2. Will form the basis for a future shared memory accounting heuristic
->    that has been proposed by Kamezawa.
-> 
-> Unfortunately, we cannot rename the existing "rss" keyword used in memory.stat
-> to "anon_rss". We however, add "mapped_file" data and hope to educate the end
-> user through documentation.
-> 
-> Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
->
-> ...
->
-> @@ -1096,6 +1135,10 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
->  	struct mem_cgroup_per_zone *from_mz, *to_mz;
->  	int nid, zid;
->  	int ret = -EBUSY;
-> +	struct page *page;
-> +	int cpu;
-> +	struct mem_cgroup_stat *stat;
-> +	struct mem_cgroup_stat_cpu *cpustat;
->  
->  	VM_BUG_ON(from == to);
->  	VM_BUG_ON(PageLRU(pc->page));
-> @@ -1116,6 +1159,23 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
->  
->  	res_counter_uncharge(&from->res, PAGE_SIZE);
->  	mem_cgroup_charge_statistics(from, pc, false);
-> +
-> +	page = pc->page;
-> +	if (page_is_file_cache(page) && page_mapped(page)) {
-> +		cpu = smp_processor_id();
-> +		/* Update mapped_file data for mem_cgroup "from" */
-> +		stat = &from->stat;
-> +		cpustat = &stat->cpustat[cpu];
-> +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE,
-> +						-1);
-> +
-> +		/* Update mapped_file data for mem_cgroup "to" */
-> +		stat = &to->stat;
-> +		cpustat = &stat->cpustat[cpu];
-> +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE,
-> +						1);
-> +	}
+--=-0npnriLYuljgwpaUBTnD
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-This function (mem_cgroup_move_account()) does a trylock_page_cgroup()
-and if that fails it will bale out, and the newly-added code will not
-be executed.
 
-What are the implications of this?  Does the missed accounting later get
-performed somewhere, or does the error remain in place?
+I've cleaned up the mm tracepoints to track page allocation and
+freeing, various types of pagefaults and unmaps, and critical page
+reclamation routines.  This is useful for debugging memory allocation
+issues and system performance problems under heavy memory loads.
 
-That trylock_page_cgroup() really sucks - trylocks usually do.  Could
-someone please raise a patch which completely documents the reasons for
-its presence, and for any other uncommented/unobvious trylocks?
 
-Where appropriate, the comment should explain why the trylock isn't
-simply a bug - why it is safe and correct to omit the operations which
-we wished to perform.
+----------------------------------------------------------------------
 
-Thanks.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+# tracer: mm
+#
+#           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+#              | |       |          |         |
+         pdflush-624   [004]   184.293169: wb_kupdate:
+mm_pdflush_kupdate count=3e48
+         pdflush-624   [004]   184.293439: get_page_from_freelist:
+mm_page_allocation pfn=447c27 zone_free=1940910
+        events/6-33    [006]   184.962879: free_hot_cold_page:
+mm_page_free pfn=44bba9
+      irqbalance-8313  [001]   188.042951: unmap_vmas:
+mm_anon_userfree mm=ffff88044a7300c0 address=7f9a2eb70000 pfn=24c29a
+             cat-9122  [005]   191.141173: filemap_fault:
+mm_filemap_fault primary fault: mm=ffff88024c9d8f40 address=3cea2dd000
+pfn=44d68e
+             cat-9122  [001]   191.143036: handle_mm_fault:
+mm_anon_fault mm=ffff88024c8beb40 address=7fffbde99f94 pfn=24ce22
+-------------------------------------------------------------------------
+
+Signed-off-by: Larry Woodman <lwoodman@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+
+
+The patch applies to ingo's latest tip tree:
+
+--=-0npnriLYuljgwpaUBTnD
+Content-Disposition: attachment; filename=0001-Merge-mm-tracepoints-into-upstream-tip-tree.patch
+Content-Type: application/mbox; name=0001-Merge-mm-tracepoints-into-upstream-tip-tree.patch
+Content-Transfer-Encoding: 7bit
+
+
+--=-0npnriLYuljgwpaUBTnD--
