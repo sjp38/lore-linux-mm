@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9A06B004F
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:04:03 -0400 (EDT)
-Subject: Re: [PATCH 24/25] Re-sort GFP flags and fix whitespace alignment
- for easier reading.
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CB366B004F
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:08:16 -0400 (EDT)
+Subject: Re: [PATCH 25/25] Use a pre-calculated value instead of
+ num_online_nodes() in fast paths
 From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <1240266011-11140-25-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1240266011-11140-26-git-send-email-mel@csn.ul.ie>
 References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-	 <1240266011-11140-25-git-send-email-mel@csn.ul.ie>
-Date: Tue, 21 Apr 2009 11:04:03 +0300
-Message-Id: <1240301043.771.56.camel@penberg-laptop>
+	 <1240266011-11140-26-git-send-email-mel@csn.ul.ie>
+Date: Tue, 21 Apr 2009 11:08:20 +0300
+Message-Id: <1240301300.771.58.camel@penberg-laptop>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
@@ -19,42 +19,21 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.m
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2009-04-20 at 23:20 +0100, Mel Gorman wrote:
-> Resort the GFP flags after __GFP_MOVABLE got redefined so how the bits
-> are used are a bit cleared.
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 1c680e8..41d1343 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3579,7 +3579,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+>  	 * variable to skip the call, which is mostly likely to be present in
+>  	 * the cache.
+>  	 */
+> -	if (numa_platform && cache_free_alien(cachep, objp))
+> +	if (numa_platform > 1 && cache_free_alien(cachep, objp))
+>  		return;
 
-I'm confused. AFAICT, this patch just fixes up some whitespace issues
-but doesn't actually "sort" anything?
+This doesn't look right. I assume you meant "nr_online_nodes > 1" here?
+If so, please go ahead and remove "numa_platform" completely.
 
-> 
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
-The "From" tag should be the first line of the patch.
-
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  include/linux/gfp.h |    8 ++++----
->  1 files changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index c7429b8..cfc1dd3 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -47,11 +47,11 @@ struct vm_area_struct;
->  #define __GFP_NORETRY	((__force gfp_t)0x1000u)/* See above */
->  #define __GFP_COMP	((__force gfp_t)0x4000u)/* Add compound page metadata */
->  #define __GFP_ZERO	((__force gfp_t)0x8000u)/* Return zeroed page on success */
-> -#define __GFP_NOMEMALLOC ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-> -#define __GFP_HARDWALL   ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
-> -#define __GFP_THISNODE	((__force gfp_t)0x40000u)/* No fallback, no policies */
-> +#define __GFP_NOMEMALLOC  ((__force gfp_t)0x10000u) /* Don't use emergency reserves */
-> +#define __GFP_HARDWALL    ((__force gfp_t)0x20000u) /* Enforce hardwall cpuset memory allocs */
-> +#define __GFP_THISNODE	  ((__force gfp_t)0x40000u) /* No fallback, no policies */
->  #define __GFP_RECLAIMABLE ((__force gfp_t)0x80000u) /* Page is reclaimable */
-> -#define __GFP_MOVABLE	((__force gfp_t)0x100000u)  /* Page is movable */
-> +#define __GFP_MOVABLE	  ((__force gfp_t)0x100000u)/* Page is movable */
->  
->  #define __GFP_BITS_SHIFT 21	/* Room for 21 __GFP_FOO bits */
->  #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
