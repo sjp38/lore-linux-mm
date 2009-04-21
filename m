@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 550146B004D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:08:19 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L98Piv005138
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 18:08:25 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B818C45DD77
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:08:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 954D545DD74
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:08:24 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EF02E08003
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:08:24 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 366731DB8017
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:08:24 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 12/25] Remove a branch by assuming __GFP_HIGH == ALLOC_HIGH
-In-Reply-To: <1240266011-11140-13-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-13-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090421180757.F145.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 29DE96B0047
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:24:45 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L9P6Ge012071
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Apr 2009 18:25:06 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0FEE145DE55
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:25:06 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E3B5445DE51
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:25:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CDE7F1DB8038
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:25:05 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7A0031DB803C
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:25:02 +0900 (JST)
+Date: Tue, 21 Apr 2009 18:23:31 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
+Message-Id: <20090421182331.5c96615e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090421085231.GB2527@cmpxchg.org>
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
+	<1240259085-25872-3-git-send-email-hannes@cmpxchg.org>
+	<20090421095857.b989ce44.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090421085231.GB2527@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 18:08:23 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-> Allocations that specify __GFP_HIGH get the ALLOC_HIGH flag. If these
-> flags are equal to each other, we can eliminate a branch.
+On Tue, 21 Apr 2009 10:52:31 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+> > Keeping multiple pages locked while they stay on private list ? 
 > 
-> [akpm@linux-foundation.org: Suggested the hack]
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> ---
->  mm/page_alloc.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
+> Yeah, it's a bit suboptimal but I don't see a way around it.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 51e1ded..b13fc29 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1639,8 +1639,8 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
->  	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
->  	 */
-> -	if (gfp_mask & __GFP_HIGH)
-> -		alloc_flags |= ALLOC_HIGH;
-> +	VM_BUG_ON(__GFP_HIGH != ALLOC_HIGH);
-> +	alloc_flags |= (gfp_mask & __GFP_HIGH);
->  
->  	if (!wait) {
->  		alloc_flags |= ALLOC_HARDER;
+Hmm, seems to increase stale swap cache dramatically under memcg ;)
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > BTW, isn't it better to add "allocate multiple swap space at once" function
+> > like
+> >  - void get_swap_pages(nr, swp_entry_array[])
+> > ? "nr" will not be bigger than SWAP_CLUSTER_MAX.
+> 
+> It will sometimes be, see __zone_reclaim().
+> 
+Hm ? If I read the code correctly, __zone_reclaim() just call shrink_zone() and
+"nr" to shrink_page_list() is SWAP_CLUSTER_MAX, at most.
 
+> I had such a function once.  The interesting part is: how and when do
+> you call it?  If you drop the page lock in between, you need to redo
+> the checks for unevictability and whether the page has become mapped
+> etc.
+> 
+> You also need to have the pages in swap cache as soon as possible or
+> optimistic swap-in will 'steal' your swap slots.  See add_to_swap()
+> when the cache radix tree says -EEXIST.
+> 
 
+If I was you, modify "offset" calculation of
+  get_swap_pages()
+     -> scan_swap_map()
+to allow that a cpu  tends to find countinous swap page cluster.
+Too difficult ?
+
+Regards,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
