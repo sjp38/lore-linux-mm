@@ -1,66 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 335616B0055
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:51:46 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L9qXlI024092
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 21 Apr 2009 18:52:33 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id F0A3C45DD7B
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D345845DD78
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id B74561DB8037
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:32 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 38170E08005
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 18:52:29 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 13/25] Inline __rmqueue_smallest()
-In-Reply-To: <1240266011-11140-14-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-14-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090421185025.F156.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 21 Apr 2009 18:52:28 +0900 (JST)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 712B76B0055
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 05:55:02 -0400 (EDT)
+Date: Tue, 21 Apr 2009 11:54:29 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 3/3][rfc] vmscan: batched swap slot allocation
+Message-ID: <20090421095429.GB3639@cmpxchg.org>
+References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <1240259085-25872-3-git-send-email-hannes@cmpxchg.org> <20090421095857.b989ce44.kamezawa.hiroyu@jp.fujitsu.com> <20090421085231.GB2527@cmpxchg.org> <20090421182331.5c96615e.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090421182331.5c96615e.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-> Inline __rmqueue_smallest by altering flow very slightly so that there
-> is only one call site. This allows the function to be inlined without
-> additional text bloat.
+On Tue, Apr 21, 2009 at 06:23:31PM +0900, KAMEZAWA Hiroyuki wrote:
+> On Tue, 21 Apr 2009 10:52:31 +0200
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-> ---
->  mm/page_alloc.c |   23 ++++++++++++++++++-----
->  1 files changed, 18 insertions(+), 5 deletions(-)
+> > > Keeping multiple pages locked while they stay on private list ? 
+> > 
+> > Yeah, it's a bit suboptimal but I don't see a way around it.
+> > 
+> Hmm, seems to increase stale swap cache dramatically under memcg ;)
+
+Hmpf, not good.
+
+> > > BTW, isn't it better to add "allocate multiple swap space at once" function
+> > > like
+> > >  - void get_swap_pages(nr, swp_entry_array[])
+> > > ? "nr" will not be bigger than SWAP_CLUSTER_MAX.
+> > 
+> > It will sometimes be, see __zone_reclaim().
+> > 
+> Hm ? If I read the code correctly, __zone_reclaim() just call shrink_zone() and
+> "nr" to shrink_page_list() is SWAP_CLUSTER_MAX, at most.
+
+shrink_zone() and shrink_inactive_list() use whatever is set in
+sc->swap_cluster_max and for __zone_reclaim() this is:
+
+	.swap_cluster_max = max_t(unsigned long, nr_pages, SWAP_CLUSTER_MAX)
+
+SWAP_CLUSTER_MAX is 32 (2^5), so if you have an order 6 allocation
+doing reclaim, you end up with sc->swap_cluster_max == 64 already.
+Not common, but it happens.
+
+> > I had such a function once.  The interesting part is: how and when do
+> > you call it?  If you drop the page lock in between, you need to redo
+> > the checks for unevictability and whether the page has become mapped
+> > etc.
+> > 
+> > You also need to have the pages in swap cache as soon as possible or
+> > optimistic swap-in will 'steal' your swap slots.  See add_to_swap()
+> > when the cache radix tree says -EEXIST.
+> > 
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b13fc29..91a2cdb 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -665,7 +665,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
->   * Go through the free lists for the given migratetype and remove
->   * the smallest available page from the freelists
->   */
-> -static struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
-> +static inline
-> +struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
->  						int migratetype)
+> If I was you, modify "offset" calculation of
+>   get_swap_pages()
+>      -> scan_swap_map()
+> to allow that a cpu  tends to find countinous swap page cluster.
+> Too difficult ?
 
-"only one caller" is one of keypoint of this patch, I think.
-so, commenting is better? but it isn't blocking reason at all.
+This goes in the direction of extent-based allocations.  I tried that
+once by providing every reclaimer with a cookie that is passed in for
+swap allocations and used to find per-reclaimer offsets.
 
-	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-
+Something went wrong, I can not quite remember.  Will have another
+look at this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
