@@ -1,43 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 481196B004D
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:28:52 -0400 (EDT)
-Subject: Re: [PATCH 08/25] Calculate the preferred zone for allocation only
- once
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <20090421082732.GB12713@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie>
-	 <1240266011-11140-9-git-send-email-mel@csn.ul.ie>
-	 <1240299457.771.42.camel@penberg-laptop> <20090421082732.GB12713@csn.ul.ie>
-Date: Tue, 21 Apr 2009 11:29:16 +0300
-Message-Id: <1240302556.771.65.camel@penberg-laptop>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id 67E1C6B004D
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 04:30:49 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3L8VGDm012392
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Tue, 21 Apr 2009 17:31:16 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E94D245DD76
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 17:31:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C2CEA45DD74
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 17:31:15 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6273CE08003
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 17:31:15 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B0661DB801E
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 17:31:14 +0900 (JST)
+Date: Tue, 21 Apr 2009 17:29:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: mmotm 2009-04-17-15-19 uploaded
+Message-Id: <20090421172939.803fcd1e.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <200904172238.n3HMc2RA018806@imap1.linux-foundation.org>
+References: <200904172238.n3HMc2RA018806@imap1.linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: akpm@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-04-21 at 09:27 +0100, Mel Gorman wrote:
-> > You might want to add an explanation to the changelog why this change is
-> > safe. It looked like a functional change at first glance and it was
-> > pretty difficult to convince myself that __alloc_pages_slowpath() will
-> > always return NULL when there's no preferred zone because of the other
-> > cleanups in this patch series.
-> > 
-> 
-> Is this better?
-> 
-> get_page_from_freelist() can be called multiple times for an allocation.
-> Part of this calculates the preferred_zone which is the first usable zone in
-> the zonelist but the zone depends on the GFP flags specified at the beginning
-> of the allocation call. This patch calculates preferred_zone once. It's safe
-> to do this because if preferred_zone is NULL at the start of the call, no
-> amount of direct reclaim or other actions will change the fact the allocation
-> will fail.
+On Fri, 17 Apr 2009 15:19:22 -0700
+akpm@linux-foundation.org wrote:
 
-Perfect!
+> The mm-of-the-moment snapshot 2009-04-17-15-19 has been uploaded to
+> 
+>    http://userweb.kernel.org/~akpm/mmotm/
+> 
+> and will soon be available at
+> 
+>    git://git.zen-sources.org/zen/mmotm.git
+> 
+> It contains the following patches against 2.6.30-rc2:
+> 
+Can I make a question ?
+
+It seems SLQB is a default slab allocator in this mmotm.
+Which is the reason ? "do more test!" or "it's better in general!!!"
+
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
