@@ -1,72 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id C0C656B00A7
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 05:46:10 -0400 (EDT)
-Received: by rv-out-0708.google.com with SMTP id f25so2144668rvb.26
-        for <linux-mm@kvack.org>; Wed, 22 Apr 2009 02:46:53 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id C1A276B00A9
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 05:56:54 -0400 (EDT)
+Date: Wed, 22 Apr 2009 11:57:27 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Patch] mm tracepoints update
+Message-ID: <20090422095727.GG18226@elte.hu>
+References: <1240353915.11613.39.camel@dhcp-100-19-198.bos.redhat.com> <20090422095916.627A.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <49EEB46D.90802@gmail.com>
-References: <49E8292D.7050904@gmail.com>
-	 <20090420084533.7f701e16.minchan.kim@barrios-desktop>
-	 <49EBDADB.4040307@gmail.com>
-	 <20090420114236.dda3de34.minchan.kim@barrios-desktop>
-	 <49EEB46D.90802@gmail.com>
-Date: Wed, 22 Apr 2009 18:46:52 +0900
-Message-ID: <28c262360904220246q6be8167fxd44fa21936070e4b@mail.gmail.com>
-Subject: Re: Does get_user_pages_fast lock the user pages in memory in my
-	case?
-From: Minchan Kim <minchan.kim@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090422095916.627A.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Huang Shijie <shijie8@gmail.com>
-Cc: linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro
+Cc: Larry Woodman <lwoodman@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 22, 2009 at 3:08 PM, Huang Shijie <shijie8@gmail.com> wrote:
->
->>> I read the kernel code again. In my case ,the kernel will pin the pages
->>> in memory.
->>> I missed function is_page_cache_freeable() in the pageout().
->>>
->>> In my case, is_page_cache_freeable()will return false ,for
->>> page_count(page) is 3 now:
->>> <1> one is from alloc_page_* in page fault.
->>> <2> one is from get_usr_pages()
->>> <3> one is from add_to_swap() in shrink_page_list()
->>>
->>
->> One more, try_to_unmap will call page_cache_release. So, count is 2.
->>
->
-> I found I missed something.When code reachs is_page_cache_freeable().
-> page_count(page) is 3:
->
-> <1> alloc_page_* in page fault . [page count is 1]
-> <2> get_usr_pages(). =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 [page coun=
-t is 2]
-> <3> isolate_pages_global() =C2=A0 =C2=A0 =C2=A0 [page count is 3]
-> <4> add_to_swap() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
-[page count is 4]
-> <5> try_to_unmap() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 [page=
- count is 3]
->
-Yes. It seems you're right.
-I missed isolate. ;-;
-Thanks for fixing me.
 
-> so it not a bug, just a vicious circle.
->
-> Do i miss something?
->
->
->
+* KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 
+> > I've cleaned up the mm tracepoints to track page allocation and 
+> > freeing, various types of pagefaults and unmaps, and critical 
+> > page reclamation routines.  This is useful for debugging memory 
+> > allocation issues and system performance problems under heavy 
+> > memory loads.
+> 
+> In past thread, Andrew pointed out bare page tracer isn't useful. 
 
+(do you have a link to that mail?)
 
---=20
-Kinds regards,
-Minchan Kim
+> Can you make good consumer?
+
+These MM tracepoints would be automatically seen by the 
+ftrace-analyzer GUI tool for example:
+
+  git://git.kernel.org/pub/scm/utils/kernel/ftrace/ftrace.git
+
+And could also be seen by other tools such as kmemtrace. Beyond, of 
+course, embedding in function tracer output.
+
+Here's the list of advantages of the types of tracepoints Larry is 
+proposing:
+
+  - zero-copy and per-cpu splice() based tracing
+  - binary tracing without printf overhead
+  - structured logging records exposed under /debug/tracing/events
+  - trace events embedded in function tracer output and other plugins
+  - user-defined, per tracepoint filter expressions
+
+I think the main review question is: are they properly structured 
+and do they expose essential information to analyze behavioral 
+details of the kernel in this area?
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
