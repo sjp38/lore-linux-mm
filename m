@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3876B00C0
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:48 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5F06B00BC
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:49 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 10/22] Remove a branch by assuming __GFP_HIGH == ALLOC_HIGH
-Date: Wed, 22 Apr 2009 14:53:15 +0100
-Message-Id: <1240408407-21848-11-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 11/22] Inline __rmqueue_smallest()
+Date: Wed, 22 Apr 2009 14:53:16 +0100
+Message-Id: <1240408407-21848-12-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,40 +13,67 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Allocations that specify __GFP_HIGH get the ALLOC_HIGH flag. If these
-flags are equal to each other, we can eliminate a branch.
+Inline __rmqueue_smallest by altering flow very slightly so that there is
+only one call site. Because there is only one call-site, this function
+can then be inlined without causing text bloat. On an x86-based config,
+this patch reduces text by 16 bytes.
 
-[akpm@linux-foundation.org: Suggested the hack]
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/page_alloc.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+ mm/page_alloc.c |   20 ++++++++++++++++----
+ 1 files changed, 16 insertions(+), 4 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0d23795..4f9cdaa 100644
+index 4f9cdaa..8bfced9 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1619,14 +1619,16 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
- 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+@@ -665,7 +665,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
+  * Go through the free lists for the given migratetype and remove
+  * the smallest available page from the freelists
+  */
+-static struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
++static inline
++struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 						int migratetype)
+ {
+ 	unsigned int current_order;
+@@ -835,8 +836,7 @@ static struct page *__rmqueue_fallback(struct zone *zone, int order,
+ 		}
+ 	}
  
-+	/* __GFP_HIGH is assumed to be the same as ALLOC_HIGH to save a branch. */
-+	BUILD_BUG_ON(__GFP_HIGH != ALLOC_HIGH);
+-	/* Use MIGRATE_RESERVE rather than fail an allocation */
+-	return __rmqueue_smallest(zone, order, MIGRATE_RESERVE);
++	return NULL;
+ }
+ 
+ /*
+@@ -848,11 +848,23 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
+ {
+ 	struct page *page;
+ 
++retry_reserve:
+ 	page = __rmqueue_smallest(zone, order, migratetype);
+ 
+-	if (unlikely(!page))
++	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
+ 		page = __rmqueue_fallback(zone, order, migratetype);
+ 
++		/*
++		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
++		 * is used because __rmqueue_smallest is an inline function
++		 * and we want just one call site
++		 */
++		if (!page) {
++			migratetype = MIGRATE_RESERVE;
++			goto retry_reserve;
++		}
++	}
 +
- 	/*
- 	 * The caller may dip into page reserves a bit more if the caller
- 	 * cannot run direct reclaim, or if the caller has realtime scheduling
- 	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
- 	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
- 	 */
--	if (gfp_mask & __GFP_HIGH)
--		alloc_flags |= ALLOC_HIGH;
-+	alloc_flags |= (gfp_mask & __GFP_HIGH);
+ 	return page;
+ }
  
- 	if (!wait) {
- 		alloc_flags |= ALLOC_HARDER;
 -- 
 1.5.6.5
 
