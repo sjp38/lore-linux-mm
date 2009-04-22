@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F756B00B9
+	by kanga.kvack.org (Postfix) with ESMTP id 411286B00BC
 	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:55 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 20/22] Get the pageblock migratetype without disabling interrupts
-Date: Wed, 22 Apr 2009 14:53:25 +0100
-Message-Id: <1240408407-21848-21-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 18/22] Use allocation flags as an index to the zone watermark
+Date: Wed, 22 Apr 2009 14:53:23 +0100
+Message-Id: <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,78 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-Local interrupts are disabled when freeing pages to the PCP list. Part of
-that free checks what the migratetype of the pageblock the page is in but it
-checks this with interrupts disabled and interupts should never be disabled
-longer than necessary. This patch checks the pagetype with interrupts
-enabled with the impact that it is possible a page is freed to the wrong
-list when a pageblock changes type. As that block is now already considered
-mixed from an anti-fragmentation perspective, it's not of vital importance.
+ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
+pages_min, pages_low or pages_high is used as the zone watermark when
+allocating the pages. Two branches in the allocator hotpath determine which
+watermark to use. This patch uses the flags as an array index and places
+the three watermarks in a union with an array so it can be offset. This
+means the flags can be used as an array index and reduces the branches
+taken.
 
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ include/linux/mmzone.h |    8 +++++++-
+ mm/page_alloc.c        |   20 ++++++++++----------
+ 2 files changed, 17 insertions(+), 11 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index f82bdba..c1fa208 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -275,7 +275,13 @@ struct zone_reclaim_stat {
+ 
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+-	unsigned long		pages_min, pages_low, pages_high;
++	union {
++		struct {
++			unsigned long	pages_min, pages_low, pages_high;
++		};
++		unsigned long pages_mark[3];
++	};
++
+ 	/*
+ 	 * We don't know if the memory that we're going to allocate will be freeable
+ 	 * or/and it will be released eventually, so to avoid totally wasting several
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6494e13..ba41551 100644
+index b174f2c..6030f49 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1034,6 +1034,7 @@ static void free_hot_cold_page(struct page *page, int cold)
- 	kernel_map_pages(page, 1, 0);
+@@ -1154,10 +1154,15 @@ failed:
+ 	return NULL;
+ }
  
- 	pcp = &zone_pcp(zone, get_cpu())->pcp;
-+	set_page_private(page, get_pageblock_migratetype(page));
- 	local_irq_save(flags);
- 	if (unlikely(clearMlocked))
- 		free_page_mlock(page);
-@@ -1043,7 +1044,6 @@ static void free_hot_cold_page(struct page *page, int cold)
- 		list_add_tail(&page->lru, &pcp->list);
- 	else
- 		list_add(&page->lru, &pcp->list);
--	set_page_private(page, get_pageblock_migratetype(page));
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
- 		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+-#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+-#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+-#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+-#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
++/* The WMARK bits are used as an index zone->pages_mark */
++#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
++#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
++#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
++#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
++
++/* Mask to get the watermark bits */
++#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
++
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+@@ -1445,12 +1450,7 @@ zonelist_scan:
+ 
+ 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 			unsigned long mark;
+-			if (alloc_flags & ALLOC_WMARK_MIN)
+-				mark = zone->pages_min;
+-			else if (alloc_flags & ALLOC_WMARK_LOW)
+-				mark = zone->pages_low;
+-			else
+-				mark = zone->pages_high;
++			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
+ 			if (!zone_watermark_ok(zone, order, mark,
+ 				    classzone_idx, alloc_flags)) {
+ 				if (!zone_reclaim_mode ||
 -- 
 1.5.6.5
 
