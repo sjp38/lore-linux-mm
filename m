@@ -1,76 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id E1EDF6B0087
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 21:00:38 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3M10Wvv017979
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id F2A7C6B0088
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 22:25:01 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3M2PNgP002409
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 22 Apr 2009 10:00:32 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1CF7645DD75
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 10:00:32 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id F15AE45DD74
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 10:00:31 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE3CB1DB8016
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 10:00:31 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A51351DB8019
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 10:00:31 +0900 (JST)
+	Wed, 22 Apr 2009 11:25:23 +0900
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CE44C45DD81
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 11:25:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 80E4C45DD7E
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 11:25:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E611E08002
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 11:25:22 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DF043E0800B
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 11:25:21 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [Patch] mm tracepoints update
-In-Reply-To: <1240353915.11613.39.camel@dhcp-100-19-198.bos.redhat.com>
-References: <1240353915.11613.39.camel@dhcp-100-19-198.bos.redhat.com>
-Message-Id: <20090422095916.627A.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 17/25] Do not call get_pageblock_migratetype() more than necessary
+In-Reply-To: <20090421161215.GD29083@csn.ul.ie>
+References: <20090421200154.F174.A69D9226@jp.fujitsu.com> <20090421161215.GD29083@csn.ul.ie>
+Message-Id: <20090422112439.628F.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 22 Apr 2009 10:00:30 +0900 (JST)
+Date: Wed, 22 Apr 2009 11:25:20 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Larry Woodman <lwoodman@redhat.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mingo@elte.hu, rostedt@goodmis.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+> > btw, I can't review rest patch today. I plan to do that tommorow, sorry.
 > 
-> I've cleaned up the mm tracepoints to track page allocation and
-> freeing, various types of pagefaults and unmaps, and critical page
-> reclamation routines.  This is useful for debugging memory allocation
-> issues and system performance problems under heavy memory loads.
+> No problem. Thanks a million for the work you've done so far. It was a
+> big help and you caught a fair few problems in there.
 
-In past thread, Andrew pointed out bare page tracer isn't useful.
-Can you make good consumer?
-
-
-> 
-> 
-> ----------------------------------------------------------------------
-> 
-> 
-> # tracer: mm
-> #
-> #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> #              | |       |          |         |
->          pdflush-624   [004]   184.293169: wb_kupdate:
-> mm_pdflush_kupdate count=3e48
->          pdflush-624   [004]   184.293439: get_page_from_freelist:
-> mm_page_allocation pfn=447c27 zone_free=1940910
->         events/6-33    [006]   184.962879: free_hot_cold_page:
-> mm_page_free pfn=44bba9
->       irqbalance-8313  [001]   188.042951: unmap_vmas:
-> mm_anon_userfree mm=ffff88044a7300c0 address=7f9a2eb70000 pfn=24c29a
->              cat-9122  [005]   191.141173: filemap_fault:
-> mm_filemap_fault primary fault: mm=ffff88024c9d8f40 address=3cea2dd000
-> pfn=44d68e
->              cat-9122  [001]   191.143036: handle_mm_fault:
-> mm_anon_fault mm=ffff88024c8beb40 address=7fffbde99f94 pfn=24ce22
-> -------------------------------------------------------------------------
-> 
-> Signed-off-by: Larry Woodman <lwoodman@redhat.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> 
-> 
-> The patch applies to ingo's latest tip tree:
+Sure. Nobody think your patch have many problems :)
 
 
 
