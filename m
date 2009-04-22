@@ -1,107 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A38E6B00FA
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 16:06:08 -0400 (EDT)
-Date: Wed, 22 Apr 2009 20:59:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 2/3][rfc] swap: try to reuse freed slots in the allocation
- area
-In-Reply-To: <1240259085-25872-2-git-send-email-hannes@cmpxchg.org>
-Message-ID: <Pine.LNX.4.64.0904222020140.18587@blonde.anvils>
-References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org>
- <1240259085-25872-2-git-send-email-hannes@cmpxchg.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id A8B7C6B00FA
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 16:06:12 -0400 (EDT)
+Received: from zps37.corp.google.com (zps37.corp.google.com [172.25.146.37])
+	by smtp-out.google.com with ESMTP id n3MK6BUB025115
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 13:06:12 -0700
+Received: from rv-out-0708.google.com (rvfc5.prod.google.com [10.140.180.5])
+	by zps37.corp.google.com with ESMTP id n3MK6AdU028471
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 13:06:10 -0700
+Received: by rv-out-0708.google.com with SMTP id c5so130066rvf.14
+        for <linux-mm@kvack.org>; Wed, 22 Apr 2009 13:06:10 -0700 (PDT)
+Date: Wed, 22 Apr 2009 13:06:07 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 18/22] Use allocation flags as an index to the zone
+ watermark
+In-Reply-To: <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
+Message-ID: <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 20 Apr 2009, Johannes Weiner wrote:
+On Wed, 22 Apr 2009, Mel Gorman wrote:
 
-> A swap slot for an anonymous memory page might get freed again just
-> after allocating it when further steps in the eviction process fail.
-> 
-> But the clustered slot allocation will go ahead allocating after this
-> now unused slot, leaving a hole at this position.  Holes waste space
-> and act as a boundary for optimistic swap-in.
-> 
-> To avoid this, check if the next page to be swapped out can sensibly
-> be placed at this just freed position.  And if so, point the next
-> cluster offset to it.
-> 
-> The acceptable 'look-back' distance is the number of slots swap-in
-> clustering uses as well so that the latter continues to get related
-> context when reading surrounding swap slots optimistically.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Hugh Dickins <hugh@veritas.com>
-> Cc: Rik van Riel <riel@redhat.com>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b174f2c..6030f49 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1154,10 +1154,15 @@ failed:
+>  	return NULL;
+>  }
+>  
+> -#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+> -#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+> -#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+> -#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+> +/* The WMARK bits are used as an index zone->pages_mark */
+> +#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
+> +#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
+> +#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
+> +#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
+> +
+> +/* Mask to get the watermark bits */
+> +#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
+> +
+>  #define ALLOC_HARDER		0x10 /* try to alloc harder */
+>  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+>  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
-I'm glad you're looking into this area, thank you.
-I've a feeling that you're going to come up with something good
-here, but that neither of these patches (2/3 and 3/3) is yet it.
+The watermark flags should probably be members of an anonymous enum since 
+they're being used as an index into an array.  If another watermark were 
+ever to be added it would require a value of 0x03, for instance.
 
-This patch looks plausible, but I'm not persuaded by it.
+	enum {
+		ALLOC_WMARK_MIN,
+		ALLOC_WMARK_LOW,
+		ALLOC_WMARK_HIGH,
 
-I wonder what contribution it made to the impressive figures in
-your testing - I suspect none, that it barely exercised this path.
+		ALLOC_WMARK_MASK = 0xf	/* no more than 16 possible watermarks */
+	};
 
-I worry that by jumping back to use the slot in this way, you're
-actually propagating the glitch: by which I mean, if the pages are
-all as nicely linear as you're supposing, then now one of them
-will get placed out of sequence, unlike with the existing code.
+This eliminates ALLOC_NO_WATERMARKS and the caller that uses it would 
+simply pass 0.
 
-And note that swapin's page_cluster is used in a strictly aligned
-way (unlike swap allocation's SWAPFILE_CLUSTER): if you're going
-to use page_cluster to bound this, then perhaps you should be
-aligning too.  Perhaps, perhaps not.
+> @@ -1445,12 +1450,7 @@ zonelist_scan:
+>  
+>  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
 
-If this patch is worthwhile, then don't you want also to be
-removing the " && vm_swap_full()" test from vmscan.c, where
-shrink_page_list() activate_locked does try_to_free_swap(page)?
+This would become
 
-But bigger And/Or: you remark that "holes act as a boundary for
-optimistic swap-in".  Maybe that's more worth attacking?  I think
-that behaviour is dictated purely by the convenience of a simple
-offset:length interface between swapfile.c's valid_swaphandles()
-and swap_state.c's swapin_readahead().
-
-If swapin readahead is a good thing (I tend to be pessimistic about
-it: think it's worth reading several pages while the disk head is
-there, but hold no great hopes that the other pages will be useful -
-though when I've experimented with removing, it's certainly proved
-to be of some value), then I think you'd do better to restructure
-that interface, so as not to stop at the holes.
-
-Hugh
-
-> ---
->  mm/swapfile.c |    9 +++++++++
->  1 files changed, 9 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 312fafe..fc88278 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -484,6 +484,15 @@ static int swap_entry_free(struct swap_info_struct *p, swp_entry_t ent)
->  				p->lowest_bit = offset;
->  			if (offset > p->highest_bit)
->  				p->highest_bit = offset;
-> +			/*
-> +			 * If the next allocation is only some slots
-> +			 * ahead, reuse this now free slot instead of
-> +			 * leaving a hole.
-> +			 */
-> +			if (p->cluster_next - offset <= 1 << page_cluster) {
-> +				p->cluster_next = offset;
-> +				p->cluster_nr++;
-> +			}
->  			if (p->prio > swap_info[swap_list.next].prio)
->  				swap_list.next = p - swap_info;
->  			nr_swap_pages++;
-> -- 
-> 1.6.2.1.135.gde769
+	if (alloc_flags & ALLOC_WMARK_MASK)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
