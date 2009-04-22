@@ -1,112 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A007D6B0089
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 23:18:03 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3M3IHJI018928
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Wed, 22 Apr 2009 12:18:17 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3901145DE50
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 12:18:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 02D0345DE4E
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 12:18:17 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id CEDF8E08005
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 12:18:16 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5994E1DB8040
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 12:18:13 +0900 (JST)
-Date: Wed, 22 Apr 2009 12:16:41 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] memcg: remove trylock_page_cgroup
-Message-Id: <20090422121641.eb84a07e.kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 7EFE36B0093
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 23:20:18 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp09.au.ibm.com (8.13.1/8.13.1) with ESMTP id n3M2wGLN012441
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 22:58:16 -0400
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3M3KSmT405790
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 13:20:31 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3M3KS12029191
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 13:20:28 +1000
+Date: Wed, 22 Apr 2009 08:49:39 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Add file based RSS accounting for memory resource
+	controller (v3)
+Message-ID: <20090422031939.GQ19637@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090417110350.3144183d.kamezawa.hiroyu@jp.fujitsu.com> <20090417034539.GD18558@balbir.in.ibm.com> <20090417124951.a8472c86.kamezawa.hiroyu@jp.fujitsu.com> <20090417045623.GA3896@balbir.in.ibm.com> <20090417141726.a69ebdcc.kamezawa.hiroyu@jp.fujitsu.com> <20090417064726.GB3896@balbir.in.ibm.com> <20090417155608.eeed1f02.kamezawa.hiroyu@jp.fujitsu.com> <20090417141837.GD3896@balbir.in.ibm.com> <20090421132551.38e9960a.akpm@linux-foundation.org> <20090422090218.6d451a08.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 In-Reply-To: <20090422090218.6d451a08.kamezawa.hiroyu@jp.fujitsu.com>
-References: <20090416120316.GG7082@balbir.in.ibm.com>
-	<20090417091459.dac2cc39.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417014042.GB18558@balbir.in.ibm.com>
-	<20090417110350.3144183d.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417034539.GD18558@balbir.in.ibm.com>
-	<20090417124951.a8472c86.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417045623.GA3896@balbir.in.ibm.com>
-	<20090417141726.a69ebdcc.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417064726.GB3896@balbir.in.ibm.com>
-	<20090417155608.eeed1f02.kamezawa.hiroyu@jp.fujitsu.com>
-	<20090417141837.GD3896@balbir.in.ibm.com>
-	<20090421132551.38e9960a.akpm@linux-foundation.org>
-	<20090422090218.6d451a08.kamezawa.hiroyu@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, balbir@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-How about this ? worth to be tested, I think.
--Kame
-==
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-22 09:02:18]:
 
-Before synchronized-LRU patch, mem cgroup had its own LRU lock.
-And there was a code which does
-# assume mz as per zone struct of memcg. 
+> On Tue, 21 Apr 2009 13:25:51 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > On Fri, 17 Apr 2009 19:48:38 +0530
+> > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> > 
+> > >
+> > > ...
+> > >
+> > > We currently don't track file RSS, the RSS we report is actually anon RSS.
+> > > All the file mapped pages, come in through the page cache and get accounted
+> > > there. This patch adds support for accounting file RSS pages. It should
+> > > 
+> > > 1. Help improve the metrics reported by the memory resource controller
+> > > 2. Will form the basis for a future shared memory accounting heuristic
+> > >    that has been proposed by Kamezawa.
+> > > 
+> > > Unfortunately, we cannot rename the existing "rss" keyword used in memory.stat
+> > > to "anon_rss". We however, add "mapped_file" data and hope to educate the end
+> > > user through documentation.
+> > > 
+> > > Signed-off-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+> > >
+> > > ...
+> > >
+> > > @@ -1096,6 +1135,10 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+> > >  	struct mem_cgroup_per_zone *from_mz, *to_mz;
+> > >  	int nid, zid;
+> > >  	int ret = -EBUSY;
+> > > +	struct page *page;
+> > > +	int cpu;
+> > > +	struct mem_cgroup_stat *stat;
+> > > +	struct mem_cgroup_stat_cpu *cpustat;
+> > >  
+> > >  	VM_BUG_ON(from == to);
+> > >  	VM_BUG_ON(PageLRU(pc->page));
+> > > @@ -1116,6 +1159,23 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
+> > >  
+> > >  	res_counter_uncharge(&from->res, PAGE_SIZE);
+> > >  	mem_cgroup_charge_statistics(from, pc, false);
+> > > +
+> > > +	page = pc->page;
+> > > +	if (page_is_file_cache(page) && page_mapped(page)) {
+> > > +		cpu = smp_processor_id();
+> > > +		/* Update mapped_file data for mem_cgroup "from" */
+> > > +		stat = &from->stat;
+> > > +		cpustat = &stat->cpustat[cpu];
+> > > +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE,
+> > > +						-1);
+> > > +
+> > > +		/* Update mapped_file data for mem_cgroup "to" */
+> > > +		stat = &to->stat;
+> > > +		cpustat = &stat->cpustat[cpu];
+> > > +		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_MAPPED_FILE,
+> > > +						1);
+> > > +	}
+> > 
+> > This function (mem_cgroup_move_account()) does a trylock_page_cgroup()
+> > and if that fails it will bale out, and the newly-added code will not
+> > be executed.
+> yes. and returns -EBUSY.
+> 
+> > 
+> > What are the implications of this?  Does the missed accounting later get
+> > performed somewhere, or does the error remain in place?
+> > 
+> no error just -BUSY. the caller (now, only force_empty is the caller) will do retry.
+> 
+> > That trylock_page_cgroup() really sucks - trylocks usually do.  Could
+> > someone please raise a patch which completely documents the reasons for
+> > its presence, and for any other uncommented/unobvious trylocks?
+> > 
+> > Where appropriate, the comment should explain why the trylock isn't
+> > simply a bug - why it is safe and correct to omit the operations which
+> > we wished to perform.
+> > 
+> > Thanks.
+> > 
+> Hmm...maybe we can replace trylock with lock, here.
+> 
+> IIRC, this has been trylock because the old routine uses other locks
+> (mem_cgroup' zone mz->lru_lock) before calling this.
+>    mz->lru_lock
+>      lock_page_cgroup()
+> And there was other routine which calls lock_page_cgroup()->mz->lru_lock.
+>    lock_page_cgroup()
+>         -> mz->lru_lock.
+> 
+> So, I used trylock here. But now, the lock(mz->lru_lock) is removed.
+> I should check this.
+> 
+> Thank you for pointing out.
+>
 
-   spin_lock mz->lru_lock
-	lock_page_cgroup(pc).
-   and
-   lock_page_cgroup(pc)
-	spin_lock mz->lru_lock
+This is definitely worth looking into. Since we run force_empty() in a
+while loop with some margin, we've probably avoided the problem. I
+think this code needs a second look and refactoring.
 
-because we cannot locate "mz" until we see pc->page_cgroup, we used
-trylock(). But now, we don't have mz->lru_lock. All cgroup
-uses zone->lru_lock for handling list. Moreover, manipulation of
-LRU depends on global LRU now and we can isolate page from LRU by
-very generic way.(isolate_lru_page()).
-So, this kind of trylock is not necessary now.
-
-I thought I removed all trylock in synchronized-LRU patch but there
-is still one. This patch removes trylock used in memcontrol.c and
-its definition. If someone needs, he should add this again with enough
-reason.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
----
- include/linux/page_cgroup.h |    5 -----
- mm/memcontrol.c             |    3 +--
- 2 files changed, 1 insertion(+), 7 deletions(-)
-
-Index: mmotm-2.6.30-Apr21/include/linux/page_cgroup.h
-===================================================================
---- mmotm-2.6.30-Apr21.orig/include/linux/page_cgroup.h
-+++ mmotm-2.6.30-Apr21/include/linux/page_cgroup.h
-@@ -61,11 +61,6 @@ static inline void lock_page_cgroup(stru
- 	bit_spin_lock(PCG_LOCK, &pc->flags);
- }
  
--static inline int trylock_page_cgroup(struct page_cgroup *pc)
--{
--	return bit_spin_trylock(PCG_LOCK, &pc->flags);
--}
--
- static inline void unlock_page_cgroup(struct page_cgroup *pc)
- {
- 	bit_spin_unlock(PCG_LOCK, &pc->flags);
-Index: mmotm-2.6.30-Apr21/mm/memcontrol.c
-===================================================================
---- mmotm-2.6.30-Apr21.orig/mm/memcontrol.c
-+++ mmotm-2.6.30-Apr21/mm/memcontrol.c
-@@ -1148,8 +1148,7 @@ static int mem_cgroup_move_account(struc
- 	from_mz =  mem_cgroup_zoneinfo(from, nid, zid);
- 	to_mz =  mem_cgroup_zoneinfo(to, nid, zid);
- 
--	if (!trylock_page_cgroup(pc))
--		return ret;
-+	lock_page_cgroup(pc);
- 
- 	if (!PageCgroupUsed(pc))
- 		goto out;
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
