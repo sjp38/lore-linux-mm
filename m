@@ -1,74 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D69C86B00B2
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 08:11:03 -0400 (EDT)
-Subject: Re: [Patch] mm tracepoints update
-From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <20090422095727.GG18226@elte.hu>
-References: <1240353915.11613.39.camel@dhcp-100-19-198.bos.redhat.com>
-	 <20090422095916.627A.A69D9226@jp.fujitsu.com>
-	 <20090422095727.GG18226@elte.hu>
-Content-Type: text/plain
-Date: Wed, 22 Apr 2009 08:07:17 -0400
-Message-Id: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 879176B00B3
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:42 -0400 (EDT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH 01/22] Replace __alloc_pages_internal() with __alloc_pages_nodemask()
+Date: Wed, 22 Apr 2009 14:53:06 +0100
+Message-Id: <1240408407-21848-2-git-send-email-mel@csn.ul.ie>
+In-Reply-To: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?ISO-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
+To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-04-22 at 11:57 +0200, Ingo Molnar wrote:
-> * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > I've cleaned up the mm tracepoints to track page allocation and 
-> > > freeing, various types of pagefaults and unmaps, and critical 
-> > > page reclamation routines.  This is useful for debugging memory 
-> > > allocation issues and system performance problems under heavy 
-> > > memory loads.
-> > 
-> > In past thread, Andrew pointed out bare page tracer isn't useful. 
-> 
-> (do you have a link to that mail?)
-> 
-> > Can you make good consumer?
+__alloc_pages_internal is the core page allocator function but
+essentially it is an alias of __alloc_pages_nodemask. Naming a publicly
+available and exported function "internal" is also a big ugly. This
+patch renames __alloc_pages_internal() to __alloc_pages_nodemask() and
+deletes the old nodemask function.
 
-I will work up some good examples of what these are useful for.  I use
-the mm tracepoint data in the debugfs trace buffer to locate customer
-performance problems associated with memory allocation, deallocation,
-paging and swapping frequently, especially on large systems.
+Warning - This patch renames an exported symbol. No kernel driver is
+affected by external drivers calling __alloc_pages_internal() should
+change the call to __alloc_pages_nodemask() without any alteration of
+parameters.
 
-Larry
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+---
+ include/linux/gfp.h |   12 ++----------
+ mm/page_alloc.c     |    4 ++--
+ 2 files changed, 4 insertions(+), 12 deletions(-)
 
-> 
-> These MM tracepoints would be automatically seen by the 
-> ftrace-analyzer GUI tool for example:
-> 
->   git://git.kernel.org/pub/scm/utils/kernel/ftrace/ftrace.git
-> 
-> And could also be seen by other tools such as kmemtrace. Beyond, of 
-> course, embedding in function tracer output.
-> 
-> Here's the list of advantages of the types of tracepoints Larry is 
-> proposing:
-> 
->   - zero-copy and per-cpu splice() based tracing
->   - binary tracing without printf overhead
->   - structured logging records exposed under /debug/tracing/events
->   - trace events embedded in function tracer output and other plugins
->   - user-defined, per tracepoint filter expressions
-> 
-> I think the main review question is: are they properly structured 
-> and do they expose essential information to analyze behavioral 
-> details of the kernel in this area?
-> 
-> 	Ingo
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 0bbc15f..556c840 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -169,24 +169,16 @@ static inline void arch_alloc_page(struct page *page, int order) { }
+ #endif
+ 
+ struct page *
+-__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
++__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 		       struct zonelist *zonelist, nodemask_t *nodemask);
+ 
+ static inline struct page *
+ __alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 		struct zonelist *zonelist)
+ {
+-	return __alloc_pages_internal(gfp_mask, order, zonelist, NULL);
++	return __alloc_pages_nodemask(gfp_mask, order, zonelist, NULL);
+ }
+ 
+-static inline struct page *
+-__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+-		struct zonelist *zonelist, nodemask_t *nodemask)
+-{
+-	return __alloc_pages_internal(gfp_mask, order, zonelist, nodemask);
+-}
+-
+-
+ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
+ 						unsigned int order)
+ {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e4ea469..dcc4f05 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1462,7 +1462,7 @@ try_next_zone:
+  * This is the 'heart' of the zoned buddy allocator.
+  */
+ struct page *
+-__alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
++__alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 			struct zonelist *zonelist, nodemask_t *nodemask)
+ {
+ 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+@@ -1671,7 +1671,7 @@ nopage:
+ got_pg:
+ 	return page;
+ }
+-EXPORT_SYMBOL(__alloc_pages_internal);
++EXPORT_SYMBOL(__alloc_pages_nodemask);
+ 
+ /*
+  * Common helper functions.
+-- 
+1.5.6.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
