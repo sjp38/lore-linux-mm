@@ -1,69 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 226836B00BA
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:53:09 -0400 (EDT)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 26B506B00E3
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 10:13:06 -0400 (EDT)
+Date: Wed, 22 Apr 2009 15:13:14 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 17/22] Do not check for compound pages during the page allocator sanity checks
-Date: Wed, 22 Apr 2009 14:53:22 +0100
-Message-Id: <1240408407-21848-18-git-send-email-mel@csn.ul.ie>
-In-Reply-To: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+Subject: Re: [PATCH 00/25] Cleanup and optimise the page allocator V6
+Message-ID: <20090422141314.GD15367@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240301634.771.64.camel@penberg-laptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1240301634.771.64.camel@penberg-laptop>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-A number of sanity checks are made on each page allocation and free
-including that the page count is zero. page_count() checks for
-compound pages and checks the count of the head page if true. However,
-in these paths, we do not care if the page is compound or not as the
-count of each tail page should also be zero.
+On Tue, Apr 21, 2009 at 11:13:54AM +0300, Pekka Enberg wrote:
+> On Mon, 2009-04-20 at 23:19 +0100, Mel Gorman wrote:
+> > Here is V6 of the cleanup and optimisation of the page allocator and it
+> > should be ready for wider testing. Please consider a possibility for
+> > merging as a Pass 1 at making the page allocator faster.
+> 
+> The patch series is quite big. Can we fast-track some of the less
+> controversial patches to make it more manageable? AFAICT, 1-4 are ready
+> to go in to -mm as-is.
+> 
 
-This patch makes two changes to the use of page_count() in the free path. It
-converts one check of page_count() to a VM_BUG_ON() as the count should
-have been unconditionally checked earlier in the free path. It also avoids
-checking for compound pages.
+I made one more attempt with V7 to get a full set that doesn't raise eyebrows
+and passes a full review. If it's still running into hassle, we'll break it
+up more. Thanks.
 
-[mel@csn.ul.ie: Wrote changelog]
-Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
----
- mm/page_alloc.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e59bb80..b174f2c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -425,7 +425,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
- 		return 0;
- 
- 	if (PageBuddy(buddy) && page_order(buddy) == order) {
--		BUG_ON(page_count(buddy) != 0);
-+		VM_BUG_ON(page_count(buddy) != 0);
- 		return 1;
- 	}
- 	return 0;
-@@ -501,7 +501,7 @@ static inline int free_pages_check(struct page *page)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
-+		(atomic_read(&page->_count) != 0) |
- 		(page->flags & PAGE_FLAGS_CHECK_AT_FREE))) {
- 		bad_page(page);
- 		return 1;
-@@ -646,7 +646,7 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
- {
- 	if (unlikely(page_mapcount(page) |
- 		(page->mapping != NULL)  |
--		(page_count(page) != 0)  |
-+		(atomic_read(&page->_count) != 0)  |
- 		(page->flags & PAGE_FLAGS_CHECK_AT_PREP))) {
- 		bad_page(page);
- 		return 1;
 -- 
-1.5.6.5
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
