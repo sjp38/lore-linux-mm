@@ -1,121 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id A988A6B005C
-	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:25:50 -0400 (EDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id AA1B56B006A
+	for <linux-mm@kvack.org>; Tue, 21 Apr 2009 20:35:09 -0400 (EDT)
 Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3M0QDLk003793
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3M0ZemO007523
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Wed, 22 Apr 2009 09:26:13 +0900
+	Wed, 22 Apr 2009 09:35:41 +0900
 Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C4B645DE6B
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:26:12 +0900 (JST)
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B67445DE5D
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:35:40 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 4666945DE61
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:26:12 +0900 (JST)
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 492A145DE51
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:35:40 +0900 (JST)
 Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C1DDE38012
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:26:12 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0538BE38004
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:26:11 +0900 (JST)
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D1541DB803A
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:35:40 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D3B4EE38008
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:35:39 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 21/25] Use allocation flags as an index to the zone watermark
-In-Reply-To: <1240266011-11140-22-git-send-email-mel@csn.ul.ie>
-References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-22-git-send-email-mel@csn.ul.ie>
-Message-Id: <20090422092429.6271.A69D9226@jp.fujitsu.com>
+Subject: Re: [PATCH 22/25] Update NR_FREE_PAGES only as necessary
+In-Reply-To: <1240266011-11140-23-git-send-email-mel@csn.ul.ie>
+References: <1240266011-11140-1-git-send-email-mel@csn.ul.ie> <1240266011-11140-23-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090422093506.6274.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
-Date: Wed, 22 Apr 2009 09:26:10 +0900 (JST)
+Date: Wed, 22 Apr 2009 09:35:38 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
 Cc: kosaki.motohiro@jp.fujitsu.com, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
-> pages_min, pages_low or pages_high is used as the zone watermark when
-> allocating the pages. Two branches in the allocator hotpath determine which
-> watermark to use. This patch uses the flags as an array index and places
-> the three watermarks in a union with an array so it can be offset. This
-> means the flags can be used as an array index and reduces the branches
-> taken.
+> When pages are being freed to the buddy allocator, the zone
+> NR_FREE_PAGES counter must be updated. In the case of bulk per-cpu page
+> freeing, it's updated once per page. This retouches cache lines more
+> than necessary. Update the counters one per per-cpu bulk free.
 > 
 > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
 > Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
-> ---
->  include/linux/mmzone.h |    8 +++++++-
->  mm/page_alloc.c        |   18 ++++++++----------
->  2 files changed, 15 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index f82bdba..c1fa208 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -275,7 +275,13 @@ struct zone_reclaim_stat {
->  
->  struct zone {
->  	/* Fields commonly accessed by the page allocator */
-> -	unsigned long		pages_min, pages_low, pages_high;
-> +	union {
-> +		struct {
-> +			unsigned long	pages_min, pages_low, pages_high;
-> +		};
-> +		unsigned long pages_mark[3];
-> +	};
-> +
 
-hmmm... I don't like union hack. 
-Why can't we change all caller to use page_mark?
+	Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-
-
-
->  	/*
->  	 * We don't know if the memory that we're going to allocate will be freeable
->  	 * or/and it will be released eventually, so to avoid totally wasting several
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 376d848..e61867e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1157,10 +1157,13 @@ failed:
->  	return NULL;
->  }
->  
-> -#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
-> -#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
-> -#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
-> -#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
-> +/* The WMARK bits are used as an index zone->pages_mark */
-> +#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
-> +#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
-> +#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
-> +#define ALLOC_NO_WATERMARKS	0x08 /* don't check watermarks at all */
-> +#define ALLOC_WMARK_MASK	0x07 /* Mask to get the watermark bits */
-
-the mask only use two bit. but mask definition is three bit (0x07), why?
-
-
-> +
->  #define ALLOC_HARDER		0x10 /* try to alloc harder */
->  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
->  #ifdef CONFIG_CPUSETS
-> @@ -1463,12 +1466,7 @@ zonelist_scan:
->  
->  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
->  			unsigned long mark;
-> -			if (alloc_flags & ALLOC_WMARK_MIN)
-> -				mark = zone->pages_min;
-> -			else if (alloc_flags & ALLOC_WMARK_LOW)
-> -				mark = zone->pages_low;
-> -			else
-> -				mark = zone->pages_high;
-> +			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
->  			if (!zone_watermark_ok(zone, order, mark,
->  				    classzone_idx, alloc_flags)) {
->  				if (!zone_reclaim_mode ||
-> -- 
-> 1.5.6.5
-> 
 
 
 
