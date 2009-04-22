@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 411286B00BC
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:55 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 83A8E6B00CC
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 09:52:56 -0400 (EDT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: [PATCH 18/22] Use allocation flags as an index to the zone watermark
-Date: Wed, 22 Apr 2009 14:53:23 +0100
-Message-Id: <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
+Subject: [PATCH 22/22] slab: Use nr_online_nodes to check for a NUMA platform
+Date: Wed, 22 Apr 2009 14:53:27 +0100
+Message-Id: <1240408407-21848-23-git-send-email-mel@csn.ul.ie>
 In-Reply-To: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
 Sender: owner-linux-mm@kvack.org
@@ -13,78 +13,52 @@ To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-ALLOC_WMARK_MIN, ALLOC_WMARK_LOW and ALLOC_WMARK_HIGH determin whether
-pages_min, pages_low or pages_high is used as the zone watermark when
-allocating the pages. Two branches in the allocator hotpath determine which
-watermark to use. This patch uses the flags as an array index and places
-the three watermarks in a union with an array so it can be offset. This
-means the flags can be used as an array index and reduces the branches
-taken.
+SLAB currently avoids checking a bitmap repeatedly by checking once and
+storing a flag. When the addition of nr_online_nodes as a cheaper version
+of num_online_nodes(), this check can be replaced by nr_online_nodes.
 
+(Christoph did a patch that this is lifted almost verbatim from, hence the
+first Signed-off-by. Christoph, can you confirm you're ok with that?)
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
 ---
- include/linux/mmzone.h |    8 +++++++-
- mm/page_alloc.c        |   20 ++++++++++----------
- 2 files changed, 17 insertions(+), 11 deletions(-)
+ mm/slab.c |    7 ++-----
+ 1 files changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index f82bdba..c1fa208 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -275,7 +275,13 @@ struct zone_reclaim_stat {
+diff --git a/mm/slab.c b/mm/slab.c
+index 1c680e8..4d38dc2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -892,7 +892,6 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
+   */
  
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
--	unsigned long		pages_min, pages_low, pages_high;
-+	union {
-+		struct {
-+			unsigned long	pages_min, pages_low, pages_high;
-+		};
-+		unsigned long pages_mark[3];
-+	};
-+
- 	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b174f2c..6030f49 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1154,10 +1154,15 @@ failed:
- 	return NULL;
- }
+ static int use_alien_caches __read_mostly = 1;
+-static int numa_platform __read_mostly = 1;
+ static int __init noaliencache_setup(char *s)
+ {
+ 	use_alien_caches = 0;
+@@ -1453,10 +1452,8 @@ void __init kmem_cache_init(void)
+ 	int order;
+ 	int node;
  
--#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
--#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
--#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
--#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
-+/* The WMARK bits are used as an index zone->pages_mark */
-+#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
-+#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
-+#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
-+#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
-+
-+/* Mask to get the watermark bits */
-+#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
-+
- #define ALLOC_HARDER		0x10 /* try to alloc harder */
- #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
- #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
-@@ -1445,12 +1450,7 @@ zonelist_scan:
+-	if (num_possible_nodes() == 1) {
++	if (num_possible_nodes() == 1)
+ 		use_alien_caches = 0;
+-		numa_platform = 0;
+-	}
  
- 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
- 			unsigned long mark;
--			if (alloc_flags & ALLOC_WMARK_MIN)
--				mark = zone->pages_min;
--			else if (alloc_flags & ALLOC_WMARK_LOW)
--				mark = zone->pages_low;
--			else
--				mark = zone->pages_high;
-+			mark = zone->pages_mark[alloc_flags & ALLOC_WMARK_MASK];
- 			if (!zone_watermark_ok(zone, order, mark,
- 				    classzone_idx, alloc_flags)) {
- 				if (!zone_reclaim_mode ||
+ 	for (i = 0; i < NUM_INIT_LISTS; i++) {
+ 		kmem_list3_init(&initkmem_list3[i]);
+@@ -3579,7 +3576,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
+ 	 * variable to skip the call, which is mostly likely to be present in
+ 	 * the cache.
+ 	 */
+-	if (numa_platform && cache_free_alien(cachep, objp))
++	if (nr_online_nodes > 1 && cache_free_alien(cachep, objp))
+ 		return;
+ 
+ 	if (likely(ac->avail < ac->limit)) {
 -- 
 1.5.6.5
 
