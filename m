@@ -1,134 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D9C6B005D
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 12:31:26 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3NGSBEA002911
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 12:28:11 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3NGVsfh183558
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 12:31:54 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3NGVrtv012847
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 12:31:54 -0400
-Date: Thu, 23 Apr 2009 17:31:48 +0100
-From: Eric B Munson <ebmunson@us.ibm.com>
-Subject: Re: [PATCH V3] Fix Committed_AS underflow
-Message-ID: <20090423163148.GB5044@us.ibm.com>
-References: <1240218590-16714-1-git-send-email-ebmunson@us.ibm.com> <1240244120.32604.278.camel@nimitz> <1240256999.32604.330.camel@nimitz>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="i9LlY+UWpKt15+FH"
-Content-Disposition: inline
-In-Reply-To: <1240256999.32604.330.camel@nimitz>
+	by kanga.kvack.org (Postfix) with ESMTP id 1A9F66B0062
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:36:26 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3NHXMcf006867
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:33:22 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3NHasNT152932
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:36:55 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3NHZ6lp001115
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:35:07 -0400
+Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090423095821.GA25102@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+	 <1240408407-21848-3-git-send-email-mel@csn.ul.ie>
+	 <1240416791.10627.78.camel@nimitz> <20090422171151.GF15367@csn.ul.ie>
+	 <1240421415.10627.93.camel@nimitz> <20090423001311.GA26643@csn.ul.ie>
+	 <1240450447.10627.119.camel@nimitz>  <20090423095821.GA25102@csn.ul.ie>
+Content-Type: text/plain
+Date: Thu, 23 Apr 2009 10:36:50 -0700
+Message-Id: <1240508211.10627.139.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, cl@linux-foundation.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 2009-04-23 at 10:58 +0100, Mel Gorman wrote:
+> > How about this:  I'll go and audit the use of order in page_alloc.c to
+> > make sure that having an order>MAX_ORDER-1 floating around is OK and
+> > won't break anything. 
+> 
+> Great. Right now, I think it's ok but I haven't audited for this
+> explicily and a second set of eyes never hurts.
 
---i9LlY+UWpKt15+FH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+OK, after looking through this, I have a couple of ideas.  One is that
+we do the MAX_ORDER check in __alloc_pages_internal(), but *after* the
+first call to get_page_from_freelist().  That's because I'm worried if
+we ever got into the reclaim code with a >MAX_ORDER 'order'.  Such as:
 
-On Mon, 20 Apr 2009, Dave Hansen wrote:
+void wakeup_kswapd(struct zone *zone, int order)
+{
+...
+        if (pgdat->kswapd_max_order < order)
+                pgdat->kswapd_max_order = order;
+        if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+                return;
+        if (!waitqueue_active(&pgdat->kswapd_wait))
+                return;
+        wake_up_interruptible(&pgdat->kswapd_wait);
+}
 
-> On Mon, 2009-04-20 at 09:15 -0700, Dave Hansen wrote:
-> > On Mon, 2009-04-20 at 10:09 +0100, Eric B Munson wrote:
-> > > 1. Change NR_CPUS to min(64, NR_CPUS)
-> > >    This will limit the amount of possible skew on kernels compiled fo=
-r very
-> > >    large SMP machines.  64 is an arbitrary number selected to limit t=
-he worst
-> > >    of the skew without using more cache lines.  min(64, NR_CPUS) is u=
-sed
-> > >    instead of nr_online_cpus() because nr_online_cpus() requires a sh=
-ared
-> > >    cache line and a call to hweight to make the calculation.  Its run=
-time
-> > >    overhead and keeping this counter accurate showed up in profiles a=
-nd it's
-> > >    possible that nr_online_cpus() would also show.
->=20
-> Wow, that empty reply was really informative, wasn't it? :)
->=20
-> My worry with this min(64, NR_CPUS) approach is that you effectively
-> ensure that you're going to be doing a lot more cacheline bouncing, but
-> it isn't quite as explicit.
+unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+                                gfp_t gfp_mask, nodemask_t *nodemask)
+{
+        struct scan_control sc = {
+...
+                .order = order,
+                .mem_cgroup = NULL,
+                .isolate_pages = isolate_pages_global,
+                .nodemask = nodemask,
+        };
 
-Unfortunately this is a choice we have to make, do we want to avoid cache
-line bouncing of fork-heavy workloads using more than 64 pages or bad
-information being used for overcommit decisions?
+        return do_try_to_free_pages(zonelist, &sc);
+}
 
->=20
-> Now, every time there's a mapping (or set of them) created or destroyed
-> that nets greater than 64 pages, you've got to go get a r/w cacheline to
-> a possibly highly contended atomic.  With a number this low, you're
-> almost guaranteed to hit it at fork() and exec().  Could you
-> double-check that this doesn't hurt any of the fork() AIM tests?
+This will keep us only checking 'order' once for each
+alloc_pages_internal() call.  It is an extra branch, but it is out of
+the really, really hot path since we're about to start reclaim here
+anyway.
 
-It is unlikely that the aim9 benchmarks would show if this patch was a
-problem because it forks in a tight loop and in a process that is not
-necessarily beig enough to hit ACCT_THRESHOLD, likely on a single CPU.
-In order to show any problems here we need a fork heavy workload with
-many threads on many CPUs.
-
->=20
-> Another thought is that, instead of trying to fix this up in meminfo, we
-> could do this in a way that is guaranteed to never skew the global
-> counter negative: we always keep the *percpu* skew negative.  This
-> should be the same as what's in the kernel now:
->=20
-> void vm_acct_memory(long pages)
-> {
->         long *local;
-> 	long local_min =3D -ACCT_THRESHOLD;
-> 	long local_max =3D ACCT_THRESHOLD;
-> 	long local_goal =3D 0;
->=20
->         preempt_disable();
->         local =3D &__get_cpu_var(committed_space);
->         *local +=3D pages;
->         if (*local > local_max || *local < local_min) {
->                 atomic_long_add(*local - local_goal, &vm_committed_space);
->                 *local =3D local_goal;
->         }
->         preempt_enable();
-> }
->=20
-> But now consider if we changed the local_* variables a bit:
->=20
-> 	long local_min =3D -(ACCT_THRESHOLD*2);
-> 	long local_max =3D 0
-> 	long local_goal =3D -ACCT_THRESHOLD;
->=20
-> We'll get some possibly *large* numbers in meminfo, but it will at least
-> never underflow.
->=20
-> -- Dave
->=20
-
---=20
-Eric B Munson
-IBM Linux Technology Center
-ebmunson@us.ibm.com
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e2f2699..1e3a01e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1498,6 +1498,13 @@ restart:
+ 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET);
+ 	if (page)
+ 		goto got_pg;
++	/*
++	 * We're out of the rocket-hot area above, so do a quick sanity
++	 * check.  We do this here to avoid ever trying to do any reclaim
++	 * of >=MAX_ORDER areas which can never succeed, of course.
++	 */
++	if (order >= MAX_ORDER)
++		goto nopage;
+ 
+ 	/*
+ 	 * GFP_THISNODE (meaning __GFP_THISNODE, __GFP_NORETRY and
 
 
---i9LlY+UWpKt15+FH
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.9 (GNU/Linux)
-
-iEYEARECAAYFAknwl/QACgkQsnv9E83jkzp7WgCgt8i1ZO5eZ9fSMNaBP/PD08eC
-Uu8AoNOT+hOmvYFMsf4v+R6/KrIJdUDU
-=J2XF
------END PGP SIGNATURE-----
-
---i9LlY+UWpKt15+FH--
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
