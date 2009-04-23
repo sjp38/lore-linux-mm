@@ -1,78 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id CDCA46B008A
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 15:45:04 -0400 (EDT)
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by e33.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3NJi2sU009460
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:44:02 -0600
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3NJjYxm069990
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:45:34 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3NJjXBB013064
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 13:45:33 -0600
-Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id C21F16B008C
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 16:37:38 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3NKYSnv016489
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 16:34:28 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3NKcCbt164354
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 16:38:12 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3NKaN3W029007
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 16:36:24 -0400
+Subject: Re: [PATCH V3] Fix Committed_AS underflow
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <1240514784.10627.171.camel@nimitz>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-	 <1240408407-21848-3-git-send-email-mel@csn.ul.ie>
-	 <1240416791.10627.78.camel@nimitz> <20090422171151.GF15367@csn.ul.ie>
-	 <1240421415.10627.93.camel@nimitz>  <20090423001311.GA26643@csn.ul.ie>
-	 <1240450447.10627.119.camel@nimitz>  <1240514784.10627.171.camel@nimitz>
+In-Reply-To: <20090423163148.GB5044@us.ibm.com>
+References: <1240218590-16714-1-git-send-email-ebmunson@us.ibm.com>
+	 <1240244120.32604.278.camel@nimitz> <1240256999.32604.330.camel@nimitz>
+	 <20090423163148.GB5044@us.ibm.com>
 Content-Type: text/plain
-Date: Thu, 23 Apr 2009 12:45:30 -0700
-Message-Id: <1240515930.10627.175.camel@nimitz>
+Date: Thu, 23 Apr 2009 13:38:08 -0700
+Message-Id: <1240519088.10627.196.camel@nimitz>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Eric B Munson <ebmunson@us.ibm.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, cl@linux-foundation.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-04-23 at 12:26 -0700, Dave Hansen wrote:
-> I'm going to retry this with a NUMA config.  
+On Thu, 2009-04-23 at 17:31 +0100, Eric B Munson wrote:
+> On Mon, 20 Apr 2009, Dave Hansen wrote:
+> 
+> > On Mon, 2009-04-20 at 09:15 -0700, Dave Hansen wrote:
+> > > On Mon, 2009-04-20 at 10:09 +0100, Eric B Munson wrote:
+> > > > 1. Change NR_CPUS to min(64, NR_CPUS)
+> > > >    This will limit the amount of possible skew on kernels compiled for very
+> > > >    large SMP machines.  64 is an arbitrary number selected to limit the worst
+> > > >    of the skew without using more cache lines.  min(64, NR_CPUS) is used
+> > > >    instead of nr_online_cpus() because nr_online_cpus() requires a shared
+> > > >    cache line and a call to hweight to make the calculation.  Its runtime
+> > > >    overhead and keeping this counter accurate showed up in profiles and it's
+> > > >    possible that nr_online_cpus() would also show.
+> > 
+> > Wow, that empty reply was really informative, wasn't it? :)
+> > 
+> > My worry with this min(64, NR_CPUS) approach is that you effectively
+> > ensure that you're going to be doing a lot more cacheline bouncing, but
+> > it isn't quite as explicit.
+> 
+> Unfortunately this is a choice we have to make, do we want to avoid cache
+> line bouncing of fork-heavy workloads using more than 64 pages or bad
+> information being used for overcommit decisions?
 
-Oddly enough, removing the alloc_pages() check didn't do anything to
-text on a NUMA=y config, either: 
+On SLES11, a new bash shell has ~9MB of mapped space.  A cat(1) has
+~6.7MB.  The ACCT_THRESHOLD=64*2 pages with a 64k page is 8MB.  So,
+you're basically *guaranteed* to go off-cpu every time a shell command
+is performed.  So, I'd say 8MB is a bit on the low side.
 
-dave@kernel:~/work/mhp-build$ size i386-numaq-sparse.?/vmlinux
-   text	   data	    bss	    dec	    hex	filename
-3460792	 449336	1626112	5536240	 5479f0	i386-numaq-sparse.0/vmlinux
-3460792	 449336	1626112	5536240	 5479f0	i386-numaq-sparse.1/vmlinux
-3460776	 449336	1626112	5536224	 5479e0	i386-numaq-sparse.2/vmlinux
+Note that even with your suggested patch, we can still have 8GB of skew
+on a 1024-way machine since there are still num_online_cpus()*8MB.  This
+is better than what we have now, certainly.
 
-Here's bloatmeter from removing the alloc_pages_node() check:
+> > Now, every time there's a mapping (or set of them) created or destroyed
+> > that nets greater than 64 pages, you've got to go get a r/w cacheline to
+> > a possibly highly contended atomic.  With a number this low, you're
+> > almost guaranteed to hit it at fork() and exec().  Could you
+> > double-check that this doesn't hurt any of the fork() AIM tests?
+> 
+> It is unlikely that the aim9 benchmarks would show if this patch was a
+> problem because it forks in a tight loop and in a process that is not
+> necessarily beig enough to hit ACCT_THRESHOLD, likely on a single CPU.
+> In order to show any problems here we need a fork heavy workload with
+> many threads on many CPUs.
 
-dave@kernel:~/work/mhp-build$ ../linux-2.6.git/scripts/bloat-o-meter
-i386-numaq-sparse.{1,2}/vmlinux 
-add/remove: 0/0 grow/shrink: 9/16 up/down: 81/-99 (-18)
-function                                     old     new   delta
-st_int_ioctl                                2600    2624     +24
-tcp_sendmsg                                 2153    2169     +16
-diskstats_show                               739     753     +14
-iov_shorten                                   49      58      +9
-unmap_vmas                                  1653    1661      +8
-sg_build_indirect                            449     455      +6
-ahc_linux_biosparam                          251     253      +2
-nlmclnt_call                                 557     558      +1
-do_mount                                    1533    1534      +1
-skb_icv_walk                                 420     419      -1
-nfs_readpage_truncate_uninitialised_page     288     287      -1
-find_first_zero_bit                           67      66      -1
-enlarge_buffer                               339     337      -2
-ahc_parse_msg                               2340    2338      -2
-__get_free_pages                              36      33      -3
-flock_lock_file_wait                         484     480      -4
-find_vma_prepare                             108     103      -5
-arp_ignore                                   104      99      -5
-__udp4_lib_err                               312     307      -5
-alloc_buddy_huge_page                        170     163      -7
-pbus_size_mem                                907     899      -8
-dma_generic_alloc_coherent                   245     236      -9
-cache_alloc_refill                          1168    1158     -10
-mempool_alloc_pages                           33      17     -16
-do_mremap                                   1208    1188     -20
+That's true.  I'd suspect that aim is somewhere around the size of
+'cat'.  It's a best-case scenario.  But, if you see degradation on the
+best-case workload, we'll certainly see issues on worse workloads.
 
+Also, I used fork as an obvious example here.  This issue will present
+itself any time there is a mapping or set of mappings with a net change
+in size of 8MB.
+
+There's another alternative.  We could temporarily add statistics to
+count how many times we go over ACCT_THRESHOLD to see just how bad the
+situation is.  For instance, 64 causes 342.43 times as many touches of
+the global counter as 8192 (or whatever it is).  You could also make
+ACCT_THRESHOLD a tunable, at least for the duration of this testing.
+
+There are also ways you can bias the global counter in controlled ways.
+You could ensure, for instance, that a local counter never gets a
+positive bias, causing the global one to be biased negatively.  That
+would guarantee no underflows, although it would still be possible to
+see vm_committed_space in an temporary *inflated* state.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
