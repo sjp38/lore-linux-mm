@@ -1,46 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 48D7A6B003D
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 03:44:15 -0400 (EDT)
-Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-In-Reply-To: <alpine.DEB.2.00.0904221244030.14558@chino.kir.corp.google.com>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-	 <1240408407-21848-3-git-send-email-mel@csn.ul.ie>
-	 <1240416791.10627.78.camel@nimitz> <20090422171151.GF15367@csn.ul.ie>
-	 <alpine.DEB.2.00.0904221244030.14558@chino.kir.corp.google.com>
-Date: Thu, 23 Apr 2009 10:44:53 +0300
-Message-Id: <1240472693.16082.56.camel@penberg-laptop>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id BE64B6B003D
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 03:44:34 -0400 (EDT)
+Date: Thu, 23 Apr 2009 09:48:48 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags (take 3)
+Message-ID: <20090423074848.GJ13896@one.firstfloor.org>
+References: <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost> <20090416111108.AC55.A69D9226@jp.fujitsu.com> <20090423022625.GA8822@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090423022625.GA8822@localhost>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Dave Hansen <dave@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-04-22 at 13:11 -0700, David Rientjes wrote:
-> On Wed, 22 Apr 2009, Mel Gorman wrote:
-> 
-> > If there are users with good reasons, then we could convert this to WARN_ON
-> > to fix up the callers. I suspect that the allocator can already cope with
-> > recieving a stupid order silently but slowly. It should go all the way to the
-> > bottom and just never find anything useful and return NULL.  zone_watermark_ok
-> > is the most dangerous looking part but even it should never get to MAX_ORDER
-> > because it should always find there are not enough free pages and return
-> > before it overruns.
+On Thu, Apr 23, 2009 at 10:26:25AM +0800, Wu Fengguang wrote:
+> Andi and KOSAKI: can we hopefully reach harmony of opinions on this version?
 
-> slub: enforce MAX_ORDER
-> 
-> slub_max_order may not be equal to or greater than MAX_ORDER.
-> 
-> Additionally, if a single object cannot be placed in a slab of
-> slub_max_order, it still must allocate slabs below MAX_ORDER.
-> 
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Haven't read the patch sorry, just comments on the text.
 
-Applied, thanks!
+> 
+> Export 9 page flags in /proc/kpageflags, and 8 more for kernel developers.
+> 
+> 1) for kernel hackers (on CONFIG_DEBUG_KERNEL)
+>    - all available page flags are exported, and
+>    - exported as is
+
+So the interface changes based on that option? That would
+be unfortunate if true.
+
+> 2) for admins and end users
+>    - only the more `well known' flags are exported:
+> 	11. KPF_MMAP		(pseudo flag) memory mapped page
+> 	12. KPF_ANON		(pseudo flag) memory mapped page (anonymous)
+> 	13. KPF_SWAPCACHE	page is in swap cache
+> 	14. KPF_SWAPBACKED	page is swap/RAM backed
+> 	15. KPF_COMPOUND_HEAD	(*)
+> 	16. KPF_COMPOUND_TAIL	(*)
+> 	17. KPF_UNEVICTABLE	page is in the unevictable LRU list
+> 	18. KPF_POISON		hardware detected corruption
+> 	19. KPF_NOPAGE		(pseudo flag) no page frame at the address
+
+I think DIRTY should be in that list.
+
+> 
+> 	(*) For compound pages, exporting _both_ head/tail info enables
+> 	    users to tell where a compound page starts/ends, and its order.
+> 
+>    - limit flags to their typical usage scenario, as indicated by KOSAKI:
+> 	- LRU pages: only export relevant flags
+> 		- PG_lru
+> 		- PG_unevictable
+> 		- PG_active
+
+And active too because it's already exported in /proc/meminfo
+
+> 		- PG_dirty
+> 		- PG_uptodate
+> 		- PG_writeback
+> 	- SLAB pages: mask out overloaded flags:
+> 		- PG_error
+
+Error should be exported too, it has straight forward semantics 
+and could be useful to the admin.
+
+
+> 	- admins may wonder where all the compound pages gone - the use of
+> 	  compound pages in SLUB might have some real world relevance, so that
+> 	  end users want to be aware of this behavior
+
+I'm not sure why it uses compound pages at all. It would be nicer
+if compound pages were limited to huge pages, and then start/tail
+wouldn't be needed.
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
