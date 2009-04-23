@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9B76B0099
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 18:53:36 -0400 (EDT)
-Date: Thu, 23 Apr 2009 15:48:34 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 71DD36B0088
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 18:57:34 -0400 (EDT)
+Date: Thu, 23 Apr 2009 15:52:16 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 07/22] Calculate the preferred zone for allocation only
+Subject: Re: [PATCH 09/22] Calculate the alloc_flags for allocation only
  once
-Message-Id: <20090423154834.bde33a72.akpm@linux-foundation.org>
-In-Reply-To: <1240408407-21848-8-git-send-email-mel@csn.ul.ie>
+Message-Id: <20090423155216.07ef773e.akpm@linux-foundation.org>
+In-Reply-To: <1240408407-21848-10-git-send-email-mel@csn.ul.ie>
 References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-	<1240408407-21848-8-git-send-email-mel@csn.ul.ie>
+	<1240408407-21848-10-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -18,43 +18,70 @@ To: Mel Gorman <mel@csn.ul.ie>
 Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Apr 2009 14:53:12 +0100
+On Wed, 22 Apr 2009 14:53:14 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> get_page_from_freelist() can be called multiple times for an allocation.
-> Part of this calculates the preferred_zone which is the first usable zone
-> in the zonelist but the zone depends on the GFP flags specified at the
-> beginning of the allocation call. This patch calculates preferred_zone
-> once. It's safe to do this because if preferred_zone is NULL at the start
-> of the call, no amount of direct reclaim or other actions will change the
-> fact the allocation will fail.
+> Factor out the mapping between GFP and alloc_flags only once. Once factored
+> out, it only needs to be calculated once but some care must be taken.
 > 
->
+> [neilb@suse.de says]
+> As the test:
+> 
+> -       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+> -                       && !in_interrupt()) {
+> -               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+> 
+> has been replaced with a slightly weaker one:
+> 
+> +       if (alloc_flags & ALLOC_NO_WATERMARKS) {
+> 
+> Without care, this would allow recursion into the allocator via direct
+> reclaim. This patch ensures we do not recurse when PF_MEMALLOC is set
+> but TF_MEMDIE callers are now allowed to directly reclaim where they
+> would have been prevented in the past.
+> 
 > ...
 >
-> -	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
-> -
->							&preferred_zone);
-> ...  
->
-> +	/* The preferred zone is used for statistics later */
-> +	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+> +static inline int
+> +gfp_to_alloc_flags(gfp_t gfp_mask)
+> +{
+> +	struct task_struct *p = current;
+> +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+> +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> +
+> +	/*
+> +	 * The caller may dip into page reserves a bit more if the caller
+> +	 * cannot run direct reclaim, or if the caller has realtime scheduling
+> +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+> +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+> +	 */
+> +	if (gfp_mask & __GFP_HIGH)
+> +		alloc_flags |= ALLOC_HIGH;
+> +
+> +	if (!wait) {
+> +		alloc_flags |= ALLOC_HARDER;
+> +		/*
+> +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+> +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> +		 */
+> +		alloc_flags &= ~ALLOC_CPUSET;
+> +	} else if (unlikely(rt_task(p)))
+> +		alloc_flags |= ALLOC_HARDER;
+> +
+> +	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> +		if (!in_interrupt() &&
+> +		    ((p->flags & PF_MEMALLOC) ||
+> +		     unlikely(test_thread_flag(TIF_MEMDIE))))
+> +			alloc_flags |= ALLOC_NO_WATERMARKS;
+> +	}
+> +
+> +	return alloc_flags;
+> +}
 
-Let's quietly zap that dopey cast.
+hm.  Was there a particular reason for the explicit inline?
 
---- a/mm/page_alloc.c~page-allocator-calculate-the-preferred-zone-for-allocation-only-once-fix
-+++ a/mm/page_alloc.c
-@@ -1775,8 +1775,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
- 		return NULL;
- 
- 	/* The preferred zone is used for statistics later */
--	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
--							&preferred_zone);
-+	first_zones_zonelist(zonelist, high_zoneidx, nodemask, &preferred_zone);
- 	if (!preferred_zone)
- 		return NULL;
- 
-_
+It's OK as it stands, but might become suboptimal if we later add a
+second caller?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
