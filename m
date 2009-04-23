@@ -1,181 +1,479 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B4FC6B0119
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:33:41 -0400 (EDT)
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3N1Ud16027870
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:30:39 -0400
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3N1YBHq194888
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:34:11 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3N1YAZv029397
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:34:11 -0400
-Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-In-Reply-To: <20090423001311.GA26643@csn.ul.ie>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-	 <1240408407-21848-3-git-send-email-mel@csn.ul.ie>
-	 <1240416791.10627.78.camel@nimitz> <20090422171151.GF15367@csn.ul.ie>
-	 <1240421415.10627.93.camel@nimitz>  <20090423001311.GA26643@csn.ul.ie>
-Content-Type: text/plain
-Date: Wed, 22 Apr 2009 18:34:07 -0700
-Message-Id: <1240450447.10627.119.camel@nimitz>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id 62E546B0047
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 22:26:40 -0400 (EDT)
+Date: Thu, 23 Apr 2009 10:26:25 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
+	(take 3)
+Message-ID: <20090423022625.GA8822@localhost>
+References: <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost> <20090416111108.AC55.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090416111108.AC55.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-04-23 at 01:13 +0100, Mel Gorman wrote:
-> On Wed, Apr 22, 2009 at 10:30:15AM -0700, Dave Hansen wrote:
-> > On Wed, 2009-04-22 at 18:11 +0100, Mel Gorman wrote:
-> > > On Wed, Apr 22, 2009 at 09:13:11AM -0700, Dave Hansen wrote:
-> > > > On Wed, 2009-04-22 at 14:53 +0100, Mel Gorman wrote:
-> > > > > No user of the allocator API should be passing in an order >= MAX_ORDER
-> > > > > but we check for it on each and every allocation. Delete this check and
-> > > > > make it a VM_BUG_ON check further down the call path.
-> > > > 
-> > > > Should we get the check re-added to some of the upper-level functions,
-> > > > then?  Perhaps __get_free_pages() or things like alloc_pages_exact()? 
-> > > 
-> > > I don't think so, no. It just moves the source of the text bloat and
-> > > for the few callers that are asking for something that will never
-> > > succeed.
-> > 
-> > Well, it's a matter of figuring out when it can succeed.  Some of this
-> > stuff, we can figure out at compile-time.  Others are a bit harder.
-> > 
-> 
-> What do you suggest then? Some sort of constant that tells you the
-> maximum size you can call for callers that think they might ever request
-> too much?
-> 
-> Shuffling the check around to other top-level helpers seems pointless to
-> me because as I said, it just moves text bloat from one place to the
-> next.
+Andi and KOSAKI: can we hopefully reach harmony of opinions on this version?
 
-Do any of the actual fast paths pass 'order' in as a real variable?  If
-not, the compiler should be able to just take care of it.  From a quick
-scan, it does appear that at least a third of the direct alloc_pages()
-users pass an explicit '0'.  That should get optimized away
-*immediately*.
+Export 9 page flags in /proc/kpageflags, and 8 more for kernel developers.
 
-> > > > I'm selfishly thinking of what I did in profile_init().  Can I slab
-> > > > alloc it?  Nope.  Page allocator?  Nope.  Oh, well, try vmalloc():
-> > > > 
-> > > >         prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
-> > > >         if (prof_buffer)
-> > > >                 return 0;
-> > > > 
-> > > >         prof_buffer = alloc_pages_exact(buffer_bytes, GFP_KERNEL|__GFP_ZERO);
-> > > >         if (prof_buffer)
-> > > >                 return 0;
-> > > > 
-> > > >         prof_buffer = vmalloc(buffer_bytes);
-> > > >         if (prof_buffer)
-> > > >                 return 0;
-> > > > 
-> > > >         free_cpumask_var(prof_cpu_mask);
-> > > >         return -ENOMEM;
-> > > > 
-> > > 
-> > > Can this ever actually be asking for an order larger than MAX_ORDER
-> > > though? If so, you're condemning it to always behave poorly.
-> > 
-> > Yeah.  It is based on text size.  Smaller kernels with trimmed configs
-> > and no modules have no problem fitting under MAX_ORDER, as do kernels
-> > with larger base page sizes.  
-> > 
-> 
-> It would seem that the right thing to have done here in the first place
-> then was
-> 
-> if (buffer_bytes > PAGE_SIZE << (MAX_ORDER-1)
-> 	return vmalloc(...)
-> 
-> kzalloc attempt
-> 
-> alloc_pages_exact attempt
+1) for kernel hackers (on CONFIG_DEBUG_KERNEL)
+   - all available page flags are exported, and
+   - exported as is
+2) for admins and end users
+   - only the more `well known' flags are exported:
+	11. KPF_MMAP		(pseudo flag) memory mapped page
+	12. KPF_ANON		(pseudo flag) memory mapped page (anonymous)
+	13. KPF_SWAPCACHE	page is in swap cache
+	14. KPF_SWAPBACKED	page is swap/RAM backed
+	15. KPF_COMPOUND_HEAD	(*)
+	16. KPF_COMPOUND_TAIL	(*)
+	17. KPF_UNEVICTABLE	page is in the unevictable LRU list
+	18. KPF_POISON		hardware detected corruption
+	19. KPF_NOPAGE		(pseudo flag) no page frame at the address
 
-Yeah, but honestly, I don't expect most users to get that "(buffer_bytes
-> PAGE_SIZE << (MAX_ORDER-1)" right.  It seems like *exactly* the kind
-of thing we should be wrapping up in common code.
+	(*) For compound pages, exporting _both_ head/tail info enables
+	    users to tell where a compound page starts/ends, and its order.
 
-Perhaps we do need an alloc_pages_nocheck() for the users that do have a
-true non-compile-time-constant 'order' and still know they don't need
-the check.
+   - limit flags to their typical usage scenario, as indicated by KOSAKI:
+	- LRU pages: only export relevant flags
+		- PG_lru
+		- PG_unevictable
+		- PG_active
+		- PG_referenced
+		- page_mapped()
+		- PageAnon()
+		- PG_swapcache
+		- PG_swapbacked
+		- PG_reclaim
+	- no-IO pages: mask out irrelevant flags
+		- PG_dirty
+		- PG_uptodate
+		- PG_writeback
+	- SLAB pages: mask out overloaded flags:
+		- PG_error
+		- PG_active
+		- PG_private
+	- PG_reclaim: filter out the overloaded PG_readahead
 
-> > > > Same thing in __kmalloc_section_memmap():
-> > > > 
-> > > >         page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
-> > > >         if (page)
-> > > >                 goto got_map_page;
-> > > > 
-> > > >         ret = vmalloc(memmap_size);
-> > > >         if (ret)
-> > > >                 goto got_map_ptr;
-> > > > 
-> > > 
-> > > If I'm reading that right, the order will never be a stupid order. It can fail
-> > > for higher orders in which case it falls back to vmalloc() .  For example,
-> > > to hit that limit, the section size for a 4K kernel, maximum usable order
-> > > of 10, the section size would need to be 256MB (assuming struct page size
-> > > of 64 bytes). I don't think it's ever that size and if so, it'll always be
-> > > sub-optimal which is a poor choice to make.
-> > 
-> > I think the section size default used to be 512M on x86 because we
-> > concentrate on removing whole DIMMs.  
-> > 
-> 
-> It was a poor choice then as their sections always ended up in
-> vmalloc() or else it was using the bootmem allocator in which case it
-> doesn't matter that the core page allocator was doing.
+Note that compound page flags are exported faithfully to end user.  This risks
+exposing internal implementation details of the SLUB allocator, however hiding
+it risks larger impacts:
+	- admins may wonder where all the compound pages gone - the use of
+	  compound pages in SLUB might have some real world relevance, so that
+	  end users want to be aware of this behavior
+	- admins may be confused on inconsistent number of head/tail segments
+	  This is because SLUB only marks PG_slab on the compound head page.
+	  If we mask out PG_head|PG_tail for PG_slab pages, we are actually
+	  only masking out PG_head flags. Therefore the PG_tail segments will
+	  outnumber PG_head ones, which puzzled me for some time..
 
-True, but we tried to code that sucker to work anywhere and to be as
-optimal as possible (which vmalloc() is not) when we could.
+Here are the admin/linus views of all page flags on a newly booted nfs-root system:
 
-> > > > I depend on the allocator to tell me when I've fed it too high of an
-> > > > order.  If we really need this, perhaps we should do an audit and then
-> > > > add a WARN_ON() for a few releases to catch the stragglers.
-> > > 
-> > > I consider it buggy to ask for something so large that you always end up
-> > > with the worst option - vmalloc(). How about leaving it as a VM_BUG_ON
-> > > to get as many reports as possible on who is depending on this odd
-> > > behaviour?
-> > > 
-> > > If there are users with good reasons, then we could convert this to WARN_ON
-> > > to fix up the callers. I suspect that the allocator can already cope with
-> > > recieving a stupid order silently but slowly. It should go all the way to the
-> > > bottom and just never find anything useful and return NULL.  zone_watermark_ok
-> > > is the most dangerous looking part but even it should never get to MAX_ORDER
-> > > because it should always find there are not enough free pages and return
-> > > before it overruns.
-> > 
-> > Whatever we do, I'd agree that it's fine that this is a degenerate case
-> > that gets handled very slowly and as far out of hot paths as possible.
-> > Anybody who can fall back to a vmalloc is not doing these things very
-> > often.
-> 
-> If that's the case, the simpliest course might be to just drop the VM_BUG_ON()
-> as a separate patch after asserting it's safe to call into the page
-> allocator with too large an order with the consequence of it being a
-> relatively expensive call considering it can never succeed.
+# ./page-types # for admin
+         flags  page-count       MB  symbolic-flags                     long-symbolic-flags
+0x000000000000      491449     1919  ____________________________
+0x000000008000          15        0  _______________H____________       compound_head
+0x000000010000        4280       16  ________________T___________       compound_tail
+0x000000000008          17        0  ___U________________________       uptodate
+0x000000008010           1        0  ____D__________H____________       dirty,compound_head
+0x000000010010           4        0  ____D___________T___________       dirty,compound_tail
+0x000000000020           1        0  _____l______________________       lru
+0x000000000028        2678       10  ___U_l______________________       uptodate,lru
+0x00000000002c        5244       20  __RU_l______________________       referenced,uptodate,lru
+0x000000004060           1        0  _____lA_______b_____________       lru,active,swapbacked
+0x000000004064          13        0  __R__lA_______b_____________       referenced,lru,active,swapbacked
+0x000000000068         236        0  ___U_lA_____________________       uptodate,lru,active
+0x00000000006c         927        3  __RU_lA_____________________       referenced,uptodate,lru,active
+0x000000008080         968        3  _______S_______H____________       slab,compound_head
+0x000000000080        1539        6  _______S____________________       slab
+0x000000000400         516        2  __________B_________________       buddy
+0x000000000828        1142        4  ___U_l_____M________________       uptodate,lru,mmap
+0x00000000082c         280        1  __RU_l_____M________________       referenced,uptodate,lru,mmap
+0x000000004860           2        0  _____lA____M__b_____________       lru,active,mmap,swapbacked
+0x000000000868         366        1  ___U_lA____M________________       uptodate,lru,active,mmap
+0x00000000086c         623        2  __RU_lA____M________________       referenced,uptodate,lru,active,mmap
+0x000000005868        3639       14  ___U_lA____Ma_b_____________       uptodate,lru,active,mmap,anonymous,swapbacked
+0x00000000586c          27        0  __RU_lA____Ma_b_____________       referenced,uptodate,lru,active,mmap,anonymous,swapbacked
+         total      513968     2007
 
-__rmqueue_smallest() seems to do the right thing and it is awfully deep
-in the allocator.
+# ./page-types # for linus, when CONFIG_DEBUG_KERNEL is turned on
+         flags  page-count       MB  symbolic-flags                     long-symbolic-flags
+0x000000000000      471731     1842  ____________________________
+0x000100000000       19258       75  ____________________r_______       reserved
+0x000000008000          15        0  _______________H____________       compound_head
+0x000000010000        4270       16  ________________T___________       compound_tail
+0x000000000008           3        0  ___U________________________       uptodate
+0x000000008014           1        0  __R_D__________H____________       referenced,dirty,compound_head
+0x000000010014           4        0  __R_D___________T___________       referenced,dirty,compound_tail
+0x000000000020           1        0  _____l______________________       lru
+0x000000000028        2626       10  ___U_l______________________       uptodate,lru
+0x00000000002c        5244       20  __RU_l______________________       referenced,uptodate,lru
+0x000000000068         238        0  ___U_lA_____________________       uptodate,lru,active
+0x00000000006c         925        3  __RU_lA_____________________       referenced,uptodate,lru,active
+0x000000004078           1        0  ___UDlA_______b_____________       uptodate,dirty,lru,active,swapbacked
+0x00000000407c          13        0  __RUDlA_______b_____________       referenced,uptodate,dirty,lru,active,swapbacked
+0x000000000228          49        0  ___U_l___I__________________       uptodate,lru,reclaim
+0x000000000400         523        2  __________B_________________       buddy
+0x000000000804           1        0  __R________M________________       referenced,mmap
+0x00000000080c           1        0  __RU_______M________________       referenced,uptodate,mmap
+0x000000000828        1142        4  ___U_l_____M________________       uptodate,lru,mmap
+0x00000000082c         280        1  __RU_l_____M________________       referenced,uptodate,lru,mmap
+0x000000000868         366        1  ___U_lA____M________________       uptodate,lru,active,mmap
+0x00000000086c         622        2  __RU_lA____M________________       referenced,uptodate,lru,active,mmap
+0x000000004878           2        0  ___UDlA____M__b_____________       uptodate,dirty,lru,active,mmap,swapbacked
+0x000000008880         907        3  _______S___M___H____________       slab,mmap,compound_head
+0x000000000880        1488        5  _______S___M________________       slab,mmap
+0x0000000088c0          59        0  ______AS___M___H____________       active,slab,mmap,compound_head
+0x0000000008c0          49        0  ______AS___M________________       active,slab,mmap
+0x000000001000         465        1  ____________a_______________       anonymous
+0x000000005008           8        0  ___U________a_b_____________       uptodate,anonymous,swapbacked
+0x000000005808           4        0  ___U_______Ma_b_____________       uptodate,mmap,anonymous,swapbacked
+0x00000000580c           1        0  __RU_______Ma_b_____________       referenced,uptodate,mmap,anonymous,swapbacked
+0x000000005868        3645       14  ___U_lA____Ma_b_____________       uptodate,lru,active,mmap,anonymous,swapbacked
+0x00000000586c          26        0  __RU_lA____Ma_b_____________       referenced,uptodate,lru,active,mmap,anonymous,swapbacked
+         total      513968     2007
 
-How about this:  I'll go and audit the use of order in page_alloc.c to
-make sure that having an order>MAX_ORDER-1 floating around is OK and
-won't break anything.  I'll also go and see what the actual .text size
-changes are from this patch both for alloc_pages() and
-alloc_pages_node() separately to make sure what we're dealing with here.
-Does this check even *exist* in the optimized code very often?  
+Kudos to KOSAKI and Andi for the extensive recommendations!
 
-Deal? :)
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Alexey Dobriyan <adobriyan@gmail.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ Documentation/vm/pagemap.txt |   65 ++++++++++
+ fs/proc/page.c               |  197 +++++++++++++++++++++++++++------
+ 2 files changed, 227 insertions(+), 35 deletions(-)
 
--- Dave
+--- mm.orig/fs/proc/page.c
++++ mm/fs/proc/page.c
+@@ -6,6 +6,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
++#include <linux/backing-dev.h>
+ #include <asm/uaccess.h>
+ #include "internal.h"
+ 
+@@ -68,19 +69,167 @@ static const struct file_operations proc
+ 
+ /* These macros are used to decouple internal flags from exported ones */
+ 
+-#define KPF_LOCKED     0
+-#define KPF_ERROR      1
+-#define KPF_REFERENCED 2
+-#define KPF_UPTODATE   3
+-#define KPF_DIRTY      4
+-#define KPF_LRU        5
+-#define KPF_ACTIVE     6
+-#define KPF_SLAB       7
+-#define KPF_WRITEBACK  8
+-#define KPF_RECLAIM    9
+-#define KPF_BUDDY     10
++#define KPF_LOCKED		0
++#define KPF_ERROR		1
++#define KPF_REFERENCED		2
++#define KPF_UPTODATE		3
++#define KPF_DIRTY		4
++#define KPF_LRU			5
++#define KPF_ACTIVE		6
++#define KPF_SLAB		7
++#define KPF_WRITEBACK		8
++#define KPF_RECLAIM		9
++#define KPF_BUDDY		10
++
++/* new additions in 2.6.31 */
++#define KPF_MMAP		11
++#define KPF_ANON		12
++#define KPF_SWAPCACHE		13
++#define KPF_SWAPBACKED		14
++#define KPF_COMPOUND_HEAD	15
++#define KPF_COMPOUND_TAIL	16
++#define KPF_UNEVICTABLE		17
++#define KPF_POISON		18
++#define KPF_NOPAGE		19
++
++/* kernel hacking assistances */
++#define KPF_RESERVED		32
++#define KPF_MLOCKED		33
++#define KPF_MAPPEDTODISK	34
++#define KPF_PRIVATE		35
++#define KPF_PRIVATE2		36
++#define KPF_OWNER_PRIVATE	37
++#define KPF_ARCH		38
++#define KPF_UNCACHED		39
++
++/*
++ * Kernel flags are exported faithfully to Linus and his fellow hackers.
++ * Otherwise some details are masked to avoid confusing the end user:
++ * - some kernel flags are completely invisible
++ * - some kernel flags are conditionally invisible on their odd usages
++ */
++#ifdef CONFIG_DEBUG_KERNEL
++static inline int genuine_linus(void) { return 1; }
++#else
++static inline int genuine_linus(void) { return 0; }
++#endif
++
++#define kpf_copy_bit(uflags, kflags, visible, ubit, kbit)		\
++	do {								\
++		if (visible || genuine_linus())				\
++			uflags |= ((kflags >> kbit) & 1) << ubit;	\
++	} while (0);
++
++/* a helper function _not_ intended for more general uses */
++static inline int page_cap_writeback_dirty(struct page *page)
++{
++	struct address_space *mapping = NULL;
++
++	if (!PageSlab(page))
++		mapping = page_mapping(page);
++
++	return !mapping || mapping_cap_writeback_dirty(mapping);
++}
+ 
+-#define kpf_copy_bit(flags, dstpos, srcpos) (((flags >> srcpos) & 1) << dstpos)
++static u64 get_uflags(struct page *page)
++{
++	u64 k;
++	u64 u;
++	int io;
++	int lru;
++	int slab;
++
++	/*
++	 * pseudo flag: KPF_NOPAGE
++	 * it differentiates a memory hole from a page with no flags
++	 */
++	if (!page)
++		return 1 << KPF_NOPAGE;
++
++	k = page->flags;
++	u = 0;
++
++	io   = page_cap_writeback_dirty(page);
++	lru  = k & (1 << PG_lru);
++	slab = k & (1 << PG_slab);
++
++	/*
++	 * pseudo flags for the well known (anonymous) memory mapped pages
++	 */
++	if (lru || genuine_linus()) {
++		if (page_mapped(page))
++			u |= 1 << KPF_MMAP;
++		if (PageAnon(page))
++			u |= 1 << KPF_ANON;
++	}
++
++	/*
++	 * compound pages: export both head/tail info
++	 * they together define a compound page's start/end pos and order
++	 */
++	if (PageHead(page))
++		u |= 1 << KPF_COMPOUND_HEAD;
++	if (PageTail(page))
++		u |= 1 << KPF_COMPOUND_TAIL;
++
++	kpf_copy_bit(u, k, 1,	  KPF_LOCKED,		PG_locked);
++
++	kpf_copy_bit(u, k, 1,     KPF_SLAB,		PG_slab);
++	kpf_copy_bit(u, k, 1,     KPF_BUDDY,		PG_buddy);
++
++	kpf_copy_bit(u, k, io,    KPF_ERROR,		PG_error);
++	kpf_copy_bit(u, k, io,    KPF_DIRTY,		PG_dirty);
++	kpf_copy_bit(u, k, io,    KPF_UPTODATE,		PG_uptodate);
++	kpf_copy_bit(u, k, io,    KPF_WRITEBACK,	PG_writeback);
++
++	kpf_copy_bit(u, k, 1,     KPF_LRU,		PG_lru);
++	kpf_copy_bit(u, k, lru,	  KPF_REFERENCED,	PG_referenced);
++	kpf_copy_bit(u, k, lru,   KPF_ACTIVE,		PG_active);
++	kpf_copy_bit(u, k, lru,   KPF_RECLAIM,		PG_reclaim);
++
++	kpf_copy_bit(u, k, lru,   KPF_SWAPCACHE,	PG_swapcache);
++	kpf_copy_bit(u, k, lru,   KPF_SWAPBACKED,	PG_swapbacked);
++
++#ifdef CONFIG_MEMORY_FAILURE
++	kpf_copy_bit(u, k, 1,     KPF_POISON,		PG_poison);
++#endif
++
++#ifdef CONFIG_UNEVICTABLE_LRU
++	kpf_copy_bit(u, k, lru,   KPF_UNEVICTABLE,	PG_unevictable);
++	kpf_copy_bit(u, k, 0,     KPF_MLOCKED,		PG_mlocked);
++#endif
++
++	kpf_copy_bit(u, k, 0,     KPF_RESERVED,		PG_reserved);
++	kpf_copy_bit(u, k, 0,     KPF_MAPPEDTODISK,	PG_mappedtodisk);
++	kpf_copy_bit(u, k, 0,     KPF_PRIVATE,		PG_private);
++	kpf_copy_bit(u, k, 0,     KPF_PRIVATE2,		PG_private_2);
++	kpf_copy_bit(u, k, 0,     KPF_OWNER_PRIVATE,	PG_owner_priv_1);
++	kpf_copy_bit(u, k, 0,     KPF_ARCH,		PG_arch_1);
++
++#ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
++	kpf_copy_bit(u, k, 0,     KPF_UNCACHED,		PG_uncached);
++#endif
++
++	if (!genuine_linus()) {
++		/*
++		 * SLAB/SLOB/SLUB overload some page flags which may confuse end user
++		 */
++		if (slab) {
++			u &= ~ ((1 << KPF_ACTIVE)	|
++				(1 << KPF_ERROR)	|
++				(1 << KPF_MMAP));
++		}
++		/*
++		 * PG_reclaim could be overloaded as PG_readahead,
++		 * and we only want to export the first one.
++		 */
++		if ((u & ((1 << KPF_RECLAIM) | (1 << KPF_WRITEBACK))) ==
++			  (1 << KPF_RECLAIM))
++			u &= ~ (1 << KPF_RECLAIM);
++	}
++
++	return u;
++};
+ 
+ static ssize_t kpageflags_read(struct file *file, char __user *buf,
+ 			     size_t count, loff_t *ppos)
+@@ -90,7 +239,6 @@ static ssize_t kpageflags_read(struct fi
+ 	unsigned long src = *ppos;
+ 	unsigned long pfn;
+ 	ssize_t ret = 0;
+-	u64 kflags, uflags;
+ 
+ 	pfn = src / KPMSIZE;
+ 	count = min_t(unsigned long, count, (max_pfn * KPMSIZE) - src);
+@@ -98,32 +246,17 @@ static ssize_t kpageflags_read(struct fi
+ 		return -EINVAL;
+ 
+ 	while (count > 0) {
+-		ppage = NULL;
+ 		if (pfn_valid(pfn))
+ 			ppage = pfn_to_page(pfn);
+-		pfn++;
+-		if (!ppage)
+-			kflags = 0;
+ 		else
+-			kflags = ppage->flags;
+-
+-		uflags = kpf_copy_bit(kflags, KPF_LOCKED, PG_locked) |
+-			kpf_copy_bit(kflags, KPF_ERROR, PG_error) |
+-			kpf_copy_bit(kflags, KPF_REFERENCED, PG_referenced) |
+-			kpf_copy_bit(kflags, KPF_UPTODATE, PG_uptodate) |
+-			kpf_copy_bit(kflags, KPF_DIRTY, PG_dirty) |
+-			kpf_copy_bit(kflags, KPF_LRU, PG_lru) |
+-			kpf_copy_bit(kflags, KPF_ACTIVE, PG_active) |
+-			kpf_copy_bit(kflags, KPF_SLAB, PG_slab) |
+-			kpf_copy_bit(kflags, KPF_WRITEBACK, PG_writeback) |
+-			kpf_copy_bit(kflags, KPF_RECLAIM, PG_reclaim) |
+-			kpf_copy_bit(kflags, KPF_BUDDY, PG_buddy);
++			ppage = NULL;
+ 
+-		if (put_user(uflags, out++)) {
++		if (put_user(get_uflags(ppage), out)) {
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+-
++		out++;
++		pfn++;
+ 		count -= KPMSIZE;
+ 	}
+ 
+--- mm.orig/Documentation/vm/pagemap.txt
++++ mm/Documentation/vm/pagemap.txt
+@@ -12,9 +12,9 @@ There are three components to pagemap:
+    value for each virtual page, containing the following data (from
+    fs/proc/task_mmu.c, above pagemap_read):
+ 
+-    * Bits 0-55  page frame number (PFN) if present
++    * Bits 0-54  page frame number (PFN) if present
+     * Bits 0-4   swap type if swapped
+-    * Bits 5-55  swap offset if swapped
++    * Bits 5-54  swap offset if swapped
+     * Bits 55-60 page shift (page size = 1<<page shift)
+     * Bit  61    reserved for future use
+     * Bit  62    page swapped
+@@ -36,7 +36,7 @@ There are three components to pagemap:
+  * /proc/kpageflags.  This file contains a 64-bit set of flags for each
+    page, indexed by PFN.
+ 
+-   The flags are (from fs/proc/proc_misc, above kpageflags_read):
++   The flags are (from fs/proc/page.c, above kpageflags_read):
+ 
+      0. LOCKED
+      1. ERROR
+@@ -49,6 +49,65 @@ There are three components to pagemap:
+      8. WRITEBACK
+      9. RECLAIM
+     10. BUDDY
++    11. MMAP
++    12. ANON
++    13. SWAPCACHE
++    14. SWAPBACKED
++    15. COMPOUND_HEAD
++    16. COMPOUND_TAIL
++    17. UNEVICTABLE
++    18. POISON
++    19. NOPAGE
++
++Short descriptions to the page flags:
++
++ 0. LOCKED
++    page is being locked for exclusive access, eg. by undergoing read/write IO
++
++ 7. SLAB
++    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
++
++10. BUDDY
++    a free memory block managed by the buddy system allocator
++    The buddy system organizes free memory in blocks of various orders.
++    An order N block has 2^N physically contiguous pages, with the BUDDY flag
++    set for and _only_ for the first page.
++
++15. COMPOUND_HEAD
++16. COMPOUND_TAIL
++    A compound page with order N consists of 2^N physically contiguous pages.
++    A compound page with order 2 takes the form of "HTTT", where H donates its
++    head page and T donates its tail page(s).  The major consumers of compound
++    pages are hugeTLB pages (Documentation/vm/hugetlbpage.txt), the SLUB etc.
++    memory allocators and various device drivers.
++
++18. POISON
++    hardware has detected memory corruption on this page
++
++19. NOPAGE
++    no page frame exists at the requested address
++
++    [IO related page flags]
++ 1. ERROR     IO error occurred
++ 3. UPTODATE  page has up-to-date data
++              ie. for file backed page: (in-memory data revision >= on-disk one)
++ 4. DIRTY     page has been written to, hence contains new data
++              ie. for file backed page: (in-memory data revision >  on-disk one)
++ 8. WRITEBACK page is being synced to disk
++
++    [LRU related page flags]
++ 5. LRU         page is in one of the LRU lists
++ 6. ACTIVE      page is in the active LRU list
++17. UNEVICTABLE page is in the unevictable (non-)LRU list
++                It is somehow pinned and not a candidate for LRU page reclaims,
++		eg. ramfs pages, shmctl(SHM_LOCK) and mlock() memory segments
++ 2. REFERENCED  page has been referenced since last LRU list enqueue/requeue
++ 9. RECLAIM     page will be reclaimed soon after its pageout IO completed
++11. MMAP        a memory mapped page
++12. ANON        a memory mapped page who is not a file page
++13. SWAPCACHE   page is mapped to swap space, ie. has an associated swap entry
++14. SWAPBACKED  page is backed by swap/RAM
++
+ 
+ Using pagemap to do something useful:
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
