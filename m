@@ -1,111 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 8ED156B003D
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 04:11:03 -0400 (EDT)
-Date: Thu, 23 Apr 2009 16:10:47 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [RFC][PATCH] proc: export more page flags in /proc/kpageflags
-	(take 3)
-Message-ID: <20090423081047.GA18898@localhost>
-References: <20090414071159.GV14687@one.firstfloor.org> <20090415131800.GA11191@localhost> <20090416111108.AC55.A69D9226@jp.fujitsu.com> <20090423022625.GA8822@localhost> <20090423074848.GJ13896@one.firstfloor.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id A32226B003D
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 04:42:15 -0400 (EDT)
+Date: Thu, 23 Apr 2009 10:42:33 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [Patch] mm tracepoints update - use case.
+Message-ID: <20090423084233.GF599@elte.hu>
+References: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com> <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com> <20090423092933.F6E9.A69D9226@jp.fujitsu.com> <20090422215055.5be60685.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090423074848.GJ13896@one.firstfloor.org>
+In-Reply-To: <20090422215055.5be60685.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <andi@firstfloor.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, =?utf-8?B?RnLpppjpp7tpYw==?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 23, 2009 at 03:48:48PM +0800, Andi Kleen wrote:
-> On Thu, Apr 23, 2009 at 10:26:25AM +0800, Wu Fengguang wrote:
-> > Andi and KOSAKI: can we hopefully reach harmony of opinions on this version?
+
+* Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Thu, 23 Apr 2009 09:48:04 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> Haven't read the patch sorry, just comments on the text.
+> > > On Wed, 2009-04-22 at 08:07 -0400, Larry Woodman wrote:
+> > > > On Wed, 2009-04-22 at 11:57 +0200, Ingo Molnar wrote:
+> > > > > * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > > 
+> > > > > > In past thread, Andrew pointed out bare page tracer isn't useful. 
+> > > > > 
+> > > > > (do you have a link to that mail?)
 > 
-> > 
-> > Export 9 page flags in /proc/kpageflags, and 8 more for kernel developers.
-> > 
-> > 1) for kernel hackers (on CONFIG_DEBUG_KERNEL)
-> >    - all available page flags are exported, and
-> >    - exported as is
+> http://lkml.indiana.edu/hypermail/linux/kernel/0903.0/02674.html
 > 
-> So the interface changes based on that option? That would
-> be unfortunate if true.
-
-To be exact, it's "extend the view" on CONFIG_DEBUG_KERNEL.  The
-meanings won't change, you simply see more flags that didn't turn up
-when !CONFIG_DEBUG_KERNEL.
-
-> > 2) for admins and end users
-> >    - only the more `well known' flags are exported:
-> > 	11. KPF_MMAP		(pseudo flag) memory mapped page
-> > 	12. KPF_ANON		(pseudo flag) memory mapped page (anonymous)
-> > 	13. KPF_SWAPCACHE	page is in swap cache
-> > 	14. KPF_SWAPBACKED	page is swap/RAM backed
-> > 	15. KPF_COMPOUND_HEAD	(*)
-> > 	16. KPF_COMPOUND_TAIL	(*)
-> > 	17. KPF_UNEVICTABLE	page is in the unevictable LRU list
-> > 	18. KPF_POISON		hardware detected corruption
-> > 	19. KPF_NOPAGE		(pseudo flag) no page frame at the address
+> And Larry's example use case here tends to reinforce what I said then.  Look:
 > 
-> I think DIRTY should be in that list.
-
-It has been there.  ERROR, DIRTY and ACTIVE were exported at the time
-this interface was initially introduced:
-
-        #define KPF_LOCKED              0
-==>     #define KPF_ERROR               1
-        #define KPF_REFERENCED          2
-        #define KPF_UPTODATE            3
-==>     #define KPF_DIRTY               4
-        #define KPF_LRU                 5
-==>     #define KPF_ACTIVE              6
-        #define KPF_SLAB                7
-        #define KPF_WRITEBACK           8
-        #define KPF_RECLAIM             9
-        #define KPF_BUDDY               10
-
-> > 
-> > 	(*) For compound pages, exporting _both_ head/tail info enables
-> > 	    users to tell where a compound page starts/ends, and its order.
-> > 
-> >    - limit flags to their typical usage scenario, as indicated by KOSAKI:
-> > 	- LRU pages: only export relevant flags
-> > 		- PG_lru
-> > 		- PG_unevictable
-> > 		- PG_active
+> : In addition I could see that the priority was decremented to zero and
+> : that 12342 pages had been reclaimed rather than just enough to satisfy
+> : the page allocation request.
+> : 
+> : -----------------------------------------------------------------------------
+> : # tracer: nop
+> : #
+> : #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+> : #              | |       |          |         |
+> : <mem>-10723 [005]  6976.285610: mm_directreclaim_reclaimzone: reclaimed=12342, priority=0
 > 
-> And active too because it's already exported in /proc/meminfo
-
-ditto
- 
-> > 		- PG_dirty
-> > 		- PG_uptodate
-> > 		- PG_writeback
-> > 	- SLAB pages: mask out overloaded flags:
-> > 		- PG_error
+> and
 > 
-> Error should be exported too, it has straight forward semantics 
-> and could be useful to the admin.
-
-ditto
- 
-> > 	- admins may wonder where all the compound pages gone - the use of
-> > 	  compound pages in SLUB might have some real world relevance, so that
-> > 	  end users want to be aware of this behavior
+> : -----------------------------------------------------------------------------
+> : # tracer: nop
+> : #
+> : #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
+> : #              | |       |          |         |
+> :            <mem>-10723 [005]   282.776271: mm_pagereclaim_shrinkzone: reclaimed=12342
+> :            <mem>-10723 [005]   282.781209: mm_pagereclaim_shrinkzone: reclaimed=3540
+> :            <mem>-10723 [005]   282.801194: mm_pagereclaim_shrinkzone: reclaimed=7528
+> : -----------------------------------------------------------------------------
 > 
-> I'm not sure why it uses compound pages at all. It would be nicer
-> if compound pages were limited to huge pages, and then start/tail
-> wouldn't be needed.
+> This diagnosis was successful because the "reclaimed" number was 
+> weird. By sheer happy coincidence, page-reclaim is already 
+> generating the aggregated numbers for us, and the tracer just 
+> prints it out.
+> 
+> If some other problem is being worked on and if there _isn't_ some 
+> convenient already-present aggregated result for the tracer to 
+> print, the problem won't be solved.  Unless a vast number of trace 
+> events are emitted and problem-specific userspace code is written 
+> to aggregate them into something which the developer can use.
 
-Good idea.
+Not so in the usescases i made use of tracers. The key is not to 
+trace everything, but to have a few key _concepts_ traced 
+pervasively. Having a dynamic notion of a per event changes is also 
+obviously good. In a fast changing workload you cannot just tell 
+based on summary statistics whether rapid changes are the product of 
+the inherent entropy of the workload, or the result of the MM being 
+confused.
 
-Would you recommend a good way to identify huge pages?
-Test by page order, or by (dtor == free_huge_page)?      
+/proc/ statisitics versus good tracing is like the difference 
+between a magnifying glass and an electron microscope. Both have 
+their strengths, and they are best if used together.
 
-Thanks,
-Fengguang
+One such conceptual thing in the scheduler is the lifetime of a 
+task, its schedule, deschedule and wakeup events. It can already 
+show a massive amount of badness in practice, and it only takes a 
+few tracepoints to do.
+
+Same goes for the MM IMHO. Number of pages reclaimed is obviously a 
+key metric to follow. Larry is an expert who fixed a _lot_ of MM 
+crap in the last 5-10 years at Red Hat, so if he says that these 
+tracepoints are useful to him, we shouldnt just dismiss that 
+experience like that. I wish Larry spent some of his energies on 
+fixing the upstream MM too ;-)
+
+A balanced number of MM tracepoints, showing the concepts and the 
+inner dynamics of the MM would be useful. We dont need every little 
+detail traced (we have the function tracer for that), but a few key 
+aspects would be nice to capture ...
+
+pagefaults, allocations, cache-misses, cache flushes and how pages 
+shift between various queues in the MM would be a good start IMHO.
+
+Anyway, i suspect your answer means a NAK :-( Would be nice if you 
+would suggest a path out of that NAK.
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
