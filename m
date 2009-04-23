@@ -1,180 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 86CC36B0119
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:20:32 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3N1KneH014410
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 23 Apr 2009 10:20:49 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2F10E45DE50
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 10:20:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 02B2A45DE51
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 10:20:49 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D78841DB8037
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 10:20:48 +0900 (JST)
-Received: from m105.s.css.fujitsu.com (m105.s.css.fujitsu.com [10.249.87.105])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 724CDE08004
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 10:20:48 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
-In-Reply-To: <20090422143201.GE15367@csn.ul.ie>
-References: <20090421142056.F127.A69D9226@jp.fujitsu.com> <20090422143201.GE15367@csn.ul.ie>
-Message-Id: <20090423094411.F6EC.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B4FC6B0119
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:33:41 -0400 (EDT)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e2.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3N1Ud16027870
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:30:39 -0400
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3N1YBHq194888
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:34:11 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3N1YAZv029397
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 21:34:11 -0400
+Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090423001311.GA26643@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+	 <1240408407-21848-3-git-send-email-mel@csn.ul.ie>
+	 <1240416791.10627.78.camel@nimitz> <20090422171151.GF15367@csn.ul.ie>
+	 <1240421415.10627.93.camel@nimitz>  <20090423001311.GA26643@csn.ul.ie>
+Content-Type: text/plain
+Date: Wed, 22 Apr 2009 18:34:07 -0700
+Message-Id: <1240450447.10627.119.camel@nimitz>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Date: Thu, 23 Apr 2009 10:20:47 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@jp.fujitsu.com, Andy Whitcroft <apw@shadowen.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, Apr 21, 2009 at 02:22:27PM +0900, KOSAKI Motohiro wrote:
-> > Subject: [PATCH] low order lumpy reclaim also should use PAGEOUT_IO_SYNC.
+On Thu, 2009-04-23 at 01:13 +0100, Mel Gorman wrote:
+> On Wed, Apr 22, 2009 at 10:30:15AM -0700, Dave Hansen wrote:
+> > On Wed, 2009-04-22 at 18:11 +0100, Mel Gorman wrote:
+> > > On Wed, Apr 22, 2009 at 09:13:11AM -0700, Dave Hansen wrote:
+> > > > On Wed, 2009-04-22 at 14:53 +0100, Mel Gorman wrote:
+> > > > > No user of the allocator API should be passing in an order >= MAX_ORDER
+> > > > > but we check for it on each and every allocation. Delete this check and
+> > > > > make it a VM_BUG_ON check further down the call path.
+> > > > 
+> > > > Should we get the check re-added to some of the upper-level functions,
+> > > > then?  Perhaps __get_free_pages() or things like alloc_pages_exact()? 
+> > > 
+> > > I don't think so, no. It just moves the source of the text bloat and
+> > > for the few callers that are asking for something that will never
+> > > succeed.
 > > 
-> > commit 33c120ed2843090e2bd316de1588b8bf8b96cbde (more aggressively use lumpy reclaim)
-> > change lumpy reclaim using condition. but it isn't enough change.
+> > Well, it's a matter of figuring out when it can succeed.  Some of this
+> > stuff, we can figure out at compile-time.  Others are a bit harder.
 > > 
-> > lumpy reclaim don't only mean isolate neighber page, but also do pageout as synchronous.
-> > this patch does it.
+> 
+> What do you suggest then? Some sort of constant that tells you the
+> maximum size you can call for callers that think they might ever request
+> too much?
+> 
+> Shuffling the check around to other top-level helpers seems pointless to
+> me because as I said, it just moves text bloat from one place to the
+> next.
+
+Do any of the actual fast paths pass 'order' in as a real variable?  If
+not, the compiler should be able to just take care of it.  From a quick
+scan, it does appear that at least a third of the direct alloc_pages()
+users pass an explicit '0'.  That should get optimized away
+*immediately*.
+
+> > > > I'm selfishly thinking of what I did in profile_init().  Can I slab
+> > > > alloc it?  Nope.  Page allocator?  Nope.  Oh, well, try vmalloc():
+> > > > 
+> > > >         prof_buffer = kzalloc(buffer_bytes, GFP_KERNEL);
+> > > >         if (prof_buffer)
+> > > >                 return 0;
+> > > > 
+> > > >         prof_buffer = alloc_pages_exact(buffer_bytes, GFP_KERNEL|__GFP_ZERO);
+> > > >         if (prof_buffer)
+> > > >                 return 0;
+> > > > 
+> > > >         prof_buffer = vmalloc(buffer_bytes);
+> > > >         if (prof_buffer)
+> > > >                 return 0;
+> > > > 
+> > > >         free_cpumask_var(prof_cpu_mask);
+> > > >         return -ENOMEM;
+> > > > 
+> > > 
+> > > Can this ever actually be asking for an order larger than MAX_ORDER
+> > > though? If so, you're condemning it to always behave poorly.
 > > 
-> > Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> > Cc: Andy Whitcroft <apw@shadowen.org>
-> > Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Cc: Mel Gorman <mel@csn.ul.ie>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Yeah.  It is based on text size.  Smaller kernels with trimmed configs
+> > and no modules have no problem fitting under MAX_ORDER, as do kernels
+> > with larger base page sizes.  
+> > 
 > 
-> Seems fair although the changelog could be better. Maybe something like?
+> It would seem that the right thing to have done here in the first place
+> then was
 > 
-> ====
+> if (buffer_bytes > PAGE_SIZE << (MAX_ORDER-1)
+> 	return vmalloc(...)
 > 
-> Commit 33c120ed2843090e2bd316de1588b8bf8b96cbde increased how aggressive
-> lumpy reclaim was by isolating both active and inactive pages for asynchronous
-> lumpy reclaim on costly-high-order pages and for cheap-high-order when memory
-> pressure is high. However, if the system is under heavy pressure and there
-> are dirty pages, asynchronous IO may not be sufficient to reclaim a suitable
-> page in time.
+> kzalloc attempt
 > 
-> This patch causes the caller to enter synchronous lumpy reclaim for
-> costly-high-order pages and for cheap-high-order pages when under memory
-> pressure.
-> ====
+> alloc_pages_exact attempt
+
+Yeah, but honestly, I don't expect most users to get that "(buffer_bytes
+> PAGE_SIZE << (MAX_ORDER-1)" right.  It seems like *exactly* the kind
+of thing we should be wrapping up in common code.
+
+Perhaps we do need an alloc_pages_nocheck() for the users that do have a
+true non-compile-time-constant 'order' and still know they don't need
+the check.
+
+> > > > Same thing in __kmalloc_section_memmap():
+> > > > 
+> > > >         page = alloc_pages(GFP_KERNEL|__GFP_NOWARN, get_order(memmap_size));
+> > > >         if (page)
+> > > >                 goto got_map_page;
+> > > > 
+> > > >         ret = vmalloc(memmap_size);
+> > > >         if (ret)
+> > > >                 goto got_map_ptr;
+> > > > 
+> > > 
+> > > If I'm reading that right, the order will never be a stupid order. It can fail
+> > > for higher orders in which case it falls back to vmalloc() .  For example,
+> > > to hit that limit, the section size for a 4K kernel, maximum usable order
+> > > of 10, the section size would need to be 256MB (assuming struct page size
+> > > of 64 bytes). I don't think it's ever that size and if so, it'll always be
+> > > sub-optimal which is a poor choice to make.
+> > 
+> > I think the section size default used to be 512M on x86 because we
+> > concentrate on removing whole DIMMs.  
+> > 
 > 
-> Whether the changelog is updated or not though;
+> It was a poor choice then as their sections always ended up in
+> vmalloc() or else it was using the bootmem allocator in which case it
+> doesn't matter that the core page allocator was doing.
+
+True, but we tried to code that sucker to work anywhere and to be as
+optimal as possible (which vmalloc() is not) when we could.
+
+> > > > I depend on the allocator to tell me when I've fed it too high of an
+> > > > order.  If we really need this, perhaps we should do an audit and then
+> > > > add a WARN_ON() for a few releases to catch the stragglers.
+> > > 
+> > > I consider it buggy to ask for something so large that you always end up
+> > > with the worst option - vmalloc(). How about leaving it as a VM_BUG_ON
+> > > to get as many reports as possible on who is depending on this odd
+> > > behaviour?
+> > > 
+> > > If there are users with good reasons, then we could convert this to WARN_ON
+> > > to fix up the callers. I suspect that the allocator can already cope with
+> > > recieving a stupid order silently but slowly. It should go all the way to the
+> > > bottom and just never find anything useful and return NULL.  zone_watermark_ok
+> > > is the most dangerous looking part but even it should never get to MAX_ORDER
+> > > because it should always find there are not enough free pages and return
+> > > before it overruns.
+> > 
+> > Whatever we do, I'd agree that it's fine that this is a degenerate case
+> > that gets handled very slowly and as far out of hot paths as possible.
+> > Anybody who can fall back to a vmalloc is not doing these things very
+> > often.
 > 
-> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+> If that's the case, the simpliest course might be to just drop the VM_BUG_ON()
+> as a separate patch after asserting it's safe to call into the page
+> allocator with too large an order with the consequence of it being a
+> relatively expensive call considering it can never succeed.
 
-Cool!
+__rmqueue_smallest() seems to do the right thing and it is awfully deep
+in the allocator.
 
+How about this:  I'll go and audit the use of order in page_alloc.c to
+make sure that having an order>MAX_ORDER-1 floating around is OK and
+won't break anything.  I'll also go and see what the actual .text size
+changes are from this patch both for alloc_pages() and
+alloc_pages_node() separately to make sure what we're dealing with here.
+Does this check even *exist* in the optimized code very often?  
 
-Andrew, Could you please replace vmscan-low-order-lumpy-reclaim-also-should-use-pageout_io_sync.patch 
-with following patch?
+Deal? :)
 
-
-===================================
-Subject: vmscan: low order lumpy reclaim also should use PAGEOUT_IO_SYNC
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-
-Commit 33c120ed2843090e2bd316de1588b8bf8b96cbde increased how aggressive
-lumpy reclaim was by isolating both active and inactive pages for asynchronous
-lumpy reclaim on costly-high-order pages and for cheap-high-order when memory
-pressure is high. However, if the system is under heavy pressure and there
-are dirty pages, asynchronous IO may not be sufficient to reclaim a suitable
-page in time.
-
-This patch causes the caller to enter synchronous lumpy reclaim for
-costly-high-order pages and for cheap-high-order pages when under memory
-pressure.
-
-
-Minchan.kim@gmail.com said:
-
-Andy added synchronous lumpy reclaim with
-c661b078fd62abe06fd11fab4ac5e4eeafe26b6d.  At that time, lumpy reclaim is
-not agressive.  His intension is just for high-order users.(above
-PAGE_ALLOC_COSTLY_ORDER).  
-
-After some time, Rik added aggressive lumpy reclaim with
-33c120ed2843090e2bd316de1588b8bf8b96cbde.  His intention was to do lumpy
-reclaim when high-order users and trouble getting a small set of
-contiguous pages.  
-
-So we also have to add synchronous pageout for small set of contiguous
-pages.
-
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andy Whitcroft <apw@shadowen.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Reviewed-by: Minchan Kim <Minchan.kim@gmail.com>
-Reviewed-by: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/vmscan.c |   29 +++++++++++++++--------------
- 1 file changed, 15 insertions(+), 14 deletions(-)
-
-diff -puN mm/vmscan.c~vmscan-low-order-lumpy-reclaim-also-should-use-pageout_io_sync mm/vmscan.c
---- a/mm/vmscan.c~vmscan-low-order-lumpy-reclaim-also-should-use-pageout_io_sync
-+++ a/mm/vmscan.c
-@@ -1059,6 +1059,19 @@ static unsigned long shrink_inactive_lis
- 	unsigned long nr_scanned = 0;
- 	unsigned long nr_reclaimed = 0;
- 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(zone, sc);
-+	int lumpy_reclaim = 0;
-+
-+	/*
-+	 * If we need a large contiguous chunk of memory, or have
-+	 * trouble getting a small set of contiguous pages, we
-+	 * will reclaim both active and inactive pages.
-+	 *
-+	 * We use the same threshold as pageout congestion_wait below.
-+	 */
-+	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
-+		lumpy_reclaim = 1;
-+	else if (sc->order && priority < DEF_PRIORITY - 2)
-+		lumpy_reclaim = 1;
- 
- 	pagevec_init(&pvec, 1);
- 
-@@ -1071,19 +1084,7 @@ static unsigned long shrink_inactive_lis
- 		unsigned long nr_freed;
- 		unsigned long nr_active;
- 		unsigned int count[NR_LRU_LISTS] = { 0, };
--		int mode = ISOLATE_INACTIVE;
--
--		/*
--		 * If we need a large contiguous chunk of memory, or have
--		 * trouble getting a small set of contiguous pages, we
--		 * will reclaim both active and inactive pages.
--		 *
--		 * We use the same threshold as pageout congestion_wait below.
--		 */
--		if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
--			mode = ISOLATE_BOTH;
--		else if (sc->order && priority < DEF_PRIORITY - 2)
--			mode = ISOLATE_BOTH;
-+		int mode = lumpy_reclaim ? ISOLATE_BOTH : ISOLATE_INACTIVE;
- 
- 		nr_taken = sc->isolate_pages(sc->swap_cluster_max,
- 			     &page_list, &nr_scan, sc->order, mode,
-@@ -1120,7 +1121,7 @@ static unsigned long shrink_inactive_lis
- 		 * but that should be acceptable to the caller
- 		 */
- 		if (nr_freed < nr_taken && !current_is_kswapd() &&
--					sc->order > PAGE_ALLOC_COSTLY_ORDER) {
-+		    lumpy_reclaim) {
- 			congestion_wait(WRITE, HZ/10);
- 
- 			/*
-_
-
-
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
