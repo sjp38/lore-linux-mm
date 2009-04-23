@@ -1,68 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id F02956B0093
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 18:49:44 -0400 (EDT)
-Date: Thu, 23 Apr 2009 15:44:09 -0700
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A9B76B0099
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 18:53:36 -0400 (EDT)
+Date: Thu, 23 Apr 2009 15:48:34 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 02/22] Do not sanity check order in the fast path
-Message-Id: <20090423154409.92aaf809.akpm@linux-foundation.org>
-In-Reply-To: <20090422171151.GF15367@csn.ul.ie>
+Subject: Re: [PATCH 07/22] Calculate the preferred zone for allocation only
+ once
+Message-Id: <20090423154834.bde33a72.akpm@linux-foundation.org>
+In-Reply-To: <1240408407-21848-8-git-send-email-mel@csn.ul.ie>
 References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
-	<1240408407-21848-3-git-send-email-mel@csn.ul.ie>
-	<1240416791.10627.78.camel@nimitz>
-	<20090422171151.GF15367@csn.ul.ie>
+	<1240408407-21848-8-git-send-email-mel@csn.ul.ie>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Mel Gorman <mel@csn.ul.ie>
-Cc: dave@linux.vnet.ibm.com, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi
+Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Apr 2009 18:11:51 +0100
+On Wed, 22 Apr 2009 14:53:12 +0100
 Mel Gorman <mel@csn.ul.ie> wrote:
 
-> > I depend on the allocator to tell me when I've fed it too high of an
-> > order.  If we really need this, perhaps we should do an audit and then
-> > add a WARN_ON() for a few releases to catch the stragglers.
-> > 
+> get_page_from_freelist() can be called multiple times for an allocation.
+> Part of this calculates the preferred_zone which is the first usable zone
+> in the zonelist but the zone depends on the GFP flags specified at the
+> beginning of the allocation call. This patch calculates preferred_zone
+> once. It's safe to do this because if preferred_zone is NULL at the start
+> of the call, no amount of direct reclaim or other actions will change the
+> fact the allocation will fail.
 > 
-> I consider it buggy to ask for something so large that you always end up
-> with the worst option - vmalloc().
+>
+> ...
+>
+> -	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+> -
+>							&preferred_zone);
+> ...  
+>
+> +	/* The preferred zone is used for statistics later */
+> +	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
 
-Nevertheless, it's a pretty common pattern for initialisation code all
-over the kernel to do
+Let's quietly zap that dopey cast.
 
-	while (allocate(huge_amount) == NULL)
-		huge_amount /= 2;
-
-and the proposed change will convert that from "works" to "either goes
-BUG or mysteriously overindexes zone->free_area[] in
-__rmqueue_smallest()".  The latter of which is really nasty.
-
-> How about leaving it as a VM_BUG_ON
-> to get as many reports as possible on who is depending on this odd
-> behaviour?
-
-That would be quite disruptive.  Even emitting a trace for each call
-would be irritating.  How's about this:
-
---- a/mm/page_alloc.c~page-allocator-do-not-sanity-check-order-in-the-fast-path-fix
+--- a/mm/page_alloc.c~page-allocator-calculate-the-preferred-zone-for-allocation-only-once-fix
 +++ a/mm/page_alloc.c
-@@ -1405,7 +1405,8 @@ get_page_from_freelist(gfp_t gfp_mask, n
+@@ -1775,8 +1775,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, u
+ 		return NULL;
  
- 	classzone_idx = zone_idx(preferred_zone);
+ 	/* The preferred zone is used for statistics later */
+-	(void)first_zones_zonelist(zonelist, high_zoneidx, nodemask,
+-							&preferred_zone);
++	first_zones_zonelist(zonelist, high_zoneidx, nodemask, &preferred_zone);
+ 	if (!preferred_zone)
+ 		return NULL;
  
--	VM_BUG_ON(order >= MAX_ORDER);
-+	if (WARN_ON_ONCE(order >= MAX_ORDER))
-+		return NULL;
- 
- zonelist_scan:
- 	/*
 _
-
-
-and then we revisit later?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
