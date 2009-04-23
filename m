@@ -1,85 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B39716B003D
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 07:50:26 -0400 (EDT)
-Subject: Re: [Patch] mm tracepoints update - use case.
-From: Larry Woodman <lwoodman@redhat.com>
-In-Reply-To: <20090423084233.GF599@elte.hu>
-References: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com>
-	 <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com>
-	 <20090423092933.F6E9.A69D9226@jp.fujitsu.com>
-	 <20090422215055.5be60685.akpm@linux-foundation.org>
-	 <20090423084233.GF599@elte.hu>
-Content-Type: text/plain
-Date: Thu, 23 Apr 2009 07:47:11 -0400
-Message-Id: <1240487231.4682.27.camel@dhcp47-138.lab.bos.redhat.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B7CAE6B004D
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 08:48:12 -0400 (EDT)
+From: "Sosnowski, Maciej" <maciej.sosnowski@intel.com>
+Date: Thu, 23 Apr 2009 13:48:50 +0100
+Subject: RE: [RFC][PATCH v3 6/6] fix wrong get_user_pages usage in iovlock.c
+Message-ID: <129600E5E5FB004392DDC3FB599660D79A253143@irsmsx504.ger.corp.intel.com>
+References: <20090415174658.AC4F.A69D9226@jp.fujitsu.com>
+ <129600E5E5FB004392DDC3FB599660D792A39DCE@irsmsx504.ger.corp.intel.com>
+ <20090419202447.FFC2.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090419202447.FFC2.A69D9226@jp.fujitsu.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, =?UTF-8?Q?Fr=E9=A6=98=E9=A7=BBic?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <aarcange@redhat.com>, Jeff Moyer <jmoyer@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "David S.
+ Miller" <davem@davemloft.net>, "Leech, Christopher" <christopher.leech@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-04-23 at 10:42 +0200, Ingo Molnar wrote:
+KOSAKI Motohiro wrote:
+>> KOSAKI Motohiro wrote:
+>>>>> I would perhaps not fold gup_fast conversions into the same patch as
+>>>>> the fix.
+>>>>=20
+>>>> OK. I'll fix.
+>>>=20
+>>> Done.
+>>>=20
+>>>=20
+>>>=20
+>>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>>> Subject: [Untested][RFC][PATCH] fix wrong get_user_pages usage in iovlo=
+ck.c
+>>>=20
+>>> 	down_read(mmap_sem)
+>>> 	get_user_pages()
+>>> 	up_read(mmap_sem)
+>>>=20
+>>> is fork unsafe.
+>>> fix it.
+>>>=20
+>>> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>> Cc: Maciej Sosnowski <maciej.sosnowski@intel.com>
+>>> Cc: David S. Miller <davem@davemloft.net>
+>>> Cc: Chris Leech <christopher.leech@intel.com>
+>>> Cc: netdev@vger.kernel.org
+>>> ---
+>>>  drivers/dma/iovlock.c |    4 ++--
+>>>  1 file changed, 2 insertions(+), 2 deletions(-)
+>>>=20
+>>> Index: b/drivers/dma/iovlock.c
+>>> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+>>> --- a/drivers/dma/iovlock.c	2009-04-13 22:58:36.000000000 +0900
+>>> +++ b/drivers/dma/iovlock.c	2009-04-14 20:27:16.000000000 +0900
+>>> @@ -104,8 +104,6 @@ struct dma_pinned_list *dma_pin_iovec_pa  			0,	/* =
+force */
+>>>  			page_list->pages,
+>>>  			NULL);
+>>> -		up_read(&current->mm->mmap_sem);
+>>> -
+>>>  		if (ret !=3D page_list->nr_pages)
+>>>  			goto unpin;
+>>>=20
+>>> @@ -127,6 +125,8 @@ void dma_unpin_iovec_pages(struct dma_pi  	if (!pin=
+ned_list)
+>>>  		return;
+>>>=20
+>>> +	up_read(&current->mm->mmap_sem);
+>>> +
+>>>  	for (i =3D 0; i < pinned_list->nr_iovecs; i++) {
+>>>  		struct dma_page_list *page_list =3D &pinned_list->page_list[i];
+>>>  		for (j =3D 0; j < page_list->nr_pages; j++) {
+>>=20
+>> I have tried it with net_dma and here is what I've got.
+>=20
+> Thanks.
+> Instead, How about this?
+>=20
 
-> 
-> Not so in the usescases i made use of tracers. The key is not to 
-> trace everything, but to have a few key _concepts_ traced 
-> pervasively. Having a dynamic notion of a per event changes is also 
-> obviously good. In a fast changing workload you cannot just tell 
-> based on summary statistics whether rapid changes are the product of 
-> the inherent entropy of the workload, or the result of the MM being 
-> confused.
-> 
-> /proc/ statisitics versus good tracing is like the difference 
-> between a magnifying glass and an electron microscope. Both have 
-> their strengths, and they are best if used together.
-> 
-> One such conceptual thing in the scheduler is the lifetime of a 
-> task, its schedule, deschedule and wakeup events. It can already 
-> show a massive amount of badness in practice, and it only takes a 
-> few tracepoints to do.
-> 
-> Same goes for the MM IMHO. Number of pages reclaimed is obviously a 
-> key metric to follow. Larry is an expert who fixed a _lot_ of MM 
-> crap in the last 5-10 years at Red Hat, so if he says that these 
-> tracepoints are useful to him, we shouldnt just dismiss that 
-> experience like that. I wish Larry spent some of his energies on 
-> fixing the upstream MM too ;-)
-> 
-> A balanced number of MM tracepoints, showing the concepts and the 
-> inner dynamics of the MM would be useful. We dont need every little 
-> detail traced (we have the function tracer for that), but a few key 
-> aspects would be nice to capture ...
+Unfortuantelly still does not look good.
 
-I hear you, there is  lot of data coming out of these mm tracepoints as
-well as must of the other tracepoints I've played around with, we have
-to filter them.  I added them in locations that would allow us to debug
-a variety of real running systems such as a Wall St. trading server
-during the heaviest period of the day without rebooting a debug kernel.
-We can collect whatever is needed to figure out whats happening then
-turning it all off when we've collected enough.  We've seen systems
-experiencing performance problems caused by the "inner'ds" of the page
-reclaim code, memory leak problems cause by applications, excessive COW
-faults caused by applications that mmap() gigs of files then fork and
-applications that rely the kernel to flush out every modified page of
-those gigs of mmap()'d file data every 30 seconds via kupdate because
-other kernel do. The list goes on and on...  These tracepoints are in
-the same locations that we've placed debug code in debug kernels in the
-past.
+Regards,
+Maciej
 
-Larry
+ =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+ [ INFO: possible recursive locking detected ]
+ 2.6.30-rc2 #14
+ ---------------------------------------------
+ iperf/9932 is trying to acquire lock:
+  (&mm->mmap_sem){++++++}, at: [<ffffffff804e3d5e>] do_page_fault+0x170/0
 
+=20
+ but task is already holding lock:
+  (&mm->mmap_sem){++++++}, at: [<ffffffff80488722>] tcp_recvmsg+0x3a/0xa7
 
- 
-> 
-> pagefaults, allocations, cache-misses, cache flushes and how pages 
-> shift between various queues in the MM would be a good start IMHO.
-> 
-> Anyway, i suspect your answer means a NAK :-( Would be nice if you 
-> would suggest a path out of that NAK.
-> 
-> 	Ingo
+=20
+ other info that might help us debug this:
+ 2 locks held by iperf/9932:
+  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff80488722>] tcp_recvmsg+0x3a
+
+  #1:  (sk_lock-AF_INET){+.+.+.}, at: [<ffffffff80450965>] sk_wait_data+0
+
+=20
+ stack backtrace:
+ Pid: 9932, comm: iperf Tainted: G        W  2.6.30-rc2 #14
+ Call Trace:
+  [<ffffffff8025b861>] ? validate_chain+0x55a/0xc7c
+  [<ffffffff8025c6e6>] ? __lock_acquire+0x763/0x7ec
+  [<ffffffff8025c835>] ? lock_acquire+0xc6/0xea
+  [<ffffffff804e3d5e>] ? do_page_fault+0x170/0x29d
+  [<ffffffff804e0693>] ? down_read+0x46/0x77
+  [<ffffffff804e3d5e>] ? do_page_fault+0x170/0x29d
+  [<ffffffff804e3d5e>] ? do_page_fault+0x170/0x29d
+  [<ffffffff804e1ebf>] ? page_fault+0x1f/0x30
+  [<ffffffff803580ed>] ? copy_user_generic_string+0x2d/0x40
+  [<ffffffff804562cc>] ? memcpy_toiovec+0x36/0x66
+  [<ffffffff804569eb>] ? skb_copy_datagram_iovec+0x133/0x1f0
+  [<ffffffff80490199>] ? tcp_rcv_established+0x297/0x71a
+  [<ffffffff804953f8>] ? tcp_v4_do_rcv+0x2c/0x1d5
+  [<ffffffff8024ebb3>] ? autoremove_wake_function+0x0/0x2e
+  [<ffffffff80486239>] ? tcp_prequeue_process+0x6b/0x7e
+  [<ffffffff80488b31>] ? tcp_recvmsg+0x449/0xa70
+  [<ffffffff8025c704>] ? __lock_acquire+0x781/0x7ec
+  [<ffffffff8044f5d5>] ? sock_common_recvmsg+0x30/0x45
+  [<ffffffff8044d81b>] ? sock_recvmsg+0xf0/0x10f
+  [<ffffffff80259c3c>] ? trace_hardirqs_on_caller+0x11d/0x148
+  [<ffffffff8024ebb3>] ? autoremove_wake_function+0x0/0x2e
+  [<ffffffff8020c43c>] ? restore_args+0x0/0x30
+  [<ffffffff802b553c>] ? fget_light+0xd5/0xdf
+  [<ffffffff802b54b0>] ? fget_light+0x49/0xdf
+  [<ffffffff8044e8ef>] ? sys_recvfrom+0xbc/0x119
+  [<ffffffff802331cd>] ? try_to_wake_up+0x2ae/0x2c0
+  [<ffffffff802718f7>] ? audit_syscall_entry+0x192/0x1bd
+  [<ffffffff8020b96b>] ? system_call_fastpath+0x16/0x1b
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
