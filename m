@@ -1,60 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 00B4E6B0111
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 20:26:53 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3N0RHTs026652
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Thu, 23 Apr 2009 09:27:17 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E3DBD45DD87
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:27:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BCA4045DD7B
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:27:16 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A15D1E08003
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:27:16 +0900 (JST)
-Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4453F1DB8041
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:27:16 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 18/22] Use allocation flags as an index to the zone watermark
-In-Reply-To: <1240422423.10627.96.camel@nimitz>
-References: <20090422171451.GG15367@csn.ul.ie> <1240422423.10627.96.camel@nimitz>
-Message-Id: <20090423092350.F6E6.A69D9226@jp.fujitsu.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 51C076B0113
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 20:29:12 -0400 (EDT)
+Date: Thu, 23 Apr 2009 01:29:35 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 18/22] Use allocation flags as an index to the zone
+	watermark
+Message-ID: <20090423002934.GC26643@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-19-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 23 Apr 2009 09:27:15 +0900 (JST)
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: kosaki.motohiro@jp.fujitsu.com, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 2009-04-22 at 18:14 +0100, Mel Gorman wrote:
-> > Preference of taste really. When I started a conversion to accessors, it
-> > changed something recognised to something new that looked uglier to me.
-> > Only one place cares about the union enough to access is via an array so
-> > why spread it everywhere.
+On Wed, Apr 22, 2009 at 01:06:07PM -0700, David Rientjes wrote:
+> On Wed, 22 Apr 2009, Mel Gorman wrote:
 > 
-> Personally, I'd say for consistency.  Someone looking at both forms
-> wouldn't necessarily know that they refer to the same variables unless
-> they know about the union.
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index b174f2c..6030f49 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1154,10 +1154,15 @@ failed:
+> >  	return NULL;
+> >  }
+> >  
+> > -#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+> > -#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+> > -#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+> > -#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+> > +/* The WMARK bits are used as an index zone->pages_mark */
+> > +#define ALLOC_WMARK_MIN		0x00 /* use pages_min watermark */
+> > +#define ALLOC_WMARK_LOW		0x01 /* use pages_low watermark */
+> > +#define ALLOC_WMARK_HIGH	0x02 /* use pages_high watermark */
+> > +#define ALLOC_NO_WATERMARKS	0x04 /* don't check watermarks at all */
+> > +
+> > +/* Mask to get the watermark bits */
+> > +#define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
+> > +
+> >  #define ALLOC_HARDER		0x10 /* try to alloc harder */
+> >  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+> >  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+> 
+> The watermark flags should probably be members of an anonymous enum since 
+> they're being used as an index into an array.  If another watermark were 
+> ever to be added it would require a value of 0x03, for instance.
+> 
+> 	enum {
+> 		ALLOC_WMARK_MIN,
+> 		ALLOC_WMARK_LOW,
+> 		ALLOC_WMARK_HIGH,
+> 
+> 		ALLOC_WMARK_MASK = 0xf	/* no more than 16 possible watermarks */
+> 	};
+> 
+> This eliminates ALLOC_NO_WATERMARKS and the caller that uses it would 
+> simply pass 0.
+> 
 
-for just clalification...
+I'm missing something here. If ALLOC_NO_WATERMARKS was defined as zero
+then thing like this break.
 
-AFAIK, C language specification don't gurantee point same value.
-compiler can insert pad between struct-member and member, but not insert
-into array.
+        if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+                if (!in_interrupt() &&
+                    ((p->flags & PF_MEMALLOC) ||
+                     unlikely(test_thread_flag(TIF_MEMDIE))))
+                        alloc_flags |= ALLOC_NO_WATERMARKS;
+        }
 
-However, all gcc version don't do that. I think. but perhaps I missed
-some minor gcc release..
+Also, the ALLOC_HARDER and other alloc flags need to be redefined for
+ALLOC_WMARK_MASK == 0xf. I know what you are getting at but it's a bit more
+involved than you're making out and I'm not seeing an advantage.
 
+> > @@ -1445,12 +1450,7 @@ zonelist_scan:
+> >  
+> >  		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+> 
+> This would become
+> 
+> 	if (alloc_flags & ALLOC_WMARK_MASK)
+> 
 
-So, I also like Dave's idea. but it only personal feeling.
-
-
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
