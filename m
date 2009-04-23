@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1012D6B0114
-	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 20:43:50 -0400 (EDT)
-Date: Thu, 23 Apr 2009 01:44:27 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 21/22] Use a pre-calculated value instead of
-	num_online_nodes() in fast paths
-Message-ID: <20090423004427.GD26643@csn.ul.ie>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-22-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.0904221602560.27097@chino.kir.corp.google.com>
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 6D8E66B0115
+	for <linux-mm@kvack.org>; Wed, 22 Apr 2009 20:47:26 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3N0m9bO002767
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Thu, 23 Apr 2009 09:48:09 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id ECA2545DD76
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:48:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 91A0C45DD79
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:48:08 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7F4591DB8016
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:48:08 +0900 (JST)
+Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 207301DB801A
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 09:48:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: [Patch] mm tracepoints update - use case.
+In-Reply-To: <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com>
+References: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com> <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com>
+Message-Id: <20090423092933.F6E9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0904221602560.27097@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
+Date: Thu, 23 Apr 2009 09:48:04 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: Larry Woodman <lwoodman@redhat.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>, =?ISO-2022-JP?B?RnIbJEJxRXFTGyhCaWM=?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 22, 2009 at 04:04:47PM -0700, David Rientjes wrote:
-> On Wed, 22 Apr 2009, Mel Gorman wrote:
+> On Wed, 2009-04-22 at 08:07 -0400, Larry Woodman wrote:
+> > On Wed, 2009-04-22 at 11:57 +0200, Ingo Molnar wrote:
+> > > * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
 > 
-> > diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
-> > index 848025c..474e73e 100644
-> > --- a/include/linux/nodemask.h
-> > +++ b/include/linux/nodemask.h
-> > @@ -408,6 +408,19 @@ static inline int num_node_state(enum node_states state)
-> >  #define next_online_node(nid)	next_node((nid), node_states[N_ONLINE])
-> >  
-> >  extern int nr_node_ids;
-> > +extern int nr_online_nodes;
-> > +
-> > +static inline void node_set_online(int nid)
-> > +{
-> > +	node_set_state(nid, N_ONLINE);
-> > +	nr_online_nodes = num_node_state(N_ONLINE);
-> > +}
-> > +
-> > +static inline void node_set_offline(int nid)
-> > +{
-> > +	node_clear_state(nid, N_ONLINE);
-> > +	nr_online_nodes = num_node_state(N_ONLINE);
-> > +}
-> >  #else
-> >  
-> >  static inline int node_state(int node, enum node_states state)
+> > > > In past thread, Andrew pointed out bare page tracer isn't useful. 
+> > > 
+> > > (do you have a link to that mail?)
+> > > 
+> > > > Can you make good consumer?
+> > 
+> > I will work up some good examples of what these are useful for.  I use
+> > the mm tracepoint data in the debugfs trace buffer to locate customer
+> > performance problems associated with memory allocation, deallocation,
+> > paging and swapping frequently, especially on large systems.
+> > 
+> > Larry
 > 
-> The later #define's of node_set_online() and node_set_offline() in 
-> include/linux/nodemask.h should probably be removed now.
-> 
+> Attached is an example of what the mm tracepoints can be used for:
 
-You'd think, but you can enable memory hotplug without NUMA and
-node_set_online() is called when adding memory. Even though those
-functions are nops on !NUMA, they're necessary.
+I have some comment.
 
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+1. Yes, current zone_reclaim have strange behavior. I plan to fix
+   some bug-like bahavior.
+2. your scenario only use the information of "zone_reclaim called".
+   function tracer already provide it.
+3. but yes, you are going to proper direction. we definitely need
+   some fine grained tracepoint in this area. we are welcome to you.
+   but in my personal feeling, your tracepoint have worthless argument
+   a lot. we need more good information.
+   I think I can help you in this area. I hope to work together.
+
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
