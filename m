@@ -1,108 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id A32226B003D
-	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 04:42:15 -0400 (EDT)
-Date: Thu, 23 Apr 2009 10:42:33 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [Patch] mm tracepoints update - use case.
-Message-ID: <20090423084233.GF599@elte.hu>
-References: <1240402037.4682.3.camel@dhcp47-138.lab.bos.redhat.com> <1240428151.11613.46.camel@dhcp-100-19-198.bos.redhat.com> <20090423092933.F6E9.A69D9226@jp.fujitsu.com> <20090422215055.5be60685.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090422215055.5be60685.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id F1AAE6B003D
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 04:46:07 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3N8knfZ008292
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 23 Apr 2009 17:46:49 +0900
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id E907045DE51
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 17:46:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C500D45DD79
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 17:46:48 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id AD78A1DB803A
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 17:46:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 5D22BE38001
+	for <linux-mm@kvack.org>; Thu, 23 Apr 2009 17:46:48 +0900 (JST)
+Date: Thu, 23 Apr 2009 17:45:16 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [RFC][PATCH] fix swap entries is not reclaimed in proper way
+ for mem+swap controller
+Message-Id: <20090423174516.31e75286.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090423131438.062cfb13.nishimura@mxp.nes.nec.co.jp>
+References: <20090421162121.1a1d15fe.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090422143833.2e11e10b.nishimura@mxp.nes.nec.co.jp>
+	<20090423131438.062cfb13.nishimura@mxp.nes.nec.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, =?utf-8?B?RnLpppjpp7tpYw==?= Weisbecker <fweisbec@gmail.com>, Li Zefan <lizf@cn.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, rostedt@goodmis.org
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, 23 Apr 2009 13:14:37 +0900
+Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-* Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Thu, 23 Apr 2009 09:48:04 +0900 (JST) KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
+> > I'll dig and try more including another aproach..
+> > 
+> How about this patch ?
 > 
-> > > On Wed, 2009-04-22 at 08:07 -0400, Larry Woodman wrote:
-> > > > On Wed, 2009-04-22 at 11:57 +0200, Ingo Molnar wrote:
-> > > > > * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> > > 
-> > > > > > In past thread, Andrew pointed out bare page tracer isn't useful. 
-> > > > > 
-> > > > > (do you have a link to that mail?)
+> It seems to have been working fine for several hours.
+> I should add more and more comments and clean it up, of course :)
+> (I think it would be better to unify definitions of new functions to swapfile.c,
+> and checking page_mapped() might be enough for mem_cgroup_free_unused_swapcache().)
 > 
-> http://lkml.indiana.edu/hypermail/linux/kernel/0903.0/02674.html
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+Hmm, I still think this patch is overkill. 
+
+
+
+> ---
+>  include/linux/memcontrol.h |    5 +++
+>  include/linux/swap.h       |   11 ++++++++
+>  mm/memcontrol.c            |   62 ++++++++++++++++++++++++++++++++++++++++++++
+>  mm/swap_state.c            |    8 +++++
+>  mm/swapfile.c              |   32 ++++++++++++++++++++++-
+>  mm/vmscan.c                |    8 +++++
+>  6 files changed, 125 insertions(+), 1 deletions(-)
 > 
-> And Larry's example use case here tends to reinforce what I said then.  Look:
-> 
-> : In addition I could see that the priority was decremented to zero and
-> : that 12342 pages had been reclaimed rather than just enough to satisfy
-> : the page allocation request.
-> : 
-> : -----------------------------------------------------------------------------
-> : # tracer: nop
-> : #
-> : #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> : #              | |       |          |         |
-> : <mem>-10723 [005]  6976.285610: mm_directreclaim_reclaimzone: reclaimed=12342, priority=0
-> 
-> and
-> 
-> : -----------------------------------------------------------------------------
-> : # tracer: nop
-> : #
-> : #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
-> : #              | |       |          |         |
-> :            <mem>-10723 [005]   282.776271: mm_pagereclaim_shrinkzone: reclaimed=12342
-> :            <mem>-10723 [005]   282.781209: mm_pagereclaim_shrinkzone: reclaimed=3540
-> :            <mem>-10723 [005]   282.801194: mm_pagereclaim_shrinkzone: reclaimed=7528
-> : -----------------------------------------------------------------------------
-> 
-> This diagnosis was successful because the "reclaimed" number was 
-> weird. By sheer happy coincidence, page-reclaim is already 
-> generating the aggregated numbers for us, and the tracer just 
-> prints it out.
-> 
-> If some other problem is being worked on and if there _isn't_ some 
-> convenient already-present aggregated result for the tracer to 
-> print, the problem won't be solved.  Unless a vast number of trace 
-> events are emitted and problem-specific userspace code is written 
-> to aggregate them into something which the developer can use.
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 25b9ca9..8b674c2 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -101,6 +101,7 @@ struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
+>  						      struct zone *zone);
+>  struct zone_reclaim_stat*
+>  mem_cgroup_get_reclaim_stat_from_page(struct page *page);
+> +extern void mem_cgroup_free_unused_swapcache(struct page *page);
+>  extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+>  					struct task_struct *p);
+>  
+> @@ -259,6 +260,10 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
+>  	return NULL;
+>  }
+>  
+> +static inline void mem_cgroup_free_unused_swapcache(struct page *page)
+> +{
+> +}
+> +
+>  static inline void
+>  mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>  {
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 62d8143..cdfa982 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -336,11 +336,22 @@ static inline void disable_swap_token(void)
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>  extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
+> +extern int mem_cgroup_fixup_swapin(struct page *page);
+> +extern void mem_cgroup_fixup_swapfree(struct page *page);
+>  #else
+>  static inline void
+>  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+>  {
+>  }
+> +static inline int
+> +mem_cgroup_fixup_swapin(struct page *page)
+> +{
+> +	return 0;
+> +}
+> +static inline void
+> +mem_cgroup_fixup_swapfree(struct page *page)
+> +{
+> +}
+>  #endif
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+>  extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 79c32b8..f90967b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1536,6 +1536,68 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+>  }
+>  #endif
+>  
+> +struct mem_cgroup_swap_fixup_work {
+> +	struct work_struct work;
+> +	struct page *page;
+> +};
+> +
+> +static void mem_cgroup_fixup_swapfree_cb(struct work_struct *work)
+> +{
+> +	struct mem_cgroup_swap_fixup_work *my_work;
+> +	struct page *page;
+> +
+> +	my_work = container_of(work, struct mem_cgroup_swap_fixup_work, work);
+> +	page = my_work->page;
+> +
+> +	lock_page(page);
+> +	if (PageSwapCache(page))
+> +		mem_cgroup_free_unused_swapcache(page);
+> +	unlock_page(page);
+> +
+> +	kfree(my_work);
+> +	put_page(page);
+> +}
+> +
+> +void mem_cgroup_fixup_swapfree(struct page *page)
+> +{
+> +	struct mem_cgroup_swap_fixup_work *my_work;
+> +
+> +	if (mem_cgroup_disabled())
+> +		return;
+> +
+> +	if (!PageSwapCache(page) || page_mapped(page))
+> +		return;
+> +
+> +	my_work = kmalloc(sizeof(*my_work), GFP_ATOMIC); /* cannot sleep */
+> +	if (my_work) {
+> +		get_page(page);	/* put_page will be called in callback */
+> +		my_work->page = page;
+> +		INIT_WORK(&my_work->work, mem_cgroup_fixup_swapfree_cb);
+> +		schedule_work(&my_work->work);
+> +	}
+> +
+> +	return;
+> +}
+> +
+> +/*
+> + * called from shrink_page_list() and mem_cgroup_fixup_swapfree_cb() to free
+> + * !PageCgroupUsed SwapCache, because memcg cannot handle these SwapCache well.
+> + */
+> +void mem_cgroup_free_unused_swapcache(struct page *page)
+> +{
+> +		struct page_cgroup *pc;
+> +
+> +		VM_BUG_ON(!PageLocked(page));
+> +		VM_BUG_ON(!PageSwapCache(page));
+> +
+> +		pc = lookup_page_cgroup(page);
+> +		/*
+> +		 * Used bit of swapcache is solid under page lock.
+> +		 */
+> +		if (!PageCgroupUsed(pc))
+> +			try_to_free_swap(page);
+> +}
+> +
+>  /*
+>   * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
+>   * page belongs to.
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 3ecea98..57d9678 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -310,6 +310,14 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+>  		SetPageSwapBacked(new_page);
+>  		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
+>  		if (likely(!err)) {
+> +			if (unlikely(mem_cgroup_fixup_swapin(new_page)))
+> +				/*
+> +				 * new_page is not used by anyone.
+> +				 * And it has been already removed from
+> +				 * SwapCache and freed.
+> +				 */
+> +				return NULL;
+> +
 
-Not so in the usescases i made use of tracers. The key is not to 
-trace everything, but to have a few key _concepts_ traced 
-pervasively. Having a dynamic notion of a per event changes is also 
-obviously good. In a fast changing workload you cannot just tell 
-based on summary statistics whether rapid changes are the product of 
-the inherent entropy of the workload, or the result of the MM being 
-confused.
+Can't we check refcnt of swp_entry here, again ?
+if (refcnt == 1), we can make this as STALE.
+(and can free swap cache here)
 
-/proc/ statisitics versus good tracing is like the difference 
-between a magnifying glass and an electron microscope. Both have 
-their strengths, and they are best if used together.
 
-One such conceptual thing in the scheduler is the lifetime of a 
-task, its schedule, deschedule and wakeup events. It can already 
-show a massive amount of badness in practice, and it only takes a 
-few tracepoints to do.
-
-Same goes for the MM IMHO. Number of pages reclaimed is obviously a 
-key metric to follow. Larry is an expert who fixed a _lot_ of MM 
-crap in the last 5-10 years at Red Hat, so if he says that these 
-tracepoints are useful to him, we shouldnt just dismiss that 
-experience like that. I wish Larry spent some of his energies on 
-fixing the upstream MM too ;-)
-
-A balanced number of MM tracepoints, showing the concepts and the 
-inner dynamics of the MM would be useful. We dont need every little 
-detail traced (we have the function tracer for that), but a few key 
-aspects would be nice to capture ...
-
-pagefaults, allocations, cache-misses, cache flushes and how pages 
-shift between various queues in the MM would be a good start IMHO.
-
-Anyway, i suspect your answer means a NAK :-( Would be nice if you 
-would suggest a path out of that NAK.
-
-	Ingo
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
