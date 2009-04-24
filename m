@@ -1,121 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0BB6B003D
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 06:46:37 -0400 (EDT)
-Date: Fri, 24 Apr 2009 11:47:17 +0100
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BB2A6B003D
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 07:18:37 -0400 (EDT)
+Date: Fri, 24 Apr 2009 12:18:50 +0100
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 09/22] Calculate the alloc_flags for allocation only
-	once
-Message-ID: <20090424104716.GE14283@csn.ul.ie>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-10-git-send-email-mel@csn.ul.ie> <20090423155216.07ef773e.akpm@linux-foundation.org>
+Subject: Re: [PATCH 15/22] Do not disable interrupts in free_page_mlock()
+Message-ID: <20090424111850.GF14283@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-16-git-send-email-mel@csn.ul.ie> <20090423155951.6778bdd3.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090423155216.07ef773e.akpm@linux-foundation.org>
+In-Reply-To: <20090423155951.6778bdd3.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 23, 2009 at 03:52:16PM -0700, Andrew Morton wrote:
-> On Wed, 22 Apr 2009 14:53:14 +0100
+On Thu, Apr 23, 2009 at 03:59:51PM -0700, Andrew Morton wrote:
+> On Wed, 22 Apr 2009 14:53:20 +0100
 > Mel Gorman <mel@csn.ul.ie> wrote:
 > 
-> > Factor out the mapping between GFP and alloc_flags only once. Once factored
-> > out, it only needs to be calculated once but some care must be taken.
-> > 
-> > [neilb@suse.de says]
-> > As the test:
-> > 
-> > -       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
-> > -                       && !in_interrupt()) {
-> > -               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
-> > 
-> > has been replaced with a slightly weaker one:
-> > 
-> > +       if (alloc_flags & ALLOC_NO_WATERMARKS) {
-> > 
-> > Without care, this would allow recursion into the allocator via direct
-> > reclaim. This patch ensures we do not recurse when PF_MEMALLOC is set
-> > but TF_MEMDIE callers are now allowed to directly reclaim where they
-> > would have been prevented in the past.
-> > 
-> > ...
-> >
-> > +static inline int
-> > +gfp_to_alloc_flags(gfp_t gfp_mask)
-> > +{
-> > +	struct task_struct *p = current;
-> > +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
-> > +	const gfp_t wait = gfp_mask & __GFP_WAIT;
-> > +
-> > +	/*
-> > +	 * The caller may dip into page reserves a bit more if the caller
-> > +	 * cannot run direct reclaim, or if the caller has realtime scheduling
-> > +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
-> > +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
-> > +	 */
-> > +	if (gfp_mask & __GFP_HIGH)
-> > +		alloc_flags |= ALLOC_HIGH;
-> > +
-> > +	if (!wait) {
-> > +		alloc_flags |= ALLOC_HARDER;
-> > +		/*
-> > +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
-> > +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
-> > +		 */
-> > +		alloc_flags &= ~ALLOC_CPUSET;
-> > +	} else if (unlikely(rt_task(p)))
-> > +		alloc_flags |= ALLOC_HARDER;
-> > +
-> > +	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
-> > +		if (!in_interrupt() &&
-> > +		    ((p->flags & PF_MEMALLOC) ||
-> > +		     unlikely(test_thread_flag(TIF_MEMDIE))))
-> > +			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > +	}
-> > +
-> > +	return alloc_flags;
-> > +}
+> > free_page_mlock() tests and clears PG_mlocked using locked versions of the
+> > bit operations. If set, it disables interrupts to update counters and this
+> > happens on every page free even though interrupts are disabled very shortly
+> > afterwards a second time.  This is wasteful.
 > 
-> hm.  Was there a particular reason for the explicit inline?
+> Well.  It's only wasteful if the page was mlocked, which is rare.
 > 
 
-Only because it was known there was only one caller.
+True. mlocked pages are only going to be torn down during process exit or
+munmap, both of which you'd expect to be rare when mlock is involved.
 
-> It's OK as it stands, but might become suboptimal if we later add a
-> second caller?
+s/This is wasteful/While rare, this is unnecessary./
+
+?
+
+> > This patch splits what free_page_mlock() does. The bit check is still
+> > made. However, the update of counters is delayed until the interrupts are
+> > disabled and the non-lock version for clearing the bit is used. One potential
+> > weirdness with this split is that the counters do not get updated if the
+> > bad_page() check is triggered but a system showing bad pages is getting
+> > screwed already.
+> > 
+> > Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+> > Reviewed-by: Christoph Lameter <cl@linux-foundation.org>
+> > Reviewed-by: Pekka Enberg <penberg@cs.helsinki.fi>
+> > Reviewed-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > ---
+> >  mm/internal.h   |   11 +++--------
+> >  mm/page_alloc.c |    8 +++++++-
+> >  2 files changed, 10 insertions(+), 9 deletions(-)
+> > 
+> > diff --git a/mm/internal.h b/mm/internal.h
+> > index 987bb03..58ec1bc 100644
+> > --- a/mm/internal.h
+> > +++ b/mm/internal.h
+> > @@ -157,14 +157,9 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
+> >   */
+> >  static inline void free_page_mlock(struct page *page)
+> >  {
+> > -	if (unlikely(TestClearPageMlocked(page))) {
+> > -		unsigned long flags;
+> > -
+> > -		local_irq_save(flags);
+> > -		__dec_zone_page_state(page, NR_MLOCK);
+> > -		__count_vm_event(UNEVICTABLE_MLOCKFREED);
+> > -		local_irq_restore(flags);
+> > -	}
+> > +	__ClearPageMlocked(page);
+> > +	__dec_zone_page_state(page, NR_MLOCK);
+> > +	__count_vm_event(UNEVICTABLE_MLOCKFREED);
+> >  }
+> 
+> The conscientuous reviewer runs around and checks for free_page_mlock()
+> callers in other .c files which might be affected.
 > 
 
-This is true. As it is also in the slowpath and only called once, the
-following patch should make no difference to performance but potentially
-avoid a mistake later.
+The patch author should have done the same thing :/
 
-=======
-Uninline gfp_to_alloc_flags() in the page allocator slow path
+> Only there are no such callers.
+> 
+> The reviewer's job would be reduced if free_page_mlock() wasn't
+> needlessly placed in a header file!
+> 
+> >  #else /* CONFIG_HAVE_MLOCKED_PAGE_BIT */
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 67cafd0..7f45de1 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -499,7 +499,6 @@ static inline void __free_one_page(struct page *page,
+> >  
+> >  static inline int free_pages_check(struct page *page)
+> >  {
+> > -	free_page_mlock(page);
+> >  	if (unlikely(page_mapcount(page) |
+> >  		(page->mapping != NULL)  |
+> >  		(page_count(page) != 0)  |
+> > @@ -556,6 +555,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+> >  	unsigned long flags;
+> >  	int i;
+> >  	int bad = 0;
+> > +	int clearMlocked = PageMlocked(page);
+> >  
+> >  	for (i = 0 ; i < (1 << order) ; ++i)
+> >  		bad += free_pages_check(page + i);
+> > @@ -571,6 +571,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+> >  	kernel_map_pages(page, 1 << order, 0);
+> >  
+> >  	local_irq_save(flags);
+> > +	if (unlikely(clearMlocked))
+> > +		free_page_mlock(page);
+> 
+> I wonder what the compiler does in the case
+> CONFIG_HAVE_MLOCKED_PAGE_BIT=n.  If it is dumb, this patch would cause
+> additional code generation.
+> 
 
-gfp_to_alloc_flags() is in the slowpath but inlined. While there is only one
-caller now, a future second call would add suprising text-bloat. Uninline
-it now to avoid surprises later as it should have no performance impact.
+PageMlocked becomes
 
-Signed-off-by: Mel Gorman <mel@csn.ul.ie>
----
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+static inline int PageMlocked(page)
+	{ return 0; }
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1c60141..f08b4cb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1639,7 +1639,7 @@ void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
- 		wakeup_kswapd(zone, order);
- }
- 
--static inline int
-+static int
- gfp_to_alloc_flags(gfp_t gfp_mask)
- {
- 	struct task_struct *p = current;
+so the compiler should be fit to spot that clearMlocked will always be 0. Even
+if it didn't, it should have at least spotted that free_page_mlock(page)
+is an empty inline function in this case.
+
+Still double checked and I did not see the branch with
+CONFIG_HAVE_MLOCKED_PAGE_BIT=n
+
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
