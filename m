@@ -1,56 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id C51986B003D
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 06:41:03 -0400 (EDT)
-Date: Fri, 24 Apr 2009 05:41:37 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
-Message-ID: <20090424104137.GA7601@sgi.com>
-References: <1240510668.11148.40.camel@heimdal.trondhjem.org> <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0BB6B003D
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 06:46:37 -0400 (EDT)
+Date: Fri, 24 Apr 2009 11:47:17 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH 09/22] Calculate the alloc_flags for allocation only
+	once
+Message-ID: <20090424104716.GE14283@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-10-git-send-email-mel@csn.ul.ie> <20090423155216.07ef773e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu>
+In-Reply-To: <20090423155216.07ef773e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: trond.myklebust@fys.uio.no, npiggin@suse.de, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 24, 2009 at 09:15:22AM +0200, Miklos Szeredi wrote:
-> On Thu, 23 Apr 2009, Trond Myklebust wrote:
-> > On Thu, 2009-04-23 at 21:52 +0200, Miklos Szeredi wrote:
-> > > Now this is mostly done at page fault time, and the pte's are always
-> > > being re-protected whenever the PG_dirty flag is cleared (see
-> > > page_mkclean()).
-> > > 
-> > > But in some cases (shmfs being the example I know) pages are not write
-> > > protected and so zap_pte_range(), and other functions, still need to
-> > > transfer the pte dirtyness to the page flag.
+On Thu, Apr 23, 2009 at 03:52:16PM -0700, Andrew Morton wrote:
+> On Wed, 22 Apr 2009 14:53:14 +0100
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > Factor out the mapping between GFP and alloc_flags only once. Once factored
+> > out, it only needs to be calculated once but some care must be taken.
 > > 
-> > My main worry is that this is all happening at munmap() time. There
-> > shouldn't be any more page faults after that completes (am I right?), so
-> > what other mechanism would transfer the pte dirtyness?
+> > [neilb@suse.de says]
+> > As the test:
+> > 
+> > -       if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
+> > -                       && !in_interrupt()) {
+> > -               if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+> > 
+> > has been replaced with a slightly weaker one:
+> > 
+> > +       if (alloc_flags & ALLOC_NO_WATERMARKS) {
+> > 
+> > Without care, this would allow recursion into the allocator via direct
+> > reclaim. This patch ensures we do not recurse when PF_MEMALLOC is set
+> > but TF_MEMDIE callers are now allowed to directly reclaim where they
+> > would have been prevented in the past.
+> > 
+> > ...
+> >
+> > +static inline int
+> > +gfp_to_alloc_flags(gfp_t gfp_mask)
+> > +{
+> > +	struct task_struct *p = current;
+> > +	int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+> > +	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> > +
+> > +	/*
+> > +	 * The caller may dip into page reserves a bit more if the caller
+> > +	 * cannot run direct reclaim, or if the caller has realtime scheduling
+> > +	 * policy or is asking for __GFP_HIGH memory.  GFP_ATOMIC requests will
+> > +	 * set both ALLOC_HARDER (!wait) and ALLOC_HIGH (__GFP_HIGH).
+> > +	 */
+> > +	if (gfp_mask & __GFP_HIGH)
+> > +		alloc_flags |= ALLOC_HIGH;
+> > +
+> > +	if (!wait) {
+> > +		alloc_flags |= ALLOC_HARDER;
+> > +		/*
+> > +		 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
+> > +		 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+> > +		 */
+> > +		alloc_flags &= ~ALLOC_CPUSET;
+> > +	} else if (unlikely(rt_task(p)))
+> > +		alloc_flags |= ALLOC_HARDER;
+> > +
+> > +	if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+> > +		if (!in_interrupt() &&
+> > +		    ((p->flags & PF_MEMALLOC) ||
+> > +		     unlikely(test_thread_flag(TIF_MEMDIE))))
+> > +			alloc_flags |= ALLOC_NO_WATERMARKS;
+> > +	}
+> > +
+> > +	return alloc_flags;
+> > +}
 > 
-> After munmap() a page fault will result in SIGSEGV.  A write access
-> during munmap(), when the vma has been removed but the page table is
-> still intact is more interesting.  But in that case the write fault
-> should also result in a SEGV, because it won't be able to find the
-> matching VMA.
+> hm.  Was there a particular reason for the explicit inline?
 > 
-> Now lets see what happens if writeback is started against the page
-> during this limbo period.  page_mkclean() is called, which doesn't
-> find the vma, so it doesn't re-protect the pte.  But the PG_dirty will
 
-I am not sure how you came to this conclusion.  The address_space has
-the vma's chained together and protected by the i_mmap_lock.  That is
-acquired prior to the cleaning operation.  Additionally, the cleaning
-operation walks the process's page tables and will remove/write-protect
-the page before releasing the i_mmap_lock.
+Only because it was known there was only one caller.
 
-Maybe I misunderstand.  I hope I have not added confusion.
+> It's OK as it stands, but might become suboptimal if we later add a
+> second caller?
+> 
 
-Thanks,
-Robin
+This is true. As it is also in the slowpath and only called once, the
+following patch should make no difference to performance but potentially
+avoid a mistake later.
+
+=======
+Uninline gfp_to_alloc_flags() in the page allocator slow path
+
+gfp_to_alloc_flags() is in the slowpath but inlined. While there is only one
+caller now, a future second call would add suprising text-bloat. Uninline
+it now to avoid surprises later as it should have no performance impact.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+---
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1c60141..f08b4cb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1639,7 +1639,7 @@ void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+ 		wakeup_kswapd(zone, order);
+ }
+ 
+-static inline int
++static int
+ gfp_to_alloc_flags(gfp_t gfp_mask)
+ {
+ 	struct task_struct *p = current;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
