@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 1FEFD6B003D
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 02:40:45 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3O6fKZN011227
-	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Fri, 24 Apr 2009 15:41:21 +0900
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B06445DD77
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 15:41:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4AF4C45DD76
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 15:41:20 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 547A3E08001
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 15:41:20 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0C6841DB8018
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 15:41:20 +0900 (JST)
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Subject: Re: [PATCH 18/22] Use allocation flags as an index to the zone watermark
-In-Reply-To: <20090423100348.GA26953@csn.ul.ie>
-References: <20090423092350.F6E6.A69D9226@jp.fujitsu.com> <20090423100348.GA26953@csn.ul.ie>
-Message-Id: <20090424154013.1083.A69D9226@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 24 Apr 2009 15:41:19 +0900 (JST)
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 762C76B0047
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 03:15:26 -0400 (EDT)
+In-reply-to: <1240519320.5602.9.camel@heimdal.trondhjem.org> (message from
+	Trond Myklebust on Thu, 23 Apr 2009 16:42:00 -0400)
+Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
+References: <1240510668.11148.40.camel@heimdal.trondhjem.org>
+	 <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org>
+Message-Id: <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Fri, 24 Apr 2009 09:15:22 +0200
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: kosaki.motohiro@jp.fujitsu.com, Dave Hansen <dave@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Zhang Yanmin <yanmin_zhang@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Andrew Morton <akpm@linux-foundation.org>
+To: trond.myklebust@fys.uio.no
+Cc: miklos@szeredi.hu, npiggin@suse.de, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Considering that they are the same type for elements and arrays, I
-> didn't think padding would ever be a problem.
-> 
-> > However, all gcc version don't do that. I think. but perhaps I missed
-> > some minor gcc release..
+On Thu, 23 Apr 2009, Trond Myklebust wrote:
+> On Thu, 2009-04-23 at 21:52 +0200, Miklos Szeredi wrote:
+> > Now this is mostly done at page fault time, and the pte's are always
+> > being re-protected whenever the PG_dirty flag is cleared (see
+> > page_mkclean()).
 > > 
-> > So, I also like Dave's idea. but it only personal feeling.
-> > 
+> > But in some cases (shmfs being the example I know) pages are not write
+> > protected and so zap_pte_range(), and other functions, still need to
+> > transfer the pte dirtyness to the page flag.
 > 
-> The tide is against me on this one :).
+> My main worry is that this is all happening at munmap() time. There
+> shouldn't be any more page faults after that completes (am I right?), so
+> what other mechanism would transfer the pte dirtyness?
+
+After munmap() a page fault will result in SIGSEGV.  A write access
+during munmap(), when the vma has been removed but the page table is
+still intact is more interesting.  But in that case the write fault
+should also result in a SEGV, because it won't be able to find the
+matching VMA.
+
+Now lets see what happens if writeback is started against the page
+during this limbo period.  page_mkclean() is called, which doesn't
+find the vma, so it doesn't re-protect the pte.  But the PG_dirty will
+be cleared regadless.  So AFAICS it can happen that the pte remains
+dirty but the page is clean.
+
+And in that case that set_page_dirty() in zap_pte_range() is
+important, since the page could have been dirtied through the mapping
+after the writeback finished.
+
+> > Not sure how this matters to NFS though.  If the above is correct,
+> > then the set_page_dirty() call in zap_pte_range() should always result
+> > in a no-op, since the PG_dirty flag would already have been set by the
+> > page fault...
 > 
-> How about I roll a patch on top of this set that replaces the union by
-> calling all sites? I figure that patch will go through a few revisions before
-> people are happy with the final API. However, as the patch wouldn't change
-> functionality, I'd like to see this series getting wider testing if possible. The
-> replace-union-with-single-array patch can be easily folded in then when
-> it settles.
-> 
-> Sound like a plan?
+> If I can ignore the dirty flag on these occasions, then that would be
+> great. That would enable me to get rid of that BUG_ON(PG_CLEAN) in
+> write.c, and close the bug...
 
-Yeah, I agree testing is important than ugliness discussion :)
+I don't think you can ignore the dirty flag...  
 
+Hmm, I guess this is a bit nasty: the VM promises filesystems that
+->page_mkwrite() will be called when the page is dirtied through a
+mapping, _almost_ all of the time.  Except when munmap happens to race
+with clear_page_dirty_for_io().
 
+I don't have any ideas how this could be fixed, CC-ing linux-mm...
+
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
