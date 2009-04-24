@@ -1,161 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2726B003D
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 07:51:31 -0400 (EDT)
-Subject: Re: [PATCH 15/22] Do not disable interrupts in free_page_mlock()
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090424113312.GG14283@csn.ul.ie>
-References: <1240408407-21848-16-git-send-email-mel@csn.ul.ie>
-	 <20090423155951.6778bdd3.akpm@linux-foundation.org>
-	 <20090424090721.1047.A69D9226@jp.fujitsu.com>
-	 <20090424113312.GG14283@csn.ul.ie>
-Content-Type: text/plain
-Date: Fri, 24 Apr 2009 07:52:16 -0400
-Message-Id: <1240573936.4315.2.camel@lts-notebook>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B7EC06B003D
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 08:25:15 -0400 (EDT)
+Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [202.81.31.243])
+	by e23smtp08.au.ibm.com (8.13.1/8.13.1) with ESMTP id n3ONLUFL007404
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 09:21:30 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3OCPUVs512068
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 22:25:32 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3OCPUvk027527
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 22:25:30 +1000
+Date: Fri, 24 Apr 2009 17:54:41 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 0/9] memcg soft limit v2 (new design)
+Message-ID: <20090424122441.GD3944@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cl@linux-foundation.org, npiggin@suse.de, linux-kernel@vger.kernel.org, ming.m.lin@intel.com, yanmin_zhang@linux.intel.com, peterz@infradead.org, penberg@cs.helsinki.fi, Dave Hansen <dave@linux.vnet.ibm.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2009-04-24 at 12:33 +0100, Mel Gorman wrote: 
-> On Fri, Apr 24, 2009 at 09:33:50AM +0900, KOSAKI Motohiro wrote:
-> > > > @@ -157,14 +157,9 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
-> > > >   */
-> > > >  static inline void free_page_mlock(struct page *page)
-> > > >  {
-> > > > -	if (unlikely(TestClearPageMlocked(page))) {
-> > > > -		unsigned long flags;
-> > > > -
-> > > > -		local_irq_save(flags);
-> > > > -		__dec_zone_page_state(page, NR_MLOCK);
-> > > > -		__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> > > > -		local_irq_restore(flags);
-> > > > -	}
-> > > > +	__ClearPageMlocked(page);
-> > > > +	__dec_zone_page_state(page, NR_MLOCK);
-> > > > +	__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> > > >  }
-> > > 
-> > > The conscientuous reviewer runs around and checks for free_page_mlock()
-> > > callers in other .c files which might be affected.
-> > > 
-> > > Only there are no such callers.
-> > > 
-> > > The reviewer's job would be reduced if free_page_mlock() wasn't
-> > > needlessly placed in a header file!
-> > 
-> > very sorry.
-> > 
-> > How about this?
-> > 
-> > =============================================
-> > Subject: [PATCH] move free_page_mlock() to page_alloc.c
-> > 
-> > Currently, free_page_mlock() is only called from page_alloc.c.
-> > Thus, we can move it to page_alloc.c.
-> > 
-> 
-> Looks good, but here is a version rebased on top of the patch series
-> where it would be easier to merge with "Do not disable interrupts in
-> free_page_mlock()".
-> 
-> I do note why it might be in the header though - it keeps all the
-> CONFIG_HAVE_MLOCKED_PAGE_BIT-related helper functions together making it
-> easier to find them. Lee, was that the intention?
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-03 17:08:35]:
 
-Yes.  Having been dinged one too many times for adding extraneous
-#ifdef's to .c's I try to avoid that...
+> Hi,
+> 
+> Memory cgroup's soft limit feature is a feature to tell global LRU 
+> "please reclaim from this memcg at memory shortage".
+> 
+> This is v2. Fixed some troubles under hierarchy. and increase soft limit
+> update hooks to proper places.
+> 
+> This patch is on to
+>   mmotom-Mar23 + memcg-cleanup-cache_charge.patch
+>   + vmscan-fix-it-to-take-care-of-nodemask.patch
+> 
+> So, not for wide use ;)
+> 
+> This patch tries to avoid to use existing memcg's reclaim routine and
+> just tell "Hints" to global LRU. This patch is briefly tested and shows
+> good result to me. (But may not to you. plz brame me.)
+> 
+> Major characteristic is.
+>  - memcg will be inserted to softlimit-queue at charge() if usage excess
+>    soft limit.
+>  - softlimit-queue is a queue with priority. priority is detemined by size
+>    of excessing usage.
+>  - memcg's soft limit hooks is called by shrink_xxx_list() to show hints.
+>  - Behavior is affected by vm.swappiness and LRU scan rate is determined by
+>    global LRU's status.
+> 
+> In this v2.
+>  - problems under use_hierarchy=1 case are fixed.
+>  - more hooks are added.
+>  - codes are cleaned up.
+>
 
-Note that in page-flags.h, we define MLOCK_PAGES as 0 or 1 based on
-CONFIG_HAVE_MLOCKED_PAGE_BIT, so you could test that in
-free_page_mlock() to eliminate the #ifdef in page_alloc.c as we do in
-try_to_unmap_*() over in rmap.c.  Guess I could have done that when I
-added MLOCK_PAGES.  Got lost in the heat of the battle.
+The results seem good so far with some basic tests I've been doing.
+I'll come back with more feedback, I would like to see this feature in
+-mm soon.
 
-Lee
-
-
-> 
-> =======
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> 
-> Move free_page_mlock() from mm/internal.h to mm/page_alloc.c
-> 
-> Currently, free_page_mlock() is only called from page_alloc.c. This patch
-> moves it from a header to to page_alloc.c.
-> 
-> [mel@csn.ul.ie: Rebase on top of page allocator patches]
-> Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Pekka Enberg <penberg@cs.helsinki.fi>
-> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->  mm/internal.h   |   13 -------------
->  mm/page_alloc.c |   16 ++++++++++++++++
->  2 files changed, 16 insertions(+), 13 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 58ec1bc..4b1672a 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -150,18 +150,6 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
->  	}
->  }
->  
-> -/*
-> - * free_page_mlock() -- clean up attempts to free and mlocked() page.
-> - * Page should not be on lru, so no need to fix that up.
-> - * free_pages_check() will verify...
-> - */
-> -static inline void free_page_mlock(struct page *page)
-> -{
-> -	__ClearPageMlocked(page);
-> -	__dec_zone_page_state(page, NR_MLOCK);
-> -	__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> -}
-> -
->  #else /* CONFIG_HAVE_MLOCKED_PAGE_BIT */
->  static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
->  {
-> @@ -170,7 +158,6 @@ static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
->  static inline void clear_page_mlock(struct page *page) { }
->  static inline void mlock_vma_page(struct page *page) { }
->  static inline void mlock_migrate_page(struct page *new, struct page *old) { }
-> -static inline void free_page_mlock(struct page *page) { }
->  
->  #endif /* CONFIG_HAVE_MLOCKED_PAGE_BIT */
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f08b4cb..3db5f57 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -433,6 +433,22 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_HAVE_MLOCKED_PAGE_BIT
-> +/*
-> + * free_page_mlock() -- clean up attempts to free and mlocked() page.
-> + * Page should not be on lru, so no need to fix that up.
-> + * free_pages_check() will verify...
-> + */
-> +static inline void free_page_mlock(struct page *page)
-> +{
-> +	__ClearPageMlocked(page);
-> +	__dec_zone_page_state(page, NR_MLOCK);
-> +	__count_vm_event(UNEVICTABLE_MLOCKFREED);
-> +}
-> +#else
-> +static inline void free_page_mlock(struct page *page) { }
-> +#endif /* CONFIG_HAVE_MLOCKED_PAGE_BIT */
-> +
->  /*
->   * Freeing function for a buddy system allocator.
->   *
-> 
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
