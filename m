@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 8EDCA6B004D
-	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 11:19:18 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3OFJYif001158
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Sat, 25 Apr 2009 00:19:34 +0900
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3B04845DE62
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 00:19:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0843C45DE51
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 00:19:34 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D91F41DB803C
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 00:19:33 +0900 (JST)
-Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 84E971DB803E
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 00:19:33 +0900 (JST)
-Message-ID: <6e429f293fa1e3d02900a41039861119.squirrel@webmail-b.css.fujitsu.com>
-In-Reply-To: <20090424122441.GD3944@balbir.in.ibm.com>
-References: <20090403170835.a2d6cbc3.kamezawa.hiroyu@jp.fujitsu.com>
-    <20090424122441.GD3944@balbir.in.ibm.com>
-Date: Sat, 25 Apr 2009 00:19:33 +0900 (JST)
-Subject: Re: [RFC][PATCH 0/9] memcg soft limit v2 (new design)
-From: "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id E90866B003D
+	for <linux-mm@kvack.org>; Fri, 24 Apr 2009 12:18:10 -0400 (EDT)
+Date: Fri, 24 Apr 2009 17:18:19 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
+Message-ID: <20090424161819.GD11199@shareable.org>
+References: <1240510668.11148.40.camel@heimdal.trondhjem.org> <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu> <E1LxFuD-0008M9-1a@pomaz-ex.szeredi.hu>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-2022-jp
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E1LxFuD-0008M9-1a@pomaz-ex.szeredi.hu>
 Sender: owner-linux-mm@kvack.org
-To: balbir@linux.vnet.ibm.com
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: trond.myklebust@fys.uio.no, npiggin@suse.de, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Balbir Singh wrote:
-> * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-03
-> 17:08:35]:
->> In this v2.
->>  - problems under use_hierarchy=1 case are fixed.
->>  - more hooks are added.
->>  - codes are cleaned up.
->>
->
-> The results seem good so far with some basic tests I've been doing.
-> I'll come back with more feedback, I would like to see this feature in
-> -mm soon.
->
-Thank you. I'll update this. But now I have bugfix patch for
-stale swap caches (coop with Nishimura). Then, I'll go ahead one by one.
+Miklos Szeredi wrote:
+> On Fri, 24 Apr 2009, Miklos Szeredi wrote:
+> > Hmm, I guess this is a bit nasty: the VM promises filesystems that
+> > ->page_mkwrite() will be called when the page is dirtied through a
+> > mapping, _almost_ all of the time.  Except when munmap happens to race
+> > with clear_page_dirty_for_io().
+> > 
+> > I don't have any ideas how this could be fixed, CC-ing linux-mm...
+> 
+> On second thought, we could possibly just ignore the dirty bit in that
+> case.  Trying to write to a mapping _during_ munmap() will have pretty
+> undefined results, I don't think any sane application out there should
+> rely on the results of this.
+> 
+> But how knows, the world is a weird place...
 
-Regards,
--Kame
+I think it's a sane but unusual thing to do.
+
+App has a thread writing to random places in a mapped file, and
+another calling munmap() or mprotect() to trap writes to some parts of
+the file in order to track what parts the first thread is dirtying.
+Second thread's SIGSEGV handler reinstates those mappings.  First
+thread doesn't know about any of this, it just writes and the only
+side effect is timing.  Or should be.
+
+Think garbage collection, change tracking, tracing, and debugging.
+
+-- Jamie
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
