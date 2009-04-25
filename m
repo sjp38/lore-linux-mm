@@ -1,64 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D2766B003D
-	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 01:10:25 -0400 (EDT)
-Date: Sat, 25 Apr 2009 07:10:28 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: Why doesn't zap_pte_range() call page_mkwrite()
-Message-ID: <20090425051028.GC10088@wotan.suse.de>
-References: <1240510668.11148.40.camel@heimdal.trondhjem.org> <E1Lx4yU-0007A8-Gl@pomaz-ex.szeredi.hu> <1240519320.5602.9.camel@heimdal.trondhjem.org> <E1LxFd4-0008Ih-Rd@pomaz-ex.szeredi.hu> <20090424104137.GA7601@sgi.com> <E1LxMlO-0000sU-1J@pomaz-ex.szeredi.hu> <1240592448.4946.35.camel@heimdal.trondhjem.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 2BA8A6B003D
+	for <linux-mm@kvack.org>; Sat, 25 Apr 2009 08:54:13 -0400 (EDT)
+Date: Sat, 25 Apr 2009 21:54:59 +0900
+From: Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [RFC][PATCH] fix swap entries is not reclaimed in proper way
+ for memg v3.
+Message-Id: <20090425215459.5cab7285.d-nishimura@mtf.biglobe.ne.jp>
+In-Reply-To: <20090424162840.2ad06d8a.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090421162121.1a1d15fe.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090422143833.2e11e10b.nishimura@mxp.nes.nec.co.jp>
+	<20090424133306.0d9fb2ce.kamezawa.hiroyu@jp.fujitsu.com>
+	<20090424152103.a5ee8d13.nishimura@mxp.nes.nec.co.jp>
+	<20090424162840.2ad06d8a.kamezawa.hiroyu@jp.fujitsu.com>
+Reply-To: nishimura@mxp.nes.nec.co.jp
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1240592448.4946.35.camel@heimdal.trondhjem.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Trond Myklebust <trond.myklebust@fys.uio.no>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, holt@sgi.com, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "hugh@veritas.com" <hugh@veritas.com>, d-nishimura@mtf.biglobe.ne.jp, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 24, 2009 at 01:00:48PM -0400, Trond Myklebust wrote:
-> On Fri, 2009-04-24 at 16:52 +0200, Miklos Szeredi wrote:
-> > On Fri, 24 Apr 2009, Robin Holt wrote:
-> > > I am not sure how you came to this conclusion.  The address_space has
-> > > the vma's chained together and protected by the i_mmap_lock.  That is
-> > > acquired prior to the cleaning operation.  Additionally, the cleaning
-> > > operation walks the process's page tables and will remove/write-protect
-> > > the page before releasing the i_mmap_lock.
-> > > 
-> > > Maybe I misunderstand.  I hope I have not added confusion.
-> > 
-> > Looking more closely, I think you're right.
-> > 
-> > I thought that detach_vmas_to_be_unmapped() also removed them from
-> > mapping->i_mmap, but that is not the case, it only removes them from
-> > the process's mm_struct.  The vma is only removed from ->i_mmap in
-> > unmap_region() _after_ zapping the pte's.
-> > 
-> > This means that while the pte zapping is going on, any page faults
-> > will fail but page_mkclean() (and all of rmap) will continue to work.
-> > 
-> > But then I don't see how we get a dirty pte without also first getting
-> > a page fault.  Weird...
+> +static void memcg_fixup_stale_swapcache(struct work_struct *work)
+> +{
+> +	int pos = 0;
+> +	swp_entry_t entry;
+> +	struct page *page;
+> +	int forget, ret;
+> +
+> +	while (ssc.num) {
+> +		spin_lock(&ssc.lock);
+> +		pos = find_next_bit(ssc.usemap, STALE_ENTS, pos);
+> +		spin_unlock(&ssc.lock);
+> +
+> +		if (pos >= STALE_ENTS)
+> +			break;
+> +
+> +		entry = ssc.ents[pos];
+> +
+> +		forget = 1;
+> +		page = lookup_swap_cache(entry);
+> +		if (page) {
+> +			lock_page(page);
+> +			ret = try_to_free_swap(page);
+> +			/* If it's still under I/O, don't forget it */
+> +			if (!ret && PageWriteback(page))
+> +				forget = 0;
+> +			unlock_page(page);
+I think we need page_cache_release().
+lookup_swap_cache() gets the page.
+
+> +		}
+> +		if (forget) {
+> +			spin_lock(&ssc.lock);
+> +			clear_bit(pos, ssc.usemap);
+> +			ssc.num--;
+> +			if (ssc.num < STALE_ENTS/2)
+> +				ssc.congestion = 0;
+> +			spin_unlock(&ssc.lock);
+> +		}
+> +		pos++;
+> +	}
+> +	if (ssc.num) /* schedule me again */
+> +		schedule_delayed_work(&ssc.gc_work, HZ/10);
+"if (ssc.congestion)" would be better ?
+
+> +	return;
+> +}
+> +
+
+(snip)
+
+> Index: mmotm-2.6.30-Apr21/mm/vmscan.c
+> ===================================================================
+> --- mmotm-2.6.30-Apr21.orig/mm/vmscan.c
+> +++ mmotm-2.6.30-Apr21/mm/vmscan.c
+> @@ -661,6 +661,9 @@ static unsigned long shrink_page_list(st
+>  		if (PageAnon(page) && !PageSwapCache(page)) {
+>  			if (!(sc->gfp_mask & __GFP_IO))
+>  				goto keep_locked;
+> +			/* avoid making more stale swap caches */
+> +			if (memcg_stale_swap_congestion())
+> +				goto keep_locked;
+>  			if (!add_to_swap(page))
+>  				goto activate_locked;
+>  			may_enter_fs = 1;
 > 
-> You don't, but unless you unmap the page when you write it out, you will
-> not get any further page faults. The VM will just redirty the page
-> without calling page_mkwrite().
+Hmm, I don't think this can avoid type-2 stale swap caches.
+IIUC, this can only avoid add_to_swap() if the number of stale swap caches
+exceeds some threshold, but type-2 swap caches(set !PageCgroupUsed by the
+owner process via page_remove_rmap()->mem_cgroup_uncharge_page() before
+beeing add to swap cache) is not handled as 'stale'.
 
-Why? It should call page_mkwrite...
+In fact, I can see the usage of SwapCache increasing gradually.
 
+Can you add a patch like bellow ?
+
+Thanks,
+Daisuke Nishimura.
+===
+From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+
+Instead of checking memcg_stale_swap_congestion() before add_to_swap(),
+free "unused" swap cache after add_to_swap().
+
+IMHO, it would be better to let shrink_page_list() free as much pages
+as possible, so free type-2 stale swap caches directly, instead of
+handling them in lazy manner.
+shrink_page_list() calls try_to_free_swap() already in some paths.
+(e.g. pageout()->swap_writepage()->try_to_free_swap())
  
-> As I said, I think I can fix the NFS problem by simply unmapping the
-> page inside ->writepage() whenever we know the write request was
-> originally set up by a page fault.
-
-The biggest outstanding problem we have remaining is get_user_pages.
-Callers are only required to hold a ref on the page and then they
-can call set_page_dirty at any point after that.
-
-I have a half-done patch somewhere to add a put_user_pages, and then
-we could probably go from there to pinning the fs metadata (whether
-by using the page lock or something else, I don't quite know).
+Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+---
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 1e6519c..51c6985 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -339,6 +339,7 @@ extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
+ extern void memcg_mark_swapent_stale(swp_entry_t ent);
+ extern void memcg_sanity_check_swapin(struct page *page, swp_entry_t ent);
+ extern int memcg_stale_swap_congestion(void);
++extern int memcg_free_unused_swapcache(struct page *page);
+ #else
+ static inline void
+ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+@@ -357,6 +358,11 @@ static inline int memcg_stale_swap_congestion(void)
+ {
+ 	return 0;
+ }
++
++static int memcg_free_unused_swapcache(struct page *page)
++{
++	return 0;
++}
+ #endif
+ #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+ extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ccc69b4..822a914 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1754,6 +1754,17 @@ static void setup_stale_swapcache_control(void)
+ 	INIT_DELAYED_WORK(&ssc.gc_work, memcg_fixup_stale_swapcache);
+ }
  
++int memcg_free_unused_swapcache(struct page *page)
++{
++	VM_BUG_ON(!PageSwapCache(page));
++	VM_BUG_ON(!PageLocked(page));
++
++	if (mem_cgroup_disabled())
++		return 0;
++	if (!PageAnon(page) || page_mapped(page))
++		return 0;
++	return try_to_free_swap(page);	/* checks page_swapcount */
++}
+ #else
+ 
+ int memcg_stale_swap_congestion(void)
+@@ -1765,6 +1776,10 @@ static void setup_stale_swapcache_control(void)
+ {
+ }
+ 
++int memcg_free_unused_swapcache(struct page *page)
++{
++	return 0;
++}
+ #endif /* CONFIG_SWAP */
+ 
+ static DEFINE_MUTEX(set_limit_mutex);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 054ed38..5b9aa8e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -654,11 +654,16 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (PageAnon(page) && !PageSwapCache(page)) {
+ 			if (!(sc->gfp_mask & __GFP_IO))
+ 				goto keep_locked;
+-			/* avoid making more stale swap caches */
+-			if (memcg_stale_swap_congestion())
+-				goto keep_locked;
+ 			if (!add_to_swap(page))
+ 				goto activate_locked;
++			/*
++			 * The owner process might have uncharged the page
++			 * (by page_remove_rmap()) before it has been added
++			 * to swap cache.
++			 * Check it here to avoid making it stale.
++			 */
++			if (memcg_free_unused_swapcache(page))
++				goto keep_locked;
+ 			may_enter_fs = 1;
+ 		}
+ 
+===
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
