@@ -1,80 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id B45F26B005C
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 01:40:53 -0400 (EDT)
-Date: Sun, 26 Apr 2009 22:37:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Fix race between callers of read_cache_page_async and
- invalidate_inode_pages.
-Message-Id: <20090426223744.72edc7f4.akpm@linux-foundation.org>
-In-Reply-To: <18933.16534.862316.787808@notabene.brown>
-References: <18933.16534.862316.787808@notabene.brown>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id EE4016B007E
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 02:54:08 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp04.in.ibm.com (8.13.1/8.13.1) with ESMTP id n3R6stAu023681
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 12:24:55 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3R6spnH520394
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 12:24:55 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n3R6spOV017897
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 12:24:51 +0530
+Date: Mon, 27 Apr 2009 12:23:58 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [BUGFIX][PATCH] memcg: fix try_get_mem_cgroup_from_swapcache()
+Message-ID: <20090427065358.GB4454@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090426231752.36498c90.d-nishimura@mtf.biglobe.ne.jp> <20090427095100.29173bc1.nishimura@mxp.nes.nec.co.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090427095100.29173bc1.nishimura@mxp.nes.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
-To: Neil Brown <neilb@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <npiggin@suse.de>, David Woodhouse <dwmw2@infradead.org>
+To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Apr 2009 15:20:22 +1000 Neil Brown <neilb@suse.de> wrote:
+* nishimura@mxp.nes.nec.co.jp <nishimura@mxp.nes.nec.co.jp> [2009-04-27 09:51:00]:
 
+> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 > 
+> memcg: fix try_get_mem_cgroup_from_swapcache()
 > 
+> This is a bugfix for commit 3c776e64660028236313f0e54f3a9945764422df(included 2.6.30-rc1).
+> Used bit of swapcache is solid under page lock, but considering move_account,
+> pc->mem_cgroup is not.
 > 
-> Callers of read_cache_page_async typically wait for the page to become
-> unlocked (wait_on_page_locked) and then test PageUptodate to see if
-> the read was successful, or if there was an error.
+> We need lock_page_cgroup() anyway.
 > 
-> This is wrong.
-> 
-> invalidate_inode_pages can cause an unlocked page to lose its
-> PageUptodate flag at any time without implying a read error.
+> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-ow.
+I think we need to start documenting the locks the
+page_cgroup lock nests under.
 
-> As any read error will cause PageError to be set, it is much safer,
-> and more idiomatic to test "PageError" than to test "!PageUptodate".
-> 
-> ...
->
-> diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-> index dd3634e..573d582 100644
-> --- a/fs/cramfs/inode.c
-> +++ b/fs/cramfs/inode.c
-> @@ -180,7 +180,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
->  		struct page *page = pages[i];
->  		if (page) {
->  			wait_on_page_locked(page);
-> -			if (!PageUptodate(page)) {
-> +			if (PageError(page)) {
->  				/* asynchronous error */
->  				page_cache_release(page);
->  				pages[i] = NULL;
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 379ff0b..9ff8093 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1770,7 +1770,7 @@ struct page *read_cache_page(struct address_space *mapping,
->  	if (IS_ERR(page))
->  		goto out;
->  	wait_on_page_locked(page);
-> -	if (!PageUptodate(page)) {
-> +	if (!PageError(page)) {
->  		page_cache_release(page);
->  		page = ERR_PTR(-EIO);
->  	}
+If memcg_tasklist were a spinlock instead of mutex, could we use that
+instead of page_cgroup lock, since we care only about task migration?
 
-hrm.  And where is it written that PageError() will remain inviolable
-after it has been set?
-
-A safer and more formal (albeit somewhat slower) fix would be to lock
-the page and check its state under the lock.
-
-y:/usr/src/linux-2.6.30-rc3> grep -r ClearPageError . | wc -l
-21
-
-?
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
