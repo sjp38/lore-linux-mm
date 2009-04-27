@@ -1,42 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 23C536B00BE
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 15:55:12 -0400 (EDT)
-Date: Mon, 27 Apr 2009 12:52:08 -0700
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B36C6B00C1
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 16:00:28 -0400 (EDT)
+Date: Mon, 27 Apr 2009 12:58:39 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Display 0 in meminfo for Committed_AS when value
- underflows
-Message-Id: <20090427125208.94730dd8.akpm@linux-foundation.org>
-In-Reply-To: <1240848914.29485.52.camel@nimitz>
-References: <1240848620-16751-1-git-send-email-ebmunson@us.ibm.com>
-	<1240848914.29485.52.camel@nimitz>
+Subject: Re: [PATCH] MM: Rewrite some tests with is_power_of_2() for
+ clarity.
+Message-Id: <20090427125839.19d23850.akpm@linux-foundation.org>
+In-Reply-To: <20090427170428.GA1890@cmpxchg.org>
+References: <alpine.LFD.2.00.0904240834270.22152@localhost.localdomain>
+	<20090427170428.GA1890@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: ebmunson@us.ibm.com, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mel@csn.ul.ie, cl@linux-foundation.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: rpjday@crashcourse.ca, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Apr 2009 09:15:14 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+On Mon, 27 Apr 2009 19:04:28 +0200
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> On Mon, 2009-04-27 at 17:10 +0100, Eric B Munson wrote:
-> > Splitting this patch from the chunk that addresses the cause of the underflow
-> > because the solution still requires some discussion.
+> > @@ -438,7 +439,7 @@ static void * __init alloc_bootmem_core(struct bootmem_data *bdata,
+> >  		align, goal, limit);
 > > 
-> > Dave Hansen reported that under certain cirumstances the Committed_AS value
-> > can underflow which causes extremely large numbers to be displayed in
-> > meminfo.  This patch adds an underflow check to meminfo_proc_show() for the
-> > Committed_AS value.  Most fields in /proc/meminfo already have an underflow
-> > check, this brings Committed_AS into line.
+> >  	BUG_ON(!size);
+> > -	BUG_ON(align & (align - 1));
+> > +	BUG_ON(!is_power_of_2(align));
 > 
-> Yeah, this is the right fix for now until we can iron out the base
-> issues.  Eric, I think this may also be a candidate for -stable.
+> Note that this is no 1:1 translation.  align could be zero before but
+> not anymore.  Have you checked whether all callsites are ready for
+> this?  The common bootmem macros use alignment to cacheline or page
+> boundary.  I haven't checked all callsites that might use __api,
+> though.
 > 
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> OTOH, it's doubtful that 'no alignment' should be expressed as 0
+> instead of 1.
+> 
+> Still, it probably makes sense to express this change in semantics in
+> the changelog.
 
-I cannot find Eric's original patch anywhere.  Did some demented MTA munch it?
+ooh, yeah, well spotted.  There may well be code out there which sets
+align=0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
