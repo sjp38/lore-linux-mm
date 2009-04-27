@@ -1,97 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id A82686B009C
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 04:03:54 -0400 (EDT)
-Date: Mon, 27 Apr 2009 10:02:13 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/3][rfc] swap: try to reuse freed slots in the allocation area
-Message-ID: <20090427080213.GB2244@cmpxchg.org>
-References: <1240259085-25872-1-git-send-email-hannes@cmpxchg.org> <1240259085-25872-2-git-send-email-hannes@cmpxchg.org> <Pine.LNX.4.64.0904222020140.18587@blonde.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 97CD36B009F
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 04:12:53 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n3R8CxEj029747
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 13:42:59 +0530
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3R8CxE6606432
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 13:42:59 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.13.1/8.13.3) with ESMTP id n3R8Cw4r018788
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 18:12:59 +1000
+Date: Mon, 27 Apr 2009 13:42:06 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH] fix swap entries is not reclaimed in proper way
+	for memg v3.
+Message-ID: <20090427081206.GI4454@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090421162121.1a1d15fe.kamezawa.hiroyu@jp.fujitsu.com> <20090422143833.2e11e10b.nishimura@mxp.nes.nec.co.jp> <20090424133306.0d9fb2ce.kamezawa.hiroyu@jp.fujitsu.com> <20090424152103.a5ee8d13.nishimura@mxp.nes.nec.co.jp> <20090424162840.2ad06d8a.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.64.0904222020140.18587@blonde.anvils>
+In-Reply-To: <20090424162840.2ad06d8a.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 22, 2009 at 08:59:06PM +0100, Hugh Dickins wrote:
-> On Mon, 20 Apr 2009, Johannes Weiner wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-24 16:28:40]:
+
+> This is new one. (using new logic.) Maybe enough light-weight and caches all cases.
+
+You sure mean catches above :)
+
+
 > 
-> > A swap slot for an anonymous memory page might get freed again just
-> > after allocating it when further steps in the eviction process fail.
-> > 
-> > But the clustered slot allocation will go ahead allocating after this
-> > now unused slot, leaving a hole at this position.  Holes waste space
-> > and act as a boundary for optimistic swap-in.
-> > 
-> > To avoid this, check if the next page to be swapped out can sensibly
-> > be placed at this just freed position.  And if so, point the next
-> > cluster offset to it.
-> > 
-> > The acceptable 'look-back' distance is the number of slots swap-in
-> > clustering uses as well so that the latter continues to get related
-> > context when reading surrounding swap slots optimistically.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Hugh Dickins <hugh@veritas.com>
-> > Cc: Rik van Riel <riel@redhat.com>
+> Thanks,
+> -Kame
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > 
-> I'm glad you're looking into this area, thank you.
-> I've a feeling that you're going to come up with something good
-> here, but that neither of these patches (2/3 and 3/3) is yet it.
+> Because free_swap_and_cache() function is called under spinlocks,
+> it can't sleep and use trylock_page() instead of lock_page().
+> By this, swp_entry which is not used after zap_xx can exists as
+> SwapCache, which will be never used.
+> This kind of SwapCache is reclaimed by global LRU when it's found
+> at LRU rotation.
 > 
-> This patch looks plausible, but I'm not persuaded by it.
+> When memory cgroup is used,  the global LRU will not be kicked and
+> stale Swap Caches will not be reclaimed. This is problematic because
+> memcg's swap entry accounting is leaked and memcg can't know it.
+> To catch this stale SwapCache, we have to chase it and check the
+> swap is alive or not again.
 > 
-> I wonder what contribution it made to the impressive figures in
-> your testing - I suspect none, that it barely exercised this path.
+> This patch adds a function to chase stale swap cache and reclaim it
+> in modelate way. When zap_xxx fails to remove swap ent, it will be
+> recoreded into buffer and memcg's "work" will reclaim it later.
+> No sleep, no memory allocation under free_swap_and_cache().
 > 
-> I worry that by jumping back to use the slot in this way, you're
-> actually propagating the glitch: by which I mean, if the pages are
-> all as nicely linear as you're supposing, then now one of them
-> will get placed out of sequence, unlike with the existing code.
+> This patch also adds stale-swap-cache-congestion logic and try to avoid having
+> too much stale swap caches at the same time.
 > 
-> And note that swapin's page_cluster is used in a strictly aligned
-> way (unlike swap allocation's SWAPFILE_CLUSTER): if you're going
-> to use page_cluster to bound this, then perhaps you should be
-> aligning too.  Perhaps, perhaps not.
-
-Thank you, will think about that.
-
-> If this patch is worthwhile, then don't you want also to be
-> removing the " && vm_swap_full()" test from vmscan.c, where
-> shrink_page_list() activate_locked does try_to_free_swap(page)?
-
-I fear this swap releasing there can fail quite easily anyway.  At
-least that is what my testing patches suggest - we hit quite a lot of
-already swap cached pages in shrink_page_list() and I think that is
-where they come from.  It's a different issue, though.
-
-> But bigger And/Or: you remark that "holes act as a boundary for
-> optimistic swap-in".  Maybe that's more worth attacking?  I think
-> that behaviour is dictated purely by the convenience of a simple
-> offset:length interface between swapfile.c's valid_swaphandles()
-> and swap_state.c's swapin_readahead().
+> Implementation is naive but maybe the cost meets trade-off.
 > 
-> If swapin readahead is a good thing (I tend to be pessimistic about
-> it: think it's worth reading several pages while the disk head is
-> there, but hold no great hopes that the other pages will be useful -
-> though when I've experimented with removing, it's certainly proved
-> to be of some value), then I think you'd do better to restructure
-> that interface, so as not to stop at the holes.
+> How to test:
+>   1. set limit of memory to very small (1-2M?). 
+>   2. run some amount of program and run page reclaim/swap-in.
+>   3. kill programs by SIGKILL etc....then, Stale Swap Cache will
+>      be increased. After this patch, stale swap caches are reclaimed
+>      and mem+swap controller will not go to OOM.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hm, let's try that.  I am thinking of extending valid_swap_handles()
-to return exactly those through a bitmap that can represent holes.
+Quick comment on the design
 
-I think the read-in makes sense but not when the system is already
-thrashing.  Then it will just use memory for data we are not sure of
-being needed at all.  Perhaps it should be throttled or disabled at
-some point.
+1. I like the marking of swap cache entries as stale
+2. Can't we reclaim stale entries during memcg LRU reclaim? Why write
+a GC for it?
 
-Hugh, thanks a lot for your great feedback.
-
-	Hannes
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
