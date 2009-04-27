@@ -1,84 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B5E436B004D
-	for <linux-mm@kvack.org>; Sun, 26 Apr 2009 21:15:40 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp ([10.0.50.73])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3R1FqmA013300
-	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
-	Mon, 27 Apr 2009 10:15:53 +0900
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id C9E1845DD7D
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 10:15:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id ABE6445DD7B
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 10:15:52 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8ECBB1DB803B
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 10:15:52 +0900 (JST)
-Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 402661DB8037
-	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 10:15:52 +0900 (JST)
-Date: Mon, 27 Apr 2009 10:14:19 +0900
-From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [BUGFIX][PATCH] memcg: fix try_get_mem_cgroup_from_swapcache()
-Message-Id: <20090427101419.465467f7.kamezawa.hiroyu@jp.fujitsu.com>
-In-Reply-To: <20090427095100.29173bc1.nishimura@mxp.nes.nec.co.jp>
-References: <20090426231752.36498c90.d-nishimura@mtf.biglobe.ne.jp>
-	<20090427095100.29173bc1.nishimura@mxp.nes.nec.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 579F26B0055
+	for <linux-mm@kvack.org>; Mon, 27 Apr 2009 01:19:54 -0400 (EDT)
+From: Neil Brown <neilb@suse.de>
+Date: Mon, 27 Apr 2009 15:20:22 +1000
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <18933.16534.862316.787808@notabene.brown>
+Subject: [PATCH] Fix race between callers of read_cache_page_async and invalidate_inode_pages.
 Sender: owner-linux-mm@kvack.org
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Balbir Singh <balbir@in.ibm.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, David Woodhouse <dwmw2@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Apr 2009 09:51:00 +0900
-Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
 
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> memcg: fix try_get_mem_cgroup_from_swapcache()
-> 
-> This is a bugfix for commit 3c776e64660028236313f0e54f3a9945764422df(included 2.6.30-rc1).
-> Used bit of swapcache is solid under page lock, but considering move_account,
-> pc->mem_cgroup is not.
-> 
-> We need lock_page_cgroup() anyway.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 
-you are right.
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> ---
->  mm/memcontrol.c |    5 ++---
->  1 files changed, 2 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ccc69b4..84f856c 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1024,9 +1024,7 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
->  		return NULL;
->  
->  	pc = lookup_page_cgroup(page);
-> -	/*
-> -	 * Used bit of swapcache is solid under page lock.
-> -	 */
-> +	lock_page_cgroup(pc);
->  	if (PageCgroupUsed(pc)) {
->  		mem = pc->mem_cgroup;
->  		if (mem && !css_tryget(&mem->css))
-> @@ -1040,6 +1038,7 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
->  			mem = NULL;
->  		rcu_read_unlock();
->  	}
-> +	unlock_page_cgroup(pc);
->  	return mem;
->  }
->  
-> 
+Callers of read_cache_page_async typically wait for the page to become
+unlocked (wait_on_page_locked) and then test PageUptodate to see if
+the read was successful, or if there was an error.
+
+This is wrong.
+
+invalidate_inode_pages can cause an unlocked page to lose its
+PageUptodate flag at any time without implying a read error.
+
+As any read error will cause PageError to be set, it is much safer,
+and more idiomatic to test "PageError" than to test "!PageUptodate".
+Hence this patch.
+
+An actual failure that has been seen (on a 2.6.5 based kernel)
+involves symlinks.  Symlinks are more suseptible as the 'open' and
+'read' phases can be very close together, and so can both overlap with
+invalidate_inode_pages.
+
+The sequence goes something like:
+
+  high memory pressure prunes dentry
+  continuing memory pressure cause prune
+    of inode to start.  Start invaliding
+    page(s).
+                                             Lookup of path containing symlink
+                                              causes inode (inode is found in
+                                              cache).
+                                             page_getlink calls
+                                               read_cache_page
+                                                read_cache_page_async
+                                                finds that page is Uptodate
+   __invalidate_mapping_pages finds page
+   and locks it
+                                                read_cache_page waits for lock
+                                                to be released.
+   invalidate_complete_page clears
+   PageUptodate
+                                                read_cache_page finds Uptodate
+                                                is clear and assumes an error.
+
+As we can see, finding !PageUptodate is not an error.  Possibly in
+this case we could try an read again, but really there is no point.
+After calling read_cache_page_async and waiting for the page to be
+unlocked, then either the page has been read, or there was an error.
+The simplest way to check, is to tests PageError.
+
+Note the "typically" in the first sentence refers to fs/jffs2/fs.c
+which uses read_cache_page_async, but never checks for an error, or
+even waits for the page to be unlocked.  This seems wrong, though
+maybe there is some justification for it.
+
+Signed-off-by: NeilBrown <neilb@suse.de>
+cc: Nick Piggin <npiggin@suse.de>
+Cc: David Woodhouse <dwmw2@infradead.org>
+---
+ fs/cramfs/inode.c |    2 +-
+ mm/filemap.c      |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
+index dd3634e..573d582 100644
+--- a/fs/cramfs/inode.c
++++ b/fs/cramfs/inode.c
+@@ -180,7 +180,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
+ 		struct page *page = pages[i];
+ 		if (page) {
+ 			wait_on_page_locked(page);
+-			if (!PageUptodate(page)) {
++			if (PageError(page)) {
+ 				/* asynchronous error */
+ 				page_cache_release(page);
+ 				pages[i] = NULL;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 379ff0b..9ff8093 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1770,7 +1770,7 @@ struct page *read_cache_page(struct address_space *mapping,
+ 	if (IS_ERR(page))
+ 		goto out;
+ 	wait_on_page_locked(page);
+-	if (!PageUptodate(page)) {
++	if (!PageError(page)) {
+ 		page_cache_release(page);
+ 		page = ERR_PTR(-EIO);
+ 	}
+-- 
+1.6.2.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
