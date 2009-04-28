@@ -1,33 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id C952D6B004D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 13:48:55 -0400 (EDT)
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20090428014920.769723618@intel.com>
-References: <20090428010907.912554629@intel.com>
-	 <20090428014920.769723618@intel.com>
-Content-Type: text/plain
-Date: Tue, 28 Apr 2009 12:49:21 -0500
-Message-Id: <1240940961.938.451.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B15E6B004D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 14:07:59 -0400 (EDT)
+Date: Tue, 28 Apr 2009 19:07:59 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: [PATCH] Properly account for freed pages in free_pages_bulk() and
+	when allocating high-order pages in buffered_rmqueue() V2
+Message-ID: <20090428180759.GB18893@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240819119.2567.884.camel@ymzhang> <20090427143845.GC912@csn.ul.ie> <1240883957.2567.886.camel@ymzhang> <20090428103159.GB23540@csn.ul.ie> <alpine.DEB.1.10.0904281236350.21913@qirst.com> <20090428165129.GA18893@csn.ul.ie> <Pine.LNX.4.64.0904281810240.30878@blonde.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.64.0904281810240.30878@blonde.anvils>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-04-28 at 09:09 +0800, Wu Fengguang wrote:
-> plain text document attachment (kpageflags-extending.patch)
-> Export 9 page flags in /proc/kpageflags, and 8 more for kernel developers.
+free_pages_bulk() updates the number of free pages in the zone but it is
+assuming that the pages being freed are order-0. While this is currently
+always true, it's wrong to assume the order is 0. This patch fixes the problem.
 
-My only concern with this patch is it knows a bit too much about SLUB
-internals (and perhaps not enough about SLOB, which also overloads
-flags). 
+buffered_rmqueue() is not updating NR_FREE_PAGES when allocating pages with
+__rmqueue(). As a result, high-order allocation will appear to increase
+the number of free pages leading to the situation where the free page count
+exceeds available RAM. This patch accounts for those allocated pages properly.
 
--- 
-http://selenic.com : development and support for Mercurial and Linux
+This is a fix for page-allocator-update-nr_free_pages-only-as-necessary.patch.
 
+Changelog since V1
+  o Change 1UL to 1 as it's unnecessary in this case to be unsigned long
+
+Reported-by: Zhang, Yanmin <yanmin_zhang@linux.intel.com>
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+--- 
+ mm/page_alloc.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dd2d59..59eb2e1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -545,7 +545,7 @@ static void free_pages_bulk(struct zone *zone, int count,
+ 	zone_clear_flag(zone, ZONE_ALL_UNRECLAIMABLE);
+ 	zone->pages_scanned = 0;
+ 
+-	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
++	__mod_zone_page_state(zone, NR_FREE_PAGES, count << order);
+ 	while (count--) {
+ 		struct page *page;
+ 
+@@ -1151,6 +1151,7 @@ again:
+ 	} else {
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		page = __rmqueue(zone, order, migratetype);
++		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+ 		spin_unlock(&zone->lock);
+ 		if (!page)
+ 			goto failed;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
