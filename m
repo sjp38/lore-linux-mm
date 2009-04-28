@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id C4F7A6B003D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 13:22:01 -0400 (EDT)
-Date: Tue, 28 Apr 2009 18:15:30 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Properly account for freed pages in free_pages_bulk()
- and when allocating high-order pages in buffered_rmqueue()
-In-Reply-To: <20090428165129.GA18893@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0904281810240.30878@blonde.anvils>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
- <1240819119.2567.884.camel@ymzhang> <20090427143845.GC912@csn.ul.ie>
- <1240883957.2567.886.camel@ymzhang> <20090428103159.GB23540@csn.ul.ie>
- <alpine.DEB.1.10.0904281236350.21913@qirst.com> <20090428165129.GA18893@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 368F76B003D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 13:43:01 -0400 (EDT)
+Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
+From: Matt Mackall <mpm@selenic.com>
+In-Reply-To: <20090428093621.GD21085@elte.hu>
+References: <20090428010907.912554629@intel.com>
+	 <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
+	 <20090428074031.GK27382@one.firstfloor.org>
+	 <1240909484.1982.16.camel@penberg-laptop> <20090428091508.GA21085@elte.hu>
+	 <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com>
+	 <84144f020904280225h490ef682p8973cb1241a1f3ea@mail.gmail.com>
+	 <20090428093621.GD21085@elte.hu>
+Content-Type: text/plain
+Date: Tue, 28 Apr 2009 12:42:08 -0500
+Message-Id: <1240940528.938.426.camel@calx>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Nick Piggin <npiggin@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Lin Ming <ming.m.lin@intel.com>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@cs.helsinki.fi>, "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Apr 2009, Mel Gorman wrote:
-> On Tue, Apr 28, 2009 at 12:37:22PM -0400, Christoph Lameter wrote:
-> > On Tue, 28 Apr 2009, Mel Gorman wrote:
-> > 
-> > > @@ -1151,6 +1151,7 @@ again:
-> > >  	} else {
-> > >  		spin_lock_irqsave(&zone->lock, flags);
-> > >  		page = __rmqueue(zone, order, migratetype);
-> > > +		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-> > >  		spin_unlock(&zone->lock);
-> > >  		if (!page)
-> > >  			goto failed;
-> > 
-> > __mod_zone_page_state takes an signed integer argument. Not sure what is
-> > won by the UL suffix here.
-> > 
+On Tue, 2009-04-28 at 11:36 +0200, Ingo Molnar wrote:
+> I 'integrate' traces all the time to get summary counts. This series 
+> of dynamic events:
 > 
-> Matches other call sites such as in __offline_isolated_pages(), habit when
-> using shifts like this and matches other locations, paranoia, doesn't hurt.
+>   allocation
+>   page count up
+>   page count up
+>   page count down
+>   page count up
+>   page count up
+>   page count up
+>   page count up
+> 
+> integrates into: "page count is 6".
 
-Well, not a big deal, but I'd say that it does hurt: by wasting people's
-time (mine!), wondering what that "UL" is for - I'd have had to ask, if
-Christoph hadn't cleared this up first (thank you).  And elsewhere,
-you're using an int << order to update NR_FREE_PAGES, so I don't see
-the consistency argument.
+Perhaps you've failed calculus. The integral is 6 + C.
 
-Hugh
+This is a critical distinction. Tracing is great for looking at changes,
+but it completely falls down for static system-wide measurements because
+it would require integrating from time=0 to get a meaningful summation.
+That's completely useless for taking a measurement on a system that
+already has an uptime of months. 
+
+Never mind that summing up page flag changes for every page on the
+system since boot time through the trace interface is incredibly
+wasteful given that we're keeping a per-page integral in the page tables
+anyway.
+
+Tracing is not the answer for everything.
+
+-- 
+http://selenic.com : development and support for Mercurial and Linux
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
