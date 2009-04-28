@@ -1,73 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with SMTP id 397516B005A
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 05:55:29 -0400 (EDT)
-Date: Tue, 28 Apr 2009 17:55:51 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090428095551.GB21168@localhost>
-References: <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com> <20090428092918.GC21085@elte.hu> <20090428183237.EBDE.A69D9226@jp.fujitsu.com> <20090428093833.GE21085@elte.hu>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 84EEF6B0047
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 06:04:20 -0400 (EDT)
+Received: by fxm22 with SMTP id 22so564700fxm.38
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2009 03:04:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090428093833.GE21085@elte.hu>
+In-Reply-To: <20090428093621.GD21085@elte.hu>
+References: <20090428010907.912554629@intel.com>
+	 <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
+	 <20090428074031.GK27382@one.firstfloor.org>
+	 <1240909484.1982.16.camel@penberg-laptop>
+	 <20090428091508.GA21085@elte.hu>
+	 <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com>
+	 <84144f020904280225h490ef682p8973cb1241a1f3ea@mail.gmail.com>
+	 <20090428093621.GD21085@elte.hu>
+Date: Tue, 28 Apr 2009 12:57:16 +0300
+Message-ID: <84144f020904280257j57b5b686k91cc4096a8e5ca29@mail.gmail.com>
+Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
+From: Pekka Enberg <penberg@cs.helsinki.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Ingo Molnar <mingo@elte.hu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Steven Rostedt <rostedt@goodmis.org>, =?utf-8?B?RnLpppjpp7tpYw==?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 28, 2009 at 05:38:33PM +0800, Ingo Molnar wrote:
-> 
-> * KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com> wrote:
-> 
-> > > 
-> > > * Pekka Enberg <penberg@cs.helsinki.fi> wrote:
-> > > 
-> > > > I have no idea how expensive tracepoints are but I suspect they 
-> > > > don't make too much sense for this particular scenario. After all, 
-> > > > kmemtrace is mainly interested in _allocation patterns_ whereas 
-> > > > this patch seems to be more interested in "memory layout" type of 
-> > > > things.
-> > > 
-> > > My point is that the allocation patterns can be derived from dynamic 
-> > > events. We can build a map of everything if we know all the events 
-> > > that led up to it. Doing:
-> > > 
-> > >   echo 3 > /proc/sys/vm/drop_caches
-> > > 
-> > > will clear 99% of the memory allocations, so we can build a new map 
-> > > from scratch just about anytime. (and if boot allocations are 
-> > > interesting they can be traced too)
-> > > 
-> > > _And_ via this angle we'll also have access to the dynamic events, 
-> > > in a different 'view' of the same tracepoints - which is obviously 
-> > > very useful for different purposes.
-> > 
-> > I am one of most strongly want guys to MM tracepoint. but No, many 
-> > cunstomer never permit to use drop_caches.
-> 
-> See my other mail i just sent: it would be a natural extension of 
-> tracing to also dump all current object state when tracing is turned 
-> on. That way no drop_caches is needed at all.
+Hi Ingo,
 
-I can understand the merits here - I also did readahead
-tracing/accounting in _one_ piece of code. Very handy.
+On Tue, Apr 28, 2009 at 12:36 PM, Ingo Molnar <mingo@elte.hu> wrote:
+> I 'integrate' traces all the time to get summary counts. This series
+> of dynamic events:
+>
+> =A0allocation
+> =A0page count up
+> =A0page count up
+> =A0page count down
+> =A0page count up
+> =A0page count up
+> =A0page count up
+> =A0page count up
+>
+> integrates into: "page count is 6".
+>
+> Note that "integration" can be done wholly in the kernel too,
+> without going to the overhead of streaming all dynamic events to
+> user-space, just to summarize data into counts, in-kernel. That is
+> what the ftrace statistics framework and various ftrace plugins are
+> about.
+>
+> Also, it might make sense to extend the framework with a series of
+> 'get current object state' events when tracing is turned on. A
+> special case of _that_ would in essence be what the /proc hack does
+> now - just expressed in a much more generic, and a much more usable
+> form.
 
-The readahead traces are now raw printks - converting to the ftrace
-framework would be a big win.
+I guess the main question here is whether this approach will scale to
+something like kmalloc() or the page allocator in production
+environments. For any serious workload, the frequency of events is
+going to be pretty high.
 
-But. It's still not a fit-all solution. Imagine when full data _since_
-booting is required, but the user cannot afford a reboot.
-
-> But it has to be expressed in one framework that cares about the 
-> totality of the kernel - not just these splintered bits of 
-> instrumentation and pieces of statistics.
-
-Though minded to push the kpageflags interface, I totally agree the
-above fine principle and discipline :-)
-
-Thanks,
-Fengguang
+                                            Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
