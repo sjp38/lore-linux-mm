@@ -1,53 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 315CF6B003D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 03:11:29 -0400 (EDT)
-Received: by ewy8 with SMTP id 8so422621ewy.38
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2009 00:11:38 -0700 (PDT)
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 805736B003D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 03:26:06 -0400 (EDT)
+Date: Tue, 28 Apr 2009 00:26:19 -0700
+From: Elladan <elladan@eskimo.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+Message-ID: <20090428072619.GA29747@eskimo.com>
+References: <20090428143019.EBBF.A69D9226@jp.fujitsu.com> <20090428063625.GA17785@eskimo.com> <20090428154835.EBC9.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20090428014920.217785938@intel.com>
-References: <20090428010907.912554629@intel.com>
-	 <20090428014920.217785938@intel.com>
-Date: Tue, 28 Apr 2009 10:11:37 +0300
-Message-ID: <93e6a6040904280011o25c68e9o672cf2ab64af26cd@mail.gmail.com>
-Subject: Re: [PATCH 1/5] pagemap: document clarifications
-From: Tommi Rantala <tt.rantala@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090428154835.EBC9.A69D9226@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-2009/4/28 Wu Fengguang <fengguang.wu@intel.com>:
-> Some bit ranges were inclusive and some not.
-> Fix them to be consistently inclusive.
->
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
-> =A0Documentation/vm/pagemap.txt | =A0 =A06 +++---
-> =A01 file changed, 3 insertions(+), 3 deletions(-)
->
-> --- mm.orig/Documentation/vm/pagemap.txt
-> +++ mm/Documentation/vm/pagemap.txt
-> @@ -12,9 +12,9 @@ There are three components to pagemap:
-> =A0 =A0value for each virtual page, containing the following data (from
-> =A0 =A0fs/proc/task_mmu.c, above pagemap_read):
->
-> - =A0 =A0* Bits 0-55 =A0page frame number (PFN) if present
-> + =A0 =A0* Bits 0-54 =A0page frame number (PFN) if present
-> =A0 =A0 * Bits 0-4 =A0 swap type if swapped
-> - =A0 =A0* Bits 5-55 =A0swap offset if swapped
-> + =A0 =A0* Bits 5-54 =A0swap offset if swapped
-> =A0 =A0 * Bits 55-60 page shift (page size =3D 1<<page shift)
-> =A0 =A0 * Bit =A061 =A0 =A0reserved for future use
-> =A0 =A0 * Bit =A062 =A0 =A0page swapped
+On Tue, Apr 28, 2009 at 03:52:29PM +0900, KOSAKI Motohiro wrote:
+> Hi
+> 
+> > 3. cache limitation of memcgroup solve this problem?
+> > 
+> > I was unable to get this to work -- do you have some documentation handy?
+> 
+> Do you have kernel source tarball?
+> Documentation/cgroups/memory.txt explain usage kindly.
 
-The same fix should be applied to fs/proc/task_mmu.c as well,
-it includes the same description of the bits.
+Thank you.  My documentation was out of date.
 
-Regards,
-Tommi Rantala
+I created a cgroup with limited memory and placed a copy command in it, and the
+latency problem seems to essentially go away.  However, I'm also a bit
+suspicious that my test might have become invalid, since my IO performance
+seems to have dropped somewhat too.
+
+So, am I right in concluding that this more or less implicates bad page
+replacement as the culprit?  After I dropped vm caches and let my working set
+re-form, the memory cgroup seems to be effective at keeping a large pool of
+memory free from file pressure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
