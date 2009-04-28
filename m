@@ -1,48 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id 61C076B0047
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 06:10:20 -0400 (EDT)
-Received: from mt1.gw.fujitsu.co.jp ([10.0.50.74])
-	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3SAASjd026911
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id F3F4F6B0047
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 06:10:54 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3SAB3r5027083
 	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
-	Tue, 28 Apr 2009 19:10:28 +0900
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DA91F45DE51
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:10:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9727845DE50
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:10:27 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 54AC11DB8040
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:10:27 +0900 (JST)
-Received: from m108.s.css.fujitsu.com (m108.s.css.fujitsu.com [10.249.87.108])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D89F1DB803C
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:10:27 +0900 (JST)
+	Tue, 28 Apr 2009 19:11:03 +0900
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2B2FE45DD75
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:11:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 06DD645DD78
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:11:03 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D4A8C1DB8013
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:11:02 +0900 (JST)
+Received: from ml13.s.css.fujitsu.com (ml13.s.css.fujitsu.com [10.249.87.103])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4385BE08002
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 19:11:02 +0900 (JST)
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-In-Reply-To: <84144f020904280257j57b5b686k91cc4096a8e5ca29@mail.gmail.com>
-References: <20090428093621.GD21085@elte.hu> <84144f020904280257j57b5b686k91cc4096a8e5ca29@mail.gmail.com>
-Message-Id: <20090428190822.EBED.A69D9226@jp.fujitsu.com>
+In-Reply-To: <20090428095551.GB21168@localhost>
+References: <20090428093833.GE21085@elte.hu> <20090428095551.GB21168@localhost>
+Message-Id: <20090428190015.EBEA.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Date: Tue, 28 Apr 2009 19:10:25 +0900 (JST)
+Date: Tue, 28 Apr 2009 19:11:01 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Pekka Enberg <penberg@cs.helsinki.fi>
-Cc: kosaki.motohiro@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-2022-JP?B?RnIbJEJxRXFTGyhCaWM=?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, Ingo Molnar <mingo@elte.hu>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-2022-JP?B?RnIbJEJxRXFTGyhCaWM=?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> I guess the main question here is whether this approach will scale to
-> something like kmalloc() or the page allocator in production
-> environments. For any serious workload, the frequency of events is
-> going to be pretty high.
+> > > I am one of most strongly want guys to MM tracepoint. but No, many 
+> > > cunstomer never permit to use drop_caches.
+> > 
+> > See my other mail i just sent: it would be a natural extension of 
+> > tracing to also dump all current object state when tracing is turned 
+> > on. That way no drop_caches is needed at all.
+> 
+> I can understand the merits here - I also did readahead
+> tracing/accounting in _one_ piece of code. Very handy.
+> 
+> The readahead traces are now raw printks - converting to the ftrace
+> framework would be a big win.
+>
+> But. It's still not a fit-all solution. Imagine when full data _since_
+> booting is required, but the user cannot afford a reboot.
+> 
+> > But it has to be expressed in one framework that cares about the 
+> > totality of the kernel - not just these splintered bits of 
+> > instrumentation and pieces of statistics.
+> 
+> Though minded to push the kpageflags interface, I totally agree the
+> above fine principle and discipline :-)
 
-Immediate Values patch series makes zero-overhead to tracepoint
-while it's not used.
+Yeah.
+I totally agree your claim.
 
-So, We have to implement to stop collect stastics way. it restore
-zero overhead world.
-We don't lose any performance by trace.
+I'm interest to both ftrace based readahead tracer and this patch :)
+
 
 
 
