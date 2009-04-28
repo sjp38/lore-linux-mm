@@ -1,52 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2F79F6B004D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 07:36:29 -0400 (EDT)
-Date: Tue, 28 Apr 2009 19:36:16 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090428113616.GA22439@localhost>
-References: <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com> <20090428092918.GC21085@elte.hu> <20090428183237.EBDE.A69D9226@jp.fujitsu.com> <20090428093833.GE21085@elte.hu> <20090428095551.GB21168@localhost> <20090428110553.GD25347@elte.hu>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 213896B004D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 08:08:29 -0400 (EDT)
+Date: Tue, 28 Apr 2009 08:08:18 -0400
+From: Theodore Tso <tytso@mit.edu>
+Subject: Re: Swappiness vs. mmap() and interactive response
+Message-ID: <20090428120818.GH22104@mit.edu>
+References: <20090428044426.GA5035@eskimo.com> <20090428143019.EBBF.A69D9226@jp.fujitsu.com> <1240904919.7620.73.camel@twins> <20090428090916.GC17038@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090428110553.GD25347@elte.hu>
+In-Reply-To: <20090428090916.GC17038@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Andi Kleen <andi@firstfloor.org>, Steven Rostedt <rostedt@goodmis.org>, =?utf-8?B?RnLpppjpp7tpYw==?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 28, 2009 at 07:05:53PM +0800, Ingo Molnar wrote:
+On Tue, Apr 28, 2009 at 05:09:16PM +0800, Wu Fengguang wrote:
+> The semi-drop-behind is a great idea for the desktop - to put just
+> accessed pages to end of LRU. However I'm still afraid it vastly
+> changes the caching behavior and wont work well as expected in server
+> workloads - shall we verify this?
 > 
-> * Wu Fengguang <fengguang.wu@intel.com> wrote:
+> Back to this big-cp-hurts-responsibility issue. Background write
+> requests can easily pass the io scheduler's obstacles and fill up
+> the disk queue. Now every read request will have to wait 10+ writes
+> - leading to 10x slow down of major page faults.
 > 
-> > > See my other mail i just sent: it would be a natural extension 
-> > > of tracing to also dump all current object state when tracing is 
-> > > turned on. That way no drop_caches is needed at all.
-> > 
-> > I can understand the merits here - I also did readahead 
-> > tracing/accounting in _one_ piece of code. Very handy.
-> > 
-> > The readahead traces are now raw printks - converting to the 
-> > ftrace framework would be a big win.
-> > 
-> > But. It's still not a fit-all solution. Imagine when full data 
-> > _since_ booting is required, but the user cannot afford a reboot.
-> 
-> The above 'get object state' interface (which allows passive 
-> sampling) - integrated into the tracing framework - would serve that 
-> goal, agreed?
+> I reach this conclusion based on recent CFQ code reviews. Will bring up
+> a queue depth limiting patch for more exercises..
 
-Agreed. That could in theory a good complement to dynamic tracings.
+We can muck with the I/O scheduler, but another thing to consider is
+whether the VM should be more aggressively throttling writes in this
+case; it sounds like the big cp in this case may be dirtying pages so
+aggressively that it's driving other (more useful) pages out of the
+page cache --- if the target disk is slower than the source disk (for
+example, backing up a SATA primary disk to a USB-attached backup disk)
+no amount of drop-behind is going to help the situation.
 
-Then what will be the canonical form for all the 'get object state'
-interfaces - "object.attr=value", or whatever? I'm afraid we will have
-to sacrifice efficiency or human readability to have a normalized form.
-Or to define two standard forms? One "key value" form and one "value1
-value2 value3..." form?
+So that leaves three areas for exploration:
 
-Thanks,
-Fengguang
+* Write-throttling
+* Drop-behind
+* background writes pushing aside foreground reads
+
+Hmm, note that although the original bug reporter is running Ubuntu
+Jaunty, and hence 2.6.28, this problem is going to get *worse* with
+2.6.30, since we have the ext3 data=ordered latency fixes which will
+write out the any journal activity, and worse, any synchornous commits
+(i.e., caused by fsync) will force out all of the dirty pages with
+WRITE_SYNC priority.  So with a heavy load, I suspect this is going to
+be more of a VM issue, and especially figuring out how to tune more
+aggressive write-throttling may be key here.
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
