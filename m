@@ -1,77 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7426B003D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 17:49:58 -0400 (EDT)
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-From: Matt Mackall <mpm@selenic.com>
-In-Reply-To: <20090428141738.77e599f4.akpm@linux-foundation.org>
-References: <20090428010907.912554629@intel.com>
-	 <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
-	 <20090428083320.GB17038@localhost>
-	 <12c511ca0904281111r10f37a5coe5a2750f4dbfbcda@mail.gmail.com>
-	 <20090428141738.77e599f4.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Tue, 28 Apr 2009 16:49:55 -0500
-Message-Id: <1240955395.938.1031.camel@calx>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id CC64C6B003D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 18:20:51 -0400 (EDT)
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by e28smtp06.in.ibm.com (8.13.1/8.13.1) with ESMTP id n3SML53i032134
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 03:51:05 +0530
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3SML56e708714
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 03:51:05 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.13.1/8.13.3) with ESMTP id n3SML5uB018841
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 03:51:05 +0530
+Date: Wed, 29 Apr 2009 03:16:06 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH] fix leak of swap accounting as stale swap cache under
+	memcg
+Message-ID: <20090428214606.GB12698@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <20090427181259.6efec90b.kamezawa.hiroyu@jp.fujitsu.com> <20090427101323.GK4454@balbir.in.ibm.com> <20090427203535.4e3f970b.d-nishimura@mtf.biglobe.ne.jp> <661de9470904271217t7ef9e300x1e40bbf0362ca14f@mail.gmail.com> <20090428085753.a91b6007.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20090428085753.a91b6007.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@gmail.com>, fengguang.wu@intel.com, mingo@elte.hu, rostedt@goodmis.org, fweisbec@gmail.com, lwoodman@redhat.com, a.p.zijlstra@chello.nl, penberg@cs.helsinki.fi, eduard.munteanu@linux360.ro, linux-kernel@vger.kernel.org, kosaki.motohiro@jp.fujitsu.com, andi@firstfloor.org, adobriyan@gmail.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: nishimura@mxp.nes.nec.co.jp, "linux-mm@kvack.org" <linux-mm@kvack.org>, "hugh@veritas.com" <hugh@veritas.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-04-28 at 14:17 -0700, Andrew Morton wrote:
-> On Tue, 28 Apr 2009 11:11:52 -0700
-> Tony Luck <tony.luck@gmail.com> wrote:
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-28 08:57:53]:
+
+> On Tue, 28 Apr 2009 00:47:31 +0530
+> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
 > 
-> > On Tue, Apr 28, 2009 at 1:33 AM, Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > 1) FAST
-> > >
-> > > It takes merely 0.2s to scan 4GB pages:
-> > >
-> > > __ __ __ __./page-types __0.02s user 0.20s system 99% cpu 0.216 total
-> > 
-> > OK on a tiny system ... but sounds painful on a big
-> > server. 0.2s for 4G scales up to 3 minutes 25 seconds
-> > on a 4TB system (4TB systems were being sold two
-> > years ago ... so by now the high end will have moved
-> > up to 8TB or perhaps 16TB).
-> > 
-> > Would the resulting output be anything but noise on
-> > a big system (a *lot* of pages can change state in
-> > 3 minutes)?
+> > Thanks for the detailed explanation of the possible race conditions. I
+> > am beginning to wonder why we don't have any hooks in add_to_swap.*.
+> > for charging a page. If the page is already charged and if it is a
+> > context issue (charging it to the right cgroup) that is already
+> > handled from what I see. Won't that help us solve the !PageCgroupUsed
+> > issue?
 > > 
 > 
-> Reading the state of all of memory in this fashion would be a somewhat
-> peculiar thing to do.
+> For adding hook to add_to_swap_cache, we need to know which cgroup the swap cache
+> should be charged. Then, we have to remove CONFIG_CGROUP_MEM_RES_CTRL_SWAP_EXT
+> and enable memsw control always.
+> 
+> When using swap_cgroup, we'll know which cgroup the new swap cache should be charged.
+> Then, the new page readed in will be charged to recorded cgroup in swap_cgroup.
+> One bad thing of this method is a cgroup which swap_cgroup point to is different from
+> a cgroup which the task calls do_swap_fault(). This means that a page-fault by a
+> task can cause memory-reclaim under another cgroup and moreover, OOM.
+> I don't think it's sane behavior. So, current design of swap accounting waits until the
+> page is mapped.
+>
+ 
+I know (that is why we removed the hooks from the original memcg at
+some point). Why can't we mark the page here as swap pending to be
+mapped, so that we don't lose them. As far as OOM is concerned, I
+think they'll get relocated again when they are mapped (as per the
+current implementation), the ones that don't are stale and can be
+easily reclaimed.
 
-Not entirely. If you've got, say, a large NUMA box, it could be
-incredibly illustrative to see that "oh, this node is entirely dominated
-by SLAB allocations". Or on a smaller machine "oh, this is fragmented to
-hell and there's no way I'm going to get a huge page". Things you're not
-going to get from individual stats.
-
-> Generally, I think that pagemap is another of those things where we've
-> failed on the follow-through.  There's a nice and powerful interface
-> for inspecting the state of a process's VM, but nobody knows about it
-> and there are no tools for accessing it and nobody is using it.
-
-People keep finding bugs in the thing exercising it in new ways, so I
-presume people are writing their own tools. My hope was that my original
-tools would inspire someone to take it and run with it - I really have
-no stomach for writing GUI tools.
-
-However, I've recent gone and written a pretty generically useful
-command-line tool that hopefully will get more traction:
-
-http://www.selenic.com/smem/
-
-I'm expecting it to get written up on LWN shortly, so I haven't spent
-much time doing my own advertising.
 
 -- 
-http://selenic.com : development and support for Mercurial and Linux
-
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
