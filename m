@@ -1,45 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 51EE66B0047
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 14:56:52 -0400 (EDT)
-Date: Tue, 28 Apr 2009 11:57:39 -0700
-From: Ravikiran G Thirumalai <kiran@scalex86.org>
-Subject: Re: [patch] mm: close page_mkwrite races (try 3)
-Message-ID: <20090428185739.GE6377@localdomain>
-References: <20090414071152.GC23528@wotan.suse.de> <20090415082507.GA23674@wotan.suse.de> <20090415183847.d4fa1efb.akpm@linux-foundation.org>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 312356B003D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 16:46:25 -0400 (EDT)
+Received: by qw-out-1920.google.com with SMTP id 4so681773qwk.44
+        for <linux-mm@kvack.org>; Tue, 28 Apr 2009 13:47:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090415183847.d4fa1efb.akpm@linux-foundation.org>
+In-Reply-To: <1240943671.938.575.camel@calx>
+References: <20090428010907.912554629@intel.com>
+	 <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
+	 <20090428083320.GB17038@localhost>
+	 <12c511ca0904281111r10f37a5coe5a2750f4dbfbcda@mail.gmail.com>
+	 <1240943671.938.575.camel@calx>
+Date: Tue, 28 Apr 2009 13:47:07 -0700
+Message-ID: <12c511ca0904281347m394b04e0mcb61f7c336752cc4@mail.gmail.com>
+Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Sage Weil <sage@newdream.net>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 15, 2009 at 06:38:47PM -0700, Andrew Morton wrote:
->On Wed, 15 Apr 2009 10:25:07 +0200 Nick Piggin <npiggin@suse.de> wrote:
->
->> - Trond for NFS (http://bugzilla.kernel.org/show_bug.cgi?id=12913).
->
->I wonder which kernel version(s) we should put this in.
->
->Going BUG isn't nice, but that report is against 2.6.27.  Is the BUG
->super-rare, or did we avoid it via other means, or what?
->
+On Tue, Apr 28, 2009 at 11:34 AM, Matt Mackall <mpm@selenic.com> wrote:
+> Bah. The rate of change is proportional to #cpus, not #pages. Assuming
+> you've got 1024 processors, you could run the scan in parallel in .2
+> seconds still.
 
-Jumping in late in  after being bit by this bug many times
-over with  2.6.27.  The bug (http://bugzilla.kernel.org/show_bug.cgi?id=12913)
-is not rare with the right workload at all.
-I can easily make it happen on smp machines, when multiple
-processes are writing to the same NFS mounted file system.  AFAICT this
-needs to be back ported to 27 stable and 29 stable as well.
+That would help ... it would also make the patch to support this
+functionality a lot more complex.
 
-Nick, are there 27 based patches already available someplace?
-Obviously, I have verified these patches + Trond's patch --
-http://lkml.org/lkml/2009/4/25/64 fixes the issue with 2.6.30-rc3
-
-Thanks,
-Kiran
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
