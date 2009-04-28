@@ -1,68 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8896B003D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 05:14:05 -0400 (EDT)
-Date: Tue, 28 Apr 2009 17:09:16 +0800
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id AE9B66B0047
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 05:14:29 -0400 (EDT)
+Date: Tue, 28 Apr 2009 16:33:20 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: Swappiness vs. mmap() and interactive response
-Message-ID: <20090428090916.GC17038@localhost>
-References: <20090428044426.GA5035@eskimo.com> <20090428143019.EBBF.A69D9226@jp.fujitsu.com> <1240904919.7620.73.camel@twins>
+Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
+Message-ID: <20090428083320.GB17038@localhost>
+References: <20090428010907.912554629@intel.com> <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1240904919.7620.73.camel@twins>
+In-Reply-To: <20090428065507.GA2024@elte.hu>
 Sender: owner-linux-mm@kvack.org
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Steven Rostedt <rostedt@goodmis.org>, =?utf-8?B?RnLDqWTDqXJpYw==?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 28, 2009 at 09:48:39AM +0200, Peter Zijlstra wrote:
-> On Tue, 2009-04-28 at 14:35 +0900, KOSAKI Motohiro wrote:
-> > (cc to linux-mm and Rik)
-> > 
-> > 
-> > > Hi,
-> > > 
-> > > So, I just set up Ubuntu Jaunty (using Linux 2.6.28) on a quad core phenom box,
-> > > and then I did the following (with XFS over LVM):
-> > > 
-> > > mv /500gig/of/data/on/disk/one /disk/two
-> > > 
-> > > This quickly caused the system to. grind.. to... a.... complete..... halt.
-> > > Basically every UI operation, including the mouse in Xorg, started experiencing
-> > > multiple second lag and delays.  This made the system essentially unusable --
-> > > for example, just flipping to the window where the "mv" command was running
-> > > took 10 seconds on more than one occasion.  Basically a "click and get coffee"
-> > > interface.
-> > 
-> > I have some question and request.
-> > 
-> > 1. please post your /proc/meminfo
-> > 2. Do above copy make tons swap-out? IOW your disk read much faster than write?
-> > 3. cache limitation of memcgroup solve this problem?
-> > 4. Which disk have your /bin and /usr/bin?
-> > 
+On Tue, Apr 28, 2009 at 08:55:07AM +0200, Ingo Molnar wrote:
 > 
-> FWIW I fundamentally object to 3 as being a solution.
+> * Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> I still think the idea of read-ahead driven drop-behind is a good one,
-> alas last time we brought that up people thought differently.
+> > Export 9 page flags in /proc/kpageflags, and 8 more for kernel developers.
+> > 
+> > 1) for kernel hackers (on CONFIG_DEBUG_KERNEL)
+> >    - all available page flags are exported, and
+> >    - exported as is
+> > 2) for admins and end users
+> >    - only the more `well known' flags are exported:
+> > 	11. KPF_MMAP		(pseudo flag) memory mapped page
+> > 	12. KPF_ANON		(pseudo flag) memory mapped page (anonymous)
+> > 	13. KPF_SWAPCACHE	page is in swap cache
+> > 	14. KPF_SWAPBACKED	page is swap/RAM backed
+> > 	15. KPF_COMPOUND_HEAD	(*)
+> > 	16. KPF_COMPOUND_TAIL	(*)
+> > 	17. KPF_UNEVICTABLE	page is in the unevictable LRU list
+> > 	18. KPF_HWPOISON	hardware detected corruption
+> > 	19. KPF_NOPAGE		(pseudo flag) no page frame at the address
+> > 
+> > 	(*) For compound pages, exporting _both_ head/tail info enables
+> > 	    users to tell where a compound page starts/ends, and its order.
+> > 
+> >    - limit flags to their typical usage scenario, as indicated by KOSAKI:
+> > 	- LRU pages: only export relevant flags
+> > 		- PG_lru
+> > 		- PG_unevictable
+> > 		- PG_active
+> > 		- PG_referenced
+> > 		- page_mapped()
+> > 		- PageAnon()
+> > 		- PG_swapcache
+> > 		- PG_swapbacked
+> > 		- PG_reclaim
+> > 	- no-IO pages: mask out irrelevant flags
+> > 		- PG_dirty
+> > 		- PG_uptodate
+> > 		- PG_writeback
+> > 	- SLAB pages: mask out overloaded flags:
+> > 		- PG_error
+> > 		- PG_active
+> > 		- PG_private
+> > 	- PG_reclaim: mask out the overloaded PG_readahead
+> > 	- compound flags: only export huge/gigantic pages
+> > 
+> > Here are the admin/linus views of all page flags on a newly booted nfs-root system:
+> > 
+> > # ./page-types # for admin
+> >          flags  page-count       MB  symbolic-flags                     long-symbolic-flags
+> > 0x000000000000      491174     1918  ____________________________                
+> > 0x000000000020           1        0  _____l______________________       lru      
+> > 0x000000000028        2543        9  ___U_l______________________       uptodate,lru
+> > 0x00000000002c        5288       20  __RU_l______________________       referenced,uptodate,lru
+> > 0x000000004060           1        0  _____lA_______b_____________       lru,active,swapbacked
+> 
+> I think i have to NAK this kind of ad-hoc instrumentation of kernel 
+> internals and statistics until we clear up why such instrumentation 
+> measures are being accepted into the MM while other, more dynamic 
+> and more flexible MM instrumentation are being resisted by Andrew.
 
-The semi-drop-behind is a great idea for the desktop - to put just
-accessed pages to end of LRU. However I'm still afraid it vastly
-changes the caching behavior and wont work well as expected in server
-workloads - shall we verify this?
+An unexpected NAK - to throw away an orange because we are to have an apple? ;-)
 
-Back to this big-cp-hurts-responsibility issue. Background write
-requests can easily pass the io scheduler's obstacles and fill up
-the disk queue. Now every read request will have to wait 10+ writes
-- leading to 10x slow down of major page faults.
+Anyway here are the missing rationals.
 
-I reach this conclusion based on recent CFQ code reviews. Will bring up
-a queue depth limiting patch for more exercises..
+1) FAST
+
+It takes merely 0.2s to scan 4GB pages:
+
+        ./page-types  0.02s user 0.20s system 99% cpu 0.216 total
+
+2) SIMPLE
+
+/proc/kpageflags will be a *long standing* hack we have to live with -
+it was originally introduced by Matt to do shared memory accounting and
+a facility to analyze applications' memory consumptions, with the hope
+it will also help kernel developers someday.
+
+So why not extend and embrace it, in a straightforward way?
+
+3) USE CASES
+
+I have/will take advantage of the above page-types command in a number ways:
+- to help track down memory leak (the recent trace/ring_buffer.c case)
+- to estimate the system wide readahead miss ratio
+- Andi want to examine the major page types in different workloads
+  (for the hwpoison work)
+- Me too, for fun of learning: read/write/lock/whatever a lot of pages
+  and examine their flags, to get an idea of some random kernel behaviors.
+  (the dynamic tracing tools can be more helpful, as a different view)
+
+4) COMPLEMENTARITY
+
+In some cases the dynamic tracing tool is not enough (or too complex)
+to rebuild the current status view.
+
+I myself have a dynamic readahead tracing tool(very useful!).
+At the same time I also use readahead accounting numbers, and the
+/proc/filecache tool(frequently!), and the above page-types tool.
+I simply need them all - they are handy for different cases.
 
 Thanks,
 Fengguang
+
+> The above type of condensed information can be built out of dynamic 
+> trace data too - and much more. Being able to track page state 
+> transitions is very valuable when debugging VM problems. One such 
+> 'view' of trace data would be a summary histogram like above.
+> 
+> ( done after a "echo 3 > /proc/sys/vm/drop_caches" to make sure all 
+>   interesting pages have been re-established and their state is 
+>   present in the trace. )
+> 
+> The SLAB code already has such a facility, kmemtrace: it's very 
+> useful and successful in visualizing complex SLAB details, both 
+> dynamically and statically.
+> 
+> I think the same general approach should be used for the page 
+> allocator too (and for the page cache and some other struct page 
+> based caches): the life-time of an object should be followed. If we 
+> capture the important details we capture the big picture too. Pekka 
+> already sent an RFC patch to extend kmemtrace in such a fashion. Why 
+> is that more useful method not being pursued?
+> 
+> By extending upon the (existing) /proc/kpageflags hack a usecase is 
+> taken away from the tracing based solution and a needless overlap is 
+> created - and that's not particularly helpful IMHO. We now have all 
+> the facilities upstream that allow us to do intelligent 
+> instrumentation - we should make use of them.
+> 
+> 	Ingo
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
