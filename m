@@ -1,58 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C2376B003D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 03:36:01 -0400 (EDT)
-Date: Tue, 28 Apr 2009 09:40:31 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090428074031.GK27382@one.firstfloor.org>
-References: <20090428010907.912554629@intel.com> <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090428065507.GA2024@elte.hu>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id B574F6B004D
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 03:43:52 -0400 (EDT)
+Received: from m5.gw.fujitsu.co.jp ([10.0.50.75])
+	by fgwmail6.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3S7iVdg017436
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Tue, 28 Apr 2009 16:44:32 +0900
+Received: from smail (m5 [127.0.0.1])
+	by outgoing.m5.gw.fujitsu.co.jp (Postfix) with ESMTP id A379145DE54
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 16:44:31 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (s5.gw.fujitsu.co.jp [10.0.50.95])
+	by m5.gw.fujitsu.co.jp (Postfix) with ESMTP id 82CBA45DE52
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 16:44:31 +0900 (JST)
+Received: from s5.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F67BE08005
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 16:44:31 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.249.87.104])
+	by s5.gw.fujitsu.co.jp (Postfix) with ESMTP id A0C3AE08009
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 16:44:30 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+In-Reply-To: <20090428072619.GA29747@eskimo.com>
+References: <20090428154835.EBC9.A69D9226@jp.fujitsu.com> <20090428072619.GA29747@eskimo.com>
+Message-Id: <20090428164050.EBD2.A69D9226@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 28 Apr 2009 16:44:29 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, =?iso-8859-1?Q?Fr=E9d=E9ric?= Weisbecker <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Pekka Enberg <penberg@cs.helsinki.fi>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Elladan <elladan@eskimo.com>
+Cc: kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> I think i have to NAK this kind of ad-hoc instrumentation of kernel 
-> internals and statistics until we clear up why such instrumentation 
+> On Tue, Apr 28, 2009 at 03:52:29PM +0900, KOSAKI Motohiro wrote:
+> > Hi
+> > 
+> > > 3. cache limitation of memcgroup solve this problem?
+> > > 
+> > > I was unable to get this to work -- do you have some documentation handy?
+> > 
+> > Do you have kernel source tarball?
+> > Documentation/cgroups/memory.txt explain usage kindly.
+> 
+> Thank you.  My documentation was out of date.
+> 
+> I created a cgroup with limited memory and placed a copy command in it, and the
+> latency problem seems to essentially go away.  However, I'm also a bit
+> suspicious that my test might have become invalid, since my IO performance
+> seems to have dropped somewhat too.
+> 
+> So, am I right in concluding that this more or less implicates bad page
+> replacement as the culprit?  After I dropped vm caches and let my working set
+> re-form, the memory cgroup seems to be effective at keeping a large pool of
+> memory free from file pressure.
 
-I think because it has zero fast path overhead and can be used
-any time without enabling anything special.
+Hmm..
+it seems your result mean bad page replacement occur. but actually
+I hevn't seen such result on my environment.
 
-> measures are being accepted into the MM while other, more dynamic 
+Hmm, I think I need to make reproduce environmet to your trouble.
 
-While the dynamic instrumentation you're proposing 
-has non zero fast path overhead, especially if you consider the
-CPU time needed for the backend computation in user space too.
+Thanks.
 
-And it requires explicit tracing first and some backend 
-that counts the events and maintains a shadow data structure
-covering all of mem_map again.
 
-So it's clear your alternative will be much more costly, plus
-have additional drawbacks (needs enabling first, cannot
-take a snapshot at arbitary time)
-
-Also dynamic tracing tends to have trouble with full memory
-observation. I experimented with systemtap tracing for my
-memory usage paper I did a couple of years ago, but ended 
-up with integrated counters (similar to those) because it was
-impossible to do proper accounting for the pages set up
-in early boot with the standard tracers.
-
-I suspect both have their uses (that's indeed some things
-that can only be done with dynamic tracing), but they're clearly
-complementary and the static facility seems useful enough
-on its own. 
-
-I think Fengguang is demonstrating that clearly by the great
-improvements he's doing for readahead which are enabled by these
-patches.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
