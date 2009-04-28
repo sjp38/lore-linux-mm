@@ -1,58 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id 259706B004D
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 05:24:46 -0400 (EDT)
-Received: by bwz21 with SMTP id 21so513453bwz.38
-        for <linux-mm@kvack.org>; Tue, 28 Apr 2009 02:25:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id E34956B005A
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 05:26:39 -0400 (EDT)
+Date: Tue, 28 Apr 2009 17:26:48 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+Message-ID: <20090428092648.GA21226@localhost>
+References: <20090428044426.GA5035@eskimo.com> <20090428143019.EBBF.A69D9226@jp.fujitsu.com> <1240904919.7620.73.camel@twins> <20090428090916.GC17038@localhost>
 MIME-Version: 1.0
-In-Reply-To: <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com>
-References: <20090428010907.912554629@intel.com>
-	 <20090428014920.769723618@intel.com> <20090428065507.GA2024@elte.hu>
-	 <20090428074031.GK27382@one.firstfloor.org>
-	 <1240909484.1982.16.camel@penberg-laptop>
-	 <20090428091508.GA21085@elte.hu>
-	 <84144f020904280219p197d5ceag846ae9a80a76884e@mail.gmail.com>
-Date: Tue, 28 Apr 2009 12:25:06 +0300
-Message-ID: <84144f020904280225h490ef682p8973cb1241a1f3ea@mail.gmail.com>
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-From: Pekka Enberg <penberg@cs.helsinki.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090428090916.GC17038@localhost>
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, =?ISO-8859-1?Q?Fr=E9d=E9ric_Weisbecker?= <fweisbec@gmail.com>, Larry Woodman <lwoodman@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Matt Mackall <mpm@selenic.com>, Alexey Dobriyan <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2009-04-28 at 09:40 +0200, Andi Kleen wrote:
->>> > > I think i have to NAK this kind of ad-hoc instrumentation of kernel
->>> > > internals and statistics until we clear up why such instrumentation
-
-* Pekka Enberg <penberg@cs.helsinki.fi> wrote:
->>> > I think because it has zero fast path overhead and can be used
->>> > any time without enabling anything special.
+On Tue, Apr 28, 2009 at 05:09:16PM +0800, Wu Fengguang wrote:
+> On Tue, Apr 28, 2009 at 09:48:39AM +0200, Peter Zijlstra wrote:
+> > On Tue, 2009-04-28 at 14:35 +0900, KOSAKI Motohiro wrote:
+> > > (cc to linux-mm and Rik)
+> > >
+> > >
+> > > > Hi,
+> > > >
+> > > > So, I just set up Ubuntu Jaunty (using Linux 2.6.28) on a quad core phenom box,
+> > > > and then I did the following (with XFS over LVM):
+> > > >
+> > > > mv /500gig/of/data/on/disk/one /disk/two
+> > > >
+> > > > This quickly caused the system to. grind.. to... a.... complete..... halt.
+> > > > Basically every UI operation, including the mouse in Xorg, started experiencing
+> > > > multiple second lag and delays.  This made the system essentially unusable --
+> > > > for example, just flipping to the window where the "mv" command was running
+> > > > took 10 seconds on more than one occasion.  Basically a "click and get coffee"
+> > > > interface.
+> > >
+> > > I have some question and request.
+> > >
+> > > 1. please post your /proc/meminfo
+> > > 2. Do above copy make tons swap-out? IOW your disk read much faster than write?
+> > > 3. cache limitation of memcgroup solve this problem?
+> > > 4. Which disk have your /bin and /usr/bin?
+> > >
+> >
+> > FWIW I fundamentally object to 3 as being a solution.
+> >
+> > I still think the idea of read-ahead driven drop-behind is a good one,
+> > alas last time we brought that up people thought differently.
 >
-> On Tue, Apr 28, 2009 at 12:15 PM, Ingo Molnar <mingo@elte.hu> wrote:
->> ( That's a dubious claim in any case - tracepoints are very cheap.
->> =A0And they could be made even cheaper and such efforts would benefit
->> =A0all the tracepoint users so it's a prime focus of interest.
->> =A0Andi is a SystemTap proponent, right? I saw him oppose pretty much
->> =A0everything built-in kernel tracing related. I consider that a
->> =A0pretty extreme position. )
+> The semi-drop-behind is a great idea for the desktop - to put just
+> accessed pages to end of LRU. However I'm still afraid it vastly
+> changes the caching behavior and wont work well as expected in server
+> workloads - shall we verify this?
+>
+> Back to this big-cp-hurts-responsibility issue. Background write
+> requests can easily pass the io scheduler's obstacles and fill up
+> the disk queue. Now every read request will have to wait 10+ writes
+> - leading to 10x slow down of major page faults.
+>
+> I reach this conclusion based on recent CFQ code reviews. Will bring up
+> a queue depth limiting patch for more exercises..
 
-On Tue, Apr 28, 2009 at 12:19 PM, Pekka Enberg <penberg@cs.helsinki.fi> wro=
-te:
-> I have no idea how expensive tracepoints are but I suspect they don't
-> make too much sense for this particular scenario. After all, kmemtrace
-> is mainly interested in _allocation patterns_ whereas this patch seems
-> to be more interested in "memory layout" type of things.
+Sorry - just realized that Elladan's root fs lies in sda - the read side.
 
-That said, I do foresee a need to be able to turn on more detailed
-tracing after you've identified problematic areas from kpageflags type
-of overview report. And for that, you almost certainly want
-kmemtrace/tracepoints style solution with pid/function/whatever regexp
-matching ftrace already provides.
+Then why shall a single read stream to cause 2000ms major fault delays?
+The 'await' value for sda is <10ms, not even close to 2000ms:
 
-                        Pekka
+> Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s avgrq-sz avgqu-sz   await  svctm  %util
+> sda              67.70     0.00  373.10    0.20    48.47     0.00   265.90     1.94    5.21   2.10  78.32
+> sdb               0.00  1889.60    0.00  139.80     0.00    52.52   769.34    35.01  250.45   5.17  72.28
+> ---
+> sda               5.30     0.00  483.80    0.30    60.65     0.00   256.59     1.59    3.28   1.65  79.72
+> sdb               0.00  3632.70    0.00  171.10     0.00    61.10   731.39   117.09  709.66   5.84 100.00
+> ---
+> sda              51.20     0.00  478.10    1.00    65.79     0.01   281.27     2.48    5.18   1.96  93.72
+> sdb               0.00  2104.60    0.00  174.80     0.00    62.84   736.28   108.50  613.64   5.72 100.00
+> --
+> sda             153.20     0.00  349.40    0.20    60.99     0.00   357.30     4.47   13.19   2.85  99.80
+> sdb               0.00  1766.50    0.00  158.60     0.00    59.89   773.34   110.07  672.25   6.30  99.96
+
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
