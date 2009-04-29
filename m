@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 2A8A56B003D
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 12:18:26 -0400 (EDT)
-Message-ID: <49F87DCE.8090207@redhat.com>
-Date: Wed, 29 Apr 2009 12:18:22 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-References: <20090428044426.GA5035@eskimo.com>	 <20090428192907.556f3a34@bree.surriel.com>	 <1240987349.4512.18.camel@laptop>	 <20090429114708.66114c03@cuia.bos.redhat.com> <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com>
-In-Reply-To: <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6138C6B003D
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 12:45:22 -0400 (EDT)
+Subject: Re: [patch] mm: close page_mkwrite races (try 3)
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <20090429082733.f69b45c1.akpm@linux-foundation.org>
+References: <20090414071152.GC23528@wotan.suse.de>
+	 <20090415082507.GA23674@wotan.suse.de>
+	 <20090415183847.d4fa1efb.akpm@linux-foundation.org>
+	 <20090428185739.GE6377@localdomain> <20090429071233.GC3398@wotan.suse.de>
+	 <20090429002418.fd9072a6.akpm@linux-foundation.org>
+	 <20090429074511.GD3398@wotan.suse.de>
+	 <1241008762.6336.5.camel@heimdal.trondhjem.org>
+	 <20090429082733.f69b45c1.akpm@linux-foundation.org>
+Content-Type: text/plain
+Date: Wed, 29 Apr 2009 12:45:14 -0400
+Message-Id: <1241023514.12464.2.camel@heimdal.trondhjem.org>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nick Piggin <npiggin@suse.de>, Ravikiran G Thirumalai <kiran@scalex86.org>, Sage Weil <sage@newdream.net>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
-KOSAKI Motohiro wrote:
-> Hi
->
-> Looks good than previous version. but I have one question.
->
->   
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index eac9577..4471dcb 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -1489,6 +1489,18 @@ static void shrink_zone(int priority, struct zone *zone,
->>                        nr[l] = scan;
->>        }
->>
->> +       /*
->> +        * When the system is doing streaming IO, memory pressure here
->> +        * ensures that active file pages get deactivated, until more
->> +        * than half of the file pages are on the inactive list.
->> +        *
->> +        * Once we get to that situation, protect the system's working
->> +        * set from being evicted by disabling active file page aging.
->> +        * The logic in get_scan_ratio protects anonymous pages.
->> +        */
->> +       if (nr[LRU_INACTIVE_FILE] > nr[LRU_ACTIVE_FILE])
->> +               nr[LRU_ACTIVE_FILE] = 0;
->> +
->>        while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
->>                                        nr[LRU_INACTIVE_FILE]) {
->>                for_each_evictable_lru(l) {
->>     
->
-> we handle active_anon vs inactive_anon ratio by shrink_list().
-> Why do you insert this logic insert shrink_zone() ?
->   
-Good question.  I guess that at lower priority levels, we get to scan
-a lot more pages and we could go from having too many inactive
-file pages to not having enough in one invocation of shrink_zone().
+On Wed, 2009-04-29 at 08:27 -0700, Andrew Morton wrote:
+> I don't know what the "NFS 3 liner" is, but I trust you'll take care of
+> it.
 
-That makes shrink_list() the better place to implement this, even if
-it means doing this comparison more often.
+It's this one. I can send it on to Linus as soon as Nick's stuff is
+upstream unless you'd prefer to fold it in with his patch.
 
-I'll send a new patch this afternoon.
+Cheers
+  Trond
+---------------------------------------------------------------------
+>From f0258852dcb43c748854d2ee550c9c270bb25f21 Mon Sep 17 00:00:00 2001
+From: Trond Myklebust <Trond.Myklebust@netapp.com>
+Date: Fri, 24 Apr 2009 17:32:22 -0400
+Subject: [PATCH] NFS: Close page_mkwrite() races
+
+Follow up to Nick Piggin's patches to ensure that nfs_vm_page_mkwrite
+returns with the page lock held, and sets the VM_FAULT_LOCKED flag.
+
+Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
+---
+ fs/nfs/file.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index 5a97bcf..ec7e27d 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -517,10 +517,10 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 
+ 	ret = nfs_updatepage(filp, page, 0, pagelen);
+ out_unlock:
++	if (!ret)
++		return VM_FAULT_LOCKED;
+ 	unlock_page(page);
+-	if (ret)
+-		ret = VM_FAULT_SIGBUS;
+-	return ret;
++	return VM_FAULT_SIGBUS;
+ }
+ 
+ static struct vm_operations_struct nfs_file_vm_ops = {
+-- 
+1.6.0.6
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
