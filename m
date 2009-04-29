@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4726B003D
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 03:44:35 -0400 (EDT)
-Date: Wed, 29 Apr 2009 09:45:11 +0200
-From: Nick Piggin <npiggin@suse.de>
-Subject: Re: [patch] mm: close page_mkwrite races (try 3)
-Message-ID: <20090429074511.GD3398@wotan.suse.de>
-References: <20090414071152.GC23528@wotan.suse.de> <20090415082507.GA23674@wotan.suse.de> <20090415183847.d4fa1efb.akpm@linux-foundation.org> <20090428185739.GE6377@localdomain> <20090429071233.GC3398@wotan.suse.de> <20090429002418.fd9072a6.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090429002418.fd9072a6.akpm@linux-foundation.org>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 79B986B003D
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 03:46:35 -0400 (EDT)
+Received: by yx-out-1718.google.com with SMTP id 36so574325yxh.26
+        for <linux-mm@kvack.org>; Wed, 29 Apr 2009 00:47:18 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20090428233455.614dcf3a.akpm@linux-foundation.org>
+References: <20090428090916.GC17038@localhost> <20090428120818.GH22104@mit.edu>
+	 <20090429130430.4B11.A69D9226@jp.fujitsu.com>
+	 <20090428233455.614dcf3a.akpm@linux-foundation.org>
+Date: Wed, 29 Apr 2009 16:47:18 +0900
+Message-ID: <2f11576a0904290047i1bd8fc6cu7d70a3ac32bf7b5a@mail.gmail.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ravikiran G Thirumalai <kiran@scalex86.org>, Sage Weil <sage@newdream.net>, Trond Myklebust <trond.myklebust@fys.uio.no>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 29, 2009 at 12:24:18AM -0700, Andrew Morton wrote:
-> On Wed, 29 Apr 2009 09:12:33 +0200 Nick Piggin <npiggin@suse.de> wrote:
-> 
-> > I haven't got any prepared, but they should be a pretty trivial
-> > backport, provided we also backport c2ec175c39f62949438354f603f4aa170846aabb
-> > (which is probably a good idea anyway).
-> > 
-> > However I will probably wait for a bit, given that the patch isn't upstream
-> > yet.
-> 
-> err, I'd marked it as for-2.6.31.  It looks like that was wrong?
+>> Mapped page decrease rapidly: not happend (I guess, these page stay in
+>> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 active list on my system)
+>> page fault large latency: =A0 =A0 happend (latencytop display >200ms)
+>
+> hm. =A0The last two observations appear to be inconsistent.
 
-At the time I agreed because I didn't know the severity of the NFS
-bugs. So it is up to you and Trond / nfs guys I guess.
+it mean existing process don't slow down. but new process creation is very =
+slow.
 
 
-> all this:
-> 
-> #mm-close-page_mkwrite-races-try-3.patch: akpm issues!
-> #mm-close-page_mkwrite-races-try-3.patch: check akpm hack
-> mm-close-page_mkwrite-races-try-3.patch
-> mm-close-page_mkwrite-races-try-3-update.patch
-> mm-close-page_mkwrite-races-try-3-fix.patch
-> mm-close-page_mkwrite-races-try-3-fix-fix.patch
-> 
-> is a bit of a worry.  But I guess we won't know until we merge it.
+> Elladan, have you checked to see whether the Mapped: number in
+> /proc/meminfo is decreasing?
+>
+>>
+>> Then, I don't doubt vm replacement logic now.
+>> but I need more investigate.
+>> I plan to try following thing today and tommorow.
+>>
+>> =A0- XFS
+>> =A0- LVM
+>> =A0- another io scheduler (thanks Ted, good view point)
+>> =A0- Rik's new patch
+>
+> It's not clear that we know what's happening yet, is it? =A0It's such a
+> gross problem that you'd think that even our testing would have found
+> it by now :(
 
-I have nothing against merging it now if you think it is needed.
-It's only adding synchronisation, so I doubt it will cause a problem
-that pushes the release out.
+Yes, unclear. but various testing can drill down the reason, I think.
+
+
+> Elladan, do you know if earlier kernels (2.6.26 or thereabouts) had
+> this severe a problem?
+>
+> (notes that we _still_ haven't unbusted prev_priority)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
