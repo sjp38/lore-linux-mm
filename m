@@ -1,73 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6138C6B003D
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 12:45:22 -0400 (EDT)
-Subject: Re: [patch] mm: close page_mkwrite races (try 3)
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-In-Reply-To: <20090429082733.f69b45c1.akpm@linux-foundation.org>
-References: <20090414071152.GC23528@wotan.suse.de>
-	 <20090415082507.GA23674@wotan.suse.de>
-	 <20090415183847.d4fa1efb.akpm@linux-foundation.org>
-	 <20090428185739.GE6377@localdomain> <20090429071233.GC3398@wotan.suse.de>
-	 <20090429002418.fd9072a6.akpm@linux-foundation.org>
-	 <20090429074511.GD3398@wotan.suse.de>
-	 <1241008762.6336.5.camel@heimdal.trondhjem.org>
-	 <20090429082733.f69b45c1.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Wed, 29 Apr 2009 12:45:14 -0400
-Message-Id: <1241023514.12464.2.camel@heimdal.trondhjem.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id E09706B003D
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 13:06:28 -0400 (EDT)
+Date: Wed, 29 Apr 2009 13:06:20 -0400
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH] vmscan: evict use-once pages first
+Message-ID: <20090429170620.GA6307@infradead.org>
+References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <20090429033650.GA4612@eskimo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090429033650.GA4612@eskimo.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nick Piggin <npiggin@suse.de>, Ravikiran G Thirumalai <kiran@scalex86.org>, Sage Weil <sage@newdream.net>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, stable@kernel.org
+To: Elladan <elladan@eskimo.com>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, peterz@infradead.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2009-04-29 at 08:27 -0700, Andrew Morton wrote:
-> I don't know what the "NFS 3 liner" is, but I trust you'll take care of
-> it.
+On Tue, Apr 28, 2009 at 08:36:51PM -0700, Elladan wrote:
+> Rik,
+> 
+> This patch appears to significantly improve application latency while a large
+> file copy runs.  I'm not seeing behavior that implies continuous bad page
+> replacement.
+> 
+> I'm still seeing some general lag, which I attribute to general filesystem
+> slowness.  For example, latencytop sees many events like these:
+> 
+> down xfs_buf_lock _xfs_buf_find xfs_buf_get_flags 1475.8 msec          5.9 %
 
-It's this one. I can send it on to Linus as soon as Nick's stuff is
-upstream unless you'd prefer to fold it in with his patch.
+This actually is contention on the buffer lock, and most likely
+happens because it's trying to access a buffer that's beeing read
+in currently.
 
-Cheers
-  Trond
----------------------------------------------------------------------
->From f0258852dcb43c748854d2ee550c9c270bb25f21 Mon Sep 17 00:00:00 2001
-From: Trond Myklebust <Trond.Myklebust@netapp.com>
-Date: Fri, 24 Apr 2009 17:32:22 -0400
-Subject: [PATCH] NFS: Close page_mkwrite() races
+> 
+> xfs_buf_iowait xfs_buf_iostart xfs_buf_read_flags 1740.9 msec          2.6 %
 
-Follow up to Nick Piggin's patches to ensure that nfs_vm_page_mkwrite
-returns with the page lock held, and sets the VM_FAULT_LOCKED flag.
+That's an actual metadata read.
 
-Signed-off-by: Trond Myklebust <Trond.Myklebust@netapp.com>
----
- fs/nfs/file.c |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+> Writing a page to disk                            1042.9 msec         43.7 %
+> 
+> It also occasionally sees long page faults:
+> 
+> Page fault                                        2068.3 msec         21.3 %
+> 
+> I guess XFS (and the elevator) is just doing a poor job managing latency
+> (particularly poor since all the IO on /usr/bin is on the reader disk).
 
-diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index 5a97bcf..ec7e27d 100644
---- a/fs/nfs/file.c
-+++ b/fs/nfs/file.c
-@@ -517,10 +517,10 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 
- 	ret = nfs_updatepage(filp, page, 0, pagelen);
- out_unlock:
-+	if (!ret)
-+		return VM_FAULT_LOCKED;
- 	unlock_page(page);
--	if (ret)
--		ret = VM_FAULT_SIGBUS;
--	return ret;
-+	return VM_FAULT_SIGBUS;
- }
- 
- static struct vm_operations_struct nfs_file_vm_ops = {
--- 
-1.6.0.6
+The filesystem doesn't really decide which priorities to use, except
+for some use of the WRITE_SYNC which is used rather minimall in XFS in
+2.6.28.
 
+> Creating block layer request                      451.4 msec         14.4 %
 
+I guess that a wait in get_request because we're above nr_requests..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
