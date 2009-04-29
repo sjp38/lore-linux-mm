@@ -1,98 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id AF3A96B006A
-	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 23:36:55 -0400 (EDT)
-Date: Tue, 28 Apr 2009 20:36:51 -0700
-From: Elladan <elladan@eskimo.com>
-Subject: Re: [PATCH] vmscan: evict use-once pages first
-Message-ID: <20090429033650.GA4612@eskimo.com>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 21CAD6B007E
+	for <linux-mm@kvack.org>; Tue, 28 Apr 2009 23:48:22 -0400 (EDT)
+Date: Wed, 29 Apr 2009 11:48:29 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
+Message-ID: <20090429034829.GA10832@localhost>
+References: <20090428010907.912554629@intel.com> <20090428014920.769723618@intel.com> <20090428143244.4e424d36.akpm@linux-foundation.org> <20090429023842.GA10266@localhost> <20090428195527.4638f58c.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090428192907.556f3a34@bree.surriel.com>
+In-Reply-To: <20090428195527.4638f58c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, peterz@infradead.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "mpm@selenic.com" <mpm@selenic.com>, "adobriyan@gmail.com" <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Chandra Seetharaman <sekharan@us.ibm.com>, Nathan Lynch <ntl@pobox.com>, Olof Johansson <olof@lixom.net>, Helge Deller <deller@parisc-linux.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik,
-
-This patch appears to significantly improve application latency while a large
-file copy runs.  I'm not seeing behavior that implies continuous bad page
-replacement.
-
-I'm still seeing some general lag, which I attribute to general filesystem
-slowness.  For example, latencytop sees many events like these:
-
-down xfs_buf_lock _xfs_buf_find xfs_buf_get_flags 1475.8 msec          5.9 %
-
-xfs_buf_iowait xfs_buf_iostart xfs_buf_read_flags 1740.9 msec          2.6 %
-
-Writing a page to disk                            1042.9 msec         43.7 %
-
-It also occasionally sees long page faults:
-
-Page fault                                        2068.3 msec         21.3 %
-
-I guess XFS (and the elevator) is just doing a poor job managing latency
-(particularly poor since all the IO on /usr/bin is on the reader disk).
-Notable:
-
-Creating block layer request                      451.4 msec         14.4 %
-
-Thank you,
-Elladan
-
-On Tue, Apr 28, 2009 at 07:29:07PM -0400, Rik van Riel wrote:
-> When the file LRU lists are dominated by streaming IO pages,
-> evict those pages first, before considering evicting other
-> pages.
+On Wed, Apr 29, 2009 at 10:55:27AM +0800, Andrew Morton wrote:
+> On Wed, 29 Apr 2009 10:38:42 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
 > 
-> This should be safe from deadlocks or performance problems
-> because only three things can happen to an inactive file page:
-> 1) referenced twice and promoted to the active list
-> 2) evicted by the pageout code
-> 3) under IO, after which it will get evicted or promoted
+> > > > +#define kpf_copy_bit(uflags, kflags, visible, ubit, kbit)		\
+> > > > +	do {								\
+> > > > +		if (visible || genuine_linus())				\
+> > > > +			uflags |= ((kflags >> kbit) & 1) << ubit;	\
+> > > > +	} while (0);
+> > > 
+> > > Did this have to be implemented as a macro?
+> > > 
+> > > It's bad, because it might or might not reference its argument, so if
+> > > someone passes it an expression-with-side-effects, the end result is
+> > > unpredictable.  A C function is almost always preferable if possible.
+> > 
+> > Just tried inline function, the code size is increased slightly:
+> > 
+> >           text   data    bss     dec    hex   filename
+> > macro     1804    128      0    1932    78c   fs/proc/page.o
+> > inline    1828    128      0    1956    7a4   fs/proc/page.o
+> > 
 > 
-> The pages freed in this way can either be reused for streaming
-> IO, or allocated for something else. If the pages are used for
-> streaming IO, this pageout pattern continues. Otherwise, we will
-> fall back to the normal pageout pattern.
+> hm, I wonder why.  Maybe it fixed a bug ;)
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+> The code is effectively doing
 > 
-> --- 
-> Elladan, does this patch fix the issue you are seeing?
+> 	if (expr1)
+> 		something();
+> 	if (expr1)
+> 		something_else();
+> 	if (expr1)
+> 		something_else2();
 > 
-> Peter, Kosaki, Ted, does this patch look good to you?
+> etc.  Obviously we _hope_ that the compiler turns that into
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eac9577..4c0304e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1489,6 +1489,21 @@ static void shrink_zone(int priority, struct zone *zone,
->  			nr[l] = scan;
->  	}
->  
-> +	/*
-> +	 * When the system is doing streaming IO, memory pressure here
-> +	 * ensures that active file pages get deactivated, until more
-> +	 * than half of the file pages are on the inactive list.
-> +	 *
-> +	 * Once we get to that situation, protect the system's working
-> +	 * set from being evicted by disabling active file page aging
-> +	 * and swapping of swap backed pages.  We still do background
-> +	 * aging of anonymous pages.
-> +	 */
-> +	if (nr[LRU_INACTIVE_FILE] > nr[LRU_ACTIVE_FILE]) {
-> +		nr[LRU_ACTIVE_FILE] = 0;
-> +		nr[LRU_INACTIVE_ANON] = 0;
-> +	}
-> +
->  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
->  					nr[LRU_INACTIVE_FILE]) {
->  		for_each_evictable_lru(l) {
+> 	if (expr1) {
+> 		something();
+> 		something_else();
+> 		something_else2();
+> 	}
+> 
+> for us, but it would be good to check...
+
+By 'expr1', you mean (visible || genuine_linus())?
+
+No, I can confirm the inefficiency does not lie here.
+
+I simplified the kpf_copy_bit() to
+
+        #define kpf_copy_bit(uflags, kflags, ubit, kbit)                     \
+                        uflags |= (((kflags) >> (kbit)) & 1) << (ubit);
+
+or
+
+        static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
+        {       
+                return (((kflags) >> (kbit)) & 1) << (ubit);
+        }
+
+and double checked the differences: the gap grows unexpectedly!
+
+              text               data                bss                dec            hex filename
+macro         1829                168                  0               1997            7cd fs/proc/page.o
+inline        1893                168                  0               2061            80d fs/proc/page.o
+              +3.5%
+
+(note: the larger absolute text size is due to some experimental code elsewhere.)
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
