@@ -1,100 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 881196B003D
-	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 01:09:44 -0400 (EDT)
-Date: Wed, 29 Apr 2009 13:09:13 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH 5/5] proc: export more page flags in /proc/kpageflags
-Message-ID: <20090429050913.GA16683@localhost>
-References: <20090428010907.912554629@intel.com> <20090428014920.769723618@intel.com> <20090428143244.4e424d36.akpm@linux-foundation.org> <20090429023842.GA10266@localhost> <20090428195527.4638f58c.akpm@linux-foundation.org> <20090429034829.GA10832@localhost>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id CEAEE6B003D
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 01:50:24 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail5.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3T5p9wn007121
+	for <linux-mm@kvack.org> (envelope-from kosaki.motohiro@jp.fujitsu.com);
+	Wed, 29 Apr 2009 14:51:10 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6617A45DE51
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 14:51:09 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3D37145DE50
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 14:51:09 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3BBFB1DB8042
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 14:51:09 +0900 (JST)
+Received: from m107.s.css.fujitsu.com (m107.s.css.fujitsu.com [10.249.87.107])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id DA8E81DB803A
+	for <linux-mm@kvack.org>; Wed, 29 Apr 2009 14:51:08 +0900 (JST)
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+In-Reply-To: <20090428120818.GH22104@mit.edu>
+References: <20090428090916.GC17038@localhost> <20090428120818.GH22104@mit.edu>
+Message-Id: <20090429130430.4B11.A69D9226@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090429034829.GA10832@localhost>
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 29 Apr 2009 14:51:07 +0900 (JST)
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "mpm@selenic.com" <mpm@selenic.com>, "adobriyan@gmail.com" <adobriyan@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Chandra Seetharaman <sekharan@us.ibm.com>, Nathan Lynch <ntl@pobox.com>, Olof Johansson <olof@lixom.net>, Helge Deller <deller@parisc-linux.org>
+To: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 29, 2009 at 11:48:29AM +0800, Wu Fengguang wrote:
-> On Wed, Apr 29, 2009 at 10:55:27AM +0800, Andrew Morton wrote:
-> > On Wed, 29 Apr 2009 10:38:42 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > 
-> > > > > +#define kpf_copy_bit(uflags, kflags, visible, ubit, kbit)		\
-> > > > > +	do {								\
-> > > > > +		if (visible || genuine_linus())				\
-> > > > > +			uflags |= ((kflags >> kbit) & 1) << ubit;	\
-> > > > > +	} while (0);
-> > > > 
-> > > > Did this have to be implemented as a macro?
-> > > > 
-> > > > It's bad, because it might or might not reference its argument, so if
-> > > > someone passes it an expression-with-side-effects, the end result is
-> > > > unpredictable.  A C function is almost always preferable if possible.
-> > > 
-> > > Just tried inline function, the code size is increased slightly:
-> > > 
-> > >           text   data    bss     dec    hex   filename
-> > > macro     1804    128      0    1932    78c   fs/proc/page.o
-> > > inline    1828    128      0    1956    7a4   fs/proc/page.o
-> > > 
-> > 
-> > hm, I wonder why.  Maybe it fixed a bug ;)
-> > 
-> > The code is effectively doing
-> > 
-> > 	if (expr1)
-> > 		something();
-> > 	if (expr1)
-> > 		something_else();
-> > 	if (expr1)
-> > 		something_else2();
-> > 
-> > etc.  Obviously we _hope_ that the compiler turns that into
-> > 
-> > 	if (expr1) {
-> > 		something();
-> > 		something_else();
-> > 		something_else2();
-> > 	}
-> > 
-> > for us, but it would be good to check...
-> 
-> By 'expr1', you mean (visible || genuine_linus())?
-> 
-> No, I can confirm the inefficiency does not lie here.
-> 
-> I simplified the kpf_copy_bit() to
-> 
->         #define kpf_copy_bit(uflags, kflags, ubit, kbit)                     \
->                         uflags |= (((kflags) >> (kbit)) & 1) << (ubit);
-> 
-> or
-> 
->         static inline u64 kpf_copy_bit(u64 kflags, int ubit, int kbit)
->         {       
->                 return (((kflags) >> (kbit)) & 1) << (ubit);
->         }
-> 
-> and double checked the differences: the gap grows unexpectedly!
-> 
->               text               data                bss                dec            hex filename
-> macro         1829                168                  0               1997            7cd fs/proc/page.o
-> inline        1893                168                  0               2061            80d fs/proc/page.o
->               +3.5%
-> 
-> (note: the larger absolute text size is due to some experimental code elsewhere.)
+Hi
 
-Wow, after simplifications the text size goes down by -13.2%:
+> On Tue, Apr 28, 2009 at 05:09:16PM +0800, Wu Fengguang wrote:
+> > The semi-drop-behind is a great idea for the desktop - to put just
+> > accessed pages to end of LRU. However I'm still afraid it vastly
+> > changes the caching behavior and wont work well as expected in server
+> > workloads - shall we verify this?
+> > 
+> > Back to this big-cp-hurts-responsibility issue. Background write
+> > requests can easily pass the io scheduler's obstacles and fill up
+> > the disk queue. Now every read request will have to wait 10+ writes
+> > - leading to 10x slow down of major page faults.
+> > 
+> > I reach this conclusion based on recent CFQ code reviews. Will bring up
+> > a queue depth limiting patch for more exercises..
+> 
+> We can muck with the I/O scheduler, but another thing to consider is
+> whether the VM should be more aggressively throttling writes in this
+> case; it sounds like the big cp in this case may be dirtying pages so
+> aggressively that it's driving other (more useful) pages out of the
+> page cache --- if the target disk is slower than the source disk (for
+> example, backing up a SATA primary disk to a USB-attached backup disk)
+> no amount of drop-behind is going to help the situation.
+> 
+> So that leaves three areas for exploration:
+> 
+> * Write-throttling
+> * Drop-behind
+> * background writes pushing aside foreground reads
+> 
+> Hmm, note that although the original bug reporter is running Ubuntu
+> Jaunty, and hence 2.6.28, this problem is going to get *worse* with
+> 2.6.30, since we have the ext3 data=ordered latency fixes which will
+> write out the any journal activity, and worse, any synchornous commits
+> (i.e., caused by fsync) will force out all of the dirty pages with
+> WRITE_SYNC priority.  So with a heavy load, I suspect this is going to
+> be more of a VM issue, and especially figuring out how to tune more
+> aggressive write-throttling may be key here.
 
-              text               data                bss                dec            hex filename
-macro         1644                  8                  0               1652            674 fs/proc/page.o
-inline        1644                  8                  0               1652            674 fs/proc/page.o
+firstly, I'd like to report my reproduce test result.
 
-Amazingly we can now use inline function without performance penalty!
+test environment: no lvm, copy ext3 to ext3 (not mv), no change swappiness, 
+                  CFQ is used, userland is Fedora10, mmotm(2.6.30-rc1 + mm patch),
+                  CPU opteronx4, mem 4G
 
-Thanks,
-Fengguang
+mouse move lag:               not happend
+window move lag:              not happend
+Mapped page decrease rapidly: not happend (I guess, these page stay in 
+                                          active list on my system)
+page fault large latency:     happend (latencytop display >200ms)
+
+
+Then, I don't doubt vm replacement logic now.
+but I need more investigate.
+I plan to try following thing today and tommorow.
+
+ - XFS
+ - LVM
+ - another io scheduler (thanks Ted, good view point)
+ - Rik's new patch
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
