@@ -1,95 +1,383 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 97F616B004D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 03:20:55 -0400 (EDT)
-Date: Thu, 30 Apr 2009 00:20:58 -0700
-From: Elladan <elladan@eskimo.com>
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-Message-ID: <20090430072057.GA4663@eskimo.com>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090429114708.66114c03@cuia.bos.redhat.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with SMTP id 3EFDB6B004F
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 03:36:39 -0400 (EDT)
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76])
+	by fgwmail7.fujitsu.co.jp (Fujitsu Gateway) with ESMTP id n3U7bBrZ018964
+	for <linux-mm@kvack.org> (envelope-from kamezawa.hiroyu@jp.fujitsu.com);
+	Thu, 30 Apr 2009 16:37:11 +0900
+Received: from smail (m6 [127.0.0.1])
+	by outgoing.m6.gw.fujitsu.co.jp (Postfix) with ESMTP id E4B5245DE51
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 16:37:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (s6.gw.fujitsu.co.jp [10.0.50.96])
+	by m6.gw.fujitsu.co.jp (Postfix) with ESMTP id BF41645DE50
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 16:37:10 +0900 (JST)
+Received: from s6.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id A37F71DB803A
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 16:37:10 +0900 (JST)
+Received: from m106.s.css.fujitsu.com (m106.s.css.fujitsu.com [10.249.87.106])
+	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EAE2E18001
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 16:37:10 +0900 (JST)
+Date: Thu, 30 Apr 2009 16:35:39 +0900
+From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: fix stale swap cache leak v5
+Message-Id: <20090430163539.7a882cef.kamezawa.hiroyu@jp.fujitsu.com>
+In-Reply-To: <20090430161627.0ccce565.kamezawa.hiroyu@jp.fujitsu.com>
+References: <20090430161627.0ccce565.kamezawa.hiroyu@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nishimura@mxp.nes.nec.co.jp" <nishimura@mxp.nes.nec.co.jp>, "balbir@linux.vnet.ibm.com" <balbir@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hugh@veritas.com" <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 29, 2009 at 11:47:08AM -0400, Rik van Riel wrote:
-> When the file LRU lists are dominated by streaming IO pages,
-> evict those pages first, before considering evicting other
-> pages.
+On Thu, 30 Apr 2009 16:16:27 +0900
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+> This is v5 but all codes are rewritten.
 > 
-> This should be safe from deadlocks or performance problems
-> because only three things can happen to an inactive file page:
-> 1) referenced twice and promoted to the active list
-> 2) evicted by the pageout code
-> 3) under IO, after which it will get evicted or promoted
+> After this patch, when memcg is used,
+>  1. page's swapcount is checked after I/O (without locks). If the page is
+>     stale swap cache, freeing routine will be scheduled.
+>  2. vmscan.c calls try_to_free_swap() when __remove_mapping() fails.
 > 
-> The pages freed in this way can either be reused for streaming
-> IO, or allocated for something else. If the pages are used for
-> streaming IO, this pageout pattern continues. Otherwise, we will
-> fall back to the normal pageout pattern.
+> Works well for me. no extra resources and no races.
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Because my office will be closed until May/7, I'll not be able to make a
+> response. Posting this for showing what I think of now.
+> 
+I found a hole immediately after posted this...sorry. plz ignore this patch/
+see you again in the next month.
+
+-Kame
+
+> This should be fixed before posting softlimit etc...
+> ==
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> In general, Linux's swp_entry handling is done by combination of lazy techniques
+> and global LRU. It works well but when we use mem+swap controller, some more
+> strict cotroll is appropriate. Otherwise, swp_entry used by a cgroup will be
+> never freed until global LRU works. In a system where memcg is well-configured,
+> global LRU doesn't work frequently.
+> 
+>   Example A) Assume a swap cache which is not mapped.
+>               CPU0                            CPU1
+> 	   zap_pte()....                  shrink_page_list()
+> 	    free_swap_and_cache()           lock_page()
+> 		page seems busy.
+> 
+>   Example B) Assume swapin-readahed.
+> 	      CPU0			      CPU1
+> 	   zap_pte()			  read_swap_cache_async()
+> 					  swap_duplicate().
+>            swap_entry_free() = 1
+> 	   find_get_page()=> NULL.
+> 					  add_to_swap_cache().
+> 					  issue swap I/O. 
+> 
+> There are many patterns of this kind of race (but no problems).
+> 
+> free_swap_and_cache() is called for freeing swp_entry. But it is a best-effort
+> function. If the swp_entry/page seems busy, swp_entry is not freed.
+> This is not a problem because global-LRU will find SwapCache at page reclaim.
+> But...
+> 
+> If memcg is used, on the other hand, global LRU may not work. Then, above
+> unused SwapCache will not be freed.
+> (unmapped SwapCache occupy swp_entry but never be freed if not on memcg's LRU)
+> 
+> So, even if there are no tasks in a cgroup, swp_entry usage still remains.
+> In bad case, OOM by mem+swap controller is triggerred by this "leak" of
+> swp_entry as Nishimura repoted.
+> 
+> This patch tries to fix racy case of free_swap_and_cache() and I/O by checking
+> swap's refnct again after I/O. And add a hook to vmscan.c.
+> After this patch applied, follwoing test works well.
+> 
+>   # echo 1-2M > ../memory.limit_in_bytes
+>   # run tasks under memcg.
+>   # kill all tasks and make memory.tasks empty
+>   # check memory.memsw.usage_in_bytes == memory.usage_in_bytes and
+>     there is no _used_ swp_entry.
+> 
+> Changelog: v4->v5
+>  - completely new design.
+>  - added nolock page_swapcount.
+>  - checks all swap I/O.
+> 
+> Reported-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 > ---
-> On Wed, 29 Apr 2009 08:42:29 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
+>  include/linux/swap.h |    1 
+>  mm/page_io.c         |  120 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/swapfile.c        |   37 +++++++++++++++
+>  mm/vmscan.c          |   31 ++++++++++++-
+>  4 files changed, 187 insertions(+), 2 deletions(-)
 > 
-> > Isn't there a hole where LRU_*_FILE << LRU_*_ANON and we now stop
-> > shrinking INACTIVE_ANON even though it makes sense to.
+> Index: mmotm-2.6.30-Apr24/mm/page_io.c
+> ===================================================================
+> --- mmotm-2.6.30-Apr24.orig/mm/page_io.c
+> +++ mmotm-2.6.30-Apr24/mm/page_io.c
+> @@ -19,6 +19,123 @@
+>  #include <linux/writeback.h>
+>  #include <asm/pgtable.h>
+>  
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +/*
+> + * When memory cgroup is used, race between read/write-swap and zap-swap can
+> + * be a leak of swp_entry accounted. So we have to check the status at
+> + * the end of swap-io. If memory cgroup is not used, Global LRU will find
+> + * unused swap-cache finally. (But this is too lazy for memcg.)
+> + */
+> +
+> +struct swapio_check {
+> +	spinlock_t	lock;
+> +	void		*swap_bio_list;
+> +	struct delayed_work work;
+> +} stale_swap_check;
+> +
+> +
+> +static void mem_cgroup_check_stale_swap(struct work_struct *work)
+> +{
+> +	struct bio *bio;
+> +	struct page *page;
+> +	struct swapio_check *sc;
+> +	int nr = SWAP_CLUSTER_MAX;
+> +	swp_entry_t entry;
+> +
+> +	sc = &stale_swap_check;
+> +
+> +	while (nr--) {
+> +		cond_resched();
+> +		spin_lock_irq(&sc->lock);
+> +		bio = sc->swap_bio_list;
+> +		if (bio)
+> +			sc->swap_bio_list = bio->bi_next;
+> +		spin_unlock_irq(&sc->lock);
+> +		if (!bio)
+> +			break;
+> +		entry.val = (unsigned long)bio->bi_private;
+> +		bio_put(bio);
+> +
+> +		page = find_get_page(&swapper_space, entry.val);
+> +		if (!page || page_mapped(page))
+> +			continue;
+> +		lock_page(page);
+> +		/*
+> +		 * When it's mapped, this page passed checks in do_swap_page()
+> +		 * and we don't have to do any more. All other necessary checks
+> +		 * will be done in try_to_free_swap().
+> +		 */
+> +		if (!page_mapped(page))
+> +			try_to_free_swap(page);
+> +		unlock_page(page);
+> +		put_page(page);
+> +	}
+> +	if (sc->swap_bio_list)
+> +		schedule_delayed_work(&sc->work, HZ/10);
+> +}
+> +
+> +/*
+> + * We can't call try_to_free_swap directly here because of caller's context.
+> + */
+> +static void mem_cgroup_swapio_check_again(struct bio *bio, struct page *page)
+> +{
+> +	unsigned long flags;
+> +	struct swapio_check *sc;
+> +	swp_entry_t entry;
+> +	int ret;
+> +
+> +	/* check swap count here. If swp_entry is stable, nothing to do.*/
+> +	if (likely(mem_cgroup_staleswap_hint(page)))
+> +		return;
+> +	/* reuse bio if this bio is ready to be freed. */
+> +	ret = atomic_inc_return(&bio->bi_cnt);
+> +	/* Any other reference other than us ? */
+> +	if (unlikely(ret > 2)) {
+> +		bio_put(bio);
+> +		return;
+> +	}
+> +	/*
+> +	 * We don't want to grab this page....record swp_entry instead of page.
+> +	 */
+> +	entry.val = page_private(page);
+> +	bio->bi_private = (void *)entry.val;
+> +
+> +	sc = &stale_swap_check;
+> +	spin_lock_irqsave(&sc->lock, flags);
+> +	/* link bio */
+> +	bio->bi_next = sc->swap_bio_list;
+> +	sc->swap_bio_list = bio;
+> +	spin_unlock_irqrestore(&sc->lock, flags);
+> +	/*
+> +	 * Swap I/O is tend to be countinous. Do check in batched manner.
+> +	 */
+> +	if (!delayed_work_pending(&sc->work))
+> +		schedule_delayed_work(&sc->work, HZ/10);
+> +}
+> +
+> +static int __init setup_stale_swap_check(void)
+> +{
+> +	struct swapio_check *sc;
+> +
+> +	sc = &stale_swap_check;
+> +	spin_lock_init(&sc->lock);
+> +	sc->swap_bio_list = NULL;
+> +	INIT_DELAYED_WORK(&sc->work, mem_cgroup_check_stale_swap);
+> +	return 0;
+> +}
+> +late_initcall(setup_stale_swap_check);
+> +
+> +
+> +#else /* CONFIG_CGROUP_MEM_RES_CTRL */
+> +
+> +static inline
+> +void mem_cgroup_swapio_check_again(struct bio *bio, struct page *page)
+> +{
+> +}
+> +#endif
+> +
+> +
+> +
+>  static struct bio *get_swap_bio(gfp_t gfp_flags, pgoff_t index,
+>  				struct page *page, bio_end_io_t end_io)
+>  {
+> @@ -66,6 +183,8 @@ static void end_swap_bio_write(struct bi
+>  				(unsigned long long)bio->bi_sector);
+>  		ClearPageReclaim(page);
+>  	}
+> +	/* While PG_writeback, this page is stable ...then, call this here */
+> +	mem_cgroup_swapio_check_again(bio, page);
+>  	end_page_writeback(page);
+>  	bio_put(bio);
+>  }
+> @@ -85,6 +204,7 @@ void end_swap_bio_read(struct bio *bio, 
+>  	} else {
+>  		SetPageUptodate(page);
+>  	}
+> +	mem_cgroup_swapio_check_again(bio, page);
+>  	unlock_page(page);
+>  	bio_put(bio);
+>  }
+> Index: mmotm-2.6.30-Apr24/mm/vmscan.c
+> ===================================================================
+> --- mmotm-2.6.30-Apr24.orig/mm/vmscan.c
+> +++ mmotm-2.6.30-Apr24/mm/vmscan.c
+> @@ -586,6 +586,30 @@ void putback_lru_page(struct page *page)
+>  }
+>  #endif /* CONFIG_UNEVICTABLE_LRU */
+>  
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTRL
+> +/*
+> + * Even if we don't call this, global LRU will finally find this SwapCache and
+> + * free swap entry in the next loop. But, when memcg is used, we may have
+> + * smaller chance to call global LRU's memory reclaim code.
+> + * Freeing unused swap entry in aggresive way is good for avoid "leak" of swap
+> + * entry accounting.
+> + */
+> +static inline void unuse_swapcache_check_again(struct page *page)
+> +{
+> +	/*
+> +	 * The page is locked, but have extra reference from somewhere.
+> +	 * In typical case, rotate_reclaimable_page()'s extra refcnt makes
+> +	 * __remove_mapping fail. (see mm/swap.c)
+> +	 */
+> +	if (PageSwapCache(page))
+> +		try_to_free_swap(page);
+> +}
+> +#else
+> +static inline void unuse_swapcache_check_again(struct page *page)
+> +{
+> +}
+> +#endif
+> +
+>  
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+> @@ -758,9 +782,12 @@ static unsigned long shrink_page_list(st
+>  			}
+>  		}
+>  
+> -		if (!mapping || !__remove_mapping(mapping, page))
+> +		if (!mapping)
+>  			goto keep_locked;
+> -
+> +		if (!__remove_mapping(mapping, page)) {
+> +			unuse_swapcache_check_again(page);
+> +			goto keep_locked;
+> +		}
+>  		/*
+>  		 * At this point, we have no other references and there is
+>  		 * no way to pick any more up (removed from LRU, removed
+> Index: mmotm-2.6.30-Apr24/mm/swapfile.c
+> ===================================================================
+> --- mmotm-2.6.30-Apr24.orig/mm/swapfile.c
+> +++ mmotm-2.6.30-Apr24/mm/swapfile.c
+> @@ -528,6 +528,43 @@ static inline int page_swapcount(struct 
+>  	return count;
+>  }
+>  
+> +#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+> +static inline int page_swapused_nolock(struct page *page)
+> +{
+> +	swp_entry_t entry;
+> +	unsigned long type, offset;
+> +	struct swap_info_struct *p;
+> +
+> +	entry.val = page_private(page);
+> +	type = swp_type(entry);
+> +	VM_BUG_ON(type >= nr_swapfiles);
+> +
+> +	offset = swp_offset(entry);
+> +	p = &swap_info[type];
+> +	VM_BUG_ON(!(p->flags & SWP_USED));
+> +	VM_BUG_ON(!(p->swap_map[offset]));
+> +
+> +	smp_rmb();
+> +	return p->swap_map[offset] != 1;
+> +}
+> +/*
+> + * Use a lapping function not to allow reuse this function other than memcg.
+> + */
+> +int mem_cgroup_staleswap_hint(struct page *page)
+> +{
+> +	/*
+> +	 * The page may not under lock_page() but Writeback is set in that case.
+> +	 * Then, swap_map is stable when this is called.
+> +	 * Very terrible troube will not occur even if page_swapused_nolock()
+> +	 * returns wrong value.
+> +	 * Because this can be called via interrupt context, we use nolock
+> +	 * version of swap's refcnt check.
+> +	 */
+> +	if (!PageSwapCache(page) || page_mapped(page))
+> +		return 1;
+> +	return page_swapused_nolock(page);
+> +}
+> +#endif
+>  /*
+>   * We can write to an anon page without COW if there are no other references
+>   * to it.  And as a side-effect, free up its swap: because the old content
+> Index: mmotm-2.6.30-Apr24/include/linux/swap.h
+> ===================================================================
+> --- mmotm-2.6.30-Apr24.orig/include/linux/swap.h
+> +++ mmotm-2.6.30-Apr24/include/linux/swap.h
+> @@ -336,6 +336,7 @@ static inline void disable_swap_token(vo
+>  
+>  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+>  extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
+> +extern int mem_cgroup_staleswap_hint(struct page *page);
+>  #else
+>  static inline void
+>  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
 > 
-> Peter, after looking at this again, I believe that the get_scan_ratio
-> logic should take care of protecting the anonymous pages, so we can
-> get away with this following, less intrusive patch.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
-> Elladan, does this smaller patch still work as expected?
-
-Rik, since the third patch doesn't work on 2.6.28 (without disabling a lot of
-code), I went ahead and tested this patch.
-
-The system does seem relatively responsive with this patch for the most part,
-with occasional lag.  I don't see much evidence at least over the course of a
-few minutes that it pages out applications significantly.  It seems about
-equivalent to the first patch.
-
-Given Andrew Morton's request that I track the Mapped: field in /proc/meminfo,
-I went ahead and did that with this patch built into a kernel.  Compared to the
-standard Ubuntu kernel, this patch keeps significantly more Mapped memory
-around, and it shrinks at a slower rate after the test runs for a while.
-Eventually, it seems to reach a steady state.
-
-For example, with your patch, Mapped will often go for 30 seconds without
-changing significantly.  Without your patch, it continuously lost about
-500-1000K every 5 seconds, and then jumped up again significantly when I
-touched Firefox or other applications.  I do see some of that behavior with
-your patch too, but it's much less significant.
-
-When I first initiated the background load, Mapped did rapidly decrease from
-about 85000K to 47000K.  It seems to have reached a fairly steady state since
-then.  I would guess this implies that the VM paged out parts of my executable
-set that aren't touched very often, but isn't applying further pressure to my
-active pages?  Also for example, after letting the test run for a while, I
-scrolled around some tabs in firefox I hadn't used since the test began, and
-experienced significant lag.
-
-This seems ok (not disastrous, anyway).  I suspect desktop users would
-generally prefer the VM were extremely aggressive about keeping their
-executables paged in though, much moreso than this patch provides (and note how
-popular swappiness=0 seems to be).  Paging applications back in seems to
-introduce a large amount of UI latency, even if the VM keeps it to a sane level
-as with this patch.  Also, I don't see many desktop workloads where paging out
-applications to grow the data cache is ever helpful -- practically all desktop
-workloads where you get a lot of IO involve streaming, not data that might
-possibly fit in ram.  If I'm just copying a bunch of files around, I'd prefer
-that even "worthless" pages such as eg. parts of Firefox that are only used
-during load time or during rare config requests (and would thus not appear to
-be part of my working set short-term) stay in cache, so I can get the maximum
-interactive performance from my application.
-
-Thank you,
-Elladan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
