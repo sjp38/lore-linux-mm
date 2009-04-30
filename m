@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 57FD96B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 09:34:55 -0400 (EDT)
-Date: Thu, 30 Apr 2009 14:35:24 +0100
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [RFC] Replace the watermark-related union in struct zone with
-	a watermark[] array
-Message-ID: <20090430133524.GC21997@csn.ul.ie>
-References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie> <1240408407-21848-19-git-send-email-mel@csn.ul.ie> <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com> <20090427170054.GE912@csn.ul.ie> <alpine.DEB.2.00.0904271340320.11972@chino.kir.corp.google.com> <20090427205400.GA23510@csn.ul.ie> <alpine.DEB.2.00.0904271400450.11972@chino.kir.corp.google.com>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 18BA46B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 09:46:16 -0400 (EDT)
+Date: Thu, 30 Apr 2009 06:46:33 -0700
+From: Elladan <elladan@eskimo.com>
+Subject: Re: Swappiness vs. mmap() and interactive response
+Message-ID: <20090430134632.GA31807@eskimo.com>
+References: <20090428090916.GC17038@localhost> <20090428120818.GH22104@mit.edu> <20090429130430.4B11.A69D9226@jp.fujitsu.com> <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.0904271400450.11972@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 27, 2009 at 02:04:03PM -0700, David Rientjes wrote:
-> On Mon, 27 Apr 2009, Mel Gorman wrote:
+On Thu, Apr 30, 2009 at 08:59:59PM +0900, KOSAKI Motohiro wrote:
+> > test environment: no lvm, copy ext3 to ext3 (not mv), no change swappiness,
+> >                  CFQ is used, userland is Fedora10, mmotm(2.6.30-rc1 + mm patch),
+> >                  CPU opteronx4, mem 4G
+> >
+> > mouse move lag:               not happend
+> > window move lag:              not happend
+> > Mapped page decrease rapidly: not happend (I guess, these page stay in
+> >                                          active list on my system)
+> > page fault large latency:     happend (latencytop display >1200ms)
+> >
+> >
+> > Then, I don't doubt vm replacement logic now.
+> > but I need more investigate.
+> > I plan to try following thing today and tommorow.
+> >
+> >  - XFS
+> >  - LVM
+> >  - another io scheduler (thanks Ted, good view point)
+> >  - Rik's new patch
 > 
-> > > I thought the suggestion was for something like
-> > > 
-> > > 	#define zone_wmark_min(z)	(z->pages_mark[WMARK_MIN])
-> > > 	...
-> > 
-> > Was it the only suggestion? I thought just replacing the union with an
-> > array would be an option as well.
-> > 
-> > The #define approach also requires setter versions like
-> > 
-> > static inline set_zone_wmark_min(struct zone *z, unsigned long val)
-> > {
-> > 	z->pages_mark[WMARK_MIN] = val;
-> > }
-> > 
-> > and you need one of those for each watermark if you are to avoid weirdness like
-> > 
-> > zone_wmark_min(z) = val;
-> > 
-> > which looks all wrong.
-> 
-> Agreed, but we only set watermarks in a couple of different locations and 
-> they really have no reason to change otherwise, so I don't think it's 
-> necessary to care too much about how the setter looks.
-> 
-> Adding individual get/set functions for each watermark seems like 
-> overkill.
-> 
+> hm, AS io-scheduler don't make such large latency on my environment.
+> Elladan, Can you try to AS scheduler? (adding boot option "elevator=as")
 
-I think what you're saying that you'd be ok with
+I switched at runtime with /sys/block/sd[ab]/queue/scheduler, using Rik's
+second patch for page replacement.  It was hard to tell if this made much
+difference in latency, as reported by latencytop.  Both schedulers sometimes
+show outliers up to 1400msec or so, and the average latency looks like it may
+be similar.
 
-zone_wmark_min(z)
-zone_wmark_low(z)
-zone_wmark_high(z)
-
-and z->pages_mark[WMARK_MIN] =
-and z->pages_mark[WMARK_LOW] =
-and z->pages_mark[WMARK_HIGH] =
-
-?
-
-Is that a significant improvement over what the patch currently does? To
-me, it seems more verbose.
-
-> I personally had no problem with the union struct aliasing the array, I 
-> think ->pages_min, ->pages_low, etc. are already very familiar.
-> 
-
-Can the people who do have a problem with the union make some sort of
-comment on how they think it should look?
-
-Obviously, I'm pro-the-current-patch :/
-
--- 
-Mel Gorman
-Part-time Phd Student                          Linux Technology Center
-University of Limerick                         IBM Dublin Software Lab
+Thanks,
+Elladan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
