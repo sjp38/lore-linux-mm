@@ -1,69 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with ESMTP id BC1456B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 10:06:53 -0400 (EDT)
-Date: Thu, 30 Apr 2009 16:06:42 +0200
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH] use GFP_NOFS in kernel_event()
-Message-ID: <20090430140642.GB14696@elte.hu>
-References: <20090430020004.GA1898@localhost> <20090429191044.b6fceae2.akpm@linux-foundation.org> <1241097573.6020.7.camel@localhost.localdomain> <20090430134821.GB8644@localhost> <20090430140324.GA12033@localhost>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 626916B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 10:22:30 -0400 (EDT)
+Received: by ewy8 with SMTP id 8so2212990ewy.38
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2009 07:22:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090430140324.GA12033@localhost>
+In-Reply-To: <1241023514.12464.2.camel@heimdal.trondhjem.org>
+References: <20090414071152.GC23528@wotan.suse.de>
+	 <20090415082507.GA23674@wotan.suse.de>
+	 <20090415183847.d4fa1efb.akpm@linux-foundation.org>
+	 <20090428185739.GE6377@localdomain>
+	 <20090429071233.GC3398@wotan.suse.de>
+	 <20090429002418.fd9072a6.akpm@linux-foundation.org>
+	 <20090429074511.GD3398@wotan.suse.de>
+	 <1241008762.6336.5.camel@heimdal.trondhjem.org>
+	 <20090429082733.f69b45c1.akpm@linux-foundation.org>
+	 <1241023514.12464.2.camel@heimdal.trondhjem.org>
+Date: Thu, 30 Apr 2009 10:22:48 -0400
+Message-ID: <5da0588e0904300722p538cb174xcc01bbe85dd58ec8@mail.gmail.com>
+Subject: Re: [patch] mm: close page_mkwrite races (try 3)
+From: Rince <rincebrain@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Eric Paris <eparis@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: Trond Myklebust <trond.myklebust@fys.uio.no>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nick Piggin <npiggin@suse.de>, Ravikiran G Thirumalai <kiran@scalex86.org>, Sage Weil <sage@newdream.net>, linux-fsdevel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, stable@kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Bad news for everyone...
 
-* Wu Fengguang <fengguang.wu@intel.com> wrote:
+My kernel, with the four patches mentioned, left a steaming present on
+my desk this morning.
 
-> On Thu, Apr 30, 2009 at 09:48:21PM +0800, Wu Fengguang wrote:
-> > On Thu, Apr 30, 2009 at 09:19:33PM +0800, Eric Paris wrote:
-> > > inotify: lockdep annotation when watch being removed
-> > > 
-> > > From: Eric Paris <eparis@redhat.com>
-> > > 
-> > > When a dentry is being evicted from memory pressure, if the inode associated
-> > > with that dentry has i_nlink == 0 we are going to drop all of the watches and
-> > > kick everything out.  Lockdep complains that previously holding inotify_mutex
-> > > we did a __GFP_FS allocation and now __GFP_FS reclaim is taking that lock.
-> > > There is no deadlock or danger, since we know on this code path we are
-> > > actually cleaning up and evicting everything.  So we move the lock into a new
-> > > class for clean up.
-> > 
-> > I can reproduce the bug and hence confirm that this patch works, so
-> > 
-> > Tested-by: Wu Fengguang <fengguang.wu@intel.com>
-> 
-> btw, I really see no point to have one GFP_KERNEL and one GFP_NOFS
-> sitting side by side inside kernel_event(). So this patch?
-> 
-> ---
-> inotify: use consistent GFP_KERNEL in kernel_event()
-> 
-> kernel_event() has side by side kmem_cache_alloc(GFP_NOFS)
-> and kmalloc(GFP_KERNEL). Change to consistent GFP_KERNELs.
-> 
-> cc: Al Viro <viro@zeniv.linux.org.uk>
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
->  fs/notify/inotify/inotify_user.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- mm.orig/fs/notify/inotify/inotify_user.c
-> +++ mm/fs/notify/inotify/inotify_user.c
-> @@ -189,7 +189,7 @@ static struct inotify_kernel_event * ker
->  {
->  	struct inotify_kernel_event *kevent;
->  
-> -	kevent = kmem_cache_alloc(event_cachep, GFP_NOFS);
-> +	kevent = kmem_cache_alloc(event_cachep, GFP_KERNEL);
+------------[ cut here ]------------
+kernel BUG at fs/nfs/write.c:252!
+invalid opcode: 0000 [#1] SMP
+[...]
 
-good point - this essentially reverts the earlier workaround.
+Fascinating, no?
 
-	Ingo
+- Rich
+
+-- 
+
+((lambda (foo) (bar foo)) (baz))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
