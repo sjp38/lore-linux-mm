@@ -1,44 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3B66B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 04:12:15 -0400 (EDT)
-Date: Thu, 30 Apr 2009 10:10:29 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v3)
-Message-ID: <20090430081029.GA23231@cmpxchg.org>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com> <20090429131436.640f09ab@cuia.bos.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9514E6B004D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 04:22:10 -0400 (EDT)
+Received: from d23relay02.au.ibm.com (d23relay02.au.ibm.com [202.81.31.244])
+	by e23smtp03.au.ibm.com (8.13.1/8.13.1) with ESMTP id n3U8KVm8026641
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 18:20:31 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay02.au.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3U8MO1U1212536
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 18:22:25 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3U8MOWT019866
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 18:22:24 +1000
+Date: Thu, 30 Apr 2009 10:22:40 +0530
+From: Balbir Singh <balbir@linux.vnet.ibm.com>
+Subject: Re: [PATCH mmotm] memcg: fix mem_cgroup_update_mapped_file_stat
+	oops
+Message-ID: <20090430045240.GA4430@balbir.in.ibm.com>
+Reply-To: balbir@linux.vnet.ibm.com
+References: <Pine.LNX.4.64.0904292209550.30874@blonde.anvils> <20090430090646.a1443096.kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20090429131436.640f09ab@cuia.bos.redhat.com>
+In-Reply-To: <20090430090646.a1443096.kamezawa.hiroyu@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 29, 2009 at 01:14:36PM -0400, Rik van Riel wrote:
-> When the file LRU lists are dominated by streaming IO pages,
-> evict those pages first, before considering evicting other
-> pages.
-> 
-> This should be safe from deadlocks or performance problems
-> because only three things can happen to an inactive file page:
-> 1) referenced twice and promoted to the active list
-> 2) evicted by the pageout code
-> 3) under IO, after which it will get evicted or promoted
-> 
-> The pages freed in this way can either be reused for streaming
-> IO, or allocated for something else. If the pages are used for
-> streaming IO, this pageout pattern continues. Otherwise, we will
-> fall back to the normal pageout pattern.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+* KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-30 09:06:46]:
 
-Although Elladan didn't test this exact patch, he reported on v2 that
-the general idea of scanning active files only when they exceed the
-inactive set works.
+> On Wed, 29 Apr 2009 22:13:33 +0100 (BST)
+> Hugh Dickins <hugh@veritas.com> wrote:
+> 
+> > CONFIG_SPARSEMEM=y CONFIG_CGROUP_MEM_RES_CTLR=y cgroup_disable=memory
+> > bootup is oopsing in mem_cgroup_update_mapped_file_stat().  !SPARSEMEM
+> > is fine because its lookup_page_cgroup() contains an explicit check for
+> > NULL node_page_cgroup, but the SPARSEMEM version was missing a check for
+> > NULL section->page_cgroup.
+> > 
+> Ouch, it's curious this bug alive now.. thank you.
+> 
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> 
+> I think this patch itself is sane but.. Balbir, could you see "caller" ?
+> It seems strange.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Ideally we need to have a disabled check in
+mem_cgroup_update_mapped_file_stat(), but it seems as if this fix is
+better and fixes a larger scenario and the root cause of
+lookup_page_cgroup() OOPSing. It would not hurt to check for
+mem_cgroup_disabled() though, but too many checks might spoil the
+party for frequent operations.
+
+Kame, do you mean you wanted me to check if I am using
+lookup_page_cgroup() correctly?
+
+Hugh, Thank you very much for finding and fixing the problem!
+Acked-by: Balbir Singh <balbir@linux.vnet.ibm.com>
+ 
+
+-- 
+	Balbir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
