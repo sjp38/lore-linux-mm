@@ -1,54 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 18BA46B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 09:46:16 -0400 (EDT)
-Date: Thu, 30 Apr 2009 06:46:33 -0700
-From: Elladan <elladan@eskimo.com>
-Subject: Re: Swappiness vs. mmap() and interactive response
-Message-ID: <20090430134632.GA31807@eskimo.com>
-References: <20090428090916.GC17038@localhost> <20090428120818.GH22104@mit.edu> <20090429130430.4B11.A69D9226@jp.fujitsu.com> <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2f11576a0904300459t61ae9619tcf8defacfc94f79@mail.gmail.com>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 683BE6B0047
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 09:47:58 -0400 (EDT)
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by e35.co.us.ibm.com (8.13.1/8.13.1) with ESMTP id n3UDh0Ic029618
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 07:43:00 -0600
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n3UDmZN4237662
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 07:48:37 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n3UDmP5m011239
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 07:48:26 -0600
+Subject: Re: [RFC] Replace the watermark-related union in struct zone with
+	a watermark[] array
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+In-Reply-To: <20090430133524.GC21997@csn.ul.ie>
+References: <1240408407-21848-1-git-send-email-mel@csn.ul.ie>
+	 <1240408407-21848-19-git-send-email-mel@csn.ul.ie>
+	 <alpine.DEB.2.00.0904221251350.14558@chino.kir.corp.google.com>
+	 <20090427170054.GE912@csn.ul.ie>
+	 <alpine.DEB.2.00.0904271340320.11972@chino.kir.corp.google.com>
+	 <20090427205400.GA23510@csn.ul.ie>
+	 <alpine.DEB.2.00.0904271400450.11972@chino.kir.corp.google.com>
+	 <20090430133524.GC21997@csn.ul.ie>
+Content-Type: text/plain
+Date: Thu, 30 Apr 2009 06:48:20 -0700
+Message-Id: <1241099300.29485.96.camel@nimitz>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Theodore Tso <tytso@mit.edu>, Wu Fengguang <fengguang.wu@intel.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: David Rientjes <rientjes@google.com>, Linux Memory Management List <linux-mm@kvack.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 30, 2009 at 08:59:59PM +0900, KOSAKI Motohiro wrote:
-> > test environment: no lvm, copy ext3 to ext3 (not mv), no change swappiness,
-> >                  CFQ is used, userland is Fedora10, mmotm(2.6.30-rc1 + mm patch),
-> >                  CPU opteronx4, mem 4G
-> >
-> > mouse move lag:               not happend
-> > window move lag:              not happend
-> > Mapped page decrease rapidly: not happend (I guess, these page stay in
-> >                                          active list on my system)
-> > page fault large latency:     happend (latencytop display >1200ms)
-> >
-> >
-> > Then, I don't doubt vm replacement logic now.
-> > but I need more investigate.
-> > I plan to try following thing today and tommorow.
-> >
-> >  - XFS
-> >  - LVM
-> >  - another io scheduler (thanks Ted, good view point)
-> >  - Rik's new patch
+On Thu, 2009-04-30 at 14:35 +0100, Mel Gorman wrote:
+> I think what you're saying that you'd be ok with
 > 
-> hm, AS io-scheduler don't make such large latency on my environment.
-> Elladan, Can you try to AS scheduler? (adding boot option "elevator=as")
+> zone_wmark_min(z)
+> zone_wmark_low(z)
+> zone_wmark_high(z)
+> 
+> and z->pages_mark[WMARK_MIN] =
+> and z->pages_mark[WMARK_LOW] =
+> and z->pages_mark[WMARK_HIGH] =
+> 
+> ?
+> 
+> Is that a significant improvement over what the patch currently does? To
+> me, it seems more verbose.
 
-I switched at runtime with /sys/block/sd[ab]/queue/scheduler, using Rik's
-second patch for page replacement.  It was hard to tell if this made much
-difference in latency, as reported by latencytop.  Both schedulers sometimes
-show outliers up to 1400msec or so, and the average latency looks like it may
-be similar.
+Either way, there are _relatively_ few users.  From a quick cscope, it
+appears setup_per_zone_pages_min() is really the heaviest user assigning
+them.
 
-Thanks,
-Elladan
+Personally, I do like having the 'wmark' or something similar in the
+function or structure member names.  But, I also like having the units
+in there as well.  There's probably not room for both, though.  I'm fine
+with the naming you have above.  The only thing I might consider is
+removing 'zone_' from the function names since it's implied from the
+variable name:
+
+	min_wmark_pages(z)
+
+The 'z->pages_mark[WMARK_*]' form is ugly, but it should be basically
+restricted to use in setup_per_zone_pages_min().  I think that means we
+don't need set_foo() functions because of a lack of use sites.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
