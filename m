@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
-	by kanga.kvack.org (Postfix) with ESMTP id 610736B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 22:58:38 -0400 (EDT)
-Date: Thu, 30 Apr 2009 19:54:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 611DA6B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 23:09:31 -0400 (EDT)
+Date: Thu, 30 Apr 2009 20:09:16 -0700
+From: Elladan <elladan@eskimo.com>
 Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-Message-Id: <20090430195439.e02edc26.akpm@linux-foundation.org>
-In-Reply-To: <20090430215034.4748e615@riellaptop.surriel.com>
-References: <20090428044426.GA5035@eskimo.com>
-	<20090428192907.556f3a34@bree.surriel.com>
-	<1240987349.4512.18.camel@laptop>
-	<20090429114708.66114c03@cuia.bos.redhat.com>
-	<20090430072057.GA4663@eskimo.com>
-	<20090430174536.d0f438dd.akpm@linux-foundation.org>
-	<20090430205936.0f8b29fc@riellaptop.surriel.com>
-	<20090430181340.6f07421d.akpm@linux-foundation.org>
-	<20090430215034.4748e615@riellaptop.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20090501030916.GA25905@eskimo.com>
+References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <20090430072057.GA4663@eskimo.com> <20090430174536.d0f438dd.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090430174536.d0f438dd.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: elladan@eskimo.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Elladan <elladan@eskimo.com>, riel@redhat.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Apr 2009 21:50:34 -0400 Rik van Riel <riel@redhat.com> wrote:
-
-> > Which would cause exactly the problem Elladan saw?
+On Thu, Apr 30, 2009 at 05:45:36PM -0700, Andrew Morton wrote:
+> On Thu, 30 Apr 2009 00:20:58 -0700
+> Elladan <elladan@eskimo.com> wrote:
 > 
-> Yes.  It was not noticable in the initial split LRU code,
-> but after we decided to ignore the referenced bit on active
-> file pages and deactivate pages regardless, it has gotten
-> exacerbated.
-> 
-> That change was very good for scalability, so we should not
-> undo it.  However, we do need to put something in place to
-> protect the working set from streaming IO.
-> 
-> > > Currently the kernel has no effective code to protect the 
-> > > page cache working set from streaming IO.  Elladan's bug
-> > > report shows that we do need some kind of protection...
+> > > Elladan, does this smaller patch still work as expected?
 > > 
-> > Seems to me that reclaim should treat swapcache-backed mapped mages in
-> > a similar fashion to file-backed mapped pages?
+> > Rik, since the third patch doesn't work on 2.6.28 (without disabling a lot of
+> > code), I went ahead and tested this patch.
+> > 
+> > The system does seem relatively responsive with this patch for the most part,
+> > with occasional lag.  I don't see much evidence at least over the course of a
+> > few minutes that it pages out applications significantly.  It seems about
+> > equivalent to the first patch.
+> > 
+> > Given Andrew Morton's request that I track the Mapped: field in /proc/meminfo,
+> > I went ahead and did that with this patch built into a kernel.  Compared to the
+> > standard Ubuntu kernel, this patch keeps significantly more Mapped memory
+> > around, and it shrinks at a slower rate after the test runs for a while.
+> > Eventually, it seems to reach a steady state.
+> > 
+> > For example, with your patch, Mapped will often go for 30 seconds without
+> > changing significantly.  Without your patch, it continuously lost about
+> > 500-1000K every 5 seconds, and then jumped up again significantly when I
+> > touched Firefox or other applications.  I do see some of that behavior with
+> > your patch too, but it's much less significant.
 > 
-> Swapcache-backed pages are not on the same set of LRUs as
-> file-backed mapped pages.
+> Were you able to tell whether altering /proc/sys/vm/swappiness appropriately
+> regulated the rate at which the mapped page count decreased?
 
-yup.
+I don't believe so.  I tested with swappiness=0 and =60, and in each case the
+mapped pages continued to decrease.  I don't know at what rate though.  If
+you'd like more precise data, I can rerun the test with appropriate logging.  I
+admit my "Hey, latency is terrible and mapped pages is decreasing" testing is
+somewhat unscientific.
 
-> Furthermore, there is no streaming IO on the anon LRUs like
-> there is on the file LRUs. Only the file LRUs need (and want)
-> use-once replacement, which means that we only need special
-> protection of the working set for file-backed pages.
+I get the impression that VM regressions happen fairly regularly.  Does anyone
+have good unit tests for this?  Is seems like a difficult problem, since it's
+partly based on pattern and partly timing.
 
-OK.
-
-> When we implement working set protection, we might as well
-> do it for frequently accessed unmapped pages too.  There is
-> no reason to restrict this protection to mapped pages.
-
-Well.  Except for empirical observation, which tells us that biasing
-reclaim to prefer to retain mapped memory produces a better result.
+-J
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
