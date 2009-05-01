@@ -1,61 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
-	by kanga.kvack.org (Postfix) with SMTP id 611DA6B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 23:09:31 -0400 (EDT)
-Date: Thu, 30 Apr 2009 20:09:16 -0700
-From: Elladan <elladan@eskimo.com>
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-Message-ID: <20090501030916.GA25905@eskimo.com>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <20090430072057.GA4663@eskimo.com> <20090430174536.d0f438dd.akpm@linux-foundation.org>
+Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
+	by kanga.kvack.org (Postfix) with SMTP id 2756C6B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 23:26:15 -0400 (EDT)
+Received: by gxk20 with SMTP id 20so3559365gxk.14
+        for <linux-mm@kvack.org>; Thu, 30 Apr 2009 20:26:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090430174536.d0f438dd.akpm@linux-foundation.org>
+In-Reply-To: <20090428090129.17081.782.sendpatchset@rx1.opensource.se>
+References: <20090428090129.17081.782.sendpatchset@rx1.opensource.se>
+Date: Fri, 1 May 2009 12:26:38 +0900
+Message-ID: <aec7e5c30904302026q42ecbd57m6e88c937bbd262bb@mail.gmail.com>
+Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V2
+From: Magnus Damm <magnus.damm@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Elladan <elladan@eskimo.com>, riel@redhat.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: linux-media@vger.kernel.org
+Cc: hverkuil@xs4all.nl, linux-mm@kvack.org, Magnus Damm <magnus.damm@gmail.com>, lethal@linux-sh.org, hannes@cmpxchg.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 30, 2009 at 05:45:36PM -0700, Andrew Morton wrote:
-> On Thu, 30 Apr 2009 00:20:58 -0700
-> Elladan <elladan@eskimo.com> wrote:
-> 
-> > > Elladan, does this smaller patch still work as expected?
-> > 
-> > Rik, since the third patch doesn't work on 2.6.28 (without disabling a lot of
-> > code), I went ahead and tested this patch.
-> > 
-> > The system does seem relatively responsive with this patch for the most part,
-> > with occasional lag.  I don't see much evidence at least over the course of a
-> > few minutes that it pages out applications significantly.  It seems about
-> > equivalent to the first patch.
-> > 
-> > Given Andrew Morton's request that I track the Mapped: field in /proc/meminfo,
-> > I went ahead and did that with this patch built into a kernel.  Compared to the
-> > standard Ubuntu kernel, this patch keeps significantly more Mapped memory
-> > around, and it shrinks at a slower rate after the test runs for a while.
-> > Eventually, it seems to reach a steady state.
-> > 
-> > For example, with your patch, Mapped will often go for 30 seconds without
-> > changing significantly.  Without your patch, it continuously lost about
-> > 500-1000K every 5 seconds, and then jumped up again significantly when I
-> > touched Firefox or other applications.  I do see some of that behavior with
-> > your patch too, but it's much less significant.
-> 
-> Were you able to tell whether altering /proc/sys/vm/swappiness appropriately
-> regulated the rate at which the mapped page count decreased?
+On Tue, Apr 28, 2009 at 6:01 PM, Magnus Damm <magnus.damm@gmail.com> wrote:
+> This is V2 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
 
-I don't believe so.  I tested with swappiness=0 and =60, and in each case the
-mapped pages continued to decrease.  I don't know at what rate though.  If
-you'd like more precise data, I can rerun the test with appropriate logging.  I
-admit my "Hey, latency is terrible and mapped pages is decreasing" testing is
-somewhat unscientific.
+I guess the V4L2 specific bits are pretty simple.
 
-I get the impression that VM regressions happen fairly regularly.  Does anyone
-have good unit tests for this?  Is seems like a difficult problem, since it's
-partly based on pattern and partly timing.
+As for the minor mm modifications below,
 
--J
+> --- 0001/mm/memory.c
+> +++ work/mm/memory.c =A0 =A02009-04-28 14:56:43.000000000 +0900
+> @@ -3009,7 +3009,6 @@ int in_gate_area_no_task(unsigned long a
+>
+> =A0#endif /* __HAVE_ARCH_GATE_AREA */
+>
+> -#ifdef CONFIG_HAVE_IOREMAP_PROT
+> =A0int follow_phys(struct vm_area_struct *vma,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long address, unsigned int flags,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0unsigned long *prot, resource_size_t *phys=
+)
+
+Is it ok with the memory management guys to always build follow_phys()?
+
+> @@ -3063,7 +3062,9 @@ unlock:
+> =A0out:
+> =A0 =A0 =A0 =A0return ret;
+> =A0}
+> +EXPORT_SYMBOL(follow_phys);
+>
+> +#ifdef CONFIG_HAVE_IOREMAP_PROT
+> =A0int generic_access_phys(struct vm_area_struct *vma, unsigned long addr=
+,
+> =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0void *buf, int len, int wr=
+ite)
+> =A0{
+
+How about exporting follow_phys()? This because the user
+videobuf-dma-contig.c can be built as a module.
+
+Should I use EXPORT_SYMBOL_GPL() instead of EXPORT_SYMBOL()?
+
+Any comments?
+
+Thanks,
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
