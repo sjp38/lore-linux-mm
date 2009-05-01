@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id B76B56B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 14:12:10 -0400 (EDT)
-Subject: Re: [PATCH] use GFP_NOFS in kernel_event()
-From: Eric Paris <eparis@redhat.com>
-In-Reply-To: <20090430141041.c167b4d4.akpm@linux-foundation.org>
-References: <20090430020004.GA1898@localhost>
-	 <20090429191044.b6fceae2.akpm@linux-foundation.org>
-	 <1241097573.6020.7.camel@localhost.localdomain>
-	 <20090430141041.c167b4d4.akpm@linux-foundation.org>
-Content-Type: text/plain
-Date: Fri, 01 May 2009 14:11:34 -0400
-Message-Id: <1241201494.3086.3.camel@dhcp231-142.rdu.redhat.com>
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with ESMTP id C477A6B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 14:15:02 -0400 (EDT)
+Date: Fri, 1 May 2009 20:14:49 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] videobuf-dma-contig: zero copy USERPTR support V2
+Message-ID: <20090501181449.GA8912@cmpxchg.org>
+References: <20090428090129.17081.782.sendpatchset@rx1.opensource.se> <aec7e5c30904302026q42ecbd57m6e88c937bbd262bb@mail.gmail.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <aec7e5c30904302026q42ecbd57m6e88c937bbd262bb@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: fengguang.wu@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mpm@selenic.com, clameter@sgi.com, mingo@elte.hu, viro@zeniv.linux.org.uk
+To: Magnus Damm <magnus.damm@gmail.com>
+Cc: linux-media@vger.kernel.org, hverkuil@xs4all.nl, linux-mm@kvack.org, lethal@linux-sh.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-04-30 at 14:10 -0700, Andrew Morton wrote:
-> On Thu, 30 Apr 2009 09:19:33 -0400
-> Eric Paris <eparis@redhat.com> wrote:
+On Fri, May 01, 2009 at 12:26:38PM +0900, Magnus Damm wrote:
+> On Tue, Apr 28, 2009 at 6:01 PM, Magnus Damm <magnus.damm@gmail.com> wrote:
+> > This is V2 of the V4L2 videobuf-dma-contig USERPTR zero copy patch.
 > 
-> > > Somebody was going to fix this for us via lockdep annotation.
-> > > 
-> > > <adds randomly-chosen cc>
-> > 
-> > I really didn't forget this, but I can't figure out how to recreate it,
-> > so I don't know if my logic in the patch is sound.  The patch certainly
-> > will shut up the complaint.
+> I guess the V4L2 specific bits are pretty simple.
 > 
-> Do you think we should merge the GFP_NOFS workaround for 2.6.30 and
-> fix all up nicely for 2.6.31?
+> As for the minor mm modifications below,
+> 
+> > --- 0001/mm/memory.c
+> > +++ work/mm/memory.c    2009-04-28 14:56:43.000000000 +0900
+> > @@ -3009,7 +3009,6 @@ int in_gate_area_no_task(unsigned long a
+> >
+> >  #endif /* __HAVE_ARCH_GATE_AREA */
+> >
+> > -#ifdef CONFIG_HAVE_IOREMAP_PROT
+> >  int follow_phys(struct vm_area_struct *vma,
+> >                unsigned long address, unsigned int flags,
+> >                unsigned long *prot, resource_size_t *phys)
+> 
+> Is it ok with the memory management guys to always build follow_phys()?
 
-I'm all for it for 2.6.30, although the patch really should have been
-the one that gets the audit use case too at 
+AFAICS, pte_pgprot is only defined on three architectures that have
+the config symbol above set.  It shouldn't compile on the others.
 
->From me on Mar 18 Subject [PATCH] make inotify event handles use
-GFP_NOFS
+I have a patch that factors out follow_pte and builds follow_pfn and
+follow_phys on top of that.  I can send it monday, no access to it
+from here right now.
 
-http://lkml.org/lkml/2009/3/18/310
+Then we can keep follow_phys private to this configuration.
 
-
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
