@@ -1,53 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id AA0C66B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 21:17:41 -0400 (EDT)
-Date: Thu, 30 Apr 2009 18:13:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-Message-Id: <20090430181340.6f07421d.akpm@linux-foundation.org>
-In-Reply-To: <20090430205936.0f8b29fc@riellaptop.surriel.com>
-References: <20090428044426.GA5035@eskimo.com>
-	<20090428192907.556f3a34@bree.surriel.com>
-	<1240987349.4512.18.camel@laptop>
-	<20090429114708.66114c03@cuia.bos.redhat.com>
-	<20090430072057.GA4663@eskimo.com>
-	<20090430174536.d0f438dd.akpm@linux-foundation.org>
-	<20090430205936.0f8b29fc@riellaptop.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id EE7B46B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 21:22:43 -0400 (EDT)
+Date: Fri, 1 May 2009 09:22:12 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: Re: [patch 20/22] vmscan: avoid multiplication overflow in
+	shrink_zone()
+Message-ID: <20090501012212.GA5848@localhost>
+References: <200904302208.n3UM8t9R016687@imap1.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200904302208.n3UM8t9R016687@imap1.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: elladan@eskimo.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Apr 2009 20:59:36 -0400
-Rik van Riel <riel@redhat.com> wrote:
-
-> On Thu, 30 Apr 2009 17:45:36 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On Fri, May 01, 2009 at 06:08:55AM +0800, Andrew Morton wrote:
 > 
-> > Were you able to tell whether altering /proc/sys/vm/swappiness
-> > appropriately regulated the rate at which the mapped page count
-> > decreased?
+> Local variable `scan' can overflow on zones which are larger than
 > 
-> That should not make a difference at all for mapped file
-> pages, after the change was merged that makes the VM ignores
-> the referenced bit of mapped active file pages.
+> 	(2G * 4k) / 100 = 80GB.
 > 
-> Ever since the split LRU code was merged, all that the
-> swappiness controls is the aggressiveness of file vs
-> anonymous LRU scanning.
+> Making it 64-bit on 64-bit will fix that up.
 
-Which would cause exactly the problem Elladan saw?
+A side note about the "one HUGE scan inside shrink_zone":
 
-> Currently the kernel has no effective code to protect the 
-> page cache working set from streaming IO.  Elladan's bug
-> report shows that we do need some kind of protection...
+Isn't this low level scan granularity way tooooo large?
 
-Seems to me that reclaim should treat swapcache-backed mapped mages in
-a similar fashion to file-backed mapped pages?
+It makes things a lot worse on memory pressure:
+- the over reclaim, somehow workarounded by Rik's early bail out patch
+- the throttle_vm_writeout()/congestion_wait() guards could work in a
+  very sparse manner and hence is useless: imagine to stop and wait
+  after shooting away every 1GB memory.
+
+The long term fix could be to move the granularity control up to the
+shrink_zones() level: there it can bail out early without hurting the
+balanced zone aging.
+
+Thanks,
+Fengguang
+
+> --- a/mm/vmscan.c~vmscan-avoid-multiplication-overflow-in-shrink_zone
+> +++ a/mm/vmscan.c
+> @@ -1471,7 +1471,7 @@ static void shrink_zone(int priority, st
+>  
+>  	for_each_evictable_lru(l) {
+>  		int file = is_file_lru(l);
+> -		int scan;
+> +		unsigned long scan;
+>  
+>  		scan = zone_nr_pages(zone, sc, l);
+>  		if (priority) {
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
