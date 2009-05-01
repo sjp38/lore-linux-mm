@@ -1,95 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 007C06B003D
-	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 21:15:02 -0400 (EDT)
-Subject: Re: [BUG] 2.6.30-rc3-mmotm-090428-1814 -- bogus pointer deref
-From: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-In-Reply-To: <20090430113146.GA21997@csn.ul.ie>
-References: <1241037299.6693.97.camel@lts-notebook>
-	 <20090430113146.GA21997@csn.ul.ie>
-Content-Type: text/plain
-Date: Thu, 30 Apr 2009 21:14:49 -0400
-Message-Id: <1241140489.6656.14.camel@lts-notebook>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0C66B003D
+	for <linux-mm@kvack.org>; Thu, 30 Apr 2009 21:17:41 -0400 (EDT)
+Date: Thu, 30 Apr 2009 18:13:40 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
+Message-Id: <20090430181340.6f07421d.akpm@linux-foundation.org>
+In-Reply-To: <20090430205936.0f8b29fc@riellaptop.surriel.com>
+References: <20090428044426.GA5035@eskimo.com>
+	<20090428192907.556f3a34@bree.surriel.com>
+	<1240987349.4512.18.camel@laptop>
+	<20090429114708.66114c03@cuia.bos.redhat.com>
+	<20090430072057.GA4663@eskimo.com>
+	<20090430174536.d0f438dd.akpm@linux-foundation.org>
+	<20090430205936.0f8b29fc@riellaptop.surriel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-numa <linux-numa@vger.kernel.org>, Doug Chapman <doug.chapman@hp.com>, Eric Whitney <eric.whitney@hp.com>, Bjorn Helgaas <bjorn.helgaas@hp.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: elladan@eskimo.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2009-04-30 at 12:31 +0100, Mel Gorman wrote:
-> On Wed, Apr 29, 2009 at 04:34:59PM -0400, Lee Schermerhorn wrote:
-> > I'm seeing this on an ia64 platform--HP rx8640--running the numactl
-> > package regression test.  On ia64 a "NaT Consumption" [NaT = "not a
-> > thing"] usually means a bogus pointer.  I verified that it also occurs
-> > on 2.6.30-rc3-mmotm-090424-1814.  The regression test runs to completion
-> > on a 4-node x86_64 platform for both the 04/27 and 04/28 mmotm kernels.
-> > 
-> > The bug occurs right after the test suite issues the message:
-> > 
-> > "testing numactl --interleave=all memhog 15728640"
-> > 
-> > -------------------------------
-> > Console log:
-> > 
-> > numactl[7821]: NaT consumption 2216203124768 [2]
-> > Modules linked in: ipv6 nfs lockd fscache nfs_acl auth_rpcgss sunrpc vfat fat dm_mirror dm_multipath scsi_dh pci_slot parport_pc lp parport sg sr_mod cdrom button e1000 tg3 libphy dm_region_hash dm_log dm_mod sym53c8xx mptspi mptscsih mptbase scsi_transport_spi sd_mod scsi_mod ext3 jbd uhci_hcd ohci_hcd ehci_hcd [last unloaded: freq_table]
-> > 
-> > Pid: 7821, CPU 25, comm:              numactl
-> > psr : 0000121008022038 ifs : 8000000000000004 ip  : [<a00000010014ec91>]    Not tainted (2.6.30-rc3-mmotm-090428-1631)
-> > ip is at next_zones_zonelist+0x31/0x120
-<snip>
-> > 
-> > I'll try to bisect to specific patch--probably tomorrow.
+On Thu, 30 Apr 2009 20:59:36 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-Mel:  I think you can rest easy.  I've duplicated the problem with a
-kernel that truncates the mmotm 04/28 series just before your patches.
-Hope it's not my cpuset-mm fix that occurs just before that!  I'll let
-you know.
-
-Did hit one or your BUG_ON's, tho'.  See below.
-
-> > 
+> On Thu, 30 Apr 2009 17:45:36 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
-> Can you also try with this minimal debugging patch applied and the full
-> console log please? I'll keep thinking on it and hopefully I'll get inspired
+> > Were you able to tell whether altering /proc/sys/vm/swappiness
+> > appropriately regulated the rate at which the mapped page count
+> > decreased?
 > 
-> diff --git a/mm/mm_init.c b/mm/mm_init.c
-> index 4e0e265..82e17bb 100644
-> --- a/mm/mm_init.c
-> +++ b/mm/mm_init.c
-> @@ -41,8 +41,6 @@ void mminit_verify_zonelist(void)
->  			listid = i / MAX_NR_ZONES;
->  			zonelist = &pgdat->node_zonelists[listid];
->  			zone = &pgdat->node_zones[zoneid];
-> -			if (!populated_zone(zone))
-> -				continue;
->  
->  			/* Print information about the zonelist */
->  			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
-> diff --git a/mm/mmzone.c b/mm/mmzone.c
-> index 16ce8b9..c8c54d1 100644
-> --- a/mm/mmzone.c
-> +++ b/mm/mmzone.c
-> @@ -57,6 +57,10 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
->  					nodemask_t *nodes,
->  					struct zone **zone)
->  {
-> +	/* Should be impossible, check for NULL or near-NULL values for z */
-> +	BUG_ON(!z);
-> +	BUG_ON((unsigned long )z < PAGE_SIZE);
+> That should not make a difference at all for mapped file
+> pages, after the change was merged that makes the VM ignores
+> the referenced bit of mapped active file pages.
+> 
+> Ever since the split LRU code was merged, all that the
+> swappiness controls is the aggressiveness of file vs
+> anonymous LRU scanning.
 
-The test w/o your patches hit the second BUG_ON().
+Which would cause exactly the problem Elladan saw?
 
+> Currently the kernel has no effective code to protect the 
+> page cache working set from streaming IO.  Elladan's bug
+> report shows that we do need some kind of protection...
 
-> +
->  	/*
->  	 * Find the next suitable zone to use for the allocation.
->  	 * Only filter based on nodemask if it's set
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-numa" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Seems to me that reclaim should treat swapcache-backed mapped mages in
+a similar fashion to file-backed mapped pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
