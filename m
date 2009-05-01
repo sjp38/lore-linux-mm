@@ -1,131 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D94D6B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 07:30:16 -0400 (EDT)
-Date: Fri, 1 May 2009 12:30:03 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH mmotm] mm: alloc_large_system_hash check order
-In-Reply-To: <20090430132544.GB21997@csn.ul.ie>
-Message-ID: <Pine.LNX.4.64.0905011202530.8513@blonde.anvils>
-References: <Pine.LNX.4.64.0904292151350.30874@blonde.anvils>
- <20090430132544.GB21997@csn.ul.ie>
+	by kanga.kvack.org (Postfix) with SMTP id 0CBDA6B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 07:46:42 -0400 (EDT)
+Message-ID: <49FAE12F.4020005@cosmosbay.com>
+Date: Fri, 01 May 2009 13:46:55 +0200
+From: Eric Dumazet <dada1@cosmosbay.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH mmotm] mm: alloc_large_system_hash check order
+References: <Pine.LNX.4.64.0904292151350.30874@blonde.anvils> <20090430132544.GB21997@csn.ul.ie> <Pine.LNX.4.64.0905011202530.8513@blonde.anvils>
+In-Reply-To: <Pine.LNX.4.64.0905011202530.8513@blonde.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Apr 2009, Mel Gorman wrote:
-> On Wed, Apr 29, 2009 at 10:09:48PM +0100, Hugh Dickins wrote:
-> > On an x86_64 with 4GB ram, tcp_init()'s call to alloc_large_system_hash(),
-> > to allocate tcp_hashinfo.ehash, is now triggering an mmotm WARN_ON_ONCE on
-> > order >= MAX_ORDER - it's hoping for order 11.  alloc_large_system_hash()
-> > had better make its own check on the order.
-> > 
-> > Signed-off-by: Hugh Dickins <hugh@veritas.com>
-> 
-> Looks good
-> 
-> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+Hugh Dickins a =E9crit :
+> On Thu, 30 Apr 2009, Mel Gorman wrote:
+>> On Wed, Apr 29, 2009 at 10:09:48PM +0100, Hugh Dickins wrote:
+>>> On an x86_64 with 4GB ram, tcp_init()'s call to alloc_large_system_ha=
+sh(),
+>>> to allocate tcp_hashinfo.ehash, is now triggering an mmotm WARN_ON_ON=
+CE on
+>>> order >=3D MAX_ORDER - it's hoping for order 11.  alloc_large_system_=
+hash()
+>>> had better make its own check on the order.
 
-Thanks.
+Well, I dont know why, since alloc_large_system_hash() already take
+care of retries, halving size between each tries.
 
-> 
-> As I was looking there, it seemed that alloc_large_system_hash() should be
-> using alloc_pages_exact() instead of having its own "give back the spare
-> pages at the end of the buffer" logic. If alloc_pages_exact() was used, then
-> the check for an order >= MAX_ORDER can be pushed down to alloc_pages_exact()
-> where it may catch other unwary callers.
-> 
-> How about adding the following patch on top of yours?
+>>>
+>>> Signed-off-by: Hugh Dickins <hugh@veritas.com>
+>> Looks good
+>>
+>> Reviewed-by: Mel Gorman <mel@csn.ul.ie>
+>=20
+> Thanks.
+>=20
+>> As I was looking there, it seemed that alloc_large_system_hash() shoul=
+d be
+>> using alloc_pages_exact() instead of having its own "give back the spa=
+re
+>> pages at the end of the buffer" logic. If alloc_pages_exact() was used=
+, then
+>> the check for an order >=3D MAX_ORDER can be pushed down to alloc_page=
+s_exact()
+>> where it may catch other unwary callers.
+>>
+>> How about adding the following patch on top of yours?
+>=20
+> Well observed, yes indeed.  In fact, it even looks as if, shock horror,=
 
-Well observed, yes indeed.  In fact, it even looks as if, shock horror,
-alloc_pages_exact() was _plagiarized_ from alloc_large_system_hash().
-Blessed be the GPL, I'm sure we can skip the lengthy lawsuits!
+> alloc_pages_exact() was _plagiarized_ from alloc_large_system_hash().
+> Blessed be the GPL, I'm sure we can skip the lengthy lawsuits!
 
-> 
-> ==== CUT HERE ====
-> Use alloc_pages_exact() in alloc_large_system_hash() to avoid duplicated logic
-> 
-> alloc_large_system_hash() has logic for freeing unused pages at the end
-> of an power-of-two-pages-aligned buffer that is a duplicate of what is in
-> alloc_pages_exact(). This patch converts alloc_large_system_hash() to use
-> alloc_pages_exact().
-> 
-> Signed-off-by: Mel Gorman <mel@csn.ul.ie>
-> --- 
->  mm/page_alloc.c |   27 +++++----------------------
->  1 file changed, 5 insertions(+), 22 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1b3da0f..c94b140 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1942,6 +1942,9 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
->  	unsigned int order = get_order(size);
->  	unsigned long addr;
->  
-> +	if (order >= MAX_ORDER)
-> +		return NULL;
-> +
+As a matter of fact, I was planning to call my lawyer, so I'll reconsider=
 
-I suppose there could be an argument about whether we do or do not
-want to skip the WARN_ON when it's in alloc_pages_exact().
+this and save some euros, thanks !
 
-I have no opinion on that; but DaveM's reply on large_system_hash
-does make it clear that we're not interested in the warning there.
+;)
 
->  	addr = __get_free_pages(gfp_mask, order);
->  	if (addr) {
->  		unsigned long alloc_end = addr + (PAGE_SIZE << order);
-> @@ -4755,28 +4758,8 @@ void *__init alloc_large_system_hash(const char *tablename,
->  			table = alloc_bootmem_nopanic(size);
->  		else if (hashdist)
->  			table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
-> -		else {
-> -			unsigned long order = get_order(size);
-> -
-> -			if (order < MAX_ORDER)
-> -				table = (void *)__get_free_pages(GFP_ATOMIC,
-> -								order);
-> -			/*
-> -			 * If bucketsize is not a power-of-two, we may free
-> -			 * some pages at the end of hash table.
-> -			 */
-
-That's actually a helpful comment, it's easy to think we're dealing
-in powers of two here when we may not be.  Maybe retain it with your
-alloc_pages_exact call?
-
-> -			if (table) {
-> -				unsigned long alloc_end = (unsigned long)table +
-> -						(PAGE_SIZE << order);
-> -				unsigned long used = (unsigned long)table +
-> -						PAGE_ALIGN(size);
-> -				split_page(virt_to_page(table), order);
-> -				while (used < alloc_end) {
-> -					free_page(used);
-> -					used += PAGE_SIZE;
-> -				}
-> -			}
-> -		}
-> +		else
-> +			table = alloc_pages_exact(PAGE_ALIGN(size), GFP_ATOMIC);
-
-Do you actually need that PAGE_ALIGN on the size?
-
->  	} while (!table && size > PAGE_SIZE && --log2qty);
->  
->  	if (!table)
-
-Andrew noticed another oddity: that if it goes the hashdist __vmalloc()
-way, it won't be limited by MAX_ORDER.  Makes one wonder whether it
-ought to fall back to __vmalloc() if the alloc_pages_exact() fails.
-I think that's a change we could make _if_ the large_system_hash
-users ever ask for it, but _not_ one we should make surreptitiously.
-
-Hugh
+It makes sense to use a helper function if it already exist, of course !
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
