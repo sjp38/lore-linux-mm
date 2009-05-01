@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2BA6B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 08:06:29 -0400 (EDT)
-Date: Fri, 1 May 2009 13:05:50 +0100 (BST)
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with ESMTP id 028BC6B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 09:40:33 -0400 (EDT)
+Date: Fri, 1 May 2009 14:40:38 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [PATCH mmotm] mm: alloc_large_system_hash check order
-In-Reply-To: <49FAE12F.4020005@cosmosbay.com>
-Message-ID: <Pine.LNX.4.64.0905011303490.11574@blonde.anvils>
+In-Reply-To: <20090429142825.6dcf233d.akpm@linux-foundation.org>
+Message-ID: <Pine.LNX.4.64.0905011354560.19012@blonde.anvils>
 References: <Pine.LNX.4.64.0904292151350.30874@blonde.anvils>
- <20090430132544.GB21997@csn.ul.ie> <Pine.LNX.4.64.0905011202530.8513@blonde.anvils>
- <49FAE12F.4020005@cosmosbay.com>
+ <20090429142825.6dcf233d.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323584-246501030-1241179429=:11574"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Eric Dumazet <dada1@cosmosbay.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mel@csn.ul.ie, andi@firstfloor.org, davem@davemloft.net, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Wed, 29 Apr 2009, Andrew Morton wrote:
+> 
+> yes, the code is a bit odd:
+> 
+> :	do {
+> : 		size = bucketsize << log2qty;
+> : 		if (flags & HASH_EARLY)
+> : 			table = alloc_bootmem_nopanic(size);
+> : 		else if (hashdist)
+> : 			table = __vmalloc(size, GFP_ATOMIC, PAGE_KERNEL);
+> : 		else {
+> : 			unsigned long order = get_order(size);
+> : 			table = (void*) __get_free_pages(GFP_ATOMIC, order);
+> : 			/*
+> : 			 * If bucketsize is not a power-of-two, we may free
+> : 			 * some pages at the end of hash table.
+> : 			 */
+> : 			if (table) {
+> : 				unsigned long alloc_end = (unsigned long)table +
+> : 						(PAGE_SIZE << order);
+> : 				unsigned long used = (unsigned long)table +
+> : 						PAGE_ALIGN(size);
+> : 				split_page(virt_to_page(table), order);
+> : 				while (used < alloc_end) {
+> : 					free_page(used);
+> : 					used += PAGE_SIZE;
+> : 				}
+> : 			}
+> : 		}
+> : 	} while (!table && size > PAGE_SIZE && --log2qty);
+> 
+> In the case where it does the __vmalloc(), the order-11 allocation will
+> succeed.  But in the other cases, the allocation attempt will need to
+> be shrunk and we end up with a smaller hash table.  Is that sensible?
 
---8323584-246501030-1241179429=:11574
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: QUOTED-PRINTABLE
+It is a little odd, but the __vmalloc() route is used by default on
+64-bit with CONFIG_NUMA, and this route otherwise.  (The hashdist
+Doc isn't up-to-date on that, I'll send a patch.)
 
-On Fri, 1 May 2009, Eric Dumazet wrote:
-> Hugh Dickins a =C3=A9crit :
-> > On Thu, 30 Apr 2009, Mel Gorman wrote:
-> >> On Wed, Apr 29, 2009 at 10:09:48PM +0100, Hugh Dickins wrote:
-> >>> On an x86_64 with 4GB ram, tcp_init()'s call to alloc_large_system_ha=
-sh(),
-> >>> to allocate tcp_hashinfo.ehash, is now triggering an mmotm WARN_ON_ON=
-CE on
-> >>> order >=3D MAX_ORDER - it's hoping for order 11.  alloc_large_system_=
-hash()
-> >>> had better make its own check on the order.
->=20
-> Well, I dont know why, since alloc_large_system_hash() already take
-> care of retries, halving size between each tries.
+> 
+> If we want to regularise all three cases, doing
+> 
+> 	size = min(size, MAX_ORDER);
 
-Sorry, I wasn't clear: I just meant that if we keep that
-WARN_ON_ONCE(order >=3D MAX_ORDER) in __alloc_pages_slowpath(),
-then we need alloc_large_system_hash() to avoid the call to
-__get_free_pages() in the order >=3D MAX_ORDER case,
-precisely because we're happy with the way it halves and
-falls back, so don't want a noisy warning; and now that we know
-that it could give that warning, it would be a shame for the
-_ONCE to suppress more interesting warnings later.
+If I take you literally, the resulting hash tables are going to
+be rather small ;) but I know what you mean.
 
-I certainly did not mean for alloc_large_system_hash() to fail
-in the order >=3D MAX_ORDER case, nor did the patch do so.
+> 
+> before starting the loop would be suitable, although the huge
+> __get_free_pages() might still fail.
+
+Oh, I don't feel a great urge to regularize these cases in such
+a way.  I particularly don't feel like limiting 64-bit NUMA to
+MAX_ORDER-1 size, if netdev have been happy with more until now.
+Could consider a __vmalloc fallback when order is too large,
+but let's not do so unless someone actually needs that.
+
+> (But it will then warn, won't it?
+>  And nobody is reporting that).
+
+Well, it was hard to report it while mmotm's WARN_ON_ONCE was itself
+oopsing.  With that fixed, I've reported it on x86_64 with 4GB
+(without CONFIG_NUMA).
+
+> 
+> I was a bit iffy about adding the warning in the first place, let it go
+> through due to its potential to lead us to code which isn't doing what
+> it thinks it's doing, or is being generally peculiar.
+
+DaveM has confirmed that the code is doing what they want it to do.
+So I think mmotm wants this patch (for alloc_large_system_hash to
+keep away from that warning), plus Mel's improvement on top of it.
 
 Hugh
---8323584-246501030-1241179429=:11574--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
