@@ -1,54 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 85DD46B004F
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 10:06:06 -0400 (EDT)
-Message-ID: <49FB01C1.6050204@redhat.com>
-Date: Fri, 01 May 2009 10:05:53 -0400
-From: Rik van Riel <riel@redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id 692A46B005A
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 10:09:28 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 3FAC482C486
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 10:21:00 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id ypad9vsdZYaj for <linux-mm@kvack.org>;
+	Fri,  1 May 2009 10:21:00 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 0B76182C541
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 10:20:54 -0400 (EDT)
+Date: Fri, 1 May 2009 09:59:35 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH mmotm] mm: alloc_large_system_hash check order
+In-Reply-To: <20090501140015.GA27831@csn.ul.ie>
+Message-ID: <alpine.DEB.1.10.0905010958090.18324@qirst.com>
+References: <Pine.LNX.4.64.0904292151350.30874@blonde.anvils> <20090430132544.GB21997@csn.ul.ie> <Pine.LNX.4.64.0905011202530.8513@blonde.anvils> <20090501140015.GA27831@csn.ul.ie>
 MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
-References: <20090428044426.GA5035@eskimo.com>	<20090428192907.556f3a34@bree.surriel.com>	<1240987349.4512.18.camel@laptop>	<20090429114708.66114c03@cuia.bos.redhat.com>	<20090430072057.GA4663@eskimo.com>	<20090430174536.d0f438dd.akpm@linux-foundation.org>	<20090430205936.0f8b29fc@riellaptop.surriel.com>	<20090430181340.6f07421d.akpm@linux-foundation.org>	<20090430215034.4748e615@riellaptop.surriel.com> <20090430195439.e02edc26.akpm@linux-foundation.org>
-In-Reply-To: <20090430195439.e02edc26.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: elladan@eskimo.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, David Miller <davem@davemloft.net>, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Fri, 1 May 2009, Mel Gorman wrote:
 
->> When we implement working set protection, we might as well
->> do it for frequently accessed unmapped pages too.  There is
->> no reason to restrict this protection to mapped pages.
-> 
-> Well.  Except for empirical observation, which tells us that biasing
-> reclaim to prefer to retain mapped memory produces a better result.
+> > Andrew noticed another oddity: that if it goes the hashdist __vmalloc()
+> > way, it won't be limited by MAX_ORDER.  Makes one wonder whether it
+> > ought to fall back to __vmalloc() if the alloc_pages_exact() fails.
+>
+> I don't believe so. __vmalloc() is only used when hashdist= is used or on IA-64
+> (according to the documentation). It is used in the case that the caller is
+> willing to deal with the vmalloc() overhead (e.g. using base page PTEs) in
+> exchange for the pages being interleaved on different nodes so that access
+> to the hash table has average performance[*]
+>
+> If we automatically fell back to vmalloc(), I bet 2c we'd eventually get
+> a mysterious performance regression report for a workload that depended on
+> the hash tables performance but that there was enough memory for the hash
+> table to be allocated with vmalloc() instead of alloc_pages_exact().
 
-That used to be the case because file-backed and
-swap-backed pages shared the same set of LRUs,
-while each following a different page reclaim
-heuristic!
-
-Today:
-1) file-backed and swap-backed pages are separated,
-2) the majority of mapped pages are on the swap-backed LRUs
-3) the accessed bit on active pages no longer means much,
-    for good scalability reasons, and
-4) because of (3), we cannot really provide special treatment
-    to any individual page any more, however
-
-This means we need to provide our working set protection
-on a per-list basis, by tweaking the scan rate or avoiding
-scanning of the active file list alltogether under certain
-conditions.
-
-As a side effect, this will help protect frequently accessed
-file pages (good for ftp and nfs servers), indirect blocks,
-inode buffers and other frequently used metadata.
-
--- 
-All rights reversed.
+Can we fall back to a huge page mapped vmalloc? Like what the vmemmap code
+does? Then we also would not have MAX_ORDER limitations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
