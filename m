@@ -1,261 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DBE946B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 14:32:34 -0400 (EDT)
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e8.ny.us.ibm.com (8.13.1/8.13.1) with ESMTP id n41INXb3031461
-	for <linux-mm@kvack.org>; Fri, 1 May 2009 14:23:33 -0400
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v9.2) with ESMTP id n41IX0QD145194
-	for <linux-mm@kvack.org>; Fri, 1 May 2009 14:33:00 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11.20060308/8.13.3) with ESMTP id n41IX01L026222
-	for <linux-mm@kvack.org>; Fri, 1 May 2009 14:33:00 -0400
-Date: Sat, 2 May 2009 00:02:56 +0530
-From: Balbir Singh <balbir@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: fix stale swap cache leak v5
-Message-ID: <20090501183256.GD4686@balbir.in.ibm.com>
-Reply-To: balbir@linux.vnet.ibm.com
-References: <20090430161627.0ccce565.kamezawa.hiroyu@jp.fujitsu.com> <20090430163539.7a882cef.kamezawa.hiroyu@jp.fujitsu.com> <20090430180426.25ae2fa6.kamezawa.hiroyu@jp.fujitsu.com> <20090430094252.GG4430@balbir.in.ibm.com> <20090430184738.752858ea.kamezawa.hiroyu@jp.fujitsu.com> <20090430181246.GM4430@balbir.in.ibm.com> <20090501133317.9c372d38.d-nishimura@mtf.biglobe.ne.jp>
+Received: from mail191.messagelabs.com (mail191.messagelabs.com [216.82.242.19])
+	by kanga.kvack.org (Postfix) with SMTP id 591D76B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 15:34:12 -0400 (EDT)
+Message-ID: <49FB4EBB.3030404@redhat.com>
+Date: Fri, 01 May 2009 15:34:19 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20090501133317.9c372d38.d-nishimura@mtf.biglobe.ne.jp>
+Subject: Re: [PATCH] vmscan: evict use-once pages first (v2)
+References: <20090428044426.GA5035@eskimo.com> <1240987349.4512.18.camel@laptop> 	<20090429114708.66114c03@cuia.bos.redhat.com> <20090430072057.GA4663@eskimo.com> 	<20090430174536.d0f438dd.akpm@linux-foundation.org> <20090430205936.0f8b29fc@riellaptop.surriel.com> 	<20090430181340.6f07421d.akpm@linux-foundation.org> <20090430215034.4748e615@riellaptop.surriel.com> 	<20090430195439.e02edc26.akpm@linux-foundation.org> <49FB01C1.6050204@redhat.com> <2c0942db0905011104u4e6df9ap9d95fa30b1284294@mail.gmail.com>
+In-Reply-To: <2c0942db0905011104u4e6df9ap9d95fa30b1284294@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: nishimura@mxp.nes.nec.co.jp
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hugh@veritas.com" <hugh@veritas.com>, d-nishimura@mtf.biglobe.ne.jp
+To: Ray Lee <ray-lk@madrabbit.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, elladan@eskimo.com, peterz@infradead.org, linux-kernel@vger.kernel.org, tytso@mit.edu, kosaki.motohiro@jp.fujitsu.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Daisuke Nishimura <d-nishimura@mtf.biglobe.ne.jp> [2009-05-01 13:33:17]:
+Ray Lee wrote:
 
-> On Thu, 30 Apr 2009 23:42:46 +0530
-> Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
+> Said way #3: We desktop users really want a way to say "Please don't
+> page my executables out when I'm running a system with 3gig of RAM." I
+> hate knobs, but I'm willing to beg for one in this case. 'cause
+> mlock()ing my entire working set into RAM seems pretty silly.
 > 
-> > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-30 18:47:38]:
-> > 
-> > > On Thu, 30 Apr 2009 15:12:52 +0530
-> > > Balbir Singh <balbir@linux.vnet.ibm.com> wrote:
-> > > 
-> > > > * KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> [2009-04-30 18:04:26]:
-> > > > 
-> > > > > On Thu, 30 Apr 2009 16:35:39 +0900
-> > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > 
-> > > > > > On Thu, 30 Apr 2009 16:16:27 +0900
-> > > > > > KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> > > > > > 
-> > > > > > > This is v5 but all codes are rewritten.
-> > > > > > > 
-> > > > > > > After this patch, when memcg is used,
-> > > > > > >  1. page's swapcount is checked after I/O (without locks). If the page is
-> > > > > > >     stale swap cache, freeing routine will be scheduled.
-> > > > > > >  2. vmscan.c calls try_to_free_swap() when __remove_mapping() fails.
-> > > > > > > 
-> > > > > > > Works well for me. no extra resources and no races.
-> > > > > > > 
-> > > > > > > Because my office will be closed until May/7, I'll not be able to make a
-> > > > > > > response. Posting this for showing what I think of now.
-> > > > > > > 
-> > > > > > I found a hole immediately after posted this...sorry. plz ignore this patch/
-> > > > > > see you again in the next month.
-> > > > > > 
-> > > > > I'm now wondering to disable "swapin readahed" completely when memcg is used...
-> > > > > Then, half of the problems will go away immediately.
-> > > > > And it's not so bad to try to free swapcache if swap writeback ends. Then, another
-> > > > > half will go away...
-> > > > >
-> > > > 
-> > > > Could you clarify? Will memcg not account for swapin readahead pages?
-> > > >  
-> > > swapin-readahead pages are _not_ accounted now. (And I think _never_)
-> > > But has race and leak swp_entry account until global LRU runs.
-> > > 
-> > > "Don't do swapin-readahead, at all" will remove following race completely.
-> > > ==
-> > >          CPU0                  CPU1
-> > >  free_swap_and_cache()
-> > >                         read_swapcache_async()
-> > > ==
-> > > swp_entry to be freed will not be read-in.
-> > > 
-> > > I think there will no performance regression in _usual_ case even if no readahead.
-> > > But has no number yet.
-> > >
-> > 
-> > Kamezawa, Daisuke,
-> > 
-> > Can't we just correct the accounting and leave the page on the global
-> > LRU?
-> > 
-> > Daisuke in the race conditions mentioned is (2) significant? Since the
-> > accounting is already fixed during mem_cgroup_uncharge_page()?
-> > 
-> Do you mean type-2 stale swap caches I described before ?
-> 
-> They doesn't pressure mem.usage nor memsw.usage as you say,
-> but consumes swp_entry(of cource, type-1 has this problem too).
-> As a result, all the swap space can be used up and causes OOM.
-> 
+> Does any of that make sense, or am I talking out of an inappropriate orifice?
 
-Good point..
+The "don't page my executables out" part makes sense.
 
-> I've verified it long ago by:
-> 
-> - make swap space small(50MB).
-> - set mem.limit(32MB).
-> - run some programs(allocate, touch sometimes, exit) enough to
->   exceed mem.limit repeatedly(I used page01 included in ltp and run
->   5 instances 8MB per each in cpuset with 4cpus.).
-> - wait for a very long time :) (2,30 hours IIRC)
->   You can see the usage of swap cache(grep SwapCached /proc/meminfo)
->   increasing gradually.
-> 
-> 
-> BTW, I'm now testing a attached patch to fix type-2 with setting page-cluster
-> to 0 to aboid type-1, and seeing what happens in the usage of swap cache.
-> (I can't test it in large box though, because my office is closed till May 06.)
-> 
-> Thanks,
-> Daisuke Nishimura.
-> ===
-> From: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> 
-> memcg: free unused swapcache on swapout path
-> 
-> memcg cannot handle !PageCgroupUsed swapcache the owner process of which
-> has been exited.
-> 
-> This patch is for handling such swap caches created by a race like below:
-> 
->     Assume processA is exiting and pte points to a page(!PageSwapCache).
->     And processB is trying reclaim the page.
-> 
->               processA                   |           processB
->     -------------------------------------+-------------------------------------
->       (page_remove_rmap())               |  (shrink_page_list())
->          mem_cgroup_uncharge_page()      |
->             ->uncharged because it's not |
->               PageSwapCache yet.         |
->               So, both mem/memsw.usage   |
->               are decremented.           |
->                                          |    add_to_swap() -> added to swap cache.
-> 
->     If this page goes thorough without being freed for some reason, this page
->     doesn't goes back to memcg's LRU because of !PageCgroupUsed.
-> 
-> These swap cache cannot be freed in memcg's LRU scanning, and swp_entry cannot
-> be freed properly as a result.
-> This patch adds a hook after add_to_swap() to check the page is mapped by a
-> process or not, and frees it if it has been unmapped already.
-> 
-> If a page has been on swap cache already when the owner process calls
-> page_remove_rmap() -> mem_cgroup_uncharge_page(), the page is not uncharged.
-> It goes back to memcg's LRU even if it goes through shrink_page_list()
-> without being freed, so this patch ignores these case.
-> 
-> Signed-off-by: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-> ---
->  include/linux/swap.h |   12 ++++++++++++
->  mm/memcontrol.c      |   14 ++++++++++++++
->  mm/vmscan.c          |    8 ++++++++
->  3 files changed, 34 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index caf0767..8e75d7a 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -336,11 +336,17 @@ static inline void disable_swap_token(void)
-> 
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR
->  extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
-> +extern int memcg_free_unused_swapcache(struct page *page);
->  #else
->  static inline void
->  mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
->  {
->  }
-> +static inline int
-> +memcg_free_unused_swapcache(struct page *page)
-> +{
-> +	return 0;
-> +}
->  #endif
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
-> @@ -431,6 +437,12 @@ static inline swp_entry_t get_swap_page(void)
->  #define has_swap_token(x) 0
->  #define disable_swap_token() do { } while(0)
-> 
-> +static inline int
-> +memcg_free_unused_swapcache(struct page *page)
-> +{
-> +	return 0;
-> +}
-> +
->  #endif /* CONFIG_SWAP */
->  #endif /* __KERNEL__*/
->  #endif /* _LINUX_SWAP_H */
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 01c2d8f..4f7e5b6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1488,6 +1488,7 @@ void mem_cgroup_uncharge_cache_page(struct page *page)
->  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_CACHE);
->  }
-> 
-> +#ifdef CONFIG_SWAP
->  /*
->   * called from __delete_from_swap_cache() and drop "page" account.
->   * memcg information is recorded to swap_cgroup of "ent"
-> @@ -1507,6 +1508,19 @@ void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
->  		css_put(&memcg->css);
->  }
-> 
-> +int memcg_free_unused_swapcache(struct page *page)
-> +{
-> +	VM_BUG_ON(!PageLocked(page));
-> +	VM_BUG_ON(!PageSwapCache(page));
-> +
-> +	if (mem_cgroup_disabled())
-> +		return 0;
-> +	if (!PageAnon(page) || page_mapped(page))
-> +		return 0;
-> +	return try_to_free_swap(page);	/* checks page_swapcount */
-> +}
-> +#endif /* CONFIG_SWAP */
-> +
->  #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
->  /*
->   * called from swap_entry_free(). remove record in swap_cgroup and
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eac9577..c1a7a6f 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -656,6 +656,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  				goto keep_locked;
->  			if (!add_to_swap(page))
->  				goto activate_locked;
-> +			/*
-> +			 * The owner process might have uncharged the page
-> +			 * (by page_remove_rmap()) before it has been added
-> +			 * to swap cache.
-> +			 * Check it here to avoid making it stale.
-> +			 */
-> +			if (memcg_free_unused_swapcache(page))
-> +				goto keep_locked;
->  			may_enter_fs = 1;
->  		}
-> 
-> 
-Looking through the patch, I have my doubts
+However, I believe that kind of behaviour should be the
+default.  Desktops and servers alike have a few different
+kinds of data in the page cache:
+1) pages that have been frequently accessed at some point
+    in the past and got promoted to the active list
+2) streaming IO
 
- shrink_page_list() will catch the page - how? It is not on memcg's
-LRU, so if we have a small cgroup with lots of memory, when the cgroup
-is running out of memory, will this page show up in
-shrink_page_list()?
+I believe that we want to give (1) absolute protection from
+(2), provided there are not too many pages on the active file
+list.  That way we will provide executables, cached indirect
+and inode blocks, etc. from streaming IO.
+
+Pages that are new to the page cache start on the inactive
+list.  Only if they get accessed twice while on that list,
+they get promoted to the active list.
+
+Streaming IO should normally be evicted from memory before
+it can get accessed again.  This means those pages do not
+get promoted to the active list and the working set is
+protected.
+
+Does this make sense?
 
 -- 
-	Balbir
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
