@@ -1,151 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 68F606B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 02:29:07 -0400 (EDT)
-Date: Fri, 1 May 2009 14:29:03 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [patch 20/22] vmscan: avoid multiplication overflow in
-	shrink_zone()
-Message-ID: <20090501062903.GA16746@localhost>
-References: <200904302208.n3UM8t9R016687@imap1.linux-foundation.org> <20090501012212.GA5848@localhost> <20090430194907.82b31565.akpm@linux-foundation.org>
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with ESMTP id 935C46B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 05:48:30 -0400 (EDT)
+Date: Fri, 1 May 2009 10:49:10 +0100
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [BUG] 2.6.30-rc3-mmotm-090428-1814 -- bogus pointer deref
+Message-ID: <20090501094910.GA22785@csn.ul.ie>
+References: <1241037299.6693.97.camel@lts-notebook> <20090430113146.GA21997@csn.ul.ie> <1241140489.6656.14.camel@lts-notebook>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20090430194907.82b31565.akpm@linux-foundation.org>
+In-Reply-To: <1241140489.6656.14.camel@lts-notebook>
 Sender: owner-linux-mm@kvack.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-numa <linux-numa@vger.kernel.org>, Doug Chapman <doug.chapman@hp.com>, Eric Whitney <eric.whitney@hp.com>, Bjorn Helgaas <bjorn.helgaas@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 01, 2009 at 10:49:07AM +0800, Andrew Morton wrote:
-> On Fri, 1 May 2009 09:22:12 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > On Fri, May 01, 2009 at 06:08:55AM +0800, Andrew Morton wrote:
+On Thu, Apr 30, 2009 at 09:14:49PM -0400, Lee Schermerhorn wrote:
+> On Thu, 2009-04-30 at 12:31 +0100, Mel Gorman wrote:
+> > On Wed, Apr 29, 2009 at 04:34:59PM -0400, Lee Schermerhorn wrote:
+> > > I'm seeing this on an ia64 platform--HP rx8640--running the numactl
+> > > package regression test.  On ia64 a "NaT Consumption" [NaT = "not a
+> > > thing"] usually means a bogus pointer.  I verified that it also occurs
+> > > on 2.6.30-rc3-mmotm-090424-1814.  The regression test runs to completion
+> > > on a 4-node x86_64 platform for both the 04/27 and 04/28 mmotm kernels.
 > > > 
-> > > Local variable `scan' can overflow on zones which are larger than
+> > > The bug occurs right after the test suite issues the message:
 > > > 
-> > > 	(2G * 4k) / 100 = 80GB.
+> > > "testing numactl --interleave=all memhog 15728640"
 > > > 
-> > > Making it 64-bit on 64-bit will fix that up.
+> > > -------------------------------
+> > > Console log:
+> > > 
+> > > numactl[7821]: NaT consumption 2216203124768 [2]
+> > > Modules linked in: ipv6 nfs lockd fscache nfs_acl auth_rpcgss sunrpc vfat fat dm_mirror dm_multipath scsi_dh pci_slot parport_pc lp parport sg sr_mod cdrom button e1000 tg3 libphy dm_region_hash dm_log dm_mod sym53c8xx mptspi mptscsih mptbase scsi_transport_spi sd_mod scsi_mod ext3 jbd uhci_hcd ohci_hcd ehci_hcd [last unloaded: freq_table]
+> > > 
+> > > Pid: 7821, CPU 25, comm:              numactl
+> > > psr : 0000121008022038 ifs : 8000000000000004 ip  : [<a00000010014ec91>]    Not tainted (2.6.30-rc3-mmotm-090428-1631)
+> > > ip is at next_zones_zonelist+0x31/0x120
+> <snip>
+> > > 
+> > > I'll try to bisect to specific patch--probably tomorrow.
+> 
+> Mel:  I think you can rest easy.  I've duplicated the problem with a
+> kernel that truncates the mmotm 04/28 series just before your patches.
+
+Ok, I can rest a little easier but I won't that much. I've mucked around
+enough in there over the last while that it might still be something I
+did.
+
+> Hope it's not my cpuset-mm fix that occurs just before that!  I'll let
+> you know.
+> 
+
+I don't think so because it was in mmotm before my patchset was and you
+didn't spot any problems.
+
+> Did hit one or your BUG_ON's, tho'.  See below.
+> 
+> > > 
 > > 
-> > A side note about the "one HUGE scan inside shrink_zone":
+> > Can you also try with this minimal debugging patch applied and the full
+> > console log please? I'll keep thinking on it and hopefully I'll get inspired
 > > 
-> > Isn't this low level scan granularity way tooooo large?
-> > 
-> > It makes things a lot worse on memory pressure:
-> > - the over reclaim, somehow workarounded by Rik's early bail out patch
-> > - the throttle_vm_writeout()/congestion_wait() guards could work in a
-> >   very sparse manner and hence is useless: imagine to stop and wait
-> >   after shooting away every 1GB memory.
-> > 
-> > The long term fix could be to move the granularity control up to the
-> > shrink_zones() level: there it can bail out early without hurting the
-> > balanced zone aging.
-> > 
+> > diff --git a/mm/mm_init.c b/mm/mm_init.c
+> > index 4e0e265..82e17bb 100644
+> > --- a/mm/mm_init.c
+> > +++ b/mm/mm_init.c
+> > @@ -41,8 +41,6 @@ void mminit_verify_zonelist(void)
+> >  			listid = i / MAX_NR_ZONES;
+> >  			zonelist = &pgdat->node_zonelists[listid];
+> >  			zone = &pgdat->node_zones[zoneid];
+> > -			if (!populated_zone(zone))
+> > -				continue;
+> >  
+> >  			/* Print information about the zonelist */
+> >  			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
+> > diff --git a/mm/mmzone.c b/mm/mmzone.c
+> > index 16ce8b9..c8c54d1 100644
+> > --- a/mm/mmzone.c
+> > +++ b/mm/mmzone.c
+> > @@ -57,6 +57,10 @@ struct zoneref *next_zones_zonelist(struct zoneref *z,
+> >  					nodemask_t *nodes,
+> >  					struct zone **zone)
+> >  {
+> > +	/* Should be impossible, check for NULL or near-NULL values for z */
+> > +	BUG_ON(!z);
+> > +	BUG_ON((unsigned long )z < PAGE_SIZE);
 > 
-> I guess it could be bad in some circumstances.  Normally we'll bail out
-> way early because (nr_reclaimed > swap_cluster_max) comes true.  If it
-> _doesn't_ come true, we have little choice but to keep scanning.
+> The test w/o your patches hit the second BUG_ON().
+> 
 
-Right. The main concern to the proposed granularity-control-lifting
-could be the trickiness of scan code - the transition won't be easy. 
- 
-> The code is mystifying:
-> 
-> : 	for_each_evictable_lru(l) {
-> : 		int file = is_file_lru(l);
-> : 		unsigned long scan;
-> : 
-> : 		scan = zone_nr_pages(zone, sc, l);
-> : 		if (priority) {
-> : 			scan >>= priority;
-> : 			scan = (scan * percent[file]) / 100;
-> : 		}
-> : 		if (scanning_global_lru(sc)) {
-> : 			zone->lru[l].nr_scan += scan;
-> 
-> Here we increase zone->lru[l].nr_scan by (say) 1000000.
-> 
-> : 			nr[l] = zone->lru[l].nr_scan;
-> 
-> locally save away the number of pages to scan
-> 
-> : 			if (nr[l] >= swap_cluster_max)
-> : 				zone->lru[l].nr_scan = 0;
-> 
-> err, wot?  This makes no sense at all afacit.
-> 
-> : 			else
-> : 				nr[l] = 0;
-> 
-> ok, this is doing some batching I think.
+This implies that z was NULL when it was passed to the iterator
 
-Yes it's batching. So that smallish <32 scans can be delayed and batched.
-I was lost too (twice! First time in 2006 and once more in 2009), so
-we'd better add a simple comment to remind this fact 8-)
+#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+        for (z = first_zones_zonelist(zlist, highidx, nodemask, &zone); \
+                zone; \
+                z = next_zones_zonelist(++z, highidx, nodemask, &zone)) \
 
-> : 		} else
-> : 			nr[l] = scan;
+and we ended up with z == ++NULL;
+
+Can you send the full dmesg and what your bisection point was? Maybe I
+can spot something. The implication is that a corrupt or badly constructed
+zonelist is being passed into the page allocator so I'd like to see where
+it is coming from.
+
+Thanks
+
 > 
-> so we didn't update the zone's nr_scan at all here.  But we display
-> nr_scan in /proc/zoneinfo as "scanned".  So we're filing to inform
-> userspace about scanning on this zone which is due to memcgroup
-> constraints.  I think.
-
-$ grep scanned /proc/zoneinfo
-        scanned  0 (aa: 0 ia: 0 af: 0 if: 0)
-        scanned  0 (aa: 0 ia: 0 af: 0 if: 0)
-        scanned  0 (aa: 0 ia: 0 af: 0 if: 0)
-
-They are all dynamic values. The first field shows pages scanned since
-last reclaim - so a large value indicates we have trouble reclaiming
-enough pages. The following 4 fields are the useless nr_scan[]s: they
-never exceed SWAP_CLUSTER_MAX=32, and typically is 0 for large lists.
-
-> : 	}
-> : 
-> : 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> : 					nr[LRU_INACTIVE_FILE]) {
-> : 		for_each_evictable_lru(l) {
-> : 			if (nr[l]) {
-> : 				nr_to_scan = min(nr[l], swap_cluster_max);
-> : 				nr[l] -= nr_to_scan;
-> : 
-> : 				nr_reclaimed += shrink_list(l, nr_to_scan,
-> : 							    zone, sc, priority);
-> : 			}
-> : 		}
-> : 		/*
-> : 		 * On large memory systems, scan >> priority can become
-> : 		 * really large. This is fine for the starting priority;
-> : 		 * we want to put equal scanning pressure on each zone.
-> : 		 * However, if the VM has a harder time of freeing pages,
-> : 		 * with multiple processes reclaiming pages, the total
-> : 		 * freeing target can get unreasonably large.
-> : 		 */
-> : 		if (nr_reclaimed > swap_cluster_max &&
-> : 			priority < DEF_PRIORITY && !current_is_kswapd())
-> : 			break;
+> > +
+> >  	/*
+> >  	 * Find the next suitable zone to use for the allocation.
+> >  	 * Only filter based on nodemask if it's set
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-numa" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 > 
-> here we bale out after scanning 32 pages, without updating ->nr_scan.
 
-This is fine. Because (nr_reclaimed > swap_cluster_max) implies
-(nr_scan = 0).  You know nr_scan is not regular accounting numbers ;-)
-
-> : 	}
-> 
-> 
-> What on earth does zone->lru[l].nr_scan mean after wending through all
-> this stuff?
-> 
-> afacit this will muck up /proc/zoneinfo, but nothing else.
-
-Exactly. nr_scan[] are not accounting numbers and means nothing to user.
-They shall either be removed from /proc/zoneinfo, or be replaced with
-meaningful _accumulated_ scan numbers.
-
-Thanks,
-Fengguang
+-- 
+Mel Gorman
+Part-time Phd Student                          Linux Technology Center
+University of Limerick                         IBM Dublin Software Lab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
