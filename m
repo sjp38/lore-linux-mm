@@ -1,122 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 2D38F6B0047
-	for <linux-mm@kvack.org>; Sat,  2 May 2009 18:15:39 -0400 (EDT)
+Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
+	by kanga.kvack.org (Postfix) with SMTP id B69706B0047
+	for <linux-mm@kvack.org>; Sat,  2 May 2009 18:15:43 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 2/6] ksm: dont allow overlap memory addresses registrations.
-Date: Sun,  3 May 2009 01:16:08 +0300
-Message-Id: <1241302572-4366-3-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1241302572-4366-2-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 3/6] ksm: change the KSM_REMOVE_MEMORY_REGION ioctl.
+Date: Sun,  3 May 2009 01:16:09 +0300
+Message-Id: <1241302572-4366-4-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1241302572-4366-3-git-send-email-ieidus@redhat.com>
 References: <1241302572-4366-1-git-send-email-ieidus@redhat.com>
  <1241302572-4366-2-git-send-email-ieidus@redhat.com>
+ <1241302572-4366-3-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, hugh@veritas.com, nickpiggin@yahoo.com.au, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-subjects say it all.
+This patch change the KSM_REMOVE_MEMORY_REGION ioctl to be specific per
+memory region (instead of flushing all the registred memory regions inside
+the file descriptor like it happen now)
+
+The previoes api was:
+user register memory regions using KSM_REGISTER_MEMORY_REGION inside the fd,
+and then when he wanted to remove just one memory region, he had to remove them
+all using KSM_REMOVE_MEMORY_REGION.
+
+This patch change this beahivor by chaning the KSM_REMOVE_MEMORY_REGION
+ioctl to recive another paramter that it is the begining of the virtual
+address that is wanted to be removed.
+
+(user can still remove all the memory regions all at once, by just closing
+the file descriptor)
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
 ---
- mm/ksm.c |   58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++----
- 1 files changed, 54 insertions(+), 4 deletions(-)
+ mm/ksm.c |   31 +++++++++++++++++++++----------
+ 1 files changed, 21 insertions(+), 10 deletions(-)
 
 diff --git a/mm/ksm.c b/mm/ksm.c
-index d58db6b..982dfff 100644
+index 982dfff..c14019f 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
-@@ -451,21 +451,71 @@ static void remove_page_from_tree(struct mm_struct *mm,
- 	remove_rmap_item_from_tree(rmap_item);
+@@ -561,17 +561,20 @@ static void remove_mm_from_hash_and_tree(struct mm_struct *mm)
+ 	list_del(&slot->link);
  }
  
-+static inline int is_intersecting_address(unsigned long addr,
-+					  unsigned long begin,
-+					  unsigned long end)
-+{
-+	if (addr >= begin && addr < end)
-+		return 1;
-+	return 0;
-+}
-+
-+/*
-+ * is_overlap_mem - check if there is overlapping with memory that was already
-+ * registred.
-+ *
-+ * note - this function must to be called under slots_lock
-+ */
-+static int is_overlap_mem(struct ksm_memory_region *mem)
-+{
-+	struct ksm_mem_slot *slot;
-+
-+	list_for_each_entry(slot, &slots, link) {
-+		unsigned long mem_end;
-+		unsigned long slot_end;
-+
-+		cond_resched();
-+
-+		if (current->mm != slot->mm)
-+			continue;
-+
-+		mem_end = mem->addr + (unsigned long)mem->npages * PAGE_SIZE;
-+		slot_end = slot->addr + (unsigned long)slot->npages * PAGE_SIZE;
-+
-+		if (is_intersecting_address(mem->addr, slot->addr, slot_end) ||
-+		    is_intersecting_address(mem_end - 1, slot->addr, slot_end))
-+			return 1;
-+		if (is_intersecting_address(slot->addr, mem->addr, mem_end) ||
-+		    is_intersecting_address(slot_end - 1, mem->addr, mem_end))
-+			return 1;
-+	}
-+
-+	return 0;
-+}
-+
- static int ksm_sma_ioctl_register_memory_region(struct ksm_sma *ksm_sma,
- 						struct ksm_memory_region *mem)
+-static int ksm_sma_ioctl_remove_memory_region(struct ksm_sma *ksm_sma)
++static int ksm_sma_ioctl_remove_memory_region(struct ksm_sma *ksm_sma,
++					      unsigned long addr)
  {
- 	struct ksm_mem_slot *slot;
- 	int ret = -EPERM;
+ 	struct ksm_mem_slot *slot, *node;
  
-+	if (!mem->npages)
-+		goto out;
-+
+ 	down_write(&slots_lock);
+ 	list_for_each_entry_safe(slot, node, &ksm_sma->sma_slots, sma_link) {
+-		remove_mm_from_hash_and_tree(slot->mm);
+-		mmput(slot->mm);
+-		list_del(&slot->sma_link);
+-		kfree(slot);
+-		ksm_sma->nregions--;
++		if (addr == slot->addr) {
++			remove_mm_from_hash_and_tree(slot->mm);
++			mmput(slot->mm);
++			list_del(&slot->sma_link);
++			kfree(slot);
++			ksm_sma->nregions--;
++		}
+ 	}
+ 	up_write(&slots_lock);
+ 	return 0;
+@@ -579,12 +582,20 @@ static int ksm_sma_ioctl_remove_memory_region(struct ksm_sma *ksm_sma)
+ 
+ static int ksm_sma_release(struct inode *inode, struct file *filp)
+ {
++	struct ksm_mem_slot *slot, *node;
+ 	struct ksm_sma *ksm_sma = filp->private_data;
+-	int r;
+ 
+-	r = ksm_sma_ioctl_remove_memory_region(ksm_sma);
 +	down_write(&slots_lock);
-+
- 	if ((ksm_sma->nregions + 1) > regions_per_fd) {
- 		ret = -EBUSY;
--		goto out;
-+		goto out_unlock;
- 	}
- 
-+	if (is_overlap_mem(mem))
-+		goto out_unlock;
-+
- 	slot = kzalloc(sizeof(struct ksm_mem_slot), GFP_KERNEL);
- 	if (!slot) {
- 		ret = -ENOMEM;
--		goto out;
-+		goto out_unlock;
- 	}
- 
- 	/*
-@@ -478,8 +528,6 @@ static int ksm_sma_ioctl_register_memory_region(struct ksm_sma *ksm_sma,
- 	slot->addr = mem->addr;
- 	slot->npages = mem->npages;
- 
--	down_write(&slots_lock);
--
- 	list_add_tail(&slot->link, &slots);
- 	list_add_tail(&slot->sma_link, &ksm_sma->sma_slots);
- 	ksm_sma->nregions++;
-@@ -489,6 +537,8 @@ static int ksm_sma_ioctl_register_memory_region(struct ksm_sma *ksm_sma,
- 
- out_free:
- 	kfree(slot);
-+out_unlock:
++	list_for_each_entry_safe(slot, node, &ksm_sma->sma_slots, sma_link) {
++		remove_mm_from_hash_and_tree(slot->mm);
++		mmput(slot->mm);
++		list_del(&slot->sma_link);
++		kfree(slot);
++	}
 +	up_write(&slots_lock);
- out:
- 	return ret;
++
+ 	kfree(ksm_sma);
+-	return r;
++	return 0;
  }
+ 
+ static long ksm_sma_ioctl(struct file *filp,
+@@ -607,7 +618,7 @@ static long ksm_sma_ioctl(struct file *filp,
+ 		break;
+ 	}
+ 	case KSM_REMOVE_MEMORY_REGION:
+-		r = ksm_sma_ioctl_remove_memory_region(sma);
++		r = ksm_sma_ioctl_remove_memory_region(sma, arg);
+ 		break;
+ 	}
+ 
 -- 
 1.5.6.5
 
