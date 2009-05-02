@@ -1,163 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with SMTP id D22106B003D
-	for <linux-mm@kvack.org>; Fri,  1 May 2009 22:26:51 -0400 (EDT)
-Date: Sat, 2 May 2009 10:25:15 +0800
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id B8D096B003D
+	for <linux-mm@kvack.org>; Fri,  1 May 2009 22:31:08 -0400 (EDT)
+Date: Sat, 2 May 2009 10:31:25 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] use GFP_NOFS in kernel_event()
-Message-ID: <20090502022515.GB29422@localhost>
-References: <20090430020004.GA1898@localhost> <20090429191044.b6fceae2.akpm@linux-foundation.org> <1241097573.6020.7.camel@localhost.localdomain> <20090430134821.GB8644@localhost> <20090430142807.GA13931@localhost> <1241103132.6020.17.camel@localhost.localdomain>
+Subject: [PATCH] vmscan: cleanup the scan batching code
+Message-ID: <20090502023125.GA29674@localhost>
+References: <200904302208.n3UM8t9R016687@imap1.linux-foundation.org> <20090501012212.GA5848@localhost> <20090430194907.82b31565.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1241103132.6020.17.camel@localhost.localdomain>
+In-Reply-To: <20090430194907.82b31565.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Eric Paris <eparis@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Ingo Molnar <mingo@elte.hu>, Al Viro <viro@zeniv.linux.org.uk>, "peterz@infradead.org" <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Christoph Lameter <cl@linux-foundation.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 30, 2009 at 10:52:12PM +0800, Eric Paris wrote:
-> On Thu, 2009-04-30 at 22:28 +0800, Wu Fengguang wrote:
-> > On Thu, Apr 30, 2009 at 09:48:21PM +0800, Wu Fengguang wrote:
-> > > On Thu, Apr 30, 2009 at 09:19:33PM +0800, Eric Paris wrote:
-> > > > On Wed, 2009-04-29 at 19:10 -0700, Andrew Morton wrote:
-> > > > > On Thu, 30 Apr 2009 10:00:04 +0800 Wu Fengguang <fengguang.wu@intel.com> wrote:
-> > > > > 
-> > > > > > Fix a possible deadlock on inotify_mutex, reported by lockdep.
-> > > > > > 
-> > > > > > inotify_inode_queue_event() => take inotify_mutex => kernel_event() =>
-> > > > > > kmalloc() => SLOB => alloc_pages_node() => page reclaim => slab reclaim =>
-> > > > > > dcache reclaim => inotify_inode_is_dead => take inotify_mutex => deadlock
-> > > > > > 
-> > > > > > The actual deadlock may not happen because the inode was grabbed at
-> > > > > > inotify_add_watch(). But the GFP_KERNEL here is unsound and not
-> > > > > > consistent with the other two GFP_NOFS inside the same function.
-> > > > > > 
-> > > > > > [ 2668.325318]
-> > > > > > [ 2668.325322] =================================
-> > > > > > [ 2668.327448] [ INFO: inconsistent lock state ]
-> > > > > > [ 2668.327448] 2.6.30-rc2-next-20090417 #203
-> > > > > > [ 2668.327448] ---------------------------------
-> > > > > > [ 2668.327448] inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
-> > > > > > [ 2668.327448] kswapd0/380 [HC0[0]:SC0[0]:HE1:SE1] takes:
-> > > > > > [ 2668.327448]  (&inode->inotify_mutex){+.+.?.}, at: [<ffffffff8112f1b5>] inotify_inode_is_dead+0x35/0xb0
-> > > > 
-> > > > 
-> > > > > > [ 2668.327448] Pid: 380, comm: kswapd0 Not tainted 2.6.30-rc2-next-20090417 #203
-> > > > > > [ 2668.327448] Call Trace:
-> > > > > > [ 2668.327448]  [<ffffffff810789ef>] print_usage_bug+0x19f/0x200
-> > > > > > [ 2668.327448]  [<ffffffff81018bff>] ? save_stack_trace+0x2f/0x50
-> > > > > > [ 2668.327448]  [<ffffffff81078f0b>] mark_lock+0x4bb/0x6d0
-> > > > > > [ 2668.327448]  [<ffffffff810799e0>] ? check_usage_forwards+0x0/0xc0
-> > > > > > [ 2668.327448]  [<ffffffff8107b142>] __lock_acquire+0xc62/0x1ae0
-> > > > > > [ 2668.327448]  [<ffffffff810f478c>] ? slob_free+0x10c/0x370
-> > > > > > [ 2668.327448]  [<ffffffff8107c0a1>] lock_acquire+0xe1/0x120
-> > > > > > [ 2668.327448]  [<ffffffff8112f1b5>] ? inotify_inode_is_dead+0x35/0xb0
-> > > > > > [ 2668.327448]  [<ffffffff81562d43>] mutex_lock_nested+0x63/0x420
-> > > > > > [ 2668.327448]  [<ffffffff8112f1b5>] ? inotify_inode_is_dead+0x35/0xb0
-> > > > > > [ 2668.327448]  [<ffffffff8112f1b5>] ? inotify_inode_is_dead+0x35/0xb0
-> > > > > > [ 2668.327448]  [<ffffffff81012fe9>] ? sched_clock+0x9/0x10
-> > > > > > [ 2668.327448]  [<ffffffff81077165>] ? lock_release_holdtime+0x35/0x1c0
-> > > > > > [ 2668.327448]  [<ffffffff8112f1b5>] inotify_inode_is_dead+0x35/0xb0
-> > > > > > [ 2668.327448]  [<ffffffff8110c9dc>] dentry_iput+0xbc/0xe0
-> > > > > > [ 2668.327448]  [<ffffffff8110cb23>] d_kill+0x33/0x60
-> > > > > > [ 2668.327448]  [<ffffffff8110ce23>] __shrink_dcache_sb+0x2d3/0x350
-> > > > > > [ 2668.327448]  [<ffffffff8110cffa>] shrink_dcache_memory+0x15a/0x1e0
-> > > > > > [ 2668.327448]  [<ffffffff810d0cc5>] shrink_slab+0x125/0x180
-> > > > > > [ 2668.327448]  [<ffffffff810d1540>] kswapd+0x560/0x7a0
-> > > > > > [ 2668.327448]  [<ffffffff810ce160>] ? isolate_pages_global+0x0/0x2c0
-> > > > > > [ 2668.327448]  [<ffffffff81065a30>] ? autoremove_wake_function+0x0/0x40
-> > > > > > [ 2668.327448]  [<ffffffff8107953d>] ? trace_hardirqs_on+0xd/0x10
-> > > > > > [ 2668.327448]  [<ffffffff810d0fe0>] ? kswapd+0x0/0x7a0
-> > > > > > [ 2668.327448]  [<ffffffff8106555b>] kthread+0x5b/0xa0
-> > > > > > [ 2668.327448]  [<ffffffff8100d40a>] child_rip+0xa/0x20
-> > > > > > [ 2668.327448]  [<ffffffff8100cdd0>] ? restore_args+0x0/0x30
-> > > > > > [ 2668.327448]  [<ffffffff81065500>] ? kthread+0x0/0xa0
-> > > > > > [ 2668.327448]  [<ffffffff8100d400>] ? child_rip+0x0/0x20
-> > > > > > 
-> > > > 
-> > > > > 
-> > > > > Somebody was going to fix this for us via lockdep annotation.
-> > > > > 
-> > > > > <adds randomly-chosen cc>
-> > > > 
-> > > > I really didn't forget this, but I can't figure out how to recreate it,
-> > > > so I don't know if my logic in the patch is sound.  The patch certainly
-> > > > will shut up the complaint.
-> > > > 
-> > > > We can only hit this inotify cleanup path if the i_nlink = 0.  I can't
-> > > > find a way to leave the dentry around for memory pressure to clean up
-> > > > later, but have the n_link = 0.  On ext* the inode is kicked out as soon
-> > > > as the last close on all open fds for an inode which has been unlinked.
-> > > > I tried attaching an inotify watch to an NFS or CIFS inode, deleting the
-> > > > inode on another node, and then putting the first machine under memory
-> > > > pressure.  I'm not sure why, but the dentry or inode in question were
-> > > > never evicted so I didn't hit this path either....
-> > > 
-> > > FYI, I'm running a huge copy on btrfs with SLOB ;-)
-> > > 
-> > > > I know the patch will shut up the problem, but since I can't figure out
-> > > > by looking at the code a path to reproduce I don't really feel 100%
-> > > > confident that it is correct....
-> > > > 
-> > > > -Eric
-> > > > 
-> > > > inotify: lockdep annotation when watch being removed
-> > > > 
-> > > > From: Eric Paris <eparis@redhat.com>
-> > > > 
-> > > > When a dentry is being evicted from memory pressure, if the inode associated
-> > > > with that dentry has i_nlink == 0 we are going to drop all of the watches and
-> > > > kick everything out.  Lockdep complains that previously holding inotify_mutex
-> > > > we did a __GFP_FS allocation and now __GFP_FS reclaim is taking that lock.
-> > > > There is no deadlock or danger, since we know on this code path we are
-> > > > actually cleaning up and evicting everything.  So we move the lock into a new
-> > > > class for clean up.
-> > > 
-> > > I can reproduce the bug and hence confirm that this patch works, so
-> > > 
-> > > Tested-by: Wu Fengguang <fengguang.wu@intel.com>
-> > 
-> > Ah! The big copy runs all OK - until I run shutdown, and got this big
-> > warning:
-> 
-> Hmmmmm, maybe we need to move the mutex_init(&inode->inotify_mutex) call
-> from inode_init_once to inode_init_always so those inodes/locks that we
-> moved into the new class will get put back in the old class when they
-> are reused...
+The vmscan batching logic is twisting. Move it into a standalone
+function nr_scan_try_batch() and document it.  No behavior change.
 
-Eric: this patch worked for me. Till now it has undergone many read,
-write, reboot, halt cycles without triggering the lockdep warnings :-)
+CC: Nick Piggin <npiggin@suse.de>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Christoph Lameter <cl@linux-foundation.org>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
+---
+ include/linux/mmzone.h |    4 ++--
+ mm/page_alloc.c        |    2 +-
+ mm/vmscan.c            |   39 ++++++++++++++++++++++++++++-----------
+ mm/vmstat.c            |    8 ++++----
+ 4 files changed, 35 insertions(+), 18 deletions(-)
 
-Tested-by: Wu Fengguang <fengguang.wu@intel.com>
-
-Thanks,
-Fengguang
-
-
-> diff --git a/fs/inode.c b/fs/inode.c
-> index 29ca114..cba9ce5 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -189,6 +189,9 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
->  	inode->i_private = NULL;
->  	inode->i_mapping = mapping;
->  
-> +#ifdef CONFIG_INOTIFY
-> +	mutex_init(&inode->inotify_mutex);
-> +#endif
->  	return inode;
->  
->  out_free_security:
-> @@ -249,7 +252,6 @@ void inode_init_once(struct inode *inode)
->  	i_size_ordered_init(inode);
->  #ifdef CONFIG_INOTIFY
->  	INIT_LIST_HEAD(&inode->inotify_watches);
-> -	mutex_init(&inode->inotify_mutex);
->  #endif
->  }
->  
-> 
+--- mm.orig/include/linux/mmzone.h
++++ mm/include/linux/mmzone.h
+@@ -323,9 +323,9 @@ struct zone {
+ 
+ 	/* Fields commonly accessed by the page reclaim scanner */
+ 	spinlock_t		lru_lock;	
+-	struct {
++	struct zone_lru {
+ 		struct list_head list;
+-		unsigned long nr_scan;
++		unsigned long nr_saved_scan;	/* accumulated for batching */
+ 	} lru[NR_LRU_LISTS];
+ 
+ 	struct zone_reclaim_stat reclaim_stat;
+--- mm.orig/mm/vmscan.c
++++ mm/mm/vmscan.c
+@@ -1450,6 +1450,26 @@ static void get_scan_ratio(struct zone *
+ 	percent[1] = 100 - percent[0];
+ }
+ 
++/*
++ * Smallish @nr_to_scan's are deposited in @nr_saved_scan,
++ * until we collected @swap_cluster_max pages to scan.
++ */
++static unsigned long nr_scan_try_batch(unsigned long nr_to_scan,
++				       unsigned long *nr_saved_scan,
++				       unsigned long swap_cluster_max)
++{
++	unsigned long nr;
++
++	*nr_saved_scan += nr_to_scan;
++	nr = *nr_saved_scan;
++
++	if (nr >= swap_cluster_max)
++		*nr_saved_scan = 0;
++	else
++		nr = 0;
++
++	return nr;
++}
+ 
+ /*
+  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+@@ -1475,14 +1495,11 @@ static void shrink_zone(int priority, st
+ 			scan >>= priority;
+ 			scan = (scan * percent[file]) / 100;
+ 		}
+-		if (scanning_global_lru(sc)) {
+-			zone->lru[l].nr_scan += scan;
+-			nr[l] = zone->lru[l].nr_scan;
+-			if (nr[l] >= swap_cluster_max)
+-				zone->lru[l].nr_scan = 0;
+-			else
+-				nr[l] = 0;
+-		} else
++		if (scanning_global_lru(sc))
++			nr[l] = nr_scan_try_batch(scan,
++						  &zone->lru[l].nr_saved_scan,
++						  swap_cluster_max);
++		else
+ 			nr[l] = scan;
+ 	}
+ 
+@@ -2079,11 +2096,11 @@ static void shrink_all_zones(unsigned lo
+ 						l == LRU_ACTIVE_FILE))
+ 				continue;
+ 
+-			zone->lru[l].nr_scan += (lru_pages >> prio) + 1;
+-			if (zone->lru[l].nr_scan >= nr_pages || pass > 3) {
++			zone->lru[l].nr_saved_scan += (lru_pages >> prio) + 1;
++			if (zone->lru[l].nr_saved_scan >= nr_pages || pass > 3) {
+ 				unsigned long nr_to_scan;
+ 
+-				zone->lru[l].nr_scan = 0;
++				zone->lru[l].nr_saved_scan = 0;
+ 				nr_to_scan = min(nr_pages, lru_pages);
+ 				nr_reclaimed += shrink_list(l, nr_to_scan, zone,
+ 								sc, prio);
+--- mm.orig/mm/vmstat.c
++++ mm/mm/vmstat.c
+@@ -729,10 +729,10 @@ static void zoneinfo_show_print(struct s
+ 		   zone->pages_low,
+ 		   zone->pages_high,
+ 		   zone->pages_scanned,
+-		   zone->lru[LRU_ACTIVE_ANON].nr_scan,
+-		   zone->lru[LRU_INACTIVE_ANON].nr_scan,
+-		   zone->lru[LRU_ACTIVE_FILE].nr_scan,
+-		   zone->lru[LRU_INACTIVE_FILE].nr_scan,
++		   zone->lru[LRU_ACTIVE_ANON].nr_saved_scan,
++		   zone->lru[LRU_INACTIVE_ANON].nr_saved_scan,
++		   zone->lru[LRU_ACTIVE_FILE].nr_saved_scan,
++		   zone->lru[LRU_INACTIVE_FILE].nr_saved_scan,
+ 		   zone->spanned_pages,
+ 		   zone->present_pages);
+ 
+--- mm.orig/mm/page_alloc.c
++++ mm/mm/page_alloc.c
+@@ -3544,7 +3544,7 @@ static void __paginginit free_area_init_
+ 		zone_pcp_init(zone);
+ 		for_each_lru(l) {
+ 			INIT_LIST_HEAD(&zone->lru[l].list);
+-			zone->lru[l].nr_scan = 0;
++			zone->lru[l].nr_saved_scan = 0;
+ 		}
+ 		zone->reclaim_stat.recent_rotated[0] = 0;
+ 		zone->reclaim_stat.recent_rotated[1] = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
