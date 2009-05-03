@@ -1,78 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 86B6A6B003D
-	for <linux-mm@kvack.org>; Sat,  2 May 2009 21:16:01 -0400 (EDT)
-Date: Sun, 3 May 2009 09:15:40 +0800
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 62B116B003D
+	for <linux-mm@kvack.org>; Sat,  2 May 2009 21:28:19 -0400 (EDT)
+Date: Sun, 3 May 2009 09:28:06 +0800
 From: Wu Fengguang <fengguang.wu@intel.com>
 Subject: Re: [PATCH] vmscan: evict use-once pages first (v3)
-Message-ID: <20090503011540.GA5702@localhost>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com> <20090429131436.640f09ab@cuia.bos.redhat.com>
+Message-ID: <20090503012806.GB5702@localhost>
+References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com> <20090429131436.640f09ab@cuia.bos.redhat.com> <20090501153255.0f412420.akpm@linux-foundation.org> <49FB8031.8000602@redhat.com> <20090501162506.f9243dca.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20090429131436.640f09ab@cuia.bos.redhat.com>
+In-Reply-To: <20090501162506.f9243dca.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, kosaki.motohiro@jp.fujitsu.com, peterz@infradead.org, elladan@eskimo.com, linux-kernel@vger.kernel.org, tytso@mit.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 29, 2009 at 01:14:36PM -0400, Rik van Riel wrote:
-> When the file LRU lists are dominated by streaming IO pages,
-> evict those pages first, before considering evicting other
-> pages.
+On Fri, May 01, 2009 at 04:25:06PM -0700, Andrew Morton wrote:
+> On Fri, 01 May 2009 19:05:21 -0400
+> Rik van Riel <riel@redhat.com> wrote:
 > 
-> This should be safe from deadlocks or performance problems
-> because only three things can happen to an inactive file page:
-> 1) referenced twice and promoted to the active list
-> 2) evicted by the pageout code
-> 3) under IO, after which it will get evicted or promoted
+> > Andrew Morton wrote:
+> > > On Wed, 29 Apr 2009 13:14:36 -0400
+> > > Rik van Riel <riel@redhat.com> wrote:
+> > > 
+> > >> When the file LRU lists are dominated by streaming IO pages,
+> > >> evict those pages first, before considering evicting other
+> > >> pages.
+> > >>
+> > >> This should be safe from deadlocks or performance problems
+> > >> because only three things can happen to an inactive file page:
+> > >> 1) referenced twice and promoted to the active list
+> > >> 2) evicted by the pageout code
+> > >> 3) under IO, after which it will get evicted or promoted
+> > >>
+> > >> The pages freed in this way can either be reused for streaming
+> > >> IO, or allocated for something else. If the pages are used for
+> > >> streaming IO, this pageout pattern continues. Otherwise, we will
+> > >> fall back to the normal pageout pattern.
+> > >>
+> > >> ..
+> > >>
+> > >> +int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
+> > >> +{
+> > >> +	unsigned long active;
+> > >> +	unsigned long inactive;
+> > >> +
+> > >> +	inactive = mem_cgroup_get_local_zonestat(memcg, LRU_INACTIVE_FILE);
+> > >> +	active = mem_cgroup_get_local_zonestat(memcg, LRU_ACTIVE_FILE);
+> > >> +
+> > >> +	return (active > inactive);
+> > >> +}
+> > > 
+> > > This function could trivially be made significantly more efficient by
+> > > changing it to do a single pass over all the zones of all the nodes,
+> > > rather than two passes.
+> > 
+> > How would I do that in a clean way?
 > 
-> The pages freed in this way can either be reused for streaming
-> IO, or allocated for something else. If the pages are used for
-> streaming IO, this pageout pattern continues. Otherwise, we will
-> fall back to the normal pageout pattern.
+> copy-n-paste :(
 > 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+> static unsigned long foo(struct mem_cgroup *mem,
+> 			enum lru_list idx1, enum lru_list idx2)
+> {
+> 	int nid, zid;
+> 	struct mem_cgroup_per_zone *mz;
+> 	u64 total = 0;
 > 
-[snip]
-> +static int inactive_file_is_low_global(struct zone *zone)
-> +{
-> +	unsigned long active, inactive;
-> +
-> +	active = zone_page_state(zone, NR_ACTIVE_FILE);
-> +	inactive = zone_page_state(zone, NR_INACTIVE_FILE);
-> +
-> +	return (active > inactive);
-> +}
-[snip]
->  static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
->  	struct zone *zone, struct scan_control *sc, int priority)
->  {
->  	int file = is_file_lru(lru);
->  
-> -	if (lru == LRU_ACTIVE_FILE) {
-> +	if (lru == LRU_ACTIVE_FILE && inactive_file_is_low(zone, sc)) {
->  		shrink_active_list(nr_to_scan, zone, sc, priority, file);
->  		return 0;
->  	}
+> 	for_each_online_node(nid)
+> 		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> 			mz = mem_cgroup_zoneinfo(mem, nid, zid);
+> 			total += MEM_CGROUP_ZSTAT(mz, idx1);
+> 			total += MEM_CGROUP_ZSTAT(mz, idx3);
+> 		}
+> 	return total;
+> }
+> 
+> dunno if that's justifiable.
+> 
+> > The function mem_cgroup_inactive_anon_is_low and
+> > the global versions all do the same.  It would be
+> > nice to make all four of them go fast :)
+> > 
+> > If there is no standardized infrastructure for
+> > getting multiple statistics yet, I can probably
+> > whip something up.
+> 
+> It depends how often it would be called for, I guess.
+> 
+> One approach would be pass in a variable-length array of `enum
+> lru_list's, get returned a same-lengthed array of totals.
+> 
+> Or perhaps all we need to return is the sum of those totals.
+> 
+> I'd let the memcg guys worry about this if I were you ;)
+> 
+> > Optimizing them might make sense if it turns out to
+> > use a significant amount of CPU.
+> 
+> Yeah.  By then it's often too late though.  The sort of people for whom
+> (num_online_nodes*MAX_NR_ZONES) is nuttily large tend not to run
+> kernel.org kernels.
 
-Acked-by: Wu Fengguang <fengguang.wu@intel.com>
-
-I like this idea - it's simple and sound, and is expected to work well
-for the majority workloads. Sure the arbitrary 1:1 active:inactive ratio
-may be suboptimal for many workloads, but it is mostly safe.
-
-In the worse scenario, it could waste half the memory that could
-otherwise be used for readahead buffer and to prevent thrashing, in a
-server serving large datasets that are hardly reused, but still slowly
-builds up its active list during the long uptime (think about a slowly
-performance downgrade that can be fixed by a crude dropcache action).
-
-That said, the actual performance degradation could be much smaller -
-say 15% - all memories are not equal.
-
-Thanks,
-Fengguang
+Good point. We could add a flag that is tested frequently in shrink_list()
+and updated less frequently in shrink_zone() (or whatever).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
