@@ -1,42 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id 657A86B003D
-	for <linux-mm@kvack.org>; Sat,  2 May 2009 21:46:56 -0400 (EDT)
-Date: Sun, 3 May 2009 09:46:55 +0800
-From: Wu Fengguang <fengguang.wu@intel.com>
-Subject: Re: [PATCH] vmscan: evict use-once pages first (v3)
-Message-ID: <20090503014655.GA6794@localhost>
-References: <20090428044426.GA5035@eskimo.com> <20090428192907.556f3a34@bree.surriel.com> <1240987349.4512.18.camel@laptop> <20090429114708.66114c03@cuia.bos.redhat.com> <2f11576a0904290907g48e94e74ye97aae593f6ac519@mail.gmail.com> <20090429131436.640f09ab@cuia.bos.redhat.com> <20090503011540.GA5702@localhost> <20090502213356.2f620d81@riellaptop.surriel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090502213356.2f620d81@riellaptop.surriel.com>
+Received: from mail143.messagelabs.com (mail143.messagelabs.com [216.82.254.35])
+	by kanga.kvack.org (Postfix) with SMTP id 23CCA6B003D
+	for <linux-mm@kvack.org>; Sat,  2 May 2009 22:09:36 -0400 (EDT)
+Date: Sat, 2 May 2009 22:08:29 -0400
+From: Rik van Riel <riel@surriel.com>
+Subject: Re: [PATCH 1/6] ksm: limiting the num of mem regions user can
+ register per fd.
+Message-ID: <20090502220829.392b7ff9@riellaptop.surriel.com>
+In-Reply-To: <1241302572-4366-2-git-send-email-ieidus@redhat.com>
+References: <1241302572-4366-1-git-send-email-ieidus@redhat.com>
+	<1241302572-4366-2-git-send-email-ieidus@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <riel@redhat.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Peter Zijlstra <peterz@infradead.org>, Elladan <elladan@eskimo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Izik Eidus <ieidus@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, hugh@veritas.com, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 03, 2009 at 09:33:56AM +0800, Rik van Riel wrote:
-> On Sun, 3 May 2009 09:15:40 +0800
-> Wu Fengguang <fengguang.wu@intel.com> wrote:
-> 
-> > In the worse scenario, it could waste half the memory that could
-> > otherwise be used for readahead buffer and to prevent thrashing, in a
-> > server serving large datasets that are hardly reused, but still slowly
-> > builds up its active list during the long uptime (think about a slowly
-> > performance downgrade that can be fixed by a crude dropcache action).
-> 
-> In the best case, the active list ends up containing all the
-> indirect blocks for the files that are occasionally reused,
-> and the system ends up being able to serve its clients with
-> less disk IO.
-> 
-> For systems like ftp.kernel.org, the files that are most
-> popular will end up on the active list, without being kicked
-> out by the files that are less popular.
+On Sun,  3 May 2009 01:16:07 +0300
+Izik Eidus <ieidus@redhat.com> wrote:
 
-Sure, such good cases tend to be prevalent - so obvious that I didn't
-mind to mention ;-)
+> Right now user can open /dev/ksm fd and register unlimited number of
+> regions, such behavior may allocate unlimited amount of kernel memory
+> and get the whole host into out of memory situation.
+
+How many times can a process open /dev/ksm?
+
+If a process can open /dev/ksm a thousand times and then
+register 1000 regions through each file descriptor, this
+patch does not help all that much...
+
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
