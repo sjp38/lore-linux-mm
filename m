@@ -1,95 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 734D46B009A
-	for <linux-mm@kvack.org>; Mon,  4 May 2009 09:15:48 -0400 (EDT)
-Date: Mon, 4 May 2009 15:13:59 +0200
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/3 v2] mm: introduce follow_pfn()
-Message-ID: <20090504131359.GA17887@cmpxchg.org>
-References: <20090501181449.GA8912@cmpxchg.org> <1241430874-12667-3-git-send-email-hannes@cmpxchg.org> <20090504110841.GA19646@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20090504110841.GA19646@infradead.org>
+Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
+	by kanga.kvack.org (Postfix) with SMTP id 90F416B009B
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 10:02:04 -0400 (EDT)
+Received: from localhost (smtp.ultrahosting.com [127.0.0.1])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 4844282C368
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 10:13:48 -0400 (EDT)
+Received: from smtp.ultrahosting.com ([74.213.174.254])
+	by localhost (smtp.ultrahosting.com [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id PMmPfKMi2sNU for <linux-mm@kvack.org>;
+	Mon,  4 May 2009 10:13:42 -0400 (EDT)
+Received: from qirst.com (unknown [74.213.171.31])
+	by smtp.ultrahosting.com (Postfix) with ESMTP id 779CB82C36B
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 10:12:48 -0400 (EDT)
+Date: Mon, 4 May 2009 09:50:29 -0400 (EDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH] vmscan: don't export nr_saved_scan in
+ /proc/zoneinfo
+In-Reply-To: <20090502024719.GA29730@localhost>
+Message-ID: <alpine.DEB.1.10.0905040950200.9553@qirst.com>
+References: <200904302208.n3UM8t9R016687@imap1.linux-foundation.org> <20090501012212.GA5848@localhost> <20090430194907.82b31565.akpm@linux-foundation.org> <20090502023125.GA29674@localhost> <20090502024719.GA29730@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <magnus.damm@gmail.com>, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "lee.schermerhorn@hp.com" <lee.schermerhorn@hp.com>, "peterz@infradead.org" <peterz@infradead.org>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>
 List-ID: <linux-mm.kvack.org>
 
-Analoguous to follow_phys(), add a helper that looks up the PFN at a
-user virtual address in an IO mapping or a raw PFN mapping.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/mm.h |    2 ++
- mm/memory.c        |   29 +++++++++++++++++++++++++++++
- 2 files changed, 31 insertions(+), 0 deletions(-)
 
-On Mon, May 04, 2009 at 07:08:41AM -0400, Christoph Hellwig wrote:
-> On Mon, May 04, 2009 at 11:54:34AM +0200, Johannes Weiner wrote:
-> > Analoguous to follow_phys(), add a helper that looks up the PFN
-> > instead.  It also only allows IO mappings or PFN mappings.
-> 
-> A kerneldoc describing what it does and the limitations would be
-> extremly helpful.
+Acked-by: Christoph Lameter <cl@linux-foundation.org>
 
-Agreed.  How is this?
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bff1f0d..1cca8b6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -794,6 +794,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			struct vm_area_struct *vma);
- void unmap_mapping_range(struct address_space *mapping,
- 		loff_t const holebegin, loff_t const holelen, int even_cows);
-+int follow_pfn(struct vm_area_struct *vma, unsigned long address,
-+	unsigned long *pfn);
- int follow_phys(struct vm_area_struct *vma, unsigned long address,
- 		unsigned int flags, unsigned long *prot, resource_size_t *phys);
- int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
-diff --git a/mm/memory.c b/mm/memory.c
-index c047950..f86aee1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3046,6 +3046,35 @@ out:
- 	return -EINVAL;
- }
- 
-+/**
-+ * follow_pfn - look up PFN at a user virtual address
-+ * @vma: memory mapping
-+ * @address: user virtual address
-+ * @pfn: location to store found PFN
-+ *
-+ * Only IO mappings and raw PFN mappings are allowed.
-+ *
-+ * Returns zero and the pfn at @pfn on success, -ve otherwise.
-+ */
-+int follow_pfn(struct vm_area_struct *vma, unsigned long address,
-+	unsigned long *pfn)
-+{
-+	int ret = -EINVAL;
-+	spinlock_t *ptl;
-+	pte_t *ptep;
-+
-+	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
-+		return ret;
-+
-+	ret = follow_pte(vma->vm_mm, address, &ptep, &ptl);
-+	if (ret)
-+		return ret;
-+	*pfn = pte_pfn(*ptep);
-+	pte_unmap_unlock(ptep, ptl);
-+	return 0;
-+}
-+EXPORT_SYMBOL(follow_pfn);
-+
- #ifdef CONFIG_HAVE_IOREMAP_PROT
- int follow_phys(struct vm_area_struct *vma,
- 		unsigned long address, unsigned int flags,
--- 
-1.6.2.1.135.gde769
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
