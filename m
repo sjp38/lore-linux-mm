@@ -1,234 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail203.messagelabs.com (mail203.messagelabs.com [216.82.254.243])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C306B00BF
-	for <linux-mm@kvack.org>; Mon,  4 May 2009 19:08:45 -0400 (EDT)
-Received: from sj-core-1.cisco.com (sj-core-1.cisco.com [171.71.177.237])
-	by sj-dkim-4.cisco.com (8.12.11/8.12.11) with ESMTP id n44N8qLk020299
-	for <linux-mm@kvack.org>; Mon, 4 May 2009 16:08:52 -0700
-Received: from cuplxvomd02.corp.sa.net ([64.101.20.155])
-	by sj-core-1.cisco.com (8.13.8/8.13.8) with ESMTP id n44N8pTo010369
-	for <linux-mm@kvack.org>; Mon, 4 May 2009 23:08:51 GMT
-Date: Mon, 4 May 2009 16:08:52 -0700
-From: David VomLehn <dvomlehn@cisco.com>
-Subject: [PATCH 2/2] vm_enough_memory: add sysctls for vm_enough_memory
-Message-ID: <20090504230852.GA24659@cuplxvomd02.corp.sa.net>
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with SMTP id 3451A6B00C3
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 19:44:27 -0400 (EDT)
+Date: Tue, 5 May 2009 07:44:55 +0800
+From: Wu Fengguang <fengguang.wu@intel.com>
+Subject: [PATCH] vmscan: ZVC updates in shrink_active_list() can be done
+	once
+Message-ID: <20090504234455.GA6324@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@suse.de" <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is the second part of what was originally submitted as a single patch.
-The first part consolidates duplicates of get_user_pages and __vm_enough_memory
-into mm/util.c This part changes the functionality of __vm_enough_memory():
-1.	There was a check that seems intended to assure that a single task
-	does not use more than 97% of virtual memory in the case that the
-	overcommit setting is OVERCOMMIT_NEVER. If this was the intended
-	behavior, it appears as though it never worked. The check seems
-	reasonable though, and the new code tries to implement this limit.
-2.	It introduces sysctl_max_task_ratio to control the maximum size of a
-	single task for OVERCOMMIT_NEVER.
-3.	It introduces sysctl_sysadmin_reserved controlling the amount of RAM
-	reserved for tasks with cap_sys_admin set, which is used for both
-	OVERCOMMIT_GUESS and OVERCOMMIT_NEVER.
+This effectively lifts the unit of nr_inactive_* and pgdeactivate updates
+from PAGEVEC_SIZE=14 to SWAP_CLUSTER_MAX=32.
 
-The last two items are important on systems meeting the following criteria:
-1. Disable memory commit
-2. Have have large amounts of memory
-3. Have a single large primary process that handles the bulk of processing
-
-This is a reasonable configuration for systems running a single large
-process, which is not uncommon on embedded systems. On a 512 MiB system,
-the 3% reserved for cap_sys_admin tasks amounts to 15 MiB, more than would
-normally be needed to to run last-ditch clean-up tasks. Introducing
-configurables allows the memory that is now reserved to be used by the
-large primary process.
-
-The default value for sysctl_sysadmin_reserved is the same as previous
-hardcoded value. The default value of sysctl_max_task_ratio was chosen to
-agree with what the intent of the task size limitation code seemed to be.
-
-Signed-off-by: David VomLehn <dvomlehn@cisco.com>
+Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 ---
- include/linux/mman.h   |    2 ++
- include/linux/sysctl.h |    3 +++
- kernel/sysctl.c        |   23 +++++++++++++++++++++++
- kernel/sysctl_check.c  |    2 ++
- mm/util.c              |   36 ++++++++++++++++++++++++------------
- 5 files changed, 54 insertions(+), 12 deletions(-)
+ mm/vmscan.c |   11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 30d1073..06b4d75 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -17,6 +17,8 @@
- 
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+extern int sysctl_sysadmin_reserved;
-+extern int sysctl_max_task_ratio;
- extern atomic_long_t vm_committed_space;
- 
- #ifdef CONFIG_SMP
-diff --git a/include/linux/sysctl.h b/include/linux/sysctl.h
-index e76d3b2..d4924c5 100644
---- a/include/linux/sysctl.h
-+++ b/include/linux/sysctl.h
-@@ -205,6 +205,9 @@ enum
- 	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
- 	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
- 	VM_MIN_SLAB=35,		 /* Percent pages ignored by zone reclaim */
-+	VM_SYSADMIN_RESERVED = 36, /* % memory reserved for sysadmin threads */
-+	VM_MAX_TASK_RATIO = 37, /* Maximum % virtual address space allowed */
-+				/* for a single memory descriptor,i.e. task */
- };
- 
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index e3d2c7d..89269fd 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -20,6 +20,7 @@
- 
- #include <linux/module.h>
- #include <linux/mm.h>
-+#include <linux/mman.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
- #include <linux/sysctl.h>
-@@ -1234,6 +1235,28 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one_hundred,
- 	},
- #endif
-+	{
-+		.ctl_name	= VM_SYSADMIN_RESERVED,
-+		.procname	= "sysadmin_reserved",
-+		.data		= &sysctl_sysadmin_reserved,
-+		.maxlen		= sizeof(sysctl_sysadmin_reserved),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec_minmax,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+		.extra2		= &one_hundred,
-+	},
-+	{
-+		.ctl_name	= VM_MAX_TASK_RATIO,
-+		.procname	= "max_task_ratio",
-+		.data		= &sysctl_max_task_ratio,
-+		.maxlen		= sizeof(sysctl_max_task_ratio),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec_minmax,
-+		.strategy	= &sysctl_intvec,
-+		.extra1		= &zero,
-+		.extra2		= &one_hundred,
-+	},
- #ifdef CONFIG_SMP
- 	{
- 		.ctl_name	= CTL_UNNUMBERED,
-diff --git a/kernel/sysctl_check.c b/kernel/sysctl_check.c
-index b38423c..36aad18 100644
---- a/kernel/sysctl_check.c
-+++ b/kernel/sysctl_check.c
-@@ -135,6 +135,8 @@ static const struct trans_ctl_table trans_vm_table[] = {
- 	{ VM_PANIC_ON_OOM,		"panic_on_oom" },
- 	{ VM_VDSO_ENABLED,		"vdso_enabled" },
- 	{ VM_MIN_SLAB,			"min_slab_ratio" },
-+	{ VM_SYSADMIN_RESERVED,		"sysadmin_reserved" },
-+	{ VM_MAX_TASK_RATIO,		"max_task_ratio" },
- 
- 	{}
- };
-diff --git a/mm/util.c b/mm/util.c
-index 5cdaa35..ebf4e0d 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -282,8 +282,13 @@ int __attribute__((weak)) get_user_pages_fast(unsigned long start,
- }
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
- 
-+/*
-+ * System configurables for controlling memory overcommitting
-+ */
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS;  /* heuristic overcommit */
- int sysctl_overcommit_ratio = 50;	/* default is 50% */
-+int sysctl_sysadmin_reserved = 3;	/* Memory reserved for root users */
-+int sysctl_max_task_ratio = (100 - 3);	/* % memory available to threads */
- atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
- 
- /*
-@@ -305,6 +310,7 @@ atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
- int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+--- linux.orig/mm/vmscan.c
++++ linux/mm/vmscan.c
+@@ -1228,7 +1228,6 @@ static void shrink_active_list(unsigned 
+ 			struct scan_control *sc, int priority, int file)
  {
- 	unsigned long free, allowed;
-+	unsigned long max_task_size;
+ 	unsigned long pgmoved;
+-	int pgdeactivate = 0;
+ 	unsigned long pgscanned;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_inactive);
+@@ -1257,7 +1256,7 @@ static void shrink_active_list(unsigned 
+ 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
+ 	spin_unlock_irq(&zone->lru_lock);
  
- 	vm_acct_memory(pages);
- 
-@@ -329,10 +335,10 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		free += global_page_state(NR_SLAB_RECLAIMABLE);
- 
- 		/*
--		 * Leave the last 3% for root
-+		 * Leave the last bit of memory for root
- 		 */
- 		if (!cap_sys_admin)
--			free -= free / 32;
-+			free -= (free * sysctl_sysadmin_reserved) / 100;
- 
- 		if (free > pages)
- 			return 0;
-@@ -352,10 +358,10 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 			n -= totalreserve_pages;
- 
- 		/*
--		 * Leave the last 3% for root
-+		 * Leave the last bit of memory for root
- 		 */
- 		if (!cap_sys_admin)
--			n -= n / 32;
-+			n -= (n * sysctl_sysadmin_reserved) / 100;
- 		free += n;
- 
- 		if (free > pages)
-@@ -367,23 +373,29 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 	allowed = (totalram_pages - hugetlb_total_pages())
- 		* sysctl_overcommit_ratio / 100;
- 	/*
--	 * Leave the last 3% for root
-+	 * The last bit of memory is reserved for the root user
+-	pgmoved = 0;
++	pgmoved = 0;  /* count referenced (mapping) mapped pages */
+ 	while (!list_empty(&l_hold)) {
+ 		cond_resched();
+ 		page = lru_to_page(&l_hold);
+@@ -1291,7 +1290,7 @@ static void shrink_active_list(unsigned 
  	 */
- 	if (!cap_sys_admin)
--		allowed -= allowed / 32;
-+		allowed -= (allowed * sysctl_sysadmin_reserved) / 100;
- 	allowed += total_swap_pages;
+ 	reclaim_stat->recent_rotated[!!file] += pgmoved;
  
--	/* Don't let a single process grow too big:
--	   leave 3% of the size of this process for other processes */
--	if (mm)
--		allowed -= mm->total_vm / 32;
--
- 	/*
- 	 * cast `allowed' as a signed long because vm_committed_space
- 	 * sometimes has a negative value
- 	 */
--	if (atomic_long_read(&vm_committed_space) < (long)allowed)
-+	if (atomic_long_read(&vm_committed_space) >= (long)allowed)
-+		goto error;
-+
-+	/* Don't let a single process grow too big: leave some memory for
-+	 * other processes */
-+	if (mm)
-+		max_task_size = (allowed * sysctl_max_task_ratio) / 100;
-+	else
-+		max_task_size = allowed;
-+
-+	if (mm->total_vm <= max_task_size)
- 		return 0;
-+
- error:
- 	vm_unacct_memory(pages);
- 
+-	pgmoved = 0;
++	pgmoved = 0;  /* count pages moved to inactive list */
+ 	while (!list_empty(&l_inactive)) {
+ 		page = lru_to_page(&l_inactive);
+ 		prefetchw_prev_lru_page(page, &l_inactive, flags);
+@@ -1304,10 +1303,7 @@ static void shrink_active_list(unsigned 
+ 		mem_cgroup_add_lru_list(page, lru);
+ 		pgmoved++;
+ 		if (!pagevec_add(&pvec, page)) {
+-			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+ 			spin_unlock_irq(&zone->lru_lock);
+-			pgdeactivate += pgmoved;
+-			pgmoved = 0;
+ 			if (buffer_heads_over_limit)
+ 				pagevec_strip(&pvec);
+ 			__pagevec_release(&pvec);
+@@ -1315,9 +1311,8 @@ static void shrink_active_list(unsigned 
+ 		}
+ 	}
+ 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
+-	pgdeactivate += pgmoved;
+ 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+-	__count_vm_events(PGDEACTIVATE, pgdeactivate);
++	__count_vm_events(PGDEACTIVATE, pgmoved);
+ 	spin_unlock_irq(&zone->lru_lock);
+ 	if (buffer_heads_over_limit)
+ 		pagevec_strip(&pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
