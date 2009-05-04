@@ -1,42 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail144.messagelabs.com (mail144.messagelabs.com [216.82.254.51])
-	by kanga.kvack.org (Postfix) with SMTP id 2832C6B00B9
-	for <linux-mm@kvack.org>; Mon,  4 May 2009 18:25:05 -0400 (EDT)
+Received: from mail190.messagelabs.com (mail190.messagelabs.com [216.82.249.51])
+	by kanga.kvack.org (Postfix) with SMTP id 24E776B00BB
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 18:25:08 -0400 (EDT)
 From: Izik Eidus <ieidus@redhat.com>
-Subject: [PATCH 5/6] ksm: build system make it compile for all archs
-Date: Tue,  5 May 2009 01:25:34 +0300
-Message-Id: <1241475935-21162-6-git-send-email-ieidus@redhat.com>
-In-Reply-To: <1241475935-21162-5-git-send-email-ieidus@redhat.com>
+Subject: [PATCH 6/6] ksm: use another miscdevice minor number.
+Date: Tue,  5 May 2009 01:25:35 +0300
+Message-Id: <1241475935-21162-7-git-send-email-ieidus@redhat.com>
+In-Reply-To: <1241475935-21162-6-git-send-email-ieidus@redhat.com>
 References: <1241475935-21162-1-git-send-email-ieidus@redhat.com>
  <1241475935-21162-2-git-send-email-ieidus@redhat.com>
  <1241475935-21162-3-git-send-email-ieidus@redhat.com>
  <1241475935-21162-4-git-send-email-ieidus@redhat.com>
  <1241475935-21162-5-git-send-email-ieidus@redhat.com>
+ <1241475935-21162-6-git-send-email-ieidus@redhat.com>
 Sender: owner-linux-mm@kvack.org
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, aarcange@redhat.com, chrisw@redhat.com, alan@lxorguk.ukuu.org.uk, device@lanana.org, linux-mm@kvack.org, hugh@veritas.com, nickpiggin@yahoo.com.au, Izik Eidus <ieidus@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-The known issues with cross platform support were fixed,
-so we return it back to compile on all archs.
+The old number was registered already by another project.
+The new number is #234.
+
+Thanks.
 
 Signed-off-by: Izik Eidus <ieidus@redhat.com>
+Signed-off-by: Alan Cox <device@lanana.org>
 ---
- mm/Kconfig |    1 -
- 1 files changed, 0 insertions(+), 1 deletions(-)
+ Documentation/devices.txt  |    1 +
+ include/linux/miscdevice.h |    2 +-
+ 2 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f59b1e4..fb8ac63 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -228,7 +228,6 @@ config MMU_NOTIFIER
+diff --git a/Documentation/devices.txt b/Documentation/devices.txt
+index 53d64d3..a0c3259 100644
+--- a/Documentation/devices.txt
++++ b/Documentation/devices.txt
+@@ -443,6 +443,7 @@ Your cooperation is appreciated.
+ 		231 = /dev/snapshot	System memory snapshot device
+ 		232 = /dev/kvm		Kernel-based virtual machine (hardware virtualization extensions)
+ 		233 = /dev/kmview	View-OS A process with a view
++		234 = /dev/ksm		Dynamic page sharing
+ 		240-254			Reserved for local use
+ 		255			Reserved for MISC_DYNAMIC_MINOR
  
- config KSM
- 	tristate "Enable KSM for page sharing"
--	depends on X86
- 	help
- 	  Enable the KSM kernel module to allow page sharing of equal pages
- 	  among different tasks.
+diff --git a/include/linux/miscdevice.h b/include/linux/miscdevice.h
+index 297c0bb..c7b8e9b 100644
+--- a/include/linux/miscdevice.h
++++ b/include/linux/miscdevice.h
+@@ -30,7 +30,7 @@
+ #define HPET_MINOR		228
+ #define FUSE_MINOR		229
+ #define KVM_MINOR		232
+-#define KSM_MINOR		233
++#define KSM_MINOR		234
+ #define MISC_DYNAMIC_MINOR	255
+ 
+ struct device;
 -- 
 1.5.6.5
 
