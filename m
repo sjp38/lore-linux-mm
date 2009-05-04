@@ -1,60 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
-	by kanga.kvack.org (Postfix) with SMTP id CD76F6B0096
-	for <linux-mm@kvack.org>; Mon,  4 May 2009 08:26:55 -0400 (EDT)
-Message-Id: <82459C1E-87E6-497C-8D09-21FD5FA5709E@marksmachinations.com>
-From: Mark Brown <markb@marksmachinations.com>
-In-Reply-To: <49FED524.9020602@gmail.com>
-Content-Type: text/plain; charset=US-ASCII; format=flowed; delsp=yes
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0 (Apple Message framework v930.3)
-Subject: Re: Memory Concepts [+Newbie]
-Date: Mon, 4 May 2009 08:28:43 -0400
-References: <49FED524.9020602@gmail.com>
+Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
+	by kanga.kvack.org (Postfix) with ESMTP id 734D46B009A
+	for <linux-mm@kvack.org>; Mon,  4 May 2009 09:15:48 -0400 (EDT)
+Date: Mon, 4 May 2009 15:13:59 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 3/3 v2] mm: introduce follow_pfn()
+Message-ID: <20090504131359.GA17887@cmpxchg.org>
+References: <20090501181449.GA8912@cmpxchg.org> <1241430874-12667-3-git-send-email-hannes@cmpxchg.org> <20090504110841.GA19646@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20090504110841.GA19646@infradead.org>
 Sender: owner-linux-mm@kvack.org
-To: Marcos Roriz <marcosrorizinf@gmail.com>
-Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <magnus.damm@gmail.com>, linux-media@vger.kernel.org, Hans Verkuil <hverkuil@xs4all.nl>, Paul Mundt <lethal@linux-sh.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcos,
+Analoguous to follow_phys(), add a helper that looks up the PFN at a
+user virtual address in an IO mapping or a raw PFN mapping.
 
-A memory bank for RAM is just an individual addressable array on a  
-memory board. The addressing of the bank is managed by the memory  
-controller.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/mm.h |    2 ++
+ mm/memory.c        |   29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 0 deletions(-)
 
-Regards,
--- Mark
+On Mon, May 04, 2009 at 07:08:41AM -0400, Christoph Hellwig wrote:
+> On Mon, May 04, 2009 at 11:54:34AM +0200, Johannes Weiner wrote:
+> > Analoguous to follow_phys(), add a helper that looks up the PFN
+> > instead.  It also only allows IO mappings or PFN mappings.
+> 
+> A kerneldoc describing what it does and the limitations would be
+> extremly helpful.
 
-On May 4, 2009, at 7:44 AM, Marcos Roriz wrote:
+Agreed.  How is this?
 
-> I'm reading Mel Gorman Understating the Linux Virtual Memory Manager  
-> and also TANENBAUM Modern Operating System I don't get some basic  
-> concepts of the Memory Management in Linux Kernel.
->
-> The first question is, what is a memory bank, It's not clear if its  
-> a physical section of the memory of if its a chip (physical) itself.
->
-> The ZONE_NORMAL zone refer only to kernel direct memory mapped, that  
-> means only to kernel pages and kernel programs (such as daemons)?
->
-> Why is the ZONE_NORMAL so large (896 MB)? How to deal with low  
-> memory systems?
->
-> The ZONE_HIGHMEM zone refer to kernel not mapped directly, so that  
-> includes userspace programs right?
->
-> I googled and searched for all those answers but couldn't find a  
-> direct and consistent answer, thats why I'm asking for your guys help.
->
-> Thanks very much for you time,
->
-> Marcos Roriz
->
-> --
-> To unsubscribe from this list: send an email with
-> "unsubscribe kernelnewbies" to ecartis@nl.linux.org
-> Please read the FAQ at http://kernelnewbies.org/FAQ
->
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bff1f0d..1cca8b6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -794,6 +794,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ void unmap_mapping_range(struct address_space *mapping,
+ 		loff_t const holebegin, loff_t const holelen, int even_cows);
++int follow_pfn(struct vm_area_struct *vma, unsigned long address,
++	unsigned long *pfn);
+ int follow_phys(struct vm_area_struct *vma, unsigned long address,
+ 		unsigned int flags, unsigned long *prot, resource_size_t *phys);
+ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
+diff --git a/mm/memory.c b/mm/memory.c
+index c047950..f86aee1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3046,6 +3046,35 @@ out:
+ 	return -EINVAL;
+ }
+ 
++/**
++ * follow_pfn - look up PFN at a user virtual address
++ * @vma: memory mapping
++ * @address: user virtual address
++ * @pfn: location to store found PFN
++ *
++ * Only IO mappings and raw PFN mappings are allowed.
++ *
++ * Returns zero and the pfn at @pfn on success, -ve otherwise.
++ */
++int follow_pfn(struct vm_area_struct *vma, unsigned long address,
++	unsigned long *pfn)
++{
++	int ret = -EINVAL;
++	spinlock_t *ptl;
++	pte_t *ptep;
++
++	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
++		return ret;
++
++	ret = follow_pte(vma->vm_mm, address, &ptep, &ptl);
++	if (ret)
++		return ret;
++	*pfn = pte_pfn(*ptep);
++	pte_unmap_unlock(ptep, ptl);
++	return 0;
++}
++EXPORT_SYMBOL(follow_pfn);
++
+ #ifdef CONFIG_HAVE_IOREMAP_PROT
+ int follow_phys(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned int flags,
+-- 
+1.6.2.1.135.gde769
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
