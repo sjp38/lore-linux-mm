@@ -1,127 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail172.messagelabs.com (mail172.messagelabs.com [216.82.254.3])
-	by kanga.kvack.org (Postfix) with SMTP id 0257B6B003D
-	for <linux-mm@kvack.org>; Mon,  4 May 2009 22:45:28 -0400 (EDT)
-Received: by gxk20 with SMTP id 20so7973527gxk.14
-        for <linux-mm@kvack.org>; Mon, 04 May 2009 19:46:10 -0700 (PDT)
+Received: from mail137.messagelabs.com (mail137.messagelabs.com [216.82.249.19])
+	by kanga.kvack.org (Postfix) with SMTP id 1CE8A6B003D
+	for <linux-mm@kvack.org>; Tue,  5 May 2009 02:07:26 -0400 (EDT)
+Received: by yw-out-1718.google.com with SMTP id 5so2366821ywm.26
+        for <linux-mm@kvack.org>; Mon, 04 May 2009 23:07:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20090504234455.GA6324@localhost>
-References: <20090504234455.GA6324@localhost>
-Date: Tue, 5 May 2009 11:46:10 +0900
-Message-ID: <44c63dc40905041946g1b1ea5cah21b5c2882ecd90fd@mail.gmail.com>
-Subject: Re: [PATCH] vmscan: ZVC updates in shrink_active_list() can be done
-	once
-From: Minchan Kim <barrioskmc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <82459C1E-87E6-497C-8D09-21FD5FA5709E@marksmachinations.com>
+References: <49FED524.9020602@gmail.com>
+	 <82459C1E-87E6-497C-8D09-21FD5FA5709E@marksmachinations.com>
+Date: Tue, 5 May 2009 14:07:31 +0800
+Message-ID: <41d311580905042307t75ad393eo35e9b90aa15486b2@mail.gmail.com>
+Subject: Re: Memory Concepts [+Newbie]
+From: Pei Lin <telent997@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@suse.de" <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Mark Brown <markb@marksmachinations.com>
+Cc: Marcos Roriz <marcosrorizinf@gmail.com>, kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+That book << Understating the Linux Virtual Memory Manager>> clearly
+elaborate why ZONE_NORMAL is 896 on the section 4.1 Linear Address
+Space.
 
-This fine-grained ZVC update in shrink_active_list was made for
-determination problem of the dirty
-ratio(c878538598d1e7ab41ecc0de8894e34e2fdef630).
-The 32 page reclaim time in normal reclaim situation is too short to
-change current VM behavior.
-So I think this make sense to me.
+SEE  the comment about ZONE_HIGHMEM,  include/linux/mmzone.h
 
-On Tue, May 5, 2009 at 8:44 AM, Wu Fengguang <fengguang.wu@intel.com> wrote=
-:
-> This effectively lifts the unit of nr_inactive_* and pgdeactivate updates
-> from PAGEVEC_SIZE=3D14 to SWAP_CLUSTER_MAX=3D32.
+#ifdef CONFIG_HIGHMEM
+        /*
+         * A memory area that is only addressable by the kernel through
+         * mapping portions into its own address space. This is for example
+         * used by i386 to allow the kernel to address the memory beyond
+         * 900MB. The kernel will set up special mappings (page
+         * table entries on i386) for each page that the kernel needs to
+         * access.
+         */
+        ZONE_HIGHMEM,
+#endif
+
+
+2009/5/4 Mark Brown <markb@marksmachinations.com>:
+> Hi Marcos,
 >
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
-> ---
-> =C2=A0mm/vmscan.c | =C2=A0 11 +++--------
-> =C2=A01 file changed, 3 insertions(+), 8 deletions(-)
+> A memory bank for RAM is just an individual addressable array on a memory
+> board. The addressing of the bank is managed by the memory controller.
 >
-> --- linux.orig/mm/vmscan.c
-> +++ linux/mm/vmscan.c
-> @@ -1228,7 +1228,6 @@ static void shrink_active_list(unsigned
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0struct scan_control *sc, int priority, int file)
-> =C2=A0{
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long pgmoved;
-> - =C2=A0 =C2=A0 =C2=A0 int pgdeactivate =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0unsigned long pgscanned;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0LIST_HEAD(l_hold); =C2=A0 =C2=A0 =C2=A0/* The =
-pages which were snipped off */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0LIST_HEAD(l_inactive);
-> @@ -1257,7 +1256,7 @@ static void shrink_active_list(unsigned
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_st=
-ate(zone, NR_ACTIVE_ANON, -pgmoved);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock_irq(&zone->lru_lock);
+> Regards,
+> -- Mark
 >
-> - =C2=A0 =C2=A0 =C2=A0 pgmoved =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 pgmoved =3D 0; =C2=A0/* count referenced (mapping)=
- mapped pages */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (!list_empty(&l_hold)) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0cond_resched();
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D lru_to_pa=
-ge(&l_hold);
-> @@ -1291,7 +1290,7 @@ static void shrink_active_list(unsigned
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0reclaim_stat->recent_rotated[!!file] +=3D pgmo=
-ved;
+> On May 4, 2009, at 7:44 AM, Marcos Roriz wrote:
 >
-> - =C2=A0 =C2=A0 =C2=A0 pgmoved =3D 0;
-> + =C2=A0 =C2=A0 =C2=A0 pgmoved =3D 0; =C2=A0/* count pages moved to inact=
-ive list */
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0while (!list_empty(&l_inactive)) {
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0page =3D lru_to_pa=
-ge(&l_inactive);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0prefetchw_prev_lru=
-_page(page, &l_inactive, flags);
-> @@ -1304,10 +1303,7 @@ static void shrink_active_list(unsigned
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0mem_cgroup_add_lru=
-_list(page, lru);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pgmoved++;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0if (!pagevec_add(&=
-pvec, page)) {
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 __mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0spin_unlock_irq(&zone->lru_lock);
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 pgdeactivate +=3D pgmoved;
-> - =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 pgmoved =3D 0;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0if (buffer_heads_over_limit)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pagevec_strip(&pvec);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0__pagevec_release(&pvec);
-> @@ -1315,9 +1311,8 @@ static void shrink_active_list(unsigned
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0}
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__mod_zone_page_state(zone, NR_LRU_BASE + lru,=
- pgmoved);
-> - =C2=A0 =C2=A0 =C2=A0 pgdeactivate +=3D pgmoved;
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0__count_zone_vm_events(PGREFILL, zone, pgscann=
-ed);
-> - =C2=A0 =C2=A0 =C2=A0 __count_vm_events(PGDEACTIVATE, pgdeactivate);
-> + =C2=A0 =C2=A0 =C2=A0 __count_vm_events(PGDEACTIVATE, pgmoved);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0spin_unlock_irq(&zone->lru_lock);
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0if (buffer_heads_over_limit)
-> =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pagevec_strip(&pve=
-c);
+>> I'm reading Mel Gorman Understating the Linux Virtual Memory Manager and
+>> also TANENBAUM Modern Operating System I don't get some basic concepts of
+>> the Memory Management in Linux Kernel.
+>>
+>> The first question is, what is a memory bank, It's not clear if its a
+>> physical section of the memory of if its a chip (physical) itself.
+>>
+>> The ZONE_NORMAL zone refer only to kernel direct memory mapped, that means
+>> only to kernel pages and kernel programs (such as daemons)?
+>>
+>> Why is the ZONE_NORMAL so large (896 MB)? How to deal with low memory
+>> systems?
+>>
+>> The ZONE_HIGHMEM zone refer to kernel not mapped directly, so that
+>> includes userspace programs right?
+>>
+>> I googled and searched for all those answers but couldn't find a direct
+>> and consistent answer, thats why I'm asking for your guys help.
+>>
+>> Thanks very much for you time,
+>>
+>> Marcos Roriz
+>>
+>> --
+>> To unsubscribe from this list: send an email with
+>> "unsubscribe kernelnewbies" to ecartis@nl.linux.org
+>> Please read the FAQ at http://kernelnewbies.org/FAQ
+>>
+>
 >
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org. =C2=A0For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+> To unsubscribe from this list: send an email with
+> "unsubscribe kernelnewbies" to ecartis@nl.linux.org
+> Please read the FAQ at http://kernelnewbies.org/FAQ
 >
-
-
-
---=20
-Thanks,
-Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
