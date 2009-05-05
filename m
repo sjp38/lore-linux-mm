@@ -1,32 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail202.messagelabs.com (mail202.messagelabs.com [216.82.254.227])
-	by kanga.kvack.org (Postfix) with SMTP id B1EEE6B003D
-	for <linux-mm@kvack.org>; Tue,  5 May 2009 08:15:13 -0400 (EDT)
-Message-ID: <4A002DD4.4080401@redhat.com>
-Date: Tue, 05 May 2009 08:15:16 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmscan: ZVC updates in shrink_active_list() can be done
- once
+Received: from mail138.messagelabs.com (mail138.messagelabs.com [216.82.249.35])
+	by kanga.kvack.org (Postfix) with ESMTP id B06836B003D
+	for <linux-mm@kvack.org>; Tue,  5 May 2009 08:35:33 -0400 (EDT)
+Date: Tue, 5 May 2009 14:33:50 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] vmscan: ZVC updates in shrink_active_list() can be done once
+Message-ID: <20090505123350.GA19060@cmpxchg.org>
 References: <20090504234455.GA6324@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20090504234455.GA6324@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 To: Wu Fengguang <fengguang.wu@intel.com>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@suse.de" <npiggin@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "npiggin@suse.de" <npiggin@suse.de>, "riel@redhat.com" <riel@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Wu Fengguang wrote:
+On Tue, May 05, 2009 at 07:44:55AM +0800, Wu Fengguang wrote:
 > This effectively lifts the unit of nr_inactive_* and pgdeactivate updates
 > from PAGEVEC_SIZE=14 to SWAP_CLUSTER_MAX=32.
-> 
-> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Acked-by: Rik van Riel <riel@redhat.com>
+For __zone_reclaim() it will be >= SWAP_CLUSTER_MAX, depending on the
+allocation order.
 
--- 
-All rights reversed.
+	Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
